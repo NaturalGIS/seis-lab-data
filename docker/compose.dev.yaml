@@ -1,0 +1,95 @@
+# docker compose file that can be used for development - do not use this in production!
+#
+# Modifications done:
+# - directly provides most of the environment variables in the file, not
+#   caring to protect potentially sensitive ones
+# - exposes some unneeded ports to the host system, which is useful for
+#   dev, testing and debugging
+# - mounts code repository inside the relevant container as a bind volume
+
+x-common-image: &common-image "ghcr.io/naturalgis/seis-lab-data/seis-lab-data:latest"
+
+x-common-env: &common-env
+  SEIS_LAB_DATA__DEBUG: true
+  SEIS_LAB_DATA__LOG_CONFIG_FILE: /home/appuser/app/dev-log-config.yml
+  SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
+
+x-common-volumes: &common-volumes
+  - type: bind
+    source: $PWD/src
+    target: /home/appuser/app/src
+  - type: bind
+    source: $PWD/pyproject.toml
+    target: /home/appuser/app/pyproject.toml
+  - type: bind
+    source: $PWD/tests
+    target: /home/appuser/app/tests
+
+services:
+
+  web-gateway:
+    image: traefik:v3
+    ports:
+      - target: 80
+        published: 8888
+    configs:
+      - source: traefik-conf
+        target: /traefik.toml
+    command: --configFile /traefik.toml
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+
+  message-broker:
+    image: redis:8
+    ports:
+      - target: 6379
+        published: 6379
+    healthcheck:
+      test: "[ redis-cli PING ] = 'PONG'"
+
+  webapp:
+    image: *common-image
+    environment:
+      <<: *common-env
+      SEIS_LAB_DATA__BIND_HOST: 0.0.0.0
+      SEIS_LAB_DATA__BIND_PORT: 5000
+      SEIS_LAB_DATA__PUBLIC_URL: http://localhost:8888
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sld-router.rule=PathRegexp(`^/`)"
+      - "traefik.http.routers.sld-router.entrypoints=web"
+      - "traefik.http.services.sld-service.loadbalancer.server.port=5000"
+    volumes:
+      *common-volumes
+
+  processing-worker:
+    image: *common-image
+    command:
+      - "run-processing-worker"
+    environment:
+      <<: *common-env
+    volumes:
+      *common-volumes
+
+  jupyter:
+    image: *common-image
+    environment:
+      *common-env
+    ports:
+      - target: 5002
+        published: 5002
+    volumes:
+      *common-volumes
+    entrypoint: ['/bin/bash', '-c']
+    command:
+      - |
+        uv sync --group jupyter
+        uv run jupyter lab --ip=0.0.0.0 --port=5002 --no-browser --LabApp.token= --LabApp.password=
+
+
+configs:
+
+  traefik-conf:
+    file: $PWD/docker/traefik/dev-config.toml
