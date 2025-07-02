@@ -1,0 +1,68 @@
+name: Continuous Integration
+
+on:
+  # will run both when pushing a branch and when pushing a tag
+  push:
+
+  pull_request:
+
+
+env:
+  COLUMNS: 120
+  PUBLISH_IMAGE: ${{ (github.ref_name == 'main' || github.ref_type == 'tag') && 'TRUE' || 'FALSE'}}
+  IMAGE_TAG: ${{ github.ref_name == 'main' && 'latest' || github.ref_name }}
+  IMAGE_NAME: ghcr.io/${{ github.repository }}/${{ github.event.repository.name }}
+
+jobs:
+  run_ci:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: "Grab code"
+        uses: actions/checkout@v4.2.2
+
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.7.18"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: "Install code with dev dependencies"
+        run: uv sync --frozen --group dev
+
+      - name: "Run ruff linter"
+        run: uv run ruff check
+
+      - name: "Run ruff formatter"
+        run: uv run ruff format --check
+
+#      # note - this does not run the end-to-end tests
+#      - name: "Run tests"
+#        run: uv run pytest
+#
+#      - name: "Login to container registry"
+#        if: ${{ env.PUBLISH_IMAGE == 'TRUE' }}
+#        uses: docker/login-action@v3
+#        with:
+#          registry: ghcr.io
+#          username: ${{ secrets.USER_FOR_REGISTRY }}
+#          password: ${{ secrets.PAT_FOR_REGISTRY }}
+#
+#      - name: "Setup docker buildx"
+#        uses: docker/setup-buildx-action@v3
+#
+#      # TODO: build the image, then run e2e tests and then publish
+#      - name: "Build and push docker image"
+#        uses: docker/build-push-action@v6
+#        with:
+#          build-args: |
+#            GIT_COMMIT=${{}}
+#          labels: |
+#            org.opencontainers.image.source=https://github.com/${{}}/${{}}
+#          tags: |
+#            ${{}}/${{}}
