@@ -41,11 +41,6 @@ jobs:
       - name: "Run ruff formatter"
         run: uv run ruff format --check
 
-#      # note - this does not run the end-to-end tests
-#      - name: "Run tests"
-#        run: uv run pytest
-#
-
       - name: "Determine docker-related metadata"
         id: docker_metadata
         uses: docker/metadata-action@v5.7.0
@@ -56,8 +51,7 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{raw}}
             type=raw,value=latest,enable={{is_default_branch}}
-#          labels: |
-#            org.opencontainers.image.source=https://github.com/naturalgis/seis-lab-data
+            type=sha
 
       - name: "check generated docker metadata"
         run: |
@@ -65,6 +59,27 @@ jobs:
           echo 'OUTPUT LABELS = ${{ steps.docker_metadata.outputs.labels }}'
           echo 'OUTPUT TAGS = ${{ steps.docker_metadata.outputs.tags }}'
           echo 'OUTPUT ANNOTATIONS = ${{ steps.docker_metadata.outputs.annotations}}'
+
+      - name: "Setup docker buildx"
+        uses: docker/setup-buildx-action@v3
+
+      - name: "Build docker image"
+        uses: docker/build-push-action@v6
+        with:
+          build-args: |
+            GIT_COMMIT=${{ fromJSON(steps.docker_metadata.outputs.json).tags.pop() }}
+          push: false
+          tags: |
+            ${{ steps.docker_metadata.outputs.tags }}
+          labels: |
+            ${{ steps.docker_metadata.outputs.labels }}
+
+      # note - this does not run the end-to-end tests
+      - name: "Run tests"
+        run: |
+          docker run --rm -ti --entrypoint bash \
+          ${{ fromJSON(steps.docker_metadata.outputs.json).tags[0] }} -c \
+          uv sync --locked --group dev && uv run pytest
 
 #      - name: "Login to container registry"
 #        if: ${{ env.PUBLISH_IMAGE == 'TRUE' }}
@@ -74,18 +89,3 @@ jobs:
 #          username: ${{ secrets.USER_FOR_REGISTRY }}
 #          password: ${{ secrets.PAT_FOR_REGISTRY }}
 #
-#      - name: "Setup docker buildx"
-#        uses: docker/setup-buildx-action@v3
-#
-##      # TODO: build the image, then run e2e tests and then publish
-#      - name: "Build docker image"
-#        uses: docker/build-push-action@v6
-#        with:
-#          build-args: |
-#            GIT_COMMIT=${{}}
-#          push: ${{ github.event_name != 'pull_request' }}
-#          tags: |
-#            ${{ steps.docker_metadata.outputs.tags }}
-#          labels: |
-#            ${{ steps.docker_metadata.outputs.labels }}
-#            org.opencontainers.image.source=https://github.com/${{}}/${{}}
