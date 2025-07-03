@@ -57,7 +57,7 @@ jobs:
             type=semver,pattern={{raw}}
             type=raw,value=latest,enable={{is_default_branch}}
           labels: |
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.source=https://github.com/naturalgis/seis-lab-data
 
       - name: "check generated docker metadata"
         run: env | grep DOCKER_METADATA_OUTPUT
