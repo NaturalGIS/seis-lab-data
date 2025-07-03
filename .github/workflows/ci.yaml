@@ -56,11 +56,15 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{raw}}
             type=raw,value=latest,enable={{is_default_branch}}
-          labels: |
-            org.opencontainers.image.source=https://github.com/naturalgis/seis-lab-data
+#          labels: |
+#            org.opencontainers.image.source=https://github.com/naturalgis/seis-lab-data
 
       - name: "check generated docker metadata"
-        run: env | grep DOCKER_METADATA_OUTPUT
+        run: |
+          env | grep DOCKER_METADATA_OUTPUT
+          echo 'OUTPUT LABELS = ${{ steps.docker_metadata.outputs.labels }}'
+          echo 'OUTPUT TAGS = ${{ steps.docker_metadata.outputs.tags }}'
+          echo 'OUTPUT ANNOTATIONS = ${{ steps.docker_metadata.outputs.annotations}}'
 
 #      - name: "Login to container registry"
 #        if: ${{ env.PUBLISH_IMAGE == 'TRUE' }}
