@@ -78,7 +78,7 @@ jobs:
       # note - this does not run the end-to-end tests
       - name: "Run tests"
         run: |
-          docker run --rm -ti --entrypoint bash \
+          docker run --rm --entrypoint bash \
           ${{ fromJSON(steps.docker_metadata.outputs.json).tags[0] }} -c \
           uv sync --locked --group dev && uv run pytest
 
