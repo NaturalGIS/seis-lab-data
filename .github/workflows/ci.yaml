@@ -95,5 +95,6 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: true
+          file: docker/Dockerfile
           tags: |
             ${{ steps.docker_metadata.outputs.tags }}
