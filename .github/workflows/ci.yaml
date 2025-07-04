@@ -68,6 +68,7 @@ jobs:
           build-args: |
             GIT_COMMIT="${{ github.sha }}"
           push: false
+          load: true
           tags: |
             ${{ steps.docker_metadata.outputs.tags }}
           labels: |
