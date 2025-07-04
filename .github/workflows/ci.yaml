@@ -69,6 +69,7 @@ jobs:
             GIT_COMMIT="${{ github.sha }}"
           push: false
           load: true
+          file: docker/Dockerfile
           tags: |
             ${{ steps.docker_metadata.outputs.tags }}
           labels: |
