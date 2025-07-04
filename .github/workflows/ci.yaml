@@ -80,7 +80,7 @@ jobs:
         run: |
           docker run --rm --entrypoint bash \
           ${{ fromJSON(steps.docker_metadata.outputs.json).tags[0] }} -c \
-          uv sync --locked --group dev && uv run pytest
+          "uv sync --locked --group dev && uv run pytest"
 
 #      - name: "Login to container registry"
 #        if: ${{ env.PUBLISH_IMAGE == 'TRUE' }}
