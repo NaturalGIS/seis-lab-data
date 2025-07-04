@@ -51,7 +51,6 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{raw}}
             type=raw,value=latest,enable={{is_default_branch}}
-            type=sha
 
       - name: "check generated docker metadata"
         run: |
@@ -67,7 +66,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           build-args: |
-            GIT_COMMIT=${{ fromJSON(steps.docker_metadata.outputs.json).tags.pop() }}
+            GIT_COMMIT="${{ github.sha }}"
           push: false
           tags: |
             ${{ steps.docker_metadata.outputs.tags }}
