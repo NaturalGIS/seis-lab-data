@@ -1,0 +1,27 @@
+name: Deploy published image
+
+on:
+
+  registry_package:
+    types:
+      - published
+      - updated
+
+
+jobs:
+  initiate-naturalgis-test-deployment:
+    concurrency: naturalgis-test-deployment
+    permissions:
+      deployments: write
+    runs-on: ubuntu-24.04
+    environment: naturalgis-test
+    steps:
+      - name: inspect if deployment is triggered
+        run: echo 'hi there, the deployment was triggered'
+#      - name: Create GitHub deployment
+#        id: create-deployment
+#        uses: chrnorm/deployment-action@v2
+#        with:
+#          initial-status: 'pending'
+#          token: ${{ secrets.GITHUB_TOKEN }}
+#          environment: 'naturalgis-test'
