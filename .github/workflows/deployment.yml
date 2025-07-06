@@ -10,18 +10,24 @@ on:
 
 jobs:
   initiate-naturalgis-test-deployment:
-    concurrency: naturalgis-test-deployment
     permissions:
       deployments: write
     runs-on: ubuntu-24.04
-    environment: naturalgis-test
+    environment:
+      name: naturalgis-test
+      url: https://seis-lab-data.naturalgis.pt
+    concurrency:
+      group: naturalgis-test-deployment
+      cancel-in-progress: true
     steps:
       - name: inspect if deployment is triggered
-        run: echo 'hi there, the deployment was triggered'
-#      - name: Create GitHub deployment
-#        id: create-deployment
-#        uses: chrnorm/deployment-action@v2
-#        with:
-#          initial-status: 'pending'
-#          token: ${{ secrets.GITHUB_TOKEN }}
-#          environment: 'naturalgis-test'
+        run: |
+          echo 'hi there, the deployment was triggered - I want to know if I can pass cool things as the payload'
+          env
+      - name: Create GitHub deployment
+        id: create-deployment
+        uses: chrnorm/deployment-action@v2
+        with:
+          initial-status: 'pending'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          environment: 'naturalgis-test'
