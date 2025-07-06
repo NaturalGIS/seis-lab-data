@@ -1,0 +1,10 @@
+when:
+  - event: deployment
+  - event: manual
+
+steps:
+  - name: greet
+    image: ubuntu:24.04
+    commands: |
+      echo "Hello World, I would be running as the actual deployment but instead I'm here to show the current env"
+      env
