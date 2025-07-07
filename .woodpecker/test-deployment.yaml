@@ -8,19 +8,18 @@ steps:
     commands: |
       echo "Hello World, I would be running as the actual deployment but instead I'm here to show the current env"
       env
+
   - name: extract-deployment-payload
-    image: ubuntu:24.04
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+    image: leplusorg/json:sha-0b8b943
     commands: |
-      apt update
-      apt install --yes --no-install-recommends \
-        jq
-      DEPLOYMENT_JSON=$(curl -s "${CI_PIPELINE_FORGE_URL}")
+      DEPLOYMENT_JSON=$(curl --silent "${CI_PIPELINE_FORGE_URL}")
       IMAGE_URL=$(echo "${DEPLOYMENT_JSON}" | jq -r '.payload.image_url')
       ENVIRONMENT=$(echo "$DEPLOYMENT_JSON" | jq -r '.environment // "not_found"')
-      TASK=$(echo "$DEPLOYMENT_JSON" | jq -r '.task // "not_found"')
-
+      if [ "${IMAGE_URL}" = "null" ]; then
+        echo "Image URL not found in the deployment payload, skipping..."
+        echo "SKIP_DEPLOYMENT=true" > /tmp/deployment_vars.sh
+        exit 0
+      fi
       echo "export IMAGE_URL='$IMAGE_URL'" > /tmp/deployment_vars.sh
       echo "export DEPLOY_ENVIRONMENT='$ENVIRONMENT'" >> /tmp/deployment_vars.sh
 
@@ -30,57 +29,65 @@ steps:
       - /var/run/docker.sock:/var/run/docker.sock
       - /opt/seis-lab-data:/opt/seis-lab-data
     commands: |
-      echo "=== Deploying Application ==="
+      echo "=== Checking Prerequisites ==="
       source /tmp/deployment_vars.sh
-
-      # Install git to clone the repo
+      
+      if [ "${SKIP_DEPLOYMENT}" = "true" ]; then
+        echo "Skipping deployment - no image URL in deployment payload"
+        exit 0
+      fi
+      if [ "${DEPLOY_ENVIRONMENT}" != "naturalgis-test" ]; then
+        echo "Skipping deployment - DEPLOY_ENVIRONMENT variable does not match expected value"
+        exit 0
+      fi
+      
+      echo "=== Deploying Application ==="
       apk add --no-cache git
-
-      # Clone the repository to get the latest compose file
       echo "Cloning repository..."
       git clone https://github.com/NaturalGIS/seis-lab-data.git /tmp/repo
       cd /tmp/repo
-
-      # Checkout the specific commit that triggered the deployment
       git checkout ${CI_COMMIT_SHA}
+      
+      # Get target user/group from host directory - assumes directory already owned by correct user
+      TARGET_UID=$(stat -c '%u' /opt/seis-lab-data)
+      TARGET_GID=$(stat -c '%g' /opt/seis-lab-data)
+      
+      echo "Target directory ownership: UID=$TARGET_UID, GID=$TARGET_GID"
+      
+      COMPOSE_FILE_NAME="compose.test-env.yaml"
+      ENV_FILE_NAME="compose-deployment.env"
+      DEPLOYMENT_DIR="/opt/seis-lab-data"
 
-      # Copy the compose file to the host directory
       echo "Copying compose file to host..."
-      cp docker/compose.test-env.yaml /opt/seis-lab-data/compose.yaml
+      cp docker/${COMPOSE_FILE_NAME} ${DEPLOYMENT_DIR}
+      
+      chown $TARGET_UID:$TARGET_GID ${DEPLOYMENT_DIR}/${COMPOSE_FILE_NAME}
+      
+      echo "File ownership after copy:"
+      ls -la ${DEPLOYMENT_DIR}/${COMPOSE_FILE_NAME}
 
-      # Verify the env file exists on the host
-      if [ ! -f /opt/seis-lab-data/.env ]; then
-        echo "ERROR: .env file not found at /opt/seis-lab-data/.env"
+      if [ ! -f ${DEPLOYMENT_DIR}/${ENV_FILE_NAME} ]; then
+        echo "ERROR: env file not found at ${DEPLOYMENT_DIR}/${ENV_FILE_NAME}"
         echo "Please ensure the environment file is present on the host"
         exit 1
       fi
 
-      echo "Environment file found:"
-      ls -la /opt/seis-lab-data/.env
-
-      # Change to the deployment directory
-      cd /opt/seis-lab-data
-
-      # Show what we're working with
+      cd ${DEPLOYMENT_DIR}
       echo "Files in deployment directory:"
       ls -la
 
       # Pull the latest image
-      echo "Pulling latest image: $IMAGE_URL"
+      echo "Pulling latest image: ${IMAGE_URL}"
       docker pull ${IMAGE_URL}
 
-      # Stop existing containers (if any)
       echo "Stopping existing containers..."
-      docker-compose -f compose.test-env.yaml down || true
+      docker-compose \
+        --env-file ${ENV_FILE_NAME} \
+        --file ${COMPOSE_FILE_NAME} \
+        down || true
 
-      # Start the new deployment
       echo "Starting deployment..."
-      docker-compose -f compose.test-env.yaml up -d
-
-      # Show the running containers
-      echo "Deployment complete. Running containers:"
-      docker-compose -f compose.test-env.yaml ps
-
-      # Show container logs for verification
-      echo "Container logs:"
-      docker-compose -f compose.test-env.yaml logs --tail=20
+      docker-compose \
+        --env-file ${ENV_FILE_NAME} \
+        --file ${COMPOSE_FILE_NAME} \
+        up --detach
