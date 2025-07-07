@@ -35,6 +35,7 @@ steps:
     commands: |
       echo "=== Checking Prerequisites ==="
       . envvars
+      export IMAGE_URL=$${IMAGE_URL}
       
       if [ "$${SKIP_DEPLOYMENT}" = "true" ]; then
         echo "Skipping deployment - no image URL in deployment payload"
