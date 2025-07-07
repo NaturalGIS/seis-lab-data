@@ -17,11 +17,11 @@ steps:
       ENVIRONMENT=$(echo "$DEPLOYMENT_JSON" | jq -r '.environment // "not_found"')
       if [ "${IMAGE_URL}" = "null" ]; then
         echo "Image URL not found in the deployment payload, skipping..."
-        echo "SKIP_DEPLOYMENT=true" > /tmp/deployment_vars.sh
+        echo "SKIP_DEPLOYMENT=true" >> envvars
         exit 0
       fi
-      echo "export IMAGE_URL='$IMAGE_URL'" > /tmp/deployment_vars.sh
-      echo "export DEPLOY_ENVIRONMENT='$ENVIRONMENT'" >> /tmp/deployment_vars.sh
+      echo "IMAGE_URL=${IMAGE_URL}" > envvars
+      echo "DEPLOY_ENVIRONMENT=${ENVIRONMENT}" >> envvars
 
   - name: deploy compose stack
     image: docker:24-cli
@@ -30,7 +30,7 @@ steps:
       - /opt/seis-lab-data:/opt/seis-lab-data
     commands: |
       echo "=== Checking Prerequisites ==="
-      source /tmp/deployment_vars.sh
+      . envvars
       
       if [ "${SKIP_DEPLOYMENT}" = "true" ]; then
         echo "Skipping deployment - no image URL in deployment payload"
