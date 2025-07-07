@@ -1,6 +1,5 @@
 when:
   - event: deployment
-  - event: manual
 
 steps:
   - name: greet
