@@ -80,9 +80,9 @@ steps:
       echo "Files in deployment directory:"
       ls -la
       
-      echo $${GITHUB_PAT} | docker login ghcr.io --username $${GITHUB_USERNAME} --password-stdin
+      echo "Logging in to docker registry"
+      echo $${GITHUB_PAT} | docker login ghcr.io --username $${GITHUB_USER} --password-stdin
 
-      # Pull the latest image
       echo "Pulling latest image: $${IMAGE_URL}"
       docker pull $${IMAGE_URL}
 
