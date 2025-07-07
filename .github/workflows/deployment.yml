@@ -10,6 +10,7 @@ on:
 
 jobs:
   initiate-naturalgis-test-deployment:
+    if: ${{ github.event.registry_package.package_version.container_metadata.tag.name == 'latest' }}
     permissions:
       deployments: write
     runs-on: ubuntu-24.04
@@ -22,9 +23,6 @@ jobs:
     steps:
       - name: inspect if deployment is triggered
         run: |
-          echo 'hi there, the deployment was triggered - I want to know if I can pass cool things as the payload'
-          env
-          echo 'Event name: ${{ toJSON(github.event_name) }}'
           echo 'Event payload:'
           echo '${{ toJSON(github.event) }}'
       - name: Create GitHub deployment
@@ -33,4 +31,5 @@ jobs:
         with:
           initial-status: 'pending'
           token: ${{ secrets.GITHUB_TOKEN }}
+          payload: '"image_url": ${{ toJSON(github.event.registry_package.package_version.package_url) }}'
           environment: 'naturalgis-test'
