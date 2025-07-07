@@ -8,3 +8,86 @@ steps:
     commands: |
       echo "Hello World, I would be running as the actual deployment but instead I'm here to show the current env"
       env
+
+  - name: extract-deployment-payload
+    image: leplusorg/json:sha-0b8b943
+    commands: |
+      DEPLOYMENT_JSON=$(curl --silent "${CI_PIPELINE_FORGE_URL}")
+      IMAGE_URL=$(echo "${DEPLOYMENT_JSON}" | jq -r '.payload.image_url')
+      ENVIRONMENT=$(echo "$DEPLOYMENT_JSON" | jq -r '.environment // "not_found"')
+      if [ "${IMAGE_URL}" = "null" ]; then
+        echo "Image URL not found in the deployment payload, skipping..."
+        echo "SKIP_DEPLOYMENT=true" > /tmp/deployment_vars.sh
+        exit 0
+      fi
+      echo "export IMAGE_URL='$IMAGE_URL'" > /tmp/deployment_vars.sh
+      echo "export DEPLOY_ENVIRONMENT='$ENVIRONMENT'" >> /tmp/deployment_vars.sh
+
+  - name: deploy compose stack
+    image: docker:24-cli
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/seis-lab-data:/opt/seis-lab-data
+    commands: |
+      echo "=== Checking Prerequisites ==="
+      source /tmp/deployment_vars.sh
+      
+      if [ "${SKIP_DEPLOYMENT}" = "true" ]; then
+        echo "Skipping deployment - no image URL in deployment payload"
+        exit 0
+      fi
+      if [ "${DEPLOY_ENVIRONMENT}" != "naturalgis-test" ]; then
+        echo "Skipping deployment - DEPLOY_ENVIRONMENT variable does not match expected value"
+        exit 0
+      fi
+      
+      echo "=== Deploying Application ==="
+      apk add --no-cache git
+      echo "Cloning repository..."
+      git clone https://github.com/NaturalGIS/seis-lab-data.git /tmp/repo
+      cd /tmp/repo
+      git checkout ${CI_COMMIT_SHA}
+      
+      # Get target user/group from host directory - assumes directory already owned by correct user
+      TARGET_UID=$(stat -c '%u' /opt/seis-lab-data)
+      TARGET_GID=$(stat -c '%g' /opt/seis-lab-data)
+      
+      echo "Target directory ownership: UID=$TARGET_UID, GID=$TARGET_GID"
+      
+      COMPOSE_FILE_NAME="compose.test-env.yaml"
+      ENV_FILE_NAME="compose-deployment.env"
+      DEPLOYMENT_DIR="/opt/seis-lab-data"
+
+      echo "Copying compose file to host..."
+      cp docker/${COMPOSE_FILE_NAME} ${DEPLOYMENT_DIR}
+      
+      chown $TARGET_UID:$TARGET_GID ${DEPLOYMENT_DIR}/${COMPOSE_FILE_NAME}
+      
+      echo "File ownership after copy:"
+      ls -la ${DEPLOYMENT_DIR}/${COMPOSE_FILE_NAME}
+
+      if [ ! -f ${DEPLOYMENT_DIR}/${ENV_FILE_NAME} ]; then
+        echo "ERROR: env file not found at ${DEPLOYMENT_DIR}/${ENV_FILE_NAME}"
+        echo "Please ensure the environment file is present on the host"
+        exit 1
+      fi
+
+      cd ${DEPLOYMENT_DIR}
+      echo "Files in deployment directory:"
+      ls -la
+
+      # Pull the latest image
+      echo "Pulling latest image: ${IMAGE_URL}"
+      docker pull ${IMAGE_URL}
+
+      echo "Stopping existing containers..."
+      docker-compose \
+        --env-file ${ENV_FILE_NAME} \
+        --file ${COMPOSE_FILE_NAME} \
+        down || true
+
+      echo "Starting deployment..."
+      docker-compose \
+        --env-file ${ENV_FILE_NAME} \
+        --file ${COMPOSE_FILE_NAME} \
+        up --detach
