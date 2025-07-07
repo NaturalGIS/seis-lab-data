@@ -26,7 +26,7 @@ jobs:
           env
           echo 'Event name: ${{ toJSON(github.event_name) }}'
           echo 'Event payload:'
-          echo ${{ toJSON(github.event) }}
+          echo '${{ toJSON(github.event) }}'
       - name: Create GitHub deployment
         id: create-deployment
         uses: chrnorm/deployment-action@v2
