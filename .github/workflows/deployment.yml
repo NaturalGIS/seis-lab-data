@@ -31,5 +31,8 @@ jobs:
         with:
           initial-status: 'pending'
           token: ${{ secrets.GITHUB_TOKEN }}
-          payload: '"image_url": ${{ toJSON(github.event.registry_package.package_version.package_url) }}'
+          payload: |
+            {
+              "image_url": ${{ toJSON(github.event.registry_package.package_version.package_url) }}
+            }
           environment: 'naturalgis-test'
