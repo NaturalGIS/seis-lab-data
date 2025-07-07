@@ -1,0 +1,43 @@
+# docker compose file that can be used in the test environment - do not use this in production!
+#
+# This relies on the existence of a suitable env file where the variables referenced throughout
+# are defined
+
+x-common-image: &common-image "${IMAGE_URL}"
+
+x-common-env: &common-env
+  SEIS_LAB_DATA__DEBUG: ${DEBUG}
+  SEIS_LAB_DATA__LOG_CONFIG_FILE: ${LOG_CONFIG_FILE}
+  SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
+
+services:
+
+  message-broker:
+    image: redis:8
+    restart: unless-stopped
+    healthcheck:
+      test: "[ redis-cli PING ] = 'PONG'"
+
+  webapp:
+    image: *common-image
+    environment:
+      <<: *common-env
+      SEIS_LAB_DATA__BIND_HOST: 0.0.0.0
+      SEIS_LAB_DATA__BIND_PORT: 5000
+      SEIS_LAB_DATA__PUBLIC_URL: ${WEBAPP_PUBLIC_URL}
+    labels:
+      - exposed.outside=true
+      - traefik.enable=true
+      - traefik.http.services.sld-service.loadbalancer.port=5000
+      - traefik.http.routers.sld-router.rule=Host(`seis-lab-data.naturalgis.pt`)
+      - traefik.http.routers.sld-router.entrypoints=web
+      - traefik.http.routers.sld-router.service=sld-service
+    restart: unless-stopped
+
+  processing-worker:
+    image: *common-image
+    command:
+      - "run-processing-worker"
+    environment:
+      <<: *common-env
+    restart: unless-stopped
