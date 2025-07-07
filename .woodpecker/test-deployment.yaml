@@ -13,15 +13,15 @@ steps:
     image: leplusorg/json:sha-0b8b943
     commands: |
       DEPLOYMENT_JSON=$(curl --silent "${CI_PIPELINE_FORGE_URL}")
-      IMAGE_URL=$(echo "${DEPLOYMENT_JSON}" | jq -r '.payload.image_url')
-      ENVIRONMENT=$(echo "$DEPLOYMENT_JSON" | jq -r '.environment // "not_found"')
-      if [ "${IMAGE_URL}" = "null" ]; then
+      IMAGE_URL=$(echo "$${DEPLOYMENT_JSON}" | jq --raw-output '.payload.image_url')
+      ENVIRONMENT=$(echo "$$DEPLOYMENT_JSON" | jq --raw-output '.environment // "not_found"')
+      if [ "$${IMAGE_URL}" = "null" ]; then
         echo "Image URL not found in the deployment payload, skipping..."
         echo "SKIP_DEPLOYMENT=true" >> envvars
         exit 0
       fi
-      echo "IMAGE_URL=${IMAGE_URL}" > envvars
-      echo "DEPLOY_ENVIRONMENT=${ENVIRONMENT}" >> envvars
+      echo "IMAGE_URL=$${IMAGE_URL}" > envvars
+      echo "DEPLOY_ENVIRONMENT=$${ENVIRONMENT}" >> envvars
 
   - name: deploy compose stack
     image: docker:24-cli
@@ -32,11 +32,11 @@ steps:
       echo "=== Checking Prerequisites ==="
       . envvars
       
-      if [ "${SKIP_DEPLOYMENT}" = "true" ]; then
+      if [ "$${SKIP_DEPLOYMENT}" = "true" ]; then
         echo "Skipping deployment - no image URL in deployment payload"
         exit 0
       fi
-      if [ "${DEPLOY_ENVIRONMENT}" != "naturalgis-test" ]; then
+      if [ "$${DEPLOY_ENVIRONMENT}" != "naturalgis-test" ]; then
         echo "Skipping deployment - DEPLOY_ENVIRONMENT variable does not match expected value"
         exit 0
       fi
@@ -59,35 +59,35 @@ steps:
       DEPLOYMENT_DIR="/opt/seis-lab-data"
 
       echo "Copying compose file to host..."
-      cp docker/${COMPOSE_FILE_NAME} ${DEPLOYMENT_DIR}
+      cp docker/$${COMPOSE_FILE_NAME} $${DEPLOYMENT_DIR}
       
-      chown $TARGET_UID:$TARGET_GID ${DEPLOYMENT_DIR}/${COMPOSE_FILE_NAME}
+      chown $${TARGET_UID}:$${TARGET_GID} $${DEPLOYMENT_DIR}/$${COMPOSE_FILE_NAME}
       
       echo "File ownership after copy:"
-      ls -la ${DEPLOYMENT_DIR}/${COMPOSE_FILE_NAME}
+      ls -la $${DEPLOYMENT_DIR}/$${COMPOSE_FILE_NAME}
 
-      if [ ! -f ${DEPLOYMENT_DIR}/${ENV_FILE_NAME} ]; then
-        echo "ERROR: env file not found at ${DEPLOYMENT_DIR}/${ENV_FILE_NAME}"
+      if [ ! -f $${DEPLOYMENT_DIR}/$${ENV_FILE_NAME} ]; then
+        echo "ERROR: env file not found at $${DEPLOYMENT_DIR}/$${ENV_FILE_NAME}"
         echo "Please ensure the environment file is present on the host"
         exit 1
       fi
 
-      cd ${DEPLOYMENT_DIR}
+      cd $${DEPLOYMENT_DIR}
       echo "Files in deployment directory:"
       ls -la
 
       # Pull the latest image
-      echo "Pulling latest image: ${IMAGE_URL}"
-      docker pull ${IMAGE_URL}
+      echo "Pulling latest image: $${IMAGE_URL}"
+      docker pull $${IMAGE_URL}
 
       echo "Stopping existing containers..."
       docker-compose \
-        --env-file ${ENV_FILE_NAME} \
-        --file ${COMPOSE_FILE_NAME} \
+        --env-file $${ENV_FILE_NAME} \
+        --file $${COMPOSE_FILE_NAME} \
         down || true
 
       echo "Starting deployment..."
       docker-compose \
-        --env-file ${ENV_FILE_NAME} \
-        --file ${COMPOSE_FILE_NAME} \
+        --env-file $${ENV_FILE_NAME} \
+        --file $${COMPOSE_FILE_NAME} \
         up --detach
