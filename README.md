@@ -32,6 +32,22 @@ Marine data catalog for internal usage at [IPMA]
     http://localhost:8888
 
 
+## Running tests
+
+Normal tests can be run from inside the `webapp` compose container, after installing the required dependencies:
+
+```shell
+docker compose --file docker/compose.dev.yaml exec webapp uv sync --locked --group dev
+docker compose --file docker/compose.dev.yaml exec webapp uv run pytest
+```
+
+End to end tests can be run with the `end-to-end-tester` compose service, by issuing a one-off run:
+
+```shell
+docker compose --file docker/compose.dev.yaml run --rm end-to-end-tester
+```
+
+
 [docker]: https://www.docker.com/
 [IPMA]: https://www.ipma.pt/pt/index.html
 [pre-commit]: https://pre-commit.com/
