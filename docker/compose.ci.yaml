@@ -1,0 +1,50 @@
+x-common-image: &common-image "${IMAGE_URL}"
+
+x-common-env: &common-env
+  SEIS_LAB_DATA__DEBUG: true
+  SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
+
+services:
+
+  message-broker:
+    image: redis:8
+    ports:
+      - target: 6379
+        published: 6379
+    healthcheck:
+      test: "[ redis-cli PING ] = 'PONG'"
+
+  webapp:
+    image: *common-image
+    environment:
+      <<: *common-env
+      SEIS_LAB_DATA__BIND_HOST: 0.0.0.0
+      SEIS_LAB_DATA__BIND_PORT: 5000
+      SEIS_LAB_DATA__PUBLIC_URL: http://localhost:8888
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sld-router.rule=PathRegexp(`^/`)"
+      - "traefik.http.routers.sld-router.entrypoints=web"
+      - "traefik.http.services.sld-service.loadbalancer.server.port=5000"
+
+  processing-worker:
+    image: *common-image
+    command:
+      - "run-processing-worker"
+    environment:
+      <<: *common-env
+
+  end-to-end-tester:
+    image: mcr.microsoft.com/playwright/python:v1.53.0-noble
+    profiles:
+      - "e2e-test"
+    volumes:
+      - type: bind
+        source: $PWD/tests/e2e
+        target: /tests/e2e
+        read_only: true
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        pip install "playwright==1.53.0" pytest-playwright
+        pytest --base-url=http://webapp:5000 /tests

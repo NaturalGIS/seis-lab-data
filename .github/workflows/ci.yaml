@@ -75,12 +75,26 @@ jobs:
           labels: |
             ${{ steps.docker_metadata.outputs.labels }}
 
-      # note - this does not run the end-to-end tests
       - name: "Run tests"
         run: |
           docker run --rm --entrypoint bash \
           ${{ fromJSON(steps.docker_metadata.outputs.json).tags[0] }} -c \
           "uv sync --locked --group dev && uv run pytest"
+
+      - name: "Stand up compose stack"
+        run: |
+          IMAGE_URL=${{ fromJSON(steps.docker_metadata.outputs.json).tags[0] }} \
+          docker compose --file docker/compose.ci.yaml up --detach
+
+      - name: "Run end to end tests"
+        run: |
+          IMAGE_URL=${{ fromJSON(steps.docker_metadata.outputs.json).tags[0] }} \
+          docker compose --file docker/compose.ci.yaml run --rm end-to-end-tester
+
+      - name: "Stand down compose stack"
+        run: |
+          IMAGE_URL=${{ fromJSON(steps.docker_metadata.outputs.json).tags[0] }} \
+          docker compose --file docker/compose.ci.yaml down
 
       - name: "Login to container registry"
         if: ${{ env.PUBLISH_IMAGE == 'TRUE' }}

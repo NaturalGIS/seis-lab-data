@@ -73,6 +73,21 @@ services:
     volumes:
       *common-volumes
 
+  end-to-end-tester:
+    image: mcr.microsoft.com/playwright/python:v1.53.0-noble
+    profiles:
+      - "e2e-test"
+    volumes:
+      - type: bind
+        source: $PWD/tests/e2e
+        target: /tests/e2e
+        read_only: true
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        pip install "playwright==1.53.0" pytest-playwright
+        pytest --base-url=http://webapp:5000 /tests
+
   jupyter:
     image: *common-image
     environment:

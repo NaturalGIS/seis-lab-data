@@ -2,12 +2,6 @@ when:
   - event: deployment
 
 steps:
-  - name: greet
-    image: ubuntu:24.04
-    commands: |
-      echo "Hello World, I would be running as the actual deployment but instead I'm here to show the current env"
-      env
-
   - name: extract-deployment-payload
     image: leplusorg/json:sha-0b8b943
     commands: |
@@ -36,7 +30,7 @@ steps:
       echo "=== Checking Prerequisites ==="
       . envvars
       export IMAGE_URL=$${IMAGE_URL}
-      
+
       if [ "$${SKIP_DEPLOYMENT}" = "true" ]; then
         echo "Skipping deployment - no image URL in deployment payload"
         exit 0
@@ -45,20 +39,20 @@ steps:
         echo "Skipping deployment - DEPLOY_ENVIRONMENT variable does not match expected value"
         exit 0
       fi
-      
+
       echo "=== Deploying Application ==="
       apk add --no-cache git
       echo "Cloning repository..."
       git clone https://github.com/NaturalGIS/seis-lab-data.git /tmp/repo
       cd /tmp/repo
       git checkout ${CI_COMMIT_SHA}
-      
+
       # Get target user/group from host directory - assumes directory already owned by correct user
       TARGET_UID=$(stat -c '%u' /opt/seis-lab-data)
       TARGET_GID=$(stat -c '%g' /opt/seis-lab-data)
-      
+
       echo "Target directory ownership: UID=$TARGET_UID, GID=$TARGET_GID"
-      
+
       COMPOSE_FILE_NAME="compose.test-env.yaml"
       LOG_FILE_NAME="dev-log-config.yml"
       ENV_FILE_NAME="compose-deployment.env"
@@ -79,7 +73,7 @@ steps:
       cd $${DEPLOYMENT_DIR}
       echo "Files in deployment directory:"
       ls -la
-      
+
       echo "Logging in to docker registry"
       echo $${GITHUB_PAT} | docker login ghcr.io --username $${GITHUB_USER} --password-stdin
 
