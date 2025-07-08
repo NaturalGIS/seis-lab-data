@@ -64,7 +64,7 @@ steps:
       ENV_FILE_NAME="compose-deployment.env"
       DEPLOYMENT_DIR="/opt/seis-lab-data"
 
-      echo "Copying files to host..."
+      echo "Copying files to host"
       cp docker/$${COMPOSE_FILE_NAME} $${DEPLOYMENT_DIR}
       chown $${TARGET_UID}:$${TARGET_GID} $${DEPLOYMENT_DIR}/$${COMPOSE_FILE_NAME}
       cp $${LOG_FILE_NAME} $${DEPLOYMENT_DIR}
