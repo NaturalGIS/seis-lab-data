@@ -60,7 +60,7 @@ steps:
       echo "Target directory ownership: UID=$TARGET_UID, GID=$TARGET_GID"
       
       COMPOSE_FILE_NAME="compose.test-env.yaml"
-      LOG_FILE_NAME="dev-log-config-yml"
+      LOG_FILE_NAME="dev-log-config.yml"
       ENV_FILE_NAME="compose-deployment.env"
       DEPLOYMENT_DIR="/opt/seis-lab-data"
 
