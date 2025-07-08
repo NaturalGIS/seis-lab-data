@@ -28,7 +28,7 @@ services:
     labels:
       - exposed.outside=true
       - traefik.enable=true
-      - traefik.http.services.sld-service.loadbalancer.port=5000
+      - traefik.http.services.sld-service.loadbalancer.server.port=5000
       - traefik.http.routers.sld-router.rule=Host(`seis-lab-data.naturalgis.pt`)
       - traefik.http.routers.sld-router.entrypoints=web
       - traefik.http.routers.sld-router.service=sld-service
