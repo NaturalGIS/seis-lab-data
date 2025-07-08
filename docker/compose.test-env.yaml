@@ -33,6 +33,9 @@ services:
       - traefik.http.routers.sld-router.entrypoints=web
       - traefik.http.routers.sld-router.service=sld-service
     restart: unless-stopped
+    networks:
+      - traefik-network
+      - default
 
   processing-worker:
     image: *common-image
@@ -41,3 +44,8 @@ services:
     environment:
       <<: *common-env
     restart: unless-stopped
+
+networks:
+  traefik-network:
+    external: true
+    name: front
