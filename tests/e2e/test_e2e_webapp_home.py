@@ -11,4 +11,4 @@ def test_webapp_home_is_up(page: Page):
     # NOTE: the below is a bad example of how to use playwright locators
     # this is intended just as an initial placeholder test though
     locator = page.locator("body > div.container > div.row > p")
-    expect(locator).to_have_text("Hello, world!")
+    expect(locator).to_have_text("Hi there!")
