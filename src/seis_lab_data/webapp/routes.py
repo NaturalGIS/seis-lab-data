@@ -10,7 +10,7 @@ async def home(request: Request):
     template_processor = request.state.templates
     logger.debug("This is the home route")
     return template_processor.TemplateResponse(
-        request, "index.html", context={"greeting": "Hello, world!"}
+        request, "index.html", context={"greeting": "Hi there!"}
     )
 
 
