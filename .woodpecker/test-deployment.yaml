@@ -103,6 +103,6 @@ steps:
         Deployment of $${IMAGE_URL} ({{ build.commit }}) by {{ build.author }}
         is {{ build.status }}! View details: {{ build.link }}
     when:
-      status:
+      - status:
         - success
         - failure
