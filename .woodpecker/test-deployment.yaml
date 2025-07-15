@@ -99,10 +99,10 @@ steps:
         from_secret: telegram_bot_token
       to:
         from_secret: telegram_chat_id
-      message: >
-        Deployment of $${IMAGE_URL} ({{ build.commit }}) by {{ build.author }}
-        is {{ build.status }}! View details: {{ build.link }}
-    when:
-      - status:
-        - success
-        - failure
+#      message: >
+#        Deployment of $${IMAGE_URL} ({{ build.commit }}) by {{ build.author }}
+#        is {{ build.status }}! View details: {{ build.link }}
+#    when:
+#      - status:
+#        - success
+#        - failure
