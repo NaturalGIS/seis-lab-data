@@ -92,17 +92,17 @@ steps:
         --file $${COMPOSE_FILE_NAME} \
         up --detach
 
-#  - name: send telegram notification
-#    image: appleboy/drone-telegram:1.4.0
-#    settings:
-#      token:
-#        from_secret: telegram_bot_token
-#      to:
-#        from_secret: telegram_chat_id
-#      message: >
-#        Deployment of $${IMAGE_URL} ({{ build.commit }}) by {{ build.author }}
-#        is {{ build.status }}! View details: {{ build.link }}
-#    when:
-#      - status:
-#        - success
-#        - failure
+  - name: send telegram notification
+    image: appleboy/drone-telegram:1.4.0
+    settings:
+      token:
+        from_secret: telegram_bot_token
+      to:
+        from_secret: telegram_chat_id
+      message: >
+        Deployment of $${IMAGE_URL} ({{ build.commit }}) by {{ build.author }}
+        is {{ build.status }}! View details: {{ build.link }}
+    when:
+      - status:
+        - success
+        - failure
