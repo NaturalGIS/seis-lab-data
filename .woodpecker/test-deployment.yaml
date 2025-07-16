@@ -1,5 +1,6 @@
 when:
   - event: deployment
+    evaluate: 'CI_COMMIT_AUTHOR == "github-actionsbot"'
 
 steps:
   - name: extract-deployment-payload
@@ -100,8 +101,6 @@ steps:
       to:
         from_secret: telegram_chat_id
       message: >
-        Deployment {{ commit.sha }} by {{ commit.author }} - {{ build.status }}! View details: {{ build.link }}
+        Deployment {{ commit.sha }} - {{ build.status }}! View details: {{ build.link }}
     when:
-      - status:
-        - success
-        - failure
+      - status: [success, failure]
