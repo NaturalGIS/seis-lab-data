@@ -100,8 +100,7 @@ steps:
       to:
         from_secret: telegram_chat_id
       message: >
-        Deployment of $${IMAGE_URL} ({{ build.commit }}) by {{ build.author }}
-        is {{ build.status }}! View details: {{ build.link }}
+        Deployment {{ commit.sha }} by {{ commit.author }} - {{ build.status }}! View details: {{ build.link }}
     when:
       - status:
         - success
