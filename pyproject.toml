@@ -17,6 +17,7 @@ dependencies = [
     "redis[hiredis]>=6.2.0",
     "rich>=14.0.0",
     "starlette>=0.47.1",
+    "starlette-babel>=1.0.3",
     "typer>=0.16.0",
     "uvicorn[standard]>=0.35.0",
 ]

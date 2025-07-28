@@ -86,6 +86,10 @@ jobs:
           IMAGE_URL=${{ fromJSON(steps.docker_metadata.outputs.json).tags[0] }} \
           docker compose --file docker/compose.ci.yaml up --detach
 
+      - name: "Compile translations"
+        run: |
+          docker compose --file docker/compose.ci.yaml exec webapp uv run seis-lab-data translations compile
+
       - name: "Run end to end tests"
         run: |
           IMAGE_URL=${{ fromJSON(steps.docker_metadata.outputs.json).tags[0] }} \

@@ -82,16 +82,22 @@ steps:
       docker pull $${IMAGE_URL}
 
       echo "Stopping existing containers..."
-      docker-compose \
+      docker compose \
         --env-file $${ENV_FILE_NAME} \
         --file $${COMPOSE_FILE_NAME} \
         down || true
 
       echo "Starting deployment..."
-      docker-compose \
+      docker compose \
         --env-file $${ENV_FILE_NAME} \
         --file $${COMPOSE_FILE_NAME} \
         up --detach
+
+      echo "Compiling translations..."
+      docker compose \
+        --env-file $${ENV_FILE_NAME} \
+        --file $${COMPOSE_FILE_NAME} \
+        exec webapp uv run seis-lab-data compile translations
 
   - name: send telegram notification
     image: appleboy/drone-telegram:1.4.0

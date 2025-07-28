@@ -7,6 +7,8 @@
 #   dev, testing and debugging
 # - mounts code repository inside the relevant container as a bind volume
 
+name: seis-lab-data
+
 x-common-image: &common-image "ghcr.io/naturalgis/seis-lab-data/seis-lab-data:latest"
 
 x-common-env: &common-env
