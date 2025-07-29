@@ -10,10 +10,12 @@ from rich.panel import Panel
 import typer
 
 from . import config
+from .translations_app import app as translations_app
 from .processing.main import message_handler
 
 logger = logging.getLogger(__name__)
 app = typer.Typer()
+app.add_typer(translations_app, name="translations")
 
 
 @app.callback()

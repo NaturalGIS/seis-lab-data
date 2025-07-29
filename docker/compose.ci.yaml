@@ -1,3 +1,5 @@
+name: seis-lab-data
+
 x-common-image: &common-image "${IMAGE_URL}"
 
 x-common-env: &common-env

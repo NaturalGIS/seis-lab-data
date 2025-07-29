@@ -3,6 +3,8 @@
 # This relies on the existence of a suitable env file where the variables referenced throughout
 # are defined
 
+name: seis-lab-data
+
 x-common-image: &common-image "${IMAGE_URL}"
 
 x-common-env: &common-env
