@@ -39,12 +39,15 @@ RUN --mount=type=cache,uid=1000,gid=1000,target=/home/appuser/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --locked --no-install-project
 
-# Copy the project into the image
+# Copy project into the image
 COPY --chown=appuser:appuser . .
 
 # Sync the project
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/appuser/.cache/uv \
     uv sync --locked
+
+# Compile translations
+RUN uv run seis-lab-data translations compile
 
 # use tini as the init process
 ENTRYPOINT ["tini", "-g", "--", "uv", "run", "seis-lab-data"]
