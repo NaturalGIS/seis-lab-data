@@ -10,11 +10,21 @@
 name: seis-lab-data
 
 x-common-image: &common-image "ghcr.io/naturalgis/seis-lab-data/seis-lab-data:latest"
+x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.6.4"
 
 x-common-env: &common-env
   SEIS_LAB_DATA__DEBUG: true
   SEIS_LAB_DATA__LOG_CONFIG_FILE: /home/appuser/app/dev-log-config.yml
   SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
+
+x-common-auth-env: &common-auth-env
+  AUTHENTIK_SECRET_KEY: mysecret
+  AUTHENTIK_REDIS__HOST: message-broker
+  AUTHENTIK_POSTGRESQL__HOST: auth-db
+  AUTHENTIK_POSTGRESQL__USER: authentik
+  AUTHENTIK_POSTGRESQL__NAME: authentik
+  AUTHENTIK_POSTGRESQL__PASSWORD: authentik_pass
+  AUTHENTIK_WEB__PATH: /auth/
 
 x-common-volumes: &common-volumes
   - type: bind
@@ -75,6 +85,48 @@ services:
     volumes:
       *common-volumes
 
+  auth-db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: authentik
+      POSTGRES_USER: authentik
+      POSTGRES_PASSWORD: authentik_pass
+    healthcheck:
+      test: "pg_isready -d authentik -U authentik"
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    volumes:
+      - authentik_db:/var/lib/postgresql/data
+
+  auth-webapp:
+    image: *auth-image
+    command: server
+    environment:
+      <<: *common-auth-env
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth-router.rule=PathRegexp(`^/auth/`)"
+      - "traefik.http.routers.auth-router.entrypoints=web"
+      - "traefik.http.services.auth-service.loadbalancer.server.port=9000"
+    depends_on:
+      auth-db:
+        condition: service_healthy
+      message-broker:
+        condition: service_healthy
+
+  auth-worker:
+    image: *auth-image
+    command: worker
+    environment:
+      <<: *common-auth-env
+    depends_on:
+      auth-db:
+        condition: service_healthy
+      message-broker:
+        condition: service_healthy
+
   end-to-end-tester:
     image: mcr.microsoft.com/playwright/python:v1.53.0-noble
     profiles:
@@ -110,3 +162,7 @@ configs:
 
   traefik-conf:
     file: $PWD/docker/traefik/dev-config.toml
+
+
+volumes:
+  authentik_db:
