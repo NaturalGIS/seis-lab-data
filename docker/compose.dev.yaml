@@ -49,7 +49,7 @@ services:
       - target: 6379
         published: 6379
     healthcheck:
-      test: "[ redis-cli PING ] = 'PONG'"
+      test: "redis-cli PING | grep PONG"
 
   webapp:
     image: *common-image
