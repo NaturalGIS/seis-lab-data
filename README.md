@@ -31,6 +31,11 @@ Marine data catalog for internal usage at [IPMA]
 
     http://localhost:8888
 
+- Additional relevant URLs:
+
+  - http://localhost:8887 - the traefik dashboard
+  - http://localhost:8887/auth/ - the authentik landing page
+
 
 ## Running tests
 

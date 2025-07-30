@@ -1,0 +1,74 @@
+version: 1
+metadata:
+  name: seis-lab-data-oidc-setup
+  labels:
+    blueprints.goauthentik.io/instantiate: "true"
+
+entries:
+  # Create the OAuth2/OIDC Provider
+  - model: authentik_providers_oauth2.oauth2provider
+    id: seis-lab-data-provider
+    attrs:
+      name: seis-lab-data-provider
+      client_type: confidential
+      client_id: !Env SEIS_LAB_DATA_CLIENT_ID
+      client_secret: !Env SEIS_LAB_DATA_CLIENT_SECRET
+      redirect_uris: !Env SEIS_LAB_DATA_REDIRECT_URIS
+      sub_mode: hashed_user_id
+      include_claims_in_id_token: true
+      issuer_mode: per_provider
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
+
+  # Create the Application
+  - model: authentik_core.application
+    id: seis-lab-data-app
+    attrs:
+      name: seis-lab-data
+      slug: seis-lab-data
+      provider: !KeyOf seis-lab-data-provider
+      meta_description: "SeisLabData Application"
+      meta_publisher: "NaturalGIS"
+      policy_engine_mode: any
+
+  # Create groups for different user roles
+  - model: authentik_core.group
+    id: editors-group
+    attrs:
+      name: editors
+      is_superuser: false
+
+  - model: authentik_core.group
+    id: catalog-admins-group
+    attrs:
+      name: catalog_admins
+      is_superuser: false
+
+  # Create a property mapping for roles (clean role names for your app)
+  - model: authentik_providers_oauth2.scopemapping
+    id: seis-lab-data-roles-scope
+    attrs:
+      name: seis-lab-data-roles
+      scope_name: roles
+      description: "User roles for SeisLabData"
+      expression: |
+        roles = []
+        user_groups = [group.name for group in request.user.ak_groups.all()]
+
+        if 'catalog_admins' in user_groups:
+            roles.append('catalog_admin')
+        if 'editors' in user_groups:
+            roles.append('editor')
+
+        return roles
+
+  # Assign the scopes to the provider
+  - model: authentik_providers_oauth2.oauth2provider
+    id: seis-lab-data-provider-with-scopes
+    state: present
+    attrs:
+      name: seis-lab-data-provider
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, "openid"]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, "email"]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, "profile"]]
+        - !KeyOf seis-lab-data-roles-scope
