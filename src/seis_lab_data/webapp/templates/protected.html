@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+    <ul>
+        <li>{{ user.name }}</li>
+        <li>{{ user.email }}</li>
+        {% if user.roles | length > 0 %}
+            <li>Roles: {{ user.roles | join(",") }}</li>
+        {% endif %}
+    </ul>
+{% endblock %}
