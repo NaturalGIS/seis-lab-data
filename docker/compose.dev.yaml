@@ -9,7 +9,7 @@
 
 name: seis-lab-data
 
-x-common-image: &common-image "ghcr.io/naturalgis/seis-lab-data/seis-lab-data:latest"
+x-common-image: &common-image "ghcr.io/naturalgis/seis-lab-data/seis-lab-data:${CURRENT_GIT_BRANCH:-latest}"
 x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.6.4"
 x-auth-client-id: &auth-client-id "sld-client-id"
 x-auth-client-secret: &auth-client-secret "sld-client-secret"
@@ -128,6 +128,10 @@ services:
       SEIS_LAB_DATA__BIND_HOST: 0.0.0.0
       SEIS_LAB_DATA__BIND_PORT: 5000
       SEIS_LAB_DATA__PUBLIC_URL: http://localhost:8888
+      SEIS_LAB_DATA__AUTH_EXTERNAL_BASE_URL: http://localhost:8888/auth
+      SEIS_LAB_DATA__AUTH_INTERNAL_BASE_URL: http://auth-webapp:9000/auth
+      SEIS_LAB_DATA__AUTH_CLIENT_ID: *auth-client-id
+      SEIS_LAB_DATA__AUTH_CLIENT_SECRET: *auth-client-secret
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.sld-router.rule=PathRegexp(`^/`)"

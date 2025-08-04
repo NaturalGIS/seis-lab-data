@@ -2,7 +2,11 @@ import dataclasses
 import logging
 from starlette_babel import gettext_lazy as _
 from starlette.requests import Request
+from starlette.responses import RedirectResponse
 from starlette.routing import Route
+
+from ..config import SeisLabDataSettings
+from ..constants import AUTH_CLIENT_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +40,53 @@ async def home(request: Request):
     )
 
 
+async def login(request: Request):
+    oauth_manager = request.state.oauth_manager
+    oauth_client = oauth_manager.create_client(AUTH_CLIENT_NAME)
+    logger.debug(f"{oauth_client=}")
+    redirect_uri = request.url_for("auth_callback")
+    logger.debug(f"{redirect_uri=}")
+    logger.debug(f"{oauth_client.server_metadata=}")
+    logger.debug("about to call oauth_client.authorize_redirect...")
+    return await oauth_client.authorize_redirect(request, redirect_uri)
+
+
+async def auth_callback(request: Request):
+    try:
+        oauth_manager = request.state.oauth_manager
+        oauth_client = oauth_manager.create_client(AUTH_CLIENT_NAME)
+        logger.debug(f"{oauth_client.server_metadata=}")
+        token = await oauth_client.authorize_access_token(request)
+        user_info = token.get("userinfo")
+        request.session["user"] = user_info
+        request.session["token"] = {
+            "access_token": token["access_token"],
+            "token_type": token.get("token_type", "Bearer"),
+            "expires_at": token.get("expires_at"),
+        }
+        return RedirectResponse(url=request.url_for("home"), status_code=302)
+    except Exception as err:
+        logger.error(f"Authentication error: {err}")
+
+
+async def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(url=request.state.auth_config.end_session_endpoint, status_code=302)
+
+
+async def profile(request: Request):
+    settings = request.state.settings
+    settings: SeisLabDataSettings
+    user = request.session.get("user")
+    if user:
+        return RedirectResponse(url=f"{settings.auth_external_base_url}/if/user/", status_code=302)
+    else:
+        return RedirectResponse(url=request.url_for("login"), status_code=302)
+
+
 async def protected(request: Request):
-    user = User.from_request(request)
+    if not (user := request.session.get("user")):
+        return RedirectResponse(url=request.url_for("login"), status_code=302)
     template_processor = request.state.templates
     return template_processor.TemplateResponse(
         request, "protected.html", context={"user": user}
@@ -46,5 +95,9 @@ async def protected(request: Request):
 
 routes = [
     Route("/", home),
+    Route("/login", login),
+    Route("/oauth2/callback", auth_callback),
+    Route("/logout", logout),
+    Route("/profile", profile),
     Route("/protected", protected),
 ]

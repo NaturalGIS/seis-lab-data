@@ -37,6 +37,27 @@ Marine data catalog for internal usage at [IPMA]
   - http://localhost:8887/auth/ - the authentik landing page
 
 
+> [!NOTE]
+> ### Building the docker image locally
+> 
+> Most of the time you will be using a prebuilt docker image. However, there is a special case where you will need
+> to build it locally. This case is when you add a new python dependency to the project. In this case, build the
+> image with:
+> 
+> ```shell
+> docker build \
+>   --tag ghcr.io/naturalgis/seis-lab-data/seis-lab-data:$(git branch --show-current) \
+>   --file docker/Dockerfile \
+>   .
+> ```
+> 
+> Then stand up the docker compose stack with:
+> 
+> ```shell
+> CURRENT_GIT_BRANCH=$(git branch --show-current) docker compose -f docker/compose.dev.yaml up -d --force-recreate
+> ```
+
+
 ## Running tests
 
 Normal tests can be run from inside the `webapp` compose container, after installing the required dependencies:
