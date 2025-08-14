@@ -7,7 +7,7 @@ repos:
     -   id: trailing-whitespace
     -   id: end-of-file-fixer
     -   id: check-yaml
-        exclude: "^docker/authentik/.*-blueprint.yaml$"
+        exclude: "^docker/authentik/.*.yaml$"
     -   id: check-added-large-files
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: v0.12.1

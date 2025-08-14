@@ -1,0 +1,70 @@
+# This blueprint provides a 2-stage enrollment flow which gathers the user's:
+#
+# - username
+# - password
+# - email
+#
+# Users are automatically created and no verification is done.
+
+version: 1
+metadata:
+  labels:
+    blueprints.goauthentik.io/instantiate: "false"
+  name: Simple enrollment (2 Stage)
+entries:
+  - identifiers:
+      slug: simple-enrollment-flow
+    model: authentik_flows.flow
+    id: simple-enrollment-flow
+    attrs:
+      name: Simple enrollment Flow
+      title: Welcome to authentik!
+      designation: enrollment
+      authentication: require_unauthenticated
+  - identifiers:
+      name: simple-enrollment-prompt-second
+    id: simple-enrollment-prompt-second
+    model: authentik_stages_prompt.promptstage
+    attrs:
+      fields:
+        - !KeyOf prompt-field-name
+        - !KeyOf prompt-field-email
+  - identifiers:
+      name: simple-enrollment-prompt-first
+    id: simple-enrollment-prompt-first
+    model: authentik_stages_prompt.promptstage
+    attrs:
+      fields:
+        - !KeyOf prompt-field-username
+        - !KeyOf prompt-field-password
+        - !KeyOf prompt-field-password-repeat
+  - identifiers:
+      name: simple-enrollment-user-login
+    id: simple-enrollment-user-login
+    model: authentik_stages_user_login.userloginstage
+  - identifiers:
+      name: simple-enrollment-user-write
+    id: simple-enrollment-user-write
+    model: authentik_stages_user_write.userwritestage
+    attrs:
+      user_creation_mode: always_create
+  - identifiers:
+      target: !KeyOf simple-enrollment-flow
+      stage: !KeyOf simple-enrollment-prompt-first
+      order: 10
+    model: authentik_flows.flowstagebinding
+  - identifiers:
+      target: !KeyOf simple-enrollment-flow
+      stage: !KeyOf simple-enrollment-prompt-second
+      order: 11
+    model: authentik_flows.flowstagebinding
+  - identifiers:
+      target: !KeyOf simple-enrollment-flow
+      stage: !KeyOf simple-enrollment-user-write
+      order: 20
+    model: authentik_flows.flowstagebinding
+  - identifiers:
+      target: !KeyOf simple-enrollment-flow
+      stage: !KeyOf simple-enrollment-user-login
+      order: 100
+    model: authentik_flows.flowstagebinding

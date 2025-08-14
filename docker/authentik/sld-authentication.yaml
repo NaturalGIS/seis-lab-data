@@ -1,0 +1,107 @@
+# This blueprint specifies an authentication flow that enables user registration. It is used by the
+# sld-authorization blueprint.
+version: 1
+metadata:
+  name: Authentication flow for SeisLabData.
+  labels:
+    blueprints.goauthentik.io/instantiate: "false"
+context: {}
+entries:
+  - identifiers:
+      pk: 3b0961d7-caf3-4463-ab48-6c067082766e
+      slug: sld-authentication-flow
+    model: authentik_flows.flow
+    attrs:
+      authentication: require_unauthenticated
+      denied_action: message_continue
+      designation: authentication
+      layout: stacked
+      name: sld authentication flow
+      policy_engine_mode: any
+      title: SeisLabData authentication
+    conditions: []
+    permissions: []
+    state: present
+  - identifiers:
+      name: default-authentication-mfa-validation
+      pk: 3cb6785d-a3ed-482a-95db-0a4b7378d6ae
+    model: authentik_stages_authenticator_validate.authenticatorvalidatestage
+    attrs:
+      device_classes:
+        - static
+        - totp
+        - webauthn
+        - duo
+        - sms
+        - email
+      last_auth_threshold: seconds=0
+      not_configured_action: skip
+      webauthn_user_verification: preferred
+    conditions: []
+    permissions: []
+    state: present
+  - identifiers:
+      name: default-authentication-login
+      pk: 93829283-f666-4780-9663-d12a03ee220b
+    model: authentik_stages_user_login.userloginstage
+    attrs:
+      geoip_binding: no_binding
+      network_binding: no_binding
+      remember_me_offset: seconds=0
+      session_duration: seconds=0
+    conditions: []
+    permissions: []
+    state: present
+  - identifiers:
+      name: sld-identification
+      pk: 607d1773-b36b-4206-9371-3e2dd1fd80fd
+    model: authentik_stages_identification.identificationstage
+    attrs:
+      case_insensitive_matching: true
+      password_stage: !Find [authentik_stages_password.passwordstage, [name, "default-authentication-password"]]
+      pretend_user_exists: true
+      show_matched_user: true
+      user_fields:
+      - email
+    conditions: []
+    permissions: []
+    state: present
+  - identifiers:
+      order: 0
+      pk: 99bba28f-96b5-434f-b37e-9f64a9d11004
+      stage: 607d1773-b36b-4206-9371-3e2dd1fd80fd
+      target: 3b0961d7-caf3-4463-ab48-6c067082766e
+    model: authentik_flows.flowstagebinding
+    attrs:
+      invalid_response_action: retry
+      policy_engine_mode: any
+      re_evaluate_policies: true
+    conditions: []
+    permissions: []
+    state: present
+  - identifiers:
+      order: 10
+      pk: 4b2515bf-b6ad-4b30-92c4-27ff3f37925e
+      stage: 3cb6785d-a3ed-482a-95db-0a4b7378d6ae
+      target: 3b0961d7-caf3-4463-ab48-6c067082766e
+    model: authentik_flows.flowstagebinding
+    attrs:
+      invalid_response_action: retry
+      policy_engine_mode: any
+      re_evaluate_policies: true
+    conditions: []
+    permissions: []
+    state: present
+  - identifiers:
+      order: 20
+      pk: 6d142b04-56f0-4f4b-acbe-d1d0494d3425
+      stage: 93829283-f666-4780-9663-d12a03ee220b
+      target: 3b0961d7-caf3-4463-ab48-6c067082766e
+    model: authentik_flows.flowstagebinding
+    attrs:
+      invalid_response_action: retry
+      policy_engine_mode: any
+      re_evaluate_policies: true
+    conditions: []
+    permissions: []
+    state: present

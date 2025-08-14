@@ -104,8 +104,8 @@ services:
       AUTHENTIK_BOOTSTRAP_EMAIL: akadmin@email.com
     volumes:
       - type: bind
-        source: ./authentik/seis-lab-data-blueprint.yaml
-        target: /blueprints/custom/seis-lab-data-blueprint.yaml
+        source: ./authentik
+        target: /blueprints/custom
         read_only: true
     depends_on:
       auth-db:

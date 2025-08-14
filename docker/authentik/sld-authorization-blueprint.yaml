@@ -2,25 +2,9 @@ version: 1
 metadata:
   name: seis-lab-data-oidc-setup
   labels:
-    blueprints.goauthentik.io/instantiate: "true"
+    blueprints.goauthentik.io/instantiate: "false"
 
 entries:
-
-  - model: authentik_core.group
-    id: editors-group
-    identifiers:
-      name: editors
-    attrs:
-      name: editors
-      is_superuser: false
-
-  - model: authentik_core.group
-    id: catalog-admins-group
-    identifiers:
-      name: catalog_admins
-    attrs:
-      name: catalog_admins
-      is_superuser: false
 
   - model: authentik_providers_oauth2.scopemapping
     id: seis-lab-data-roles-scope
@@ -34,9 +18,9 @@ entries:
         roles = []
         user_groups = [group.name for group in request.user.ak_groups.all()]
 
-        if 'catalog_admins' in user_groups:
+        if 'sld_catalog_admins' in user_groups:
             roles.append('catalog_admin')
-        if 'editors' in user_groups:
+        if 'sld_editors' in user_groups:
             roles.append('editor')
 
         return roles
@@ -58,6 +42,7 @@ entries:
       issuer_mode: per_provider
       authorization_flow: !Find [authentik_flows.flow, [slug, "default-provider-authorization-implicit-consent"]]
       invalidation_flow: !Find [authentik_flows.flow, [slug, "default-provider-invalidation-flow"]]
+      authentication_flow: !Find [authentik_flows.flow, [slug, "sld-authentication-flow"]]
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
 
   - model: authentik_providers_oauth2.oauth2provider
