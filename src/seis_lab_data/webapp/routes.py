@@ -1,3 +1,4 @@
+from urllib.parse import urlencode
 import dataclasses
 import logging
 from starlette_babel import gettext_lazy as _
@@ -71,7 +72,11 @@ async def auth_callback(request: Request):
 
 async def logout(request: Request):
     request.session.clear()
-    return RedirectResponse(url=request.state.auth_config.end_session_endpoint, status_code=302)
+    logout_url = f"{request.state.auth_config.end_session_endpoint}?next={request.url_for('home')}"
+    return RedirectResponse(
+        url=logout_url,
+        status_code=302
+    )
 
 
 async def profile(request: Request):

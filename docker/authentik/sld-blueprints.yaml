@@ -1,0 +1,30 @@
+version: 1
+metadata:
+  name: SLD blueprints
+  labels:
+    blueprints.goauthentik.io/instantiate: "true"
+entries:
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
+        path: /blueprints/custom/sld-groups.yaml
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
+        path: /blueprints/custom/enrollment-fields.yaml
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
+        path: /blueprints/custom/simple-enrollment.yaml
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
+        path: /blueprints/custom/enrollment-with-email-verification.yaml
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
+        path: /blueprints/custom/sld-authentication.yaml
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
+        path: /blueprints/custom/sld-authorization.yaml

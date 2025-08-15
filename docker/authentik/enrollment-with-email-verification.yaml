@@ -8,9 +8,9 @@
 # configured with suitable email settings.
 version: 1
 metadata:
-  labels:
-    blueprints.goauthentik.io/instantiate: "false"
   name: Enrollment with email verification
+  labels:
+    blueprints.goauthentik.io/instantiate: "true"
 entries:
   - identifiers:
       slug: email-enrollment-flow
@@ -35,17 +35,17 @@ entries:
     model: authentik_stages_prompt.promptstage
     attrs:
       fields:
-        - !KeyOf enrollment-prompt-field-name
-        - !KeyOf enrollment-prompt-field-email
+        - !Find [ authentik_stages_prompt.prompt, [ name, "prompt-field-name" ]]
+        - !Find [ authentik_stages_prompt.prompt, [ name, "prompt-field-email" ]]
   - identifiers:
       name: email-enrollment-prompt-first
     id: email-enrollment-prompt-first
     model: authentik_stages_prompt.promptstage
     attrs:
       fields:
-        - !KeyOf enrollment-prompt-field-username
-        - !KeyOf enrollment-prompt-field-password
-        - !KeyOf enrollment-prompt-field-password-repeat
+        - !Find [ authentik_stages_prompt.prompt, [ name, "prompt-field-username" ]]
+        - !Find [ authentik_stages_prompt.prompt, [ name, "prompt-field-password" ]]
+        - !Find [ authentik_stages_prompt.prompt, [ name, "prompt-field-password-repeat" ]]
   - identifiers:
       name: email-enrollment-user-login
     id: email-enrollment-user-login

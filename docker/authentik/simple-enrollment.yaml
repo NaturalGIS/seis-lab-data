@@ -8,9 +8,9 @@
 
 version: 1
 metadata:
+  name: Simple enrollment
   labels:
-    blueprints.goauthentik.io/instantiate: "false"
-  name: Simple enrollment (2 Stage)
+    blueprints.goauthentik.io/instantiate: "true"
 entries:
   - identifiers:
       slug: simple-enrollment-flow
@@ -27,17 +27,17 @@ entries:
     model: authentik_stages_prompt.promptstage
     attrs:
       fields:
-        - !KeyOf prompt-field-name
-        - !KeyOf prompt-field-email
+        - !Find [ authentik_stages_prompt.prompt, [ name, "prompt-field-name" ]]
+        - !Find [ authentik_stages_prompt.prompt, [ name, "prompt-field-email" ]]
   - identifiers:
       name: simple-enrollment-prompt-first
     id: simple-enrollment-prompt-first
     model: authentik_stages_prompt.promptstage
     attrs:
       fields:
-        - !KeyOf prompt-field-username
-        - !KeyOf prompt-field-password
-        - !KeyOf prompt-field-password-repeat
+        - !Find [ authentik_stages_prompt.prompt, [ name, "prompt-field-username" ]]
+        - !Find [ authentik_stages_prompt.prompt, [ name, "prompt-field-password" ]]
+        - !Find [ authentik_stages_prompt.prompt, [ name, "prompt-field-password-repeat" ]]
   - identifiers:
       name: simple-enrollment-user-login
     id: simple-enrollment-user-login
@@ -48,6 +48,8 @@ entries:
     model: authentik_stages_user_write.userwritestage
     attrs:
       user_creation_mode: always_create
+      group: !Find [ authentik_core.group, [ name, "sld_editors_group" ]]
+      user_type: internal
   - identifiers:
       target: !KeyOf simple-enrollment-flow
       stage: !KeyOf simple-enrollment-prompt-first

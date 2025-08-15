@@ -4,7 +4,7 @@ version: 1
 metadata:
   name: Authentication flow for SeisLabData.
   labels:
-    blueprints.goauthentik.io/instantiate: "false"
+    blueprints.goauthentik.io/instantiate: "true"
 context: {}
 entries:
   - identifiers:
