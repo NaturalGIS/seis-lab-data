@@ -5,9 +5,11 @@ from typing import (
 )
 
 import jinja2
+from authlib.integrations.starlette_client import OAuth
 from starlette.applications import Starlette
 from starlette_babel.contrib.jinja import configure_jinja_env
 from starlette.middleware import Middleware
+from starlette.middleware.sessions import SessionMiddleware
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette_babel import (
@@ -16,6 +18,10 @@ from starlette_babel import (
 )
 
 from .. import config
+from ..auth import (
+    AuthConfig,
+    get_oauth_manager,
+)
 
 from .routes import routes
 
@@ -23,11 +29,14 @@ from .routes import routes
 class State(TypedDict):
     settings: config.SeisLabDataSettings
     templates: Jinja2Templates
+    auth_config: AuthConfig
+    oauth_manager: OAuth
 
 
 @contextlib.asynccontextmanager
 async def lifespan(app: Starlette) -> AsyncIterator[State]:
     settings = config.get_settings()
+    auth_config = AuthConfig.from_settings(settings)
     shared_translator = get_translator()
     shared_translator.load_from_directory(settings.translations_dir)
     jinja_env = jinja2.Environment(
@@ -38,6 +47,8 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
     yield State(
         settings=settings,
         templates=templates,
+        auth_config=auth_config,
+        oauth_manager=get_oauth_manager(auth_config),
     )
 
 
@@ -51,6 +62,10 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                 LocaleMiddleware,
                 locales=settings.locales,
                 default_locale=settings.locales[0],
+            ),
+            Middleware(
+                SessionMiddleware,
+                secret_key=settings.session_secret_key,
             )
         ],
     )

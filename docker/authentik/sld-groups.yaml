@@ -1,0 +1,23 @@
+version: 1
+metadata:
+  name: seis-lab-data-oidc-setup
+  labels:
+    blueprints.goauthentik.io/instantiate: "true"
+
+entries:
+
+  - model: authentik_core.group
+    id: sld-editors-group
+    identifiers:
+      name: SeisLabData editors
+    attrs:
+      name: sld_editors
+      is_superuser: false
+
+  - model: authentik_core.group
+    id: sld-catalog-admins-group
+    identifiers:
+      name: SeisLabData catalog_admins
+    attrs:
+      name: sld_catalog_admins
+      is_superuser: false
