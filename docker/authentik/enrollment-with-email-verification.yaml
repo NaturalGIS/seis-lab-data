@@ -35,17 +35,17 @@ entries:
     model: authentik_stages_prompt.promptstage
     attrs:
       fields:
-        - !Find [ authentik_stages_prompt.prompt, [ name, "prompt-field-name" ]]
-        - !Find [ authentik_stages_prompt.prompt, [ name, "prompt-field-email" ]]
+        - !Find [ authentik_stages_prompt.prompt, [ name, "default-user-settings-field-name" ]]
+        - !Find [ authentik_stages_prompt.prompt, [ name, "initial-setup-field-email" ]]
   - identifiers:
       name: email-enrollment-prompt-first
     id: email-enrollment-prompt-first
     model: authentik_stages_prompt.promptstage
     attrs:
       fields:
-        - !Find [ authentik_stages_prompt.prompt, [ name, "prompt-field-username" ]]
-        - !Find [ authentik_stages_prompt.prompt, [ name, "prompt-field-password" ]]
-        - !Find [ authentik_stages_prompt.prompt, [ name, "prompt-field-password-repeat" ]]
+        - !Find [ authentik_stages_prompt.prompt, [ name, "default-user-settings-field-username" ]]
+        - !Find [ authentik_stages_prompt.prompt, [ name, "initial-setup-field-password" ]]
+        - !Find [ authentik_stages_prompt.prompt, [ name, "initial-setup-field-password-repeat" ]]
   - identifiers:
       name: email-enrollment-user-login
     id: email-enrollment-user-login

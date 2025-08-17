@@ -4,10 +4,9 @@ version: 1
 metadata:
   name: Enrollment fields
   labels:
-    blueprints.goauthentik.io/instantiate: "true"
+    blueprints.goauthentik.io/instantiate: "false"
 entries:
-  - id: enrollment-prompt-field-username
-    model: authentik_stages_prompt.prompt
+  - model: authentik_stages_prompt.prompt
     identifiers:
       name: prompt-field-username
     attrs:
@@ -18,8 +17,7 @@ entries:
       placeholder: Username
       placeholder_expression: false
       order: 0
-  - id: enrollment-prompt-field-password
-    identifiers:
+  - identifiers:
       name: prompt-field-password
     model: authentik_stages_prompt.prompt
     attrs:
@@ -30,8 +28,7 @@ entries:
       placeholder: Password
       placeholder_expression: false
       order: 0
-  - id: enrollment-prompt-field-password-repeat
-    identifiers:
+  - identifiers:
       name: prompt-field-password-repeat
     model: authentik_stages_prompt.prompt
     attrs:
@@ -42,8 +39,7 @@ entries:
       placeholder: Password (repeat)
       placeholder_expression: false
       order: 1
-  - id: enrollment-prompt-field-name
-    identifiers:
+  - identifiers:
       name: prompt-field-name
     model: authentik_stages_prompt.prompt
     attrs:
@@ -54,8 +50,7 @@ entries:
       placeholder: Name
       placeholder_expression: false
       order: 0
-  - id: enrollment-prompt-field-email
-    identifiers:
+  - identifiers:
       name: prompt-field-email
     model: authentik_stages_prompt.prompt
     attrs:

@@ -54,7 +54,7 @@ entries:
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, "openid"]]
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, "email"]]
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, "profile"]]
-        - !KeyOf seis-lab-data-roles-scope
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, "roles"]]
 
   - model: authentik_core.application
     id: seis-lab-data-app
