@@ -1,4 +1,3 @@
-from urllib.parse import urlencode
 import dataclasses
 import logging
 from starlette_babel import gettext_lazy as _
@@ -73,10 +72,7 @@ async def auth_callback(request: Request):
 async def logout(request: Request):
     request.session.clear()
     logout_url = f"{request.state.auth_config.end_session_endpoint}?next={request.url_for('home')}"
-    return RedirectResponse(
-        url=logout_url,
-        status_code=302
-    )
+    return RedirectResponse(url=logout_url, status_code=302)
 
 
 async def profile(request: Request):
@@ -84,7 +80,9 @@ async def profile(request: Request):
     settings: SeisLabDataSettings
     user = request.session.get("user")
     if user:
-        return RedirectResponse(url=f"{settings.auth_external_base_url}/if/user/", status_code=302)
+        return RedirectResponse(
+            url=f"{settings.auth_external_base_url}/if/user/", status_code=302
+        )
     else:
         return RedirectResponse(url=request.url_for("login"), status_code=302)
 
