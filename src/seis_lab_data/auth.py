@@ -38,7 +38,9 @@ class AuthConfig:
 
     @property
     def end_session_endpoint(self):
-        return f"{self.authentik_external_url}/application/o/{self.app_slug}/end-session/"
+        return (
+            f"{self.authentik_external_url}/application/o/{self.app_slug}/end-session/"
+        )
 
     @property
     def revocation_endpoint(self):
@@ -66,13 +68,13 @@ def get_oauth_manager(auth_config: AuthConfig):
         introspection_endpoint=auth_config.introspection_endpoint,
         jwks_uri=auth_config.jwks_uri,
         client_kwargs={
-            'scope': 'openid email profile',
+            "scope": "openid email profile",
         },
         server_metadata={
-            'end_session_endpoint': auth_config.end_session_endpoint,
-            'revocation_endpoint': auth_config.revocation_endpoint,
-            'introspection_endpoint': auth_config.introspection_endpoint,
-            'jwks_uri': auth_config.jwks_uri,
-        }
+            "end_session_endpoint": auth_config.end_session_endpoint,
+            "revocation_endpoint": auth_config.revocation_endpoint,
+            "introspection_endpoint": auth_config.introspection_endpoint,
+            "jwks_uri": auth_config.jwks_uri,
+        },
     )
     return oauth
