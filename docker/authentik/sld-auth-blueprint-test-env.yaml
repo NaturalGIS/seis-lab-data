@@ -3,6 +3,11 @@ metadata:
   name: seis-lab-data-oidc-setup
   labels:
     blueprints.goauthentik.io/instantiate: "true"
+context:
+  client_id: !File /run/secrets/auth_client_id
+  client_secret: !File /run/secrets/auth_client_secret
+  redirect_uri: !Env SEIS_LAB_DATA_REDIRECT_URI
+
 entries:
   # create the groups we need
   - model: authentik_core.group
@@ -277,10 +282,10 @@ entries:
     attrs:
       name: seis-lab-data-provider
       client_type: confidential
-      client_id: !Env SEIS_LAB_DATA_CLIENT_ID
-      client_secret: !Env SEIS_LAB_DATA_CLIENT_SECRET
+      client_id: !Context client_id
+      client_secret: !Context client_secret
       redirect_uris:
-        - url: !Env SEIS_LAB_DATA_REDIRECT_URIS
+        - url: !Context redirect_uri
           matching_mode: strict
       sub_mode: hashed_user_id
       include_claims_in_id_token: true

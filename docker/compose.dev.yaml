@@ -10,7 +10,6 @@
 name: seis-lab-data
 
 x-common-image: &common-image "ghcr.io/naturalgis/seis-lab-data/seis-lab-data:${CURRENT_GIT_BRANCH:-latest}"
-# x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.6.4"
 x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.8.0-rc6"
 x-auth-client-id: &auth-client-id "sld-client-id"
 x-auth-client-secret: &auth-client-secret "sld-client-secret"
@@ -32,7 +31,7 @@ x-common-auth-env: &common-auth-env
   AUTHENTIK_WEB__PATH: /auth/
   SEIS_LAB_DATA_CLIENT_ID: *auth-client-id
   SEIS_LAB_DATA_CLIENT_SECRET: *auth-client-secret
-  SEIS_LAB_DATA_REDIRECT_URIS: *auth-redirect-url
+  SEIS_LAB_DATA_REDIRECT_URI: *auth-redirect-url
 
 x-common-volumes: &common-volumes
   - type: bind
@@ -106,8 +105,8 @@ services:
       AUTHENTIK_BOOTSTRAP_EMAIL: akadmin@email.com
     volumes:
       - type: bind
-        source: ./authentik
-        target: /blueprints/custom
+        source: ./authentik/sld-auth-blueprint-dev.yaml
+        target: /blueprints/custom/sld-auth-blueprint-dev.yaml
         read_only: true
     depends_on:
       auth-db:

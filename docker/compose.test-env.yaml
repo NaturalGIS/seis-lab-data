@@ -8,11 +8,31 @@ name: seis-lab-data
 x-common-image: &common-image "${IMAGE_URL}"
 
 x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.6.4"
+x-auth-redirect-url: &auth-redirect-url "http://localhost:8888/oauth2/callback"
 
 x-common-env: &common-env
   SEIS_LAB_DATA__DEBUG: ${DEBUG}
   SEIS_LAB_DATA__LOG_CONFIG_FILE: ${LOG_CONFIG_FILE}
   SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
+
+x-common-auth-env: &common-auth-env
+  AUTHENTIK_EMAIL__HOST: smtp.postmarkapp.com
+  AUTHENTIK_EMAIL__PORT: 587
+  AUTHENTIK_EMAIL__USERNAME: file:///run/secrets/auth-email-username
+  AUTHENTIK_EMAIL__PASSWORD: file:///run/secrets/auth-email-password
+  AUTHENTIK_EMAIL__USE_TLS: true
+  AUTHENTIK_EMAIL__TIMEOUT: 10
+  AUTHENTIK_EMAIL__FROM: auth@seis-lab-data.naturalgis.pt
+  AUTHENTIK_LOG_LEVEL: warning
+  AUTHENTIK_REDIS__HOST: message-broker
+  AUTHENTIK_SECRET_KEY: file:///run/secrets/auth-secret-key
+  AUTHENTIK_POSTGRESQL__HOST: auth-db
+  AUTHENTIK_POSTGRESQL__USER: sld_auth_user
+  AUTHENTIK_POSTGRESQL__NAME: authentik
+  AUTHENTIK_POSTGRESQL__PASSWORD: file:///run/secrets/auth-db-password
+  AUTHENTIK_WEB__PATH: /auth/
+  SEIS_LAB_DATA_REDIRECT_URI: *auth-redirect-url
+
 
 services:
 
@@ -20,16 +40,18 @@ services:
     image: postgres:17
     environment:
       POSTGRES_DB: authentik
-      POSTGRES_USER: authentik
-      POSTGRES_PASSWORD: authentik_pass
+      POSTGRES_USER: sld_auth_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/auth-db-password
     healthcheck:
-      test: "pg_isready -d authentik -U authentik"
+      test: "pg_isready -d authentik"
       start_period: 20s
       interval: 30s
       retries: 5
       timeout: 5s
     volumes:
       - authentik_db:/var/lib/postgresql/data
+    secrets:
+      - auth-db-password
 
   auth-webapp:
     image: *auth-image
@@ -47,25 +69,38 @@ services:
         condition: service_healthy
       message-broker:
         condition: service_healthy
+    secrets:
+      - auth-db-password
+      - auth-secret-key
+      - auth-email-username
+      - auth-email-password
 
   auth-worker:
     image: *auth-image
     command: worker
     environment:
       <<: *common-auth-env
-      AUTHENTIK_BOOTSTRAP_PASSWORD: admin123
-      AUTHENTIK_BOOTSTRAP_TOKEN: admin123
-      AUTHENTIK_BOOTSTRAP_EMAIL: akadmin@email.com
+      AUTHENTIK_BOOTSTRAP_PASSWORD: file:///run/secrets/auth-bootstrap-password
+      AUTHENTIK_BOOTSTRAP_TOKEN: file:///run/secrets/auth-bootstrap-token
+      AUTHENTIK_BOOTSTRAP_EMAIL: file:///run/secrets/auth-bootstrap-email
     volumes:
       - type: bind
-        source: ./authentik
-        target: /blueprints/custom
+        source: ./authentik/sld-auth-blueprint-test-env.yaml
+        target: /blueprints/custom/sld-auth-blueprint-test-env.yaml
         read_only: true
     depends_on:
       auth-db:
         condition: service_healthy
       message-broker:
         condition: service_healthy
+    secrets:
+      - auth-db-password
+      - auth-secret-key
+      - auth-email-username
+      - auth-email-password
+      - auth-bootstrap-password
+      - auth-bootstrap-token
+      - auth-bootstrap-email
 
   message-broker:
     image: redis:8
@@ -106,11 +141,21 @@ networks:
     name: front
 
 secrets:
+  auth-bootstrap-email:
+    file: /opt/seis-lab-data/secrets/auth-bootstrap-email.txt
+  auth-bootstrap-password:
+    file: /opt/seis-lab-data/secrets/auth-bootstrap-password.txt
+  auth-bootstrap-token:
+    file: /opt/seis-lab-data/secrets/auth-bootstrap-token.txt
   auth-client-id:
-    file: /opt/seis-lab-data/auth-client-id.txt
+    file: /opt/seis-lab-data/secrets/auth-client-id.txt
   auth-client-secret:
-    file: /opt/seis-lab-data/auth-client-id.txt
-  auth-db-user:
-    file: /opt/seis-lab-data/auth-db-user.txt
+    file: /opt/seis-lab-data/secrets/auth-client-secret.txt
   auth-db-password:
-    file: /opt/seis-lab-data/auth-db-password.txt
+    file: /opt/seis-lab-data/secrets/auth-db-password.txt
+  auth-email-password:
+    file: /opt/seis-lab-data/secrets/auth-email-password.txt
+  auth-email-username:
+    file: /opt/seis-lab-data/secrets/auth-email-username.txt
+  auth-secret-key:
+    file: /opt/seis-lab-data/secrets/auth-secret-key.txt
