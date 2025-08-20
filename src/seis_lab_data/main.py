@@ -55,7 +55,6 @@ def run_processing_worker(ctx: typer.Context) -> None:
             [
                 "--processes=1",
                 "--threads=1",
-                "--verbose",
                 f"--watch={Path(__file__).parent}",
                 "--watch-exclude=__pycache__/*",
             ]
