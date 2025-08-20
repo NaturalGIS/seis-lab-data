@@ -1,6 +1,6 @@
 when:
   - event: deployment
-    evaluate: 'CI_COMMIT_AUTHOR == "github-actionsbot"'
+    evaluate: 'CI_DEPLOYMENT_CREATOR == "github-actions[bot]"'
 
 steps:
   - name: extract-deployment-payload
