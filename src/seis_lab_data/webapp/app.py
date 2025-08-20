@@ -22,6 +22,7 @@ from ..auth import (
     AuthConfig,
     get_oauth_manager,
 )
+from ..processing.broker import setup_broker
 
 from .routes import routes
 
@@ -53,6 +54,7 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
 
 
 def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
+    setup_broker(settings)
     app = Starlette(
         debug=settings.debug,
         routes=routes,

@@ -1,5 +1,7 @@
 import dataclasses
 import logging
+import uuid
+
 from starlette_babel import gettext_lazy as _
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
@@ -7,6 +9,7 @@ from starlette.routing import Route
 
 from ..config import SeisLabDataSettings
 from ..constants import AUTH_CLIENT_NAME
+from ..processing import tasks
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +37,9 @@ class User:
 
 async def home(request: Request):
     template_processor = request.state.templates
+    request_id = str(uuid.uuid4())
     logger.debug("This is the home route")
+    tasks.process_data.send(f"hi from the home route with request id {request_id}")
     return template_processor.TemplateResponse(
         request, "index.html", context={"greeting": _("Hi there!")}
     )

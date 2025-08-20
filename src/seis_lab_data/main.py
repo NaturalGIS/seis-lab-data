@@ -1,17 +1,14 @@
-import functools
 import logging
 import os
 import sys
 from pathlib import Path
 
-import redis
 from rich.padding import Padding
 from rich.panel import Panel
 import typer
 
 from . import config
 from .translations_app import app as translations_app
-from .processing.main import message_handler
 
 logger = logging.getLogger(__name__)
 app = typer.Typer()
@@ -33,7 +30,9 @@ def greet(ctx: typer.Context) -> None:
     context.status_console.print("Hello from seis-lab-data")
 
 
-@app.command()
+@app.command(
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
+)
 def run_processing_worker(ctx: typer.Context) -> None:
     """Start a processing worker."""
     context: config.SeisLabDataCliContext = ctx.obj
@@ -45,17 +44,27 @@ def run_processing_worker(ctx: typer.Context) -> None:
         style="green",
     )
     context.status_console.print(Padding(panel, 1))
-    connection = redis.Redis.from_url(
-        context.settings.message_broker_dsn.unicode_string(), decode_responses=True
+    dramatiq_args = [
+        "dramatiq",
+        # f"{Path(__file__).parent / 'processing/broker:get_broker'}",
+        "seis_lab_data.processing.broker:setup_broker",
+        "seis_lab_data.processing.tasks",
+    ]
+    if context.settings.debug:
+        dramatiq_args.extend(
+            [
+                "--processes=1",
+                "--threads=1",
+                f"--watch={Path(__file__).parent}",
+                "--watch-exclude=__pycache__/*",
+            ]
+        )
+    sys.stdout.flush()
+    sys.stderr.flush()
+    context.status_console.print(
+        f"Starting dramatiq worker with args: {dramatiq_args=}"
     )
-    pubsub = connection.pubsub()
-    handler = functools.partial(message_handler, context=context)
-    for channel_pattern in context.settings.message_broker_channels:
-        pubsub.subscribe(**{channel_pattern: handler})
-    while True:
-        message = pubsub.get_message()
-        if message is not None:
-            context.status_console.print(f"Caught unhandled message: {message}")
+    os.execvp("dramatiq", dramatiq_args)
 
 
 @app.command()
