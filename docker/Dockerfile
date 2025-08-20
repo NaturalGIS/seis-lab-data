@@ -37,19 +37,19 @@ EXPOSE 5000
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/appuser/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --locked --no-install-project
+    uv sync --locked --no-install-project --compile-bytecode
 
 # Copy project into the image
 COPY --chown=appuser:appuser . .
 
 # Sync the project
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/appuser/.cache/uv \
-    uv sync --locked
+    uv sync --locked --compile-bytecode
 
 # Compile translations
-RUN uv run seis-lab-data translations compile
+RUN uv run --no-sync --locked seis-lab-data translations compile
 
 # use tini as the init process
-ENTRYPOINT ["tini", "-g", "--", "uv", "run", "seis-lab-data"]
+ENTRYPOINT ["tini", "-g", "--", "uv", "run", "--no-sync", "--locked", "seis-lab-data"]
 
 CMD ["run-web-server"]
