@@ -33,14 +33,17 @@ def setup_broker(settings: config.SeisLabDataSettings | None = None) -> None:
     pattern. It is not very pretty, but it works.
     """
     settings = settings or config.get_settings()
-    new_broker = RedisBroker(
-        host=settings.message_broker_dsn.host,
-        port=settings.message_broker_dsn.port,
-    )
-    old_broker = dramatiq.get_broker()
-    # reconfigure actors to use the new broker
-    for existing_actor_name in old_broker.get_declared_actors():
-        actor = old_broker.get_actor(existing_actor_name)
-        actor.broker = new_broker
-        new_broker.declare_actor(actor)
-    dramatiq.set_broker(new_broker)
+    if settings.message_broker_dsn is not None:
+        new_broker = RedisBroker(
+            host=settings.message_broker_dsn.host,
+            port=settings.message_broker_dsn.port,
+        )
+        old_broker = dramatiq.get_broker()
+        # reconfigure actors to use the new broker
+        for existing_actor_name in old_broker.get_declared_actors():
+            actor = old_broker.get_actor(existing_actor_name)
+            actor.broker = new_broker
+            new_broker.declare_actor(actor)
+        dramatiq.set_broker(new_broker)
+    else:
+        logger.debug("No message broker DSN configured, skipping broker setup")

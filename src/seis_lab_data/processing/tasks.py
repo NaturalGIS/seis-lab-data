@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 # trying to connect to it
 _stub_broker = StubBroker()
 dramatiq.set_broker(_stub_broker)
-print("dramatiq broker set to the stub broker")
 
 
 @dramatiq.actor
