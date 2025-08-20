@@ -1,0 +1,5 @@
+steps:
+  - name: print environment
+    image: alpine:latest
+    commands:
+      - printenv
