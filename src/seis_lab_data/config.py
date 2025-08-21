@@ -3,12 +3,14 @@ from pathlib import Path
 from typing import Optional
 
 import jinja2
-from babel import Locale
 from pydantic import (
     BaseModel,
     ConfigDict,
 )
-from pydantic.networks import RedisDsn
+from pydantic.networks import (
+    PostgresDsn,
+    RedisDsn,
+)
 from pydantic_settings import (
     BaseSettings,
     SettingsConfigDict,
@@ -32,6 +34,9 @@ class SeisLabDataSettings(BaseSettings):
     auth_internal_base_url: str = "http://localhost:9000"
     bind_host: str = "127.0.0.1"
     bind_port: int = 5001
+    database_dsn: PostgresDsn = PostgresDsn(
+        "postgresql+psycopg://sld:sldpass@localhost/seis_lab_data"
+    )
     debug: bool = False
     log_config_file: Path | None = None
     num_web_worker_processes: int = 8
@@ -43,6 +48,9 @@ class SeisLabDataSettings(BaseSettings):
     locales: list[str] = ["pt_PT", "en_US"]
     translations_dir: Optional[Path] = Path(__file__).parent / "translations"
 
+    @property
+    def sync_database_dsn(self) -> PostgresDsn: ...
+
 
 class SeisLabDataCliContext(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -50,20 +58,18 @@ class SeisLabDataCliContext(BaseModel):
     jinja_environment: jinja2.Environment = jinja2.Environment()
     status_console: Console
     settings: SeisLabDataSettings
-    locales: list[Locale]
 
 
 def get_settings() -> SeisLabDataSettings:
     return SeisLabDataSettings()
 
 
-def get_context() -> SeisLabDataCliContext:
+def get_cli_context() -> SeisLabDataCliContext:
     settings = get_settings()
     return SeisLabDataCliContext(
         jinja_environment=_get_jinja_environment(settings),
         settings=settings,
         status_console=Console(stderr=True),
-        locales=[Locale.parse(loc) for loc in settings.locales],
     )
 
 
