@@ -7,6 +7,9 @@ from alembic import context
 from geoalchemy2 import alembic_helpers
 from sqlmodel import SQLModel
 from seis_lab_data import config as seis_lab_data_config
+
+# this import is crucial for SQLModel.metadata to be populated
+# with our models, do not remove!
 from seis_lab_data.db import models  # noqa
 
 seis_lab_data_settings = seis_lab_data_config.get_settings()
@@ -95,7 +98,8 @@ def run_migrations_online() -> None:
         with context.begin_transaction():
             context.run_migrations()
 
-    if context.is_offline_mode():
-        run_migrations_offline()
-    else:
-        run_migrations_online()
+
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()

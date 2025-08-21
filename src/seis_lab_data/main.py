@@ -8,8 +8,8 @@ from rich.panel import Panel
 import typer
 
 from . import config
-from .translations_app import app as translations_app
-from .db.app import app as db_app
+from .translations_cliapp import app as translations_app
+from .db.cliapp import app as db_app
 
 logger = logging.getLogger(__name__)
 app = typer.Typer()
@@ -26,17 +26,11 @@ def base_callback(ctx: typer.Context) -> None:
     ctx.obj = {"main": context}
 
 
-@app.command()
-def greet(ctx: typer.Context) -> None:
-    context: config.SeisLabDataCliContext = ctx.obj["main"]
-    context.status_console.print("Hello from seis-lab-data")
-
-
 @app.command(
     context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
 )
 def run_processing_worker(ctx: typer.Context) -> None:
-    """Start a processing worker."""
+    """Start a SeisLabData processing worker."""
     context: config.SeisLabDataCliContext = ctx.obj["main"]
     panel = Panel(
         "SeisLabData processing worker",
@@ -71,7 +65,7 @@ def run_processing_worker(ctx: typer.Context) -> None:
 
 @app.command()
 def run_web_server(ctx: typer.Context):
-    """Run the uvicorn server."""
+    """Run the SeisLabData uvicorn server."""
     # NOTE: we explicitly do not use uvicorn's programmatic running abilities here
     # because they do not work correctly when called outside an
     # `if __name__ == __main__` guard and when using its debug features.
