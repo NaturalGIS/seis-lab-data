@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import babel
 import typer
 from babel.messages.catalog import Catalog
 from babel.messages.extract import extract_from_dir
@@ -15,8 +16,8 @@ app = typer.Typer()
 
 
 @app.callback()
-def translations_app_callback():
-    """Manage seis-lab-data translations.
+def translations_app_callback(ctx: typer.Context):
+    """Manage SeisLabData translations.
 
     Simplified translation workflow:
 
@@ -35,8 +36,8 @@ def translations_app_callback():
 @app.command(name="init")
 def init_translations(ctx: typer.Context):
     """Initialize a translation catalog."""
-    context: SeisLabDataCliContext = ctx.obj
-    for locale in context.locales:
+    context: SeisLabDataCliContext = ctx.obj["main"]
+    for locale in (babel.Locale.parse(loc) for loc in context.settings.locales):
         catalog_path = (
             context.settings.translations_dir
             / locale.language

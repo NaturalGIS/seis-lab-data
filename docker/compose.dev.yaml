@@ -11,6 +11,7 @@ name: seis-lab-data
 
 x-common-image: &common-image "ghcr.io/naturalgis/seis-lab-data/seis-lab-data:${CURRENT_GIT_BRANCH:-latest}"
 x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.8.0-rc6"
+x-postgres-image: &postgres-image "postgres:17"
 x-auth-client-id: &auth-client-id "sld-client-id"
 x-auth-client-secret: &auth-client-secret "sld-client-secret"
 x-auth-redirect-url: &auth-redirect-url "http://localhost:8888/oauth2/callback"
@@ -64,7 +65,7 @@ services:
         target: /var/run/docker.sock
 
   auth-db:
-    image: postgres:17
+    image: *postgres-image
     environment:
       POSTGRES_DB: authentik
       POSTGRES_USER: authentik
@@ -121,6 +122,21 @@ services:
         published: 6379
     healthcheck:
       test: "redis-cli PING | grep PONG"
+
+  db:
+    image: *postgres-image
+    environment:
+      POSTGRES_DB: seis_lab_data
+      POSTGRES_USER: sld
+      POSTGRES_PASSWORD: sldpass
+    healthcheck:
+      test: "pg_isready -d seis_lab_data -U sld"
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    volumes:
+      - db:/var/lib/postgresql/data
 
   webapp:
     image: *common-image
@@ -190,3 +206,4 @@ configs:
 
 volumes:
   authentik_db:
+  db:

@@ -9,24 +9,26 @@ import typer
 
 from . import config
 from .translations_app import app as translations_app
+from .db.app import app as db_app
 
 logger = logging.getLogger(__name__)
 app = typer.Typer()
 app.add_typer(translations_app, name="translations")
+app.add_typer(db_app, name="db")
 
 
 @app.callback()
 def base_callback(ctx: typer.Context) -> None:
-    context = config.get_context()
+    context = config.get_cli_context()
     config.configure_logging(
         rich_console=context.status_console, debug=context.settings.debug
     )
-    ctx.obj = context
+    ctx.obj = {"main": context}
 
 
 @app.command()
 def greet(ctx: typer.Context) -> None:
-    context: config.SeisLabDataCliContext = ctx.obj
+    context: config.SeisLabDataCliContext = ctx.obj["main"]
     context.status_console.print("Hello from seis-lab-data")
 
 
@@ -35,7 +37,7 @@ def greet(ctx: typer.Context) -> None:
 )
 def run_processing_worker(ctx: typer.Context) -> None:
     """Start a processing worker."""
-    context: config.SeisLabDataCliContext = ctx.obj
+    context: config.SeisLabDataCliContext = ctx.obj["main"]
     panel = Panel(
         "SeisLabData processing worker",
         title="seis-lab-data",
@@ -80,7 +82,7 @@ def run_web_server(ctx: typer.Context):
     # This solution works well both in development (where we want to use reload)
     # and in production, as using os.execvp is actually similar to just running
     # the standard `uvicorn` cli command (which is what uvicorn docs recommend).
-    context: config.SeisLabDataCliContext = ctx.obj
+    context: config.SeisLabDataCliContext = ctx.obj["main"]
     uvicorn_args = [
         "uvicorn",
         "seis_lab_data.webapp.app:create_app",
