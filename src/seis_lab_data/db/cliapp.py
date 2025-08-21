@@ -2,25 +2,19 @@ import alembic.command
 import alembic.config
 import typer
 
-from seis_lab_data.config import SeisLabDataCliContext
-
 app = typer.Typer()
-
-
-class SeisLabDataDbCliContext(SeisLabDataCliContext):
-    alembic_config: alembic.config.Config
 
 
 @app.callback()
 def db_app_callback(ctx: typer.Context) -> None:
     """Manage SeisLabData database."""
-    context: SeisLabDataCliContext = ctx.obj
     alembic_config = alembic.config.Config()
     alembic_config.set_main_option("script_location", "seis_lab_data:migrations")
-    ctx.obj = {
-        "main": context,
-        "db_app": SeisLabDataDbCliContext(alembic_config=alembic_config),
-    }
+    alembic_config.set_main_option(
+        "file_template",
+        "%%(year)d_%%(month).2d_%%(day).2d_%%(hour).2d%%(minute).2d-%%(rev)s_%%(slug)s",
+    )
+    ctx.obj["db_app"] = {"alembic_config": alembic_config}
 
 
 @app.command(name="check-for-changes")
@@ -30,7 +24,7 @@ def check_for_changes(ctx: typer.Context):
     This command checks if there are changes to the schema that warrant the
     generation of new migration files.
     """
-    alembic.command.check(ctx.obj["db_app"].alembic_config)
+    alembic.command.check(ctx.obj["db_app"]["alembic_config"])
 
 
 @app.command(name="generate-migration")
@@ -41,7 +35,7 @@ def generate_migration(ctx: typer.Context, migration_message: str):
     whether they correctly capture the changes in the code.
     """
     alembic.command.revision(
-        ctx.obj["db_app"].alembic_config,
+        ctx.obj["db_app"]["alembic_config"],
         message=migration_message,
         autogenerate=True,
     )
@@ -52,5 +46,5 @@ def upgrade_db(ctx: typer.Context, revision_identifier: str | None = None) -> No
     """Apply any pending migration files."""
     print("Upgrading database...")
     revision_arg = "head" if revision_identifier is None else revision_identifier
-    alembic.command.upgrade(ctx.obj["db_app"].alembic_config, revision_arg)
+    alembic.command.upgrade(ctx.obj["db_app"]["alembic_config"], revision_arg)
     print("Done!")

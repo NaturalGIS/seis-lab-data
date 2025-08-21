@@ -66,7 +66,7 @@ def extract_translations(
     output_path: Path = Path(__file__).parents[2] / "messages.pot",
 ):
     """Scan the source code and extract translatable strings into a pot file."""
-    context: SeisLabDataCliContext = ctx.obj
+    context: SeisLabDataCliContext = ctx.obj["main"]
     method_map = [
         ("**.py", "python"),
         ("**.html", "jinja2"),
@@ -97,7 +97,7 @@ def update_translations(
     translations_dir: Path = (Path(__file__).parent / "translations"),
 ):
     """Update existing translation catalogues."""
-    context: SeisLabDataCliContext = ctx.obj
+    context: SeisLabDataCliContext = ctx.obj["main"]
     if template_catalog_path.is_file():
         with template_catalog_path.open("r") as fh:
             template_catalog = read_po(fh)
@@ -125,7 +125,7 @@ def update_translations(
 @app.command(name="compile")
 def compile_translations(ctx: typer.Context):
     """Compile translations from their .po file into the usable .mo file."""
-    context: SeisLabDataCliContext = ctx.obj
+    context: SeisLabDataCliContext = ctx.obj["main"]
     for locale_dir in (
         p for p in context.settings.translations_dir.iterdir() if p.is_dir()
     ):

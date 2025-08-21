@@ -11,7 +11,6 @@ name: seis-lab-data
 
 x-common-image: &common-image "ghcr.io/naturalgis/seis-lab-data/seis-lab-data:${CURRENT_GIT_BRANCH:-latest}"
 x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.8.0-rc6"
-x-postgres-image: &postgres-image "postgres:17"
 x-auth-client-id: &auth-client-id "sld-client-id"
 x-auth-client-secret: &auth-client-secret "sld-client-secret"
 x-auth-redirect-url: &auth-redirect-url "http://localhost:8888/oauth2/callback"
@@ -19,6 +18,7 @@ x-auth-redirect-url: &auth-redirect-url "http://localhost:8888/oauth2/callback"
 x-common-env: &common-env
   SEIS_LAB_DATA__DEBUG: true
   SEIS_LAB_DATA__LOG_CONFIG_FILE: /home/appuser/app/dev-log-config.yml
+  SEIS_LAB_DATA__DATABASE_DSN: postgresql+psycopg://sld:sldpass@db:5432/seis_lab_data
   SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
 
 x-common-auth-env: &common-auth-env
@@ -65,7 +65,7 @@ services:
         target: /var/run/docker.sock
 
   auth-db:
-    image: *postgres-image
+    image: postgres:17
     environment:
       POSTGRES_DB: authentik
       POSTGRES_USER: authentik
@@ -124,7 +124,7 @@ services:
       test: "redis-cli PING | grep PONG"
 
   db:
-    image: *postgres-image
+    image: postgis/postgis:17-3.5-alpine
     environment:
       POSTGRES_DB: seis_lab_data
       POSTGRES_USER: sld
@@ -155,6 +155,11 @@ services:
       - "traefik.http.routers.sld-router.entrypoints=web"
       - "traefik.http.routers.sld-router.priority=10"
       - "traefik.http.services.sld-service.loadbalancer.server.port=5000"
+    depends_on:
+      db:
+        condition: service_healthy
+      message-broker:
+        condition: service_healthy
     volumes:
       *common-volumes
 
