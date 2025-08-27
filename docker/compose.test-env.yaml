@@ -140,6 +140,9 @@ networks:
     external: true
     name: front
 
+volumes:
+  authentik_db:
+
 secrets:
   auth-bootstrap-email:
     file: /opt/seis-lab-data/secrets/auth-bootstrap-email.txt
