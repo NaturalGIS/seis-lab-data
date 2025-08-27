@@ -135,6 +135,9 @@ services:
       interval: 30s
       retries: 5
       timeout: 5s
+    ports:
+      - target: 5432
+        published: 55432
     volumes:
       - db:/var/lib/postgresql/data
 

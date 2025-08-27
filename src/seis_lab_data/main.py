@@ -10,11 +10,13 @@ import typer
 from . import config
 from .translations_cliapp import app as translations_app
 from .db.cliapp import app as db_app
+from .cliapp.app import app as cli_app
 
 logger = logging.getLogger(__name__)
 app = typer.Typer()
 app.add_typer(translations_app, name="translations")
 app.add_typer(db_app, name="db")
+app.add_typer(cli_app, name="main")
 
 
 @app.callback()
