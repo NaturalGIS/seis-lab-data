@@ -1,3 +1,4 @@
+import uuid
 import logging
 
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -46,6 +47,35 @@ async def create_marine_campaign(
         )
     )
     return campaign
+
+
+async def delete_marine_campaign(
+    marine_campaign_id: uuid.UUID,
+    initiator: str,
+    session: AsyncSession,
+    settings: config.SeisLabDataSettings,
+    event_emitter: events.EventEmitterProtocol,
+) -> None:
+    if not await permissions.can_delete_marine_campaign(
+        initiator, "fake", marine_campaign_id, settings=settings
+    ):
+        raise errors.SeisLabDataError("User is not allowed to delete marine campaigns.")
+    marine_campaign = await queries.get_marine_campaign(session, marine_campaign_id)
+    if marine_campaign is None:
+        raise errors.SeisLabDataError(
+            f"Marine campaign with id {marine_campaign_id} does not exist."
+        )
+    serialized_campaign = schemas.MarineCampaignReadDetail(
+        **marine_campaign.model_dump()
+    ).model_dump()
+    await commands.delete_marine_campaign(session, marine_campaign_id)
+    event_emitter(
+        schemas.SeisLabDataEvent(
+            type_=schemas.EventType.MARINE_CAMPAIGN_DELETED,
+            initiator=initiator,
+            payload=schemas.EventPayload(before=serialized_campaign),
+        )
+    )
 
 
 async def list_marine_campaigns(

@@ -6,6 +6,7 @@ from functools import partial
 
 class EventType(enum.Enum):
     MARINE_CAMPAIGN_CREATED = "marine_campaign_created"
+    MARINE_CAMPAIGN_DELETED = "marine_campaign_deleted"
     DATASET_CATEGORY_CREATED = "dataset_category_created"
     DATASET_CATEGORY_DELETED = "dataset_category_deleted"
     DOMAIN_TYPE_CREATED = "domain_type_created"

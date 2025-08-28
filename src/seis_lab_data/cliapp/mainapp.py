@@ -80,6 +80,24 @@ async def list_marine_campaigns(
         printer(schemas.MarineCampaignReadListItem(**item.model_dump()))
 
 
+@marine_campaigns_app.async_command(name="delete")
+async def delete_marine_campaign(
+    ctx: typer.Context,
+    marine_campaign_id: uuid.UUID,
+):
+    """Delete a marine campaign."""
+    printer = ctx.obj["main"].status_console.print
+    async with ctx.obj["session_maker"]() as session:
+        await operations.delete_marine_campaign(
+            marine_campaign_id,
+            initiator="admin",
+            session=session,
+            settings=ctx.obj["main"].settings,
+            event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
+        )
+    printer(f"Deleted marine campaign with id {marine_campaign_id!r}")
+
+
 @dataset_categories_app.callback()
 def dataset_categories_app_callback(ctx: typer.Context):
     """Manage dataset categories."""

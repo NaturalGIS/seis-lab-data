@@ -3,6 +3,7 @@ import uuid
 import typer
 
 from .. import (
+    events,
     operations,
     schemas,
 )
@@ -24,6 +25,7 @@ async def load_sample_marine_campaigns(ctx: typer.Context):
             id=uuid.UUID("74f07051-1aa9-4c08-bc27-3ecf101ab5b3"),
             owner="fakeowner1",
             name={"en": "My first campaign", "pt": "A minha primeira campanha"},
+            root_path="/projects/first",
             links=[
                 {
                     "url": "https://fakeurl.com",
@@ -40,6 +42,7 @@ async def load_sample_marine_campaigns(ctx: typer.Context):
             id=uuid.UUID("9a877fbe-da98-45ab-af70-711879c6fc01"),
             owner="fakeowner1",
             name={"en": "My second campaign", "pt": "A minha segunda campanha"},
+            root_path="/projects/second",
             links=[
                 {
                     "url": "https://fakeurl.com",
@@ -55,6 +58,7 @@ async def load_sample_marine_campaigns(ctx: typer.Context):
     ]
     session_maker = ctx.obj["session_maker"]
     created = []
+    settings = ctx.obj["main"].settings
     async with session_maker() as session:
         for to_create in campaigns_to_create:
             created.append(
@@ -62,7 +66,8 @@ async def load_sample_marine_campaigns(ctx: typer.Context):
                     to_create,
                     initiator=to_create.owner,
                     session=session,
-                    settings=ctx.obj["main"].settings,
+                    settings=settings,
+                    event_emitter=events.get_event_emitter(settings),
                 )
             )
     for created_campaign in created:

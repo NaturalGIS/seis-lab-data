@@ -89,6 +89,10 @@ class MarineCampaign(SQLModel, table=True):
     def serialize_name(self, name: LocalizableString, _info):
         return name
 
+    @field_serializer("links")
+    def serialize_links(self, links: list[Link], _info):
+        return links
+
 
 class SurveyMission(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)

@@ -17,6 +17,14 @@ def bootstrap_app_callback(ctx: typer.Context):
     """Bootstrapp newly installed instances."""
 
 
+@app.async_command(name="all")
+async def bootstrap_all(ctx: typer.Context):
+    """Create all default data."""
+    await ctx.invoke(bootstrap_dataset_categories, ctx=ctx)
+    await ctx.invoke(bootstrap_domain_types, ctx=ctx)
+    await ctx.invoke(bootstrap_workflow_stages, ctx=ctx)
+
+
 @app.async_command(name="dataset-categories")
 async def bootstrap_dataset_categories(ctx: typer.Context):
     """Create default dataset categories."""
