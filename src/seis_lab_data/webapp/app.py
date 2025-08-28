@@ -1,4 +1,5 @@
 import contextlib
+from collections.abc import Callable
 from typing import (
     AsyncIterator,
     TypedDict,
@@ -6,6 +7,7 @@ from typing import (
 
 import jinja2
 from authlib.integrations.starlette_client import OAuth
+from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.applications import Starlette
 from starlette_babel.contrib.jinja import configure_jinja_env
 from starlette.middleware import Middleware
@@ -22,6 +24,10 @@ from ..auth import (
     AuthConfig,
     get_oauth_manager,
 )
+from ..db.engine import (
+    get_engine,
+    get_session_maker,
+)
 from ..processing.broker import setup_broker
 
 from .routes import routes
@@ -32,6 +38,7 @@ class State(TypedDict):
     templates: Jinja2Templates
     auth_config: AuthConfig
     oauth_manager: OAuth
+    session_maker: Callable[[], AsyncSession]
 
 
 @contextlib.asynccontextmanager
@@ -45,11 +52,13 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
     )
     configure_jinja_env(jinja_env)
     templates = Jinja2Templates(env=jinja_env)
+    engine = get_engine(settings)
     yield State(
         settings=settings,
         templates=templates,
         auth_config=auth_config,
         oauth_manager=get_oauth_manager(auth_config),
+        session_maker=get_session_maker(engine),
     )
 
 

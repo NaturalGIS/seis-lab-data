@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 async def create_marine_campaign(
     to_create: schemas.MarineCampaignCreate,
+    initiator: str,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
 ):
@@ -28,7 +29,7 @@ async def create_marine_campaign(
     # - create marine campaign
     # - generate campaign created event
     if not permissions.can_create_marine_campaign(
-        to_create.owner, "fake", settings=settings
+        initiator, "fake", to_create, settings=settings
     ):
         raise errors.SeisLabDataError(
             "User is not allowed to create a marine campaign."
@@ -40,8 +41,11 @@ async def create_marine_campaign(
 async def list_marine_campaigns(
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
+    initiator: str | None = None,
     limit: int = 20,
     offset: int = 0,
     include_total: bool = False,
 ) -> tuple[list[models.MarineCampaign], int | None]:
-    return await queries.list_marine_campaigns(session, limit, offset, include_total)
+    return await queries.list_marine_campaigns(
+        session, initiator, limit, offset, include_total
+    )

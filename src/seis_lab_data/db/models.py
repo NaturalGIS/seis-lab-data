@@ -9,6 +9,8 @@ from sqlmodel import (
     Relationship,
 )
 
+from ..constants import MarineCampaignStatus
+
 
 class LocalizableString(TypedDict):
     locale: str
@@ -26,6 +28,8 @@ class MarineCampaign(SQLModel, table=True):
     owner: str = Field(max_length=100, index=True)
     name: LocalizableString = Field(sa_column=Column(JSONB))
     slug: str
+    status: MarineCampaignStatus = MarineCampaignStatus.DRAFT
+    is_valid: bool = False
     links: list[Link] = Field(sa_column=Column(JSONB), default_factory=list)
 
     survey_missions: list["SurveyMission"] = Relationship(

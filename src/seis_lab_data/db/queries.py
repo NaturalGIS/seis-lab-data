@@ -13,6 +13,7 @@ async def _get_total_num_records(session: AsyncSession, statement):
 
 async def list_marine_campaigns(
     session: AsyncSession,
+    user: str | None = None,
     limit: int = 20,
     offset: int = 0,
     include_total: bool = False,

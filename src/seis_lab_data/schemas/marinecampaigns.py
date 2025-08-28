@@ -5,13 +5,14 @@ from slugify import slugify
 
 from .common import (
     LinkSchema,
+    LocalizableString,
 )
 
 
 class MarineCampaignCreate(pydantic.BaseModel):
     id: uuid.UUID
     owner: str
-    name: dict[str, str]
+    name: LocalizableString
     links: list[LinkSchema] = []
 
     @pydantic.computed_field
@@ -28,6 +29,6 @@ class MarineCampaignReadListItem(pydantic.BaseModel):
 class MarineCampaignReadDetail(pydantic.BaseModel):
     id: uuid.UUID
     owner: str
-    name: dict[str, str]
+    name: LocalizableString
     slug: str
     links: list[LinkSchema] = []

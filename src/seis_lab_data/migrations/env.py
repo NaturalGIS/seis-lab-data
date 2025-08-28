@@ -1,11 +1,13 @@
 from logging.config import fileConfig
 
+# DO NOT REMOVE - this import is needed in order to enjoy proper enum support
+import alembic_postgresql_enum  # noqa
+
 from sqlalchemy import create_engine
-
 from alembic import context
-
 from geoalchemy2 import alembic_helpers
 from sqlmodel import SQLModel
+
 from seis_lab_data import config as seis_lab_data_config
 
 # this import is crucial for SQLModel.metadata to be populated

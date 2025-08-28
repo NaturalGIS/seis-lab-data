@@ -9,14 +9,20 @@ import typer
 
 from . import config
 from .translations_cliapp import app as translations_app
+from .db.engine import (
+    get_engine,
+    get_session_maker,
+)
 from .db.cliapp import app as db_app
 from .cliapp.app import app as cli_app
+from .cliapp.devapp import app as dev_app
 
 logger = logging.getLogger(__name__)
 app = typer.Typer()
 app.add_typer(translations_app, name="translations")
 app.add_typer(db_app, name="db")
 app.add_typer(cli_app, name="main")
+app.add_typer(dev_app, name="dev")
 
 
 @app.callback()
@@ -25,7 +31,12 @@ def base_callback(ctx: typer.Context) -> None:
     config.configure_logging(
         rich_console=context.status_console, debug=context.settings.debug
     )
-    ctx.obj = {"main": context}
+    engine = get_engine(context.settings)
+    session_maker = get_session_maker(engine)
+    ctx.obj = {
+        "main": context,
+        "session_maker": session_maker,
+    }
 
 
 @app.command(
