@@ -10,16 +10,23 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "alembic>=1.16.4",
+    "alembic-postgresql-enum>=1.8.0",
     "authlib>=1.6.1",
     "dramatiq[redis,watch]>=1.18.0",
+    "geoalchemy2>=0.18.0",
     "httpx>=0.28.1",
     "itsdangerous>=2.2.0",
     "jinja2>=3.1.6",
+    "psycopg[binary]>=3.2.9",
     "pydantic>=2.11.7",
     "pydantic-settings>=2.10.1",
     "python-multipart>=0.0.20",
+    "python-slugify>=8.0.4",
     "redis[hiredis]>=6.2.0",
     "rich>=14.0.0",
+    "sqlalchemy>=2.0.43",
+    "sqlmodel>=0.0.24",
     "starlette>=0.47.1",
     "starlette-babel>=1.0.3",
     "typer>=0.16.0",

@@ -46,10 +46,13 @@ COPY --chown=appuser:appuser . .
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/appuser/.cache/uv \
     uv sync --locked --compile-bytecode
 
+ENV UV_NO_SYNC=true \
+    UV_LOCKED=true
+
 # Compile translations
-RUN uv run --no-sync --locked seis-lab-data translations compile
+RUN uv run seis-lab-data translations compile
 
 # use tini as the init process
-ENTRYPOINT ["tini", "-g", "--", "uv", "run", "--no-sync", "--locked", "seis-lab-data"]
+ENTRYPOINT ["tini", "-g", "--", "uv", "run", "seis-lab-data"]
 
 CMD ["run-web-server"]

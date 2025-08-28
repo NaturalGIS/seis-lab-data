@@ -8,34 +8,43 @@ from rich.panel import Panel
 import typer
 
 from . import config
-from .translations_app import app as translations_app
+from .translations_cliapp import app as translations_app
+from .db.engine import (
+    get_engine,
+    get_session_maker,
+)
+from .db.cliapp import app as db_app
+from .cliapp.app import app as cli_app
+from .cliapp.devapp import app as dev_app
 
 logger = logging.getLogger(__name__)
 app = typer.Typer()
 app.add_typer(translations_app, name="translations")
+app.add_typer(db_app, name="db")
+app.add_typer(cli_app, name="main")
+app.add_typer(dev_app, name="dev")
 
 
 @app.callback()
 def base_callback(ctx: typer.Context) -> None:
-    context = config.get_context()
+    context = config.get_cli_context()
     config.configure_logging(
         rich_console=context.status_console, debug=context.settings.debug
     )
-    ctx.obj = context
-
-
-@app.command()
-def greet(ctx: typer.Context) -> None:
-    context: config.SeisLabDataCliContext = ctx.obj
-    context.status_console.print("Hello from seis-lab-data")
+    engine = get_engine(context.settings)
+    session_maker = get_session_maker(engine)
+    ctx.obj = {
+        "main": context,
+        "session_maker": session_maker,
+    }
 
 
 @app.command(
     context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
 )
 def run_processing_worker(ctx: typer.Context) -> None:
-    """Start a processing worker."""
-    context: config.SeisLabDataCliContext = ctx.obj
+    """Start a SeisLabData processing worker."""
+    context: config.SeisLabDataCliContext = ctx.obj["main"]
     panel = Panel(
         "SeisLabData processing worker",
         title="seis-lab-data",
@@ -69,7 +78,7 @@ def run_processing_worker(ctx: typer.Context) -> None:
 
 @app.command()
 def run_web_server(ctx: typer.Context):
-    """Run the uvicorn server."""
+    """Run the SeisLabData uvicorn server."""
     # NOTE: we explicitly do not use uvicorn's programmatic running abilities here
     # because they do not work correctly when called outside an
     # `if __name__ == __main__` guard and when using its debug features.
@@ -80,7 +89,7 @@ def run_web_server(ctx: typer.Context):
     # This solution works well both in development (where we want to use reload)
     # and in production, as using os.execvp is actually similar to just running
     # the standard `uvicorn` cli command (which is what uvicorn docs recommend).
-    context: config.SeisLabDataCliContext = ctx.obj
+    context: config.SeisLabDataCliContext = ctx.obj["main"]
     uvicorn_args = [
         "uvicorn",
         "seis_lab_data.webapp.app:create_app",

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import babel
 import typer
 from babel.messages.catalog import Catalog
 from babel.messages.extract import extract_from_dir
@@ -15,8 +16,8 @@ app = typer.Typer()
 
 
 @app.callback()
-def translations_app_callback():
-    """Manage seis-lab-data translations.
+def translations_app_callback(ctx: typer.Context):
+    """Manage SeisLabData translations.
 
     Simplified translation workflow:
 
@@ -35,8 +36,8 @@ def translations_app_callback():
 @app.command(name="init")
 def init_translations(ctx: typer.Context):
     """Initialize a translation catalog."""
-    context: SeisLabDataCliContext = ctx.obj
-    for locale in context.locales:
+    context: SeisLabDataCliContext = ctx.obj["main"]
+    for locale in (babel.Locale.parse(loc) for loc in context.settings.locales):
         catalog_path = (
             context.settings.translations_dir
             / locale.language
@@ -65,7 +66,7 @@ def extract_translations(
     output_path: Path = Path(__file__).parents[2] / "messages.pot",
 ):
     """Scan the source code and extract translatable strings into a pot file."""
-    context: SeisLabDataCliContext = ctx.obj
+    context: SeisLabDataCliContext = ctx.obj["main"]
     method_map = [
         ("**.py", "python"),
         ("**.html", "jinja2"),
@@ -96,7 +97,7 @@ def update_translations(
     translations_dir: Path = (Path(__file__).parent / "translations"),
 ):
     """Update existing translation catalogues."""
-    context: SeisLabDataCliContext = ctx.obj
+    context: SeisLabDataCliContext = ctx.obj["main"]
     if template_catalog_path.is_file():
         with template_catalog_path.open("r") as fh:
             template_catalog = read_po(fh)
@@ -124,7 +125,7 @@ def update_translations(
 @app.command(name="compile")
 def compile_translations(ctx: typer.Context):
     """Compile translations from their .po file into the usable .mo file."""
-    context: SeisLabDataCliContext = ctx.obj
+    context: SeisLabDataCliContext = ctx.obj["main"]
     for locale_dir in (
         p for p in context.settings.translations_dir.iterdir() if p.is_dir()
     ):

@@ -18,6 +18,7 @@ x-auth-redirect-url: &auth-redirect-url "http://localhost:8888/oauth2/callback"
 x-common-env: &common-env
   SEIS_LAB_DATA__DEBUG: true
   SEIS_LAB_DATA__LOG_CONFIG_FILE: /home/appuser/app/dev-log-config.yml
+  SEIS_LAB_DATA__DATABASE_DSN: postgresql+psycopg://sld:sldpass@db:5432/seis_lab_data
   SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
 
 x-common-auth-env: &common-auth-env
@@ -122,6 +123,24 @@ services:
     healthcheck:
       test: "redis-cli PING | grep PONG"
 
+  db:
+    image: postgis/postgis:17-3.5-alpine
+    environment:
+      POSTGRES_DB: seis_lab_data
+      POSTGRES_USER: sld
+      POSTGRES_PASSWORD: sldpass
+    healthcheck:
+      test: "pg_isready -d seis_lab_data -U sld"
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    ports:
+      - target: 5432
+        published: 55432
+    volumes:
+      - db:/var/lib/postgresql/data
+
   webapp:
     image: *common-image
     environment:
@@ -139,6 +158,11 @@ services:
       - "traefik.http.routers.sld-router.entrypoints=web"
       - "traefik.http.routers.sld-router.priority=10"
       - "traefik.http.services.sld-service.loadbalancer.server.port=5000"
+    depends_on:
+      db:
+        condition: service_healthy
+      message-broker:
+        condition: service_healthy
     volumes:
       *common-volumes
 
@@ -190,3 +214,4 @@ configs:
 
 volumes:
   authentik_db:
+  db:

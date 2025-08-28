@@ -1,0 +1,2 @@
+class SeisLabDataError(Exception):
+    pass

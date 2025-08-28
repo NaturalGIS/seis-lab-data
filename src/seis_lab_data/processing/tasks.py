@@ -3,7 +3,15 @@ import logging
 import dramatiq
 from dramatiq.brokers.stub import StubBroker
 
-from .. import config
+from .. import (
+    config,
+    operations,
+    schemas,
+)
+from ..db.engine import (
+    get_engine,
+    get_session_maker,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -21,3 +29,13 @@ def process_data(message: str):
         f"Received message: {message} - Also settings.debug is {settings.debug}"
     )
     print(f"Received message: {message} - Also settings.debug is {settings.debug}")
+
+
+@dramatiq.actor
+async def create_marine_campaign(to_create: dict):
+    parsed_to_create = schemas.MarineCampaignCreate(**to_create)
+    settings = config.get_settings()
+    engine = get_engine(settings)
+    session_maker = get_session_maker(engine)
+    async with session_maker() as session:
+        await operations.create_marine_campaign(parsed_to_create, session, settings)
