@@ -16,6 +16,7 @@ from .db.engine import (
 from .db.cliapp import app as db_app
 from .cliapp.app import app as cli_app
 from .cliapp.devapp import app as dev_app
+from .cliapp.bootstrapapp import app as bootstrap_app
 
 logger = logging.getLogger(__name__)
 app = typer.Typer()
@@ -23,6 +24,7 @@ app.add_typer(translations_app, name="translations")
 app.add_typer(db_app, name="db")
 app.add_typer(cli_app, name="main")
 app.add_typer(dev_app, name="dev")
+app.add_typer(bootstrap_app, name="bootstrap")
 
 
 @app.callback()

@@ -16,11 +16,24 @@ def has_valid_locales(value: dict[str, str]):
     return value
 
 
+def has_english_locale(value: dict[str, str]):
+    try:
+        result = value["en"] != ""
+    except KeyError as exc:
+        raise ValueError("Missing english locale") from exc
+    if not result:
+        raise ValueError("Missing english locale value")
+    return value
+
+
 LocalizableString = Annotated[dict[str, str], AfterValidator(has_valid_locales)]
+AtLeastEnglishLocalizableString = Annotated[
+    LocalizableString, AfterValidator(has_english_locale)
+]
 
 
 class LinkSchema(BaseModel):
     url: str
     media_type: str
     relation: str
-    description: LocalizableString
+    description: AtLeastEnglishLocalizableString

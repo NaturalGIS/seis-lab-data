@@ -5,6 +5,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from .. import (
     config,
     errors,
+    events,
 )
 from ..db import (
     commands,
@@ -24,23 +25,31 @@ async def create_marine_campaign(
     initiator: str,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
+    event_emitter: events.EventEmitterProtocol,
 ):
-    # - check permissions
-    # - create marine campaign
-    # - generate campaign created event
-    if not permissions.can_create_marine_campaign(
+    if not await permissions.can_create_marine_campaign(
         initiator, "fake", to_create, settings=settings
     ):
         raise errors.SeisLabDataError(
             "User is not allowed to create a marine campaign."
         )
     campaign = await commands.create_marine_campaign(session, to_create)
+    event_emitter(
+        schemas.SeisLabDataEvent(
+            type_=schemas.EventType.MARINE_CAMPAIGN_CREATED,
+            initiator=initiator,
+            payload=schemas.EventPayload(
+                after=schemas.MarineCampaignReadDetail(
+                    **campaign.model_dump()
+                ).model_dump()
+            ),
+        )
+    )
     return campaign
 
 
 async def list_marine_campaigns(
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     initiator: str | None = None,
     limit: int = 20,
     offset: int = 0,

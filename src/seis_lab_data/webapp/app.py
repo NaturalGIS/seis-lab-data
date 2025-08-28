@@ -19,7 +19,10 @@ from starlette_babel import (
     LocaleMiddleware,
 )
 
-from .. import config
+from .. import (
+    config,
+    events,
+)
 from ..auth import (
     AuthConfig,
     get_oauth_manager,
@@ -39,6 +42,7 @@ class State(TypedDict):
     auth_config: AuthConfig
     oauth_manager: OAuth
     session_maker: Callable[[], AsyncSession]
+    event_emitter: events.EventEmitterProtocol
 
 
 @contextlib.asynccontextmanager
@@ -59,6 +63,7 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
         auth_config=auth_config,
         oauth_manager=get_oauth_manager(auth_config),
         session_maker=get_session_maker(engine),
+        event_emitter=events.get_event_emitter(settings),
     )
 
 

@@ -47,9 +47,7 @@ class SeisLabDataSettings(BaseSettings):
     message_broker_channels: list[str] = ["demo-channel"]
     locales: list[str] = ["pt_PT", "en_US"]
     translations_dir: Optional[Path] = Path(__file__).parent / "translations"
-
-    @property
-    def sync_database_dsn(self) -> PostgresDsn: ...
+    emit_events: bool = False
 
 
 class SeisLabDataCliContext(BaseModel):

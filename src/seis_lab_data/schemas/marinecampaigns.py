@@ -1,24 +1,26 @@
 import uuid
 
 import pydantic
-from slugify import slugify
 
 from .common import (
     LinkSchema,
-    LocalizableString,
+    AtLeastEnglishLocalizableString,
 )
 
 
 class MarineCampaignCreate(pydantic.BaseModel):
     id: uuid.UUID
     owner: str
-    name: LocalizableString
+    name: AtLeastEnglishLocalizableString
+    root_path: str
     links: list[LinkSchema] = []
 
-    @pydantic.computed_field
-    @property
-    def slug(self) -> str:
-        return slugify(self.name.get("en", ""))
+
+class MarineCampaignUpdate(pydantic.BaseModel):
+    owner: str | None = None
+    name: AtLeastEnglishLocalizableString | None = None
+    root_path: str | None = None
+    links: list[LinkSchema] | None = None
 
 
 class MarineCampaignReadListItem(pydantic.BaseModel):
@@ -29,6 +31,7 @@ class MarineCampaignReadListItem(pydantic.BaseModel):
 class MarineCampaignReadDetail(pydantic.BaseModel):
     id: uuid.UUID
     owner: str
-    name: LocalizableString
+    name: AtLeastEnglishLocalizableString
+    root_path: str
     slug: str
     links: list[LinkSchema] = []
