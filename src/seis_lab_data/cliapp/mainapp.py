@@ -28,7 +28,7 @@ def parse_json_links(raw_json: str):
 
 @app.callback()
 def app_callback(ctx: typer.Context):
-    """SeisLabData main CLI."""
+    """Manage system data."""
 
 
 @marine_campaigns_app.callback()

@@ -14,7 +14,7 @@ app = AsyncTyper()
 
 @app.callback()
 def bootstrap_app_callback(ctx: typer.Context):
-    """Commands for bootstrapping a newly-installed SeisLabData instance."""
+    """Bootstrapp newly installed instances."""
 
 
 @app.async_command(name="dataset-categories")

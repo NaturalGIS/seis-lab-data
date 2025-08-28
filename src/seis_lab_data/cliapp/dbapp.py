@@ -7,7 +7,7 @@ app = typer.Typer()
 
 @app.callback()
 def db_app_callback(ctx: typer.Context) -> None:
-    """Manage SeisLabData database."""
+    """Manage the database"""
     alembic_config = alembic.config.Config()
     alembic_config.set_main_option("script_location", "seis_lab_data:migrations")
     alembic_config.set_main_option(

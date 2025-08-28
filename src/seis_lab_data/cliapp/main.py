@@ -7,28 +7,29 @@ from rich.padding import Padding
 from rich.panel import Panel
 import typer
 
-from . import config
-from .translations_cliapp import app as translations_app
-from .db.engine import (
+from .. import config
+from ..db.engine import (
     get_engine,
     get_session_maker,
 )
-from .db.cliapp import app as db_app
-from .cliapp.app import app as cli_app
-from .cliapp.devapp import app as dev_app
-from .cliapp.bootstrapapp import app as bootstrap_app
+from .bootstrapapp import app as bootstrap_app
+from .dbapp import app as db_app
+from .devapp import app as dev_app
+from .mainapp import app as main_app
+from .translationsapp import app as translations_app
 
 logger = logging.getLogger(__name__)
 app = typer.Typer()
 app.add_typer(translations_app, name="translations")
 app.add_typer(db_app, name="db")
-app.add_typer(cli_app, name="main")
+app.add_typer(main_app, name="main")
 app.add_typer(dev_app, name="dev")
 app.add_typer(bootstrap_app, name="bootstrap")
 
 
 @app.callback()
 def base_callback(ctx: typer.Context) -> None:
+    """SeisLabData command line interface"""
     context = config.get_cli_context()
     config.configure_logging(
         rich_console=context.status_console, debug=context.settings.debug
@@ -45,7 +46,7 @@ def base_callback(ctx: typer.Context) -> None:
     context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
 )
 def run_processing_worker(ctx: typer.Context) -> None:
-    """Start a SeisLabData processing worker."""
+    """Start a processing worker"""
     context: config.SeisLabDataCliContext = ctx.obj["main"]
     panel = Panel(
         "SeisLabData processing worker",
@@ -80,7 +81,7 @@ def run_processing_worker(ctx: typer.Context) -> None:
 
 @app.command()
 def run_web_server(ctx: typer.Context):
-    """Run the SeisLabData uvicorn server."""
+    """Run the uvicorn server"""
     # NOTE: we explicitly do not use uvicorn's programmatic running abilities here
     # because they do not work correctly when called outside an
     # `if __name__ == __main__` guard and when using its debug features.

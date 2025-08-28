@@ -33,7 +33,7 @@ dependencies = [
     "uvicorn[standard]>=0.35.0",
 ]
 [project.scripts]
-seis-lab-data = "seis_lab_data.main:app"
+seis-lab-data = "seis_lab_data.cliapp.main:app"
 
 [dependency-groups]
 dev = [

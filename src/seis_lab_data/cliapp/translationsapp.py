@@ -10,14 +10,14 @@ from babel.messages.pofile import (
     write_po,
 )
 
-from .config import SeisLabDataCliContext
+from seis_lab_data.config import SeisLabDataCliContext
 
 app = typer.Typer()
 
 
 @app.callback()
 def translations_app_callback(ctx: typer.Context):
-    """Manage SeisLabData translations.
+    """Manage translations
 
     Simplified translation workflow:
 

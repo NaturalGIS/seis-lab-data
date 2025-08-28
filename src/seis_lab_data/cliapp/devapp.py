@@ -13,7 +13,7 @@ app = AsyncTyper()
 
 @app.callback()
 def dev_app_callback(ctx: typer.Context):
-    """Dev-related CLI commands."""
+    """Dev-related commands"""
 
 
 @app.async_command()
