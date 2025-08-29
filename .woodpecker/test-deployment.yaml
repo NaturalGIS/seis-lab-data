@@ -68,7 +68,7 @@ steps:
       mkdir -p $${DEPLOYMENT_DIR}/authentik
       chown $${TARGET_UID}:$${TARGET_GID} $${DEPLOYMENT_DIR}/authentik
       cp docker/authentik/$${AUTHENTIK_BLUEPRINT_FILE_NAME} $${DEPLOYMENT_DIR}/authentik
-      chown $${TARGET_UID}:$${TARGET_GID} $${DEPLOYMENT_DIR}/authentikS/$${AUTHENTIK_BLUEPRINT_FILE_NAME}
+      chown $${TARGET_UID}:$${TARGET_GID} $${DEPLOYMENT_DIR}/authentik/$${AUTHENTIK_BLUEPRINT_FILE_NAME}
 
       if [ ! -f $${DEPLOYMENT_DIR}/$${ENV_FILE_NAME} ]; then
         echo "ERROR: env file not found at $${DEPLOYMENT_DIR}/$${ENV_FILE_NAME}"
