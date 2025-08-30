@@ -53,7 +53,7 @@ default-groups = []
 package = true
 
 [tool.pytest.ini_options]
-addopts = "--strict-markers --verbose -m 'not e2e'"
+addopts = "--strict-markers --verbose -m 'not e2e and not integration'"
 markers = [
     "e2e: marks tests as being end-to-end tests",
     "integration: marks tests as being integration tests",
