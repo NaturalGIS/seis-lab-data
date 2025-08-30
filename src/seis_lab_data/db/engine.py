@@ -1,3 +1,5 @@
+import sqlmodel
+from sqlalchemy import Engine
 from sqlalchemy.ext.asyncio.session import async_sessionmaker
 from sqlalchemy.ext.asyncio.engine import (
     AsyncEngine,
@@ -8,6 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from ..config import SeisLabDataSettings
 
 _DB_ENGINE: AsyncEngine | None = None
+_SYNC_DB_ENGINE: AsyncEngine | None = None
 
 
 def get_engine(settings: SeisLabDataSettings) -> AsyncEngine:
@@ -24,6 +27,16 @@ def get_engine(settings: SeisLabDataSettings) -> AsyncEngine:
             settings.database_dsn.unicode_string(), echo=settings.debug
         )
     return _DB_ENGINE
+
+
+def get_sync_engine(settings: SeisLabDataSettings) -> Engine:
+    global _SYNC_DB_ENGINE
+    if _SYNC_DB_ENGINE is None:
+        _SYNC_DB_ENGINE = sqlmodel.create_engine(
+            settings.database_dsn.unicode_string(),
+            echo=settings.debug,
+        )
+    return _SYNC_DB_ENGINE
 
 
 def get_session_maker(engine: AsyncEngine):

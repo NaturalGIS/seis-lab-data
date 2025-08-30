@@ -1,15 +1,46 @@
 import pytest
-import seis_lab_data.config
+
+import sqlmodel
 from starlette.testclient import TestClient
 
+from seis_lab_data import config
+from seis_lab_data.db.engine import (
+    get_engine,
+    get_session_maker,
+    get_sync_engine,
+)
 from seis_lab_data.webapp.app import create_app_from_settings
 
 
 @pytest.fixture
 def settings():
-    original_settings = seis_lab_data.config.get_settings()
+    original_settings = config.get_settings()
     original_settings.message_broker_dsn = None
+    original_settings.database_dsn = original_settings.test_database_dsn
     return original_settings
+
+
+@pytest.fixture
+def sync_db_engine(settings: config.SeisLabDataSettings):
+    yield get_sync_engine(settings)
+
+
+@pytest.fixture()
+def db_engine(settings: config.SeisLabDataSettings):
+    yield get_engine(settings)
+
+
+@pytest.fixture()
+def db_session_maker(db_engine):
+    yield get_session_maker(db_engine)
+
+
+@pytest.fixture()
+def db(sync_db_engine):
+    """Provides a clean database."""
+    sqlmodel.SQLModel.metadata.create_all(sync_db_engine)
+    yield
+    sqlmodel.SQLModel.metadata.drop_all(sync_db_engine)
 
 
 @pytest.fixture

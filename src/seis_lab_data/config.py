@@ -37,6 +37,9 @@ class SeisLabDataSettings(BaseSettings):
     database_dsn: PostgresDsn = PostgresDsn(
         "postgresql+psycopg://sld:sldpass@localhost/seis_lab_data"
     )
+    test_database_dsn: PostgresDsn = PostgresDsn(
+        "postgresql+psycopg://sld:sldpass@localhost/seis_lab_data_test"
+    )
     debug: bool = False
     log_config_file: Path | None = None
     num_web_worker_processes: int = 8

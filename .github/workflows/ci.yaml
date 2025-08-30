@@ -86,6 +86,12 @@ jobs:
           IMAGE_URL=${{ fromJSON(steps.docker_metadata.outputs.json).tags[0] }} \
           docker compose --file docker/compose.ci.yaml up --detach
 
+      - name: "Run integration tests"
+        run: |
+          IMAGE_URL=${{ fromJSON(steps.docker_metadata.outputs.json).tags[0] }} \
+          docker compose --file docker/compose.ci.yaml exec -t webapp bash -c \
+          "uv sync --locked --group dev && uv run pytest -m integration"
+
       - name: "Run end to end tests"
         run: |
           IMAGE_URL=${{ fromJSON(steps.docker_metadata.outputs.json).tags[0] }} \

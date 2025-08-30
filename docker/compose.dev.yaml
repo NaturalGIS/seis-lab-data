@@ -11,6 +11,7 @@ name: seis-lab-data
 
 x-common-image: &common-image "ghcr.io/naturalgis/seis-lab-data/seis-lab-data:${CURRENT_GIT_BRANCH:-latest}"
 x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.8.0-rc6"
+x-db-image: &db-image "postgis/postgis:17-3.5-alpine"
 x-auth-client-id: &auth-client-id "sld-client-id"
 x-auth-client-secret: &auth-client-secret "sld-client-secret"
 x-auth-redirect-url: &auth-redirect-url "http://localhost:8888/oauth2/callback"
@@ -19,6 +20,7 @@ x-common-env: &common-env
   SEIS_LAB_DATA__DEBUG: true
   SEIS_LAB_DATA__LOG_CONFIG_FILE: /home/appuser/app/dev-log-config.yml
   SEIS_LAB_DATA__DATABASE_DSN: postgresql+psycopg://sld:sldpass@db:5432/seis_lab_data
+  SEIS_LAB_DATA__TEST_DATABASE_DSN: postgresql+psycopg://sld:sldpass@test-db:5432/seis_lab_data_test
   SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
 
 x-common-auth-env: &common-auth-env
@@ -124,7 +126,7 @@ services:
       test: "redis-cli PING | grep PONG"
 
   db:
-    image: postgis/postgis:17-3.5-alpine
+    image: *db-image
     environment:
       POSTGRES_DB: seis_lab_data
       POSTGRES_USER: sld
@@ -205,6 +207,24 @@ services:
         uv sync --group jupyter
         uv run jupyter lab --ip=0.0.0.0 --port=5002 --no-browser --LabApp.token= --LabApp.password=
 
+  test-db:
+    image: *db-image
+    environment:
+      POSTGRES_DB: seis_lab_data_test
+      POSTGRES_USER: sld
+      POSTGRES_PASSWORD: sldpass
+    healthcheck:
+      test: "pg_isready -d seis_lab_data_test -U sld"
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    ports:
+      - target: 5432
+        published: 55433
+    volumes:
+      - test-db:/var/lib/postgresql/data
+
 
 configs:
 
@@ -215,3 +235,4 @@ configs:
 volumes:
   authentik_db:
   db:
+  test-db:
