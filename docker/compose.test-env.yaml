@@ -125,6 +125,8 @@ services:
       interval: 30s
       retries: 5
       timeout: 5s
+    secrets:
+      - db-password
     volumes:
       - db:/var/lib/postgresql/data
 
