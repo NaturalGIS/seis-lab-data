@@ -20,8 +20,12 @@ from .surveyrelatedrecords import (
     WorkflowStageCreate,
     WorkflowStageRead,
 )
+from .webui import (
+    BreadcrumbItem,
+)
 
 __all__ = [
+    BreadcrumbItem,
     DatasetCategoryCreate,
     DatasetCategoryRead,
     DomainTypeCreate,

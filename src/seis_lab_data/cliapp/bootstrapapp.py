@@ -1,6 +1,7 @@
 import uuid
 
 import typer
+from sqlalchemy.exc import IntegrityError
 
 from .. import (
     events,
@@ -65,15 +66,21 @@ async def bootstrap_dataset_categories(ctx: typer.Context):
     settings = ctx.obj["main"].settings
     async with ctx.obj["session_maker"]() as session:
         for to_create in categories_to_create:
-            created.append(
-                await operations.create_dataset_category(
-                    to_create,
-                    initiator="admin",
-                    session=session,
-                    settings=settings,
-                    event_emitter=events.get_event_emitter(settings),
+            try:
+                created.append(
+                    await operations.create_dataset_category(
+                        to_create,
+                        initiator="admin",
+                        session=session,
+                        settings=settings,
+                        event_emitter=events.get_event_emitter(settings),
+                    )
                 )
-            )
+            except IntegrityError:
+                ctx.obj["main"].status_console.print(
+                    f"Dataset category {to_create.name['en']!r} already exists, skipping..."
+                )
+                await session.rollback()
     for created_category in created:
         to_show = schemas.DatasetCategoryRead(**created_category.model_dump())
         ctx.obj["main"].status_console.print(to_show)
@@ -96,15 +103,21 @@ async def bootstrap_domain_types(ctx: typer.Context):
     settings = ctx.obj["main"].settings
     async with ctx.obj["session_maker"]() as session:
         for to_create in domain_types_to_create:
-            created.append(
-                await operations.create_domain_type(
-                    to_create,
-                    initiator="admin",
-                    session=session,
-                    settings=settings,
-                    event_emitter=events.get_event_emitter(settings),
+            try:
+                created.append(
+                    await operations.create_domain_type(
+                        to_create,
+                        initiator="admin",
+                        session=session,
+                        settings=settings,
+                        event_emitter=events.get_event_emitter(settings),
+                    )
                 )
-            )
+            except IntegrityError:
+                ctx.obj["main"].status_console.print(
+                    f"Domain type {to_create.name['en']!r} already exists, skipping..."
+                )
+                await session.rollback()
     for created_domain_type in created:
         to_show = schemas.DomainTypeRead(**created_domain_type.model_dump())
         ctx.obj["main"].status_console.print(to_show)
@@ -135,15 +148,21 @@ async def bootstrap_workflow_stages(ctx: typer.Context):
     settings = ctx.obj["main"].settings
     async with ctx.obj["session_maker"]() as session:
         for to_create in workflow_stages_to_create:
-            created.append(
-                await operations.create_workflow_stage(
-                    to_create,
-                    initiator="admin",
-                    session=session,
-                    settings=settings,
-                    event_emitter=events.get_event_emitter(settings),
+            try:
+                created.append(
+                    await operations.create_workflow_stage(
+                        to_create,
+                        initiator="admin",
+                        session=session,
+                        settings=settings,
+                        event_emitter=events.get_event_emitter(settings),
+                    )
                 )
-            )
+            except IntegrityError:
+                ctx.obj["main"].status_console.print(
+                    f"Workflow stage {to_create.name['en']!r} already exists, skipping..."
+                )
+                await session.rollback()
     for created_workflow_stage in created:
         to_show = schemas.WorkflowStageRead(**created_workflow_stage.model_dump())
         ctx.obj["main"].status_console.print(to_show)

@@ -71,6 +71,7 @@ class MarineCampaign(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner: str = Field(max_length=100, index=True)
     name: LocalizableString = Field(sa_column=Column(JSONB))
+    description: LocalizableString = Field(sa_column=Column(JSONB))
     slug: str = Field(max_length=50, index=True, unique=True)
     status: MarineCampaignStatus = MarineCampaignStatus.DRAFT
     root_path: str = ""
@@ -88,6 +89,10 @@ class MarineCampaign(SQLModel, table=True):
     @field_serializer("name")
     def serialize_name(self, name: LocalizableString, _info):
         return name
+
+    @field_serializer("description")
+    def serialize_description(self, description: LocalizableString, _info):
+        return description
 
     @field_serializer("links")
     def serialize_links(self, links: list[Link], _info):

@@ -105,7 +105,7 @@ def run_web_server(ctx: typer.Context):
         uvicorn_args.extend(
             [
                 "--reload",
-                f"--reload-dir={str(Path(__file__).parent)}",
+                f"--reload-dir={str(Path(__file__).parents[1])}",
                 "--log-level=debug",
             ]
         )

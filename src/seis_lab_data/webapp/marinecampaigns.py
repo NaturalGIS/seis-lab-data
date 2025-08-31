@@ -1,3 +1,4 @@
+from starlette_babel import gettext_lazy as _
 from starlette.requests import Request
 from starlette.routing import Route
 
@@ -13,8 +14,7 @@ async def list_marine_campaigns(request: Request):
     async with session_maker() as session:
         items, num_total = await operations.list_marine_campaigns(
             session,
-            request.state.settings,
-            initiator=request.session.get("user"),
+            request.session.get("user"),
             limit=request.query_params.get("limit", 20),
             offset=request.query_params.get("offset", 0),
             include_total=True,
@@ -25,9 +25,18 @@ async def list_marine_campaigns(request: Request):
         "marinecampaigns/list.html",
         context={
             "items": [
-                schemas.MarineCampaignReadListItem(**i.model_dump()) for i in items
+                schemas.MarineCampaignReadListItem(
+                    **i.model_dump(),
+                )
+                for i in items
             ],
             "num_total": num_total,
+            "breadcrumbs": [
+                schemas.BreadcrumbItem(
+                    name=_("Home"), url=str(request.url_for("home"))
+                ),
+                schemas.BreadcrumbItem(name=_("Marine campaigns")),
+            ],
         },
     )
 

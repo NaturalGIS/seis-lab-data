@@ -4,6 +4,7 @@ import babel
 from pydantic import (
     AfterValidator,
     BaseModel,
+    Field,
 )
 
 
@@ -25,6 +26,14 @@ def has_english_locale(value: dict[str, str]):
         raise ValueError("Missing english locale value")
     return value
 
+
+DescriptionString = Annotated[str, Field(max_length=300)]
+LocalizableDescription = Annotated[
+    dict[str, DescriptionString], AfterValidator(has_valid_locales)
+]
+AtLeastEnglishDescription = Annotated[
+    LocalizableDescription, AfterValidator(has_english_locale)
+]
 
 LocalizableString = Annotated[dict[str, str], AfterValidator(has_valid_locales)]
 AtLeastEnglishLocalizableString = Annotated[

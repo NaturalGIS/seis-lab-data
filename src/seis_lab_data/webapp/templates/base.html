@@ -6,6 +6,7 @@
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <title>{% block title %}Page Title{% endblock %}</title>
         <link rel="stylesheet" href="{{ url_for('static', path='/css/bootstrap.min.css') }}">
+        <link rel="stylesheet" href="{{ url_for('static', path='/css/custom.css') }}">
     {% endblock %}
 </head>
 <body>
@@ -38,6 +39,23 @@
             </div>
         </div>
     </nav>
+    {% if breadcrumbs %}
+    <div class="row">
+        <nav aria-label="breadcrumb">
+            <ul class="breadcrumb p-3 bg-body-tertiary rounded-3">
+                {% for item in breadcrumbs %}
+                <li class="breadcrumb-item">
+                    {% if item.url %}
+                        <a href="{{ item.url }}">{{ item.name }}</a>
+                    {% else %}
+                        {{ item.name }}
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
     <div class="row">
         {% block content %}
         {% endblock %}

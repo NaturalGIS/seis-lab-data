@@ -1,14 +1,17 @@
 import pytest
+import pytest_asyncio
 
 import sqlmodel
 from starlette.testclient import TestClient
 
 from seis_lab_data import config
+from seis_lab_data.cliapp import sampledata
 from seis_lab_data.db.engine import (
     get_engine,
     get_session_maker,
     get_sync_engine,
 )
+from seis_lab_data.db import commands
 from seis_lab_data.webapp.app import create_app_from_settings
 
 
@@ -52,3 +55,14 @@ def app(settings):
 def test_client(app):
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest_asyncio.fixture
+async def sample_marine_campaigns(db, db_session_maker):
+    created = []
+    async with db_session_maker() as session:
+        for campaign_to_create in sampledata.MARINE_CAMPAIGNS_TO_CREATE:
+            created.append(
+                await commands.create_marine_campaign(session, campaign_to_create)
+            )
+    yield created

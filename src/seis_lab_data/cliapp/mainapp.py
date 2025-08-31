@@ -42,6 +42,9 @@ async def create_marine_campaign(
     owner: str,
     name_en: str,
     name_pt: str,
+    description_en: str,
+    description_pt: str,
+    root_path: str,
     link: Annotated[list[dict], typer.Option(parser=parse_json_links)],
 ):
     """Create a new marine campaign."""
@@ -51,6 +54,8 @@ async def create_marine_campaign(
                 id=uuid.uuid4(),
                 owner=owner,
                 name={"en": name_en, "pt": name_pt},
+                description={"en": description_en, "pt": description_pt},
+                root_path=root_path,
                 links=link,
             ),
             initiator=owner,

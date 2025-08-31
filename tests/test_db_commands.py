@@ -97,6 +97,10 @@ async def test_create_marine_campaign(db, db_session_maker):
         id=uuid.UUID("5fe24752-5919-4a05-be46-aed53a6936db"),
         owner="fakeowner",
         name={"en": "A fake campaign", "pt": "Uma campanha falsa"},
+        description={
+            "en": "A description for fake campaign",
+            "pt": "Uma descrição para a campanha falsa",
+        },
         root_path="/fake-path/to/fake-campaign/",
     )
     async with db_session_maker() as session:
@@ -115,6 +119,10 @@ async def test_delete_marine_campaign(db, db_session_maker):
         id=uuid.UUID("0637d5d9-6381-4ba8-b9ec-89750baa93a4"),
         owner="fakeowner",
         name={"en": "A fake campaign", "pt": "Uma campanha falsa"},
+        description={
+            "en": "A description for fake campaign",
+            "pt": "Uma descrição para a campanha falsa",
+        },
         root_path="/fake-path/to/fake-campaign/",
     )
     async with db_session_maker() as session:

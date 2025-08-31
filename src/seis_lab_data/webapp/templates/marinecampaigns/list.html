@@ -1,9 +1,5 @@
 {% extends "base.html" %}
 {% block content %}
     <h1>{{ _("Marine Campaigns") }}</h1>
-    <ul>
-        {% for item in items %}
-            {% include "marinecampaigns/list_item.html" %}
-        {% endfor %}
-    </ul>
+    {% include "marinecampaigns/list-component.html" %}
 {% endblock %}
