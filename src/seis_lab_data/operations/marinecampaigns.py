@@ -88,3 +88,18 @@ async def list_marine_campaigns(
     return await queries.list_marine_campaigns(
         session, initiator, limit, offset, include_total
     )
+
+
+async def get_marine_campaign_by_slug(
+    marine_cammpaign_slug: str,
+    initiator: str,
+    session: AsyncSession,
+    settings: config.SeisLabDataSettings,
+) -> models.MarineCampaign | None:
+    if not permissions.can_read_marine_campaign(
+        initiator, "fake", marine_cammpaign_slug, settings=settings
+    ):
+        raise errors.SeisLabDataError(
+            f"User is not allowed to read marine campaign {marine_cammpaign_slug!r}."
+        )
+    return await queries.get_marine_campaign_by_slug(session, marine_cammpaign_slug)

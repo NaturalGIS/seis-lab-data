@@ -1,6 +1,7 @@
 from .marinecampaigns import (
     create_marine_campaign,
     delete_marine_campaign,
+    get_marine_campaign_by_slug,
     list_marine_campaigns,
 )
 from .surveyrelatedrecords import (
@@ -24,6 +25,7 @@ __all__ = [
     delete_domain_type,
     delete_marine_campaign,
     delete_workflow_stage,
+    get_marine_campaign_by_slug,
     list_dataset_categories,
     list_domain_types,
     list_marine_campaigns,

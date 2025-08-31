@@ -19,6 +19,7 @@
                     <p class="card-text"><small class="text-body-secondary">{{ item.status.value }}</small></p>
                     <p class="card-text"><small class="text-body-secondary">{{ item.is_valid }}</small></p>
                     <p class="card-text">{{ item.description.en }}</p>
+                    <a href="{{ url_for('marine-campaigns:detail', marine_campaign_slug=item.slug) }}" class="btn btn-primary">{{ _("View") }}</a>
                 </div>
             </div>
         </div>

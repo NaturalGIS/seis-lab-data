@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="display-1">{{ item.name.en }}</h1>
+<ul class="nav nav-tabs" id="item-detail" role="tablist">
+    <li class="nav-item" role="presentation">
+        <a
+                class="nav-link active"
+                id="properties-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#properties-tab-pane"
+                type="button"
+                role="tab"
+                aria-controls="properties-tab-pane"
+                aria-selected="true"
+        >{{ _("Properties") }}</a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a
+                class="nav-link"
+                id="survey-missions-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#survey-missions-tab-pane"
+                type="button"
+                role="tab"
+                aria-controls="survey-missions-tab-pane"
+                aria-selected="false"
+        >{{ _("Survey missions") }}</a>
+    </li>
+</ul>
+<div class="tab-content" id="tab-content">
+    <div
+            class="tab-pane fade show active"
+            id="properties-tab-pane"
+            role="tabpanel"
+            aria-labelledby="properties-tab"
+            tabindex="0"
+    >
+        <dl class="row">
+            <dt class="col-sm-3">{{ _("Name") }}</dt>
+            <dd class="col-sm-9">{{ item.name.en }}</dd>
+            <dt class="col-sm-3">{{ _("Description") }}</dt>
+            <dd class="col-sm-9">{{ item.description.en }}</dd>
+            <dt class="col-sm-3">{{ _("Status") }}</dt>
+            <dd class="col-sm-9">{{ item.status.value }}</dd>
+            <dt class="col-sm-3">{{ _("Is valid") }}</dt>
+            <dd class="col-sm-9">{{ item.is_valid }}</dd>
+            <dt class="col-sm-3">{{ _("Root path") }}</dt>
+            <dd class="col-sm-9">{{ item.root_path }}</dd>
+        </dl>
+    </div>
+    <div
+            class="tab-pane fade"
+            id="survey-missions-tab-pane"
+            role="tabpanel"
+            aria-labelledby="survey-missions-tab"
+            tabindex="0"
+    ></div>
+</div>
+{% endblock %}

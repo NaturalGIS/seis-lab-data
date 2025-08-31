@@ -8,6 +8,16 @@ from .. import (
 logger = logging.getLogger(__name__)
 
 
+async def can_read_marine_campaign(
+    user_id: str,
+    group: str,
+    marine_campaign_slug: str,
+    *,
+    settings: config.SeisLabDataSettings,
+):
+    return True
+
+
 async def can_create_marine_campaign(
     user_id: str,
     group: str,

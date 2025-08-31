@@ -47,7 +47,9 @@ async def get_marine_campaign(
 
 async def get_marine_campaign_by_slug(
     session: AsyncSession, slug: str
-) -> models.MarineCampaign | None: ...
+) -> models.MarineCampaign | None:
+    statement = select(models.MarineCampaign).where(models.MarineCampaign.slug == slug)
+    return (await session.exec(statement)).first()
 
 
 async def list_dataset_categories(
