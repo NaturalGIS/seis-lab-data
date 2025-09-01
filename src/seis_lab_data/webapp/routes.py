@@ -2,7 +2,10 @@ import logging
 import uuid
 
 import babel
-from starlette_babel import gettext_lazy as _
+from starlette_babel import (
+    gettext_lazy as _,
+    get_locale,
+)
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
@@ -11,7 +14,7 @@ from starlette.routing import (
     Route,
 )
 
-from ..auth import get_user
+from .auth import get_user
 from ..config import SeisLabDataSettings
 from ..processing import tasks
 
@@ -25,6 +28,14 @@ async def home(request: Request):
     template_processor = request.state.templates
     request_id = str(uuid.uuid4())
     logger.debug("This is the home route")
+    logger.debug(f"Request cookies: {request.cookies=}")
+    logger.debug(f"Current locale in the request state is {request.state.locale=}")
+    logger.debug(
+        f"Current locale according to global starlette-babel function {get_locale()=}"
+    )
+    logger.debug(f"Current language is {request.state.language=}")
+    logger.debug("With the global translator that is imported from starlette_babel:")
+    logger.debug(_("Hi there!"))
     tasks.process_data.send(f"hi from the home route with request id {request_id}")
     return template_processor.TemplateResponse(
         request, "index.html", context={"greeting": _("Hi there!")}
@@ -33,20 +44,15 @@ async def home(request: Request):
 
 async def set_language(request: Request):
     lang = request.path_params["lang"]
-    next_ = request.query_params.get("next", request.url_for("home"))
     logger.debug(f"{lang=}")
-    logger.debug(f"{next_=}")
+    next_url = request.headers.get("referer", request.url_for("home"))
+    response = RedirectResponse(next_url)
     try:
-        locale = babel.Locale.parse(lang)
+        babel.Locale.parse(lang)
+        response.set_cookie("language", lang)
     except babel.UnknownLocaleError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    if (user := get_user(request.session.get("user", {}))) is not None:
-        logger.debug(f"{user=}")
-        user.preferred_language = locale.language
-        logger.debug(f"{user.preferred_language=}")
-    else:
-        request.state.locale = locale
-    return RedirectResponse(next_)
+    return response
 
 
 async def profile(request: Request):

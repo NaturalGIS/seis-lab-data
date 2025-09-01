@@ -92,7 +92,8 @@ async def get_project_by_slug(
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
 ) -> models.Project | None:
-    if initiator is None or not permissions.can_read_marine_campaign(
+    logger.debug(f"{initiator=}")
+    if not permissions.can_read_marine_campaign(
         initiator, marine_cammpaign_slug, settings=settings
     ):
         raise errors.SeisLabDataError(

@@ -3,7 +3,6 @@ import logging
 
 from authlib.integrations.starlette_client import OAuth
 
-from . import schemas
 from .config import SeisLabDataSettings
 from .constants import AUTH_CLIENT_NAME
 
@@ -82,19 +81,3 @@ def get_oauth_manager(auth_config: AuthConfig):
         },
     )
     return oauth
-
-
-def get_user(
-    user_info: dict,
-) -> schemas.User | None:
-    id_ = user_info.get("sub")
-    if id_ is None:
-        return None
-    return schemas.User(
-        id=schemas.UserId(id_),
-        email=user_info.get("email"),
-        username=user_info.get("preferred_username"),
-        roles=[role for role in user_info.get("groups", [])],
-        active=user_info.get("email_verified"),
-        preferred_language=user_info.get("preferred_language"),
-    )

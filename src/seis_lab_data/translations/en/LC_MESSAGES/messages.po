@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-09-01 14:56+0000\n"
+"POT-Creation-Date: 2025-09-01 22:35+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en_US\n"
@@ -19,16 +19,16 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.17.0\n"
 
-#: webapp/projects.py:38 webapp/projects.py:67
+#: webapp/projects.py:39 webapp/projects.py:71
 msgid "Home"
 msgstr ""
 
-#: webapp/projects.py:39 webapp/projects.py:70 webapp/templates/base.html:18
+#: webapp/projects.py:40 webapp/projects.py:74 webapp/templates/base.html:18
 #: webapp/templates/projects/list.html:3
 msgid "Projects"
 msgstr ""
 
-#: webapp/routes.py:28
+#: webapp/routes.py:36 webapp/routes.py:39
 msgid "Hi there!"
 msgstr ""
 
@@ -48,11 +48,19 @@ msgstr ""
 msgid "Protected"
 msgstr ""
 
-#: webapp/templates/base.html:31
+#: webapp/templates/base.html:41
+msgid "English"
+msgstr ""
+
+#: webapp/templates/base.html:46
+msgid "Portuguese"
+msgstr ""
+
+#: webapp/templates/base.html:53
 msgid "Logout"
 msgstr ""
 
-#: webapp/templates/base.html:36
+#: webapp/templates/base.html:58
 msgid "Login / Register"
 msgstr ""
 
@@ -60,7 +68,7 @@ msgstr ""
 msgid "A static string that needs to be translated"
 msgstr ""
 
-#: webapp/templates/projects/detail.html:39 webapp/templates/protected.html:5
+#: webapp/templates/projects/detail.html:51 webapp/templates/protected.html:5
 msgid "Name"
 msgstr ""
 
@@ -81,22 +89,26 @@ msgid "Properties"
 msgstr ""
 
 #: webapp/templates/projects/detail.html:27
+msgid "Links"
+msgstr ""
+
+#: webapp/templates/projects/detail.html:39
 msgid "Survey missions"
 msgstr ""
 
-#: webapp/templates/projects/detail.html:41
+#: webapp/templates/projects/detail.html:53
 msgid "Description"
 msgstr ""
 
-#: webapp/templates/projects/detail.html:43
+#: webapp/templates/projects/detail.html:55
 msgid "Status"
 msgstr ""
 
-#: webapp/templates/projects/detail.html:45
+#: webapp/templates/projects/detail.html:57
 msgid "Is valid"
 msgstr ""
 
-#: webapp/templates/projects/detail.html:47
+#: webapp/templates/projects/detail.html:59
 msgid "Root path"
 msgstr ""
 

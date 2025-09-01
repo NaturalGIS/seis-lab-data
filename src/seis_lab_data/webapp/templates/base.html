@@ -24,13 +24,26 @@
                 {% endif %}
             </div>
             <div class="navbar-nav ms-auto">
-                <div class="dropdown">
-                  <a class="btn btn-outline-light dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    {{ _("Language") }}
-                  </a>
-              <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="{{ url_for('set_language', lang='en') }}">{{ _("English") }}</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('set_language', lang='pt') }}">{{ _("Portuguese") }}</a></li>
+                <div class="dropdown me-3">
+                  <button
+                          class="btn btn-outline-dark dropdown-toggle"
+                          type="button"
+                          data-bs-toggle="dropdown"
+                          aria-expanded="false"
+                  >
+                    {{ _(request.state.locale) }}
+                  </button>
+              <ul class="dropdown-menu text-bg-light">
+                <li><a
+                        class="dropdown-item"
+                        {% if request.state.locale == "en" %}active{% endif %}
+                        href="{{ url_for('set_language', lang='en') }}"
+                    >en - {{ _("English") }}</a></li>
+                <li><a
+                        class="dropdown-item"
+                        {% if request.state.locale == "pt" %}active{% endif %}
+                        href="{{ url_for('set_language', lang='pt') }}"
+                >pt - {{ _("Portuguese") }}</a></li>
               </ul>
             </div>
                 {% if request.session.user %}

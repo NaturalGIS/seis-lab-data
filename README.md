@@ -57,6 +57,13 @@ Marine data catalog for internal usage at [IPMA]
 > CURRENT_GIT_BRANCH=$(git branch --show-current) docker compose -f docker/compose.dev.yaml up -d --force-recreate
 > ```
 
+> [!NOTE]
+> ### Getting translations to work correctly in your local dev environment
+>
+> Because the docker compose file used for dev bind mounts the entire `src` directory, it will
+> mask the container's own compiled `*.mo` files. This means that after running
+> `seis-lab-data translations compile` you need to restart the `webapp` service for the changes to take effect.
+
 
 ## Running tests
 

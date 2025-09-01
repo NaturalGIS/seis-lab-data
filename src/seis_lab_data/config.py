@@ -48,7 +48,7 @@ class SeisLabDataSettings(BaseSettings):
     templates_dir: Optional[Path] = Path(__file__).parent / "webapp/templates"
     message_broker_dsn: Optional[RedisDsn] = RedisDsn("redis://localhost:6379")
     message_broker_channels: list[str] = ["demo-channel"]
-    locales: list[str] = ["pt_PT", "en_US"]
+    locales: list[str] = ["pt", "en"]
     translations_dir: Optional[Path] = Path(__file__).parent / "translations"
     emit_events: bool = False
 

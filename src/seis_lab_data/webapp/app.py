@@ -34,6 +34,7 @@ from ..db.engine import (
 from ..processing.broker import setup_broker
 
 from .routes import routes
+from .jinjafilters import translate_localizable_string
 
 
 class State(TypedDict):
@@ -54,6 +55,7 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
     jinja_env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(settings.templates_dir), autoescape=True
     )
+    jinja_env.filters["translate_localizable_string"] = translate_localizable_string
     configure_jinja_env(jinja_env)
     templates = Jinja2Templates(env=jinja_env)
     engine = get_engine(settings)

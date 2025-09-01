@@ -11,7 +11,3 @@ class User:
     username: str
     roles: list[str]
     active: bool = False
-    preferred_language: str = "pt"
-
-    def get_preferred_language(self) -> str:
-        return self.preferred_language

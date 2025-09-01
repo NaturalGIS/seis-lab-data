@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="display-1">{{ item.name.en }}</h1>
+<h1 class="display-1">{{ item.name|translate_localizable_string }}</h1>
 <ul class="nav nav-tabs" id="item-detail" role="tablist">
     <li class="nav-item" role="presentation">
         <a
@@ -13,6 +13,18 @@
                 aria-controls="properties-tab-pane"
                 aria-selected="true"
         >{{ _("Properties") }}</a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a
+                class="nav-link"
+                id="links-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#links-tab-pane"
+                type="button"
+                role="tab"
+                aria-controls="links-tab-pane"
+                aria-selected="false"
+        >{{ _("Links") }}</a>
     </li>
     <li class="nav-item" role="presentation">
         <a
@@ -37,9 +49,9 @@
     >
         <dl class="row">
             <dt class="col-sm-3">{{ _("Name") }}</dt>
-            <dd class="col-sm-9">{{ item.name.en }}</dd>
+            <dd class="col-sm-9">{{ item.name|translate_localizable_string }}</dd>
             <dt class="col-sm-3">{{ _("Description") }}</dt>
-            <dd class="col-sm-9">{{ item.description.en }}</dd>
+            <dd class="col-sm-9">{{ item.description|translate_localizable_string }}</dd>
             <dt class="col-sm-3">{{ _("Status") }}</dt>
             <dd class="col-sm-9">{{ item.status.value }}</dd>
             <dt class="col-sm-3">{{ _("Is valid") }}</dt>
@@ -48,6 +60,13 @@
             <dd class="col-sm-9">{{ item.root_path }}</dd>
         </dl>
     </div>
+    <div
+            class="tab-pane fade"
+            id="links-tab-pane"
+            role="tabpanel"
+            aria-labelledby="links-tab"
+            tabindex="0"
+    ></div>
     <div
             class="tab-pane fade"
             id="survey-missions-tab-pane"

@@ -4,10 +4,11 @@ from starlette.requests import Request
 from starlette.routing import Route
 
 from .. import (
+    errors,
     operations,
     schemas,
 )
-from ..auth import get_user
+from .auth import get_user
 
 
 async def list_projects(request: Request):
@@ -48,12 +49,15 @@ async def get_project(request: Request):
     session_maker = request.state.session_maker
     user = get_user(request.session.get("user", {}))
     async with session_maker() as session:
-        project = await operations.get_project_by_slug(
-            slug,
-            user,
-            session,
-            request.state.settings,
-        )
+        try:
+            project = await operations.get_project_by_slug(
+                slug,
+                user,
+                session,
+                request.state.settings,
+            )
+        except errors.SeisLabDataError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
     if project is None:
         raise HTTPException(status_code=404, detail=_(f"Project {slug!r} not found."))
     template_processor = request.state.templates
