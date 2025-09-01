@@ -7,7 +7,10 @@ from rich.padding import Padding
 from rich.panel import Panel
 import typer
 
-from .. import config
+from .. import (
+    config,
+    schemas,
+)
 from ..db.engine import (
     get_engine,
     get_session_maker,
@@ -39,6 +42,13 @@ def base_callback(ctx: typer.Context) -> None:
     ctx.obj = {
         "main": context,
         "session_maker": session_maker,
+        "admin_user": schemas.User(
+            id=schemas.UserId("sld-admin"),
+            username="SLD Admin",
+            email="admin@sld.com",
+            roles=["admin"],
+            active=True,
+        ),
     }
 
 

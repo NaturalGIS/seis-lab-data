@@ -1,4 +1,3 @@
-import dataclasses
 import logging
 import uuid
 
@@ -10,6 +9,7 @@ from starlette.routing import (
     Route,
 )
 
+from ..auth import get_user
 from ..config import SeisLabDataSettings
 from ..processing import tasks
 
@@ -17,27 +17,6 @@ from . import auth
 from .marinecampaigns import routes as marinecampaigns_routes
 
 logger = logging.getLogger(__name__)
-
-
-@dataclasses.dataclass(frozen=True)
-class User:
-    email: str
-    username: str
-    roles: list[str]
-    is_authenticated: bool = False
-
-    @classmethod
-    def from_request(cls, request: Request) -> "User":
-        return cls(
-            email=request.headers.get("X-Auth-Request-Email"),
-            username=request.headers.get("X-Auth-Request-User"),
-            roles=[
-                role
-                for role in request.headers.get("X-Auth-Request-Roles", "").split(",")
-                if role != ""
-            ],
-            is_authenticated=bool(request.headers.get("X-Auth-Request-Email")),
-        )
 
 
 async def home(request: Request):
@@ -53,7 +32,7 @@ async def home(request: Request):
 async def profile(request: Request):
     settings = request.state.settings
     settings: SeisLabDataSettings
-    user = request.session.get("user")
+    user = get_user(request.session.get("user", {}))
     if user:
         return RedirectResponse(
             url=f"{settings.auth_external_base_url}/if/user/", status_code=302
@@ -63,7 +42,7 @@ async def profile(request: Request):
 
 
 async def protected(request: Request):
-    if not (user := request.session.get("user")):
+    if not (user := get_user(request.session.get("user", {}))):
         return RedirectResponse(url=request.url_for("login"), status_code=302)
     template_processor = request.state.templates
     return template_processor.TemplateResponse(

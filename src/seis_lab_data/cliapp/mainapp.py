@@ -58,7 +58,7 @@ async def create_marine_campaign(
                 root_path=root_path,
                 links=link,
             ),
-            initiator=owner,
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -78,7 +78,11 @@ async def list_marine_campaigns(
     printer = ctx.obj["main"].status_console.print
     async with ctx.obj["session_maker"]() as session:
         items, num_total = await operations.list_marine_campaigns(
-            session, initiator="admin", limit=limit, offset=offset, include_total=True
+            session,
+            initiator=ctx.obj["admin_user"],
+            limit=limit,
+            offset=offset,
+            include_total=True,
         )
     printer(f"Total records: {num_total}")
     for item in items:
@@ -95,7 +99,7 @@ async def delete_marine_campaign(
     async with ctx.obj["session_maker"]() as session:
         await operations.delete_marine_campaign(
             marine_campaign_id,
-            initiator="admin",
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -121,7 +125,7 @@ async def create_dataset_category(
                 id=uuid.uuid4(),
                 name={"en": name_en, "pt": name_pt},
             ),
-            initiator="admin",
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -158,7 +162,7 @@ async def delete_dataset_category(
     async with ctx.obj["session_maker"]() as session:
         await operations.delete_dataset_category(
             dataset_category_id,
-            initiator="admin",
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -184,7 +188,7 @@ async def create_domain_type(
                 id=uuid.uuid4(),
                 name={"en": name_en, "pt": name_pt},
             ),
-            initiator="admin",
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -221,7 +225,7 @@ async def delete_domain_type(
     async with ctx.obj["session_maker"]() as session:
         await operations.delete_domain_type(
             domain_type_id,
-            initiator="admin",
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -247,7 +251,7 @@ async def create_workflow_stage(
                 id=uuid.uuid4(),
                 name={"en": name_en, "pt": name_pt},
             ),
-            initiator="admin",
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -284,7 +288,7 @@ async def delete_workflow_stage(
     async with ctx.obj["session_maker"]() as session:
         await operations.delete_workflow_stage(
             workflow_stage_id,
-            initiator="admin",
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),

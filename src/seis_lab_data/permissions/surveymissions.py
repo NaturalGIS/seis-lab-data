@@ -8,8 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 async def can_create_survey_mission(
-    user_id: str,
-    group: str,
+    user: schemas.User,
     to_create: schemas.SurveyMissionCreate,
     *,
     settings: config.SeisLabDataSettings,

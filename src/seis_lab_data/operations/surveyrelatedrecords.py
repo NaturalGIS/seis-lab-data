@@ -21,13 +21,13 @@ logger = logging.getLogger(__name__)
 
 async def create_dataset_category(
     to_create: schemas.DatasetCategoryCreate,
-    initiator: str,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.DatasetCategory:
-    if not permissions.can_create_dataset_category(
-        initiator, "fake", to_create, settings=settings
+    if initiator is None or not permissions.can_create_dataset_category(
+        initiator, to_create, settings=settings
     ):
         raise errors.SeisLabDataError(
             "User is not allowed to create a dataset category."
@@ -49,13 +49,13 @@ async def create_dataset_category(
 
 async def delete_dataset_category(
     dataset_category_id: uuid.UUID,
-    initiator: str,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
-    if not await permissions.can_delete_dataset_category(
-        initiator, "fake", dataset_category_id, settings=settings
+    if initiator is None or not await permissions.can_delete_dataset_category(
+        initiator, dataset_category_id, settings=settings
     ):
         raise errors.SeisLabDataError(
             "User is not allowed to delete dataset categories."
@@ -89,13 +89,13 @@ async def list_dataset_categories(
 
 async def create_domain_type(
     to_create: schemas.DomainTypeCreate,
-    initiator: str,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.DomainType:
-    if not permissions.can_create_domain_type(
-        initiator, "fake", to_create, settings=settings
+    if initiator is None or not permissions.can_create_domain_type(
+        initiator, to_create, settings=settings
     ):
         raise errors.SeisLabDataError("User is not allowed to create a domain type.")
     domain_type = await commands.create_domain_type(session, to_create)
@@ -113,13 +113,13 @@ async def create_domain_type(
 
 async def delete_domain_type(
     domain_type_id: uuid.UUID,
-    initiator: str,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
-    if not await permissions.can_delete_domain_type(
-        initiator, "fake", domain_type_id, settings=settings
+    if initiator is None or not await permissions.can_delete_domain_type(
+        initiator, domain_type_id, settings=settings
     ):
         raise errors.SeisLabDataError("User is not allowed to delete domain types.")
     domain_type = await queries.get_domain_type(session, domain_type_id)
@@ -151,13 +151,13 @@ async def list_domain_types(
 
 async def create_workflow_stage(
     to_create: schemas.WorkflowStageCreate,
-    initiator: str,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.WorkflowStage:
-    if not permissions.can_create_workflow_stage(
-        initiator, "fake", to_create, settings=settings
+    if initiator is None or not permissions.can_create_workflow_stage(
+        initiator, to_create, settings=settings
     ):
         raise errors.SeisLabDataError("User is not allowed to create a workflow stage.")
     workflow_stage = await commands.create_workflow_stage(session, to_create)
@@ -175,13 +175,13 @@ async def create_workflow_stage(
 
 async def delete_workflow_stage(
     workflow_stage_id: uuid.UUID,
-    initiator: str,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
-    if not await permissions.can_delete_workflow_stage(
-        initiator, "fake", workflow_stage_id, settings=settings
+    if initiator is None or not await permissions.can_delete_workflow_stage(
+        initiator, workflow_stage_id, settings=settings
     ):
         raise errors.SeisLabDataError("User is not allowed to delete workflow stages.")
     workflow_stage = await queries.get_workflow_stage(session, workflow_stage_id)

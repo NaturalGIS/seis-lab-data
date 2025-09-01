@@ -7,15 +7,17 @@ from .. import (
     operations,
     schemas,
 )
+from ..auth import get_user
 
 
 async def list_marine_campaigns(request: Request):
     """List marine campaigns."""
     session_maker = request.state.session_maker
+    user = get_user(request.session.get("user", {}))
     async with session_maker() as session:
         items, num_total = await operations.list_marine_campaigns(
             session,
-            request.session.get("user"),
+            initiator=user,
             limit=request.query_params.get("limit", 20),
             offset=request.query_params.get("offset", 0),
             include_total=True,
@@ -44,10 +46,11 @@ async def get_marine_campaign(request: Request):
     """Get marine campaign."""
     slug = request.path_params["marine_campaign_slug"]
     session_maker = request.state.session_maker
+    user = get_user(request.session.get("user", {}))
     async with session_maker() as session:
         campaign = await operations.get_marine_campaign_by_slug(
             slug,
-            request.session.get("user"),
+            user,
             session,
             request.state.settings,
         )

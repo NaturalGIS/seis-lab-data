@@ -70,7 +70,7 @@ async def bootstrap_dataset_categories(ctx: typer.Context):
                 created.append(
                     await operations.create_dataset_category(
                         to_create,
-                        initiator="admin",
+                        initiator=ctx.obj["admin_user"],
                         session=session,
                         settings=settings,
                         event_emitter=events.get_event_emitter(settings),
@@ -107,7 +107,7 @@ async def bootstrap_domain_types(ctx: typer.Context):
                 created.append(
                     await operations.create_domain_type(
                         to_create,
-                        initiator="admin",
+                        initiator=ctx.obj["admin_user"],
                         session=session,
                         settings=settings,
                         event_emitter=events.get_event_emitter(settings),
@@ -152,7 +152,7 @@ async def bootstrap_workflow_stages(ctx: typer.Context):
                 created.append(
                     await operations.create_workflow_stage(
                         to_create,
-                        initiator="admin",
+                        initiator=ctx.obj["admin_user"],
                         session=session,
                         settings=settings,
                         event_emitter=events.get_event_emitter(settings),

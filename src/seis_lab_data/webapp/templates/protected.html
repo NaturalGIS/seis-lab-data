@@ -1,11 +1,17 @@
 {% extends "base.html" %}
 {% block content %}
-    <p>{{ user }}</p>
-    <ul>
-        <li>{{ user.name }}</li>
-        <li>{{ user.email }}</li>
-        {% if user.roles | length > 0 %}
-            <li>Roles: {{ user.roles | join(",") }}</li>
-        {% endif %}
-    </ul>
+    <div class="col g-4">
+        <dl class="row">
+            <dt class="col-sm-3">{{ _('Name') }}</dt>
+            <dt class="col-sm-9">{{ user.username }}</dt>
+            <dt class="col-sm-3">{{ _('E-mail') }}</dt>
+            <dt class="col-sm-9">{{ user.email }}</dt>
+            <dt class="col-sm-3">{{ _('ID') }}</dt>
+            <dt class="col-sm-9">{{ user.id }}</dt>
+            {% if user.roles | length > 0 %}
+                <dt class="col-sm-3">{{ _('Roles') }}</dt>
+                <dt class="col-sm-9">{{ user.roles | join(",") }}</dt>
+            {% endif %}
+        </dl>
+    </div>
 {% endblock %}

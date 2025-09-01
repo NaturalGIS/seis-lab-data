@@ -20,6 +20,10 @@ from .surveyrelatedrecords import (
     WorkflowStageCreate,
     WorkflowStageRead,
 )
+from .user import (
+    User,
+    UserId,
+)
 from .webui import (
     BreadcrumbItem,
 )
@@ -40,4 +44,6 @@ __all__ = [
     SurveyMissionCreate,
     WorkflowStageCreate,
     WorkflowStageRead,
+    User,
+    UserId,
 ]

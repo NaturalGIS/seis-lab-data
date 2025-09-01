@@ -98,6 +98,12 @@ steps:
         --file $${COMPOSE_FILE_NAME} \
         up --detach
 
+      echo "Applying database migrations..."
+      docker compose \
+        --env-file $${ENV_FILE_NAME} \
+        --file $${COMPOSE_FILE_NAME} \
+        exec -ti webapp uv run seis-lab-data db upgrade
+
   - name: send telegram notification
     image: appleboy/drone-telegram:1.4.0
     settings:

@@ -1,5 +1,7 @@
 <div class="row row-cols-2 g-4">
     {% for item in items %}
-    {% include "marinecampaigns/list-item.html" %}
+        {% include "marinecampaigns/list-item.html" %}
+    {% else %}
+        <p>{{ _("No marine campaigns found") }}</p>
     {% endfor %}
 </div>

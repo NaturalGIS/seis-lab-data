@@ -23,13 +23,13 @@ logger = logging.getLogger(__name__)
 
 async def create_marine_campaign(
     to_create: schemas.MarineCampaignCreate,
-    initiator: str,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ):
-    if not await permissions.can_create_marine_campaign(
-        initiator, "fake", to_create, settings=settings
+    if initiator is None or not await permissions.can_create_marine_campaign(
+        initiator, to_create, settings=settings
     ):
         raise errors.SeisLabDataError(
             "User is not allowed to create a marine campaign."
@@ -51,13 +51,13 @@ async def create_marine_campaign(
 
 async def delete_marine_campaign(
     marine_campaign_id: uuid.UUID,
-    initiator: str,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
-    if not await permissions.can_delete_marine_campaign(
-        initiator, "fake", marine_campaign_id, settings=settings
+    if initiator is None or not await permissions.can_delete_marine_campaign(
+        initiator, marine_campaign_id, settings=settings
     ):
         raise errors.SeisLabDataError("User is not allowed to delete marine campaigns.")
     marine_campaign = await queries.get_marine_campaign(session, marine_campaign_id)
@@ -80,7 +80,7 @@ async def delete_marine_campaign(
 
 async def list_marine_campaigns(
     session: AsyncSession,
-    initiator: str | None = None,
+    initiator: schemas.User | None,
     limit: int = 20,
     offset: int = 0,
     include_total: bool = False,
@@ -92,12 +92,12 @@ async def list_marine_campaigns(
 
 async def get_marine_campaign_by_slug(
     marine_cammpaign_slug: str,
-    initiator: str,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
 ) -> models.MarineCampaign | None:
-    if not permissions.can_read_marine_campaign(
-        initiator, "fake", marine_cammpaign_slug, settings=settings
+    if initiator is None or not permissions.can_read_marine_campaign(
+        initiator, marine_cammpaign_slug, settings=settings
     ):
         raise errors.SeisLabDataError(
             f"User is not allowed to read marine campaign {marine_cammpaign_slug!r}."

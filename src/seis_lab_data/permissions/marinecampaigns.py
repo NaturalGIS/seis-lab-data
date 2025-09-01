@@ -9,8 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 async def can_read_marine_campaign(
-    user_id: str,
-    group: str,
+    user: schemas.User,
     marine_campaign_slug: str,
     *,
     settings: config.SeisLabDataSettings,
@@ -19,8 +18,7 @@ async def can_read_marine_campaign(
 
 
 async def can_create_marine_campaign(
-    user_id: str,
-    group: str,
+    user: schemas.User,
     to_create: schemas.MarineCampaignCreate,
     *,
     settings: config.SeisLabDataSettings,
@@ -29,8 +27,7 @@ async def can_create_marine_campaign(
 
 
 async def can_delete_marine_campaign(
-    user_id: str,
-    group: str,
+    user: schemas.User,
     marine_campaign_id: uuid.UUID,
     *,
     settings: config.SeisLabDataSettings,
