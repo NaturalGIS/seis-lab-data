@@ -92,41 +92,41 @@ async def test_delete_workflow_stage(db, db_session_maker):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_create_marine_campaign(db, db_session_maker):
-    to_create = schemas.MarineCampaignCreate(
+async def test_create_project(db, db_session_maker):
+    to_create = schemas.ProjectCreate(
         id=uuid.UUID("5fe24752-5919-4a05-be46-aed53a6936db"),
         owner="fakeowner",
-        name={"en": "A fake campaign", "pt": "Uma campanha falsa"},
+        name={"en": "A fake project", "pt": "Um projeto falso"},
         description={
-            "en": "A description for fake campaign",
-            "pt": "Uma descrição para a campanha falsa",
+            "en": "A description for fake project",
+            "pt": "Uma descrição para o projeto falso",
         },
-        root_path="/fake-path/to/fake-campaign/",
+        root_path="/fake-path/to/fake-project/",
     )
     async with db_session_maker() as session:
-        created = await commands.create_marine_campaign(session, to_create)
+        created = await commands.create_project(session, to_create)
         assert created.id == to_create.id
         assert created.owner == to_create.owner
-        assert created.slug == "a-fake-campaign"
+        assert created.slug == "a-fake-project"
         assert created.name["en"] == to_create.name["en"]
         assert created.name["pt"] == to_create.name["pt"]
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_delete_marine_campaign(db, db_session_maker):
-    to_create = schemas.MarineCampaignCreate(
+async def test_delete_project(db, db_session_maker):
+    to_create = schemas.ProjectCreate(
         id=uuid.UUID("0637d5d9-6381-4ba8-b9ec-89750baa93a4"),
         owner="fakeowner",
-        name={"en": "A fake campaign", "pt": "Uma campanha falsa"},
+        name={"en": "A fake project", "pt": "Um projeto falso"},
         description={
-            "en": "A description for fake campaign",
-            "pt": "Uma descrição para a campanha falsa",
+            "en": "A description for fake project",
+            "pt": "Uma descrição para o projeto falso",
         },
-        root_path="/fake-path/to/fake-campaign/",
+        root_path="/fake-path/to/fake-project/",
     )
     async with db_session_maker() as session:
-        await commands.create_marine_campaign(session, to_create)
-        assert await queries.get_marine_campaign(session, to_create.id) is not None
-        await commands.delete_marine_campaign(session, to_create.id)
-        assert await queries.get_marine_campaign(session, to_create.id) is None
+        await commands.create_project(session, to_create)
+        assert await queries.get_project(session, to_create.id) is not None
+        await commands.delete_project(session, to_create.id)
+        assert await queries.get_project(session, to_create.id) is None

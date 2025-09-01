@@ -1,0 +1,7 @@
+<div class="row row-cols-2 g-4">
+    {% for item in items %}
+        {% include "projects/list-item.html" %}
+    {% else %}
+        <p>{{ _("No projects found") }}</p>
+    {% endfor %}
+</div>
