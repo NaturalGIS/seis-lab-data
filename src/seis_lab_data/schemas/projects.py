@@ -2,7 +2,7 @@ import uuid
 
 import pydantic
 
-from ..constants import MarineCampaignStatus
+from ..constants import ProjectStatus
 from .common import (
     LinkSchema,
     AtLeastEnglishLocalizableString,
@@ -10,7 +10,7 @@ from .common import (
 )
 
 
-class MarineCampaignCreate(pydantic.BaseModel):
+class ProjectCreate(pydantic.BaseModel):
     id: uuid.UUID
     owner: str
     name: AtLeastEnglishLocalizableString
@@ -19,7 +19,7 @@ class MarineCampaignCreate(pydantic.BaseModel):
     links: list[LinkSchema] = []
 
 
-class MarineCampaignUpdate(pydantic.BaseModel):
+class ProjectUpdate(pydantic.BaseModel):
     owner: str | None = None
     name: AtLeastEnglishLocalizableString | None = None
     description: AtLeastEnglishDescription
@@ -27,16 +27,16 @@ class MarineCampaignUpdate(pydantic.BaseModel):
     links: list[LinkSchema] | None = None
 
 
-class MarineCampaignReadListItem(pydantic.BaseModel):
+class ProjectReadListItem(pydantic.BaseModel):
     id: uuid.UUID
     slug: str
     name: AtLeastEnglishLocalizableString
     description: AtLeastEnglishDescription
-    status: MarineCampaignStatus
+    status: ProjectStatus
     is_valid: bool
 
 
-class MarineCampaignReadDetail(MarineCampaignReadListItem):
+class ProjectReadDetail(ProjectReadListItem):
     owner: str
     root_path: str
     links: list[LinkSchema] = []

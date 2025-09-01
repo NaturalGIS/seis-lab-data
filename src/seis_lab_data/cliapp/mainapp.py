@@ -12,11 +12,11 @@ from .. import (
 from .asynctyper import AsyncTyper
 
 app = AsyncTyper()
-marine_campaigns_app = AsyncTyper()
+projects_app = AsyncTyper()
 dataset_categories_app = AsyncTyper()
 domain_types_app = AsyncTyper()
 workflow_stages_app = AsyncTyper()
-app.add_typer(marine_campaigns_app, name="marine-campaigns")
+app.add_typer(projects_app, name="projects")
 app.add_typer(dataset_categories_app, name="dataset-categories")
 app.add_typer(domain_types_app, name="domain-types")
 app.add_typer(workflow_stages_app, name="workflow-stages")
@@ -31,13 +31,13 @@ def app_callback(ctx: typer.Context):
     """Manage system data."""
 
 
-@marine_campaigns_app.callback()
-def marine_campaigns_app_callback(ctx: typer.Context):
-    """Manage marine campaigns."""
+@projects_app.callback()
+def projects_app_callback(ctx: typer.Context):
+    """Manage projects."""
 
 
-@marine_campaigns_app.async_command(name="create")
-async def create_marine_campaign(
+@projects_app.async_command(name="create")
+async def create_project(
     ctx: typer.Context,
     owner: str,
     name_en: str,
@@ -47,10 +47,10 @@ async def create_marine_campaign(
     root_path: str,
     link: Annotated[list[dict], typer.Option(parser=parse_json_links)],
 ):
-    """Create a new marine campaign."""
+    """Create a new project."""
     async with ctx.obj["session_maker"]() as session:
-        created = await operations.create_marine_campaign(
-            to_create=schemas.MarineCampaignCreate(
+        created = await operations.create_project(
+            to_create=schemas.ProjectCreate(
                 id=uuid.uuid4(),
                 owner=owner,
                 name={"en": name_en, "pt": name_pt},
@@ -64,20 +64,20 @@ async def create_marine_campaign(
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
         )
         ctx.obj["main"].status_console.print(
-            schemas.MarineCampaignReadDetail(**created.model_dump())
+            schemas.ProjectReadDetail(**created.model_dump())
         )
 
 
-@marine_campaigns_app.async_command(name="list")
-async def list_marine_campaigns(
+@projects_app.async_command(name="list")
+async def list_projects(
     ctx: typer.Context,
     limit: int = 20,
     offset: int = 0,
 ):
-    """List marine campaigns."""
+    """List projects."""
     printer = ctx.obj["main"].status_console.print
     async with ctx.obj["session_maker"]() as session:
-        items, num_total = await operations.list_marine_campaigns(
+        items, num_total = await operations.list_projects(
             session,
             initiator=ctx.obj["admin_user"],
             limit=limit,
@@ -86,25 +86,25 @@ async def list_marine_campaigns(
         )
     printer(f"Total records: {num_total}")
     for item in items:
-        printer(schemas.MarineCampaignReadListItem(**item.model_dump()))
+        printer(schemas.ProjectReadListItem(**item.model_dump()))
 
 
-@marine_campaigns_app.async_command(name="delete")
-async def delete_marine_campaign(
+@projects_app.async_command(name="delete")
+async def delete_project(
     ctx: typer.Context,
-    marine_campaign_id: uuid.UUID,
+    project_id: uuid.UUID,
 ):
-    """Delete a marine campaign."""
+    """Delete a project."""
     printer = ctx.obj["main"].status_console.print
     async with ctx.obj["session_maker"]() as session:
-        await operations.delete_marine_campaign(
-            marine_campaign_id,
+        await operations.delete_project(
+            project_id,
             initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
         )
-    printer(f"Deleted marine campaign with id {marine_campaign_id!r}")
+    printer(f"Deleted project with id {project_id!r}")
 
 
 @dataset_categories_app.callback()

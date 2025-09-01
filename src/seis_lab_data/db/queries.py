@@ -13,14 +13,14 @@ async def _get_total_num_records(session: AsyncSession, statement):
     return (await session.exec(select(func.count()).select_from(statement))).first()
 
 
-async def list_marine_campaigns(
+async def list_projects(
     session: AsyncSession,
     user: str | None = None,
     limit: int = 20,
     offset: int = 0,
     include_total: bool = False,
-) -> tuple[list[models.MarineCampaign], int | None]:
-    statement = select(models.MarineCampaign)
+) -> tuple[list[models.Project], int | None]:
+    statement = select(models.Project)
     items = (await session.exec(statement.offset(offset).limit(limit))).all()
     num_total = (
         await _get_total_num_records(session, statement) if include_total else None
@@ -28,27 +28,25 @@ async def list_marine_campaigns(
     return items, num_total
 
 
-async def collect_all_marine_campaigns(
+async def collect_all_projects(
     session: AsyncSession,
-) -> list[models.MarineCampaign]:
-    _, num_total = await list_marine_campaigns(session, limit=1, include_total=True)
-    items, _ = await list_marine_campaigns(
-        session, limit=num_total, include_total=False
-    )
+) -> list[models.Project]:
+    _, num_total = await list_projects(session, limit=1, include_total=True)
+    items, _ = await list_projects(session, limit=num_total, include_total=False)
     return items
 
 
-async def get_marine_campaign(
+async def get_project(
     session: AsyncSession,
-    marine_campaign_id: uuid.UUID,
-) -> models.MarineCampaign | None:
-    return await session.get(models.MarineCampaign, marine_campaign_id)
+    project_id: uuid.UUID,
+) -> models.Project | None:
+    return await session.get(models.Project, project_id)
 
 
-async def get_marine_campaign_by_slug(
+async def get_project_by_slug(
     session: AsyncSession, slug: str
-) -> models.MarineCampaign | None:
-    statement = select(models.MarineCampaign).where(models.MarineCampaign.slug == slug)
+) -> models.Project | None:
+    statement = select(models.Project).where(models.Project.slug == slug)
     return (await session.exec(statement)).first()
 
 

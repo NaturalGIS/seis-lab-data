@@ -7,7 +7,7 @@ from .. import (
     schemas,
 )
 from .asynctyper import AsyncTyper
-from .sampledata import MARINE_CAMPAIGNS_TO_CREATE
+from .sampledata import PROJECTS_TO_CREATE
 
 app = AsyncTyper()
 
@@ -18,16 +18,16 @@ def dev_app_callback(ctx: typer.Context):
 
 
 @app.async_command()
-async def load_sample_marine_campaigns(ctx: typer.Context):
-    """Load sample marine campaigns into the database."""
+async def load_sample_projects(ctx: typer.Context):
+    """Load sample projects into the database."""
     session_maker = ctx.obj["session_maker"]
     created = []
     settings = ctx.obj["main"].settings
     async with session_maker() as session:
-        for to_create in MARINE_CAMPAIGNS_TO_CREATE:
+        for to_create in PROJECTS_TO_CREATE:
             try:
                 created.append(
-                    await operations.create_marine_campaign(
+                    await operations.create_project(
                         to_create,
                         initiator=to_create.owner,
                         session=session,
@@ -37,9 +37,9 @@ async def load_sample_marine_campaigns(ctx: typer.Context):
                 )
             except IntegrityError:
                 ctx.obj["main"].status_console.print(
-                    f"Marine campaign {to_create.id!r} already exists, skipping..."
+                    f"Project {to_create.id!r} already exists, skipping..."
                 )
                 await session.rollback()
     for created_campaign in created:
-        to_show = schemas.MarineCampaignReadListItem(**created_campaign.model_dump())
+        to_show = schemas.ProjectReadListItem(**created_campaign.model_dump())
         ctx.obj["main"].status_console.print(to_show)

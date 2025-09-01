@@ -1,8 +1,8 @@
-from .marinecampaigns import (
-    create_marine_campaign,
-    delete_marine_campaign,
-    get_marine_campaign_by_slug,
-    list_marine_campaigns,
+from .projects import (
+    create_project,
+    delete_project,
+    get_project_by_slug,
+    list_projects,
 )
 from .surveyrelatedrecords import (
     create_dataset_category,
@@ -19,15 +19,15 @@ from .surveyrelatedrecords import (
 __all__ = [
     create_dataset_category,
     create_domain_type,
-    create_marine_campaign,
+    create_project,
     create_workflow_stage,
     delete_dataset_category,
     delete_domain_type,
-    delete_marine_campaign,
+    delete_project,
     delete_workflow_stage,
-    get_marine_campaign_by_slug,
+    get_project_by_slug,
     list_dataset_categories,
     list_domain_types,
-    list_marine_campaigns,
+    list_projects,
     list_workflow_stages,
 ]

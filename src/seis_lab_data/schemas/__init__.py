@@ -3,11 +3,11 @@ from .events import (
     EventPayload,
     SeisLabDataEvent,
 )
-from .marinecampaigns import (
-    MarineCampaignCreate,
-    MarineCampaignReadDetail,
-    MarineCampaignReadListItem,
-    MarineCampaignUpdate,
+from .projects import (
+    ProjectCreate,
+    ProjectReadDetail,
+    ProjectReadListItem,
+    ProjectUpdate,
 )
 from .surveymissions import (
     SurveyMissionCreate,
@@ -36,10 +36,10 @@ __all__ = [
     DomainTypeRead,
     EventPayload,
     EventType,
-    MarineCampaignCreate,
-    MarineCampaignReadDetail,
-    MarineCampaignReadListItem,
-    MarineCampaignUpdate,
+    ProjectCreate,
+    ProjectReadDetail,
+    ProjectReadListItem,
+    ProjectUpdate,
     SeisLabDataEvent,
     SurveyMissionCreate,
     WorkflowStageCreate,

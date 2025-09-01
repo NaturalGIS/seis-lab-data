@@ -58,11 +58,9 @@ def test_client(app):
 
 
 @pytest_asyncio.fixture
-async def sample_marine_campaigns(db, db_session_maker):
+async def sample_projects(db, db_session_maker):
     created = []
     async with db_session_maker() as session:
-        for campaign_to_create in sampledata.MARINE_CAMPAIGNS_TO_CREATE:
-            created.append(
-                await commands.create_marine_campaign(session, campaign_to_create)
-            )
+        for project_to_create in sampledata.PROJECTS_TO_CREATE:
+            created.append(await commands.create_project(session, project_to_create))
     yield created

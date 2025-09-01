@@ -33,9 +33,9 @@ def process_data(message: str):
 
 @dramatiq.actor
 async def create_marine_campaign(to_create: dict):
-    parsed_to_create = schemas.MarineCampaignCreate(**to_create)
+    parsed_to_create = schemas.ProjectCreate(**to_create)
     settings = config.get_settings()
     engine = get_engine(settings)
     session_maker = get_session_maker(engine)
     async with session_maker() as session:
-        await operations.create_marine_campaign(parsed_to_create, session, settings)
+        await operations.create_project(parsed_to_create, session, settings)

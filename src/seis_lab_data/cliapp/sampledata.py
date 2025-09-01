@@ -2,14 +2,14 @@ import uuid
 
 from .. import schemas
 
-MARINE_CAMPAIGNS_TO_CREATE = [
-    schemas.MarineCampaignCreate(
+PROJECTS_TO_CREATE = [
+    schemas.ProjectCreate(
         id=uuid.UUID("74f07051-1aa9-4c08-bc27-3ecf101ab5b3"),
         owner="fakeowner1",
-        name={"en": "My first campaign", "pt": "A minha primeira campanha"},
+        name={"en": "My first project", "pt": "O meu primeiro projeto"},
         description={
-            "en": "A fake description for my first campaign",
-            "pt": "Uma descrição sintética para a minha primeira campanha",
+            "en": "A fake description for my first project",
+            "pt": "Uma descrição sintética para o meu primeiro projeto",
         },
         root_path="/projects/first",
         links=[
@@ -24,13 +24,13 @@ MARINE_CAMPAIGNS_TO_CREATE = [
             }
         ],
     ),
-    schemas.MarineCampaignCreate(
+    schemas.ProjectCreate(
         id=uuid.UUID("9a877fbe-da98-45ab-af70-711879c6fc01"),
         owner="fakeowner1",
-        name={"en": "My second campaign", "pt": "A minha segunda campanha"},
+        name={"en": "My second project", "pt": "O meu segundo projeto"},
         description={
-            "en": "A fake description for my second campaign",
-            "pt": "Uma descrição sintética para a minha segunda campanha",
+            "en": "A fake description for my second project",
+            "pt": "Uma descrição sintética para o meu segundo projeto",
         },
         root_path="/projects/second",
         links=[

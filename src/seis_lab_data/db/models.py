@@ -11,7 +11,7 @@ from sqlmodel import (
 )
 
 from ..constants import (
-    MarineCampaignStatus,
+    ProjectStatus,
     SurveyMissionStatus,
     SurveyRelatedRecordStatus,
 )
@@ -67,19 +67,19 @@ class WorkflowStage(SQLModel, table=True):
         return name
 
 
-class MarineCampaign(SQLModel, table=True):
+class Project(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner: str = Field(max_length=100, index=True)
     name: LocalizableString = Field(sa_column=Column(JSONB))
     description: LocalizableString = Field(sa_column=Column(JSONB))
     slug: str = Field(max_length=50, index=True, unique=True)
-    status: MarineCampaignStatus = MarineCampaignStatus.DRAFT
+    status: ProjectStatus = ProjectStatus.DRAFT
     root_path: str = ""
     is_valid: bool = False
     links: list[Link] = Field(sa_column=Column(JSONB), default_factory=list)
 
     survey_missions: list["SurveyMission"] = Relationship(
-        back_populates="marine_campaign",
+        back_populates="project",
         sa_relationship_kwargs={
             "cascade": "all, delete-orphan",
             "passive_deletes": True,
@@ -104,9 +104,9 @@ class SurveyMission(SQLModel, table=True):
     owner: str = Field(max_length=100, index=True)
     name: LocalizableString = Field(sa_column=Column(JSONB))
     slug: str = Field(max_length=50, index=True, unique=True)
-    marine_campaign_id: uuid.UUID = Field(foreign_key="marinecampaign.id")
+    project_id: uuid.UUID = Field(foreign_key="project.id")
     links: list[Link] = Field(sa_column=Column(JSONB), default_factory=list)
-    marine_campaign: MarineCampaign = Relationship(back_populates="survey_missions")
+    project: Project = Relationship(back_populates="survey_missions")
     status: SurveyMissionStatus = SurveyMissionStatus.DRAFT
     is_valid: bool = False
     survey_related_records: list["SurveyRelatedRecord"] = Relationship(

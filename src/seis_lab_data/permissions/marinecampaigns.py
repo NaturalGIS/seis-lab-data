@@ -19,7 +19,7 @@ async def can_read_marine_campaign(
 
 async def can_create_marine_campaign(
     user: schemas.User,
-    to_create: schemas.MarineCampaignCreate,
+    to_create: schemas.ProjectCreate,
     *,
     settings: config.SeisLabDataSettings,
 ):

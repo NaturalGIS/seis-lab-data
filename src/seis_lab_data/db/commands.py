@@ -93,46 +93,42 @@ async def delete_workflow_stage(
         )
 
 
-async def create_marine_campaign(
-    session: AsyncSession, to_create: schemas.MarineCampaignCreate
-) -> models.MarineCampaign:
-    campaign = models.MarineCampaign(
+async def create_project(
+    session: AsyncSession, to_create: schemas.ProjectCreate
+) -> models.Project:
+    project = models.Project(
         **to_create.model_dump(), slug=slugify(to_create.name.get("en", ""))
     )
-    session.add(campaign)
+    session.add(project)
     await session.commit()
-    await session.refresh(campaign)
-    return campaign
+    await session.refresh(project)
+    return project
 
 
-async def delete_marine_campaign(
+async def delete_project(
     session: AsyncSession,
-    marine_campaign_id: uuid.UUID,
+    project_id: uuid.UUID,
 ) -> None:
-    if marine_campaign := (
-        await queries.get_marine_campaign(session, marine_campaign_id)
-    ):
-        await session.delete(marine_campaign)
+    if project := (await queries.get_project(session, project_id)):
+        await session.delete(project)
         await session.commit()
     else:
-        raise errors.SeisLabDataError(
-            f"Marine campaign with id {marine_campaign_id} does not exist."
-        )
+        raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
 
 
-async def update_marine_campaign(
+async def update_project(
     session: AsyncSession,
-    campaign: models.MarineCampaign,
-    to_update: schemas.MarineCampaignUpdate,
-) -> models.MarineCampaign:
+    project: models.Project,
+    to_update: schemas.ProjectUpdate,
+) -> models.Project:
     for key, value in to_update.model_dump(exclude_unset=True).items():
-        setattr(campaign, key, value)
+        setattr(project, key, value)
         if key == "name":
-            setattr(campaign, "slug", slugify(value.get("en", "")))
-    session.add(campaign)
+            setattr(project, "slug", slugify(value.get("en", "")))
+    session.add(project)
     await session.commit()
-    await session.refresh(campaign)
-    return campaign
+    await session.refresh(project)
+    return project
 
 
 async def create_survey_mission(

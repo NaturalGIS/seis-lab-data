@@ -14,7 +14,7 @@ from ..config import SeisLabDataSettings
 from ..processing import tasks
 
 from . import auth
-from .marinecampaigns import routes as marinecampaigns_routes
+from .projects import routes as project_routes
 
 logger = logging.getLogger(__name__)
 
@@ -57,5 +57,5 @@ routes = [
     Route("/logout", auth.logout),
     Route("/profile", profile),
     Route("/protected", protected),
-    Mount("/marinecampaigns", routes=marinecampaigns_routes, name="marine-campaigns"),
+    Mount("/projects", routes=project_routes, name="projects"),
 ]

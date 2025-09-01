@@ -10,12 +10,12 @@ from .. import (
 from ..auth import get_user
 
 
-async def list_marine_campaigns(request: Request):
-    """List marine campaigns."""
+async def list_projects(request: Request):
+    """List projects."""
     session_maker = request.state.session_maker
     user = get_user(request.session.get("user", {}))
     async with session_maker() as session:
-        items, num_total = await operations.list_marine_campaigns(
+        items, num_total = await operations.list_projects(
             session,
             initiator=user,
             limit=request.query_params.get("limit", 20),
@@ -25,10 +25,10 @@ async def list_marine_campaigns(request: Request):
     template_processor = request.state.templates
     return template_processor.TemplateResponse(
         request,
-        "marinecampaigns/list.html",
+        "projects/list.html",
         context={
             "items": [
-                schemas.MarineCampaignReadListItem(
+                schemas.ProjectReadListItem(
                     **i.model_dump(),
                 )
                 for i in items
@@ -42,38 +42,36 @@ async def list_marine_campaigns(request: Request):
     )
 
 
-async def get_marine_campaign(request: Request):
-    """Get marine campaign."""
-    slug = request.path_params["marine_campaign_slug"]
+async def get_project(request: Request):
+    """Get project."""
+    slug = request.path_params["project_slug"]
     session_maker = request.state.session_maker
     user = get_user(request.session.get("user", {}))
     async with session_maker() as session:
-        campaign = await operations.get_marine_campaign_by_slug(
+        project = await operations.get_project_by_slug(
             slug,
             user,
             session,
             request.state.settings,
         )
-    if campaign is None:
-        raise HTTPException(
-            status_code=404, detail=_(f"Marine campaign {slug!r} not found.")
-        )
+    if project is None:
+        raise HTTPException(status_code=404, detail=_(f"Project {slug!r} not found."))
     template_processor = request.state.templates
     return template_processor.TemplateResponse(
         request,
-        "marinecampaigns/detail.html",
+        "projects/detail.html",
         context={
-            "item": schemas.MarineCampaignReadDetail(**campaign.model_dump()),
+            "item": schemas.ProjectReadDetail(**project.model_dump()),
             "breadcrumbs": [
                 schemas.BreadcrumbItem(
                     name=_("Home"), url=str(request.url_for("home"))
                 ),
                 schemas.BreadcrumbItem(
-                    name=_("Marine campaigns"),
-                    url=request.url_for("marine-campaigns:list"),
+                    name=_("Projects"),
+                    url=request.url_for("projects:list"),
                 ),
                 schemas.BreadcrumbItem(
-                    name=campaign.name["en"],
+                    name=project.name["en"],
                 ),
             ],
         },
@@ -81,8 +79,6 @@ async def get_marine_campaign(request: Request):
 
 
 routes = [
-    Route("/", list_marine_campaigns, methods=["GET"], name="list"),
-    Route(
-        "/{marine_campaign_slug}", get_marine_campaign, methods=["GET"], name="detail"
-    ),
+    Route("/", list_projects, methods=["GET"], name="list"),
+    Route("/{project_slug}", get_project, methods=["GET"], name="detail"),
 ]
