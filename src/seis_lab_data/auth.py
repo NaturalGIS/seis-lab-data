@@ -84,15 +84,17 @@ def get_oauth_manager(auth_config: AuthConfig):
     return oauth
 
 
-def get_user(userinfo: dict) -> schemas.User | None:
-    logger.debug(f"{userinfo=}")
-    id_ = userinfo.get("sub")
+def get_user(
+    user_info: dict,
+) -> schemas.User | None:
+    id_ = user_info.get("sub")
     if id_ is None:
         return None
     return schemas.User(
         id=schemas.UserId(id_),
-        email=userinfo.get("email"),
-        username=userinfo.get("preferred_username"),
-        roles=[role for role in userinfo.get("groups", [])],
-        active=userinfo.get("email_verified"),
+        email=user_info.get("email"),
+        username=user_info.get("preferred_username"),
+        roles=[role for role in user_info.get("groups", [])],
+        active=user_info.get("email_verified"),
+        preferred_language=user_info.get("preferred_language"),
     )

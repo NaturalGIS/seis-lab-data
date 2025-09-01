@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-07-28 18:54+0100\n"
+"POT-Creation-Date: 2025-09-01 14:56+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_PT\n"
@@ -19,10 +19,91 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.17.0\n"
 
-#: webapp/routes.py:14
+#: webapp/projects.py:38 webapp/projects.py:67
+msgid "Home"
+msgstr "Início"
+
+#: webapp/projects.py:39 webapp/projects.py:70 webapp/templates/base.html:18
+#: webapp/templates/projects/list.html:3
+msgid "Projects"
+msgstr "Projetos"
+
+#: webapp/routes.py:28
 msgid "Hi there!"
 msgstr "Boas tardes!"
+
+#: webapp/templates/base.html:19
+msgid "Survey Missions"
+msgstr "Missões"
+
+#: webapp/templates/base.html:20
+msgid "Survey-Related Records"
+msgstr "Registos"
+
+#: webapp/templates/base.html:22
+msgid "Profile"
+msgstr "Perfil de utilizador"
+
+#: webapp/templates/base.html:23
+msgid "Protected"
+msgstr "Protegido"
+
+#: webapp/templates/base.html:31
+msgid "Logout"
+msgstr "Terminar sessão"
+
+#: webapp/templates/base.html:36
+msgid "Login / Register"
+msgstr "Entrar / Registar-se"
 
 #: webapp/templates/index.html:3
 msgid "A static string that needs to be translated"
 msgstr "Uma frase estática que tem mesmo de ser traduzida"
+
+#: webapp/templates/projects/detail.html:39 webapp/templates/protected.html:5
+msgid "Name"
+msgstr "Nome"
+
+#: webapp/templates/protected.html:7
+msgid "E-mail"
+msgstr "E-mail"
+
+#: webapp/templates/protected.html:9
+msgid "ID"
+msgstr "ID"
+
+#: webapp/templates/protected.html:12
+msgid "Roles"
+msgstr "Cargos"
+
+#: webapp/templates/projects/detail.html:15
+msgid "Properties"
+msgstr "Propriedades"
+
+#: webapp/templates/projects/detail.html:27
+msgid "Survey missions"
+msgstr "Missões"
+
+#: webapp/templates/projects/detail.html:41
+msgid "Description"
+msgstr "Descrição"
+
+#: webapp/templates/projects/detail.html:43
+msgid "Status"
+msgstr "Estado"
+
+#: webapp/templates/projects/detail.html:45
+msgid "Is valid"
+msgstr "Válido?"
+
+#: webapp/templates/projects/detail.html:47
+msgid "Root path"
+msgstr "Caminho base"
+
+#: webapp/templates/projects/list-component.html:5
+msgid "No projects found"
+msgstr "Nenhum projeto encontrado"
+
+#: webapp/templates/projects/list-item.html:13
+msgid "View"
+msgstr "Ver"

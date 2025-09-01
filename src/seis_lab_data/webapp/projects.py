@@ -36,7 +36,7 @@ async def list_projects(request: Request):
             "num_total": num_total,
             "breadcrumbs": [
                 schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
-                schemas.BreadcrumbItem(name=_("Marine campaigns")),
+                schemas.BreadcrumbItem(name=_("Projects")),
             ],
         },
     )

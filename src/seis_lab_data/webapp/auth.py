@@ -26,7 +26,10 @@ async def auth_callback(request: Request):
         logger.debug(f"{oauth_client.server_metadata=}")
         token = await oauth_client.authorize_access_token(request)
         user_info = token.get("userinfo")
-        request.session["user"] = user_info
+        request.session["user"] = {
+            "preferred_language": request.state.settings.locales[0],
+            **user_info,
+        }
         request.session["token"] = {
             "access_token": token["access_token"],
             "token_type": token.get("token_type", "Bearer"),

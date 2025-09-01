@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-07-28 18:54+0100\n"
+"POT-Creation-Date: 2025-09-01 14:56+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en_US\n"
@@ -19,10 +19,91 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.17.0\n"
 
-#: webapp/routes.py:14
+#: webapp/projects.py:38 webapp/projects.py:67
+msgid "Home"
+msgstr ""
+
+#: webapp/projects.py:39 webapp/projects.py:70 webapp/templates/base.html:18
+#: webapp/templates/projects/list.html:3
+msgid "Projects"
+msgstr ""
+
+#: webapp/routes.py:28
 msgid "Hi there!"
+msgstr ""
+
+#: webapp/templates/base.html:19
+msgid "Survey Missions"
+msgstr ""
+
+#: webapp/templates/base.html:20
+msgid "Survey-Related Records"
+msgstr ""
+
+#: webapp/templates/base.html:22
+msgid "Profile"
+msgstr ""
+
+#: webapp/templates/base.html:23
+msgid "Protected"
+msgstr ""
+
+#: webapp/templates/base.html:31
+msgid "Logout"
+msgstr ""
+
+#: webapp/templates/base.html:36
+msgid "Login / Register"
 msgstr ""
 
 #: webapp/templates/index.html:3
 msgid "A static string that needs to be translated"
+msgstr ""
+
+#: webapp/templates/projects/detail.html:39 webapp/templates/protected.html:5
+msgid "Name"
+msgstr ""
+
+#: webapp/templates/protected.html:7
+msgid "E-mail"
+msgstr ""
+
+#: webapp/templates/protected.html:9
+msgid "ID"
+msgstr ""
+
+#: webapp/templates/protected.html:12
+msgid "Roles"
+msgstr ""
+
+#: webapp/templates/projects/detail.html:15
+msgid "Properties"
+msgstr ""
+
+#: webapp/templates/projects/detail.html:27
+msgid "Survey missions"
+msgstr ""
+
+#: webapp/templates/projects/detail.html:41
+msgid "Description"
+msgstr ""
+
+#: webapp/templates/projects/detail.html:43
+msgid "Status"
+msgstr ""
+
+#: webapp/templates/projects/detail.html:45
+msgid "Is valid"
+msgstr ""
+
+#: webapp/templates/projects/detail.html:47
+msgid "Root path"
+msgstr ""
+
+#: webapp/templates/projects/list-component.html:5
+msgid "No projects found"
+msgstr ""
+
+#: webapp/templates/projects/list-item.html:13
+msgid "View"
 msgstr ""

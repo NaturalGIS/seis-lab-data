@@ -1,7 +1,9 @@
 import logging
 import uuid
 
+import babel
 from starlette_babel import gettext_lazy as _
+from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from starlette.routing import (
@@ -27,6 +29,24 @@ async def home(request: Request):
     return template_processor.TemplateResponse(
         request, "index.html", context={"greeting": _("Hi there!")}
     )
+
+
+async def set_language(request: Request):
+    lang = request.path_params["lang"]
+    next_ = request.query_params.get("next", request.url_for("home"))
+    logger.debug(f"{lang=}")
+    logger.debug(f"{next_=}")
+    try:
+        locale = babel.Locale.parse(lang)
+    except babel.UnknownLocaleError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    if (user := get_user(request.session.get("user", {}))) is not None:
+        logger.debug(f"{user=}")
+        user.preferred_language = locale.language
+        logger.debug(f"{user.preferred_language=}")
+    else:
+        request.state.locale = locale
+    return RedirectResponse(next_)
 
 
 async def profile(request: Request):
@@ -57,5 +77,6 @@ routes = [
     Route("/logout", auth.logout),
     Route("/profile", profile),
     Route("/protected", protected),
+    Route("/set-language/{lang}", set_language, name="set_language"),
     Mount("/projects", routes=project_routes, name="projects"),
 ]

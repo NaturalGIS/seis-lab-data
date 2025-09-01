@@ -71,7 +71,7 @@ def extract_translations(
         ("**.py", "python"),
         ("**.html", "jinja2"),
     ]
-    source_path = Path(__file__).parent
+    source_path = Path(__file__).parents[1]
     context.status_console.print(
         f"Scanning source code from {source_path} for translatable strings..."
     )
