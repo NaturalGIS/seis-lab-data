@@ -10,5 +10,5 @@ def test_webapp_home_is_up(page: Page):
     page.goto("/?lang=en")
     # NOTE: the below is a bad example of how to use playwright locators
     # this is intended just as an initial placeholder test though
-    locator = page.locator("body > div.container > div.row > p:last-child")
+    locator = page.locator("body > div.container-fluid > div.row > p:last-child")
     expect(locator).to_have_text("Hi there!")
