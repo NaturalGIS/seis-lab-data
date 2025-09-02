@@ -1,7 +1,13 @@
 import uuid
-from typing import TypedDict
+from typing import (
+    Annotated,
+    TypedDict,
+)
 
-from pydantic import field_serializer
+from pydantic import (
+    PlainSerializer,
+    field_serializer,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import (
     Column,
@@ -10,15 +16,20 @@ from sqlmodel import (
     Relationship,
 )
 
-from ..constants import (
-    ProjectStatus,
-    SurveyMissionStatus,
-    SurveyRelatedRecordStatus,
-)
+from .. import constants
 
 
 class LocalizableString(TypedDict):
     locale: str
+
+
+def serialize_localizable_field(value: LocalizableString, _info):
+    """Serialize a localizable field.
+
+    Localizable fields use a JSONB type, which is not serialized by default, hence
+    the need for this function.
+    """
+    return value
 
 
 class Link(TypedDict):
@@ -30,7 +41,9 @@ class Link(TypedDict):
 
 class DatasetCategory(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    name: LocalizableString = Field(sa_column=Column(JSONB))
+    name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
+        Field(sa_column=Column(JSONB))
+    )
 
     survey_related_records: list["SurveyRelatedRecord"] = Relationship(
         back_populates="dataset_category",
@@ -43,7 +56,9 @@ class DatasetCategory(SQLModel, table=True):
 
 class DomainType(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    name: LocalizableString = Field(sa_column=Column(JSONB))
+    name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
+        Field(sa_column=Column(JSONB))
+    )
 
     survey_related_records: list["SurveyRelatedRecord"] = Relationship(
         back_populates="domain_type",
@@ -56,7 +71,9 @@ class DomainType(SQLModel, table=True):
 
 class WorkflowStage(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    name: LocalizableString = Field(sa_column=Column(JSONB))
+    name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
+        Field(sa_column=Column(JSONB))
+    )
 
     survey_related_records: list["SurveyRelatedRecord"] = Relationship(
         back_populates="workflow_stage",
@@ -70,10 +87,14 @@ class WorkflowStage(SQLModel, table=True):
 class Project(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner: str = Field(max_length=100, index=True)
-    name: LocalizableString = Field(sa_column=Column(JSONB))
-    description: LocalizableString = Field(sa_column=Column(JSONB))
-    slug: str = Field(max_length=50, index=True, unique=True)
-    status: ProjectStatus = ProjectStatus.DRAFT
+    name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
+        Field(sa_column=Column(JSONB))
+    )
+    description: Annotated[
+        LocalizableString, PlainSerializer(serialize_localizable_field)
+    ] = Field(sa_column=Column(JSONB))
+    slug: str = Field(max_length=constants.MAX_NAME_LENGTH, index=True, unique=True)
+    status: constants.ProjectStatus = constants.ProjectStatus.DRAFT
     root_path: str = ""
     is_valid: bool = False
     links: list[Link] = Field(sa_column=Column(JSONB), default_factory=list)
@@ -102,13 +123,22 @@ class Project(SQLModel, table=True):
 class SurveyMission(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner: str = Field(max_length=100, index=True)
-    name: LocalizableString = Field(sa_column=Column(JSONB))
-    slug: str = Field(max_length=50, index=True, unique=True)
+    name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
+        Field(sa_column=Column(JSONB))
+    )
+    description: Annotated[
+        LocalizableString, PlainSerializer(serialize_localizable_field)
+    ] = Field(sa_column=Column(JSONB))
+    slug: str = Field(max_length=constants.MAX_NAME_LENGTH, index=True, unique=True)
     project_id: uuid.UUID = Field(foreign_key="project.id")
-    links: list[Link] = Field(sa_column=Column(JSONB), default_factory=list)
-    project: Project = Relationship(back_populates="survey_missions")
-    status: SurveyMissionStatus = SurveyMissionStatus.DRAFT
+    links: Annotated[list[Link], PlainSerializer(serialize_localizable_field)] = Field(
+        sa_column=Column(JSONB), default_factory=list
+    )
+    relative_path: str = ""
+    status: constants.SurveyMissionStatus = constants.SurveyMissionStatus.DRAFT
     is_valid: bool = False
+
+    project: Project = Relationship(back_populates="survey_missions")
     survey_related_records: list["SurveyRelatedRecord"] = Relationship(
         back_populates="survey_mission",
         sa_relationship_kwargs={
@@ -117,17 +147,20 @@ class SurveyMission(SQLModel, table=True):
         },
     )
 
-    @field_serializer("name")
-    def serialize_name(self, name: LocalizableString, _info):
-        return name
-
 
 class SurveyRelatedRecord(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner: str = Field(max_length=100, index=True)
-    name: LocalizableString = Field(sa_column=Column(JSONB))
-    slug: str = Field(max_length=50, index=True, unique=True)
-    status: SurveyRelatedRecordStatus = SurveyRelatedRecordStatus.DRAFT
+    name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
+        Field(sa_column=Column(JSONB))
+    )
+    description: Annotated[
+        LocalizableString, PlainSerializer(serialize_localizable_field)
+    ] = Field(sa_column=Column(JSONB))
+    slug: str = Field(max_length=constants.MAX_NAME_LENGTH, index=True, unique=True)
+    status: constants.SurveyRelatedRecordStatus = (
+        constants.SurveyRelatedRecordStatus.DRAFT
+    )
     is_valid: bool = False
     survey_mission_id: uuid.UUID = Field(foreign_key="surveymission.id")
     dataset_category_id: uuid.UUID = Field(foreign_key="datasetcategory.id")
@@ -152,19 +185,15 @@ class SurveyRelatedRecord(SQLModel, table=True):
         },
     )
 
-    @field_serializer("name")
-    def serialize_name(self, name: LocalizableString, _info):
-        return name
-
 
 class RecordAsset(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     survey_related_record_id: uuid.UUID = Field(foreign_key="surveyrelatedrecord.id")
-    name: LocalizableString = Field(sa_column=Column(JSONB))
-    slug: str = Field(max_length=50, index=True, unique=True)
-
+    name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
+        Field(sa_column=Column(JSONB))
+    )
+    description: Annotated[
+        LocalizableString, PlainSerializer(serialize_localizable_field)
+    ] = Field(sa_column=Column(JSONB))
+    slug: str = Field(max_length=constants.MAX_NAME_LENGTH, index=True, unique=True)
     survey_related_record: SurveyRelatedRecord = Relationship(back_populates="assets")
-
-    @field_serializer("name")
-    def serialize_name(self, name: LocalizableString, _info):
-        return name

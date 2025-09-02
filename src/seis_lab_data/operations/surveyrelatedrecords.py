@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 async def create_dataset_category(
     to_create: schemas.DatasetCategoryCreate,
-    initiator: schemas.User | None,
+    initiator: schemas.UserId | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
@@ -49,7 +49,7 @@ async def create_dataset_category(
 
 async def delete_dataset_category(
     dataset_category_id: uuid.UUID,
-    initiator: schemas.User | None,
+    initiator: schemas.UserId | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
@@ -89,7 +89,7 @@ async def list_dataset_categories(
 
 async def create_domain_type(
     to_create: schemas.DomainTypeCreate,
-    initiator: schemas.User | None,
+    initiator: schemas.UserId | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
@@ -113,7 +113,7 @@ async def create_domain_type(
 
 async def delete_domain_type(
     domain_type_id: uuid.UUID,
-    initiator: schemas.User | None,
+    initiator: schemas.UserId | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
@@ -151,7 +151,7 @@ async def list_domain_types(
 
 async def create_workflow_stage(
     to_create: schemas.WorkflowStageCreate,
-    initiator: schemas.User | None,
+    initiator: schemas.UserId | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
@@ -175,7 +175,7 @@ async def create_workflow_stage(
 
 async def delete_workflow_stage(
     workflow_stage_id: uuid.UUID,
-    initiator: schemas.User | None,
+    initiator: schemas.UserId | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,

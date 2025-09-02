@@ -11,12 +11,12 @@ from .. import (
 from .auth import get_user
 
 
-async def list_projects(request: Request):
-    """List projects."""
+async def list_survey_missions(request: Request):
+    """List survey missions."""
     session_maker = request.state.session_maker
     user = get_user(request.session.get("user", {}))
     async with session_maker() as session:
-        items, num_total = await operations.list_projects(
+        items, num_total = await operations.list_survey_missions(
             session,
             initiator=user.id if user else None,
             limit=request.query_params.get("limit", 20),
@@ -26,10 +26,10 @@ async def list_projects(request: Request):
     template_processor = request.state.templates
     return template_processor.TemplateResponse(
         request,
-        "projects/list.html",
+        "survey-missions/list.html",
         context={
             "items": [
-                schemas.ProjectReadListItem(
+                schemas.SurveyMissionReadListItem(
                     **i.model_dump(),
                 )
                 for i in items
@@ -37,20 +37,20 @@ async def list_projects(request: Request):
             "num_total": num_total,
             "breadcrumbs": [
                 schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
-                schemas.BreadcrumbItem(name=_("Projects")),
+                schemas.BreadcrumbItem(name=_("Survey Missions")),
             ],
         },
     )
 
 
-async def get_project(request: Request):
-    """Get project."""
-    slug = request.path_params["project_slug"]
+async def get_survey_mission(request: Request):
+    """Get survey mission."""
+    slug = request.path_params["survey_mission_slug"]
     session_maker = request.state.session_maker
     user = get_user(request.session.get("user", {}))
     async with session_maker() as session:
         try:
-            project = await operations.get_project_by_slug(
+            survey_mission = await operations.get_survey_mission_by_slug(
                 slug,
                 user.id if user else None,
                 session,
@@ -58,24 +58,26 @@ async def get_project(request: Request):
             )
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
-    if project is None:
-        raise HTTPException(status_code=404, detail=_(f"Project {slug!r} not found."))
+    if survey_mission is None:
+        raise HTTPException(
+            status_code=404, detail=_(f"Survey mission {slug!r} not found.")
+        )
     template_processor = request.state.templates
     return template_processor.TemplateResponse(
         request,
-        "projects/detail.html",
+        "survey-missions/detail.html",
         context={
-            "item": schemas.ProjectReadDetail(**project.model_dump()),
+            "item": schemas.SurveyMissionReadDetail(**survey_mission.model_dump()),
             "breadcrumbs": [
                 schemas.BreadcrumbItem(
                     name=_("Home"), url=str(request.url_for("home"))
                 ),
                 schemas.BreadcrumbItem(
-                    name=_("Projects"),
-                    url=request.url_for("projects:list"),
+                    name=_("Survey Missions"),
+                    url=request.url_for("survey_missions:list"),
                 ),
                 schemas.BreadcrumbItem(
-                    name=project.name["en"],
+                    name=survey_mission.name["en"],
                 ),
             ],
         },
@@ -83,6 +85,6 @@ async def get_project(request: Request):
 
 
 routes = [
-    Route("/", list_projects, methods=["GET"], name="list"),
-    Route("/{project_slug}", get_project, methods=["GET"], name="detail"),
+    Route("/", list_survey_missions, methods=["GET"], name="list"),
+    Route("/{survey_mission_slug}", get_survey_mission, methods=["GET"], name="detail"),
 ]

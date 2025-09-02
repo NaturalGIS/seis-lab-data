@@ -1,4 +1,3 @@
-import uuid
 import logging
 from .. import (
     config,
@@ -8,17 +7,17 @@ from .. import (
 logger = logging.getLogger(__name__)
 
 
-async def can_read_marine_campaign(
-    user: schemas.User,
-    marine_campaign_slug: str,
+async def can_read_project(
+    user: schemas.UserId,
+    project_slug: str,
     *,
     settings: config.SeisLabDataSettings,
 ):
     return True
 
 
-async def can_create_marine_campaign(
-    user: schemas.User,
+async def can_create_project(
+    user: schemas.UserId,
     to_create: schemas.ProjectCreate,
     *,
     settings: config.SeisLabDataSettings,
@@ -26,9 +25,9 @@ async def can_create_marine_campaign(
     return True
 
 
-async def can_delete_marine_campaign(
-    user: schemas.User,
-    marine_campaign_id: uuid.UUID,
+async def can_delete_project(
+    user: schemas.UserId,
+    project_id: schemas.ProjectId,
     *,
     settings: config.SeisLabDataSettings,
 ):

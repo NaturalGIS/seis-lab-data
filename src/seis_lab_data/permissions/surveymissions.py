@@ -1,4 +1,5 @@
 import logging
+
 from .. import (
     config,
     schemas,
@@ -7,12 +8,30 @@ from .. import (
 logger = logging.getLogger(__name__)
 
 
+async def can_read_survey_mission(
+    user: schemas.UserId,
+    survey_mission_slug: str,
+    *,
+    settings: config.SeisLabDataSettings,
+):
+    return True
+
+
 async def can_create_survey_mission(
-    user: schemas.User,
+    user: schemas.UserId,
     to_create: schemas.SurveyMissionCreate,
     *,
     settings: config.SeisLabDataSettings,
 ):
     # allow if user is admin
     # or if user is the owner of the parent campaign
+    return True
+
+
+async def can_delete_survey_mission(
+    user: schemas.UserId,
+    survey_mission_id: schemas.SurveyMissionId,
+    *,
+    settings: config.SeisLabDataSettings,
+):
     return True

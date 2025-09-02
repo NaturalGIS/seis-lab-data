@@ -107,7 +107,7 @@ async def create_project(
 
 async def delete_project(
     session: AsyncSession,
-    project_id: uuid.UUID,
+    project_id: schemas.ProjectId,
 ) -> None:
     if project := (await queries.get_project(session, project_id)):
         await session.delete(project)
@@ -142,3 +142,16 @@ async def create_survey_mission(
     await session.commit()
     await session.refresh(survey_mission)
     return survey_mission
+
+
+async def delete_survey_mission(
+    session: AsyncSession,
+    survey_mission_id: schemas.SurveyMissionId,
+) -> None:
+    if survey_mission := (await queries.get_survey_mission(session, survey_mission_id)):
+        await session.delete(survey_mission)
+        await session.commit()
+    else:
+        raise errors.SeisLabDataError(
+            f"Survey mission with id {survey_mission_id!r} does not exist."
+        )

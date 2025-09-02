@@ -6,11 +6,41 @@ from sqlmodel import (
     select,
 )
 
+from .. import schemas
 from . import models
 
 
 async def _get_total_num_records(session: AsyncSession, statement):
     return (await session.exec(select(func.count()).select_from(statement))).first()
+
+
+async def list_survey_missions(
+    session: AsyncSession,
+    user: str | None = None,
+    limit: int = 20,
+    offset: int = 0,
+    include_total: bool = False,
+) -> tuple[list[models.SurveyMission], int | None]:
+    statement = select(models.SurveyMission)
+    items = (await session.exec(statement.offset(offset).limit(limit))).all()
+    num_total = (
+        await _get_total_num_records(session, statement) if include_total else None
+    )
+    return items, num_total
+
+
+async def get_survey_mission(
+    session: AsyncSession,
+    survey_mission_id: schemas.SurveyMissionId,
+) -> models.SurveyMission | None:
+    return await session.get(models.SurveyMission, survey_mission_id)
+
+
+async def get_survey_mission_by_slug(
+    session: AsyncSession, slug: str
+) -> models.SurveyMission | None:
+    statement = select(models.SurveyMission).where(models.SurveyMission.slug == slug)
+    return (await session.exec(statement)).first()
 
 
 async def list_projects(
@@ -38,7 +68,7 @@ async def collect_all_projects(
 
 async def get_project(
     session: AsyncSession,
-    project_id: uuid.UUID,
+    project_id: schemas.ProjectId,
 ) -> models.Project | None:
     return await session.get(models.Project, project_id)
 

@@ -130,3 +130,47 @@ async def test_delete_project(db, db_session_maker):
         assert await queries.get_project(session, to_create.id) is not None
         await commands.delete_project(session, to_create.id)
         assert await queries.get_project(session, to_create.id) is None
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_create_survey_mission(db, db_session_maker, sample_projects):
+    to_create = schemas.SurveyMissionCreate(
+        id=schemas.SurveyMissionId(uuid.UUID("1aad09c3-d606-445e-9216-d9620586c332")),
+        project_id=schemas.ProjectId(sample_projects[0].id),
+        owner=schemas.UserId("fakeowner"),
+        name={"en": "A fake survey mission", "pt": "Uma missão falsa"},
+        description={
+            "en": "A description for fake survey mission",
+            "pt": "Uma descrição para a missão falsa",
+        },
+        relative_path="fake-mission",
+    )
+    async with db_session_maker() as session:
+        created = await commands.create_survey_mission(session, to_create)
+        assert created.id == to_create.id
+        assert created.owner == to_create.owner
+        assert created.slug == "a-fake-survey-mission"
+        assert created.name["en"] == to_create.name["en"]
+        assert created.name["pt"] == to_create.name["pt"]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_delete_survey_mission(db, db_session_maker, sample_projects):
+    to_create = schemas.SurveyMissionCreate(
+        id=schemas.SurveyMissionId(uuid.UUID("449a96e4-9b3b-41ad-a08b-75d31332b846")),
+        project_id=schemas.ProjectId(sample_projects[0].id),
+        owner=schemas.UserId("fakeowner"),
+        name={"en": "A fake survey mission", "pt": "Uma missão falsa"},
+        description={
+            "en": "A description for fake survey mission",
+            "pt": "Uma descrição para a missão falsa",
+        },
+        relative_path="fake-mission",
+    )
+    async with db_session_maker() as session:
+        await commands.create_survey_mission(session, to_create)
+        assert await queries.get_survey_mission(session, to_create.id) is not None
+        await commands.delete_survey_mission(session, to_create.id)
+        assert await queries.get_survey_mission(session, to_create.id) is None

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 async def can_create_dataset_category(
-    user: schemas.User,
+    user: schemas.UserId,
     to_create: schemas.DatasetCategoryCreate,
     *,
     settings: config.SeisLabDataSettings,
@@ -20,7 +20,7 @@ async def can_create_dataset_category(
 
 
 async def can_delete_dataset_category(
-    user: schemas.User,
+    user: schemas.UserId,
     dataset_category_id: uuid.UUID,
     *,
     settings: config.SeisLabDataSettings,
@@ -29,7 +29,7 @@ async def can_delete_dataset_category(
 
 
 async def can_create_domain_type(
-    user: schemas.User,
+    user: schemas.UserId,
     to_create: schemas.DomainTypeCreate,
     *,
     settings: config.SeisLabDataSettings,
@@ -38,7 +38,7 @@ async def can_create_domain_type(
 
 
 async def can_delete_domain_type(
-    user: schemas.User,
+    user: schemas.UserId,
     domain_type_id: uuid.UUID,
     *,
     settings: config.SeisLabDataSettings,
@@ -47,7 +47,7 @@ async def can_delete_domain_type(
 
 
 async def can_create_workflow_stage(
-    user: schemas.User,
+    user: schemas.UserId,
     to_create: schemas.WorkflowStageCreate,
     *,
     settings: config.SeisLabDataSettings,
@@ -56,7 +56,7 @@ async def can_create_workflow_stage(
 
 
 async def can_delete_workflow_stage(
-    user: schemas.User,
+    user: schemas.UserId,
     workflow_stage_id: uuid.UUID,
     *,
     settings: config.SeisLabDataSettings,

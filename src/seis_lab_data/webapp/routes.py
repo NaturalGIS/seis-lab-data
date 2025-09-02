@@ -20,6 +20,7 @@ from ..processing import tasks
 
 from . import auth
 from .projects import routes as project_routes
+from .surveymissions import routes as survey_mission_routes
 
 logger = logging.getLogger(__name__)
 
@@ -85,4 +86,5 @@ routes = [
     Route("/protected", protected),
     Route("/set-language/{lang}", set_language, name="set_language"),
     Mount("/projects", routes=project_routes, name="projects"),
+    Mount("/survey-missions", routes=survey_mission_routes, name="survey_missions"),
 ]

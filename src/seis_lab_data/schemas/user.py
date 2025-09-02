@@ -1,7 +1,6 @@
 import dataclasses
-import typing
 
-UserId = typing.NewType("UserId", str)
+from .common import UserId
 
 
 @dataclasses.dataclass

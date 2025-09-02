@@ -1,4 +1,8 @@
-from typing import Annotated
+from typing import (
+    Annotated,
+    NewType,
+)
+import uuid
 
 import babel
 from pydantic import (
@@ -6,6 +10,12 @@ from pydantic import (
     BaseModel,
     Field,
 )
+
+from .. import constants
+
+SurveyMissionId = NewType("SurveyMissionId", uuid.UUID)
+ProjectId = NewType("ProjectId", uuid.UUID)
+UserId = NewType("UserId", str)
 
 
 def has_valid_locales(value: dict[str, str]):
@@ -27,7 +37,12 @@ def has_english_locale(value: dict[str, str]):
     return value
 
 
-DescriptionString = Annotated[str, Field(max_length=300)]
+NameString = Annotated[str, Field(max_length=constants.MAX_NAME_LENGTH)]
+LocalizableName = Annotated[dict[str, NameString], AfterValidator(has_valid_locales)]
+AtLeastEnglishName = Annotated[LocalizableName, AfterValidator(has_english_locale)]
+
+
+DescriptionString = Annotated[str, Field(max_length=constants.MAX_DESCRIPTION_LENGTH)]
 LocalizableDescription = Annotated[
     dict[str, DescriptionString], AfterValidator(has_valid_locales)
 ]

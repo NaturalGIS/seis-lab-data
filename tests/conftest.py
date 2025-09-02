@@ -64,3 +64,14 @@ async def sample_projects(db, db_session_maker):
         for project_to_create in sampledata.PROJECTS_TO_CREATE:
             created.append(await commands.create_project(session, project_to_create))
     yield created
+
+
+@pytest_asyncio.fixture
+async def sample_survey_missions(db, db_session_maker, sample_projects):
+    created = []
+    async with db_session_maker() as session:
+        for survey_mission_to_create in sampledata.SURVEY_MISSIONS_TO_CREATE:
+            created.append(
+                await commands.create_survey_mission(session, survey_mission_to_create)
+            )
+    yield created

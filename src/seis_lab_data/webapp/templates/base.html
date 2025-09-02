@@ -16,7 +16,7 @@
             <a class="navbar-brand" href="{{ url_for('home') }}">SeisLabData</a>
             <div class="navbar-nav me-auto">
                 <a class="nav-link" href="{{ url_for('projects:list') }}">{{ _("Projects") }}</a>
-                <a class="nav-link" href="#">{{ _("Survey Missions") }}</a>
+                <a class="nav-link" href="{{ url_for('survey_missions:list') }}">{{ _("Survey Missions") }}</a>
                 <a class="nav-link" href="#">{{ _("Survey-Related Records") }}</a>
                 {% if request.session.user %}
                     <a class="nav-link" href="{{ url_for('profile') }}">{{ _("Profile") }}</a>

@@ -1,4 +1,3 @@
-import uuid
 import logging
 
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -23,12 +22,12 @@ logger = logging.getLogger(__name__)
 
 async def create_project(
     to_create: schemas.ProjectCreate,
-    initiator: schemas.User | None,
+    initiator: schemas.UserId | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ):
-    if initiator is None or not await permissions.can_create_marine_campaign(
+    if initiator is None or not await permissions.can_create_project(
         initiator, to_create, settings=settings
     ):
         raise errors.SeisLabDataError(
@@ -37,7 +36,7 @@ async def create_project(
     campaign = await commands.create_project(session, to_create)
     event_emitter(
         schemas.SeisLabDataEvent(
-            type_=schemas.EventType.MARINE_CAMPAIGN_CREATED,
+            type_=schemas.EventType.PROJECT_CREATED,
             initiator=initiator,
             payload=schemas.EventPayload(
                 after=schemas.ProjectReadDetail(**campaign.model_dump()).model_dump()
@@ -48,37 +47,34 @@ async def create_project(
 
 
 async def delete_project(
-    marine_campaign_id: uuid.UUID,
-    initiator: schemas.User | None,
+    project_id: schemas.ProjectId,
+    initiator: schemas.UserId | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
-    if initiator is None or not await permissions.can_delete_marine_campaign(
-        initiator, marine_campaign_id, settings=settings
+    if initiator is None or not await permissions.can_delete_project(
+        initiator, project_id, settings=settings
     ):
         raise errors.SeisLabDataError("User is not allowed to delete marine campaigns.")
-    marine_campaign = await queries.get_project(session, marine_campaign_id)
-    if marine_campaign is None:
+    if (project := await queries.get_project(session, project_id)) is None:
         raise errors.SeisLabDataError(
-            f"Marine campaign with id {marine_campaign_id} does not exist."
+            f"Marine campaign with id {project_id} does not exist."
         )
-    serialized_campaign = schemas.ProjectReadDetail(
-        **marine_campaign.model_dump()
-    ).model_dump()
-    await commands.delete_project(session, marine_campaign_id)
+    serialized_project = schemas.ProjectReadDetail(**project.model_dump()).model_dump()
+    await commands.delete_project(session, project_id)
     event_emitter(
         schemas.SeisLabDataEvent(
-            type_=schemas.EventType.MARINE_CAMPAIGN_DELETED,
+            type_=schemas.EventType.PROJECT_DELETED,
             initiator=initiator,
-            payload=schemas.EventPayload(before=serialized_campaign),
+            payload=schemas.EventPayload(before=serialized_project),
         )
     )
 
 
 async def list_projects(
     session: AsyncSession,
-    initiator: schemas.User | None,
+    initiator: schemas.UserId | None,
     limit: int = 20,
     offset: int = 0,
     include_total: bool = False,
@@ -87,16 +83,13 @@ async def list_projects(
 
 
 async def get_project_by_slug(
-    marine_cammpaign_slug: str,
-    initiator: schemas.User | None,
+    project_slug: str,
+    initiator: schemas.UserId | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
 ) -> models.Project | None:
-    logger.debug(f"{initiator=}")
-    if not permissions.can_read_marine_campaign(
-        initiator, marine_cammpaign_slug, settings=settings
-    ):
+    if not permissions.can_read_project(initiator, project_slug, settings=settings):
         raise errors.SeisLabDataError(
-            f"User is not allowed to read marine campaign {marine_cammpaign_slug!r}."
+            f"User is not allowed to read project {project_slug!r}."
         )
-    return await queries.get_project_by_slug(session, marine_cammpaign_slug)
+    return await queries.get_project_by_slug(session, project_slug)
