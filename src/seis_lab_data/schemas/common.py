@@ -13,9 +13,13 @@ from pydantic import (
 
 from .. import constants
 
+DatasetCategoryId = NewType("DatasetCategoryId", uuid.UUID)
+DomainTypeId = NewType("DomainTypeId", uuid.UUID)
+SurveyRelatedRecordId = NewType("SurveyRelatedRecordId", uuid.UUID)
 SurveyMissionId = NewType("SurveyMissionId", uuid.UUID)
 ProjectId = NewType("ProjectId", uuid.UUID)
 UserId = NewType("UserId", str)
+WorkflowStageId = NewType("WorkflowStageId", uuid.UUID)
 
 
 def has_valid_locales(value: dict[str, str]):

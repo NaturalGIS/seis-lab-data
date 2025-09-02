@@ -6,6 +6,7 @@ from .. import (
     operations,
     schemas,
 )
+from ..db import queries
 from . import sampledata
 from .asynctyper import AsyncTyper
 
@@ -24,7 +25,7 @@ async def load_sample_projects(ctx: typer.Context):
     created = []
     settings = ctx.obj["main"].settings
     async with session_maker() as session:
-        for to_create in sampledata.PROJECTS_TO_CREATE:
+        for to_create in sampledata.get_projects_to_create():
             try:
                 created.append(
                     await operations.create_project(
@@ -52,7 +53,7 @@ async def load_sample_survey_missions(ctx: typer.Context):
     created = []
     settings = ctx.obj["main"].settings
     async with session_maker() as session:
-        for to_create in sampledata.SURVEY_MISSIONS_TO_CREATE:
+        for to_create in sampledata.get_survey_missions_to_create():
             try:
                 created.append(
                     await operations.create_survey_mission(
@@ -71,5 +72,42 @@ async def load_sample_survey_missions(ctx: typer.Context):
     for created_survey_mission in created:
         to_show = schemas.SurveyMissionReadListItem(
             **created_survey_mission.model_dump()
+        )
+        ctx.obj["main"].status_console.print(to_show)
+
+
+@app.async_command()
+async def load_sample_survey_related_records(ctx: typer.Context):
+    """Load sample survey-related records into the database."""
+    session_maker = ctx.obj["session_maker"]
+    created = []
+    settings = ctx.obj["main"].settings
+    async with session_maker() as session:
+        all_dataset_categories = await queries.collect_all_dataset_categories(session)
+        all_domain_types = await queries.collect_all_domain_types(session)
+        all_workflow_stages = await queries.collect_all_workflow_stages(session)
+        for to_create in sampledata.get_survey_related_records_to_create(
+            dataset_categories={c.name["en"]: c for c in all_dataset_categories},
+            domain_types={d.name["en"]: d for d in all_domain_types},
+            workflow_stages={w.name["en"]: w for w in all_workflow_stages},
+        ):
+            try:
+                created.append(
+                    await operations.create_survey_related_record(
+                        to_create,
+                        initiator=to_create.owner,
+                        session=session,
+                        settings=settings,
+                        event_emitter=events.get_event_emitter(settings),
+                    )
+                )
+            except IntegrityError:
+                ctx.obj["main"].status_console.print(
+                    f"Survey-related record {to_create.id!r} already exists, skipping..."
+                )
+                await session.rollback()
+    for created_survey_record in created:
+        to_show = schemas.SurveyRelatedRecordReadListItem(
+            **created_survey_record.model_dump()
         )
         ctx.obj["main"].status_console.print(to_show)

@@ -19,3 +19,15 @@ async def test_list_survey_missions(sample_survey_missions, db_session_maker):
             session, include_total=True
         )
         assert total == len(sample_survey_missions)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_list_survey_related_records(
+    sample_survey_related_records, db_session_maker
+):
+    async with db_session_maker() as session:
+        survey_records, total = await queries.list_survey_related_records(
+            session, include_total=True
+        )
+        assert total == len(sample_survey_related_records)

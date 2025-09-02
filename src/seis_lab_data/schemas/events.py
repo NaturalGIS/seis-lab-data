@@ -13,6 +13,8 @@ class EventType(enum.Enum):
     DOMAIN_TYPE_DELETED = "domain_type_deleted"
     SURVEY_MISSION_CREATED = "survey_mission_created"
     SURVEY_MISSION_DELETED = "survey_mission_deleted"
+    SURVEY_RELATED_RECORD_CREATED = "survey_related_record_created"
+    SURVEY_RELATED_RECORD_DELETED = "survey_related_record_deleted"
     WORKFLOW_STAGE_CREATED = "workflow_stage_created"
     WORKFLOW_STAGE_DELETED = "workflow_stage_deleted"
 

@@ -17,7 +17,7 @@
             <div class="navbar-nav me-auto">
                 <a class="nav-link" href="{{ url_for('projects:list') }}">{{ _("Projects") }}</a>
                 <a class="nav-link" href="{{ url_for('survey_missions:list') }}">{{ _("Survey Missions") }}</a>
-                <a class="nav-link" href="#">{{ _("Survey-Related Records") }}</a>
+                <a class="nav-link" href="{{ url_for('survey_related_records:list') }}">{{ _("Survey-related Records") }}</a>
                 {% if request.session.user %}
                     <a class="nav-link" href="{{ url_for('profile') }}">{{ _("Profile") }}</a>
                     <a class="nav-link" href="{{ url_for('protected') }}">{{ _("Protected") }}</a>
@@ -48,7 +48,7 @@
             </div>
                 {% if request.session.user %}
                     <div class="navbar-nav align-items-center">
-                        <span class="navbar-text me-3">Welcome, {{ request.session.user.name or "User" }}</span>
+                        <span class="navbar-text me-3">{{ request.session.user.name }}</span>
                         <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}">
                             <i class="bi bi-box-arrow-right"></i> {{ _("Logout") }}
                         </a>

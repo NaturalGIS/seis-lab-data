@@ -2,7 +2,7 @@ import pydantic
 
 from ..constants import ProjectStatus
 from .common import (
-    AtLeastEnglishLocalizableString,
+    AtLeastEnglishName,
     AtLeastEnglishDescription,
     LinkSchema,
     ProjectId,
@@ -13,7 +13,7 @@ from .common import (
 class ProjectCreate(pydantic.BaseModel):
     id: ProjectId
     owner: UserId
-    name: AtLeastEnglishLocalizableString
+    name: AtLeastEnglishName
     description: AtLeastEnglishDescription
     root_path: str
     links: list[LinkSchema] = []
@@ -21,7 +21,7 @@ class ProjectCreate(pydantic.BaseModel):
 
 class ProjectUpdate(pydantic.BaseModel):
     owner: UserId | None = None
-    name: AtLeastEnglishLocalizableString | None = None
+    name: AtLeastEnglishName | None = None
     description: AtLeastEnglishDescription | None = None
     root_path: str | None = None
     links: list[LinkSchema] | None = None
@@ -30,7 +30,7 @@ class ProjectUpdate(pydantic.BaseModel):
 class ProjectReadListItem(pydantic.BaseModel):
     id: ProjectId
     slug: str
-    name: AtLeastEnglishLocalizableString
+    name: AtLeastEnglishName
     description: AtLeastEnglishDescription
     status: ProjectStatus
     is_valid: bool

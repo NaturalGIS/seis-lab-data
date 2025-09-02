@@ -209,3 +209,95 @@ async def list_workflow_stages(
     include_total: bool = False,
 ) -> tuple[list[models.WorkflowStage], int | None]:
     return await queries.list_workflow_stages(session, limit, offset, include_total)
+
+
+async def create_survey_related_record(
+    to_create: schemas.SurveyRelatedRecordCreate,
+    initiator: schemas.UserId | None,
+    session: AsyncSession,
+    settings: config.SeisLabDataSettings,
+    event_emitter: events.EventEmitterProtocol,
+):
+    if initiator is None or not await permissions.can_create_survey_related_record(
+        initiator, to_create, settings=settings
+    ):
+        raise errors.SeisLabDataError(
+            "User is not allowed to create a survey-related record."
+        )
+    survey_record = await commands.create_survey_related_record(session, to_create)
+    event_emitter(
+        schemas.SeisLabDataEvent(
+            type_=schemas.EventType.SURVEY_RELATED_RECORD_CREATED,
+            initiator=initiator,
+            payload=schemas.EventPayload(
+                after=schemas.SurveyRelatedRecordReadDetail(
+                    **survey_record.model_dump()
+                ).model_dump()
+            ),
+        )
+    )
+    return survey_record
+
+
+async def delete_survey_related_record(
+    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    initiator: schemas.UserId | None,
+    session: AsyncSession,
+    settings: config.SeisLabDataSettings,
+    event_emitter: events.EventEmitterProtocol,
+) -> None:
+    if initiator is None or not await permissions.can_delete_survey_related_record(
+        initiator, survey_related_record_id, settings=settings
+    ):
+        raise errors.SeisLabDataError(
+            "User is not allowed to delete survey-related record."
+        )
+    if (
+        survey_record := await queries.get_survey_related_record(
+            session, survey_related_record_id
+        )
+    ) is None:
+        raise errors.SeisLabDataError(
+            f"Survey-related record with id {survey_related_record_id!r} does not exist."
+        )
+    serialized_survey_record = schemas.SurveyRelatedRecordReadDetail(
+        **survey_record.model_dump()
+    ).model_dump()
+    await commands.delete_survey_related_record(session, survey_related_record_id)
+    event_emitter(
+        schemas.SeisLabDataEvent(
+            type_=schemas.EventType.SURVEY_RELATED_RECORD_DELETED,
+            initiator=initiator,
+            payload=schemas.EventPayload(before=serialized_survey_record),
+        )
+    )
+
+
+async def list_survey_related_records(
+    session: AsyncSession,
+    initiator: schemas.UserId | None,
+    limit: int = 20,
+    offset: int = 0,
+    include_total: bool = False,
+) -> tuple[list[models.SurveyRelatedRecord], int | None]:
+    return await queries.list_survey_related_records(
+        session, initiator, limit, offset, include_total
+    )
+
+
+async def get_survey_related_record_by_slug(
+    survey_related_record_slug: str,
+    initiator: schemas.UserId | None,
+    session: AsyncSession,
+    settings: config.SeisLabDataSettings,
+) -> models.SurveyRelatedRecord | None:
+    if not permissions.can_read_survey_related_record(
+        initiator, survey_related_record_slug, settings=settings
+    ):
+        raise errors.SeisLabDataError(
+            f"User is not allowed to read survey-related "
+            f"record {survey_related_record_slug!r}."
+        )
+    return await queries.get_survey_related_record_by_slug(
+        session, survey_related_record_slug
+    )

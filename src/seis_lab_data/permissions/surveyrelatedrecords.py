@@ -62,3 +62,30 @@ async def can_delete_workflow_stage(
     settings: config.SeisLabDataSettings,
 ):
     return True
+
+
+async def can_read_survey_related_record(
+    user: schemas.UserId,
+    survey_related_record_slug: str,
+    *,
+    settings: config.SeisLabDataSettings,
+):
+    return True
+
+
+async def can_create_survey_related_record(
+    user: schemas.UserId,
+    to_create: schemas.SurveyRelatedRecordCreate,
+    *,
+    settings: config.SeisLabDataSettings,
+):
+    return True
+
+
+async def can_delete_survey_related_record(
+    user: schemas.UserId,
+    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    *,
+    settings: config.SeisLabDataSettings,
+):
+    return True

@@ -166,7 +166,10 @@ class SurveyRelatedRecord(SQLModel, table=True):
     dataset_category_id: uuid.UUID = Field(foreign_key="datasetcategory.id")
     domain_type_id: uuid.UUID = Field(foreign_key="domaintype.id")
     workflow_stage_id: uuid.UUID = Field(foreign_key="workflowstage.id")
-    links: list[Link] = Field(sa_column=Column(JSONB), default_factory=list)
+    links: Annotated[list[Link], PlainSerializer(serialize_localizable_field)] = Field(
+        sa_column=Column(JSONB), default_factory=list
+    )
+    relative_path: str = ""
     survey_mission: SurveyMission = Relationship(
         back_populates="survey_related_records"
     )

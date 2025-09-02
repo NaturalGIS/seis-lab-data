@@ -155,3 +155,31 @@ async def delete_survey_mission(
         raise errors.SeisLabDataError(
             f"Survey mission with id {survey_mission_id!r} does not exist."
         )
+
+
+async def create_survey_related_record(
+    session: AsyncSession,
+    to_create: schemas.SurveyRelatedRecordCreate,
+) -> models.SurveyRelatedRecord:
+    survey_record = models.SurveyRelatedRecord(
+        **to_create.model_dump(), slug=slugify(to_create.name.get("en", ""))
+    )
+    session.add(survey_record)
+    await session.commit()
+    await session.refresh(survey_record)
+    return survey_record
+
+
+async def delete_survey_related_record(
+    session: AsyncSession,
+    survey_related_record_id: schemas.SurveyRelatedRecordId,
+) -> None:
+    if survey_record := (
+        await queries.get_survey_related_record(session, survey_related_record_id)
+    ):
+        await session.delete(survey_record)
+        await session.commit()
+    else:
+        raise errors.SeisLabDataError(
+            f"Survey-related record with id {survey_related_record_id!r} does not exist."
+        )

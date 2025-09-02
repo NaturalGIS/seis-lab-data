@@ -1,8 +1,12 @@
 from .common import (
+    DatasetCategoryId,
+    DomainTypeId,
     LinkSchema,
     ProjectId,
     SurveyMissionId,
+    SurveyRelatedRecordId,
     UserId,
+    WorkflowStageId,
 )
 from .events import (
     EventType,
@@ -26,6 +30,10 @@ from .surveyrelatedrecords import (
     DatasetCategoryRead,
     DomainTypeCreate,
     DomainTypeRead,
+    SurveyRelatedRecordCreate,
+    SurveyRelatedRecordReadDetail,
+    SurveyRelatedRecordReadListItem,
+    SurveyRelatedRecordUpdate,
     WorkflowStageCreate,
     WorkflowStageRead,
 )
@@ -37,8 +45,10 @@ from .webui import (
 __all__ = [
     BreadcrumbItem,
     DatasetCategoryCreate,
+    DatasetCategoryId,
     DatasetCategoryRead,
     DomainTypeCreate,
+    DomainTypeId,
     DomainTypeRead,
     EventPayload,
     EventType,
@@ -54,7 +64,13 @@ __all__ = [
     SurveyMissionReadDetail,
     SurveyMissionReadListItem,
     SurveyMissionUpdate,
+    SurveyRelatedRecordCreate,
+    SurveyRelatedRecordId,
+    SurveyRelatedRecordReadDetail,
+    SurveyRelatedRecordReadListItem,
+    SurveyRelatedRecordUpdate,
     WorkflowStageCreate,
+    WorkflowStageId,
     WorkflowStageRead,
     User,
     UserId,

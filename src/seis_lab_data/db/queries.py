@@ -14,6 +14,37 @@ async def _get_total_num_records(session: AsyncSession, statement):
     return (await session.exec(select(func.count()).select_from(statement))).first()
 
 
+async def list_survey_related_records(
+    session: AsyncSession,
+    user: str | None = None,
+    limit: int = 20,
+    offset: int = 0,
+    include_total: bool = False,
+) -> tuple[list[models.SurveyRelatedRecord], int | None]:
+    statement = select(models.SurveyRelatedRecord)
+    items = (await session.exec(statement.offset(offset).limit(limit))).all()
+    num_total = (
+        await _get_total_num_records(session, statement) if include_total else None
+    )
+    return items, num_total
+
+
+async def get_survey_related_record(
+    session: AsyncSession,
+    survey_related_record_id: schemas.SurveyRelatedRecordId,
+) -> models.SurveyRelatedRecord | None:
+    return await session.get(models.SurveyRelatedRecord, survey_related_record_id)
+
+
+async def get_survey_related_record_by_slug(
+    session: AsyncSession, slug: str
+) -> models.SurveyRelatedRecord | None:
+    statement = select(models.SurveyRelatedRecord).where(
+        models.SurveyRelatedRecord.slug == slug
+    )
+    return (await session.exec(statement)).first()
+
+
 async def list_survey_missions(
     session: AsyncSession,
     user: str | None = None,
@@ -111,6 +142,15 @@ async def get_dataset_category(
     return await session.get(models.DatasetCategory, dataset_category_id)
 
 
+async def get_dataset_category_by_english_name(
+    session: AsyncSession, name: str
+) -> models.DatasetCategory | None:
+    statement = select(models.DatasetCategory).where(
+        models.DatasetCategory.name["en"].astext == name
+    )
+    return (await session.exec(statement)).first()
+
+
 async def list_domain_types(
     session: AsyncSession,
     limit: int = 20,
@@ -140,6 +180,15 @@ async def get_domain_type(
     return await session.get(models.DomainType, domain_type_id)
 
 
+async def get_domain_type_by_english_name(
+    session: AsyncSession, name: str
+) -> models.DomainType | None:
+    statement = select(models.DomainType).where(
+        models.DomainType.name["en"].astext == name
+    )
+    return (await session.exec(statement)).first()
+
+
 async def list_workflow_stages(
     session: AsyncSession,
     limit: int = 20,
@@ -167,3 +216,12 @@ async def get_workflow_stage(
     workflow_stage_id: uuid.UUID,
 ) -> models.WorkflowStage | None:
     return await session.get(models.WorkflowStage, workflow_stage_id)
+
+
+async def get_workflow_stage_by_english_name(
+    session: AsyncSession, name: str
+) -> models.WorkflowStage | None:
+    statement = select(models.WorkflowStage).where(
+        models.WorkflowStage.name["en"].astext == name
+    )
+    return (await session.exec(statement)).first()

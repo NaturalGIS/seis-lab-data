@@ -9,6 +9,7 @@ from .. import (
     operations,
     schemas,
 )
+from ..db import queries
 from .asynctyper import AsyncTyper
 
 app = AsyncTyper()
@@ -25,6 +26,9 @@ app.add_typer(projects_app, name="projects")
 survey_missions_app = AsyncTyper()
 app.add_typer(survey_missions_app, name="survey-missions")
 
+survey_related_records_app = AsyncTyper()
+app.add_typer(survey_related_records_app, name="survey-related-records")
+
 workflow_stages_app = AsyncTyper()
 app.add_typer(workflow_stages_app, name="workflow-stages")
 
@@ -36,6 +40,137 @@ def parse_json_links(raw_json: str):
 @app.callback()
 def app_callback(ctx: typer.Context):
     """Manage system data."""
+
+
+@survey_related_records_app.callback()
+def survey_related_records_app_callback(ctx: typer.Context):
+    """Manage survey-related records."""
+
+
+@survey_related_records_app.async_command(name="create")
+async def create_survey_related_record(
+    ctx: typer.Context,
+    parent_survey_mission_slug: str,
+    owner: str,
+    name_en: str,
+    name_pt: str,
+    description_en: str,
+    description_pt: str,
+    dataset_category: str,
+    domain_type: str,
+    workflow_stage: str,
+    relative_path: str,
+    link: Annotated[list[dict], typer.Option(parser=parse_json_links)] = [],
+):
+    """Create a new survey-related record."""
+    admin_id = ctx.obj["admin_user"].id
+    printer = ctx.obj["main"].status_console.print
+    async with ctx.obj["session_maker"]() as session:
+        if (
+            db_dataset_category := await queries.get_dataset_category_by_english_name(
+                session, dataset_category
+            )
+        ) is None:
+            printer(f"dataset category '{dataset_category!r}' not found.")
+            raise typer.Abort()
+        if (
+            db_domain_type := await queries.get_domain_type_by_english_name(
+                session, domain_type
+            )
+        ) is None:
+            printer(f"domain type '{domain_type!r}' not found.")
+            raise typer.Abort()
+        if (
+            db_workflow_stage := await queries.get_workflow_stage_by_english_name(
+                session, workflow_stage
+            )
+        ) is None:
+            printer(f"workflow stage '{workflow_stage!r}' not found.")
+            raise typer.Abort()
+        if (
+            survey_mission := await operations.get_survey_mission_by_slug(
+                parent_survey_mission_slug, admin_id, session, ctx.obj["main"].settings
+            )
+        ) is None:
+            printer(
+                "Cannot create survey-related record as the parent survey "
+                "mission does not exist."
+            )
+            raise typer.Abort()
+        created = await operations.create_survey_related_record(
+            to_create=schemas.SurveyRelatedRecordCreate(
+                id=schemas.SurveyRelatedRecordId(uuid.uuid4()),
+                owner=schemas.UserId(owner),
+                name={"en": name_en, "pt": name_pt},
+                description={"en": description_en, "pt": description_pt},
+                survey_mission_id=schemas.SurveyMissionId(survey_mission.id),
+                dataset_category_id=schemas.DatasetCategoryId(db_dataset_category.id),
+                domain_type_id=schemas.DomainTypeId(db_domain_type.id),
+                workflow_stage_id=schemas.WorkflowStageId(db_workflow_stage.id),
+                relative_path=relative_path,
+                links=link,
+            ),
+            initiator=admin_id,
+            session=session,
+            settings=ctx.obj["main"].settings,
+            event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
+        )
+        ctx.obj["main"].status_console.print(
+            schemas.SurveyRelatedRecordReadDetail(**created.model_dump())
+        )
+
+
+@survey_related_records_app.async_command(name="list")
+async def list_survey_related_records(
+    ctx: typer.Context,
+    limit: int = 20,
+    offset: int = 0,
+):
+    """List survey-related records."""
+    printer = ctx.obj["main"].status_console.print
+    async with ctx.obj["session_maker"]() as session:
+        items, num_total = await operations.list_survey_related_records(
+            session,
+            initiator=ctx.obj["admin_user"],
+            limit=limit,
+            offset=offset,
+            include_total=True,
+        )
+    printer(f"Total records: {num_total}")
+    for item in items:
+        printer(schemas.SurveyRelatedRecordReadListItem(**item.model_dump()))
+
+
+@survey_related_records_app.async_command(name="get")
+async def get_survey_related_record(ctx: typer.Context, slug: str):
+    """Get details about a survey-related record."""
+    printer = ctx.obj["main"].status_console.print
+    async with ctx.obj["session_maker"]() as session:
+        survey_record = await operations.get_survey_related_record_by_slug(
+            slug, ctx.obj["admin_user"].id, session, ctx.obj["main"].settings
+        )
+        if survey_record is None:
+            printer(f"Survey-related record {slug!r} not found")
+        else:
+            printer(schemas.SurveyRelatedRecordReadDetail(**survey_record.model_dump()))
+
+
+@survey_related_records_app.async_command(name="delete")
+async def delete_survey_related_record(
+    ctx: typer.Context,
+    survey_related_record_id: uuid.UUID,
+):
+    """Delete a survey-related record."""
+    printer = ctx.obj["main"].status_console.print
+    async with ctx.obj["session_maker"]() as session:
+        await operations.delete_survey_related_record(
+            schemas.SurveyRelatedRecordId(survey_related_record_id),
+            initiator=ctx.obj["admin_user"].id,
+            session=session,
+            settings=ctx.obj["main"].settings,
+            event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
+        )
+    printer(f"Deleted survey-related record with id {survey_related_record_id!r}")
 
 
 @survey_missions_app.callback()
@@ -66,7 +201,7 @@ async def create_survey_mission(
             ctx.obj["main"].status_console.print(
                 "Cannot create survey mission as the parent project does not exist."
             )
-            raise typer.Exit(1)
+            raise typer.Abort()
         created = await operations.create_survey_mission(
             to_create=schemas.SurveyMissionCreate(
                 id=schemas.SurveyMissionId(uuid.uuid4()),

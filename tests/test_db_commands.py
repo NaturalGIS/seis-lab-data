@@ -174,3 +174,91 @@ async def test_delete_survey_mission(db, db_session_maker, sample_projects):
         assert await queries.get_survey_mission(session, to_create.id) is not None
         await commands.delete_survey_mission(session, to_create.id)
         assert await queries.get_survey_mission(session, to_create.id) is None
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_create_survey_related_record(
+    db,
+    db_session_maker,
+    sample_survey_missions,
+    bootstrap_dataset_categories,
+    bootstrap_domain_types,
+    bootstrap_workflow_stages,
+):
+    dataset_category = [
+        c for c in bootstrap_dataset_categories if c.name["en"] == "bathymetry"
+    ][0]
+    domain_type = [d for d in bootstrap_domain_types if d.name["en"] == "geophysical"][
+        0
+    ]
+    workflow_stage = [
+        w for w in bootstrap_workflow_stages if w.name["en"] == "raw data"
+    ][0]
+    to_create = schemas.SurveyRelatedRecordCreate(
+        id=schemas.SurveyRelatedRecordId(
+            uuid.UUID("cabe6a5f-d81c-496c-80cc-c3505b9121c2")
+        ),
+        survey_mission_id=schemas.SurveyMissionId(sample_survey_missions[0].id),
+        owner=schemas.UserId("fakeowner"),
+        name={"en": "A fake survey-related record", "pt": "Um registo falso"},
+        description={
+            "en": "A description for fake survey-related record",
+            "pt": "Uma descrição para o registo falso",
+        },
+        dataset_category_id=schemas.DatasetCategoryId(dataset_category.id),
+        domain_type_id=schemas.DomainTypeId(domain_type.id),
+        workflow_stage_id=schemas.WorkflowStageId(workflow_stage.id),
+        relative_path="fake-record",
+    )
+    async with db_session_maker() as session:
+        created = await commands.create_survey_related_record(session, to_create)
+        assert created.id == to_create.id
+        assert created.owner == to_create.owner
+        assert created.slug == "a-fake-survey-related-record"
+        assert created.name["en"] == to_create.name["en"]
+        assert created.name["pt"] == to_create.name["pt"]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_delete_survey_related_record(
+    db,
+    db_session_maker,
+    sample_survey_missions,
+    bootstrap_dataset_categories,
+    bootstrap_domain_types,
+    bootstrap_workflow_stages,
+):
+    dataset_category = [
+        c for c in bootstrap_dataset_categories if c.name["en"] == "bathymetry"
+    ][0]
+    domain_type = [d for d in bootstrap_domain_types if d.name["en"] == "geophysical"][
+        0
+    ]
+    workflow_stage = [
+        w for w in bootstrap_workflow_stages if w.name["en"] == "raw data"
+    ][0]
+    to_create = schemas.SurveyRelatedRecordCreate(
+        id=schemas.SurveyRelatedRecordId(
+            uuid.UUID("d0f6cb56-e942-4fd7-a0a9-083c3069d698")
+        ),
+        survey_mission_id=schemas.SurveyMissionId(sample_survey_missions[0].id),
+        owner=schemas.UserId("fakeowner"),
+        name={"en": "A fake survey-related record", "pt": "Um registo falso"},
+        description={
+            "en": "A description for fake survey-related record",
+            "pt": "Uma descrição para o registo falso",
+        },
+        dataset_category_id=schemas.DatasetCategoryId(dataset_category.id),
+        domain_type_id=schemas.DomainTypeId(domain_type.id),
+        workflow_stage_id=schemas.WorkflowStageId(workflow_stage.id),
+        relative_path="fake-record",
+    )
+    async with db_session_maker() as session:
+        await commands.create_survey_related_record(session, to_create)
+        assert (
+            await queries.get_survey_related_record(session, to_create.id) is not None
+        )
+        await commands.delete_survey_related_record(session, to_create.id)
+        assert await queries.get_survey_related_record(session, to_create.id) is None
