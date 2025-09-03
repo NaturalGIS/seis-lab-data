@@ -127,7 +127,6 @@ async def list_survey_related_records(
     offset: int = 0,
 ):
     """List survey-related records."""
-    printer = ctx.obj["main"].status_console.print
     async with ctx.obj["session_maker"]() as session:
         items, num_total = await operations.list_survey_related_records(
             session,
@@ -136,23 +135,32 @@ async def list_survey_related_records(
             offset=offset,
             include_total=True,
         )
-    printer(f"Total records: {num_total}")
+    ctx.obj["main"].status_console.print(f"Total records: {num_total}")
     for item in items:
-        printer(schemas.SurveyRelatedRecordReadListItem(**item.model_dump()))
+        ctx.obj["main"].status_console.print_json(
+            schemas.SurveyRelatedRecordReadListItem(
+                **item.model_dump()
+            ).model_dump_json()
+        )
 
 
 @survey_related_records_app.async_command(name="get")
 async def get_survey_related_record(ctx: typer.Context, slug: str):
     """Get details about a survey-related record."""
-    printer = ctx.obj["main"].status_console.print
     async with ctx.obj["session_maker"]() as session:
         survey_record = await operations.get_survey_related_record_by_slug(
             slug, ctx.obj["admin_user"].id, session, ctx.obj["main"].settings
         )
         if survey_record is None:
-            printer(f"Survey-related record {slug!r} not found")
+            ctx.obj["main"].status_console.print(
+                f"Survey-related record {slug!r} not found"
+            )
         else:
-            printer(schemas.SurveyRelatedRecordReadDetail(**survey_record.model_dump()))
+            ctx.obj["main"].status_console.print_json(
+                schemas.SurveyRelatedRecordReadDetail.from_db_instance(
+                    survey_record
+                ).model_dump_json()
+            )
 
 
 @survey_related_records_app.async_command(name="delete")
@@ -246,15 +254,18 @@ async def list_survey_missions(
 @survey_missions_app.async_command(name="get")
 async def get_survey_mission(ctx: typer.Context, slug: str):
     """Get details about a survey mission"""
-    printer = ctx.obj["main"].status_console.print
     async with ctx.obj["session_maker"]() as session:
         survey_mission = await operations.get_survey_mission_by_slug(
             slug, ctx.obj["admin_user"].id, session, ctx.obj["main"].settings
         )
         if survey_mission is None:
-            printer(f"Survey mission {slug!r} not found")
+            ctx.obj["main"].status_console.print(f"Survey mission {slug!r} not found")
         else:
-            printer(schemas.SurveyMissionReadDetail(**survey_mission.model_dump()))
+            ctx.obj["main"].status_console.print_json(
+                schemas.SurveyMissionReadDetail.from_db_instance(
+                    survey_mission
+                ).model_dump_json()
+            )
 
 
 @survey_missions_app.async_command(name="delete")

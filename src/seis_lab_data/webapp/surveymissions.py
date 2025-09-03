@@ -58,16 +58,27 @@ async def get_survey_mission(request: Request):
             )
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
-    if survey_mission is None:
-        raise HTTPException(
-            status_code=404, detail=_(f"Survey mission {slug!r} not found.")
+        if survey_mission is None:
+            raise HTTPException(
+                status_code=404, detail=_(f"Survey mission {slug!r} not found.")
+            )
+        survey_mission_id = schemas.SurveyMissionId(survey_mission.id)
+        survey_related_records, total = await operations.list_survey_related_records(
+            session, user, survey_mission_filter=survey_mission_id, include_total=True
         )
     template_processor = request.state.templates
     return template_processor.TemplateResponse(
         request,
         "survey-missions/detail.html",
         context={
-            "item": schemas.SurveyMissionReadDetail(**survey_mission.model_dump()),
+            "item": schemas.SurveyMissionReadDetail.from_db_instance(survey_mission),
+            "survey_related_records": {
+                "survey_related_records": [
+                    schemas.SurveyRelatedRecordReadListItem(**srr.model_dump())
+                    for srr in survey_related_records
+                ],
+                "total": total,
+            },
             "breadcrumbs": [
                 schemas.BreadcrumbItem(
                     name=_("Home"), url=str(request.url_for("home"))

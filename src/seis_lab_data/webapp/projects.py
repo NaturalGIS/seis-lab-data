@@ -58,14 +58,27 @@ async def get_project(request: Request):
             )
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
-    if project is None:
-        raise HTTPException(status_code=404, detail=_(f"Project {slug!r} not found."))
+        if project is None:
+            raise HTTPException(
+                status_code=404, detail=_(f"Project {slug!r} not found.")
+            )
+        project_id = schemas.ProjectId(project.id)
+        survey_missions, total = await operations.list_survey_missions(
+            session, user, project_filter=project_id, include_total=True
+        )
     template_processor = request.state.templates
     return template_processor.TemplateResponse(
         request,
         "projects/detail.html",
         context={
             "item": schemas.ProjectReadDetail(**project.model_dump()),
+            "survey_missions": {
+                "survey_missions": [
+                    schemas.SurveyMissionReadListItem(**sm.model_dump())
+                    for sm in survey_missions
+                ],
+                "total": total,
+            },
             "breadcrumbs": [
                 schemas.BreadcrumbItem(
                     name=_("Home"), url=str(request.url_for("home"))

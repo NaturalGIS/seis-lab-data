@@ -1,5 +1,6 @@
 import pydantic
 
+from ..db import models
 from ..constants import SurveyRelatedRecordStatus
 from .common import (
     AtLeastEnglishName,
@@ -12,6 +13,7 @@ from .common import (
     UserId,
     WorkflowStageId,
 )
+from .surveymissions import SurveyMissionReadEmbedded
 
 
 class DatasetCategoryCreate(pydantic.BaseModel):
@@ -82,3 +84,19 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
     owner: UserId
     relative_path: str
     links: list[LinkSchema] = []
+    survey_mission: SurveyMissionReadEmbedded
+    dataset_category: DatasetCategoryRead
+    domain_type: DomainTypeRead
+    workflow_stage: WorkflowStageRead
+
+    @classmethod
+    def from_db_instance(cls, instance: models.SurveyRelatedRecord):
+        return cls(
+            **instance.model_dump(),
+            survey_mission=SurveyMissionReadEmbedded.from_db_instance(
+                instance.survey_mission
+            ),
+            dataset_category=instance.dataset_category.model_dump(),
+            domain_type=instance.domain_type.model_dump(),
+            workflow_stage=instance.workflow_stage.model_dump(),
+        )

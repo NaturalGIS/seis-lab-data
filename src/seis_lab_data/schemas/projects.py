@@ -1,6 +1,7 @@
 import pydantic
 
 from ..constants import ProjectStatus
+from ..db import models
 from .common import (
     AtLeastEnglishName,
     AtLeastEnglishDescription,
@@ -27,13 +28,20 @@ class ProjectUpdate(pydantic.BaseModel):
     links: list[LinkSchema] | None = None
 
 
-class ProjectReadListItem(pydantic.BaseModel):
+class ProjectReadEmbedded(pydantic.BaseModel):
     id: ProjectId
     slug: str
     name: AtLeastEnglishName
-    description: AtLeastEnglishDescription
     status: ProjectStatus
     is_valid: bool
+
+    @classmethod
+    def from_db_instance(cls, instance: models.Project) -> "ProjectReadEmbedded":
+        return cls(**instance.model_dump())
+
+
+class ProjectReadListItem(ProjectReadEmbedded):
+    description: AtLeastEnglishDescription
 
 
 class ProjectReadDetail(ProjectReadListItem):

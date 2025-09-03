@@ -67,6 +67,7 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
         session_maker=get_session_maker(engine),
         event_emitter=events.get_event_emitter(settings),
     )
+    await engine.dispose()
 
 
 def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:

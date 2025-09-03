@@ -67,7 +67,9 @@ async def get_survey_related_record(request: Request):
         request,
         "survey-related-records/detail.html",
         context={
-            "item": schemas.SurveyRelatedRecordReadDetail(**survey_record.model_dump()),
+            "item": schemas.SurveyRelatedRecordReadDetail.from_db_instance(
+                survey_record
+            ),
             "breadcrumbs": [
                 schemas.BreadcrumbItem(
                     name=_("Home"), url=str(request.url_for("home"))

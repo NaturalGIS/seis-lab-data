@@ -79,12 +79,18 @@ async def delete_survey_mission(
 async def list_survey_missions(
     session: AsyncSession,
     initiator: schemas.UserId | None,
+    project_filter: schemas.ProjectId | None = None,
     limit: int = 20,
     offset: int = 0,
     include_total: bool = False,
 ) -> tuple[list[models.SurveyMission], int | None]:
     return await queries.list_survey_missions(
-        session, initiator, limit, offset, include_total
+        session,
+        initiator,
+        project_id=project_filter,
+        limit=limit,
+        offset=offset,
+        include_total=include_total,
     )
 
 

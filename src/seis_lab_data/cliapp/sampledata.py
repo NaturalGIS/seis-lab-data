@@ -262,5 +262,27 @@ def get_survey_related_records_to_create(
             workflow_stage_id=schemas.WorkflowStageId(workflow_stages["raw data"].id),
             relative_path="first-record",
             links=[],
-        )
+        ),
+        schemas.SurveyRelatedRecordCreate(
+            id=schemas.SurveyRelatedRecordId(
+                uuid.UUID("c51e0d11-c4c4-4b4f-8d04-2a115196ff04")
+            ),
+            owner=_owner_id,
+            name={
+                "en": "Second record",
+                "pt": "Segundo registo",
+            },
+            description={
+                "en": "Description for second record",
+                "pt": "Descrição do segundo registo",
+            },
+            survey_mission_id=_my_second_survey_mission_id,
+            dataset_category_id=schemas.DatasetCategoryId(
+                dataset_categories["bathymetry"].id
+            ),
+            domain_type_id=schemas.DomainTypeId(domain_types["geophysical"].id),
+            workflow_stage_id=schemas.WorkflowStageId(workflow_stages["raw data"].id),
+            relative_path="second-record",
+            links=[],
+        ),
     ]

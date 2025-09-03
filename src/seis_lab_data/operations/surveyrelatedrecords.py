@@ -276,12 +276,18 @@ async def delete_survey_related_record(
 async def list_survey_related_records(
     session: AsyncSession,
     initiator: schemas.UserId | None,
+    survey_mission_filter: schemas.SurveyMissionId | None = None,
     limit: int = 20,
     offset: int = 0,
     include_total: bool = False,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     return await queries.list_survey_related_records(
-        session, initiator, limit, offset, include_total
+        session,
+        initiator,
+        survey_mission_id=survey_mission_filter,
+        limit=limit,
+        offset=offset,
+        include_total=include_total,
     )
 
 

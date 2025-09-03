@@ -73,6 +73,10 @@
             role="tabpanel"
             aria-labelledby="survey-missions-tab"
             tabindex="0"
-    ></div>
+    >
+        {% with items = survey_missions.survey_missions %}
+            {% include "survey-missions/list-component.html" %}
+        {% endwith %}
+    </div>
 </div>
 {% endblock %}

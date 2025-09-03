@@ -3,11 +3,11 @@ import uuid
 from slugify import slugify
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from .. import (
+from ... import (
     errors,
     schemas,
 )
-from . import (
+from .. import (
     models,
     queries,
 )
@@ -90,70 +90,6 @@ async def delete_workflow_stage(
     else:
         raise errors.SeisLabDataError(
             f"Workflow stage with id {workflow_stage_id} does not exist."
-        )
-
-
-async def create_project(
-    session: AsyncSession, to_create: schemas.ProjectCreate
-) -> models.Project:
-    project = models.Project(
-        **to_create.model_dump(), slug=slugify(to_create.name.get("en", ""))
-    )
-    session.add(project)
-    await session.commit()
-    await session.refresh(project)
-    return project
-
-
-async def delete_project(
-    session: AsyncSession,
-    project_id: schemas.ProjectId,
-) -> None:
-    if project := (await queries.get_project(session, project_id)):
-        await session.delete(project)
-        await session.commit()
-    else:
-        raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
-
-
-async def update_project(
-    session: AsyncSession,
-    project: models.Project,
-    to_update: schemas.ProjectUpdate,
-) -> models.Project:
-    for key, value in to_update.model_dump(exclude_unset=True).items():
-        setattr(project, key, value)
-        if key == "name":
-            setattr(project, "slug", slugify(value.get("en", "")))
-    session.add(project)
-    await session.commit()
-    await session.refresh(project)
-    return project
-
-
-async def create_survey_mission(
-    session: AsyncSession,
-    to_create: schemas.SurveyMissionCreate,
-) -> models.SurveyMission:
-    survey_mission = models.SurveyMission(
-        **to_create.model_dump(), slug=slugify(to_create.name.get("en", ""))
-    )
-    session.add(survey_mission)
-    await session.commit()
-    await session.refresh(survey_mission)
-    return survey_mission
-
-
-async def delete_survey_mission(
-    session: AsyncSession,
-    survey_mission_id: schemas.SurveyMissionId,
-) -> None:
-    if survey_mission := (await queries.get_survey_mission(session, survey_mission_id)):
-        await session.delete(survey_mission)
-        await session.commit()
-    else:
-        raise errors.SeisLabDataError(
-            f"Survey mission with id {survey_mission_id!r} does not exist."
         )
 
 
