@@ -59,7 +59,7 @@
             <dt class="col-sm-3">{{ _("Workflow stage") }}</dt>
             <dd class="col-sm-9">{{ item.workflow_stage.name|translate_localizable_string }}</dd>
             <dt class="col-sm-3">{{ _("Status") }}</dt>
-            <dd class="col-sm-9">{{ item.status.value }}</dd>
+            <dd class="col-sm-9">{{ item.status|translate_enum }}</dd>
             <dt class="col-sm-3">{{ _("Is valid") }}</dt>
             <dd class="col-sm-9">{{ item.is_valid }}</dd>
             <dt class="col-sm-3">{{ _("Survey mission") }}</dt>

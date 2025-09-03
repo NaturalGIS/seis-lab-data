@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-09-02 12:37+0000\n"
+"POT-Creation-Date: 2025-09-03 18:42+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en_US\n"
@@ -19,27 +19,42 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.17.0\n"
 
-#: webapp/projects.py:39 webapp/projects.py:71 webapp/surveymissions.py:39
-#: webapp/surveymissions.py:73
+#: constants.py:23 constants.py:34 constants.py:45
+msgid "draft"
+msgstr ""
+
+#: constants.py:24 constants.py:35 constants.py:46
+msgid "published"
+msgstr ""
+
+#: webapp/projects.py:39 webapp/projects.py:84 webapp/surveymissions.py:39
+#: webapp/surveymissions.py:84 webapp/surveyrelatedrecords.py:39
+#: webapp/surveyrelatedrecords.py:75
 msgid "Home"
 msgstr ""
 
-#: webapp/projects.py:40 webapp/projects.py:74 webapp/templates/base.html:18
+#: webapp/projects.py:40 webapp/projects.py:87 webapp/templates/base.html:18
 #: webapp/templates/projects/list.html:3
 msgid "Projects"
 msgstr ""
 
-#: webapp/routes.py:39 webapp/routes.py:42
+#: webapp/routes.py:40 webapp/routes.py:43
 msgid "Hi there!"
 msgstr ""
 
-#: webapp/surveymissions.py:40 webapp/surveymissions.py:76
+#: webapp/surveymissions.py:40 webapp/surveymissions.py:87
 #: webapp/templates/base.html:19
 msgid "Survey Missions"
 msgstr ""
 
+#: webapp/surveyrelatedrecords.py:40 webapp/surveyrelatedrecords.py:78
+#: webapp/templates/survey-missions/detail.html:39
+#: webapp/templates/survey-related-records/list.html:3
+msgid "Survey-related records"
+msgstr ""
+
 #: webapp/templates/base.html:20
-msgid "Survey-Related Records"
+msgid "Survey-related Records"
 msgstr ""
 
 #: webapp/templates/base.html:22
@@ -72,6 +87,7 @@ msgstr ""
 
 #: webapp/templates/projects/detail.html:51 webapp/templates/protected.html:5
 #: webapp/templates/survey-missions/detail.html:51
+#: webapp/templates/survey-related-records/detail.html:51
 msgid "Name"
 msgstr ""
 
@@ -89,11 +105,13 @@ msgstr ""
 
 #: webapp/templates/projects/detail.html:15
 #: webapp/templates/survey-missions/detail.html:15
+#: webapp/templates/survey-related-records/detail.html:15
 msgid "Properties"
 msgstr ""
 
 #: webapp/templates/projects/detail.html:27
 #: webapp/templates/survey-missions/detail.html:27
+#: webapp/templates/survey-related-records/detail.html:27
 msgid "Links"
 msgstr ""
 
@@ -104,16 +122,19 @@ msgstr ""
 
 #: webapp/templates/projects/detail.html:53
 #: webapp/templates/survey-missions/detail.html:53
+#: webapp/templates/survey-related-records/detail.html:53
 msgid "Description"
 msgstr ""
 
 #: webapp/templates/projects/detail.html:55
 #: webapp/templates/survey-missions/detail.html:55
+#: webapp/templates/survey-related-records/detail.html:61
 msgid "Status"
 msgstr ""
 
 #: webapp/templates/projects/detail.html:57
 #: webapp/templates/survey-missions/detail.html:57
+#: webapp/templates/survey-related-records/detail.html:63
 msgid "Is valid"
 msgstr ""
 
@@ -127,17 +148,47 @@ msgstr ""
 
 #: webapp/templates/projects/list-item.html:13
 #: webapp/templates/survey-missions/list-item.html:13
+#: webapp/templates/survey-related-records/list-item.html:13
 msgid "View"
 msgstr ""
 
-#: webapp/templates/survey-missions/detail.html:39
-msgid "Survey-related records"
+#: webapp/templates/survey-missions/detail.html:59
+#: webapp/templates/survey-related-records/detail.html:67
+msgid "Project"
 msgstr ""
 
-#: webapp/templates/survey-missions/detail.html:59
+#: webapp/templates/survey-missions/detail.html:61
+#: webapp/templates/survey-related-records/detail.html:69
 msgid "Relative path"
 msgstr ""
 
 #: webapp/templates/survey-missions/list-component.html:5
 msgid "No survey missions found"
 msgstr ""
+
+#: webapp/templates/survey-related-records/detail.html:39
+msgid "Assets"
+msgstr ""
+
+#: webapp/templates/survey-related-records/detail.html:55
+msgid "Dataset category"
+msgstr ""
+
+#: webapp/templates/survey-related-records/detail.html:57
+msgid "Domain type"
+msgstr ""
+
+#: webapp/templates/survey-related-records/detail.html:59
+msgid "Workflow stage"
+msgstr ""
+
+#: webapp/templates/survey-related-records/detail.html:65
+msgid "Survey mission"
+msgstr ""
+
+#: webapp/templates/survey-related-records/list-component.html:5
+msgid "No survey-related records found"
+msgstr ""
+
+#~ msgid "Survey-Related Records"
+#~ msgstr ""

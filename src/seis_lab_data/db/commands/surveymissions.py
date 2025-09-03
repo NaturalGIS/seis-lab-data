@@ -20,8 +20,7 @@ async def create_survey_mission(
     )
     session.add(survey_mission)
     await session.commit()
-    await session.refresh(survey_mission)
-    return survey_mission
+    return await queries.get_survey_mission(session, to_create.id)
 
 
 async def delete_survey_mission(

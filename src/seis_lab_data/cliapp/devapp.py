@@ -19,6 +19,14 @@ def dev_app_callback(ctx: typer.Context):
 
 
 @app.async_command()
+async def load_all_samples(ctx: typer.Context):
+    """Load all sample data into the database."""
+    await ctx.invoke(load_sample_projects, ctx=ctx)
+    await ctx.invoke(load_sample_survey_missions, ctx=ctx)
+    await ctx.invoke(load_sample_survey_related_records, ctx=ctx)
+
+
+@app.async_command()
 async def load_sample_projects(ctx: typer.Context):
     """Load sample projects into the database."""
     session_maker = ctx.obj["session_maker"]

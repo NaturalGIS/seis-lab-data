@@ -19,8 +19,7 @@ async def create_project(
     )
     session.add(project)
     await session.commit()
-    await session.refresh(project)
-    return project
+    return await queries.get_project(session, to_create.id)
 
 
 async def delete_project(

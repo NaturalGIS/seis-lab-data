@@ -27,6 +27,24 @@ Marine data catalog for internal usage at [IPMA]
     docker compose -f docker/compose.dev.yaml up -d
     ```
 
+- Ensure the database is up to date by running:
+
+    ```shell
+    docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data db upgrade
+    ```
+
+- Add default data:
+
+    ```shell
+    docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data bootstrap all
+    ```
+
+- Optionally, load sample records into the DB:
+
+    ```shell
+    docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data dev load-all-samples
+    ```
+
 - You should now be able to access the webapp at
 
     http://localhost:8888

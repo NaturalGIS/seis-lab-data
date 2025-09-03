@@ -230,8 +230,8 @@ async def create_survey_related_record(
             type_=schemas.EventType.SURVEY_RELATED_RECORD_CREATED,
             initiator=initiator,
             payload=schemas.EventPayload(
-                after=schemas.SurveyRelatedRecordReadDetail(
-                    **survey_record.model_dump()
+                after=schemas.SurveyRelatedRecordReadDetail.from_db_instance(
+                    survey_record
                 ).model_dump()
             ),
         )

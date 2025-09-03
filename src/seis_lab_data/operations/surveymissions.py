@@ -37,8 +37,8 @@ async def create_survey_mission(
             type_=schemas.EventType.SURVEY_MISSION_CREATED,
             initiator=initiator,
             payload=schemas.EventPayload(
-                after=schemas.SurveyMissionReadDetail(
-                    **survey_mission.model_dump()
+                after=schemas.SurveyMissionReadDetail.from_db_instance(
+                    survey_mission
                 ).model_dump()
             ),
         )

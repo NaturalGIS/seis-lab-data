@@ -22,8 +22,7 @@ async def create_dataset_category(
     )
     session.add(category)
     await session.commit()
-    await session.refresh(category)
-    return category
+    return await queries.get_dataset_category(session, to_create.id)
 
 
 async def delete_dataset_category(
@@ -50,8 +49,7 @@ async def create_domain_type(
     )
     session.add(domain_type)
     await session.commit()
-    await session.refresh(domain_type)
-    return domain_type
+    return await queries.get_domain_type(session, to_create.id)
 
 
 async def delete_domain_type(
@@ -76,8 +74,7 @@ async def create_workflow_stage(
     )
     session.add(workflow_stage)
     await session.commit()
-    await session.refresh(workflow_stage)
-    return workflow_stage
+    return await queries.get_workflow_stage(session, to_create.id)
 
 
 async def delete_workflow_stage(
@@ -102,8 +99,7 @@ async def create_survey_related_record(
     )
     session.add(survey_record)
     await session.commit()
-    await session.refresh(survey_record)
-    return survey_record
+    return await queries.get_survey_related_record(session, to_create.id)
 
 
 async def delete_survey_related_record(
