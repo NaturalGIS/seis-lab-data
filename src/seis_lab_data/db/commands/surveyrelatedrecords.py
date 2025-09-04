@@ -95,9 +95,16 @@ async def create_survey_related_record(
     to_create: schemas.SurveyRelatedRecordCreate,
 ) -> models.SurveyRelatedRecord:
     survey_record = models.SurveyRelatedRecord(
-        **to_create.model_dump(), slug=slugify(to_create.name.get("en", ""))
+        **to_create.model_dump(exclude={"assets"}),
+        slug=slugify(to_create.name.get("en", "")),
     )
     session.add(survey_record)
+    for asset_to_create in to_create.assets:
+        db_asset = models.RecordAsset(
+            **asset_to_create.model_dump(),
+            survey_related_record_id=survey_record.id,
+        )
+        session.add(db_asset)
     await session.commit()
     return await queries.get_survey_related_record(session, to_create.id)
 

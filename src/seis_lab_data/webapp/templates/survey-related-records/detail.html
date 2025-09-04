@@ -83,6 +83,19 @@
             role="tabpanel"
             aria-labelledby="assets-tab"
             tabindex="0"
-    ></div>
+    >
+        {% for asset in item.record_assets %}
+            <dl class="row">
+                <dt class="col-sm-3">{{ _("Name") }}</dt>
+                <dd class="col-sm-9">{{ asset.name|translate_localizable_string }}</dd>
+                <dt class="col-sm-3">{{ _("Description") }}</dt>
+                <dd class="col-sm-9">{{ asset.description|translate_localizable_string }}</dd>
+                <dt class="col-sm-3">{{ _("Is valid") }}</dt>
+                <dd class="col-sm-9">{{ asset.is_valid }}</dd>
+            </dl>
+        {% else %}
+            {{ _("No assets found") }}
+        {% endfor %}
+    </div>
 </div>
 {% endblock %}

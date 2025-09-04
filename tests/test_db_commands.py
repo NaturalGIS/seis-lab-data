@@ -210,6 +210,36 @@ async def test_create_survey_related_record(
         domain_type_id=schemas.DomainTypeId(domain_type.id),
         workflow_stage_id=schemas.WorkflowStageId(workflow_stage.id),
         relative_path="fake-record",
+        assets=[
+            schemas.RecordAssetCreate(
+                id=schemas.RecordAssetId(
+                    uuid.UUID("3cf81de8-60f3-44df-89f4-6f674a7fb94f")
+                ),
+                name={
+                    "en": "first asset",
+                    "pt": "primeiro registo",
+                },
+                description={
+                    "en": "description for first asset",
+                    "pt": "descrição para o primeiro recurso",
+                },
+                relative_path="asset1",
+            ),
+            schemas.RecordAssetCreate(
+                id=schemas.RecordAssetId(
+                    uuid.UUID("85ded7b6-a794-4746-b450-c3bdfb07e5c0")
+                ),
+                name={
+                    "en": "second asset",
+                    "pt": "segundo registo",
+                },
+                description={
+                    "en": "description for second asset",
+                    "pt": "descrição para o segundo recurso",
+                },
+                relative_path="asset2",
+            ),
+        ],
     )
     async with db_session_maker() as session:
         created = await commands.create_survey_related_record(session, to_create)

@@ -15,6 +15,7 @@ from .. import constants
 
 DatasetCategoryId = NewType("DatasetCategoryId", uuid.UUID)
 DomainTypeId = NewType("DomainTypeId", uuid.UUID)
+RecordAssetId = NewType("RecordAssetId", uuid.UUID)
 SurveyRelatedRecordId = NewType("SurveyRelatedRecordId", uuid.UUID)
 SurveyMissionId = NewType("SurveyMissionId", uuid.UUID)
 ProjectId = NewType("ProjectId", uuid.UUID)

@@ -33,10 +33,6 @@ workflow_stages_app = AsyncTyper()
 app.add_typer(workflow_stages_app, name="workflow-stages")
 
 
-def parse_json_links(raw_json: str):
-    return json.loads(raw_json)
-
-
 @app.callback()
 def app_callback(ctx: typer.Context):
     """Manage system data."""
@@ -60,7 +56,7 @@ async def create_survey_related_record(
     domain_type: str,
     workflow_stage: str,
     relative_path: str,
-    link: Annotated[list[dict], typer.Option(parser=parse_json_links)] = [],
+    link: Annotated[list[dict], typer.Option(parser=json.loads)] = [],
 ):
     """Create a new survey-related record."""
     admin_id = ctx.obj["admin_user"].id
@@ -148,17 +144,18 @@ async def list_survey_related_records(
 async def get_survey_related_record(ctx: typer.Context, slug: str):
     """Get details about a survey-related record."""
     async with ctx.obj["session_maker"]() as session:
-        survey_record = await operations.get_survey_related_record_by_slug(
+        record_details = await operations.get_survey_related_record_by_slug(
             slug, ctx.obj["admin_user"].id, session, ctx.obj["main"].settings
         )
-        if survey_record is None:
+        if record_details is None:
             ctx.obj["main"].status_console.print(
                 f"Survey-related record {slug!r} not found"
             )
         else:
+            survey_record, record_assets = record_details
             ctx.obj["main"].status_console.print_json(
                 schemas.SurveyRelatedRecordReadDetail.from_db_instance(
-                    survey_record
+                    survey_record, assets=record_assets
                 ).model_dump_json()
             )
 
@@ -196,7 +193,7 @@ async def create_survey_mission(
     description_en: str,
     description_pt: str,
     relative_path: str,
-    link: Annotated[list[dict], typer.Option(parser=parse_json_links)],
+    link: Annotated[list[dict], typer.Option(parser=json.loads)],
 ):
     """Create a new survey mission."""
     admin_id = ctx.obj["admin_user"].id
@@ -300,7 +297,7 @@ async def create_project(
     description_en: str,
     description_pt: str,
     root_path: str,
-    link: Annotated[list[dict], typer.Option(parser=parse_json_links)],
+    link: Annotated[list[dict], typer.Option(parser=json.loads)],
 ):
     """Create a new project."""
     async with ctx.obj["session_maker"]() as session:

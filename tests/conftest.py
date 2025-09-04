@@ -64,7 +64,7 @@ def test_client(app):
 async def bootstrap_dataset_categories(db, db_session_maker):
     created = []
     async with db_session_maker() as session:
-        for category_to_create in bootstrapdata.DATASET_CATEGORIES_TO_CREATE:
+        for category_to_create in bootstrapdata.DATASET_CATEGORIES_TO_CREATE.values():
             created.append(
                 await commands.create_dataset_category(session, category_to_create)
             )
@@ -75,7 +75,7 @@ async def bootstrap_dataset_categories(db, db_session_maker):
 async def bootstrap_domain_types(db, db_session_maker):
     created = []
     async with db_session_maker() as session:
-        for domain_to_create in bootstrapdata.DOMAIN_TYPES_TO_CREATE:
+        for domain_to_create in bootstrapdata.DOMAIN_TYPES_TO_CREATE.values():
             created.append(await commands.create_domain_type(session, domain_to_create))
     yield created
 
@@ -84,7 +84,7 @@ async def bootstrap_domain_types(db, db_session_maker):
 async def bootstrap_workflow_stages(db, db_session_maker):
     created = []
     async with db_session_maker() as session:
-        for stage_to_create in bootstrapdata.WORKFLOW_STAGES_TO_CREATE:
+        for stage_to_create in bootstrapdata.WORKFLOW_STAGES_TO_CREATE.values():
             created.append(
                 await commands.create_workflow_stage(session, stage_to_create)
             )

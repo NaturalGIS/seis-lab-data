@@ -31,7 +31,7 @@ async def bootstrap_dataset_categories(ctx: typer.Context):
     created = []
     settings = ctx.obj["main"].settings
     async with ctx.obj["session_maker"]() as session:
-        for to_create in bootstrapdata.DATASET_CATEGORIES_TO_CREATE:
+        for to_create in bootstrapdata.DATASET_CATEGORIES_TO_CREATE.values():
             try:
                 created.append(
                     await operations.create_dataset_category(
@@ -58,7 +58,7 @@ async def bootstrap_domain_types(ctx: typer.Context):
     created = []
     settings = ctx.obj["main"].settings
     async with ctx.obj["session_maker"]() as session:
-        for to_create in bootstrapdata.DOMAIN_TYPES_TO_CREATE:
+        for to_create in bootstrapdata.DOMAIN_TYPES_TO_CREATE.values():
             try:
                 created.append(
                     await operations.create_domain_type(
@@ -85,7 +85,7 @@ async def bootstrap_workflow_stages(ctx: typer.Context):
     created = []
     settings = ctx.obj["main"].settings
     async with ctx.obj["session_maker"]() as session:
-        for to_create in bootstrapdata.WORKFLOW_STAGES_TO_CREATE:
+        for to_create in bootstrapdata.WORKFLOW_STAGES_TO_CREATE.values():
             try:
                 created.append(
                     await operations.create_workflow_stage(
