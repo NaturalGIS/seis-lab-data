@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+    <h1 class="display-1">{{ _("New Project") }}</h1>
+    <form method="POST">
+        {{ form.csrf_token }}
+        <div class="mb-3">
+            {{ form.name.label(class="form-label") }}
+            {{ form.name(class="form-control") }}
+            {{ form.name.description }}
+        </div>
+    </form>
+{% endblock %}

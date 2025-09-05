@@ -18,6 +18,7 @@ from starlette_babel import (
     get_translator,
     LocaleMiddleware,
 )
+from starlette_wtf import CSRFProtectMiddleware
 
 from .. import (
     config,
@@ -89,6 +90,10 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
             Middleware(
                 SessionMiddleware,
                 secret_key=settings.session_secret_key,
+            ),
+            Middleware(
+                CSRFProtectMiddleware,
+                csrf_secret=settings.csrf_secret,
             ),
         ],
     )
