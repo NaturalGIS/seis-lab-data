@@ -29,6 +29,7 @@ class SeisLabDataSettings(BaseSettings):
     auth_application_slug: str = "seis-lab-data-app"
     auth_client_id: str = "someid"
     auth_client_secret: str = "somesecret"
+    csrf_secret: str = "somesecret"
     session_secret_key: str = "somesecretkey"
     auth_external_base_url: str = "http://localhost:9000"
     auth_internal_base_url: str = "http://localhost:9000"

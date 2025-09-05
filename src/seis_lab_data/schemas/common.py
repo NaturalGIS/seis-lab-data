@@ -42,7 +42,10 @@ def has_english_locale(value: dict[str, str]):
     return value
 
 
-NameString = Annotated[str, Field(max_length=constants.MAX_NAME_LENGTH)]
+NameString = Annotated[
+    str,
+    Field(min_length=constants.NAME_MIN_LENGTH, max_length=constants.NAME_MAX_LENGTH),
+]
 LocalizableName = Annotated[dict[str, NameString], AfterValidator(has_valid_locales)]
 AtLeastEnglishName = Annotated[LocalizableName, AfterValidator(has_english_locale)]
 

@@ -28,7 +28,7 @@ async def create_project(
     event_emitter: events.EventEmitterProtocol,
 ):
     if initiator is None or not await permissions.can_create_project(
-        initiator, to_create, settings=settings
+        initiator, settings
     ):
         raise errors.SeisLabDataError(
             "User is not allowed to create a marine campaign."

@@ -17,9 +17,7 @@ async def can_read_project(
 
 
 async def can_create_project(
-    user: schemas.UserId,
-    to_create: schemas.ProjectCreate,
-    *,
+    user: schemas.User,
     settings: config.SeisLabDataSettings,
 ):
     return True

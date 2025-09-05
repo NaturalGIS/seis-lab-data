@@ -2,12 +2,15 @@ from starlette_babel import gettext_lazy as _
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.routing import Route
+from starlette_wtf import csrf_protect
 
 from .. import (
     errors,
     operations,
+    permissions,
     schemas,
 )
+from . import forms
 from .auth import get_user
 
 
@@ -39,6 +42,9 @@ async def list_projects(request: Request):
                 schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
                 schemas.BreadcrumbItem(name=_("Projects")),
             ],
+            "user_can_create": permissions.can_create_project(
+                user, request.state.settings
+            ),
         },
     )
 
@@ -95,7 +101,35 @@ async def get_project(request: Request):
     )
 
 
+@csrf_protect
+async def create_project(request: Request):
+    create_project_form = await forms.ProjectCreateForm.from_formdata(request)
+    if await create_project_form.validate_on_submit():
+        ...
+    template_processor = request.state.templates
+    return template_processor.TemplateResponse(
+        request,
+        "projects/create.html",
+        context={
+            "form": create_project_form,
+            "breadcrumbs": [
+                schemas.BreadcrumbItem(
+                    name=_("Home"), url=str(request.url_for("home"))
+                ),
+                schemas.BreadcrumbItem(
+                    name=_("Projects"),
+                    url=request.url_for("projects:list"),
+                ),
+                schemas.BreadcrumbItem(
+                    name=_("New Project"),
+                ),
+            ],
+        },
+    )
+
+
 routes = [
     Route("/", list_projects, methods=["GET"], name="list"),
+    Route("/new", create_project, methods=["GET", "POST"], name="create"),
     Route("/{project_slug}", get_project, methods=["GET"], name="detail"),
 ]
