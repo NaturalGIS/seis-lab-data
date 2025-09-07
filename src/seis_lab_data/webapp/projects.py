@@ -1,3 +1,5 @@
+import logging
+
 from starlette_babel import gettext_lazy as _
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
@@ -12,6 +14,8 @@ from .. import (
 )
 from . import forms
 from .auth import get_user
+
+logger = logging.getLogger(__name__)
 
 
 async def list_projects(request: Request):
@@ -105,7 +109,8 @@ async def get_project(request: Request):
 async def create_project(request: Request):
     create_project_form = await forms.ProjectCreateForm.from_formdata(request)
     if await create_project_form.validate_on_submit():
-        ...
+        to_create = schemas.ProjectCreate(**create_project_form.data)
+        logger.debug(f"{to_create=}")
     template_processor = request.state.templates
     return template_processor.TemplateResponse(
         request,
