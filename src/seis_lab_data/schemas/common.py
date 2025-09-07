@@ -50,7 +50,7 @@ LocalizableName = Annotated[dict[str, NameString], AfterValidator(has_valid_loca
 AtLeastEnglishName = Annotated[LocalizableName, AfterValidator(has_english_locale)]
 
 
-DescriptionString = Annotated[str, Field(max_length=constants.MAX_DESCRIPTION_LENGTH)]
+DescriptionString = Annotated[str, Field(max_length=constants.DESCRIPTION_MAX_LENGTH)]
 LocalizableDescription = Annotated[
     dict[str, DescriptionString], AfterValidator(has_valid_locales)
 ]
