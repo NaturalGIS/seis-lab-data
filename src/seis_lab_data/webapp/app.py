@@ -7,6 +7,7 @@ from typing import (
 
 import jinja2
 from authlib.integrations.starlette_client import OAuth
+from redis import asyncio as aioredis
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.applications import Starlette
 from starlette_babel.contrib.jinja import configure_jinja_env
@@ -48,6 +49,7 @@ class State(TypedDict):
     oauth_manager: OAuth
     session_maker: Callable[[], AsyncSession]
     event_emitter: events.EventEmitterProtocol
+    redis_client: aioredis.Redis
 
 
 @contextlib.asynccontextmanager
@@ -71,6 +73,7 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
         oauth_manager=get_oauth_manager(auth_config),
         session_maker=get_session_maker(engine),
         event_emitter=events.get_event_emitter(settings),
+        redis_client=aioredis.from_url(settings.message_broker_dsn.unicode_string()),
     )
     await engine.dispose()
 

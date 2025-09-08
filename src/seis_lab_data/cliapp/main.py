@@ -68,7 +68,7 @@ def run_processing_worker(ctx: typer.Context) -> None:
     context.status_console.print(Padding(panel, 1))
     dramatiq_args = [
         "dramatiq",
-        # f"{Path(__file__).parent / 'processing/broker:get_broker'}",
+        "--skip-logging",
         "seis_lab_data.processing.broker:setup_broker",
         "seis_lab_data.processing.tasks",
     ]
@@ -77,7 +77,7 @@ def run_processing_worker(ctx: typer.Context) -> None:
             [
                 "--processes=1",
                 "--threads=1",
-                f"--watch={Path(__file__).parent}",
+                f"--watch={Path(__file__).parents[1]}",
                 "--watch-exclude=__pycache__/*",
             ]
         )
