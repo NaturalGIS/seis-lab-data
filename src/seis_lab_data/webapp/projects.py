@@ -2,7 +2,7 @@ import json
 import logging
 import uuid
 
-from aioredis import Redis
+from redis.asyncio import Redis
 from datastar_py import ServerSentEventGenerator
 from datastar_py.starlette import DatastarResponse
 from starlette_babel import gettext_lazy as _
@@ -140,6 +140,7 @@ async def create_project(request: Request, user: schemas.User):
             },
         )
     elif request.method == "POST":
+        logger.debug("Something was POSTed")
 
         async def stream_events():
             yield ServerSentEventGenerator.patch_elements(
