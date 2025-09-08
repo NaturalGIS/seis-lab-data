@@ -1,4 +1,6 @@
 import logging
+from functools import wraps
+from typing import Callable
 
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
@@ -57,3 +59,13 @@ def get_user(
         roles=[role for role in user_info.get("groups", [])],
         active=user_info.get("email_verified"),
     )
+
+
+def requires_auth(route_function: Callable):
+    @wraps(route_function)
+    async def wrapper(request: Request, *args, **kwargs):
+        if not (user := get_user(request.session.get("user", {}))):
+            return RedirectResponse(url=request.url_for("login"), status_code=302)
+        return await route_function(request, user, *args, **kwargs)
+
+    return wrapper

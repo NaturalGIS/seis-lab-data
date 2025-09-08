@@ -1,16 +1,13 @@
+import json
 import logging
+import uuid
 
 import dramatiq
 from dramatiq.brokers.stub import StubBroker
 
 from .. import (
     config,
-    operations,
     schemas,
-)
-from ..db.engine import (
-    get_engine,
-    get_session_maker,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,10 +29,12 @@ def process_data(message: str):
 
 
 @dramatiq.actor
-async def create_marine_campaign(to_create: dict):
-    parsed_to_create = schemas.ProjectCreate(**to_create)
-    settings = config.get_settings()
-    engine = get_engine(settings)
-    session_maker = get_session_maker(engine)
-    async with session_maker() as session:
-        await operations.create_project(parsed_to_create, session, settings)
+async def create_project(
+    raw_request_id: str,
+    raw_to_create: str,
+):
+    logger.debug("Hi from the create_project task")
+    request_id = schemas.RequestId(uuid.UUID(raw_request_id))
+    to_create = schemas.ProjectCreate(**json.loads(raw_to_create))
+    logger.debug(f"{request_id=}")
+    logger.debug(f"{to_create=}")

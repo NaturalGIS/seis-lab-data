@@ -2,6 +2,8 @@ import logging
 
 import dramatiq
 from dramatiq.brokers.redis import RedisBroker
+from dramatiq.middleware.asyncio import AsyncIO
+from rich.console import Console
 
 from .. import config
 
@@ -22,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 def setup_broker(settings: config.SeisLabDataSettings | None = None) -> None:
-    """Setup the dramatiq message broker.
+    """Set up the dramatiq message broker.
 
     This function relies on all actors having already been imported and registered into
     a global dramatiq stub broker. It works by inspecting this previous broker, gathering
@@ -33,11 +35,14 @@ def setup_broker(settings: config.SeisLabDataSettings | None = None) -> None:
     pattern. It is not very pretty, but it works.
     """
     settings = settings or config.get_settings()
+    console = Console(width=255, stderr=True)
+    config.configure_logging(console, debug=settings.debug)
     if settings.message_broker_dsn is not None:
         new_broker = RedisBroker(
             host=settings.message_broker_dsn.host,
             port=settings.message_broker_dsn.port,
         )
+        new_broker.add_middleware(AsyncIO())
         old_broker = dramatiq.get_broker()
         # reconfigure actors to use the new broker
         for existing_actor_name in old_broker.get_declared_actors():

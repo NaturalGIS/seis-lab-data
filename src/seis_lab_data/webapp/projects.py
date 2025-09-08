@@ -1,5 +1,10 @@
+import json
 import logging
+import uuid
 
+from aioredis import Redis
+from datastar_py import ServerSentEventGenerator
+from datastar_py.starlette import DatastarResponse
 from starlette_babel import gettext_lazy as _
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
@@ -12,8 +17,12 @@ from .. import (
     permissions,
     schemas,
 )
+from ..processing import tasks
 from . import forms
-from .auth import get_user
+from .auth import (
+    get_user,
+    requires_auth,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +55,7 @@ async def list_projects(request: Request):
                 schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
                 schemas.BreadcrumbItem(name=_("Projects")),
             ],
-            "user_can_create": permissions.can_create_project(
+            "user_can_create": await permissions.can_create_project(
                 user, request.state.settings
             ),
         },
@@ -106,31 +115,98 @@ async def get_project(request: Request):
 
 
 @csrf_protect
-async def create_project(request: Request):
-    create_project_form = await forms.ProjectCreateForm.from_formdata(request)
-    if await create_project_form.validate_on_submit():
-        to_create = schemas.ProjectCreate(**create_project_form.data)
-        logger.debug(f"{to_create=}")
+@requires_auth
+async def create_project(request: Request, user: schemas.User):
     template_processor = request.state.templates
-    return template_processor.TemplateResponse(
-        request,
-        "projects/create.html",
-        context={
-            "form": create_project_form,
-            "breadcrumbs": [
-                schemas.BreadcrumbItem(
-                    name=_("Home"), url=str(request.url_for("home"))
-                ),
-                schemas.BreadcrumbItem(
-                    name=_("Projects"),
-                    url=request.url_for("projects:list"),
-                ),
-                schemas.BreadcrumbItem(
-                    name=_("New Project"),
-                ),
-            ],
-        },
-    )
+    create_project_form = await forms.ProjectCreateForm.from_formdata(request)
+    if request.method == "GET":
+        return template_processor.TemplateResponse(
+            request,
+            "projects/create.html",
+            context={
+                "form": create_project_form,
+                "breadcrumbs": [
+                    schemas.BreadcrumbItem(
+                        name=_("Home"), url=str(request.url_for("home"))
+                    ),
+                    schemas.BreadcrumbItem(
+                        name=_("Projects"),
+                        url=request.url_for("projects:list"),
+                    ),
+                    schemas.BreadcrumbItem(
+                        name=_("New Project"),
+                    ),
+                ],
+            },
+        )
+    elif request.method == "POST":
+
+        async def stream_events():
+            yield ServerSentEventGenerator.patch_elements(
+                """<div id="feedback">This is me from the backend :heart:</div>""",
+                selector="#feedback",
+            )
+
+            if await create_project_form.validate_on_submit():
+                request_id = schemas.RequestId(uuid.uuid4())
+                to_create = schemas.ProjectCreate(
+                    id=schemas.ProjectId(uuid.uuid4()),
+                    owner=user.id,
+                    name={
+                        "en": create_project_form.name_en.data,
+                        "pt": create_project_form.name_pt.data,
+                    },
+                    description={
+                        "en": create_project_form.description_en.data,
+                        "pt": create_project_form.description_pt.data,
+                    },
+                    root_path=create_project_form.root_path.data,
+                )
+                logger.debug(f"{request_id=}")
+                logger.debug(f"{to_create=}")
+                enqueued_message = tasks.create_project.send(
+                    raw_request_id=str(request_id),
+                    raw_to_create=to_create.model_dump_json(),
+                )
+                logger.debug(f"{enqueued_message=}")
+
+                redis_client: Redis = request.state.redis_client
+                pubsub = redis_client.pubsub()
+                topic_name = f"progress:{request_id}"
+                await pubsub.subscribe(topic_name)
+                try:
+                    while True:
+                        if message := await pubsub.get_message(
+                            ignore_subscribe_messages=True, timeout=30
+                        ):
+                            status_update = json.loads(message["data"])
+                            status = status_update.get("status")
+                            yield ServerSentEventGenerator.patch_elements(
+                                f"Status: {status_update}",
+                                selector="#feedback",
+                            )
+                            if status in ("finished", "failed"):
+                                break
+                        if await request.is_disconnected():
+                            break
+                finally:
+                    await pubsub.unsubscribe(topic_name)
+                    await pubsub.close()
+            else:
+                logger.debug("form did not validate")
+                form_response = template_processor.TemplateResponse(
+                    request,
+                    "projects/create-form.html",
+                    context={
+                        "form": create_project_form,
+                    },
+                )
+                yield ServerSentEventGenerator.patch_elements(
+                    form_response,
+                    selector="#project-create-form-container",
+                )
+
+        return DatastarResponse(stream_events())
 
 
 routes = [

@@ -6,6 +6,9 @@ from .common import (
     AtLeastEnglishName,
     AtLeastEnglishDescription,
     LinkSchema,
+    LocalizableDescription,
+    PublishableNameString,
+    PublishableDescriptionString,
     ProjectId,
     UserId,
 )
@@ -15,7 +18,7 @@ class ProjectCreate(pydantic.BaseModel):
     id: ProjectId
     owner: UserId
     name: AtLeastEnglishName
-    description: AtLeastEnglishDescription
+    description: LocalizableDescription
     root_path: str
     links: list[LinkSchema] = []
 
@@ -47,4 +50,16 @@ class ProjectReadListItem(ProjectReadEmbedded):
 class ProjectReadDetail(ProjectReadListItem):
     owner: UserId
     root_path: str
+    links: list[LinkSchema] = []
+
+
+# TODO: add validation
+class ProjectPublicationValidate(pydantic.BaseModel):
+    id: ProjectId
+    owner: UserId
+    name: PublishableNameString
+    description: PublishableDescriptionString
+    root_path: str
+    status: ProjectStatus
+    is_valid: bool
     links: list[LinkSchema] = []
