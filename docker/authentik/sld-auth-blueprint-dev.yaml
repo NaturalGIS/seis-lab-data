@@ -286,7 +286,7 @@ entries:
       redirect_uris:
         - url: !Context redirect_uri
           matching_mode: strict
-      sub_mode: hashed_user_id
+      sub_mode: user_uuid
       include_claims_in_id_token: true
       issuer_mode: per_provider
       authorization_flow: !Find [authentik_flows.flow, [slug, "default-provider-authorization-implicit-consent"]]

@@ -1,11 +1,7 @@
 import logging
-import uuid
 
 import babel
-from starlette_babel import (
-    gettext_lazy as _,
-    get_locale,
-)
+from starlette_babel import gettext_lazy as _
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
@@ -28,17 +24,8 @@ logger = logging.getLogger(__name__)
 
 async def home(request: Request):
     template_processor = request.state.templates
-    request_id = str(uuid.uuid4())
     logger.debug("This is the home route")
-    logger.debug(f"Request cookies: {request.cookies=}")
-    logger.debug(f"Current locale in the request state is {request.state.locale=}")
-    logger.debug(
-        f"Current locale according to global starlette-babel function {get_locale()=}"
-    )
-    logger.debug(f"Current language is {request.state.language=}")
-    logger.debug("With the global translator that is imported from starlette_babel:")
-    logger.debug(_("Hi there!"))
-    tasks.process_data.send(f"hi from the home route with request id {request_id}")
+    tasks.process_data.send("hi background task")
     return template_processor.TemplateResponse(
         request, "index.html", context={"greeting": _("Hi there!")}
     )

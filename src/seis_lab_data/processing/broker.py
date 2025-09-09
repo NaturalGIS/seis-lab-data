@@ -6,6 +6,11 @@ from dramatiq.middleware.asyncio import AsyncIO
 from rich.console import Console
 
 from .. import config
+from .middleware import (
+    AsyncRedisPubSubMiddleware,
+    AsyncSqlAlchemyDbMiddleware,
+    SeisLabDataSettingsMiddleware,
+)
 
 # This import is needed - DO NOT REMOVE
 # Dramatiq's @actor decorator tries to eagerly connect to the global dramatiq broker
@@ -43,6 +48,17 @@ def setup_broker(settings: config.SeisLabDataSettings | None = None) -> None:
             port=settings.message_broker_dsn.port,
         )
         new_broker.add_middleware(AsyncIO())
+        new_broker.add_middleware(SeisLabDataSettingsMiddleware(settings))
+        new_broker.add_middleware(
+            AsyncRedisPubSubMiddleware(
+                redis_dsn=settings.message_broker_dsn.unicode_string()
+            )
+        )
+        new_broker.add_middleware(
+            AsyncSqlAlchemyDbMiddleware(
+                db_dsn=settings.database_dsn.unicode_string(), debug=settings.debug
+            )
+        )
         old_broker = dramatiq.get_broker()
         # reconfigure actors to use the new broker
         for existing_actor_name in old_broker.get_declared_actors():

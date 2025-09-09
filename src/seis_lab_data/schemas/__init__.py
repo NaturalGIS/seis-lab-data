@@ -15,6 +15,9 @@ from .events import (
     EventPayload,
     SeisLabDataEvent,
 )
+from .processing import (
+    ProcessingMessage,
+)
 from .projects import (
     ProjectCreate,
     ProjectReadDetail,
@@ -64,6 +67,7 @@ __all__ = [
     ProjectReadDetail,
     ProjectReadListItem,
     ProjectUpdate,
+    ProcessingMessage,
     RecordAssetCreate,
     RecordAssetId,
     RecordAssetReadDetail,

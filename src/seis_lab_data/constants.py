@@ -14,6 +14,23 @@ class TranslatableEnumProtocol(typing.Protocol):
     def get_translated_value(self) -> str: ...
 
 
+class ProcessingStatus(str, enum.Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+    def get_translated_value(self) -> str:
+        return {
+            self.PENDING: _("pending"),
+            self.RUNNING: _("running"),
+            self.SUCCESS: _("success"),
+            self.FAILED: _("failed"),
+            self.CANCELLED: _("cancelled"),
+        }.get(self, self.value)
+
+
 class ProjectStatus(str, enum.Enum):
     DRAFT = "draft"
     PUBLISHED = "published"

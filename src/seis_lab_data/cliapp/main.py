@@ -37,7 +37,9 @@ def base_callback(ctx: typer.Context) -> None:
     config.configure_logging(
         rich_console=context.status_console, debug=context.settings.debug
     )
-    engine = get_engine(context.settings)
+    engine = get_engine(
+        context.settings.database_dsn.unicode_string(), context.settings.debug
+    )
     session_maker = get_session_maker(engine)
     ctx.obj = {
         "main": context,
