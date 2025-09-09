@@ -2,9 +2,11 @@ import json
 import logging
 import uuid
 
-from redis.asyncio import Redis
 from datastar_py import ServerSentEventGenerator
+from datastar_py.consts import ElementPatchMode
 from datastar_py.starlette import DatastarResponse
+from dramatiq import Message
+from redis.asyncio import Redis
 from starlette_babel import gettext_lazy as _
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
@@ -17,6 +19,7 @@ from .. import (
     permissions,
     schemas,
 )
+from ..constants import ProcessingStatus
 from ..processing import tasks
 from . import forms
 from .auth import (
@@ -140,11 +143,16 @@ async def create_project(request: Request, user: schemas.User):
             },
         )
     elif request.method == "POST":
-        logger.debug("Something was POSTed")
 
         async def stream_events():
             yield ServerSentEventGenerator.patch_elements(
-                """<div id="feedback">This is me from the backend :heart:</div>""",
+                """
+                <div id="feedback">
+                  <p>This is me from the backend :heart:</p>
+                  <ul>
+                  </ul>
+                </div>
+                """,
                 selector="#feedback",
             )
 
@@ -165,9 +173,20 @@ async def create_project(request: Request, user: schemas.User):
                 )
                 logger.debug(f"{request_id=}")
                 logger.debug(f"{to_create=}")
-                enqueued_message = tasks.create_project.send(
+                yield ServerSentEventGenerator.patch_elements(
+                    """<li>Sending task to dramatiq...</li>""",
+                    selector="#feedback > ul",
+                    mode=ElementPatchMode.APPEND,
+                )
+                enqueued_message: Message = tasks.create_project.send(
                     raw_request_id=str(request_id),
                     raw_to_create=to_create.model_dump_json(),
+                    raw_initiator_id=str(user.id),
+                )
+                yield ServerSentEventGenerator.patch_elements(
+                    f"""<li"feedback">Enqueued message id: {enqueued_message.message_id}</li>""",
+                    selector="#feedback > ul",
+                    mode=ElementPatchMode.APPEND,
                 )
                 logger.debug(f"{enqueued_message=}")
 
@@ -180,13 +199,18 @@ async def create_project(request: Request, user: schemas.User):
                         if message := await pubsub.get_message(
                             ignore_subscribe_messages=True, timeout=30
                         ):
-                            status_update = json.loads(message["data"])
-                            status = status_update.get("status")
-                            yield ServerSentEventGenerator.patch_elements(
-                                f"Status: {status_update}",
-                                selector="#feedback",
+                            processing_message = schemas.ProcessingMessage(
+                                **json.loads(message["data"])
                             )
-                            if status in ("finished", "failed"):
+                            yield ServerSentEventGenerator.patch_elements(
+                                f"<li>{processing_message.status.get_translated_value()} - {processing_message.message}</li>",
+                                selector="#feedback > ul",
+                                mode=ElementPatchMode.APPEND,
+                            )
+                            if processing_message.status in (
+                                ProcessingStatus.SUCCESS,
+                                ProcessingStatus.FAILED,
+                            ):
                                 break
                         if await request.is_disconnected():
                             break

@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 async def create_project(
     to_create: schemas.ProjectCreate,
-    initiator: schemas.UserId | None,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
@@ -37,7 +37,7 @@ async def create_project(
     event_emitter(
         schemas.SeisLabDataEvent(
             type_=schemas.EventType.PROJECT_CREATED,
-            initiator=initiator,
+            initiator=initiator.id,
             payload=schemas.EventPayload(
                 after=schemas.ProjectReadDetail(**campaign.model_dump()).model_dump()
             ),

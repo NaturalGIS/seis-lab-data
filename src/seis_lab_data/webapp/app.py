@@ -65,7 +65,7 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
     jinja_env.filters["translate_enum"] = translate_enum
     configure_jinja_env(jinja_env)
     templates = Jinja2Templates(env=jinja_env)
-    engine = get_engine(settings)
+    engine = get_engine(settings.database_dsn.unicode_string(), settings.debug)
     yield State(
         settings=settings,
         templates=templates,

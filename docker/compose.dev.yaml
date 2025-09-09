@@ -11,6 +11,7 @@ name: seis-lab-data
 
 x-common-image: &common-image "ghcr.io/naturalgis/seis-lab-data/seis-lab-data:${CURRENT_GIT_BRANCH:-latest}"
 x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.8.0-rc6"
+x-auth-admin-token: &auth-admin-token "admin123"
 x-db-image: &db-image "postgis/postgis:17-3.5-alpine"
 x-auth-client-id: &auth-client-id "sld-client-id"
 x-auth-client-secret: &auth-client-secret "sld-client-secret"
@@ -22,6 +23,7 @@ x-common-env: &common-env
   SEIS_LAB_DATA__DATABASE_DSN: postgresql+psycopg://sld:sldpass@db:5432/seis_lab_data
   SEIS_LAB_DATA__TEST_DATABASE_DSN: postgresql+psycopg://sld:sldpass@test-db:5432/seis_lab_data_test
   SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
+  SEIS_LAB_DATA__AUTH_ADMIN_TOKEN: *auth-admin-token
 
 x-common-auth-env: &common-auth-env
   AUTHENTIK_LOG_LEVEL: debug
@@ -104,7 +106,7 @@ services:
     environment:
       <<: *common-auth-env
       AUTHENTIK_BOOTSTRAP_PASSWORD: admin123
-      AUTHENTIK_BOOTSTRAP_TOKEN: admin123
+      AUTHENTIK_BOOTSTRAP_TOKEN: *auth-admin-token
       AUTHENTIK_BOOTSTRAP_EMAIL: akadmin@email.com
     volumes:
       - type: bind

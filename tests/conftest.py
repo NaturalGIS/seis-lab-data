@@ -33,7 +33,7 @@ def sync_db_engine(settings: config.SeisLabDataSettings):
 
 @pytest.fixture()
 def db_engine(settings: config.SeisLabDataSettings):
-    yield get_engine(settings)
+    yield get_engine(settings.database_dsn.unicode_string(), debug=False)
 
 
 @pytest.fixture()
