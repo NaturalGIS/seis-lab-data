@@ -1,17 +1,17 @@
 <form>
     <div class="row mb-3">
         {% set form_element_classes = "form-control is-invalid" if form.name_en.errors else "form-control" %}
-        {% set form_element_described_by = "nameEnHelp backendValidationNameEnFeedback" if form.name_en.errors else "nameEnHelp" %}
+        {% set form_element_described_by = "name-en-help backend-validation-name-en-feedback" if form.name_en.errors else "name-en-help" %}
         <div class="col-sm-2">
             {{ form.name_en.label(class="form-label") }}
             <span class="text-danger">*</span>
         </div>
         <div class="col-sm-10{% if form.name_en.errors %} has-validation{% endif %}">
             {{ form.name_en(class=form_element_classes, aria_describedby=form_element_described_by, aria_required="true") }}
-            <div id="nameEnHelp" class="form-text">{{ form.name_en.description }}
+            <div id="name-en-help" class="form-text">{{ form.name_en.description }}
                 - {{ _("This is a required field") }}</div>
             {% if form.name_en.errors %}
-                <div class="invalid-feedback" id="backendValidationNameEnFeedback">
+                <div class="invalid-feedback" id="backend-validation-name-en-feedback">
                     {% for error in form.name_en.errors %}
                         <p>{{ error }}</p>
                     {% endfor %}
@@ -22,15 +22,15 @@
 
         <div class="row mb-3">
             {% set form_element_classes = "form-control is-invalid" if form.name_pt.errors else "form-control" %}
-            {% set form_element_described_by = "namePtHelp backendValidationNamePtFeedback" if form.name_pt.errors else "namePtHelp" %}
+            {% set form_element_described_by = "name-pt-help backend-validation-name-pt-feedback" if form.name_pt.errors else "name-pt-help" %}
             <div class="col-sm-2">
                 {{ form.name_pt.label(class="form-label") }}
             </div>
             <div class="col-sm-10{% if form.name_pt.errors %} has-validation{% endif %}">
                 {{ form.name_pt(class=form_element_classes, aria_describedby=form_element_described_by) }}
-                <div id="namePtHelp" class="form-text">{{ form.name_pt.description }}</div>
+                <div id="name-pt-help" class="form-text">{{ form.name_pt.description }}</div>
                 {% if form.name_pt.errors %}
-                    <div class="invalid-feedback" id="backendValidationNamePtFeedback">
+                    <div class="invalid-feedback" id="backend-validation-name-pt-feedback">
                         {% for error in form.name_pt.errors %}
                             <p>{{ error }}</p>
                         {% endfor %}
@@ -42,13 +42,13 @@
 
         <div class="row mb-3">
             {% set form_element_classes = "form-control is-invalid" if form.description_en.errors else "form-control" %}
-            {% set form_element_described_by = "descriptionEnHelp backendValidationDescriptionEnFeedback" if form.description_en.errors else "descriptionEnHelp" %}
+            {% set form_element_described_by = "description-en-help backend-validation-description-en-feedback" if form.description_en.errors else "description-en-help" %}
             {{ form.description_en.label(class="col-sm-2 form-label") }}
             <div class="col-sm-10{% if form.description_en.errors %} has-validation{% endif %}">
-                {{ form.description_en(class="form-control", aria_describedby="descriptionEnHelp") }}
-                <div id="descriptionEnHelp" class="form-text">{{ form.description_en.description }}</div>
+                {{ form.description_en(class=form_element_classes, aria_describedby=form_element_described_by) }}
+                <div id="description-en-help" class="form-text">{{ form.description_en.description }}</div>
                 {% if form.description_en.errors %}
-                    <div class="invalid-feedback" id="backendValidationDescriptionEnFeedback">
+                    <div class="invalid-feedback" id="backend-validation-description-en-feedback">
                         {% for error in form.description_en.errors %}
                             <p>{{ error }}</p>
                         {% endfor %}
@@ -59,13 +59,13 @@
 
         <div class="row mb-3">
             {% set form_element_classes = "form-control is-invalid" if form.description_pt.errors else "form-control" %}
-            {% set form_element_described_by = "descriptionPtHelp backendValidationDescriptionPtFeedback" if form.description_pt.errors else "descriptionPtHelp" %}
+            {% set form_element_described_by = "description-pt-help backend-validation-description-pt-feedback" if form.description_pt.errors else "description-pt-help" %}
             {{ form.description_pt.label(class="col-sm-2 form-label") }}
             <div class="col-sm-10{% if form.description_pt.errors %} has-validation{% endif %}">
-                {{ form.description_pt(class="form-control", aria_describedby="descriptionPtHelp") }}
-                <div id="descriptionPtHelp" class="form-text">{{ form.description_pt.description }}</div>
+                {{ form.description_pt(class=form_element_classes, aria_describedby=form_element_described_by) }}
+                <div id="description-pt-help" class="form-text">{{ form.description_pt.description }}</div>
                 {% if form.description_pt.errors %}
-                    <div class="invalid-feedback" id="backendValidationDescriptionPtFeedback">
+                    <div class="invalid-feedback" id="backend-validation-descriptionpt-feedback">
                         {% for error in form.description_pt.errors %}
                             <p>{{ error }}</p>
                         {% endfor %}
@@ -75,12 +75,23 @@
         </div>
 
         <div class="row mb-3">
+            {% set form_element_classes = "form-control is-invalid" if form.root_path.errors else "form-control" %}
+            {% set form_element_described_by = "root-path-help backend-validation-root-path-feedback" if form.description_pt.errors else "root-path-help" %}
             {{ form.root_path.label(class="col-sm-2 form-label") }}
             <div class="col-sm-10">
-                {{ form.root_path(class="form-control", aria_describedby="rootPathHelp") }}
-                <div id="rootPathHelp" class="form-text">{{ form.root_path.description }}</div>
+                {{ form.root_path(class=form_element_classes, aria_describedby=form_element_described_by) }}
+                <div id="root-path-help" class="form-text">{{ form.root_path.description }}</div>
             </div>
+            {% if form.root_path.errors %}
+                <div class="invalid-feedback" id="backend-validation-root-path-feedback">
+                    {% for error in form.root_path.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
         </div>
+        <h3 data-signals="{nextIndex: {{ form.links|length }}}">{{ _("Links") }}</h3>
+        {% include "projects/create-link-form-list.html" %}
         <div class="row mb-3">
             <div class="col-sm-10 offset-sm-2">
                 <button
@@ -95,7 +106,8 @@
                         data-text="$posting ? '{{ _('Creating project...') }}' : '{{ _('Create project') }}'"
                 >
                 </button>
-                <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true" data-attr-hidden="!$posting">
+                <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
+                     data-attr-hidden="!$posting">
                     <span class="visually-hidden">{{ _("Loading...") }}</span>
                 </div>
             </div>
