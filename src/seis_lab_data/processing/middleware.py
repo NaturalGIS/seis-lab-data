@@ -52,8 +52,6 @@ class AsyncSqlAlchemyDbMiddleware(dramatiq.Middleware):
         self._debug = debug
         self.engine = None
         self.session_maker = None
-        self.engine = get_engine(db_dsn, debug)
-        self.session_maker = get_session_maker(self.engine)
 
     def after_process_boot(self, broker: dramatiq.Broker):
         """Hook called after a worker process boots.

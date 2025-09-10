@@ -15,7 +15,8 @@ async def create_project(
     session: AsyncSession, to_create: schemas.ProjectCreate
 ) -> models.Project:
     project = models.Project(
-        **to_create.model_dump(), slug=slugify(to_create.name.get("en", ""))
+        **to_create.model_dump(),
+        # slug=slugify(to_create.name.get("en", ""))
     )
     session.add(project)
     await session.commit()

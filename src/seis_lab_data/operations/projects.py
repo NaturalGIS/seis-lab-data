@@ -48,15 +48,15 @@ async def create_project(
 
 async def delete_project(
     project_id: schemas.ProjectId,
-    initiator: schemas.UserId | None,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
-    if initiator is None or not await permissions.can_delete_project(
+    if not await permissions.can_delete_project(
         initiator, project_id, settings=settings
     ):
-        raise errors.SeisLabDataError("User is not allowed to delete marine campaigns.")
+        raise errors.SeisLabDataError("User is not allowed to delete projects.")
     if (project := await queries.get_project(session, project_id)) is None:
         raise errors.SeisLabDataError(
             f"Marine campaign with id {project_id} does not exist."
@@ -66,7 +66,7 @@ async def delete_project(
     event_emitter(
         schemas.SeisLabDataEvent(
             type_=schemas.EventType.PROJECT_DELETED,
-            initiator=initiator,
+            initiator=initiator.id,
             payload=schemas.EventPayload(before=serialized_project),
         )
     )

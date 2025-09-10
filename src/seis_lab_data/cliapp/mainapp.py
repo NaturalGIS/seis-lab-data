@@ -310,7 +310,7 @@ async def create_project(
                 root_path=root_path,
                 links=link,
             ),
-            initiator=ctx.obj["admin_user"].id,
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -351,7 +351,7 @@ async def delete_project(
     async with ctx.obj["session_maker"]() as session:
         await operations.delete_project(
             schemas.ProjectId(project_id),
-            initiator=ctx.obj["admin_user"].id,
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
