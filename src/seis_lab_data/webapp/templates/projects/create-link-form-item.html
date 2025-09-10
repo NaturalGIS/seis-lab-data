@@ -1,0 +1,17 @@
+<h4>{{ _("Link") }} {{ index + 1 }}</h4>
+<div class="row mb-3">
+    {% set form_element_classes = "form-control is-invalid" if link.url.errors else "form-control" %}
+    {% set form_element_described_by = "link-url-help-{{ index }} backend-validation-link-url-feedback-{{ index }}" if link.url.errors else "link-url-help-{{ index }}" %}
+    {{ link.url.label(class="col-sm-2 form-label") }}
+    <div class="col-sm-10">
+        {{ link.url(class=form_element_classes, aria_describedby=form_element_described_by) }}
+        <div id="link-url-help-{{ index }}" class="form-text">{{ link.url.description }}</div>
+        {% if link.url.errors %}
+            <div class="invalid-feedback" id="backend-validation-link-url-feedback-{{ index }}">
+                {% for error in form.description_pt.errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</div>

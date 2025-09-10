@@ -13,6 +13,7 @@ from starlette_babel import gettext_lazy as _
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.routing import Route
+from starlette.templating import Jinja2Templates
 from starlette_wtf import csrf_protect
 
 from .. import (
@@ -310,6 +311,45 @@ async def _produce_event_stream_for_topic(
             await pubsub.unsubscribe(topic_name)
 
 
+async def add_extra_form_link(request: Request):
+    datastar_signals = json.loads(request.query_params.get("datastar", ""))
+    current_size = datastar_signals.get("nextIndex")
+    if not current_size:
+        logger.warning("No next index found in datastar signals")
+        return DatastarResponse(
+            ServerSentEventGenerator.redirect(str(request.url_for("home")))
+        )
+
+    template_processor: Jinja2Templates = request.state.templates
+
+    create_project_form = await forms.ProjectCreateForm.from_formdata(request)
+    form_default_size = len(create_project_form.links)
+
+    if form_default_size == current_size:
+        create_project_form.links.append_entry()
+    elif form_default_size < current_size:
+        while len(create_project_form.links) < current_size + 1:
+            create_project_form.links.append_entry()
+    else:
+        logger.warning("Form default size is greater than current size")
+
+    template = template_processor.get_template("projects/create-link-form-item.html")
+    rendered = template.render(
+        link=create_project_form.links[-1],
+        index=current_size,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector="#form-links-container",
+            mode=ElementPatchMode.APPEND,
+        )
+        yield ServerSentEventGenerator.patch_signals({"nextIndex": current_size + 1})
+
+    return DatastarResponse(event_streamer())
+
+
 @requires_auth
 async def delete_project(request: Request, user: schemas.User):
     """Delete an existing project."""
@@ -344,6 +384,12 @@ async def delete_project(request: Request, user: schemas.User):
 
 routes = [
     Route("/", list_projects, methods=["GET"], name="list"),
+    Route(
+        "/add-extra-form-link",
+        add_extra_form_link,
+        methods=["GET"],
+        name="add_extra_form_link",
+    ),
     Route("/new", create_project, methods=["GET", "POST"], name="create"),
     Route("/{project_slug}", get_project, methods=["GET", "DELETE"], name="detail"),
     Route("/{project_slug}/delete", delete_project, methods=["POST"], name="delete"),

@@ -1,12 +1,23 @@
 from starlette_babel import gettext_lazy as _
 from starlette_wtf import StarletteForm
 from wtforms import (
+    FieldList,
+    Form,
+    FormField,
     StringField,
     TextAreaField,
     validators,
 )
 
 from .. import constants
+
+
+class LinkForm(Form):
+    url = StringField(_("URL"), validators=[validators.DataRequired()])
+    media_type = StringField(_("Media type"))
+    relation = StringField(_("Relation"))
+    description_en = StringField(_("English description"))
+    description_pt = StringField(_("Portuguese description"))
 
 
 class ProjectCreateForm(StarletteForm):
@@ -53,4 +64,10 @@ class ProjectCreateForm(StarletteForm):
     root_path = StringField(
         _("Root path"),
         description=_("Base path for the project in the archive file system"),
+    )
+    links = FieldList(
+        FormField(LinkForm),
+        label=_("Links"),
+        min_entries=1,
+        max_entries=constants.PROJECT_MAX_LINKS,
     )
