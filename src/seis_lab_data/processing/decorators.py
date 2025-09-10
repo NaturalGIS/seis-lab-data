@@ -12,11 +12,11 @@ from .middleware import (
 
 def redis_client(func: Callable):
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    async def wrapper(*args, **kwargs):
         broker: dramatiq.Broker = dramatiq.get_broker()
         for middleware in broker.middleware:
             if isinstance(middleware, AsyncRedisPubSubMiddleware):
-                return func(*args, **kwargs, redis_client=middleware.redis_client)
+                return await func(*args, **kwargs, redis_client=middleware.redis_client)
         else:
             raise RuntimeError("No AsyncRedisPubSubMiddleware found in the broker")
 
@@ -25,11 +25,11 @@ def redis_client(func: Callable):
 
 def sld_settings(func: Callable):
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    async def wrapper(*args, **kwargs):
         broker: dramatiq.Broker = dramatiq.get_broker()
         for middleware in broker.middleware:
             if isinstance(middleware, SeisLabDataSettingsMiddleware):
-                return func(*args, **kwargs, settings=middleware.sld_settings)
+                return await func(*args, **kwargs, settings=middleware.sld_settings)
         else:
             raise RuntimeError("No SeisLabDataSettingsMiddleware found in the broker")
 
@@ -38,11 +38,13 @@ def sld_settings(func: Callable):
 
 def session_maker(func):
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    async def wrapper(*args, **kwargs):
         broker: dramatiq.Broker = dramatiq.get_broker()
         for middleware in broker.middleware:
             if isinstance(middleware, AsyncSqlAlchemyDbMiddleware):
-                return func(*args, **kwargs, session_maker=middleware.session_maker)
+                return await func(
+                    *args, **kwargs, session_maker=middleware.session_maker
+                )
         else:
             raise RuntimeError("No AsyncSqlAlchemyDbMiddleware found in the broker")
 

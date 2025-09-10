@@ -1,4 +1,5 @@
 import pydantic
+from slugify import slugify
 
 from ..constants import ProjectStatus
 from ..db import models
@@ -22,6 +23,11 @@ class ProjectCreate(pydantic.BaseModel):
     root_path: str
     links: list[LinkSchema] = []
 
+    @pydantic.computed_field
+    @property
+    def slug(self) -> str:
+        return slugify(self.name.get("en", ""))
+
 
 class ProjectUpdate(pydantic.BaseModel):
     owner: UserId | None = None
@@ -44,7 +50,11 @@ class ProjectReadEmbedded(pydantic.BaseModel):
 
 
 class ProjectReadListItem(ProjectReadEmbedded):
-    description: AtLeastEnglishDescription
+    description: LocalizableDescription
+
+    @classmethod
+    def from_db_instance(cls, instance: models.Project) -> "ProjectReadEmbedded":
+        return cls(**instance.model_dump())
 
 
 class ProjectReadDetail(ProjectReadListItem):

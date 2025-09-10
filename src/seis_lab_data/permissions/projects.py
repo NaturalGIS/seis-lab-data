@@ -24,7 +24,7 @@ async def can_create_project(
 
 
 async def can_delete_project(
-    user: schemas.UserId,
+    user: schemas.User,
     project_id: schemas.ProjectId,
     *,
     settings: config.SeisLabDataSettings,

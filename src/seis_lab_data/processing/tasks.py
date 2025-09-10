@@ -5,19 +5,17 @@ import uuid
 from collections.abc import Callable
 
 import dramatiq
-import httpx
 from redis.asyncio import Redis
 from dramatiq.brokers.stub import StubBroker
 
 from .. import (
     config,
     schemas,
-    # operations,
+    operations,
 )
-from ..authentik import get_user_by_uuid
 from ..constants import ProcessingStatus
 
-# from ..events import get_event_emitter
+from ..events import get_event_emitter
 from . import decorators
 
 logger = logging.getLogger(__name__)
@@ -45,7 +43,7 @@ def process_data(message: str, *, settings: config.SeisLabDataSettings):
 async def create_project(
     raw_request_id: str,
     raw_to_create: str,
-    raw_initiator_id: str,
+    raw_initiator: str,
     *,
     settings: config.SeisLabDataSettings,
     redis_client: Redis,
@@ -55,6 +53,7 @@ async def create_project(
     request_id = schemas.RequestId(uuid.UUID(raw_request_id))
     topic_name = f"progress:{request_id}"
     to_create = schemas.ProjectCreate(**json.loads(raw_to_create))
+    initiator = schemas.User(**json.loads(raw_initiator))
     logger.info(f"{to_create=}")
     try:
         await redis_client.publish(
@@ -70,43 +69,36 @@ async def create_project(
             schemas.ProcessingMessage(
                 request_id=request_id,
                 status=ProcessingStatus.RUNNING,
-                message="Retrieving initiator user from authentik...",
+                message="Creating project...",
             ).model_dump_json(),
         )
-        async with httpx.AsyncClient() as client:
-            initiator = await get_user_by_uuid(
-                admin_token=settings.auth_admin_token,
-                user_id=schemas.UserId(raw_initiator_id),
-                web_client=client,
-                authentik_base_url=settings.auth_internal_base_url,
+        async with session_maker() as session:
+            project = await operations.create_project(
+                to_create=to_create,
+                initiator=initiator,
+                session=session,
+                settings=settings,
+                event_emitter=get_event_emitter(settings),
             )
-            logger.info(f"{initiator=}")
+
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
                 status=ProcessingStatus.RUNNING,
-                message="Creating project...",
+                message=f"Created project {project.slug!r}",
             ).model_dump_json(),
         )
-        # async with session_maker() as session:
-        #     project = await operations.create_project(
-        #         to_create=to_create,
-        #         initiator=initiator,
-        #         session=session,
-        #         settings=settings,
-        #         event_emitter=get_event_emitter(settings),
-        #     )
 
-        # simulating some work
-        for i in range(10):
+        # simulating some more work
+        for i in range(5):
             await asyncio.sleep(1)
             await redis_client.publish(
                 topic_name,
                 schemas.ProcessingMessage(
                     request_id=request_id,
                     status=ProcessingStatus.RUNNING,
-                    message=f"Project is being created {i}...",
+                    message=f"Project is being validated {i}...",
                 ).model_dump_json(),
             )
         await redis_client.publish(
@@ -115,6 +107,58 @@ async def create_project(
                 request_id=request_id,
                 status=ProcessingStatus.SUCCESS,
                 message="Project successfully created",
+            ).model_dump_json(),
+        )
+    except Exception as e:
+        logger.error(f"Task failed with error: {e}")
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id, status=ProcessingStatus.FAILED, message=str(e)
+            ).model_dump_json(),
+        )
+
+
+@dramatiq.actor
+@decorators.sld_settings
+@decorators.redis_client
+@decorators.session_maker
+async def delete_project(
+    raw_request_id: str,
+    raw_project_id: str,
+    raw_initiator: str,
+    *,
+    settings: config.SeisLabDataSettings,
+    redis_client: Redis,
+    session_maker: Callable,
+):
+    logger.debug("Hi from the delete_project task")
+    request_id = schemas.RequestId(uuid.UUID(raw_request_id))
+    topic_name = f"progress:{request_id}"
+    initiator = schemas.User(**json.loads(raw_initiator))
+    try:
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id,
+                status=ProcessingStatus.RUNNING,
+                message="Project deletion started",
+            ).model_dump_json(),
+        )
+        async with session_maker() as session:
+            await operations.delete_project(
+                project_id=schemas.ProjectId(uuid.UUID(raw_project_id)),
+                initiator=initiator,
+                session=session,
+                settings=settings,
+                event_emitter=get_event_emitter(settings),
+            )
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id,
+                status=ProcessingStatus.SUCCESS,
+                message="Project successfully deleted",
             ).model_dump_json(),
         )
     except Exception as e:

@@ -23,7 +23,6 @@ class ProjectCreateForm(StarletteForm):
         validators=[
             validators.DataRequired(message=_("English name is required")),
             validators.Length(
-                min=constants.NAME_MIN_LENGTH,
                 max=constants.NAME_MAX_LENGTH,
             ),
         ],

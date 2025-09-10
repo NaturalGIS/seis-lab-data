@@ -1,4 +1,4 @@
-<form novalidate>
+<form>
     <div class="row mb-3">
         {% set form_element_classes = "form-control is-invalid" if form.name_en.errors else "form-control" %}
         {% set form_element_described_by = "nameEnHelp backendValidationNameEnFeedback" if form.name_en.errors else "nameEnHelp" %}
@@ -92,10 +92,10 @@
                         })"
                         data-indicator="posting"
                         data-attr-disabled="$posting"
+                        data-text="$posting ? '{{ _('Creating project...') }}' : '{{ _('Create project') }}'"
                 >
-                    {{ _("Create project") }}
                 </button>
-                <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true" data-attr-hidden="!$posting">
+                <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true" data-attr-hidden="!$posting">
                     <span class="visually-hidden">{{ _("Loading...") }}</span>
                 </div>
             </div>
