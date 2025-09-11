@@ -4,7 +4,6 @@ import json
 import logging
 import uuid
 
-import pydantic
 from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
 from datastar_py.starlette import DatastarResponse
@@ -29,7 +28,10 @@ from .auth import (
     get_user,
     requires_auth,
 )
-from .forms import ProjectCreateForm
+from .forms import (
+    ProjectCreateForm,
+    validate_form_with_model,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -190,89 +192,84 @@ async def create_project(request: Request, user: schemas.User):
     elif request.method == "POST":
 
         async def stream_events():
-            if await create_project_form.validate_on_submit():
+            # first validate the form with WTForms' validation logic
+            # then validate the form data with our custom pydantic model
+            await create_project_form.validate_on_submit()
+            validate_form_with_model(
+                create_project_form,
+                schemas.ProjectCreate,
+            )
+            # For some unknown reason, wtforms does not report validation errors for
+            # the 'links' listfield together with the other validation errors. This may
+            # have something to with the fact that we are setting the 'errors' property
+            # of fields manually. Anyway, we need to emply the below workaround in order
+            # to verify if the form contains any erors.
+            all_form_validation_errors = {**create_project_form.errors}
+            for link in create_project_form.links.entries:
+                all_form_validation_errors.update(**link.errors)
+            if not all_form_validation_errors:
                 request_id = schemas.RequestId(uuid.uuid4())
-                try:
-                    to_create = schemas.ProjectCreate(
-                        id=schemas.ProjectId(uuid.uuid4()),
-                        owner=user.id,
-                        name={
-                            "en": create_project_form.name_en.data,
-                            "pt": create_project_form.name_pt.data,
-                        },
-                        description={
-                            "en": create_project_form.description_en.data,
-                            "pt": create_project_form.description_pt.data,
-                        },
-                        root_path=create_project_form.root_path.data,
-                    )
-                except pydantic.ValidationError as exc:
-                    for error in exc.errors():
-                        logger.debug(f"{error=}")
-                        message = error["msg"]
-                        if error["loc"][0] == "name":
-                            lang = error["ctx"]["language"]
-                            field_name = f"name_{lang}"
-                            if error["type"] == "missing_english_locale_value":
-                                message = _("English name is required")
-                        else:
-                            field_name = error["loc"][0]
-                        getattr(create_project_form, field_name).errors.append(message)
+                to_create = schemas.ProjectCreate(
+                    id=schemas.ProjectId(uuid.uuid4()),
+                    owner=user.id,
+                    name=schemas.LocalizableDraftName(
+                        en=create_project_form.name.en.data,
+                        pt=create_project_form.name.pt.data,
+                    ),
+                    description=schemas.LocalizableDraftDescription(
+                        en=create_project_form.description.en.data,
+                        pt=create_project_form.description.pt.data,
+                    ),
+                    root_path=create_project_form.root_path.data,
+                    links=[
+                        schemas.LinkSchema(
+                            url=lf.url.data,
+                            media_type=lf.media_type.data,
+                            relation=lf.relation.data,
+                            link_description=schemas.LocalizableDraftDescription(
+                                en=lf.link_description.en.data,
+                                pt=lf.link_description.pt.data,
+                            ),
+                        )
+                        for lf in create_project_form.links.entries
+                    ],
+                )
+                logger.info(f"{to_create=}")
 
-                    logger.debug("pydantic schema did not validate")
-                    template = template_processor.get_template(
-                        "projects/create-form.html"
-                    )
-                    rendered = template.render(
-                        form=create_project_form,
-                        request=request,
-                    )
-                    yield ServerSentEventGenerator.patch_elements(
-                        rendered,
-                        selector="#project-create-form-container",
-                        mode=ElementPatchMode.INNER,
-                    )
-                else:
-                    logger.info(f"{to_create=}")
+                yield ServerSentEventGenerator.patch_elements(
+                    """<li>Creating project as a background task...</li>""",
+                    selector="#feedback > ul",
+                    mode=ElementPatchMode.APPEND,
+                )
 
-                    yield ServerSentEventGenerator.patch_elements(
-                        """<li>Creating project as a background task...</li>""",
-                        selector="#feedback > ul",
-                        mode=ElementPatchMode.APPEND,
-                    )
-
-                    enqueued_message: Message = tasks.create_project.send(
-                        raw_request_id=str(request_id),
-                        raw_to_create=to_create.model_dump_json(),
-                        raw_initiator=json.dumps(dataclasses.asdict(user)),
-                    )
-                    logger.debug(f"{enqueued_message=}")
-                    redis_client: Redis = request.state.redis_client
-                    event_stream_generator = _produce_event_stream_for_topic(
-                        redis_client,
-                        request,
-                        topic_name=f"progress:{request_id}",
-                        success_redirect_url=str(
-                            request.url_for(
-                                "projects:detail", project_slug=to_create.slug
-                            )
-                        ),
-                        timeout_seconds=30,
-                    )
-                    async for sse_event in event_stream_generator:
-                        yield sse_event
+                enqueued_message: Message = tasks.create_project.send(
+                    raw_request_id=str(request_id),
+                    raw_to_create=to_create.model_dump_json(),
+                    raw_initiator=json.dumps(dataclasses.asdict(user)),
+                )
+                logger.debug(f"{enqueued_message=}")
+                redis_client: Redis = request.state.redis_client
+                event_stream_generator = _produce_event_stream_for_topic(
+                    redis_client,
+                    request,
+                    topic_name=f"progress:{request_id}",
+                    success_redirect_url=str(
+                        request.url_for("projects:detail", project_slug=to_create.slug)
+                    ),
+                    timeout_seconds=30,
+                )
+                async for sse_event in event_stream_generator:
+                    yield sse_event
 
             else:
                 logger.debug("form did not validate")
-                form_response = template_processor.TemplateResponse(
-                    request,
-                    "projects/create-form.html",
-                    context={
-                        "form": create_project_form,
-                    },
+                template = template_processor.get_template("projects/create-form.html")
+                rendered = template.render(
+                    request=request,
+                    form=create_project_form,
                 )
                 yield ServerSentEventGenerator.patch_elements(
-                    form_response,
+                    rendered,
                     selector="#project-create-form-container",
                     mode=ElementPatchMode.INNER,
                 )

@@ -45,16 +45,15 @@ class LocalizableDraftDescription(pydantic.BaseModel):
     ) = None
 
 
-class LocalizableDraftLinkDescription(pydantic.BaseModel):
-    en: Annotated[str, pydantic.Field(max_length=constants.DESCRIPTION_MAX_LENGTH)]
-    pt: (
-        Annotated[str, pydantic.Field(max_length=constants.DESCRIPTION_MAX_LENGTH)]
-        | None
-    ) = None
-
-
 class LinkSchema(pydantic.BaseModel):
-    url: str
+    url: pydantic.AnyHttpUrl
     media_type: str
     relation: str
-    description: LocalizableDraftLinkDescription
+    # NOTE: the below field is named 'link_description' intentionally - do not change
+    #
+    # The reason is that we have some smarts to perform validation on forms
+    # generated with wtforms and this means the names of form fields must be the
+    # same as pydantic model fields. It just so happens that links are modelled
+    # in a wtforms formfield, which also has a 'description' property and this
+    # naming was chosen to avoid clashes
+    link_description: LocalizableDraftDescription

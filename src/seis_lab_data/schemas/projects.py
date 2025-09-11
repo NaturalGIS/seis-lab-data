@@ -23,7 +23,7 @@ class ProjectCreate(pydantic.BaseModel):
     @pydantic.computed_field
     @property
     def slug(self) -> str:
-        return slugify(self.name.get("en", ""))
+        return slugify(self.name.en, "")
 
 
 class ProjectUpdate(pydantic.BaseModel):
