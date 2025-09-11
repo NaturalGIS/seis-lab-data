@@ -91,7 +91,53 @@
             {% endif %}
         </div>
         <h3 data-signals="{nextIndex: {{ form.links|length }}}">{{ _("Links") }}</h3>
-        {% include "projects/create-link-form-list.html" %}
+        <div class="row border p-4 mb-3">
+            <div id="form-links-container" class="col">
+                {% for link in form.links %}
+                    {% set index = loop.index0 %}
+                    <h4>{{ _("Link") }} {{ index + 1 }}</h4>
+                    <div class="row mb-3">
+                        {% set form_element_classes = "form-control is-invalid" if link.url.errors else "form-control" %}
+                        {% set form_element_described_by = "link-url-help-" ~ index ~ " backend-validation-link-url-feedback-" ~ index if link.url.errors else "link-url-help-" ~ index %}
+                        {{ link.url.label(class="col-sm-2 form-label") }}
+                        <div class="col-sm-10">
+                            {{ link.url(class=form_element_classes, aria_describedby=form_element_described_by) }}
+                            <div id="link-url-help-{{ index }}" class="form-text">{{ link.url.description }}</div>
+                            {% if link.url.errors %}
+                                <div class="invalid-feedback" id="backend-validation-link-url-feedback-{{ index }}">
+                                    {% for error in form.description_pt.errors %}
+                                        <p>{{ error }}</p>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <button
+                                    type="submit"
+                                    class="btn btn-outline-secondary"
+                                    data-on-click="@post('{{ url_for("projects:remove_form_link", link_index=index) }}', {
+                  contentType: 'form',
+                  headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'},
+                })"
+                            >{{ _("Remove") }}</button>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="row">
+                <div class="col">
+                    <button
+                            type="button"
+                            class="btn btn-outline-secondary"
+                            data-on-click="@post('{{ url_for("projects:add_form_link") }}', {
+          contentType: 'form',
+          headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'},
+        })"
+                    >
+                        {{ _("Add another link") }}
+                    </button>
+                </div>
+            </div>
+
+        </div>
         <div class="row mb-3">
             <div class="col-sm-10 offset-sm-2">
                 <button

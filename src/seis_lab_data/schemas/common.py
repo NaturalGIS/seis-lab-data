@@ -5,11 +5,13 @@ from typing import (
 import uuid
 
 import babel
+import pydantic
 from pydantic import (
     AfterValidator,
     BaseModel,
     Field,
 )
+from pydantic_core import PydanticCustomError
 
 from .. import constants
 
@@ -33,13 +35,22 @@ def has_valid_locales(value: dict[str, str]):
     return value
 
 
-def has_english_locale(value: dict[str, str]):
+def has_english_locale(value: dict[str, str], info: pydantic.ValidationInfo):
     try:
         result = value["en"] != ""
-    except KeyError as exc:
-        raise ValueError("Missing english locale") from exc
+    except KeyError:
+        raise PydanticCustomError(
+            "missing_english_locale",
+            "{field} missing english locale",
+            {"field": info.field_name, "language": "en"},
+        )
     if not result:
-        raise ValueError("Missing english locale value")
+        # raise ValueError("Missing english locale value")
+        raise PydanticCustomError(
+            "missing_english_locale_value",
+            "{field} missing english locale value",
+            {"field": info.field_name, "language": "en"},
+        )
     return value
 
 

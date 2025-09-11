@@ -4,6 +4,7 @@ import json
 import logging
 import uuid
 
+import pydantic
 from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
 from datastar_py.starlette import DatastarResponse
@@ -17,12 +18,12 @@ from starlette.templating import Jinja2Templates
 from starlette_wtf import csrf_protect
 
 from .. import (
+    constants,
     errors,
     operations,
     permissions,
     schemas,
 )
-from ..constants import ProcessingStatus
 from ..processing import tasks
 from . import forms
 from .auth import (
@@ -164,7 +165,7 @@ async def get_project(request: Request):
 @csrf_protect
 @requires_auth
 async def create_project(request: Request, user: schemas.User):
-    template_processor = request.state.templates
+    template_processor: Jinja2Templates = request.state.templates
     create_project_form = await forms.ProjectCreateForm.from_formdata(request)
     if request.method == "GET":
         return template_processor.TemplateResponse(
@@ -191,44 +192,75 @@ async def create_project(request: Request, user: schemas.User):
         async def stream_events():
             if await create_project_form.validate_on_submit():
                 request_id = schemas.RequestId(uuid.uuid4())
-                to_create = schemas.ProjectCreate(
-                    id=schemas.ProjectId(uuid.uuid4()),
-                    owner=user.id,
-                    name={
-                        "en": create_project_form.name_en.data,
-                        "pt": create_project_form.name_pt.data,
-                    },
-                    description={
-                        "en": create_project_form.description_en.data,
-                        "pt": create_project_form.description_pt.data,
-                    },
-                    root_path=create_project_form.root_path.data,
-                )
+                try:
+                    to_create = schemas.ProjectCreate(
+                        id=schemas.ProjectId(uuid.uuid4()),
+                        owner=user.id,
+                        name={
+                            "en": create_project_form.name_en.data,
+                            "pt": create_project_form.name_pt.data,
+                        },
+                        description={
+                            "en": create_project_form.description_en.data,
+                            "pt": create_project_form.description_pt.data,
+                        },
+                        root_path=create_project_form.root_path.data,
+                    )
+                except pydantic.ValidationError as exc:
+                    for error in exc.errors():
+                        logger.debug(f"{error=}")
+                        message = error["msg"]
+                        if error["loc"][0] == "name":
+                            lang = error["ctx"]["language"]
+                            field_name = f"name_{lang}"
+                            if error["type"] == "missing_english_locale_value":
+                                message = _("English name is required")
+                        else:
+                            field_name = error["loc"][0]
+                        getattr(create_project_form, field_name).errors.append(message)
 
-                yield ServerSentEventGenerator.patch_elements(
-                    """<li>Creating project as a background task...</li>""",
-                    selector="#feedback > ul",
-                    mode=ElementPatchMode.APPEND,
-                )
+                    logger.debug("pydantic schema did not validate")
+                    template = template_processor.get_template(
+                        "projects/create-form.html"
+                    )
+                    rendered = template.render(
+                        form=create_project_form,
+                        request=request,
+                    )
+                    yield ServerSentEventGenerator.patch_elements(
+                        rendered,
+                        selector="#project-create-form-container",
+                        mode=ElementPatchMode.INNER,
+                    )
+                else:
+                    logger.info(f"{to_create=}")
 
-                enqueued_message: Message = tasks.create_project.send(
-                    raw_request_id=str(request_id),
-                    raw_to_create=to_create.model_dump_json(),
-                    raw_initiator=json.dumps(dataclasses.asdict(user)),
-                )
-                logger.debug(f"{enqueued_message=}")
-                redis_client: Redis = request.state.redis_client
-                event_stream_generator = _produce_event_stream_for_topic(
-                    redis_client,
-                    request,
-                    topic_name=f"progress:{request_id}",
-                    success_redirect_url=str(
-                        request.url_for("projects:detail", project_slug=to_create.slug)
-                    ),
-                    timeout_seconds=30,
-                )
-                async for sse_event in event_stream_generator:
-                    yield sse_event
+                    yield ServerSentEventGenerator.patch_elements(
+                        """<li>Creating project as a background task...</li>""",
+                        selector="#feedback > ul",
+                        mode=ElementPatchMode.APPEND,
+                    )
+
+                    enqueued_message: Message = tasks.create_project.send(
+                        raw_request_id=str(request_id),
+                        raw_to_create=to_create.model_dump_json(),
+                        raw_initiator=json.dumps(dataclasses.asdict(user)),
+                    )
+                    logger.debug(f"{enqueued_message=}")
+                    redis_client: Redis = request.state.redis_client
+                    event_stream_generator = _produce_event_stream_for_topic(
+                        redis_client,
+                        request,
+                        topic_name=f"progress:{request_id}",
+                        success_redirect_url=str(
+                            request.url_for(
+                                "projects:detail", project_slug=to_create.slug
+                            )
+                        ),
+                        timeout_seconds=30,
+                    )
+                    async for sse_event in event_stream_generator:
+                        yield sse_event
 
             else:
                 logger.debug("form did not validate")
@@ -280,12 +312,12 @@ async def _produce_event_stream_for_topic(
                                 mode=ElementPatchMode.APPEND,
                             )
                             if processing_message.status in (
-                                ProcessingStatus.SUCCESS,
-                                ProcessingStatus.FAILED,
+                                constants.ProcessingStatus.SUCCESS,
+                                constants.ProcessingStatus.FAILED,
                             ):
                                 if (
                                     processing_message.status
-                                    == ProcessingStatus.SUCCESS
+                                    == constants.ProcessingStatus.SUCCESS
                                 ):
                                     yield ServerSentEventGenerator.patch_elements(
                                         "<li>Processing completed successfully - you will be redirected shortly</li>",
@@ -311,41 +343,47 @@ async def _produce_event_stream_for_topic(
             await pubsub.unsubscribe(topic_name)
 
 
-async def add_extra_form_link(request: Request):
-    datastar_signals = json.loads(request.query_params.get("datastar", ""))
-    current_size = datastar_signals.get("nextIndex")
-    if not current_size:
-        logger.warning("No next index found in datastar signals")
-        return DatastarResponse(
-            ServerSentEventGenerator.redirect(str(request.url_for("home")))
-        )
-
-    template_processor: Jinja2Templates = request.state.templates
-
+@csrf_protect
+async def add_create_project_form_link(request: Request):
+    """Add a form link to a create_project form."""
     create_project_form = await forms.ProjectCreateForm.from_formdata(request)
-    form_default_size = len(create_project_form.links)
-
-    if form_default_size == current_size:
-        create_project_form.links.append_entry()
-    elif form_default_size < current_size:
-        while len(create_project_form.links) < current_size + 1:
-            create_project_form.links.append_entry()
-    else:
-        logger.warning("Form default size is greater than current size")
-
-    template = template_processor.get_template("projects/create-link-form-item.html")
+    create_project_form.links.append_entry()
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template("projects/create-form.html")
     rendered = template.render(
-        link=create_project_form.links[-1],
-        index=current_size,
+        form=create_project_form,
+        request=request,
     )
 
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector="#form-links-container",
-            mode=ElementPatchMode.APPEND,
+            selector="#project-create-form-container",
+            mode=ElementPatchMode.INNER,
         )
-        yield ServerSentEventGenerator.patch_signals({"nextIndex": current_size + 1})
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def remove_create_project_form_link(request: Request):
+    """Remove a form link from a create_project form."""
+    create_project_form = await forms.ProjectCreateForm.from_formdata(request)
+    link_index = int(request.path_params["link_index"])
+    create_project_form.links.entries.pop(link_index)
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template("projects/create-form.html")
+    rendered = template.render(
+        form=create_project_form,
+        request=request,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector="#project-create-form-container",
+            mode=ElementPatchMode.INNER,
+        )
 
     return DatastarResponse(event_streamer())
 
@@ -385,10 +423,16 @@ async def delete_project(request: Request, user: schemas.User):
 routes = [
     Route("/", list_projects, methods=["GET"], name="list"),
     Route(
-        "/add-extra-form-link",
-        add_extra_form_link,
-        methods=["GET"],
-        name="add_extra_form_link",
+        "/new/add-form-link",
+        add_create_project_form_link,
+        methods=["POST"],
+        name="add_form_link",
+    ),
+    Route(
+        "/new/remove-form-link/{link_index}",
+        remove_create_project_form_link,
+        methods=["POST"],
+        name="remove_form_link",
     ),
     Route("/new", create_project, methods=["GET", "POST"], name="create"),
     Route("/{project_slug}", get_project, methods=["GET", "DELETE"], name="detail"),
