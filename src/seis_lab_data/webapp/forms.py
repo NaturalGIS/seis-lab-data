@@ -13,7 +13,8 @@ from .. import constants
 
 
 class LinkForm(Form):
-    url = StringField(_("URL"), validators=[validators.DataRequired()])
+    # url = StringField(_("URL"), validators=[validators.DataRequired()])
+    url = StringField(_("URL"))
     media_type = StringField(_("Media type"))
     relation = StringField(_("Relation"))
     description_en = StringField(_("English description"))
@@ -32,7 +33,7 @@ class ProjectCreateForm(StarletteForm):
         _("English name"),
         description=_("Name of the project in english"),
         validators=[
-            validators.DataRequired(message=_("English name is required")),
+            # validators.DataRequired(message=_("English name is required")),
             validators.Length(
                 max=constants.NAME_MAX_LENGTH,
             ),
@@ -68,6 +69,6 @@ class ProjectCreateForm(StarletteForm):
     links = FieldList(
         FormField(LinkForm),
         label=_("Links"),
-        min_entries=1,
+        min_entries=0,
         max_entries=constants.PROJECT_MAX_LINKS,
     )

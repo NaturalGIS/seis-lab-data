@@ -91,7 +91,7 @@ async def create_project(
         )
 
         # simulating some more work
-        for i in range(5):
+        for i in range(3):
             await asyncio.sleep(1)
             await redis_client.publish(
                 topic_name,
