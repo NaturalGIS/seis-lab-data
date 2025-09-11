@@ -33,7 +33,7 @@ class Link(TypedDict):
     url: str
     media_type: str
     relation: str
-    description: LocalizableString
+    link_description: LocalizableString
 
 
 class DatasetCategory(SQLModel, table=True):
