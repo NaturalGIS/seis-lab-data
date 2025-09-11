@@ -5,14 +5,14 @@ import typing
 from jinja2 import pass_context
 
 from ..constants import TranslatableEnumProtocol
-from ..schemas.common import AtLeastEnglishLocalizableString
+from ..schemas.common import Localizable
 
 
 @pass_context
 def translate_localizable_string(
-    context: dict[str, typing.Any], value: AtLeastEnglishLocalizableString
+    context: dict[str, typing.Any], value: Localizable
 ) -> str:
-    current_lang = context.get("request").state.language
+    current_lang = context["request"].state.language
     return value.get(current_lang, value["en"])
 
 
