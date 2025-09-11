@@ -25,11 +25,11 @@ from .. import (
     schemas,
 )
 from ..processing import tasks
-from . import forms
 from .auth import (
     get_user,
     requires_auth,
 )
+from .forms import ProjectCreateForm
 
 logger = logging.getLogger(__name__)
 
@@ -166,7 +166,7 @@ async def get_project(request: Request):
 @requires_auth
 async def create_project(request: Request, user: schemas.User):
     template_processor: Jinja2Templates = request.state.templates
-    create_project_form = await forms.ProjectCreateForm.from_formdata(request)
+    create_project_form = await ProjectCreateForm.from_formdata(request)
     if request.method == "GET":
         return template_processor.TemplateResponse(
             request,
@@ -346,7 +346,7 @@ async def _produce_event_stream_for_topic(
 @csrf_protect
 async def add_create_project_form_link(request: Request):
     """Add a form link to a create_project form."""
-    create_project_form = await forms.ProjectCreateForm.from_formdata(request)
+    create_project_form = await ProjectCreateForm.from_formdata(request)
     create_project_form.links.append_entry()
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template("projects/create-form.html")
@@ -368,7 +368,7 @@ async def add_create_project_form_link(request: Request):
 @csrf_protect
 async def remove_create_project_form_link(request: Request):
     """Remove a form link from a create_project form."""
-    create_project_form = await forms.ProjectCreateForm.from_formdata(request)
+    create_project_form = await ProjectCreateForm.from_formdata(request)
     link_index = int(request.path_params["link_index"])
     create_project_form.links.entries.pop(link_index)
     template_processor: Jinja2Templates = request.state.templates
