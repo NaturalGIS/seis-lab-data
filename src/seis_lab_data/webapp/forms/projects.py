@@ -14,7 +14,7 @@ from wtforms import (
     validators,
 )
 
-from .. import constants
+from seis_lab_data import constants
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ class NameForm(Form):
 class DescriptionForm(Form):
     en = TextAreaField(
         _("English description"),
-        description=_("Description of the project in english"),
+        description=_("Short english description about this item"),
         validators=[
             validators.Length(
                 max=constants.DESCRIPTION_MAX_LENGTH,
@@ -95,7 +95,7 @@ class DescriptionForm(Form):
     )
     pt = TextAreaField(
         _("Portuguese description"),
-        description=_("Description of the project in portuguese"),
+        description=_("Short portuguese description about this item"),
         validators=[
             validators.Length(
                 max=constants.DESCRIPTION_MAX_LENGTH,
@@ -109,8 +109,11 @@ class LinkForm(Form):
     url = StringField(_("URL"))
     media_type = StringField(_("Media type"))
     relation = StringField(_("Relation"))
-    description_en = StringField(_("English description"))
-    description_pt = StringField(_("Portuguese description"))
+    link_description = FormField(DescriptionForm)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.url.flags.backend_required = True
 
 
 class ProjectCreateForm(StarletteForm):

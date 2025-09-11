@@ -1,7 +1,7 @@
 from typing import (
     Annotated,
     NewType,
-    TypedDict,
+    Protocol,
 )
 import uuid
 
@@ -20,7 +20,7 @@ UserId = NewType("UserId", str)
 WorkflowStageId = NewType("WorkflowStageId", uuid.UUID)
 
 
-class Localizable(TypedDict):
+class Localizable(Protocol):
     en: str | None
     pt: str | None
 
