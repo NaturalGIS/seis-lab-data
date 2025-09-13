@@ -95,13 +95,11 @@ def discover_bounds_and_zoom(tiles_dir: Path) -> TilesInfo:
 
                 tile_bbox = tile_to_lat_lon_bbox(x, y, z)
 
-                # Update overall bounds
                 min_lon = min(min_lon, tile_bbox.min_lon)
                 min_lat = min(min_lat, tile_bbox.min_lat)
                 max_lon = max(max_lon, tile_bbox.max_lon)
                 max_lat = max(max_lat, tile_bbox.max_lat)
 
-    # Calculate center
     center_lon = (min_lon + max_lon) / 2
     center_lat = (min_lat + max_lat) / 2
     center_zoom = min(zoom_levels) + (max(zoom_levels) - min(zoom_levels)) // 2
@@ -196,7 +194,6 @@ def create_mbtiles_from_png_tiles(tiles_dir: Path, output_path: Path):
                 # For web mercator: tms_y = (2^z - 1) - y
                 tms_y = (2**z - 1) - y
 
-                # Insert tile
                 conn.execute(
                     """
                     INSERT INTO tiles (zoom_level, tile_column, tile_row, tile_data)
@@ -209,12 +206,10 @@ def create_mbtiles_from_png_tiles(tiles_dir: Path, output_path: Path):
                 if tile_count % 100 == 0:
                     print(f"Processed {tile_count} tiles")
 
-    # Create indices for better performance
     conn.execute(
         "CREATE UNIQUE INDEX tile_index ON tiles (zoom_level, tile_column, tile_row);"
     )
 
-    # Commit and close
     conn.commit()
     conn.close()
 
