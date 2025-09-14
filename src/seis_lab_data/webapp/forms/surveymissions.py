@@ -8,33 +8,32 @@ from wtforms import (
     StringField,
 )
 
-from .common import (
-    DescriptionForm,
-    LinkForm,
-    NameForm,
-)
 from ... import constants
+from .common import NameForm, DescriptionForm, LinkForm
 
 logger = logging.getLogger(__name__)
 
 
-class ProjectCreateForm(StarletteForm):
+class SurveyMissionCreateForm(StarletteForm):
     # This form performs only a very light validation of user input
     # There is a more thorough validation phase when checking if the
-    # project can be made public - the idea is to let the creation process
+    # survey mission can be made public - the idea is to let the creation process
     # succeed (as much as possible) and give the user a chance to fix errors
     # later
     # A notable exception is we do want to validate the max length of string-based
     # inputs
     name = FormField(NameForm)
     description = FormField(DescriptionForm)
-    root_path = StringField(
-        _("Root path"),
-        description=_("Base path for the project in the archive file system"),
+    relative_path = StringField(
+        _("Relative path"),
+        description=_(
+            "Path for the survey mission in the archive file system, "
+            "relative to its parent project root path"
+        ),
     )
     links = FieldList(
         FormField(LinkForm),
         label=_("Links"),
         min_entries=0,
-        max_entries=constants.PROJECT_MAX_LINKS,
+        max_entries=constants.SURVET_MISSION_MAX_LINKS,
     )

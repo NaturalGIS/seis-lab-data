@@ -1,5 +1,7 @@
 import uuid
 
+import pydantic
+
 from .. import schemas
 from ..db import models
 
@@ -33,42 +35,46 @@ def get_projects_to_create() -> list[schemas.ProjectCreate]:
         schemas.ProjectCreate(
             id=_my_first_project_id,
             owner=_owner_id,
-            name={"en": "My first project", "pt": "O meu primeiro projeto"},
-            description={
-                "en": "A fake description for my first project",
-                "pt": "Uma descrição sintética para o meu primeiro projeto",
-            },
+            name=schemas.LocalizableDraftName(
+                en="My first project", pt="O meu primeiro projeto"
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en="A Fake description for my first project",
+                pt="Uma descrição falsa para o meu primeiro projeto",
+            ),
             root_path="/projects/first",
             links=[
                 schemas.LinkSchema(
-                    url="https://fakeurl.com",
+                    url=pydantic.AnyHttpUrl("https://fakeurl.com"),
                     media_type="text/html",
                     relation="related",
-                    description={
-                        "en": "A fake description for link",
-                        "pt": "Uma descrição falsa para o link",
-                    },
+                    link_description=schemas.LocalizableDraftDescription(
+                        en="A fake description for link",
+                        pt="Uma descrição falsa para o link",
+                    ),
                 ),
             ],
         ),
         schemas.ProjectCreate(
             id=_my_second_project_id,
             owner=_owner_id,
-            name={"en": "My second project", "pt": "O meu segundo projeto"},
-            description={
-                "en": "A fake description for my second project",
-                "pt": "Uma descrição sintética para o meu segundo projeto",
-            },
+            name=schemas.LocalizableDraftName(
+                en="My second project", pt="O meu segundo projeto"
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en="A fake description for my second project",
+                pt="Uma descrição sintética para o meu segundo projeto",
+            ),
             root_path="/projects/second",
             links=[
                 schemas.LinkSchema(
-                    url="https://fakeurl.com",
+                    url=pydantic.AnyHttpUrl("https://fakeurl.com"),
                     media_type="text/html",
                     relation="related",
-                    description={
-                        "en": "A fake description for link",
-                        "pt": "Uma descrição falsa para o link",
-                    },
+                    link_description=schemas.LocalizableDraftDescription(
+                        en="A fake description for link",
+                        pt="Uma descrição falsa para o link",
+                    ),
                 )
             ],
         ),
@@ -81,30 +87,32 @@ def get_survey_missions_to_create() -> list[schemas.SurveyMissionCreate]:
             id=_my_first_survey_mission_id,
             owner=_owner_id,
             project_id=_my_first_project_id,
-            name={"en": "My first survey mission", "pt": "A minha primeira missão"},
-            description={
-                "en": "This is the description for my first survey mission",
-                "pt": "Esta é a descrição para a minha primeira missão",
-            },
+            name=schemas.LocalizableDraftName(
+                en="My first survey mission", pt="A minha primeira missão"
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en="This is the description for my first survey mission",
+                pt="Esta é a descrição para a minha primeira missão",
+            ),
             relative_path="mission1",
             links=[
                 schemas.LinkSchema(
-                    url="https://fakeurl1.com",
+                    url=pydantic.AnyHttpUrl("https://fakeurl1.com"),
                     media_type="text/html",
                     relation="related",
-                    description={
-                        "en": "A fake description for the first link",
-                        "pt": "Uma descrição falsa para o primeiro link",
-                    },
+                    link_description=schemas.LocalizableDraftDescription(
+                        en="A fake description for the first link",
+                        pt="Uma descrição falsa para o primeiro link",
+                    ),
                 ),
                 schemas.LinkSchema(
-                    url="https://fakeurl2.com",
+                    url=pydantic.AnyHttpUrl("https://fakeurl2.com"),
                     media_type="text/html",
                     relation="also-related",
-                    description={
-                        "en": "A fake description for the second link",
-                        "pt": "Uma descrição falsa para o segundo link",
-                    },
+                    link_description=schemas.LocalizableDraftDescription(
+                        en="A fake description for the second link",
+                        pt="Uma descrição falsa para o segundo link",
+                    ),
                 ),
             ],
         ),
@@ -112,30 +120,32 @@ def get_survey_missions_to_create() -> list[schemas.SurveyMissionCreate]:
             id=_my_second_survey_mission_id,
             owner=_owner_id,
             project_id=_my_first_project_id,
-            name={"en": "My second survey mission", "pt": "A minha segunda missão"},
-            description={
-                "en": "This is the description for my second survey mission",
-                "pt": "Esta é a descrição para a minha segunda missão",
-            },
+            name=schemas.LocalizableDraftName(
+                en="My second survey mission", pt="A minha segunda missão"
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en="This is the description for my second survey mission",
+                pt="Esta é a descrição para a minha segunda missão",
+            ),
             relative_path="mission2",
             links=[
                 schemas.LinkSchema(
-                    url="https://fakeurl1.com",
+                    url=pydantic.AnyHttpUrl("https://fakeurl1.com"),
                     media_type="text/html",
                     relation="related",
-                    description={
-                        "en": "A fake description for the first link",
-                        "pt": "Uma descrição falsa para o primeiro link",
-                    },
+                    link_description=schemas.LocalizableDraftDescription(
+                        en="A fake description for the first link",
+                        pt="Uma descrição falsa para o primeiro link",
+                    ),
                 ),
                 schemas.LinkSchema(
-                    url="https://fakeurl2.com",
+                    url=pydantic.AnyHttpUrl("https://fakeurl2.com"),
                     media_type="text/html",
                     relation="also-related",
-                    description={
-                        "en": "A fake description for the second link",
-                        "pt": "Uma descrição falsa para o segundo link",
-                    },
+                    link_description=schemas.LocalizableDraftDescription(
+                        en="A fake description for the second link",
+                        pt="Uma descrição falsa para o segundo link",
+                    ),
                 ),
             ],
         ),
@@ -143,30 +153,32 @@ def get_survey_missions_to_create() -> list[schemas.SurveyMissionCreate]:
             id=_my_third_survey_mission_id,
             owner=_owner_id,
             project_id=_my_first_project_id,
-            name={"en": "My third survey mission", "pt": "A minha terceira missão"},
-            description={
-                "en": "This is the description for my third survey mission",
-                "pt": "Esta é a descrição para a minha terceira missão",
-            },
+            name=schemas.LocalizableDraftName(
+                en="My third survey mission", pt="A minha terceira missão"
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en="This is the description for my third survey mission",
+                pt="Esta é a descrição para a minha terceira missão",
+            ),
             relative_path="mission3",
             links=[
                 schemas.LinkSchema(
-                    url="https://fakeurl1.com",
+                    url=pydantic.AnyHttpUrl("https://fakeurl1.com"),
                     media_type="text/html",
                     relation="related",
-                    description={
-                        "en": "A fake description for the first link",
-                        "pt": "Uma descrição falsa para o primeiro link",
-                    },
+                    link_description=schemas.LocalizableDraftDescription(
+                        en="A fake description for the first link",
+                        pt="Uma descrição falsa para o primeiro link",
+                    ),
                 ),
                 schemas.LinkSchema(
-                    url="https://fakeurl2.com",
+                    url=pydantic.AnyHttpUrl("https://fakeurl2.com"),
                     media_type="text/html",
                     relation="also-related",
-                    description={
-                        "en": "A fake description for the second link",
-                        "pt": "Uma descrição falsa para o segundo link",
-                    },
+                    link_description=schemas.LocalizableDraftDescription(
+                        en="A fake description for the second link",
+                        pt="Uma descrição falsa para o segundo link",
+                    ),
                 ),
             ],
         ),
@@ -174,30 +186,32 @@ def get_survey_missions_to_create() -> list[schemas.SurveyMissionCreate]:
             id=_my_fourth_survey_mission_id,
             owner=_owner_id,
             project_id=_my_second_project_id,
-            name={"en": "My fourth survey mission", "pt": "A minha quarta missão"},
-            description={
-                "en": "This is the description for my fourth survey mission",
-                "pt": "Esta é a descrição para a minha quarta missão",
-            },
+            name=schemas.LocalizableDraftName(
+                en="My fourth survey mission", pt="A minha quarta missão"
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en="This is the description for my fourth survey mission",
+                pt="Esta é a descrição para a minha quarta missão",
+            ),
             relative_path="mission4",
             links=[
                 schemas.LinkSchema(
-                    url="https://fakeurl1.com",
+                    url=pydantic.AnyHttpUrl("https://fakeurl1.com"),
                     media_type="text/html",
                     relation="related",
-                    description={
-                        "en": "A fake description for the first link",
-                        "pt": "Uma descrição falsa para o primeiro link",
-                    },
+                    link_description=schemas.LocalizableDraftDescription(
+                        en="A fake description for the first link",
+                        pt="Uma descrição falsa para o primeiro link",
+                    ),
                 ),
                 schemas.LinkSchema(
-                    url="https://fakeurl2.com",
+                    url=pydantic.AnyHttpUrl("https://fakeurl2.com"),
                     media_type="text/html",
                     relation="also-related",
-                    description={
-                        "en": "A fake description for the second link",
-                        "pt": "Uma descrição falsa para o segundo link",
-                    },
+                    link_description=schemas.LocalizableDraftDescription(
+                        en="A fake description for the second link",
+                        pt="Uma descrição falsa para o segundo link",
+                    ),
                 ),
             ],
         ),
@@ -205,30 +219,32 @@ def get_survey_missions_to_create() -> list[schemas.SurveyMissionCreate]:
             id=_my_fifth_survey_mission_id,
             owner=_owner_id,
             project_id=_my_second_project_id,
-            name={"en": "My fifth survey mission", "pt": "A minha quinta missão"},
-            description={
-                "en": "This is the description for my fifth survey mission",
-                "pt": "Esta é a descrição para a minha quinta missão",
-            },
+            name=schemas.LocalizableDraftName(
+                en="My fifth survey mission", pt="A minha quinta missão"
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en="This is the description for my fifth survey mission",
+                pt="Esta é a descrição para a minha quinta missão",
+            ),
             relative_path="mission5",
             links=[
                 schemas.LinkSchema(
-                    url="https://fakeurl1.com",
+                    url=pydantic.AnyHttpUrl("https://fakeurl1.com"),
                     media_type="text/html",
                     relation="related",
-                    description={
-                        "en": "A fake description for the first link",
-                        "pt": "Uma descrição falsa para o primeiro link",
-                    },
+                    link_description=schemas.LocalizableDraftDescription(
+                        en="A fake description for the first link",
+                        pt="Uma descrição falsa para o primeiro link",
+                    ),
                 ),
                 schemas.LinkSchema(
-                    url="https://fakeurl2.com",
+                    url=pydantic.AnyHttpUrl("https://fakeurl2.com"),
                     media_type="text/html",
                     relation="also-related",
-                    description={
-                        "en": "A fake description for the second link",
-                        "pt": "Uma descrição falsa para o segundo link",
-                    },
+                    link_description=schemas.LocalizableDraftDescription(
+                        en="A fake description for the second link",
+                        pt="Uma descrição falsa para o segundo link",
+                    ),
                 ),
             ],
         ),
@@ -246,14 +262,14 @@ def get_survey_related_records_to_create(
                 uuid.UUID("f49d678b-f11a-4798-92dc-604883bc8bda")
             ),
             owner=_owner_id,
-            name={
-                "en": "First record",
-                "pt": "Primeiro registo",
-            },
-            description={
-                "en": "Description for first record",
-                "pt": "Descrição do primeiro registo",
-            },
+            name=schemas.LocalizableDraftName(
+                en="First record",
+                pt="Primeiro registo",
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en="Description for first record",
+                pt="Descrição do primeiro registo",
+            ),
             survey_mission_id=_my_first_survey_mission_id,
             dataset_category_id=schemas.DatasetCategoryId(
                 dataset_categories["bathymetry"].id
@@ -268,14 +284,14 @@ def get_survey_related_records_to_create(
                 uuid.UUID("c51e0d11-c4c4-4b4f-8d04-2a115196ff04")
             ),
             owner=_owner_id,
-            name={
-                "en": "Second record",
-                "pt": "Segundo registo",
-            },
-            description={
-                "en": "Description for second record",
-                "pt": "Descrição do segundo registo",
-            },
+            name=schemas.LocalizableDraftName(
+                en="Second record",
+                pt="Segundo registo",
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en="Description for second record",
+                pt="Descrição do segundo registo",
+            ),
             survey_mission_id=_my_second_survey_mission_id,
             dataset_category_id=schemas.DatasetCategoryId(
                 dataset_categories["bathymetry"].id

@@ -22,20 +22,20 @@ logger = logging.getLogger(__name__)
 
 async def create_survey_mission(
     to_create: schemas.SurveyMissionCreate,
-    initiator: schemas.UserId | None,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ):
     if initiator is None or not await permissions.can_create_survey_mission(
-        initiator, to_create, settings=settings
+        initiator.id, to_create, settings=settings
     ):
         raise errors.SeisLabDataError("User is not allowed to create a survey mission.")
     survey_mission = await commands.create_survey_mission(session, to_create)
     event_emitter(
         schemas.SeisLabDataEvent(
             type_=schemas.EventType.SURVEY_MISSION_CREATED,
-            initiator=initiator,
+            initiator=initiator.id,
             payload=schemas.EventPayload(
                 after=schemas.SurveyMissionReadDetail.from_db_instance(
                     survey_mission
