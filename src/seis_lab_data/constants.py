@@ -9,6 +9,7 @@ NAME_MIN_LENGTH: typing.Final[int] = 5
 DESCRIPTION_MAX_LENGTH: typing.Final[int] = 500
 DESCRIPTION_MIN_LENGTH: typing.Final[int] = 5
 PROJECT_MAX_LINKS: typing.Final[int] = 5
+SURVET_MISSION_MAX_LINKS: typing.Final[int] = 5
 
 
 class TranslatableEnumProtocol(typing.Protocol):

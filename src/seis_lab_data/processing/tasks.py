@@ -169,3 +169,85 @@ async def delete_project(
                 request_id=request_id, status=ProcessingStatus.FAILED, message=str(e)
             ).model_dump_json(),
         )
+
+
+@dramatiq.actor
+@decorators.sld_settings
+@decorators.redis_client
+@decorators.session_maker
+async def create_survey_mission(
+    raw_request_id: str,
+    raw_to_create: str,
+    raw_initiator: str,
+    *,
+    settings: config.SeisLabDataSettings,
+    redis_client: Redis,
+    session_maker: Callable,
+):
+    request_id = schemas.RequestId(uuid.UUID(raw_request_id))
+    topic_name = f"progress:{request_id}"
+    to_create = schemas.SurveyMissionCreate(**json.loads(raw_to_create))
+    initiator = schemas.User(**json.loads(raw_initiator))
+    logger.info(f"{to_create=}")
+    try:
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id,
+                status=ProcessingStatus.RUNNING,
+                message="Survey mission creation started",
+            ).model_dump_json(),
+        )
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id,
+                status=ProcessingStatus.RUNNING,
+                message="Creating survey mission...",
+            ).model_dump_json(),
+        )
+        async with session_maker() as session:
+            survey_mission = await operations.create_survey_mission(
+                to_create=to_create,
+                initiator=initiator,
+                session=session,
+                settings=settings,
+                event_emitter=get_event_emitter(settings),
+            )
+
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id,
+                status=ProcessingStatus.RUNNING,
+                message=f"Created survey mission {survey_mission.slug!r}",
+            ).model_dump_json(),
+        )
+
+        # simulating some more work
+        for i in range(3):
+            await asyncio.sleep(1)
+            await redis_client.publish(
+                topic_name,
+                schemas.ProcessingMessage(
+                    request_id=request_id,
+                    status=ProcessingStatus.RUNNING,
+                    message=f"Survey mission is being validated {i}...",
+                ).model_dump_json(),
+            )
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id,
+                status=ProcessingStatus.SUCCESS,
+                message="Survey mission successfully created",
+            ).model_dump_json(),
+        )
+    except Exception as e:
+        logger.error(f"Task failed with error: {e}")
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id, status=ProcessingStatus.FAILED, message=str(e)
+            ).model_dump_json(),
+        )

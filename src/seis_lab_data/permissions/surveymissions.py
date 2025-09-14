@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 async def can_read_survey_mission(
-    user: schemas.UserId,
+    user: schemas.User,
     survey_mission_slug: str,
     *,
     settings: config.SeisLabDataSettings,
@@ -18,8 +18,8 @@ async def can_read_survey_mission(
 
 
 async def can_create_survey_mission(
-    user: schemas.UserId,
-    to_create: schemas.SurveyMissionCreate,
+    user: schemas.User,
+    project_id: schemas.ProjectId,
     *,
     settings: config.SeisLabDataSettings,
 ):
@@ -29,7 +29,7 @@ async def can_create_survey_mission(
 
 
 async def can_delete_survey_mission(
-    user: schemas.UserId,
+    user: schemas.User,
     survey_mission_id: schemas.SurveyMissionId,
     *,
     settings: config.SeisLabDataSettings,
