@@ -5,10 +5,10 @@ organized in the standard `z/x/y` format.
 
 import argparse
 import dataclasses
+import json
 import logging
 import math
 import sqlite3
-import tomllib
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ def tile_to_lat_lon_bbox(x: int, y: int, z: int) -> LatLonBoundingBox:
 
 
 def parse_metadata(metadata_path: Path) -> TilesMinimalMetadata:
-    parsed = tomllib.loads(metadata_path.read_text())
+    parsed = json.loads(metadata_path.read_text())
     return TilesMinimalMetadata(**parsed)
 
 
@@ -116,11 +116,11 @@ def discover_bounds_and_zoom(tiles_dir: Path) -> TilesInfo:
 
 
 def create_mbtiles_from_png_tiles(tiles_dir: Path, output_path: Path):
-    if (metadata_path := tiles_dir / "metadata.toml").is_file():
+    if (metadata_path := tiles_dir / "metadata.json").is_file():
         initial_metadata = parse_metadata(metadata_path)
         logger.info(f"{initial_metadata=}")
     else:
-        raise RuntimeError("Missing metadata.toml file")
+        raise RuntimeError("Missing metadata.json file")
 
     tiles_info = discover_bounds_and_zoom(tiles_dir)
     logger.info(f"{tiles_info=}")
