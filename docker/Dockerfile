@@ -1,4 +1,4 @@
-FROM python:3.13
+FROM ghcr.io/osgeo/gdal:ubuntu-small-3.11.4
 COPY --from=ghcr.io/astral-sh/uv:0.7.18 /uv /uvx /bin/
 
 # Compile python stuff to bytecode to improve startup times
@@ -8,15 +8,12 @@ RUN apt-get update \
   && apt-get install --yes --no-install-recommends \
     tini
 
-# Create a normal non-root user so that we can use it to run
-RUN useradd --create-home appuser
-
-USER appuser
+USER ubuntu
 
 # create relevant directories
-RUN mkdir /home/appuser/app  && \
-    mkdir /home/appuser/data && \
-    mkdir --parents /home/appuser/.cache/uv
+RUN mkdir /home/ubuntu/app  && \
+    mkdir /home/ubuntu/data && \
+    mkdir --parents /home/ubuntu/.cache/uv
 
 ARG GIT_COMMIT
 ENV GIT_COMMIT=$GIT_COMMIT \
@@ -27,23 +24,23 @@ ENV GIT_COMMIT=$GIT_COMMIT \
     SEIS_LAB_DATA__BIND_HOST=0.0.0.0
 
 # Write git commit identifier into the image
-RUN echo $GIT_COMMIT > /home/appuser/git-commit.txt
+RUN echo $GIT_COMMIT > /home/ubuntu/git-commit.txt
 
-WORKDIR /home/appuser/app
+WORKDIR /home/ubuntu/app
 
 EXPOSE 5000
 
 # Install dependencies
-RUN --mount=type=cache,uid=1000,gid=1000,target=/home/appuser/.cache/uv \
+RUN --mount=type=cache,uid=1000,gid=1000,target=/home/ubuntu/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --locked --no-install-project --compile-bytecode
 
 # Copy project into the image
-COPY --chown=appuser:appuser . .
+COPY --chown=ubuntu:ubuntu . .
 
 # Sync the project
-RUN --mount=type=cache,uid=1000,gid=1000,target=/home/appuser/.cache/uv \
+RUN --mount=type=cache,uid=1000,gid=1000,target=/home/ubuntu/.cache/uv \
     uv sync --locked --compile-bytecode
 
 ENV UV_NO_SYNC=true \
