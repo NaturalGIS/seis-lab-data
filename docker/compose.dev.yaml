@@ -18,7 +18,7 @@ x-auth-redirect-url: &auth-redirect-url "http://localhost:8888/oauth2/callback"
 
 x-common-env: &common-env
   SEIS_LAB_DATA__DEBUG: true
-  SEIS_LAB_DATA__LOG_CONFIG_FILE: /home/appuser/app/dev-log-config.yml
+  SEIS_LAB_DATA__LOG_CONFIG_FILE: /home/ubuntu/app/dev-log-config.yml
   SEIS_LAB_DATA__DATABASE_DSN: postgresql+psycopg://sld:sldpass@db:5432/seis_lab_data
   SEIS_LAB_DATA__TEST_DATABASE_DSN: postgresql+psycopg://sld:sldpass@test-db:5432/seis_lab_data_test
   SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
@@ -39,13 +39,13 @@ x-common-auth-env: &common-auth-env
 x-common-volumes: &common-volumes
   - type: bind
     source: ../src
-    target: /home/appuser/app/src
+    target: /home/ubuntu/app/src
   - type: bind
     source: ../pyproject.toml
-    target: /home/appuser/app/pyproject.toml
+    target: /home/ubuntu/app/pyproject.toml
   - type: bind
     source: ../tests
-    target: /home/appuser/app/tests
+    target: /home/ubuntu/app/tests
 
 services:
 
