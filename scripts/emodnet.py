@@ -123,6 +123,9 @@ async def main(
                         y=y,
                     )
                     file_path = output_dir / str(z) / str(x) / f"{y}.png"
+                    if file_path.exists() and file_path.stat().st_size > 0:
+                        results.append((DownloadStatus.SKIPPED, file_path))
+                        continue
                     task = asyncio.create_task(download_tile(client, url, file_path))
                     task.add_done_callback(on_task_complete)
                     tasks.append(task)
