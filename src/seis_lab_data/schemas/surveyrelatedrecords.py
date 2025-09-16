@@ -1,4 +1,5 @@
 import pydantic
+from slugify import slugify
 
 from ..db import models
 from ..constants import SurveyRelatedRecordStatus
@@ -129,6 +130,11 @@ class SurveyRelatedRecordCreate(pydantic.BaseModel):
     links: list[LinkSchema] = []
     assets: list[RecordAssetCreate] = []
 
+    @pydantic.computed_field
+    @property
+    def slug(self) -> str:
+        return slugify(self.name.en, "")
+
 
 class SurveyRelatedRecordUpdate(pydantic.BaseModel):
     owner: UserId | None = None
@@ -163,17 +169,19 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
 
     @classmethod
     def from_db_instance(
-        cls, instance: models.SurveyRelatedRecord, assets: list[models.RecordAsset]
+        cls, instance: models.SurveyRelatedRecord
     ) -> "SurveyRelatedRecordReadDetail":
         return cls(
             **instance.model_dump(),
             survey_mission=SurveyMissionReadEmbedded.from_db_instance(
                 instance.survey_mission
             ),
-            dataset_category=instance.dataset_category.model_dump(),
-            domain_type=instance.domain_type.model_dump(),
-            workflow_stage=instance.workflow_stage.model_dump(),
+            dataset_category=DatasetCategoryRead(
+                **instance.dataset_category.model_dump()
+            ),
+            domain_type=DomainTypeRead(**instance.domain_type.model_dump()),
+            workflow_stage=WorkflowStageRead(**instance.workflow_stage.model_dump()),
             record_assets=[
-                RecordAssetReadDetailEmbedded(**a.model_dump()) for a in assets
+                RecordAssetReadDetailEmbedded(**a.model_dump()) for a in instance.assets
             ],
         )

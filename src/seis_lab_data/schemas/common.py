@@ -57,3 +57,9 @@ class LinkSchema(pydantic.BaseModel):
     # in a wtforms formfield, which also has a 'description' property and this
     # naming was chosen to avoid clashes
     link_description: LocalizableDraftDescription
+
+    @pydantic.field_serializer("url")
+    def serialize_url(
+        self, url: pydantic.AnyHttpUrl, _info: pydantic.FieldSerializationInfo
+    ) -> str:
+        return str(url)

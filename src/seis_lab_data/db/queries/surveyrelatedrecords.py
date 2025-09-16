@@ -54,6 +54,8 @@ async def get_survey_related_record(
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
         .options(selectinload(models.SurveyRelatedRecord.domain_type))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
+        # adding all assets too, since they will always be a small list
+        .options(selectinload(models.SurveyRelatedRecord.assets))
     )
     return (await session.exec(statement)).first()
 
@@ -72,6 +74,8 @@ async def get_survey_related_record_by_slug(
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
         .options(selectinload(models.SurveyRelatedRecord.domain_type))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
+        # adding all assets too, since they will always be a small list
+        .options(selectinload(models.SurveyRelatedRecord.assets))
     )
     return (await session.exec(statement)).first()
 

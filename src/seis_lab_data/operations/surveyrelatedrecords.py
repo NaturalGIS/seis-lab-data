@@ -299,7 +299,7 @@ async def get_survey_related_record_by_slug(
     initiator: schemas.UserId | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
-) -> tuple[models.SurveyRelatedRecord, list[models.RecordAsset]] | None:
+) -> models.SurveyRelatedRecord | None:
     if not permissions.can_read_survey_related_record(
         initiator, survey_related_record_slug, settings=settings
     ):
@@ -307,14 +307,6 @@ async def get_survey_related_record_by_slug(
             f"User is not allowed to read survey-related "
             f"record {survey_related_record_slug!r}."
         )
-    if (
-        survey_related_record := await queries.get_survey_related_record_by_slug(
-            session, survey_related_record_slug
-        )
-    ) is None:
-        return None
-    else:
-        record_assets = await queries.collect_all_record_assets(
-            session, schemas.SurveyRelatedRecordId(survey_related_record.id)
-        )
-        return survey_related_record, record_assets
+    return await queries.get_survey_related_record_by_slug(
+        session, survey_related_record_slug
+    )
