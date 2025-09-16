@@ -34,12 +34,6 @@ class DownloadStatus(enum.Enum):
     SKIPPED = "skipped"
 
 
-EMODNET_WMTS_URL_TEMPLATE = (
-    "https://tiles.emodnet-bathymetry.eu/wmts/1.0.0/"
-    "{layer_id}/{tile_matrix_set}/{z}/{x}/{y}.png"
-)
-
-
 EMODNET_TILE_DOWNLOAD_TEMPLATE = (
     "https://tiles.emodnet-bathymetry.eu/2020/"
     "{layer_id}/{tile_matrix_set}/{z}/{x}/{y}.png"
