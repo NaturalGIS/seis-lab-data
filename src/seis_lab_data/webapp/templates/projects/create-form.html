@@ -52,7 +52,7 @@
             <button
                     type="submit"
                     class="btn btn-primary"
-                    data-on-click="@post('{{ url_for('projects:create') }}', {
+                    data-on-click="@post('{{ url_for('projects:list') }}', {
                             contentType: 'form',
                             headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
                         })"

@@ -96,8 +96,9 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
             Route("/set-language/{lang}", routes.set_language, name="set_language"),
             Mount(
                 "/projects",
+                name="projects",
                 routes=[
-                    Route("/", routes.list_projects, methods=["GET"], name="list"),
+                    Route("/", routes.ProjectCollectionEndpoint, name="list"),
                     Route(
                         "/new/add-form-link",
                         routes.add_create_project_form_link,
@@ -112,85 +113,84 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                     ),
                     Route(
                         "/new",
-                        routes.create_project,
-                        methods=["GET", "POST"],
+                        routes.get_project_creation_form,
+                        methods=["GET"],
                         name="create",
                     ),
                     Route(
                         "/{project_slug}",
-                        routes.get_project,
-                        methods=["GET", "DELETE"],
+                        routes.ProjectDetailEndpoint,
                         name="detail",
                     ),
                     Route(
-                        "/{project_slug}/delete",
-                        routes.delete_project,
-                        methods=["POST"],
-                        name="delete",
+                        "/{project_slug}/survey-missions",
+                        routes.SurveyMissionCollectionEndpoint,
+                        name="survey_mission_list",
                     ),
                     Route(
                         "/{project_slug}/survey-missions/new",
-                        routes.SurveyMissionCreationEndpoint,
-                        name="create_survey_mission",
+                        routes.get_survey_mission_creation_form,
+                        methods=["GET"],
+                        name="survey_mission_create",
                     ),
-                    # Route(
-                    #     "/{project_slug}/survey-missions/new",
-                    #     routes.create_survey_mission,
-                    #     methods=["GET", "POST"],
-                    #     name="create_survey_mission",
-                    # ),
                     Route(
                         "/{project_slug}/survey-missions/new/add-form-link",
                         routes.add_create_survey_mission_form_link,
                         methods=["POST"],
-                        name="add_create_survey_mission_form_link",
+                        name="survey_mission_add_create_form_link",
                     ),
                     Route(
                         "/{project_slug}/survey-missions/new/remove-form-link/{link_index}",
                         routes.remove_create_survey_mission_form_link,
                         methods=["POST"],
-                        name="remove_create_survey_mission_form_link",
+                        name="survey_mission_remove_create_form_link",
                     ),
                     Route(
                         "/{project_slug}/survey-missions/{survey_mission_slug}",
                         routes.SurveyMissionDetailEndpoint,
-                        name="survey_mission",
+                        name="survey_mission_detail",
                     ),
                     Route(
                         "/{project_slug}/survey-missions/{survey_mission_slug}/survey-related-records/new",
-                        routes.create_survey_related_record,
-                        methods=["POST"],
-                        name="create_survey_related_record",
+                        routes.get_survey_related_record_creation_form,
+                        methods=["GET"],
+                        name="survey_related_record_create",
+                    ),
+                    Route(
+                        "/{project_slug}/survey-missions/{survey_mission_slug}/survey-related-records",
+                        routes.SurveyMissionCollectionEndpoint,
+                        name="survey_related_record_list",
+                    ),
+                    Route(
+                        "/{project_slug}/survey-missions/{survey_mission_slug}/survey-related-records/{survey_related_record_slug}",
+                        routes.SurveyRelatedRecordDetailEndpoint,
+                        name="survey_related_record_detail",
                     ),
                 ],
-                name="projects",
             ),
             Mount(
                 "/survey-missions",
-                routes=[
-                    Route(
-                        "/", routes.list_survey_missions, methods=["GET"], name="list"
-                    ),
-                ],
                 name="survey_missions",
-            ),
-            Mount(
-                "/survey-related-records",
                 routes=[
                     Route(
                         "/",
-                        routes.list_survey_related_records,
+                        routes.SurveyMissionCollectionEndpoint,
                         methods=["GET"],
                         name="list",
                     ),
+                ],
+            ),
+            Mount(
+                "/survey-related-records",
+                name="survey_related_records",
+                routes=[
                     Route(
-                        "/{survey_related_record_slug}",
-                        routes.get_survey_related_record,
+                        "/",
+                        routes.SurveyRelatedRecordCollectionEndpoint,
                         methods=["GET"],
-                        name="detail",
+                        name="list",
                     ),
                 ],
-                name="survey_related_records",
             ),
         ],
         lifespan=lifespan,

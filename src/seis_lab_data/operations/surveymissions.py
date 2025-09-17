@@ -28,7 +28,7 @@ async def create_survey_mission(
     event_emitter: events.EventEmitterProtocol,
 ):
     if initiator is None or not await permissions.can_create_survey_mission(
-        initiator.id, to_create, settings=settings
+        initiator, schemas.ProjectId(to_create.project_id), settings=settings
     ):
         raise errors.SeisLabDataError("User is not allowed to create a survey mission.")
     survey_mission = await commands.create_survey_mission(session, to_create)
@@ -63,8 +63,8 @@ async def delete_survey_mission(
         raise errors.SeisLabDataError(
             f"Survey mission with id {survey_mission_id!r} does not exist."
         )
-    serialized_survey_mission = schemas.SurveyMissionReadDetail(
-        **survey_mission.model_dump()
+    serialized_survey_mission = schemas.SurveyMissionReadDetail.from_db_instance(
+        survey_mission
     ).model_dump()
     await commands.delete_survey_mission(session, survey_mission_id)
     event_emitter(

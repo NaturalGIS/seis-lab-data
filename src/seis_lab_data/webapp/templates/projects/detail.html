@@ -4,7 +4,7 @@
     <div class="row">
         <div class="col">
             {% if user_can_create_survey_mission %}
-                <a class="btn btn-primary" href="{{ url_for('projects:create_survey_mission', project_slug=item.slug) }}">{{ _("New survey mission") }}</a>
+                <a class="btn btn-primary" href="{{ url_for('projects:survey_mission_create', project_slug=item.slug) }}">{{ _("New survey mission") }}</a>
             {% endif %}
         </div>
     </div>

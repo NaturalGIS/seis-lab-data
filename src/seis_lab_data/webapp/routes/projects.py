@@ -8,10 +8,11 @@ from datastar_py.consts import ElementPatchMode
 from datastar_py.starlette import DatastarResponse
 from dramatiq import Message
 from redis.asyncio import Redis
-from starlette_babel import gettext_lazy as _
+from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.templating import Jinja2Templates
+from starlette_babel import gettext_lazy as _
 from starlette_wtf import csrf_protect
 
 from seis_lab_data import (
@@ -20,174 +21,81 @@ from seis_lab_data import (
     permissions,
     schemas,
 )
-from seis_lab_data.processing import tasks
-from seis_lab_data.webapp import forms
-from seis_lab_data.webapp.routes.auth import (
+from ...processing import tasks
+from .. import forms
+from .auth import (
     get_user,
-    requires_auth,
+    fancy_requires_auth,
 )
 from .common import produce_event_stream_for_topic
 
 logger = logging.getLogger(__name__)
 
 
-async def list_projects(request: Request):
-    """List projects."""
-    session_maker = request.state.session_maker
-    user = get_user(request.session.get("user", {}))
-    async with session_maker() as session:
-        items, num_total = await operations.list_projects(
-            session,
-            initiator=user.id if user else None,
-            limit=request.query_params.get("limit", 20),
-            offset=request.query_params.get("offset", 0),
-            include_total=True,
-        )
-    template_processor = request.state.templates
+@csrf_protect
+@fancy_requires_auth
+async def get_project_creation_form(request: Request):
+    template_processor: Jinja2Templates = request.state.templates
+    creation_form = await forms.ProjectCreateForm.from_formdata(request)
     return template_processor.TemplateResponse(
         request,
-        "projects/list.html",
+        "projects/create.html",
         context={
-            "items": [schemas.ProjectReadListItem.from_db_instance(i) for i in items],
-            "num_total": num_total,
+            "form": creation_form,
             "breadcrumbs": [
-                schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
-                schemas.BreadcrumbItem(name=_("Projects")),
+                schemas.BreadcrumbItem(
+                    name=_("Home"), url=str(request.url_for("home"))
+                ),
+                schemas.BreadcrumbItem(
+                    name=_("Projects"),
+                    url=request.url_for("projects:list"),
+                ),
+                schemas.BreadcrumbItem(
+                    name=_("New Project"),
+                ),
             ],
-            "user_can_create": await permissions.can_create_project(
-                user, request.state.settings
-            ),
         },
     )
 
 
-async def get_project(request: Request):
-    """Get project."""
-    user = get_user(request.session.get("user", {}))
-    session_maker = request.state.session_maker
-    slug = request.path_params["project_slug"]
-    if request.method == "GET":
+class ProjectCollectionEndpoint(HTTPEndpoint):
+    async def get(self, request: Request):
+        """List projects."""
+        session_maker = request.state.session_maker
+        user = get_user(request.session.get("user", {}))
         async with session_maker() as session:
-            try:
-                project = await operations.get_project_by_slug(
-                    slug,
-                    user.id if user else None,
-                    session,
-                    request.state.settings,
-                )
-            except errors.SeisLabDataError as exc:
-                raise HTTPException(status_code=404, detail=str(exc)) from exc
-            if project is None:
-                raise HTTPException(
-                    status_code=404, detail=_(f"Project {slug!r} not found.")
-                )
-            project_id = schemas.ProjectId(project.id)
-            survey_missions, total = await operations.list_survey_missions(
-                session, user, project_filter=project_id, include_total=True
+            items, num_total = await operations.list_projects(
+                session,
+                initiator=user.id if user else None,
+                limit=request.query_params.get("limit", 20),
+                offset=request.query_params.get("offset", 0),
+                include_total=True,
             )
         template_processor = request.state.templates
         return template_processor.TemplateResponse(
             request,
-            "projects/detail.html",
+            "projects/list.html",
             context={
-                "item": schemas.ProjectReadDetail(**project.model_dump()),
-                "survey_missions": {
-                    "survey_missions": [
-                        schemas.SurveyMissionReadListItem.from_db_instance(sm)
-                        for sm in survey_missions
-                    ],
-                    "total": total,
-                },
-                "user_can_delete": await permissions.can_delete_project(
-                    user, project_id, settings=request.state.settings
-                ),
-                "user_can_create_survey_mission": await permissions.can_create_survey_mission(
-                    user, project_id=project_id, settings=request.state.settings
-                ),
-                "breadcrumbs": [
-                    schemas.BreadcrumbItem(
-                        name=_("Home"), url=str(request.url_for("home"))
-                    ),
-                    schemas.BreadcrumbItem(
-                        name=_("Projects"),
-                        url=request.url_for("projects:list"),
-                    ),
-                    schemas.BreadcrumbItem(
-                        name=project.name["en"],
-                    ),
+                "items": [
+                    schemas.ProjectReadListItem.from_db_instance(i) for i in items
                 ],
+                "num_total": num_total,
+                "breadcrumbs": [
+                    schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
+                    schemas.BreadcrumbItem(name=_("Projects")),
+                ],
+                "user_can_create": await permissions.can_create_project(
+                    user, request.state.settings
+                ),
             },
         )
-    elif request.method == "DELETE":
-        async with session_maker() as session:
-            try:
-                project = await operations.get_project_by_slug(
-                    slug,
-                    user.id if user else None,
-                    session,
-                    request.state.settings,
-                )
-            except errors.SeisLabDataError as exc:
-                raise HTTPException(status_code=404, detail=str(exc)) from exc
-            if project is None:
-                raise HTTPException(
-                    status_code=404, detail=_(f"Project {slug!r} not found.")
-                )
-            project_id = schemas.ProjectId(project.id)
 
-        async def stream_events():
-            request_id = schemas.RequestId(uuid.uuid4())
-            yield ServerSentEventGenerator.patch_elements(
-                """<li>Deleting project as a background task...</li>""",
-                selector="#feedback > ul",
-                mode=ElementPatchMode.APPEND,
-            )
-            enqueued_message: Message = tasks.delete_project.send(
-                raw_request_id=str(request_id),
-                raw_project_id=str(project_id),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
-            )
-            logger.debug(f"{enqueued_message=}")
-            redis_client: Redis = request.state.redis_client
-            event_stream_generator = produce_event_stream_for_topic(
-                redis_client,
-                request,
-                topic_name=f"progress:{request_id}",
-                success_redirect_url=str(request.url_for("projects:list")),
-                timeout_seconds=30,
-            )
-            async for sse_event in event_stream_generator:
-                yield sse_event
-
-        return DatastarResponse(stream_events())
-
-
-@csrf_protect
-@requires_auth
-async def create_project(request: Request, user: schemas.User):
-    template_processor: Jinja2Templates = request.state.templates
-    create_project_form = await forms.ProjectCreateForm.from_formdata(request)
-    if request.method == "GET":
-        return template_processor.TemplateResponse(
-            request,
-            "projects/create.html",
-            context={
-                "form": create_project_form,
-                "breadcrumbs": [
-                    schemas.BreadcrumbItem(
-                        name=_("Home"), url=str(request.url_for("home"))
-                    ),
-                    schemas.BreadcrumbItem(
-                        name=_("Projects"),
-                        url=request.url_for("projects:list"),
-                    ),
-                    schemas.BreadcrumbItem(
-                        name=_("New Project"),
-                    ),
-                ],
-            },
-        )
-    elif request.method == "POST":
+    @csrf_protect
+    @fancy_requires_auth
+    async def post(self, request: Request):
+        template_processor: Jinja2Templates = request.state.templates
+        user = get_user(request.session.get("user", {}))
+        create_project_form = await forms.ProjectCreateForm.from_formdata(request)
 
         async def stream_events():
             # first validate the form with WTForms' validation logic
@@ -275,6 +183,112 @@ async def create_project(request: Request, user: schemas.User):
         return DatastarResponse(stream_events())
 
 
+class ProjectDetailEndpoint(HTTPEndpoint):
+    async def get(self, request: Request):
+        """Get project."""
+        user = get_user(request.session.get("user", {}))
+        session_maker = request.state.session_maker
+        slug = request.path_params["project_slug"]
+        async with session_maker() as session:
+            try:
+                project = await operations.get_project_by_slug(
+                    slug,
+                    user.id if user else None,
+                    session,
+                    request.state.settings,
+                )
+            except errors.SeisLabDataError as exc:
+                raise HTTPException(status_code=404, detail=str(exc)) from exc
+            if project is None:
+                raise HTTPException(
+                    status_code=404, detail=_(f"Project {slug!r} not found.")
+                )
+            project_id = schemas.ProjectId(project.id)
+            survey_missions, total = await operations.list_survey_missions(
+                session, user, project_filter=project_id, include_total=True
+            )
+        template_processor = request.state.templates
+        return template_processor.TemplateResponse(
+            request,
+            "projects/detail.html",
+            context={
+                "item": schemas.ProjectReadDetail(**project.model_dump()),
+                "survey_missions": {
+                    "survey_missions": [
+                        schemas.SurveyMissionReadListItem.from_db_instance(sm)
+                        for sm in survey_missions
+                    ],
+                    "total": total,
+                },
+                "user_can_delete": await permissions.can_delete_project(
+                    user, project_id, settings=request.state.settings
+                ),
+                "user_can_create_survey_mission": await permissions.can_create_survey_mission(
+                    user, project_id=project_id, settings=request.state.settings
+                ),
+                "breadcrumbs": [
+                    schemas.BreadcrumbItem(
+                        name=_("Home"), url=str(request.url_for("home"))
+                    ),
+                    schemas.BreadcrumbItem(
+                        name=_("Projects"),
+                        url=request.url_for("projects:list"),
+                    ),
+                    schemas.BreadcrumbItem(
+                        name=project.name["en"],
+                    ),
+                ],
+            },
+        )
+
+    @fancy_requires_auth
+    async def delete(self, request: Request):
+        user = get_user(request.session.get("user", {}))
+        session_maker = request.state.session_maker
+        slug = request.path_params["project_slug"]
+        async with session_maker() as session:
+            try:
+                project = await operations.get_project_by_slug(
+                    slug,
+                    user.id if user else None,
+                    session,
+                    request.state.settings,
+                )
+            except errors.SeisLabDataError as exc:
+                raise HTTPException(status_code=404, detail=str(exc)) from exc
+            if project is None:
+                raise HTTPException(
+                    status_code=404, detail=_(f"Project {slug!r} not found.")
+                )
+            project_id = schemas.ProjectId(project.id)
+
+        async def stream_events():
+            request_id = schemas.RequestId(uuid.uuid4())
+            yield ServerSentEventGenerator.patch_elements(
+                """<li>Deleting project as a background task...</li>""",
+                selector="#feedback > ul",
+                mode=ElementPatchMode.APPEND,
+            )
+            enqueued_message: Message = tasks.delete_project.send(
+                raw_request_id=str(request_id),
+                raw_project_id=str(project_id),
+                raw_initiator=json.dumps(dataclasses.asdict(user)),
+            )
+            logger.debug(f"{enqueued_message=}")
+            redis_client: Redis = request.state.redis_client
+            event_stream_generator = produce_event_stream_for_topic(
+                redis_client,
+                request,
+                topic_name=f"progress:{request_id}",
+                success_redirect_url=str(request.url_for("projects:list")),
+                timeout_seconds=30,
+            )
+            async for sse_event in event_stream_generator:
+                yield sse_event
+
+        return DatastarResponse(stream_events())
+
+
 @csrf_protect
 async def add_create_project_form_link(request: Request):
     """Add a form link to a create_project form."""
@@ -318,38 +332,6 @@ async def remove_create_project_form_link(request: Request):
         )
 
     return DatastarResponse(event_streamer())
-
-
-@requires_auth
-async def delete_project(request: Request, user: schemas.User):
-    """Delete an existing project."""
-
-    async def stream_events():
-        request_id = schemas.RequestId(uuid.uuid4())
-        project_id = (schemas.ProjectId(request.path_params["project_slug"]),)
-        yield ServerSentEventGenerator.patch_elements(
-            """<li>Deleting project as a background task...</li>""",
-            selector="#feedback > ul",
-            mode=ElementPatchMode.APPEND,
-        )
-        enqueued_message: Message = tasks.delete_project.send(
-            raw_request_id=str(request_id),
-            raw_project_id=str(project_id),
-            raw_initiator=json.dumps(dataclasses.asdict(user)),
-        )
-        logger.debug(f"{enqueued_message=}")
-        redis_client: Redis = request.state.redis_client
-        event_stream_generator = produce_event_stream_for_topic(
-            redis_client,
-            request,
-            topic_name=f"progress:{request_id}",
-            success_redirect_url=str(request.url_for("projects:list")),
-            timeout_seconds=30,
-        )
-        async for sse_event in event_stream_generator:
-            yield sse_event
-
-    return DatastarResponse(stream_events())
 
 
 @csrf_protect

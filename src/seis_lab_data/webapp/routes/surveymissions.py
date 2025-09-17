@@ -32,33 +32,200 @@ from .common import produce_event_stream_for_topic
 logger = logging.getLogger(__name__)
 
 
-async def list_survey_missions(request: Request):
-    """List survey missions."""
-    session_maker = request.state.session_maker
+@csrf_protect
+@fancy_requires_auth
+async def get_survey_mission_creation_form(request: Request):
     user = get_user(request.session.get("user", {}))
+    project_slug = request.path_params["project_slug"]
+    session_maker = request.state.session_maker
+    template_processor: Jinja2Templates = request.state.templates
+    create_survey_mission_form = await forms.SurveyMissionCreateForm.from_formdata(
+        request
+    )
+
     async with session_maker() as session:
-        items, num_total = await operations.list_survey_missions(
-            session,
-            initiator=user.id if user else None,
-            limit=request.query_params.get("limit", 20),
-            offset=request.query_params.get("offset", 0),
-            include_total=True,
-        )
-    template_processor = request.state.templates
+        try:
+            project = await operations.get_project_by_slug(
+                project_slug, user, session, request.state.settings
+            )
+        except errors.SeisLabDataError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        if project is None:
+            raise HTTPException(
+                status_code=404, detail=_(f"Project {project_slug!r} not found.")
+            )
+
     return template_processor.TemplateResponse(
         request,
-        "survey-missions/list.html",
+        "survey-missions/create.html",
         context={
-            "items": [
-                schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items
-            ],
-            "num_total": num_total,
+            "form": create_survey_mission_form,
+            "project": schemas.ProjectReadDetail.from_db_instance(project),
             "breadcrumbs": [
-                schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
-                schemas.BreadcrumbItem(name=_("Survey Missions")),
+                schemas.BreadcrumbItem(
+                    name=_("Home"), url=str(request.url_for("home"))
+                ),
+                schemas.BreadcrumbItem(
+                    name=_("Projects"),
+                    url=request.url_for("projects:list"),
+                ),
+                schemas.BreadcrumbItem(
+                    name=project.slug,
+                    url=request.url_for("projects:detail", project_slug=project_slug),
+                ),
+                schemas.BreadcrumbItem(
+                    name=_("New survey mission"),
+                ),
             ],
         },
     )
+
+
+class SurveyMissionCollectionEndpoint(HTTPEndpoint):
+    """Manage collection of survey missions."""
+
+    async def get(self, request: Request):
+        """List survey missions."""
+        session_maker = request.state.session_maker
+        user = get_user(request.session.get("user", {}))
+        async with session_maker() as session:
+            items, num_total = await operations.list_survey_missions(
+                session,
+                initiator=user.id if user else None,
+                limit=request.query_params.get("limit", 20),
+                offset=request.query_params.get("offset", 0),
+                include_total=True,
+            )
+        template_processor = request.state.templates
+        return template_processor.TemplateResponse(
+            request,
+            "survey-missions/list.html",
+            context={
+                "items": [
+                    schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items
+                ],
+                "num_total": num_total,
+                "breadcrumbs": [
+                    schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
+                    schemas.BreadcrumbItem(name=_("Survey Missions")),
+                ],
+            },
+        )
+
+    @csrf_protect
+    @fancy_requires_auth
+    async def post(self, request: Request):
+        """Create a new survey mission."""
+        user = get_user(request.session.get("user", {}))
+        project_slug = request.path_params["project_slug"]
+        session_maker = request.state.session_maker
+        template_processor: Jinja2Templates = request.state.templates
+        create_survey_mission_form = await forms.SurveyMissionCreateForm.from_formdata(
+            request
+        )
+        async with session_maker() as session:
+            try:
+                project = await operations.get_project_by_slug(
+                    project_slug, user, session, request.state.settings
+                )
+            except errors.SeisLabDataError as exc:
+                raise HTTPException(status_code=404, detail=str(exc)) from exc
+            if project is None:
+                raise HTTPException(
+                    status_code=404, detail=_(f"Project {project_slug!r} not found.")
+                )
+
+        async def stream_events():
+            # first validate the form with WTForms' validation logic
+            # then validate the form data with our custom pydantic model
+            await create_survey_mission_form.validate_on_submit()
+            forms.validate_form_with_model(
+                create_survey_mission_form,
+                schemas.SurveyMissionCreate,
+            )
+            # For some unknown reason, wtforms does not report validation errors for
+            # the 'links' listfield together with the other validation errors. This may
+            # have something to with the fact that we are setting the 'errors' property
+            # of fields manually. Anyway, we need to emply the below workaround in order
+            # to verify if the form contains any erors.
+            all_form_validation_errors = {**create_survey_mission_form.errors}
+            for link in create_survey_mission_form.links.entries:
+                all_form_validation_errors.update(**link.errors)
+            if not all_form_validation_errors:
+                request_id = schemas.RequestId(uuid.uuid4())
+                to_create = schemas.SurveyMissionCreate(
+                    id=schemas.SurveyMissionId(uuid.uuid4()),
+                    project_id=project.id,
+                    owner=user.id,
+                    name=schemas.LocalizableDraftName(
+                        en=create_survey_mission_form.name.en.data,
+                        pt=create_survey_mission_form.name.pt.data,
+                    ),
+                    description=schemas.LocalizableDraftDescription(
+                        en=create_survey_mission_form.description.en.data,
+                        pt=create_survey_mission_form.description.pt.data,
+                    ),
+                    relative_path=create_survey_mission_form.relative_path.data,
+                    links=[
+                        schemas.LinkSchema(
+                            url=lf.url.data,
+                            media_type=lf.media_type.data,
+                            relation=lf.relation.data,
+                            link_description=schemas.LocalizableDraftDescription(
+                                en=lf.link_description.en.data,
+                                pt=lf.link_description.pt.data,
+                            ),
+                        )
+                        for lf in create_survey_mission_form.links.entries
+                    ],
+                )
+                logger.info(f"{to_create=}")
+
+                yield ServerSentEventGenerator.patch_elements(
+                    """<li>Creating survey mission as a background task...</li>""",
+                    selector="#feedback > ul",
+                    mode=ElementPatchMode.APPEND,
+                )
+
+                enqueued_message: Message = tasks.create_survey_mission.send(
+                    raw_request_id=str(request_id),
+                    raw_to_create=to_create.model_dump_json(),
+                    raw_initiator=json.dumps(dataclasses.asdict(user)),
+                )
+                logger.debug(f"{enqueued_message=}")
+                redis_client: Redis = request.state.redis_client
+                event_stream_generator = produce_event_stream_for_topic(
+                    redis_client,
+                    request,
+                    topic_name=f"progress:{request_id}",
+                    success_redirect_url=str(
+                        request.url_for(
+                            "projects:survey_mission",
+                            project_slug=project.slug,
+                            survey_mission_slug=to_create.slug,
+                        )
+                    ),
+                    timeout_seconds=30,
+                )
+                async for sse_event in event_stream_generator:
+                    yield sse_event
+
+            else:
+                logger.debug("form did not validate")
+                template = template_processor.get_template(
+                    "survey-missions/create-form.html"
+                )
+                rendered = template.render(
+                    request=request,
+                    form=create_survey_mission_form,
+                )
+                yield ServerSentEventGenerator.patch_elements(
+                    rendered,
+                    selector="#survey-mission-create-form-container",
+                    mode=ElementPatchMode.INNER,
+                )
+
+        return DatastarResponse(stream_events())
 
 
 class SurveyMissionDetailEndpoint(HTTPEndpoint):
@@ -201,167 +368,196 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         return DatastarResponse(stream_events())
 
 
-class SurveyMissionCreationEndpoint(HTTPEndpoint):
-    @csrf_protect
-    @fancy_requires_auth
-    async def get(self, request: Request):
-        user = get_user(request.session.get("user", {}))
-        project_slug = request.path_params["project_slug"]
-        session_maker = request.state.session_maker
-        template_processor: Jinja2Templates = request.state.templates
-        create_survey_mission_form = await forms.SurveyMissionCreateForm.from_formdata(
-            request
-        )
-
-        async with session_maker() as session:
-            try:
-                project = await operations.get_project_by_slug(
-                    project_slug, user, session, request.state.settings
-                )
-            except errors.SeisLabDataError as exc:
-                raise HTTPException(status_code=404, detail=str(exc)) from exc
-            if project is None:
-                raise HTTPException(
-                    status_code=404, detail=_(f"Project {project_slug!r} not found.")
-                )
-
-        return template_processor.TemplateResponse(
-            request,
-            "survey-missions/create.html",
-            context={
-                "form": create_survey_mission_form,
-                "project": schemas.ProjectReadDetail.from_db_instance(project),
-                "breadcrumbs": [
-                    schemas.BreadcrumbItem(
-                        name=_("Home"), url=str(request.url_for("home"))
-                    ),
-                    schemas.BreadcrumbItem(
-                        name=_("Projects"),
-                        url=request.url_for("projects:list"),
-                    ),
-                    schemas.BreadcrumbItem(
-                        name=project.slug,
-                        url=request.url_for(
-                            "projects:detail", project_slug=project_slug
-                        ),
-                    ),
-                    schemas.BreadcrumbItem(
-                        name=_("New survey mission"),
-                    ),
-                ],
-            },
-        )
-
-    @csrf_protect
-    @fancy_requires_auth
-    async def post(self, request: Request):
-        user = get_user(request.session.get("user", {}))
-        project_slug = request.path_params["project_slug"]
-        session_maker = request.state.session_maker
-        template_processor: Jinja2Templates = request.state.templates
-        create_survey_mission_form = await forms.SurveyMissionCreateForm.from_formdata(
-            request
-        )
-        async with session_maker() as session:
-            try:
-                project = await operations.get_project_by_slug(
-                    project_slug, user, session, request.state.settings
-                )
-            except errors.SeisLabDataError as exc:
-                raise HTTPException(status_code=404, detail=str(exc)) from exc
-            if project is None:
-                raise HTTPException(
-                    status_code=404, detail=_(f"Project {project_slug!r} not found.")
-                )
-
-        async def stream_events():
-            # first validate the form with WTForms' validation logic
-            # then validate the form data with our custom pydantic model
-            await create_survey_mission_form.validate_on_submit()
-            forms.validate_form_with_model(
-                create_survey_mission_form,
-                schemas.SurveyMissionCreate,
-            )
-            # For some unknown reason, wtforms does not report validation errors for
-            # the 'links' listfield together with the other validation errors. This may
-            # have something to with the fact that we are setting the 'errors' property
-            # of fields manually. Anyway, we need to emply the below workaround in order
-            # to verify if the form contains any erors.
-            all_form_validation_errors = {**create_survey_mission_form.errors}
-            for link in create_survey_mission_form.links.entries:
-                all_form_validation_errors.update(**link.errors)
-            if not all_form_validation_errors:
-                request_id = schemas.RequestId(uuid.uuid4())
-                to_create = schemas.SurveyMissionCreate(
-                    id=schemas.SurveyMissionId(uuid.uuid4()),
-                    project_id=project.id,
-                    owner=user.id,
-                    name=schemas.LocalizableDraftName(
-                        en=create_survey_mission_form.name.en.data,
-                        pt=create_survey_mission_form.name.pt.data,
-                    ),
-                    description=schemas.LocalizableDraftDescription(
-                        en=create_survey_mission_form.description.en.data,
-                        pt=create_survey_mission_form.description.pt.data,
-                    ),
-                    relative_path=create_survey_mission_form.relative_path.data,
-                    links=[
-                        schemas.LinkSchema(
-                            url=lf.url.data,
-                            media_type=lf.media_type.data,
-                            relation=lf.relation.data,
-                            link_description=schemas.LocalizableDraftDescription(
-                                en=lf.link_description.en.data,
-                                pt=lf.link_description.pt.data,
-                            ),
-                        )
-                        for lf in create_survey_mission_form.links.entries
-                    ],
-                )
-                logger.info(f"{to_create=}")
-
-                yield ServerSentEventGenerator.patch_elements(
-                    """<li>Creating survey mission as a background task...</li>""",
-                    selector="#feedback > ul",
-                    mode=ElementPatchMode.APPEND,
-                )
-
-                enqueued_message: Message = tasks.create_survey_mission.send(
-                    raw_request_id=str(request_id),
-                    raw_to_create=to_create.model_dump_json(),
-                    raw_initiator=json.dumps(dataclasses.asdict(user)),
-                )
-                logger.debug(f"{enqueued_message=}")
-                redis_client: Redis = request.state.redis_client
-                event_stream_generator = produce_event_stream_for_topic(
-                    redis_client,
-                    request,
-                    topic_name=f"progress:{request_id}",
-                    success_redirect_url=str(
-                        request.url_for(
-                            "projects:survey_mission",
-                            project_slug=project.slug,
-                            survey_mission_slug=to_create.slug,
-                        )
-                    ),
-                    timeout_seconds=30,
-                )
-                async for sse_event in event_stream_generator:
-                    yield sse_event
-
-            else:
-                logger.debug("form did not validate")
-                template = template_processor.get_template(
-                    "survey-missions/create-form.html"
-                )
-                rendered = template.render(
-                    request=request,
-                    form=create_survey_mission_form,
-                )
-                yield ServerSentEventGenerator.patch_elements(
-                    rendered,
-                    selector="#survey-mission-create-form-container",
-                    mode=ElementPatchMode.INNER,
-                )
-
-        return DatastarResponse(stream_events())
+# async def list_survey_missions(request: Request):
+#     """List survey missions."""
+#     session_maker = request.state.session_maker
+#     user = get_user(request.session.get("user", {}))
+#     async with session_maker() as session:
+#         items, num_total = await operations.list_survey_missions(
+#             session,
+#             initiator=user.id if user else None,
+#             limit=request.query_params.get("limit", 20),
+#             offset=request.query_params.get("offset", 0),
+#             include_total=True,
+#         )
+#     template_processor = request.state.templates
+#     return template_processor.TemplateResponse(
+#         request,
+#         "survey-missions/list.html",
+#         context={
+#             "items": [
+#                 schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items
+#             ],
+#             "num_total": num_total,
+#             "breadcrumbs": [
+#                 schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
+#                 schemas.BreadcrumbItem(name=_("Survey Missions")),
+#             ],
+#         },
+#     )
+#
+#
+# class SurveyMissionCreationEndpoint(HTTPEndpoint):
+#     @csrf_protect
+#     @fancy_requires_auth
+#     async def get(self, request: Request):
+#         user = get_user(request.session.get("user", {}))
+#         project_slug = request.path_params["project_slug"]
+#         session_maker = request.state.session_maker
+#         template_processor: Jinja2Templates = request.state.templates
+#         create_survey_mission_form = await forms.SurveyMissionCreateForm.from_formdata(
+#             request
+#         )
+#
+#         async with session_maker() as session:
+#             try:
+#                 project = await operations.get_project_by_slug(
+#                     project_slug, user, session, request.state.settings
+#                 )
+#             except errors.SeisLabDataError as exc:
+#                 raise HTTPException(status_code=404, detail=str(exc)) from exc
+#             if project is None:
+#                 raise HTTPException(
+#                     status_code=404, detail=_(f"Project {project_slug!r} not found.")
+#                 )
+#
+#         return template_processor.TemplateResponse(
+#             request,
+#             "survey-missions/create.html",
+#             context={
+#                 "form": create_survey_mission_form,
+#                 "project": schemas.ProjectReadDetail.from_db_instance(project),
+#                 "breadcrumbs": [
+#                     schemas.BreadcrumbItem(
+#                         name=_("Home"), url=str(request.url_for("home"))
+#                     ),
+#                     schemas.BreadcrumbItem(
+#                         name=_("Projects"),
+#                         url=request.url_for("projects:list"),
+#                     ),
+#                     schemas.BreadcrumbItem(
+#                         name=project.slug,
+#                         url=request.url_for(
+#                             "projects:detail", project_slug=project_slug
+#                         ),
+#                     ),
+#                     schemas.BreadcrumbItem(
+#                         name=_("New survey mission"),
+#                     ),
+#                 ],
+#             },
+#         )
+#
+#     @csrf_protect
+#     @fancy_requires_auth
+#     async def post(self, request: Request):
+#         user = get_user(request.session.get("user", {}))
+#         project_slug = request.path_params["project_slug"]
+#         session_maker = request.state.session_maker
+#         template_processor: Jinja2Templates = request.state.templates
+#         create_survey_mission_form = await forms.SurveyMissionCreateForm.from_formdata(
+#             request
+#         )
+#         async with session_maker() as session:
+#             try:
+#                 project = await operations.get_project_by_slug(
+#                     project_slug, user, session, request.state.settings
+#                 )
+#             except errors.SeisLabDataError as exc:
+#                 raise HTTPException(status_code=404, detail=str(exc)) from exc
+#             if project is None:
+#                 raise HTTPException(
+#                     status_code=404, detail=_(f"Project {project_slug!r} not found.")
+#                 )
+#
+#         async def stream_events():
+#             # first validate the form with WTForms' validation logic
+#             # then validate the form data with our custom pydantic model
+#             await create_survey_mission_form.validate_on_submit()
+#             forms.validate_form_with_model(
+#                 create_survey_mission_form,
+#                 schemas.SurveyMissionCreate,
+#             )
+#             # For some unknown reason, wtforms does not report validation errors for
+#             # the 'links' listfield together with the other validation errors. This may
+#             # have something to with the fact that we are setting the 'errors' property
+#             # of fields manually. Anyway, we need to emply the below workaround in order
+#             # to verify if the form contains any erors.
+#             all_form_validation_errors = {**create_survey_mission_form.errors}
+#             for link in create_survey_mission_form.links.entries:
+#                 all_form_validation_errors.update(**link.errors)
+#             if not all_form_validation_errors:
+#                 request_id = schemas.RequestId(uuid.uuid4())
+#                 to_create = schemas.SurveyMissionCreate(
+#                     id=schemas.SurveyMissionId(uuid.uuid4()),
+#                     project_id=project.id,
+#                     owner=user.id,
+#                     name=schemas.LocalizableDraftName(
+#                         en=create_survey_mission_form.name.en.data,
+#                         pt=create_survey_mission_form.name.pt.data,
+#                     ),
+#                     description=schemas.LocalizableDraftDescription(
+#                         en=create_survey_mission_form.description.en.data,
+#                         pt=create_survey_mission_form.description.pt.data,
+#                     ),
+#                     relative_path=create_survey_mission_form.relative_path.data,
+#                     links=[
+#                         schemas.LinkSchema(
+#                             url=lf.url.data,
+#                             media_type=lf.media_type.data,
+#                             relation=lf.relation.data,
+#                             link_description=schemas.LocalizableDraftDescription(
+#                                 en=lf.link_description.en.data,
+#                                 pt=lf.link_description.pt.data,
+#                             ),
+#                         )
+#                         for lf in create_survey_mission_form.links.entries
+#                     ],
+#                 )
+#                 logger.info(f"{to_create=}")
+#
+#                 yield ServerSentEventGenerator.patch_elements(
+#                     """<li>Creating survey mission as a background task...</li>""",
+#                     selector="#feedback > ul",
+#                     mode=ElementPatchMode.APPEND,
+#                 )
+#
+#                 enqueued_message: Message = tasks.create_survey_mission.send(
+#                     raw_request_id=str(request_id),
+#                     raw_to_create=to_create.model_dump_json(),
+#                     raw_initiator=json.dumps(dataclasses.asdict(user)),
+#                 )
+#                 logger.debug(f"{enqueued_message=}")
+#                 redis_client: Redis = request.state.redis_client
+#                 event_stream_generator = produce_event_stream_for_topic(
+#                     redis_client,
+#                     request,
+#                     topic_name=f"progress:{request_id}",
+#                     success_redirect_url=str(
+#                         request.url_for(
+#                             "projects:survey_mission",
+#                             project_slug=project.slug,
+#                             survey_mission_slug=to_create.slug,
+#                         )
+#                     ),
+#                     timeout_seconds=30,
+#                 )
+#                 async for sse_event in event_stream_generator:
+#                     yield sse_event
+#
+#             else:
+#                 logger.debug("form did not validate")
+#                 template = template_processor.get_template(
+#                     "survey-missions/create-form.html"
+#                 )
+#                 rendered = template.render(
+#                     request=request,
+#                     form=create_survey_mission_form,
+#                 )
+#                 yield ServerSentEventGenerator.patch_elements(
+#                     rendered,
+#                     selector="#survey-mission-create-form-container",
+#                     mode=ElementPatchMode.INNER,
+#                 )
+#
+#         return DatastarResponse(stream_events())
