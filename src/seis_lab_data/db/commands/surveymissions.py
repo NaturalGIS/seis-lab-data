@@ -1,4 +1,3 @@
-from slugify import slugify
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import (
@@ -15,9 +14,7 @@ async def create_survey_mission(
     session: AsyncSession,
     to_create: schemas.SurveyMissionCreate,
 ) -> models.SurveyMission:
-    survey_mission = models.SurveyMission(
-        **to_create.model_dump(), slug=slugify(to_create.name.get("en", ""))
-    )
+    survey_mission = models.SurveyMission(**to_create.model_dump())
     session.add(survey_mission)
     await session.commit()
     return await queries.get_survey_mission(session, to_create.id)

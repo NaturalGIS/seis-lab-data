@@ -305,10 +305,23 @@ async def create_project(
             to_create=schemas.ProjectCreate(
                 id=schemas.ProjectId(uuid.uuid4()),
                 owner=schemas.UserId(owner),
-                name={"en": name_en, "pt": name_pt},
-                description={"en": description_en, "pt": description_pt},
+                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
+                description=schemas.LocalizableDraftDescription(
+                    en=description_en, pt=description_pt
+                ),
                 root_path=root_path,
-                links=link,
+                links=[
+                    schemas.LinkSchema(
+                        url=li["url"],
+                        link_description=schemas.LocalizableDraftDescription(
+                            en=li.get("link_description", {}).get("en", ""),
+                            pt=li.get("link_description", {}).get("pt", ""),
+                        ),
+                        media_type=li["media_type"],
+                        relation=li["relation"],
+                    )
+                    for li in link
+                ],
             ),
             initiator=ctx.obj["admin_user"],
             session=session,
@@ -331,7 +344,7 @@ async def list_projects(
     async with ctx.obj["session_maker"]() as session:
         items, num_total = await operations.list_projects(
             session,
-            initiator=ctx.obj["admin_user"].id,
+            initiator=ctx.obj["admin_user"],
             limit=limit,
             offset=offset,
             include_total=True,
@@ -374,10 +387,10 @@ async def create_dataset_category(
     async with ctx.obj["session_maker"]() as session:
         created = await operations.create_dataset_category(
             to_create=schemas.DatasetCategoryCreate(
-                id=uuid.uuid4(),
-                name={"en": name_en, "pt": name_pt},
+                id=schemas.DatasetCategoryId(uuid.uuid4()),
+                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
             ),
-            initiator=ctx.obj["admin_user"].id,
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -414,7 +427,7 @@ async def delete_dataset_category(
     async with ctx.obj["session_maker"]() as session:
         await operations.delete_dataset_category(
             dataset_category_id,
-            initiator=ctx.obj["admin_user"].id,
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -437,10 +450,10 @@ async def create_domain_type(
     async with ctx.obj["session_maker"]() as session:
         created = await operations.create_domain_type(
             to_create=schemas.DomainTypeCreate(
-                id=uuid.uuid4(),
-                name={"en": name_en, "pt": name_pt},
+                id=schemas.DomainTypeId(uuid.uuid4()),
+                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
             ),
-            initiator=ctx.obj["admin_user"].id,
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -477,7 +490,7 @@ async def delete_domain_type(
     async with ctx.obj["session_maker"]() as session:
         await operations.delete_domain_type(
             domain_type_id,
-            initiator=ctx.obj["admin_user"].id,
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -500,10 +513,10 @@ async def create_workflow_stage(
     async with ctx.obj["session_maker"]() as session:
         created = await operations.create_workflow_stage(
             to_create=schemas.WorkflowStageCreate(
-                id=uuid.uuid4(),
-                name={"en": name_en, "pt": name_pt},
+                id=schemas.WorkflowStageId(uuid.uuid4()),
+                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
             ),
-            initiator=ctx.obj["admin_user"].id,
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -540,7 +553,7 @@ async def delete_workflow_stage(
     async with ctx.obj["session_maker"]() as session:
         await operations.delete_workflow_stage(
             workflow_stage_id,
-            initiator=ctx.obj["admin_user"].id,
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),

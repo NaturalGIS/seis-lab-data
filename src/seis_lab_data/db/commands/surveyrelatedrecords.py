@@ -1,6 +1,5 @@
 import uuid
 
-from slugify import slugify
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import (
@@ -96,7 +95,6 @@ async def create_survey_related_record(
 ) -> models.SurveyRelatedRecord:
     survey_record = models.SurveyRelatedRecord(
         **to_create.model_dump(exclude={"assets"}),
-        slug=slugify(to_create.name.get("en", "")),
     )
     session.add(survey_record)
     for asset_to_create in to_create.assets:

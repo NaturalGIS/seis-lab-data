@@ -50,7 +50,7 @@ async def get_survey_related_record(request: Request):
     user = get_user(request.session.get("user", {}))
     async with session_maker() as session:
         try:
-            survey_details = await operations.get_survey_related_record_by_slug(
+            survey_record = await operations.get_survey_related_record_by_slug(
                 slug,
                 user.id if user else None,
                 session,
@@ -58,18 +58,17 @@ async def get_survey_related_record(request: Request):
             )
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
-    if survey_details is None:
+    if survey_record is None:
         raise HTTPException(
             status_code=404, detail=_(f"Survey-related record {slug!r} not found.")
         )
-    survey_record, record_assets = survey_details
     template_processor = request.state.templates
     return template_processor.TemplateResponse(
         request,
         "survey-related-records/detail.html",
         context={
             "item": schemas.SurveyRelatedRecordReadDetail.from_db_instance(
-                survey_record, record_assets
+                survey_record
             ),
             "breadcrumbs": [
                 schemas.BreadcrumbItem(
