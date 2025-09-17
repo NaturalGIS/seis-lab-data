@@ -84,7 +84,7 @@ async def list_projects(
 
 async def get_project_by_slug(
     project_slug: str,
-    initiator: schemas.UserId | None,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
 ) -> models.Project | None:

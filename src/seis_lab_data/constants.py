@@ -3,13 +3,16 @@ import typing
 
 from starlette_babel import gettext_lazy as _
 
+
+ASSET_MAX_LINKS: typing.Final[int] = 5
 AUTH_CLIENT_NAME: typing.Final[str] = "authentik"
 NAME_MAX_LENGTH: typing.Final[int] = 100
 NAME_MIN_LENGTH: typing.Final[int] = 5
 DESCRIPTION_MAX_LENGTH: typing.Final[int] = 500
 DESCRIPTION_MIN_LENGTH: typing.Final[int] = 5
 PROJECT_MAX_LINKS: typing.Final[int] = 5
-SURVET_MISSION_MAX_LINKS: typing.Final[int] = 5
+SURVEY_MISSION_MAX_LINKS: typing.Final[int] = 5
+SURVEY_RELATED_RECORD_MAX_ASSETS: typing.Final[int] = 20
 
 
 class TranslatableEnumProtocol(typing.Protocol):

@@ -1,4 +1,3 @@
-import asyncio
 import dataclasses
 import json
 import logging
@@ -12,23 +11,22 @@ from redis.asyncio import Redis
 from starlette_babel import gettext_lazy as _
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
-from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 from starlette_wtf import csrf_protect
 
-from .. import (
-    constants,
+from seis_lab_data import (
     errors,
     operations,
     permissions,
     schemas,
 )
-from ..processing import tasks
-from .auth import (
+from seis_lab_data.processing import tasks
+from seis_lab_data.webapp import forms
+from seis_lab_data.webapp.routes.auth import (
     get_user,
     requires_auth,
 )
-from . import forms
+from .common import produce_event_stream_for_topic
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +93,7 @@ async def get_project(request: Request):
                 "item": schemas.ProjectReadDetail(**project.model_dump()),
                 "survey_missions": {
                     "survey_missions": [
-                        schemas.SurveyMissionReadListItem(**sm.model_dump())
+                        schemas.SurveyMissionReadListItem.from_db_instance(sm)
                         for sm in survey_missions
                     ],
                     "total": total,
@@ -151,7 +149,7 @@ async def get_project(request: Request):
             )
             logger.debug(f"{enqueued_message=}")
             redis_client: Redis = request.state.redis_client
-            event_stream_generator = _produce_event_stream_for_topic(
+            event_stream_generator = produce_event_stream_for_topic(
                 redis_client,
                 request,
                 topic_name=f"progress:{request_id}",
@@ -249,7 +247,7 @@ async def create_project(request: Request, user: schemas.User):
                 )
                 logger.debug(f"{enqueued_message=}")
                 redis_client: Redis = request.state.redis_client
-                event_stream_generator = _produce_event_stream_for_topic(
+                event_stream_generator = produce_event_stream_for_topic(
                     redis_client,
                     request,
                     topic_name=f"progress:{request_id}",
@@ -275,69 +273,6 @@ async def create_project(request: Request, user: schemas.User):
                 )
 
         return DatastarResponse(stream_events())
-
-
-async def _produce_event_stream_for_topic(
-    redis_client: Redis,
-    request: Request,
-    topic_name: str,
-    success_redirect_url: str,
-    timeout_seconds: int = 30,
-):
-    async with redis_client.pubsub() as pubsub:
-        await pubsub.subscribe(topic_name)
-        try:
-            while True:
-                if await request.is_disconnected():
-                    logger.info(f"client disconnected from topic {topic_name!r}")
-                    break
-                try:
-                    if message := await pubsub.get_message(
-                        ignore_subscribe_messages=False, timeout=timeout_seconds
-                    ):
-                        if message["type"] == "subscribe":
-                            logger.debug(f"Subscribed to topic {topic_name!r}")
-                        elif message["type"] == "message":
-                            processing_message = schemas.ProcessingMessage(
-                                **json.loads(message["data"])
-                            )
-                            logger.debug(f"Received message: {processing_message!r}")
-                            yield ServerSentEventGenerator.patch_elements(
-                                f"<li>{processing_message.status.get_translated_value()} "
-                                f"- {processing_message.message}</li>",
-                                selector="#feedback > ul",
-                                mode=ElementPatchMode.APPEND,
-                            )
-                            if processing_message.status in (
-                                constants.ProcessingStatus.SUCCESS,
-                                constants.ProcessingStatus.FAILED,
-                            ):
-                                if (
-                                    processing_message.status
-                                    == constants.ProcessingStatus.SUCCESS
-                                ):
-                                    yield ServerSentEventGenerator.patch_elements(
-                                        "<li>Processing completed successfully - you will be redirected shortly</li>",
-                                        selector="#feedback > ul",
-                                        mode=ElementPatchMode.APPEND,
-                                    )
-                                    await asyncio.sleep(1)
-                                    yield ServerSentEventGenerator.redirect(
-                                        success_redirect_url
-                                    )
-                                break
-                    else:
-                        logging.info(
-                            f"pubsub listener for topic {topic_name!r} timed out after {timeout_seconds} seconds"
-                        )
-                        break
-                except asyncio.CancelledError:
-                    logger.info(
-                        f"pubsub listener for topic {topic_name!r} was cancelled"
-                    )
-                    raise
-        finally:
-            await pubsub.unsubscribe(topic_name)
 
 
 @csrf_protect
@@ -404,7 +339,7 @@ async def delete_project(request: Request, user: schemas.User):
         )
         logger.debug(f"{enqueued_message=}")
         redis_client: Redis = request.state.redis_client
-        event_stream_generator = _produce_event_stream_for_topic(
+        event_stream_generator = produce_event_stream_for_topic(
             redis_client,
             request,
             topic_name=f"progress:{request_id}",
@@ -418,16 +353,11 @@ async def delete_project(request: Request, user: schemas.User):
 
 
 @csrf_protect
-@requires_auth
-async def create_survey_mission(request: Request, user: schemas.User):
+async def add_create_survey_mission_form_link(request: Request):
+    """Add a form link to a create_survey_mission form."""
     user = get_user(request.session.get("user", {}))
-    slug = request.path_params["project_slug"]
     session_maker = request.state.session_maker
-    template_processor: Jinja2Templates = request.state.templates
-    create_survey_mission_form = await forms.SurveyMissionCreateForm.from_formdata(
-        request
-    )
-
+    slug = request.path_params["project_slug"]
     async with session_maker() as session:
         try:
             project = await operations.get_project_by_slug(
@@ -442,145 +372,66 @@ async def create_survey_mission(request: Request, user: schemas.User):
             raise HTTPException(
                 status_code=404, detail=_(f"Project {slug!r} not found.")
             )
+    create_survey_mission_form = await forms.SurveyMissionCreateForm.from_formdata(
+        request
+    )
+    create_survey_mission_form.links.append_entry()
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template("survey-missions/create-form.html")
+    rendered = template.render(
+        form=create_survey_mission_form,
+        request=request,
+        project=schemas.ProjectReadDetail.from_db_instance(project),
+    )
 
-    if request.method == "GET":
-        return template_processor.TemplateResponse(
-            request,
-            "survey-missions/create.html",
-            context={
-                "form": create_survey_mission_form,
-                "breadcrumbs": [
-                    schemas.BreadcrumbItem(
-                        name=_("Home"), url=str(request.url_for("home"))
-                    ),
-                    schemas.BreadcrumbItem(
-                        name=_("Projects"),
-                        url=request.url_for("projects:list"),
-                    ),
-                    schemas.BreadcrumbItem(
-                        name=project.slug,
-                        url=request.url_for("projects:detail", project_slug=slug),
-                    ),
-                    schemas.BreadcrumbItem(
-                        name=_("New survey mission"),
-                    ),
-                ],
-            },
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector="#survey-mission-create-form-container",
+            mode=ElementPatchMode.INNER,
         )
-    elif request.method == "POST":
 
-        async def stream_events():
-            # first validate the form with WTForms' validation logic
-            # then validate the form data with our custom pydantic model
-            await create_survey_mission_form.validate_on_submit()
-            forms.validate_form_with_model(
-                create_survey_mission_form,
-                schemas.SurveyMissionCreate,
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def remove_create_survey_mission_form_link(request: Request):
+    """Remove a form link from a create_survey_mission form."""
+    user = get_user(request.session.get("user", {}))
+    session_maker = request.state.session_maker
+    slug = request.path_params["project_slug"]
+    async with session_maker() as session:
+        try:
+            project = await operations.get_project_by_slug(
+                slug,
+                user.id if user else None,
+                session,
+                request.state.settings,
             )
-            # For some unknown reason, wtforms does not report validation errors for
-            # the 'links' listfield together with the other validation errors. This may
-            # have something to with the fact that we are setting the 'errors' property
-            # of fields manually. Anyway, we need to emply the below workaround in order
-            # to verify if the form contains any erors.
-            all_form_validation_errors = {**create_survey_mission_form.errors}
-            for link in create_survey_mission_form.links.entries:
-                all_form_validation_errors.update(**link.errors)
-            if not all_form_validation_errors:
-                request_id = schemas.RequestId(uuid.uuid4())
-                to_create = schemas.SurveyMissionCreate(
-                    id=schemas.SurveyMissionId(uuid.uuid4()),
-                    project_id=project.id,
-                    owner=user.id,
-                    name=schemas.LocalizableDraftName(
-                        en=create_survey_mission_form.name.en.data,
-                        pt=create_survey_mission_form.name.pt.data,
-                    ),
-                    description=schemas.LocalizableDraftDescription(
-                        en=create_survey_mission_form.description.en.data,
-                        pt=create_survey_mission_form.description.pt.data,
-                    ),
-                    relative_path=create_survey_mission_form.relative_path.data,
-                    links=[
-                        schemas.LinkSchema(
-                            url=lf.url.data,
-                            media_type=lf.media_type.data,
-                            relation=lf.relation.data,
-                            link_description=schemas.LocalizableDraftDescription(
-                                en=lf.link_description.en.data,
-                                pt=lf.link_description.pt.data,
-                            ),
-                        )
-                        for lf in create_survey_mission_form.links.entries
-                    ],
-                )
-                logger.info(f"{to_create=}")
+        except errors.SeisLabDataError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        if project is None:
+            raise HTTPException(
+                status_code=404, detail=_(f"Project {slug!r} not found.")
+            )
+    create_survey_mission_form = await forms.SurveyMissionCreateForm.from_formdata(
+        request
+    )
+    link_index = int(request.path_params["link_index"])
+    create_survey_mission_form.links.entries.pop(link_index)
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template("survey-missions/create-form.html")
+    rendered = template.render(
+        form=create_survey_mission_form,
+        request=request,
+        project=schemas.ProjectReadDetail.from_db_instance(project),
+    )
 
-                yield ServerSentEventGenerator.patch_elements(
-                    """<li>Creating survey mission as a background task...</li>""",
-                    selector="#feedback > ul",
-                    mode=ElementPatchMode.APPEND,
-                )
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector="#survey-mission-create-form-container",
+            mode=ElementPatchMode.INNER,
+        )
 
-                enqueued_message: Message = tasks.create_survey_mission.send(
-                    raw_request_id=str(request_id),
-                    raw_to_create=to_create.model_dump_json(),
-                    raw_initiator=json.dumps(dataclasses.asdict(user)),
-                )
-                logger.debug(f"{enqueued_message=}")
-                redis_client: Redis = request.state.redis_client
-                event_stream_generator = _produce_event_stream_for_topic(
-                    redis_client,
-                    request,
-                    topic_name=f"progress:{request_id}",
-                    success_redirect_url=str(
-                        request.url_for(
-                            "survey_missions:detail", survey_mission_slug=to_create.slug
-                        )
-                    ),
-                    timeout_seconds=30,
-                )
-                async for sse_event in event_stream_generator:
-                    yield sse_event
-
-            else:
-                logger.debug("form did not validate")
-                template = template_processor.get_template(
-                    "survey-missions/create-form.html"
-                )
-                rendered = template.render(
-                    request=request,
-                    form=create_survey_mission_form,
-                )
-                yield ServerSentEventGenerator.patch_elements(
-                    rendered,
-                    selector="#survey-mission-create-form-container",
-                    mode=ElementPatchMode.INNER,
-                )
-
-        return DatastarResponse(stream_events())
-
-
-routes = [
-    Route("/", list_projects, methods=["GET"], name="list"),
-    Route(
-        "/new/add-form-link",
-        add_create_project_form_link,
-        methods=["POST"],
-        name="add_form_link",
-    ),
-    Route(
-        "/new/remove-form-link/{link_index}",
-        remove_create_project_form_link,
-        methods=["POST"],
-        name="remove_form_link",
-    ),
-    Route("/new", create_project, methods=["GET", "POST"], name="create"),
-    Route("/{project_slug}", get_project, methods=["GET", "DELETE"], name="detail"),
-    Route("/{project_slug}/delete", delete_project, methods=["POST"], name="delete"),
-    Route(
-        "/project_slug}/survey-missions/new",
-        create_survey_mission,
-        methods=["GET", "POST"],
-        name="create_survey_mission",
-    ),
-]
+    return DatastarResponse(event_streamer())

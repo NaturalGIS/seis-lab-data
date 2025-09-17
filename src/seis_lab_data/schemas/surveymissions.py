@@ -65,13 +65,22 @@ class SurveyMissionReadListItem(pydantic.BaseModel):
     description: LocalizableDraftDescription
     status: SurveyMissionStatus
     is_valid: bool
+    project: ProjectReadEmbedded
+
+    @classmethod
+    def from_db_instance(
+        cls, instance: models.SurveyMission
+    ) -> "SurveyMissionReadListItem":
+        return cls(
+            **instance.model_dump(),
+            project=ProjectReadEmbedded.from_db_instance(instance.project),
+        )
 
 
 class SurveyMissionReadDetail(SurveyMissionReadListItem):
     owner: UserId
     relative_path: str
     links: list[LinkSchema] = []
-    project: ProjectReadEmbedded
 
     @classmethod
     def from_db_instance(

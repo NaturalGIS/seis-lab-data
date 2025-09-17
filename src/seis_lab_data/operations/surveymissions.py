@@ -48,7 +48,7 @@ async def create_survey_mission(
 
 async def delete_survey_mission(
     survey_mission_id: schemas.SurveyMissionId,
-    initiator: schemas.UserId | None,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
@@ -70,7 +70,7 @@ async def delete_survey_mission(
     event_emitter(
         schemas.SeisLabDataEvent(
             type_=schemas.EventType.SURVEY_MISSION_DELETED,
-            initiator=initiator,
+            initiator=initiator.id,
             payload=schemas.EventPayload(before=serialized_survey_mission),
         )
     )

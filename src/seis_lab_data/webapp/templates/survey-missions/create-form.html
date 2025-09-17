@@ -8,7 +8,7 @@
         {{ macros.render_form_field(description_field, "description-") }}
     {% endfor %}
 
-    {{ macros.render_form_field(form.root_path) }}
+    {{ macros.render_form_field(form.relative_path) }}
 
     <h3 data-signals="{nextIndex: {{ form.links|length }}}">{{ _("Links") }}</h3>
     <div class="row border p-4 mb-3">
@@ -24,7 +24,7 @@
                 <button
                         type="submit"
                         class="btn btn-outline-secondary"
-                        data-on-click="@post('{{ url_for("survey_missions:remove_form_link", link_index=loop.index0) }}', {
+                        data-on-click="@post('{{ url_for("projects:remove_create_survey_mission_form_link", project_slug=project.slug, link_index=loop.index0) }}', {
                   contentType: 'form',
                   headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'},
                 })"
@@ -36,7 +36,7 @@
                 <button
                         type="button"
                         class="btn btn-outline-secondary"
-                        data-on-click="@post('{{ url_for("survey_missions:add_form_link") }}', {
+                        data-on-click="@post('{{ url_for("projects:add_create_survey_mission_form_link", project_slug=project.slug) }}', {
           contentType: 'form',
           headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'},
         })"
@@ -52,7 +52,7 @@
             <button
                     type="submit"
                     class="btn btn-primary"
-                    data-on-click="@post('{{ url_for('survey_missions:create') }}', {
+                    data-on-click="@post('{{ url_for('projects:create_survey_mission', project_slug=project.slug) }}', {
                             contentType: 'form',
                             headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
                         })"
