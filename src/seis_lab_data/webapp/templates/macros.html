@@ -10,9 +10,9 @@
         </div>
         <div class="col-sm-10{% if field.errors %} has-validation{% endif %}">
             {% if field.flags.backend_required %}
-                {{ field(class=form_element_classes, aria_describedby=form_element_described_by, aria_required="true") }}
+                {{ field(class=form_element_classes, aria_describedby=form_element_described_by, aria_required="true", data_bind=field.name, **kwargs) }}
             {% else %}
-                {{ field(class=form_element_classes, aria_describedby=form_element_described_by) }}
+                {{ field(class=form_element_classes, aria_describedby=form_element_described_by, data_bind=field.name, **kwargs) }}
             {% endif %}
             <div id="{{ name_prefix }}{{ field.name }}-help" class="form-text">
                 {{ field.description }}{% if field.flags.backend_required %} -
