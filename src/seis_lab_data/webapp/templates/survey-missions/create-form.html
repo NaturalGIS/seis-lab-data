@@ -24,7 +24,7 @@
                 <button
                         type="submit"
                         class="btn btn-outline-secondary"
-                        data-on-click="@post('{{ url_for("projects:survey_mission_remove_create_form_link", project_slug=project.slug, link_index=loop.index0) }}', {
+                        data-on-click="@post('{{ url_for("survey_missions:remove_create_form_link", link_index=loop.index0) }}', {
                   contentType: 'form',
                   headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'},
                 })"
@@ -36,7 +36,7 @@
                 <button
                         type="button"
                         class="btn btn-outline-secondary"
-                        data-on-click="@post('{{ url_for("projects:survey_mission_add_create_form_link", project_slug=project.slug) }}', {
+                        data-on-click="@post('{{ url_for("survey_missions:add_create_form_link") }}', {
           contentType: 'form',
           headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'},
         })"
@@ -52,7 +52,7 @@
             <button
                     type="submit"
                     class="btn btn-primary"
-                    data-on-click="@post('{{ url_for('projects:survey_mission_list', project_slug=project.slug) }}', {
+                    data-on-click="@post('{{ url_for('projects:detail', project_id=project.id) }}', {
                             contentType: 'form',
                             headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
                         })"

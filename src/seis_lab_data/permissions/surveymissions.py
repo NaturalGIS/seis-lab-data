@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 async def can_read_survey_mission(
     user: schemas.User,
-    survey_mission_slug: str,
+    survey_mission_id: schemas.SurveyMissionId,
     *,
     settings: config.SeisLabDataSettings,
 ):

@@ -86,7 +86,7 @@ async def create_project(
             schemas.ProcessingMessage(
                 request_id=request_id,
                 status=ProcessingStatus.RUNNING,
-                message=f"Created project {project.slug!r}",
+                message=f"Created project {project.id!r}",
             ).model_dump_json(),
         )
 
@@ -220,7 +220,7 @@ async def create_survey_mission(
             schemas.ProcessingMessage(
                 request_id=request_id,
                 status=ProcessingStatus.RUNNING,
-                message=f"Created survey mission {survey_mission.slug!r}",
+                message=f"Created survey mission {survey_mission.id!r}",
             ).model_dump_json(),
         )
 

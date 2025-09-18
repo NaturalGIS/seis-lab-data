@@ -94,16 +94,16 @@ async def list_survey_missions(
     )
 
 
-async def get_survey_mission_by_slug(
-    survey_mission_slug: str,
-    initiator: schemas.UserId | None,
+async def get_survey_mission(
+    survey_mission_id: schemas.SurveyMissionId,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
 ) -> models.SurveyMission | None:
     if not permissions.can_read_survey_mission(
-        initiator, survey_mission_slug, settings=settings
+        initiator, survey_mission_id, settings=settings
     ):
         raise errors.SeisLabDataError(
-            f"User is not allowed to read survey mission {survey_mission_slug!r}."
+            f"User is not allowed to read survey mission {survey_mission_id!r}."
         )
-    return await queries.get_survey_mission_by_slug(session, survey_mission_slug)
+    return await queries.get_survey_mission(session, survey_mission_id)

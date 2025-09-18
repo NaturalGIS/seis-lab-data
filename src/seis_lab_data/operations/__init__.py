@@ -1,13 +1,13 @@
 from .projects import (
     create_project,
     delete_project,
-    get_project_by_slug,
+    get_project,
     list_projects,
 )
 from .surveymissions import (
     create_survey_mission,
     delete_survey_mission,
-    get_survey_mission_by_slug,
+    get_survey_mission,
     list_survey_missions,
 )
 from .surveyrelatedrecords import (
@@ -19,7 +19,7 @@ from .surveyrelatedrecords import (
     delete_domain_type,
     delete_survey_related_record,
     delete_workflow_stage,
-    get_survey_related_record_by_slug,
+    get_survey_related_record,
     list_dataset_categories,
     list_domain_types,
     list_survey_related_records,
@@ -39,9 +39,9 @@ __all__ = [
     delete_survey_mission,
     delete_survey_related_record,
     delete_workflow_stage,
-    get_project_by_slug,
-    get_survey_mission_by_slug,
-    get_survey_related_record_by_slug,
+    get_project,
+    get_survey_mission,
+    get_survey_related_record,
     list_dataset_categories,
     list_domain_types,
     list_projects,

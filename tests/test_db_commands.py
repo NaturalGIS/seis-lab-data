@@ -107,7 +107,7 @@ async def test_create_project(db, db_session_maker):
         created = await commands.create_project(session, to_create)
         assert created.id == to_create.id
         assert created.owner == to_create.owner
-        assert created.slug == "a-fake-project"
+        assert created.id == to_create.id
         assert created.name["en"] == to_create.name["en"]
         assert created.name["pt"] == to_create.name["pt"]
 
@@ -152,7 +152,7 @@ async def test_create_survey_mission(db, db_session_maker, sample_projects):
         created = await commands.create_survey_mission(session, to_create)
         assert created.id == to_create.id
         assert created.owner == to_create.owner
-        assert created.slug == "a-fake-survey-mission"
+        assert created.id == to_create.id
         assert created.name["en"] == to_create.name["en"]
         assert created.name["pt"] == to_create.name["pt"]
 
@@ -251,7 +251,7 @@ async def test_create_survey_related_record(
         created = await commands.create_survey_related_record(session, to_create)
         assert created.id == to_create.id
         assert created.owner == to_create.owner
-        assert created.slug == "a-fake-survey-related-record"
+        assert created.id == to_create.id
         assert created.name["en"] == to_create.name["en"]
         assert created.name["pt"] == to_create.name["pt"]
 

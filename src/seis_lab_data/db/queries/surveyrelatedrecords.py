@@ -60,26 +60,6 @@ async def get_survey_related_record(
     return (await session.exec(statement)).first()
 
 
-async def get_survey_related_record_by_slug(
-    session: AsyncSession, slug: str
-) -> models.SurveyRelatedRecord | None:
-    statement = (
-        select(models.SurveyRelatedRecord)
-        .where(models.SurveyRelatedRecord.slug == slug)
-        .options(
-            selectinload(models.SurveyRelatedRecord.survey_mission).selectinload(
-                models.SurveyMission.project
-            )
-        )
-        .options(selectinload(models.SurveyRelatedRecord.dataset_category))
-        .options(selectinload(models.SurveyRelatedRecord.domain_type))
-        .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
-        # adding all assets too, since they will always be a small list
-        .options(selectinload(models.SurveyRelatedRecord.assets))
-    )
-    return (await session.exec(statement)).first()
-
-
 async def list_dataset_categories(
     session: AsyncSession,
     limit: int = 20,

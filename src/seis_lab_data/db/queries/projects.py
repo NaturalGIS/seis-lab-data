@@ -34,10 +34,3 @@ async def get_project(
     project_id: schemas.ProjectId,
 ) -> models.Project | None:
     return await session.get(models.Project, project_id)
-
-
-async def get_project_by_slug(
-    session: AsyncSession, slug: str
-) -> models.Project | None:
-    statement = select(models.Project).where(models.Project.slug == slug)
-    return (await session.exec(statement)).first()

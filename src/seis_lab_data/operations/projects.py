@@ -82,14 +82,14 @@ async def list_projects(
     return await queries.list_projects(session, initiator, limit, offset, include_total)
 
 
-async def get_project_by_slug(
-    project_slug: str,
+async def get_project(
+    project_id: schemas.ProjectId,
     initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
 ) -> models.Project | None:
-    if not permissions.can_read_project(initiator, project_slug, settings=settings):
+    if not permissions.can_read_project(initiator, project_id, settings=settings):
         raise errors.SeisLabDataError(
-            f"User is not allowed to read project {project_slug!r}."
+            f"User is not allowed to read project {project_id!r}."
         )
-    return await queries.get_project_by_slug(session, project_slug)
+    return await queries.get_project(session, project_id)

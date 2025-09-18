@@ -27,15 +27,6 @@ class ProjectCreateForm(StarletteForm):
     # A notable exception is we do want to validate the max length of string-based
     # inputs
     name = FormField(NameForm)
-    slug = StringField(
-        _("Slug"),
-        description=_(
-            f"Short label for the project, to be used in URLs and file paths. "
-            f"Allowed characters are letters, numbers, and hyphen. "
-            f"Additionally, it cannot exceed {constants.NAME_MAX_LENGTH} "
-            f"characters"
-        ),
-    )
     description = FormField(DescriptionForm)
     root_path = StringField(
         _("Root path"),

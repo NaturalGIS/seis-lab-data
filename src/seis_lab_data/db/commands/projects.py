@@ -1,4 +1,3 @@
-from slugify import slugify
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import (
@@ -40,8 +39,6 @@ async def update_project(
 ) -> models.Project:
     for key, value in to_update.model_dump(exclude_unset=True).items():
         setattr(project, key, value)
-        if key == "name":
-            setattr(project, "slug", slugify(value.get("en", "")))
     session.add(project)
     await session.commit()
     await session.refresh(project)

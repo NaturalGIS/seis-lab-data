@@ -4,7 +4,7 @@
     <div class="row">
         <div class="col">
             {% if user_can_create_survey_related_record %}
-                <a class="btn btn-primary" href="{{ url_for('projects:survey_related_record_create', project_slug=item.project.slug, survey_mission_slug=item.slug) }}">{{ _("New survey-related record") }}</a>
+                <a class="btn btn-primary" href="{{ url_for('survey_related_records:get_creation_form', survey_mission_id=item.id) }}">{{ _("New survey-related record") }}</a>
             {% endif %}
         </div>
     </div>
@@ -84,7 +84,7 @@
             <dt class="col-sm-3">{{ _("Is valid") }}</dt>
             <dd class="col-sm-9">{{ item.is_valid }}</dd>
             <dt class="col-sm-3">{{ _("Project") }}</dt>
-            <dd class="col-sm-9"><a href="{{ url_for('projects:detail', project_slug=item.project.slug) }}">{{ item.project.name|translate_localizable_string }}</a></dd>
+            <dd class="col-sm-9"><a href="{{ url_for('projects:detail', project_id=item.project.id) }}">{{ item.project.name|translate_localizable_string }}</a></dd>
             <dt class="col-sm-3">{{ _("Relative path") }}</dt>
             <dd class="col-sm-9">{{ item.relative_path }}</dd>
         </dl>
@@ -129,7 +129,7 @@
                 <button
                         type="button"
                         class="btn btn-danger"
-                        data-on-click="@delete('{{ url_for('projects:survey_mission_detail', project_slug=item.project.slug, survey_mission_slug=item.slug) }}')"
+                        data-on-click="@delete('{{ url_for('survey_missions:detail', survey_mission_id=item.id) }}')"
                         data-indicator="deleting"
                         data-bs-dismiss="modal"
                 >{{ _("Delete survey mission") }}</button>

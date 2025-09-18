@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 async def can_read_project(
     user: schemas.User,
-    project_slug: str,
+    project_id: schemas.ProjectId,
     *,
     settings: config.SeisLabDataSettings,
 ):

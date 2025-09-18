@@ -1,5 +1,4 @@
 import pydantic
-from slugify import slugify
 
 from ..db import models
 from ..constants import SurveyRelatedRecordStatus
@@ -83,7 +82,6 @@ class RecordAssetReadDetailEmbedded(RecordAssetReadListItem):
 
 class SurveyRelatedRecordReadEmbedded(pydantic.BaseModel):
     id: SurveyRelatedRecordId
-    slug: str
     name: LocalizableDraftName
     status: SurveyRelatedRecordStatus
     is_valid: bool
@@ -130,11 +128,6 @@ class SurveyRelatedRecordCreate(pydantic.BaseModel):
     links: list[LinkSchema] = []
     assets: list[RecordAssetCreate] = []
 
-    @pydantic.computed_field
-    @property
-    def slug(self) -> str:
-        return slugify(self.name.en, "")
-
 
 class SurveyRelatedRecordUpdate(pydantic.BaseModel):
     owner: UserId | None = None
@@ -150,7 +143,6 @@ class SurveyRelatedRecordUpdate(pydantic.BaseModel):
 
 class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
     id: SurveyRelatedRecordId
-    slug: str
     name: LocalizableDraftName
     description: LocalizableDraftDescription
     status: SurveyRelatedRecordStatus

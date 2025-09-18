@@ -1,7 +1,6 @@
 import uuid
 
 import pydantic
-from slugify import slugify
 
 from ..constants import SurveyMissionStatus
 from ..db import models
@@ -25,11 +24,6 @@ class SurveyMissionCreate(pydantic.BaseModel):
     relative_path: str
     links: list[LinkSchema] = []
 
-    @pydantic.computed_field
-    @property
-    def slug(self) -> str:
-        return slugify(self.name.en, "")
-
 
 class SurveyMissionUpdate(pydantic.BaseModel):
     owner: UserId | None = None
@@ -42,7 +36,6 @@ class SurveyMissionUpdate(pydantic.BaseModel):
 
 class SurveyMissionReadEmbedded(pydantic.BaseModel):
     id: SurveyMissionId
-    slug: str
     name: LocalizableDraftName
     status: SurveyMissionStatus
     is_valid: bool
@@ -60,7 +53,6 @@ class SurveyMissionReadEmbedded(pydantic.BaseModel):
 
 class SurveyMissionReadListItem(pydantic.BaseModel):
     id: SurveyMissionId
-    slug: str
     name: LocalizableDraftName
     description: LocalizableDraftDescription
     status: SurveyMissionStatus

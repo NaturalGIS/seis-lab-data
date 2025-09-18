@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 @csrf_protect
 @fancy_requires_auth
 async def get_project_creation_form(request: Request):
+    """Return a form suitable for creating a new project."""
     template_processor: Jinja2Templates = request.state.templates
     creation_form = await forms.ProjectCreateForm.from_formdata(request)
     return template_processor.TemplateResponse(
@@ -59,6 +60,8 @@ async def get_project_creation_form(request: Request):
 
 
 class ProjectCollectionEndpoint(HTTPEndpoint):
+    """Manage the collection of projects."""
+
     async def get(self, request: Request):
         """List projects."""
         session_maker = request.state.session_maker
@@ -66,7 +69,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         async with session_maker() as session:
             items, num_total = await operations.list_projects(
                 session,
-                initiator=user.id if user else None,
+                initiator=user or None,
                 limit=request.query_params.get("limit", 20),
                 offset=request.query_params.get("offset", 0),
                 include_total=True,
@@ -93,6 +96,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
     @csrf_protect
     @fancy_requires_auth
     async def post(self, request: Request):
+        """Create a new project."""
         template_processor: Jinja2Templates = request.state.templates
         user = get_user(request.session.get("user", {}))
         create_project_form = await forms.ProjectCreateForm.from_formdata(request)
@@ -160,7 +164,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                     request,
                     topic_name=f"progress:{request_id}",
                     success_redirect_url=str(
-                        request.url_for("projects:detail", project_slug=to_create.slug)
+                        request.url_for("projects:detail", project_id=to_create.id)
                     ),
                     timeout_seconds=30,
                 )
@@ -184,16 +188,20 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
 
 
 class ProjectDetailEndpoint(HTTPEndpoint):
+    """Manage a single project and its collection of survey missions."""
+
     async def get(self, request: Request):
-        """Get project."""
+        """
+        Get project details and provide a paginated list of its survey missions.
+        """
         user = get_user(request.session.get("user", {}))
         session_maker = request.state.session_maker
-        slug = request.path_params["project_slug"]
+        project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
         async with session_maker() as session:
             try:
-                project = await operations.get_project_by_slug(
-                    slug,
-                    user.id if user else None,
+                project = await operations.get_project(
+                    project_id,
+                    user or None,
                     session,
                     request.state.settings,
                 )
@@ -201,9 +209,8 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 raise HTTPException(status_code=404, detail=str(exc)) from exc
             if project is None:
                 raise HTTPException(
-                    status_code=404, detail=_(f"Project {slug!r} not found.")
+                    status_code=404, detail=_(f"Project {project_id!r} not found.")
                 )
-            project_id = schemas.ProjectId(project.id)
             survey_missions, total = await operations.list_survey_missions(
                 session, user, project_filter=project_id, include_total=True
             )
@@ -241,16 +248,23 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             },
         )
 
+    @csrf_protect
+    @fancy_requires_auth
+    async def post(self, request: Request):
+        """Create a new project-related survey mission."""
+        ...
+
     @fancy_requires_auth
     async def delete(self, request: Request):
+        """Delete a project."""
         user = get_user(request.session.get("user", {}))
         session_maker = request.state.session_maker
-        slug = request.path_params["project_slug"]
+        project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
         async with session_maker() as session:
             try:
-                project = await operations.get_project_by_slug(
-                    slug,
-                    user.id if user else None,
+                project = await operations.get_project(
+                    project_id,
+                    user or None,
                     session,
                     request.state.settings,
                 )
@@ -258,9 +272,8 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 raise HTTPException(status_code=404, detail=str(exc)) from exc
             if project is None:
                 raise HTTPException(
-                    status_code=404, detail=_(f"Project {slug!r} not found.")
+                    status_code=404, detail=_(f"Project {project_id!r} not found.")
                 )
-            project_id = schemas.ProjectId(project.id)
 
         async def stream_events():
             request_id = schemas.RequestId(uuid.uuid4())
@@ -292,12 +305,12 @@ class ProjectDetailEndpoint(HTTPEndpoint):
 @csrf_protect
 async def add_create_project_form_link(request: Request):
     """Add a form link to a create_project form."""
-    create_project_form = await forms.ProjectCreateForm.from_formdata(request)
-    create_project_form.links.append_entry()
+    creation_form = await forms.ProjectCreateForm.from_formdata(request)
+    creation_form.links.append_entry()
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template("projects/create-form.html")
     rendered = template.render(
-        form=create_project_form,
+        form=creation_form,
         request=request,
     )
 
@@ -314,13 +327,13 @@ async def add_create_project_form_link(request: Request):
 @csrf_protect
 async def remove_create_project_form_link(request: Request):
     """Remove a form link from a create_project form."""
-    create_project_form = await forms.ProjectCreateForm.from_formdata(request)
+    creation_form = await forms.ProjectCreateForm.from_formdata(request)
     link_index = int(request.path_params["link_index"])
-    create_project_form.links.entries.pop(link_index)
+    creation_form.links.entries.pop(link_index)
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template("projects/create-form.html")
     rendered = template.render(
-        form=create_project_form,
+        form=creation_form,
         request=request,
     )
 
@@ -339,12 +352,12 @@ async def add_create_survey_mission_form_link(request: Request):
     """Add a form link to a create_survey_mission form."""
     user = get_user(request.session.get("user", {}))
     session_maker = request.state.session_maker
-    slug = request.path_params["project_slug"]
+    project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
     async with session_maker() as session:
         try:
-            project = await operations.get_project_by_slug(
-                slug,
-                user.id if user else None,
+            project = await operations.get_project(
+                project_id,
+                user or None,
                 session,
                 request.state.settings,
             )
@@ -352,16 +365,14 @@ async def add_create_survey_mission_form_link(request: Request):
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         if project is None:
             raise HTTPException(
-                status_code=404, detail=_(f"Project {slug!r} not found.")
+                status_code=404, detail=_(f"Project {project_id!r} not found.")
             )
-    create_survey_mission_form = await forms.SurveyMissionCreateForm.from_formdata(
-        request
-    )
-    create_survey_mission_form.links.append_entry()
+    creation_form = await forms.SurveyMissionCreateForm.from_formdata(request)
+    creation_form.links.append_entry()
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template("survey-missions/create-form.html")
     rendered = template.render(
-        form=create_survey_mission_form,
+        form=creation_form,
         request=request,
         project=schemas.ProjectReadDetail.from_db_instance(project),
     )
@@ -381,12 +392,12 @@ async def remove_create_survey_mission_form_link(request: Request):
     """Remove a form link from a create_survey_mission form."""
     user = get_user(request.session.get("user", {}))
     session_maker = request.state.session_maker
-    slug = request.path_params["project_slug"]
+    project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
     async with session_maker() as session:
         try:
-            project = await operations.get_project_by_slug(
-                slug,
-                user.id if user else None,
+            project = await operations.get_project(
+                project_id,
+                user or None,
                 session,
                 request.state.settings,
             )
@@ -394,7 +405,7 @@ async def remove_create_survey_mission_form_link(request: Request):
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         if project is None:
             raise HTTPException(
-                status_code=404, detail=_(f"Project {slug!r} not found.")
+                status_code=404, detail=_(f"Project {project_id!r} not found.")
             )
     create_survey_mission_form = await forms.SurveyMissionCreateForm.from_formdata(
         request

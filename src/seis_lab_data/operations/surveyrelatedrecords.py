@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 async def create_dataset_category(
     to_create: schemas.DatasetCategoryCreate,
-    initiator: schemas.UserId | None,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
@@ -36,7 +36,7 @@ async def create_dataset_category(
     event_emitter(
         schemas.SeisLabDataEvent(
             type_=schemas.EventType.DATASET_CATEGORY_CREATED,
-            initiator=initiator,
+            initiator=initiator.id,
             payload=schemas.EventPayload(
                 after=schemas.DatasetCategoryRead(
                     **dataset_category.model_dump()
@@ -49,7 +49,7 @@ async def create_dataset_category(
 
 async def delete_dataset_category(
     dataset_category_id: uuid.UUID,
-    initiator: schemas.UserId | None,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
@@ -72,7 +72,7 @@ async def delete_dataset_category(
     event_emitter(
         schemas.SeisLabDataEvent(
             type_=schemas.EventType.DATASET_CATEGORY_DELETED,
-            initiator=initiator,
+            initiator=initiator.id,
             payload=schemas.EventPayload(before=serialized_category),
         )
     )
@@ -89,7 +89,7 @@ async def list_dataset_categories(
 
 async def create_domain_type(
     to_create: schemas.DomainTypeCreate,
-    initiator: schemas.UserId | None,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
@@ -102,7 +102,7 @@ async def create_domain_type(
     event_emitter(
         schemas.SeisLabDataEvent(
             type_=schemas.EventType.DOMAIN_TYPE_CREATED,
-            initiator=initiator,
+            initiator=initiator.id,
             payload=schemas.EventPayload(
                 after=schemas.DomainTypeRead(**domain_type.model_dump()).model_dump()
             ),
@@ -113,7 +113,7 @@ async def create_domain_type(
 
 async def delete_domain_type(
     domain_type_id: uuid.UUID,
-    initiator: schemas.UserId | None,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
@@ -134,7 +134,7 @@ async def delete_domain_type(
     event_emitter(
         schemas.SeisLabDataEvent(
             type_=schemas.EventType.DOMAIN_TYPE_DELETED,
-            initiator=initiator,
+            initiator=initiator.id,
             payload=schemas.EventPayload(before=serialized_domain_type),
         )
     )
@@ -151,7 +151,7 @@ async def list_domain_types(
 
 async def create_workflow_stage(
     to_create: schemas.WorkflowStageCreate,
-    initiator: schemas.UserId | None,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
@@ -164,7 +164,7 @@ async def create_workflow_stage(
     event_emitter(
         schemas.SeisLabDataEvent(
             type_=schemas.EventType.WORKFLOW_STAGE_CREATED,
-            initiator=initiator,
+            initiator=initiator.id,
             payload=schemas.EventPayload(
                 after=schemas.DomainTypeRead(**workflow_stage.model_dump()).model_dump()
             ),
@@ -175,7 +175,7 @@ async def create_workflow_stage(
 
 async def delete_workflow_stage(
     workflow_stage_id: uuid.UUID,
-    initiator: schemas.UserId | None,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
@@ -196,7 +196,7 @@ async def delete_workflow_stage(
     event_emitter(
         schemas.SeisLabDataEvent(
             type_=schemas.EventType.WORKFLOW_STAGE_DELETED,
-            initiator=initiator,
+            initiator=initiator.id,
             payload=schemas.EventPayload(before=serialized_workflow_stage),
         )
     )
@@ -213,13 +213,15 @@ async def list_workflow_stages(
 
 async def create_survey_related_record(
     to_create: schemas.SurveyRelatedRecordCreate,
-    initiator: schemas.UserId | None,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ):
     if initiator is None or not await permissions.can_create_survey_related_record(
-        initiator, to_create, settings=settings
+        initiator,
+        schemas.SurveyMissionId(to_create.survey_mission_id),
+        settings=settings,
     ):
         raise errors.SeisLabDataError(
             "User is not allowed to create a survey-related record."
@@ -228,7 +230,7 @@ async def create_survey_related_record(
     event_emitter(
         schemas.SeisLabDataEvent(
             type_=schemas.EventType.SURVEY_RELATED_RECORD_CREATED,
-            initiator=initiator,
+            initiator=initiator.id,
             payload=schemas.EventPayload(
                 after=schemas.SurveyRelatedRecordReadDetail.from_db_instance(
                     survey_record
@@ -241,7 +243,7 @@ async def create_survey_related_record(
 
 async def delete_survey_related_record(
     survey_related_record_id: schemas.SurveyRelatedRecordId,
-    initiator: schemas.UserId | None,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
@@ -260,17 +262,14 @@ async def delete_survey_related_record(
         raise errors.SeisLabDataError(
             f"Survey-related record with id {survey_related_record_id!r} does not exist."
         )
-    record_assets = await queries.collect_all_record_assets(
-        session, survey_related_record_id
-    )
     serialized_survey_record = schemas.SurveyRelatedRecordReadDetail.from_db_instance(
-        survey_record, record_assets
+        survey_record
     ).model_dump()
     await commands.delete_survey_related_record(session, survey_related_record_id)
     event_emitter(
         schemas.SeisLabDataEvent(
             type_=schemas.EventType.SURVEY_RELATED_RECORD_DELETED,
-            initiator=initiator,
+            initiator=initiator.id,
             payload=schemas.EventPayload(before=serialized_survey_record),
         )
     )
@@ -294,19 +293,17 @@ async def list_survey_related_records(
     )
 
 
-async def get_survey_related_record_by_slug(
-    survey_related_record_slug: str,
-    initiator: schemas.UserId | None,
+async def get_survey_related_record(
+    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
 ) -> models.SurveyRelatedRecord | None:
     if not permissions.can_read_survey_related_record(
-        initiator, survey_related_record_slug, settings=settings
+        initiator, survey_related_record_id, settings=settings
     ):
         raise errors.SeisLabDataError(
             f"User is not allowed to read survey-related "
-            f"record {survey_related_record_slug!r}."
+            f"record {survey_related_record_id!r}."
         )
-    return await queries.get_survey_related_record_by_slug(
-        session, survey_related_record_slug
-    )
+    return await queries.get_survey_related_record(session, survey_related_record_id)

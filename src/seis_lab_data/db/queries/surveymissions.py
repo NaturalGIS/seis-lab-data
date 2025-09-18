@@ -37,14 +37,3 @@ async def get_survey_mission(
         .options(selectinload(models.SurveyMission.project))
     )
     return (await session.exec(statement)).first()
-
-
-async def get_survey_mission_by_slug(
-    session: AsyncSession, slug: str
-) -> models.SurveyMission | None:
-    statement = (
-        select(models.SurveyMission)
-        .where(models.SurveyMission.slug == slug)
-        .options(selectinload(models.SurveyMission.project))
-    )
-    return (await session.exec(statement)).first()

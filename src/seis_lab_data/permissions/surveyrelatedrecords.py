@@ -66,7 +66,7 @@ async def can_delete_workflow_stage(
 
 async def can_read_survey_related_record(
     user: schemas.User,
-    survey_related_record_slug: str,
+    survey_related_record_id: schemas.SurveyRelatedRecordId,
     *,
     settings: config.SeisLabDataSettings,
 ):

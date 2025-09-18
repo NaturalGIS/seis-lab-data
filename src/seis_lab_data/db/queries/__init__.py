@@ -1,7 +1,6 @@
 from .projects import (
     collect_all_projects,
     get_project,
-    get_project_by_slug,
     list_projects,
 )
 from .recordassets import (
@@ -11,7 +10,6 @@ from .recordassets import (
 )
 from .surveymissions import (
     get_survey_mission,
-    get_survey_mission_by_slug,
     list_survey_missions,
 )
 from .surveyrelatedrecords import (
@@ -23,7 +21,6 @@ from .surveyrelatedrecords import (
     get_domain_type,
     get_domain_type_by_english_name,
     get_survey_related_record,
-    get_survey_related_record_by_slug,
     get_workflow_stage,
     get_workflow_stage_by_english_name,
     list_dataset_categories,
@@ -43,12 +40,9 @@ __all__ = [
     get_domain_type,
     get_domain_type_by_english_name,
     get_project,
-    get_project_by_slug,
     get_record_asset,
     get_survey_mission,
-    get_survey_mission_by_slug,
     get_survey_related_record,
-    get_survey_related_record_by_slug,
     get_workflow_stage,
     get_workflow_stage_by_english_name,
     list_dataset_categories,
