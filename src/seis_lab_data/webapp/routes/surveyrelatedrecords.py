@@ -12,6 +12,10 @@ from ... import (
     operations,
     schemas,
 )
+from ...db import (
+    models,
+    queries,
+)
 from .. import forms
 from .auth import (
     get_user,
@@ -30,9 +34,34 @@ async def get_survey_related_record_creation_form(request: Request):
     session_maker = request.state.session_maker
     template_processor: Jinja2Templates = request.state.templates
     creation_form = await forms.SurveyRelatedRecordCreateForm.from_formdata(request)
+    current_language = request.state.language
 
     async with session_maker() as session:
         try:
+            creation_form.dataset_category_id.choices = [
+                (dc.id, dc.name.get(current_language, dc.name["en"]))
+                for dc in await queries.collect_all_dataset_categories(
+                    session,
+                    order_by_clause=models.DatasetCategory.name[
+                        current_language
+                    ].astext,
+                )
+            ]
+            creation_form.domain_type_id.choices = [
+                (dt.id, dt.name.get(current_language, dt.name["en"]))
+                for dt in await queries.collect_all_domain_types(
+                    session,
+                    order_by_clause=models.DomainType.name[current_language].astext,
+                )
+            ]
+            creation_form.workflow_stage_id.choices = [
+                (ws.id, ws.name.get(current_language, ws.name["en"]))
+                for ws in await queries.collect_all_workflow_stages(
+                    session,
+                    order_by_clause=models.WorkflowStage.name[current_language].astext,
+                )
+            ]
+
             survey_mission = await operations.get_survey_mission(
                 survey_mission_id, user, session, request.state.settings
             )
