@@ -15,6 +15,15 @@ async def create_survey_mission(
     to_create: schemas.SurveyMissionCreate,
 ) -> models.SurveyMission:
     survey_mission = models.SurveyMission(**to_create.model_dump())
+    # need to ensure the english name is unique for this combination of project and survey mission
+    if await queries.get_survey_mission_by_english_name(
+        session, schemas.ProjectId(to_create.project_id), to_create.name.en
+    ):
+        raise errors.SeisLabDataError(
+            f"There is already a survey mission with english name {to_create.name.en!r} for "
+            f"the same project."
+        )
+
     session.add(survey_mission)
     await session.commit()
     return await queries.get_survey_mission(session, to_create.id)

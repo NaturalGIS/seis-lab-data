@@ -16,6 +16,10 @@ async def create_project(
     project = models.Project(
         **to_create.model_dump(),
     )
+    if await queries.get_project_by_english_name(session, to_create.name.en):
+        raise errors.SeisLabDataError(
+            f"Project with english name {to_create.name.en!r} already exists."
+        )
     session.add(project)
     await session.commit()
     return await queries.get_project(session, to_create.id)

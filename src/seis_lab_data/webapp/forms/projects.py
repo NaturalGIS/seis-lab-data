@@ -1,5 +1,6 @@
 import logging
 
+from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette_babel import gettext_lazy as _
 from starlette_wtf import StarletteForm
 from wtforms import (
@@ -14,6 +15,7 @@ from .common import (
     NameForm,
 )
 from ... import constants
+from ...db.queries import get_project_by_english_name
 
 logger = logging.getLogger(__name__)
 
@@ -38,3 +40,9 @@ class ProjectCreateForm(StarletteForm):
         min_entries=0,
         max_entries=constants.PROJECT_MAX_LINKS,
     )
+
+    async def check_if_english_name_is_unique(self, session: AsyncSession):
+        if await get_project_by_english_name(session, self.name.en.data):
+            self.name.en.errors.append(
+                _("There is already a project with this english name")
+            )

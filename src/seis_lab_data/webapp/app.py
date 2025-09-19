@@ -135,7 +135,7 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                         name="list",
                     ),
                     Route(
-                        "/new",
+                        "/{project_id}/new",
                         routes.get_survey_mission_creation_form,
                         methods=["GET"],
                         name="get_creation_form",
@@ -170,7 +170,7 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                         name="list",
                     ),
                     Route(
-                        "/new",
+                        "/{survey_mission_id}/new",
                         routes.get_survey_related_record_creation_form,
                         methods=["GET"],
                         name="get_creation_form",

@@ -1,5 +1,6 @@
 import logging
 
+from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette_babel import gettext_lazy as _
 from starlette_wtf import StarletteForm
 from wtforms import (
@@ -8,7 +9,11 @@ from wtforms import (
     StringField,
 )
 
-from ... import constants
+from ... import (
+    constants,
+    schemas,
+)
+from ...db.queries import get_survey_mission_by_english_name
 from .common import NameForm, DescriptionForm, LinkForm
 
 logger = logging.getLogger(__name__)
@@ -37,3 +42,15 @@ class SurveyMissionCreateForm(StarletteForm):
         min_entries=0,
         max_entries=constants.SURVEY_MISSION_MAX_LINKS,
     )
+
+    async def check_if_english_name_is_unique_for_project(
+        self, session: AsyncSession, project_id: schemas.ProjectId
+    ):
+        if await get_survey_mission_by_english_name(
+            session, project_id, self.name.en.data
+        ):
+            self.name.en.errors.append(
+                _(
+                    "There is already a survey mission with this english name under the same project"
+                )
+            )

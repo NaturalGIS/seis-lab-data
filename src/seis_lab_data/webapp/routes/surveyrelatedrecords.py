@@ -5,6 +5,7 @@ from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.templating import Jinja2Templates
+from starlette_wtf import csrf_protect
 
 from ... import (
     errors,
@@ -12,9 +13,14 @@ from ... import (
     schemas,
 )
 from .. import forms
-from .auth import get_user
+from .auth import (
+    get_user,
+    fancy_requires_auth,
+)
 
 
+@csrf_protect
+@fancy_requires_auth
 async def get_survey_related_record_creation_form(request: Request):
     """Get survey-related record creation form."""
     user = get_user(request.session.get("user", {}))
@@ -55,17 +61,13 @@ async def get_survey_related_record_creation_form(request: Request):
                     url=request.url_for("projects:list"),
                 ),
                 schemas.BreadcrumbItem(
-                    name=str(survey_mission.project.id),
+                    name=str(survey_mission.project.name["en"]),
                     url=request.url_for(
                         "projects:detail", project_id=survey_mission.project.id
                     ),
                 ),
                 schemas.BreadcrumbItem(
-                    name=_("Survey Missions"),
-                    url=request.url_for("survey_missions:list"),
-                ),
-                schemas.BreadcrumbItem(
-                    name=str(survey_mission.id),
+                    name=str(survey_mission.name["en"]),
                     url=request.url_for(
                         "survey_missions:detail",
                         survey_mission_id=survey_mission_id,

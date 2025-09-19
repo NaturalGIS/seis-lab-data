@@ -115,116 +115,8 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
     @csrf_protect
     @fancy_requires_auth
     async def post(self, request: Request):
-        """Create a new survey mission."""
-        user = get_user(request.session.get("user", {}))
-        project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
-        session_maker = request.state.session_maker
-        template_processor: Jinja2Templates = request.state.templates
-        create_survey_mission_form = await forms.SurveyMissionCreateForm.from_formdata(
-            request
-        )
-        async with session_maker() as session:
-            try:
-                project = await operations.get_project(
-                    project_id, user, session, request.state.settings
-                )
-            except errors.SeisLabDataError as exc:
-                raise HTTPException(status_code=404, detail=str(exc)) from exc
-            if project is None:
-                raise HTTPException(
-                    status_code=404, detail=_(f"Project {project_id!r} not found.")
-                )
-
-        async def stream_events():
-            # first validate the form with WTForms' validation logic
-            # then validate the form data with our custom pydantic model
-            await create_survey_mission_form.validate_on_submit()
-            forms.validate_form_with_model(
-                create_survey_mission_form,
-                schemas.SurveyMissionCreate,
-            )
-            # For some unknown reason, wtforms does not report validation errors for
-            # the 'links' listfield together with the other validation errors. This may
-            # have something to with the fact that we are setting the 'errors' property
-            # of fields manually. Anyway, we need to emply the below workaround in order
-            # to verify if the form contains any erors.
-            all_form_validation_errors = {**create_survey_mission_form.errors}
-            for link in create_survey_mission_form.links.entries:
-                all_form_validation_errors.update(**link.errors)
-            if not all_form_validation_errors:
-                request_id = schemas.RequestId(uuid.uuid4())
-                to_create = schemas.SurveyMissionCreate(
-                    id=schemas.SurveyMissionId(uuid.uuid4()),
-                    project_id=project.id,
-                    owner=user.id,
-                    name=schemas.LocalizableDraftName(
-                        en=create_survey_mission_form.name.en.data,
-                        pt=create_survey_mission_form.name.pt.data,
-                    ),
-                    description=schemas.LocalizableDraftDescription(
-                        en=create_survey_mission_form.description.en.data,
-                        pt=create_survey_mission_form.description.pt.data,
-                    ),
-                    relative_path=create_survey_mission_form.relative_path.data,
-                    links=[
-                        schemas.LinkSchema(
-                            url=lf.url.data,
-                            media_type=lf.media_type.data,
-                            relation=lf.relation.data,
-                            link_description=schemas.LocalizableDraftDescription(
-                                en=lf.link_description.en.data,
-                                pt=lf.link_description.pt.data,
-                            ),
-                        )
-                        for lf in create_survey_mission_form.links.entries
-                    ],
-                )
-                logger.info(f"{to_create=}")
-
-                yield ServerSentEventGenerator.patch_elements(
-                    """<li>Creating survey mission as a background task...</li>""",
-                    selector="#feedback > ul",
-                    mode=ElementPatchMode.APPEND,
-                )
-
-                enqueued_message: Message = tasks.create_survey_mission.send(
-                    raw_request_id=str(request_id),
-                    raw_to_create=to_create.model_dump_json(),
-                    raw_initiator=json.dumps(dataclasses.asdict(user)),
-                )
-                logger.debug(f"{enqueued_message=}")
-                redis_client: Redis = request.state.redis_client
-                event_stream_generator = produce_event_stream_for_topic(
-                    redis_client,
-                    request,
-                    topic_name=f"progress:{request_id}",
-                    success_redirect_url=str(
-                        request.url_for(
-                            "survey_missions:list",
-                            survey_mission_id=to_create.id,
-                        )
-                    ),
-                    timeout_seconds=30,
-                )
-                async for sse_event in event_stream_generator:
-                    yield sse_event
-
-            else:
-                logger.debug("form did not validate")
-                template = template_processor.get_template(
-                    "survey-missions/create-form.html"
-                )
-                rendered = template.render(
-                    request=request,
-                    form=create_survey_mission_form,
-                )
-                yield ServerSentEventGenerator.patch_elements(
-                    rendered,
-                    selector="#survey-mission-create-form-container",
-                    mode=ElementPatchMode.INNER,
-                )
-
-        return DatastarResponse(stream_events())
+        """Create a new record in the survey mission's collection."""
+        ...
 
 
 class SurveyMissionDetailEndpoint(HTTPEndpoint):
@@ -291,7 +183,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                         name=_("Projects"), url=str(request.url_for("projects:list"))
                     ),
                     schemas.BreadcrumbItem(
-                        name=str(survey_mission.project.id),
+                        name=str(survey_mission.project.name["en"]),
                         url=str(
                             request.url_for(
                                 "projects:detail",
@@ -300,11 +192,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                         ),
                     ),
                     schemas.BreadcrumbItem(
-                        name=_("Survey Missions"),
-                        url=request.url_for("survey_missions:list"),
-                    ),
-                    schemas.BreadcrumbItem(
-                        name=str(survey_mission.id),
+                        name=str(survey_mission.name["en"]),
                     ),
                 ],
             },
