@@ -3,7 +3,6 @@ import logging
 import dramatiq
 from dramatiq.brokers.redis import RedisBroker
 from dramatiq.middleware.asyncio import AsyncIO
-from rich.console import Console
 
 from .. import config
 from .middleware import (
@@ -39,9 +38,11 @@ def setup_broker(settings: config.SeisLabDataSettings | None = None) -> None:
     This is part of a workaround that enables using dramatiq together with a factory
     pattern. It is not very pretty, but it works.
     """
-    settings = settings or config.get_settings()
-    console = Console(width=255, stderr=True)
-    config.configure_logging(console, debug=settings.debug)
+    context = config.get_cli_context()
+    config.configure_logging(context)
+    dramatiq_logger = logging.getLogger("dramatiq")
+    dramatiq_logger.handlers.clear()
+    settings = settings or context.settings
     if settings.message_broker_dsn is not None:
         new_broker = RedisBroker(
             host=settings.message_broker_dsn.host,

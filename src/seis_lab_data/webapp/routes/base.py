@@ -7,7 +7,6 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
 from ...config import SeisLabDataSettings
-from ...processing import tasks
 from .auth import get_user
 
 logger = logging.getLogger(__name__)
@@ -15,8 +14,6 @@ logger = logging.getLogger(__name__)
 
 async def home(request: Request):
     template_processor = request.state.templates
-    logger.debug("This is the home route")
-    tasks.process_data.send("hi background task")
     return template_processor.TemplateResponse(
         request, "index.html", context={"greeting": _("Hi there!")}
     )

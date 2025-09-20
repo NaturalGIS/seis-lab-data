@@ -1,8 +1,10 @@
 import logging
+import logging.config
 from pathlib import Path
 from typing import Optional
 
 import jinja2
+import yaml
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -72,15 +74,27 @@ def get_cli_context() -> SeisLabDataCliContext:
     return SeisLabDataCliContext(
         jinja_environment=_get_jinja_environment(settings),
         settings=settings,
-        status_console=Console(stderr=True),
+        status_console=Console(stderr=True, width=2000),
     )
 
 
-def configure_logging(rich_console: Console, debug: bool) -> None:
-    logging.basicConfig(
-        level=logging.DEBUG if debug else logging.WARNING,
-        handlers=[RichHandler(console=rich_console, rich_tracebacks=True)],
-    )
+def configure_logging(
+    cli_context: SeisLabDataCliContext,
+) -> None:
+    if cli_context.settings.log_config_file:
+        logging_dict_conf = (
+            yaml.safe_load(cli_context.settings.log_config_file.read_text())
+            if cli_context.settings.log_config_file
+            else {}
+        )
+        logging.config.dictConfig(logging_dict_conf)
+    else:
+        logging.basicConfig(
+            level=logging.DEBUG if cli_context.settings.debug else logging.WARNING,
+            handlers=[
+                RichHandler(console=cli_context.status_console, rich_tracebacks=True)
+            ],
+        )
 
 
 def _get_jinja_environment(settings: SeisLabDataSettings) -> jinja2.Environment:

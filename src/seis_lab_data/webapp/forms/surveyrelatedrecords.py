@@ -1,5 +1,6 @@
 import logging
 
+from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette_babel import gettext_lazy as _
 from starlette_wtf import StarletteForm
 from wtforms import (
@@ -10,7 +11,11 @@ from wtforms import (
     StringField,
 )
 
-from ... import constants
+from ... import (
+    constants,
+    schemas,
+)
+from ...db.queries import get_survey_related_record_by_english_name
 from .common import NameForm, DescriptionForm, LinkForm
 
 logger = logging.getLogger(__name__)
@@ -67,3 +72,15 @@ class SurveyRelatedRecordCreateForm(StarletteForm):
         min_entries=1,
         max_entries=constants.SURVEY_RELATED_RECORD_MAX_ASSETS,
     )
+
+    async def check_if_english_name_is_unique_for_survey_mission(
+        self, session: AsyncSession, survey_mission_id: schemas.SurveyMissionId
+    ):
+        if await get_survey_related_record_by_english_name(
+            session, survey_mission_id, self.name.en.data
+        ):
+            self.name.en.errors.append(
+                _(
+                    "There is already a survey-related record with this english name under the same survey mission"
+                )
+            )

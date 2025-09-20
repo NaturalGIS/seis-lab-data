@@ -116,7 +116,151 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
     @fancy_requires_auth
     async def post(self, request: Request):
         """Create a new record in the survey mission's collection."""
-        ...
+        user = get_user(request.session.get("user", {}))
+        survey_mission_id = schemas.SurveyMissionId(
+            uuid.UUID(request.path_params["survey_mission_id"])
+        )
+        session_maker = request.state.session_maker
+        template_processor: Jinja2Templates = request.state.templates
+        creation_form = await forms.SurveyRelatedRecordCreateForm.from_formdata(request)
+        async with session_maker() as session:
+            try:
+                survey_mission = await operations.get_survey_mission(
+                    survey_mission_id, user, session, request.state.settings
+                )
+            except errors.SeisLabDataError as exc:
+                raise HTTPException(status_code=404, detail=str(exc)) from exc
+            if survey_mission is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=_(f"Survey mission {survey_mission_id!r} not found."),
+                )
+
+        async def stream_events():
+            # first validate the form with WTForms' validation logic
+            # then validate the form data with our custom pydantic model
+            await creation_form.validate_on_submit()
+            forms.validate_form_with_model(
+                creation_form,
+                schemas.SurveyMissionCreate,
+            )
+            async with session_maker() as session:
+                await creation_form.check_if_english_name_is_unique_for_survey_mission(
+                    session, survey_mission_id
+                )
+            # For some unknown reason, wtforms does not report validation errors for
+            # the 'links' listfield together with the other validation errors. This may
+            # have something to with the fact that we are setting the 'errors' property
+            # of fields manually. Anyway, we need to emply the below workaround in order
+            # to verify if the form contains any erors.
+            all_form_validation_errors = {**creation_form.errors}
+            for link in creation_form.links.entries:
+                all_form_validation_errors.update(**link.errors)
+            if not all_form_validation_errors:
+                request_id = schemas.RequestId(uuid.uuid4())
+                to_create = schemas.SurveyRelatedRecordCreate(
+                    id=schemas.SurveyRelatedRecordId(uuid.uuid4()),
+                    survey_mission_id=survey_mission_id,
+                    owner=user.id,
+                    name=schemas.LocalizableDraftName(
+                        en=creation_form.name.en.data,
+                        pt=creation_form.name.pt.data,
+                    ),
+                    description=schemas.LocalizableDraftDescription(
+                        en=creation_form.description.en.data,
+                        pt=creation_form.description.pt.data,
+                    ),
+                    relative_path=creation_form.relative_path.data,
+                    dataset_category_id=creation_form.dataset_category_id.data,
+                    domain_type_id=creation_form.domain_type_id.data,
+                    workflow_stage_id=creation_form.workflow_stage_id.data,
+                    links=[
+                        schemas.LinkSchema(
+                            url=lf.url.data,
+                            media_type=lf.media_type.data,
+                            relation=lf.relation.data,
+                            link_description=schemas.LocalizableDraftDescription(
+                                en=lf.link_description.en.data,
+                                pt=lf.link_description.pt.data,
+                            ),
+                        )
+                        for lf in creation_form.links.entries
+                    ],
+                    assets=[
+                        schemas.RecordAssetCreate(
+                            id=schemas.RecordAssetId(uuid.uuid4()),
+                            name=schemas.LocalizableDraftName(
+                                en=af.asset_name.en.data,
+                                pt=af.asset_name.pt.data,
+                            ),
+                            description=schemas.LocalizableDraftDescription(
+                                en=af.asset_description.en.data,
+                                pt=af.asset_description.pt.data,
+                            ),
+                            relative_path=af.relative_path.data,
+                            links=[
+                                schemas.LinkSchema(
+                                    url=afl.url.data,
+                                    media_type=afl.media_type.data,
+                                    relation=afl.relation.data,
+                                    link_description=schemas.LocalizableDraftDescription(
+                                        en=afl.link_description.en.data,
+                                        pt=afl.link_description.pt.data,
+                                    ),
+                                )
+                                for afl in af.asset_links.entries
+                            ],
+                        )
+                        for af in creation_form.assets.entries
+                    ],
+                )
+                logger.info(f"{to_create=}")
+
+                yield ServerSentEventGenerator.patch_elements(
+                    """<li>Creating survey-related record as a background task...</li>""",
+                    selector="#feedback > ul",
+                    mode=ElementPatchMode.APPEND,
+                )
+
+                enqueued_message: Message = tasks.create_survey_related_record.send(
+                    raw_request_id=str(request_id),
+                    raw_to_create=to_create.model_dump_json(),
+                    raw_initiator=json.dumps(dataclasses.asdict(user)),
+                )
+                logger.debug(f"{enqueued_message=}")
+                redis_client: Redis = request.state.redis_client
+                event_stream_generator = produce_event_stream_for_topic(
+                    redis_client,
+                    request,
+                    topic_name=f"progress:{request_id}",
+                    success_redirect_url=str(
+                        request.url_for(
+                            "survey_related_records:detail",
+                            survey_related_record_id=to_create.id,
+                        )
+                    ),
+                    timeout_seconds=30,
+                )
+                async for sse_event in event_stream_generator:
+                    yield sse_event
+
+            else:
+                logger.debug("form did not validate")
+                template = template_processor.get_template(
+                    "survey-related-records/create-form.html"
+                )
+                rendered = template.render(
+                    request=request,
+                    form=creation_form,
+                    survey_mission_id=survey_mission_id,
+                )
+                yield ServerSentEventGenerator.patch_elements(
+                    rendered,
+                    selector="#survey-related-record-create-form-container",
+                    mode=ElementPatchMode.INNER,
+                )
+
+        return DatastarResponse(stream_events())
 
 
 class SurveyMissionDetailEndpoint(HTTPEndpoint):

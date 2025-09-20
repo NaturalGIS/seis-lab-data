@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from datastar_py import ServerSentEventGenerator
@@ -24,6 +25,8 @@ from .auth import (
     get_user,
     fancy_requires_auth,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @csrf_protect
@@ -64,7 +67,7 @@ async def remove_create_survey_related_record_form_asset_link(request: Request):
     asset_index = int(request.path_params["asset_index"])
     link_index = int(request.query_params.get("link_index", 0))
     creation_form, survey_mission = await _get_creation_form(request)
-    creation_form.assets[asset_index].asset_links.pop(link_index)
+    creation_form.assets[asset_index].asset_links.entries.pop(link_index)
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template(
         "survey-related-records/create-form.html"

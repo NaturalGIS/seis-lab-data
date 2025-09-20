@@ -34,9 +34,7 @@ app.add_typer(bootstrap_app, name="bootstrap")
 def base_callback(ctx: typer.Context) -> None:
     """SeisLabData command line interface"""
     context = config.get_cli_context()
-    config.configure_logging(
-        rich_console=context.status_console, debug=context.settings.debug
-    )
+    config.configure_logging(context)
     engine = get_engine(
         context.settings.database_dsn.unicode_string(), context.settings.debug
     )

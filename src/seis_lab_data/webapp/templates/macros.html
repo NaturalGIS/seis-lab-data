@@ -50,28 +50,28 @@
 {% endmacro %}
 
 
+{% macro render_link_form(link_field, id_prefix="") %}
+    {{ render_form_field(link_field.url, id_prefix ~ "link-") }}
+    {{ render_form_field(link_field.media_type, id_prefix ~ "link-") }}
+    {{ render_form_field(link_field.relation, id_prefix ~ "link-") }}
+    {{ render_localizable_field(link_field.link_description, "link-") }}
+{% endmacro %}
+
+
 {% macro render_links_fields(links, add_link_url, remove_link_url, csrf_token, id_prefix="") %}
     <div class="row border p-4 mb-3">
         <div id="{{ id_prefix }}form-links-container" class="col">
             {% for link_field in links %}
                 <h4>{{ _("link") | capitalize }} {{ loop.index0 + 1 }}</h4>
-                {{ render_form_field(link_field.url, id_prefix ~ "link-") }}
-                {{ render_form_field(link_field.media_type, id_prefix ~ "link-") }}
-                {{ render_form_field(link_field.relation, id_prefix ~ "link-") }}
-                {{ render_localizable_field(link_field.link_description, "link-") }}
-{#
-                {% for description_field in link_field.link_description %}
-                    {{ render_form_field(description_field, id_prefix ~ "link-description-") }}
-                {% endfor %}
-#}
+                {{ render_link_form(link_field, id_prefix) }}
                 <button
                         type="submit"
-                        class="btn btn-outline-secondary"
+                        class="btn btn-outline-danger"
                         data-on-click="@post('{{ remove_link_url }}?link_index={{ loop.index0 }}', {
                   contentType: 'form',
                   headers: {'X-CSRFToken': '{{ csrf_token }}'},
                 })"
-                >{{ _("remove") | capitalize }}</button>
+                >{{ _("remove link") | capitalize }}</button>
             {% endfor %}
         </div>
         <div class="row">

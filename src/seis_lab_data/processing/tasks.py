@@ -29,15 +29,6 @@ dramatiq.set_broker(_stub_broker)
 
 @dramatiq.actor
 @decorators.sld_settings
-def process_data(message: str, *, settings: config.SeisLabDataSettings):
-    logger.debug(
-        f"Received message: {message} - Also settings.debug is {settings.debug}"
-    )
-    print(f"Received message: {message} - Also settings.debug is {settings.debug}")
-
-
-@dramatiq.actor
-@decorators.sld_settings
 @decorators.redis_client
 @decorators.session_maker
 async def create_project(
@@ -295,6 +286,88 @@ async def delete_survey_mission(
                 request_id=request_id,
                 status=ProcessingStatus.SUCCESS,
                 message="Survey mission successfully deleted",
+            ).model_dump_json(),
+        )
+    except Exception as e:
+        logger.error(f"Task failed with error: {e}")
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id, status=ProcessingStatus.FAILED, message=str(e)
+            ).model_dump_json(),
+        )
+
+
+@dramatiq.actor
+@decorators.sld_settings
+@decorators.redis_client
+@decorators.session_maker
+async def create_survey_related_record(
+    raw_request_id: str,
+    raw_to_create: str,
+    raw_initiator: str,
+    *,
+    settings: config.SeisLabDataSettings,
+    redis_client: Redis,
+    session_maker: Callable,
+):
+    request_id = schemas.RequestId(uuid.UUID(raw_request_id))
+    topic_name = f"progress:{request_id}"
+    to_create = schemas.SurveyRelatedRecordCreate(**json.loads(raw_to_create))
+    initiator = schemas.User(**json.loads(raw_initiator))
+    logger.info(f"{to_create=}")
+    try:
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id,
+                status=ProcessingStatus.RUNNING,
+                message="Survey-related record creation started",
+            ).model_dump_json(),
+        )
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id,
+                status=ProcessingStatus.RUNNING,
+                message="Creating survey-related record...",
+            ).model_dump_json(),
+        )
+        async with session_maker() as session:
+            survey_related_record = await operations.create_survey_related_record(
+                to_create=to_create,
+                initiator=initiator,
+                session=session,
+                settings=settings,
+                event_emitter=get_event_emitter(settings),
+            )
+
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id,
+                status=ProcessingStatus.RUNNING,
+                message=f"Created survey-related record {survey_related_record.id!r}",
+            ).model_dump_json(),
+        )
+
+        # simulating some more work
+        for i in range(3):
+            await asyncio.sleep(1)
+            await redis_client.publish(
+                topic_name,
+                schemas.ProcessingMessage(
+                    request_id=request_id,
+                    status=ProcessingStatus.RUNNING,
+                    message=f"Survey-related record is being validated {i}...",
+                ).model_dump_json(),
+            )
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id,
+                status=ProcessingStatus.SUCCESS,
+                message="Survey-related record successfully created",
             ).model_dump_json(),
         )
     except Exception as e:

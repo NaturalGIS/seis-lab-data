@@ -1,15 +1,10 @@
 {% import "macros.html" as macros %}
 <form>
     {{ macros.render_localizable_field(form.name) }}
-
     {{ macros.render_localizable_field(form.description) }}
-
     {{ macros.render_form_field(form.relative_path) }}
-
     {{ macros.render_form_field(form.dataset_category_id) }}
-
     {{ macros.render_form_field(form.domain_type_id) }}
-
     {{ macros.render_form_field(form.workflow_stage_id) }}
 
     <h3>{{ _("links") | capitalize }}</h3>
@@ -28,21 +23,23 @@
                 {{ macros.render_localizable_field(asset.asset_name, "asset-") }}
                 {{ macros.render_localizable_field(asset.asset_description, "asset-") }}
                 {{ macros.render_form_field(asset.relative_path, "asset-") }}
+                <h5>{{ _("asset links") | capitalize }}</h5>
                 {{ macros.render_links_fields(
-                    asset.links,
+                    asset.asset_links,
                     url_for("survey_related_records:add_asset_link_form", survey_mission_id=survey_mission_id, asset_index=loop.index0),
                     url_for("survey_related_records:remove_asset_link_form", survey_mission_id=survey_mission_id, asset_index=loop.index0),
-                    form.csrf_token.current_token
+                    form.csrf_token.current_token,
+                    "asset-"
                 ) }}
 
                 <button
                         type="submit"
-                        class="btn btn-outline-secondary"
+                        class="btn btn-outline-danger"
                         data-on-click="@post('{{ url_for("survey_related_records:remove_asset_form", survey_mission_id=survey_mission_id) }}?asset_index={{ loop.index0 }}', {
                   contentType: 'form',
                   headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'},
                 })"
-                >{{ _("remove") | capitalize }}</button>
+                >{{ _("remove asset") | capitalize }}</button>
             {% endfor %}
         </div>
         <div class="row">
