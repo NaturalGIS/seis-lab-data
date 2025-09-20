@@ -93,7 +93,21 @@
                 role="tabpanel"
                 aria-labelledby="links-tab"
                 tabindex="0"
-        ></div>
+        >
+            {% for link in item.links %}
+                <dl class="row">
+                    <dt class="col-sm-3">{{ _("url") | capitalize }}</dt>
+                    <dd class="col-sm-9"><a href="{{ link.url }}" rel="{{ link.relation }}" target="_blank"
+                                            type="{{ link.media_type }}">{{ link.url }}</a></dd>
+                    <dt class="col-sm-3">{{ _("description") | capitalize }}</dt>
+                    <dd class="col-sm-9">{{ link.link_description |translate_localizable_string }}</dd>
+                    <dt class="col-sm-3">{{ _("media type") | capitalize }}</dt>
+                    <dd class="col-sm-9">{{ link.media_type }}</dd>
+                </dl>
+            {% else %}
+                {{ _("no links found") | capitalize }}
+            {% endfor %}
+        </div>
         <div
                 class="tab-pane fade"
                 id="survey-missions-tab-pane"

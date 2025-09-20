@@ -28,6 +28,7 @@ from .auth import (
     get_user,
 )
 from .common import produce_event_stream_for_topic
+from .surveyrelatedrecords import generate_survey_related_record_creation_form
 
 logger = logging.getLogger(__name__)
 
@@ -112,21 +113,23 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
             },
         )
 
-    @csrf_protect
-    @fancy_requires_auth
-    async def post(self, request: Request):
-        """Create a new record in the survey mission's collection."""
-        user = get_user(request.session.get("user", {}))
+
+class SurveyMissionDetailEndpoint(HTTPEndpoint):
+    """Survey mission detail endpoint."""
+
+    async def get(self, request: Request):
         survey_mission_id = schemas.SurveyMissionId(
             uuid.UUID(request.path_params["survey_mission_id"])
         )
         session_maker = request.state.session_maker
-        template_processor: Jinja2Templates = request.state.templates
-        creation_form = await forms.SurveyRelatedRecordCreateForm.from_formdata(request)
+        user = get_user(request.session.get("user", {}))
         async with session_maker() as session:
             try:
                 survey_mission = await operations.get_survey_mission(
-                    survey_mission_id, user, session, request.state.settings
+                    survey_mission_id,
+                    user.id if user else None,
+                    session,
+                    request.state.settings,
                 )
             except errors.SeisLabDataError as exc:
                 raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -135,28 +138,90 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
                     status_code=404,
                     detail=_(f"Survey mission {survey_mission_id!r} not found."),
                 )
+            (
+                survey_related_records,
+                total,
+            ) = await operations.list_survey_related_records(
+                session,
+                user,
+                survey_mission_filter=survey_mission_id,
+                include_total=True,
+            )
+        template_processor = request.state.templates
+        return template_processor.TemplateResponse(
+            request,
+            "survey-missions/detail.html",
+            context={
+                "item": schemas.SurveyMissionReadDetail.from_db_instance(
+                    survey_mission
+                ),
+                "survey_related_records": {
+                    "survey_related_records": [
+                        schemas.SurveyRelatedRecordReadListItem(**srr.model_dump())
+                        for srr in survey_related_records
+                    ],
+                    "total": total,
+                },
+                "user_can_delete": await permissions.can_delete_survey_mission(
+                    user, survey_mission_id, settings=request.state.settings
+                ),
+                "user_can_create_survey_related_record": await permissions.can_create_survey_related_record(
+                    user,
+                    survey_mission_id=survey_mission_id,
+                    settings=request.state.settings,
+                ),
+                "breadcrumbs": [
+                    schemas.BreadcrumbItem(
+                        name=_("Home"), url=str(request.url_for("home"))
+                    ),
+                    schemas.BreadcrumbItem(
+                        name=_("Projects"), url=str(request.url_for("projects:list"))
+                    ),
+                    schemas.BreadcrumbItem(
+                        name=str(survey_mission.project.name["en"]),
+                        url=str(
+                            request.url_for(
+                                "projects:detail",
+                                project_id=survey_mission.project.id,
+                            )
+                        ),
+                    ),
+                    schemas.BreadcrumbItem(
+                        name=str(survey_mission.name["en"]),
+                    ),
+                ],
+            },
+        )
+
+    @csrf_protect
+    @fancy_requires_auth
+    async def post(self, request: Request):
+        """Create a new record in the survey mission's collection."""
+        user = get_user(request.session.get("user", {}))
+        survey_mission_id = schemas.SurveyMissionId(
+            uuid.UUID(request.path_params["survey_mission_id"])
+        )
+        (
+            creation_form,
+            survey_mission,
+        ) = await generate_survey_related_record_creation_form(request)
+        session_maker = request.state.session_maker
+        template_processor: Jinja2Templates = request.state.templates
+        try:
+            await creation_form.validate_on_submit()
+        except TypeError as err:
+            logger.exception("Failed to create survey-related record creation form.")
+            raise HTTPException(status_code=500) from err
+        creation_form.validate_with_schema()
+        async with session_maker() as session:
+            await creation_form.check_if_english_name_is_unique_for_survey_mission(
+                session, survey_mission_id
+            )
+        form_is_valid = creation_form.has_validation_errors()
+        logger.debug(f"{form_is_valid=}")
 
         async def stream_events():
-            # first validate the form with WTForms' validation logic
-            # then validate the form data with our custom pydantic model
-            await creation_form.validate_on_submit()
-            forms.validate_form_with_model(
-                creation_form,
-                schemas.SurveyMissionCreate,
-            )
-            async with session_maker() as session:
-                await creation_form.check_if_english_name_is_unique_for_survey_mission(
-                    session, survey_mission_id
-                )
-            # For some unknown reason, wtforms does not report validation errors for
-            # the 'links' listfield together with the other validation errors. This may
-            # have something to with the fact that we are setting the 'errors' property
-            # of fields manually. Anyway, we need to emply the below workaround in order
-            # to verify if the form contains any erors.
-            all_form_validation_errors = {**creation_form.errors}
-            for link in creation_form.links.entries:
-                all_form_validation_errors.update(**link.errors)
-            if not all_form_validation_errors:
+            if form_is_valid:
                 request_id = schemas.RequestId(uuid.uuid4())
                 to_create = schemas.SurveyRelatedRecordCreate(
                     id=schemas.SurveyRelatedRecordId(uuid.uuid4()),
@@ -260,86 +325,8 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
                     mode=ElementPatchMode.INNER,
                 )
 
-        return DatastarResponse(stream_events())
-
-
-class SurveyMissionDetailEndpoint(HTTPEndpoint):
-    """Survey mission detail endpoint."""
-
-    async def get(self, request: Request):
-        survey_mission_id = schemas.SurveyMissionId(
-            uuid.UUID(request.path_params["survey_mission_id"])
-        )
-        session_maker = request.state.session_maker
-        user = get_user(request.session.get("user", {}))
-        async with session_maker() as session:
-            try:
-                survey_mission = await operations.get_survey_mission(
-                    survey_mission_id,
-                    user.id if user else None,
-                    session,
-                    request.state.settings,
-                )
-            except errors.SeisLabDataError as exc:
-                raise HTTPException(status_code=404, detail=str(exc)) from exc
-            if survey_mission is None:
-                raise HTTPException(
-                    status_code=404,
-                    detail=_(f"Survey mission {survey_mission_id!r} not found."),
-                )
-            (
-                survey_related_records,
-                total,
-            ) = await operations.list_survey_related_records(
-                session,
-                user,
-                survey_mission_filter=survey_mission_id,
-                include_total=True,
-            )
-        template_processor = request.state.templates
-        return template_processor.TemplateResponse(
-            request,
-            "survey-missions/detail.html",
-            context={
-                "item": schemas.SurveyMissionReadDetail.from_db_instance(
-                    survey_mission
-                ),
-                "survey_related_records": {
-                    "survey_related_records": [
-                        schemas.SurveyRelatedRecordReadListItem(**srr.model_dump())
-                        for srr in survey_related_records
-                    ],
-                    "total": total,
-                },
-                "user_can_delete": await permissions.can_delete_survey_mission(
-                    user, survey_mission_id, settings=request.state.settings
-                ),
-                "user_can_create_survey_related_record": await permissions.can_create_survey_related_record(
-                    user,
-                    survey_mission_id=survey_mission_id,
-                    settings=request.state.settings,
-                ),
-                "breadcrumbs": [
-                    schemas.BreadcrumbItem(
-                        name=_("Home"), url=str(request.url_for("home"))
-                    ),
-                    schemas.BreadcrumbItem(
-                        name=_("Projects"), url=str(request.url_for("projects:list"))
-                    ),
-                    schemas.BreadcrumbItem(
-                        name=str(survey_mission.project.name["en"]),
-                        url=str(
-                            request.url_for(
-                                "projects:detail",
-                                project_id=survey_mission.project.id,
-                            )
-                        ),
-                    ),
-                    schemas.BreadcrumbItem(
-                        name=str(survey_mission.name["en"]),
-                    ),
-                ],
-            },
+        return DatastarResponse(
+            stream_events(), status_code=202 if form_is_valid else 422
         )
 
     async def delete(self, request: Request):

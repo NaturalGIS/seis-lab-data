@@ -19,32 +19,26 @@ from seis_lab_data import constants
 logger = logging.getLogger(__name__)
 
 
-def validate_form_with_model(
-    form_instance: StarletteForm,
-    model_class: typing.Type[pydantic.BaseModel],
-    **extra_model_data,
-) -> StarletteForm:
-    try:
-        model_class(**form_instance.data, **(extra_model_data or {}))
-    except pydantic.ValidationError as exc:
-        logger.error(f"pydantic errors {exc.errors()=}")
-        for error in exc.errors():
-            loc = error["loc"]
-            logger.debug(f"Analyzing error {loc=} {error['msg']=}...")
-            form_field = _retrieve_form_field_by_pydantic_loc(form_instance, loc)
-            logger.debug(f"Form field {form_field=}")
-            if form_field is not None:
-                try:
-                    form_field.errors.append(error["msg"])
-                except AttributeError:
-                    form_field.errors[None] = error["msg"]
-                logger.debug(f"Form field errors {form_field.errors=}")
-            else:
-                logger.debug(f"Unable to find form field for {loc=}")
-    return form_instance
+class CreationFormProtocol(typing.Protocol):
+    schema: pydantic.BaseModel
+
+    def validate_with_schema(self) -> None:
+        raise NotImplementedError
+
+    def has_validation_errors(self) -> bool:
+        raise NotImplementedError
 
 
-def _retrieve_form_field_by_pydantic_loc(
+def get_form_field_by_name(form: Form | FormField, name: str) -> Field | None:
+    """Retrieve a field by its name"""
+    for field in form:
+        if field.short_name == name:
+            return field
+    else:
+        return None
+
+
+def retrieve_form_field_by_pydantic_loc(
     form_instance: StarletteForm, loc: tuple
 ) -> Field | None:
     parent = form_instance
@@ -53,7 +47,12 @@ def _retrieve_form_field_by_pydantic_loc(
         if isinstance(part, int):
             field = parent.entries[part]
         else:
-            field = getattr(parent, part, None)
+            for f in parent:
+                if f.short_name == part:
+                    field = f
+                    break
+            else:
+                field = None
         if field is None:
             break
         parent = field
@@ -109,7 +108,6 @@ class DescriptionForm(Form):
 
 
 class LinkForm(Form):
-    # url = StringField(_("URL"), validators=[validators.DataRequired()])
     url = URLField(_("URL"))
     media_type = StringField(_("Media type"))
     relation = StringField(_("Relation"))

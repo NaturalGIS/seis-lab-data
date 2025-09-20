@@ -74,7 +74,7 @@ def get_cli_context() -> SeisLabDataCliContext:
     return SeisLabDataCliContext(
         jinja_environment=_get_jinja_environment(settings),
         settings=settings,
-        status_console=Console(stderr=True, width=2000),
+        status_console=Console(stderr=True),
     )
 
 

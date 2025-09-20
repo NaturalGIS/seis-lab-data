@@ -99,41 +99,31 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         """Create a new project."""
         template_processor: Jinja2Templates = request.state.templates
         user = get_user(request.session.get("user", {}))
-        create_project_form = await forms.ProjectCreateForm.from_formdata(request)
+        creation_form = await forms.ProjectCreateForm.from_formdata(request)
+        # first validate the form with WTForms' validation logic
+        # then validate the form data with our custom pydantic model
+        await creation_form.validate_on_submit()
+        creation_form.validate_with_schema()
+        session_maker = request.state.session_maker
+        async with session_maker() as session:
+            await creation_form.check_if_english_name_is_unique(session)
+        form_is_valid = creation_form.has_validation_errors()
 
         async def stream_events():
-            # first validate the form with WTForms' validation logic
-            # then validate the form data with our custom pydantic model
-            await create_project_form.validate_on_submit()
-            forms.validate_form_with_model(
-                create_project_form,
-                schemas.ProjectCreate,
-            )
-            session_maker = request.state.session_maker
-            async with session_maker() as session:
-                await create_project_form.check_if_english_name_is_unique(session)
-            # For some unknown reason, wtforms does not report validation errors for
-            # the 'links' listfield together with the other validation errors. This may
-            # have something to with the fact that we are setting the 'errors' property
-            # of fields manually. Anyway, we need to emply the below workaround in order
-            # to verify if the form contains any erors.
-            all_form_validation_errors = {**create_project_form.errors}
-            for link in create_project_form.links.entries:
-                all_form_validation_errors.update(**link.errors)
-            if not all_form_validation_errors:
+            if form_is_valid:
                 request_id = schemas.RequestId(uuid.uuid4())
                 to_create = schemas.ProjectCreate(
                     id=schemas.ProjectId(uuid.uuid4()),
                     owner=user.id,
                     name=schemas.LocalizableDraftName(
-                        en=create_project_form.name.en.data,
-                        pt=create_project_form.name.pt.data,
+                        en=creation_form.name.en.data,
+                        pt=creation_form.name.pt.data,
                     ),
                     description=schemas.LocalizableDraftDescription(
-                        en=create_project_form.description.en.data,
-                        pt=create_project_form.description.pt.data,
+                        en=creation_form.description.en.data,
+                        pt=creation_form.description.pt.data,
                     ),
-                    root_path=create_project_form.root_path.data,
+                    root_path=creation_form.root_path.data,
                     links=[
                         schemas.LinkSchema(
                             url=lf.url.data,
@@ -144,7 +134,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                                 pt=lf.link_description.pt.data,
                             ),
                         )
-                        for lf in create_project_form.links.entries
+                        for lf in creation_form.links.entries
                     ],
                 )
                 logger.info(f"{to_create=}")
@@ -179,7 +169,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 template = template_processor.get_template("projects/create-form.html")
                 rendered = template.render(
                     request=request,
-                    form=create_project_form,
+                    form=creation_form,
                 )
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
@@ -187,7 +177,9 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                     mode=ElementPatchMode.INNER,
                 )
 
-        return DatastarResponse(stream_events())
+        return DatastarResponse(
+            stream_events(), status_code=202 if form_is_valid else 422
+        )
 
 
 class ProjectDetailEndpoint(HTTPEndpoint):
@@ -271,28 +263,18 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 raise HTTPException(
                     status_code=404, detail=_(f"Project {project_id!r} not found.")
                 )
+        await creation_form.validate_on_submit()
+        creation_form.validate_with_schema()
+        async with session_maker() as session:
+            await creation_form.check_if_english_name_is_unique_for_project(
+                session, project_id
+            )
+        form_is_valid = creation_form.has_validation_errors()
 
         async def stream_events():
             # first validate the form with WTForms' validation logic
             # then validate the form data with our custom pydantic model
-            await creation_form.validate_on_submit()
-            forms.validate_form_with_model(
-                creation_form,
-                schemas.SurveyMissionCreate,
-            )
-            async with session_maker() as session:
-                await creation_form.check_if_english_name_is_unique_for_project(
-                    session, project_id
-                )
-            # For some unknown reason, wtforms does not report validation errors for
-            # the 'links' listfield together with the other validation errors. This may
-            # have something to with the fact that we are setting the 'errors' property
-            # of fields manually. Anyway, we need to emply the below workaround in order
-            # to verify if the form contains any erors.
-            all_form_validation_errors = {**creation_form.errors}
-            for link in creation_form.links.entries:
-                all_form_validation_errors.update(**link.errors)
-            if not all_form_validation_errors:
+            if form_is_valid:
                 request_id = schemas.RequestId(uuid.uuid4())
                 to_create = schemas.SurveyMissionCreate(
                     id=schemas.SurveyMissionId(uuid.uuid4()),
@@ -366,7 +348,9 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                     mode=ElementPatchMode.INNER,
                 )
 
-        return DatastarResponse(stream_events())
+        return DatastarResponse(
+            stream_events(), status_code=202 if form_is_valid else 422
+        )
 
     @fancy_requires_auth
     async def delete(self, request: Request):

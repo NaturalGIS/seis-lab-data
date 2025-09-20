@@ -378,3 +378,57 @@ async def create_survey_related_record(
                 request_id=request_id, status=ProcessingStatus.FAILED, message=str(e)
             ).model_dump_json(),
         )
+
+
+@dramatiq.actor
+@decorators.sld_settings
+@decorators.redis_client
+@decorators.session_maker
+async def delete_survey_related_record(
+    raw_request_id: str,
+    raw_survey_related_record_id: str,
+    raw_initiator: str,
+    *,
+    settings: config.SeisLabDataSettings,
+    redis_client: Redis,
+    session_maker: Callable,
+):
+    logger.debug("Hi from the delete_survey_related_record task")
+    request_id = schemas.RequestId(uuid.UUID(raw_request_id))
+    topic_name = f"progress:{request_id}"
+    initiator = schemas.User(**json.loads(raw_initiator))
+    try:
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id,
+                status=ProcessingStatus.RUNNING,
+                message="Survey-related record deletion started",
+            ).model_dump_json(),
+        )
+        async with session_maker() as session:
+            await operations.delete_survey_related_record(
+                survey_related_record_id=schemas.SurveyRelatedRecordId(
+                    uuid.UUID(raw_survey_related_record_id)
+                ),
+                initiator=initiator,
+                session=session,
+                settings=settings,
+                event_emitter=get_event_emitter(settings),
+            )
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id,
+                status=ProcessingStatus.SUCCESS,
+                message="Survey-related record successfully deleted",
+            ).model_dump_json(),
+        )
+    except Exception as e:
+        logger.error(f"Task failed with error: {e}")
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id, status=ProcessingStatus.FAILED, message=str(e)
+            ).model_dump_json(),
+        )

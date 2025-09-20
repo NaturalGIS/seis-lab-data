@@ -1,9 +1,13 @@
+import dataclasses
+import json
 import logging
 import uuid
 
 from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
 from datastar_py.starlette import DatastarResponse
+from dramatiq import Message
+from redis.asyncio import Redis
 from starlette_babel import gettext_lazy as _
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
@@ -14,17 +18,20 @@ from starlette_wtf import csrf_protect
 from ... import (
     errors,
     operations,
+    permissions,
     schemas,
 )
 from ...db import (
     models,
     queries,
 )
+from ...processing import tasks
 from .. import forms
 from .auth import (
     get_user,
     fancy_requires_auth,
 )
+from .common import produce_event_stream_for_topic
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +43,9 @@ async def add_create_survey_related_record_form_asset_link(request: Request):
         uuid.UUID(request.path_params["survey_mission_id"])
     )
     asset_index = int(request.path_params["asset_index"])
-    creation_form, survey_mission = await _get_creation_form(request)
+    creation_form, survey_mission = await generate_survey_related_record_creation_form(
+        request
+    )
     creation_form.assets[asset_index].asset_links.append_entry()
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template(
@@ -66,7 +75,9 @@ async def remove_create_survey_related_record_form_asset_link(request: Request):
     )
     asset_index = int(request.path_params["asset_index"])
     link_index = int(request.query_params.get("link_index", 0))
-    creation_form, survey_mission = await _get_creation_form(request)
+    creation_form, survey_mission = await generate_survey_related_record_creation_form(
+        request
+    )
     creation_form.assets[asset_index].asset_links.entries.pop(link_index)
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template(
@@ -94,7 +105,9 @@ async def add_create_survey_related_record_form_asset(request: Request):
     survey_mission_id = schemas.SurveyMissionId(
         uuid.UUID(request.path_params["survey_mission_id"])
     )
-    creation_form, survey_mission = await _get_creation_form(request)
+    creation_form, survey_mission = await generate_survey_related_record_creation_form(
+        request
+    )
     creation_form.assets.append_entry()
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template(
@@ -123,7 +136,9 @@ async def remove_create_survey_related_record_form_asset(request: Request):
     survey_mission_id = schemas.SurveyMissionId(
         uuid.UUID(request.path_params["survey_mission_id"])
     )
-    creation_form, survey_mission = await _get_creation_form(request)
+    creation_form, survey_mission = await generate_survey_related_record_creation_form(
+        request
+    )
     asset_index = int(request.query_params.get("asset_index", 0))
     creation_form.assets.entries.pop(asset_index)
     template_processor: Jinja2Templates = request.state.templates
@@ -152,7 +167,9 @@ async def add_create_survey_related_record_form_link(request: Request):
     survey_mission_id = schemas.SurveyMissionId(
         uuid.UUID(request.path_params["survey_mission_id"])
     )
-    creation_form, survey_mission = await _get_creation_form(request)
+    creation_form, survey_mission = await generate_survey_related_record_creation_form(
+        request
+    )
     creation_form.links.append_entry()
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template(
@@ -180,7 +197,9 @@ async def remove_create_survey_related_record_form_link(request: Request):
     survey_mission_id = schemas.SurveyMissionId(
         uuid.UUID(request.path_params["survey_mission_id"])
     )
-    creation_form, survey_mission = await _get_creation_form(request)
+    creation_form, survey_mission = await generate_survey_related_record_creation_form(
+        request
+    )
     link_index = int(request.query_params.get("link_index", 0))
     creation_form.links.entries.pop(link_index)
     template_processor: Jinja2Templates = request.state.templates
@@ -203,7 +222,7 @@ async def remove_create_survey_related_record_form_link(request: Request):
     return DatastarResponse(event_streamer())
 
 
-async def _get_creation_form(
+async def generate_survey_related_record_creation_form(
     request: Request,
 ) -> tuple[forms.SurveyRelatedRecordCreateForm, models.SurveyMission]:
     user = get_user(request.session.get("user", {}))
@@ -260,7 +279,9 @@ async def get_survey_related_record_creation_form(request: Request):
     survey_mission_id = schemas.SurveyMissionId(
         uuid.UUID(request.path_params["survey_mission_id"])
     )
-    creation_form, survey_mission = await _get_creation_form(request)
+    creation_form, survey_mission = await generate_survey_related_record_creation_form(
+        request
+    )
     template_processor: Jinja2Templates = request.state.templates
     return template_processor.TemplateResponse(
         request,
@@ -331,8 +352,8 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
 
 
 class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
-    async def get_survey_related_record(self, request: Request):
-        """Get survey-related record."""
+    async def get(self, request: Request):
+        """Get survey-related record details."""
         survey_related_record_id = schemas.SurveyRelatedRecordId(
             uuid.UUID(request.path_params["survey_related_record_id"])
         )
@@ -363,13 +384,33 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 "item": schemas.SurveyRelatedRecordReadDetail.from_db_instance(
                     survey_record
                 ),
+                "user_can_delete": await permissions.can_delete_survey_related_record(
+                    user, survey_related_record_id, settings=request.state.settings
+                ),
                 "breadcrumbs": [
                     schemas.BreadcrumbItem(
                         name=_("Home"), url=str(request.url_for("home"))
                     ),
                     schemas.BreadcrumbItem(
-                        name=_("Survey-related records"),
-                        url=request.url_for("survey_related_records:list"),
+                        name=_("Projects"), url=str(request.url_for("projects:list"))
+                    ),
+                    schemas.BreadcrumbItem(
+                        name=str(survey_record.survey_mission.project.name["en"]),
+                        url=str(
+                            request.url_for(
+                                "projects:detail",
+                                project_id=survey_record.survey_mission.project.id,
+                            )
+                        ),
+                    ),
+                    schemas.BreadcrumbItem(
+                        name=str(survey_record.survey_mission.name["en"]),
+                        url=str(
+                            request.url_for(
+                                "survey_missions:detail",
+                                survey_mission_id=survey_record.survey_mission.id,
+                            )
+                        ),
                     ),
                     schemas.BreadcrumbItem(
                         name=survey_record.name["en"],
@@ -377,3 +418,56 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 ],
             },
         )
+
+    async def delete(self, request: Request):
+        record_id = schemas.SurveyRelatedRecordId(
+            uuid.UUID(request.path_params["survey_related_record_id"])
+        )
+        session_maker = request.state.session_maker
+        user = get_user(request.session.get("user", {}))
+        async with session_maker() as session:
+            try:
+                survey_record = await operations.get_survey_related_record(
+                    record_id,
+                    user.id if user else None,
+                    session,
+                    request.state.settings,
+                )
+            except errors.SeisLabDataError as exc:
+                raise HTTPException(status_code=404, detail=str(exc)) from exc
+            if survey_record is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=_(f"Survey-related record {survey_record!r} not found."),
+                )
+
+        async def stream_events():
+            request_id = schemas.RequestId(uuid.uuid4())
+            yield ServerSentEventGenerator.patch_elements(
+                """<li>Deleting survey-related record as a background task...</li>""",
+                selector="#feedback > ul",
+                mode=ElementPatchMode.APPEND,
+            )
+            enqueued_message: Message = tasks.delete_survey_related_record.send(
+                raw_request_id=str(request_id),
+                raw_survey_related_record_id=str(record_id),
+                raw_initiator=json.dumps(dataclasses.asdict(user)),
+            )
+            logger.debug(f"{enqueued_message=}")
+            redis_client: Redis = request.state.redis_client
+            event_stream_generator = produce_event_stream_for_topic(
+                redis_client,
+                request,
+                topic_name=f"progress:{request_id}",
+                success_redirect_url=str(
+                    request.url_for(
+                        "survey_missions:detail",
+                        survey_mission_id=survey_record.survey_mission.id,
+                    )
+                ),
+                timeout_seconds=30,
+            )
+            async for sse_event in event_stream_generator:
+                yield sse_event
+
+        return DatastarResponse(stream_events())
