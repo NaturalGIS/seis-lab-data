@@ -106,7 +106,7 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                         name="add_form_link",
                     ),
                     Route(
-                        "/new/remove-form-link/{link_index}",
+                        "/new/remove-form-link",
                         routes.remove_create_project_form_link,
                         methods=["POST"],
                         name="remove_form_link",
@@ -141,16 +141,16 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                         name="get_creation_form",
                     ),
                     Route(
-                        "/new/add-form-link",
+                        "/{project_id}/new/add-form-link",
                         routes.add_create_survey_mission_form_link,
                         methods=["POST"],
-                        name="add_create_form_link",
+                        name="add_form_link",
                     ),
                     Route(
-                        "/new/remove-form-link/{link_index}",
+                        "/{project_id}/new/remove-form-link",
                         routes.remove_create_survey_mission_form_link,
                         methods=["POST"],
-                        name="remove_create_form_link",
+                        name="remove_form_link",
                     ),
                     Route(
                         "/{survey_mission_id}",
@@ -174,6 +174,42 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                         routes.get_survey_related_record_creation_form,
                         methods=["GET"],
                         name="get_creation_form",
+                    ),
+                    Route(
+                        "/{survey_mission_id}/new/add-form-link",
+                        routes.add_create_survey_related_record_form_link,
+                        methods=["POST"],
+                        name="add_form_link",
+                    ),
+                    Route(
+                        "/{survey_mission_id}/new/remove-form-link",
+                        routes.remove_create_survey_related_record_form_link,
+                        methods=["POST"],
+                        name="remove_form_link",
+                    ),
+                    Route(
+                        "/{survey_mission_id}/new/add-asset-form",
+                        routes.add_create_survey_related_record_form_asset,
+                        methods=["POST"],
+                        name="add_asset_form",
+                    ),
+                    Route(
+                        "/{survey_mission_id}/new/remove-asset-form",
+                        routes.remove_create_survey_related_record_form_asset,
+                        methods=["POST"],
+                        name="remove_asset_form",
+                    ),
+                    Route(
+                        "/{survey_mission_id}/new/add-asset-link-form/{asset_index}",
+                        routes.add_create_survey_related_record_form_asset_link,
+                        methods=["POST"],
+                        name="add_asset_link_form",
+                    ),
+                    Route(
+                        "/{survey_mission_id}/new/remove-asset-link-form/{asset_index}",
+                        routes.remove_create_survey_related_record_form_asset_link,
+                        methods=["POST"],
+                        name="remove_asset_link_form",
                     ),
                     Route(
                         "/{survey_related_record_id}",

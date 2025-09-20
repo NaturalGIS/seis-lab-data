@@ -1,5 +1,8 @@
 import uuid
 
+from datastar_py import ServerSentEventGenerator
+from datastar_py.consts import ElementPatchMode
+from datastar_py.starlette import DatastarResponse
 from starlette_babel import gettext_lazy as _
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
@@ -24,15 +27,187 @@ from .auth import (
 
 
 @csrf_protect
-@fancy_requires_auth
-async def get_survey_related_record_creation_form(request: Request):
-    """Get survey-related record creation form."""
+async def add_create_survey_related_record_form_asset_link(request: Request):
+    """Add an asset link form to a create_survey_related_record form."""
+    survey_mission_id = schemas.SurveyMissionId(
+        uuid.UUID(request.path_params["survey_mission_id"])
+    )
+    asset_index = int(request.path_params["asset_index"])
+    creation_form, survey_mission = await _get_creation_form(request)
+    creation_form.assets[asset_index].asset_links.append_entry()
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/create-form.html"
+    )
+    rendered = template.render(
+        form=creation_form,
+        request=request,
+        survey_mission_id=survey_mission_id,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector="#survey-related-record-create-form-container",
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def remove_create_survey_related_record_form_asset_link(request: Request):
+    """Remove an asset link form to a create_survey_related_record form."""
+    survey_mission_id = schemas.SurveyMissionId(
+        uuid.UUID(request.path_params["survey_mission_id"])
+    )
+    asset_index = int(request.path_params["asset_index"])
+    link_index = int(request.query_params.get("link_index", 0))
+    creation_form, survey_mission = await _get_creation_form(request)
+    creation_form.assets[asset_index].asset_links.pop(link_index)
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/create-form.html"
+    )
+    rendered = template.render(
+        form=creation_form,
+        request=request,
+        survey_mission_id=survey_mission_id,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector="#survey-related-record-create-form-container",
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def add_create_survey_related_record_form_asset(request: Request):
+    """Add an asset form to a create_survey_related_record form."""
+    survey_mission_id = schemas.SurveyMissionId(
+        uuid.UUID(request.path_params["survey_mission_id"])
+    )
+    creation_form, survey_mission = await _get_creation_form(request)
+    creation_form.assets.append_entry()
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/create-form.html"
+    )
+    rendered = template.render(
+        form=creation_form,
+        request=request,
+        survey_mission_id=survey_mission_id,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector="#survey-related-record-create-form-container",
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def remove_create_survey_related_record_form_asset(request: Request):
+    """Remove an asset from a create_survey_related_record form."""
+
+    survey_mission_id = schemas.SurveyMissionId(
+        uuid.UUID(request.path_params["survey_mission_id"])
+    )
+    creation_form, survey_mission = await _get_creation_form(request)
+    asset_index = int(request.query_params.get("asset_index", 0))
+    creation_form.assets.entries.pop(asset_index)
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/create-form.html"
+    )
+    rendered = template.render(
+        form=creation_form,
+        request=request,
+        survey_mission_id=survey_mission_id,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector="#survey-related-record-create-form-container",
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def add_create_survey_related_record_form_link(request: Request):
+    """Add a form link to a create_survey_related_record form."""
+    survey_mission_id = schemas.SurveyMissionId(
+        uuid.UUID(request.path_params["survey_mission_id"])
+    )
+    creation_form, survey_mission = await _get_creation_form(request)
+    creation_form.links.append_entry()
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/create-form.html"
+    )
+    rendered = template.render(
+        form=creation_form,
+        request=request,
+        survey_mission_id=survey_mission_id,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector="#survey-related-record-create-form-container",
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def remove_create_survey_related_record_form_link(request: Request):
+    """Remove a form link from a create_survey_related_record form."""
+    survey_mission_id = schemas.SurveyMissionId(
+        uuid.UUID(request.path_params["survey_mission_id"])
+    )
+    creation_form, survey_mission = await _get_creation_form(request)
+    link_index = int(request.query_params.get("link_index", 0))
+    creation_form.links.entries.pop(link_index)
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/create-form.html"
+    )
+    rendered = template.render(
+        form=creation_form,
+        request=request,
+        survey_mission_id=survey_mission_id,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector="#survey-related-record-create-form-container",
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+async def _get_creation_form(
+    request: Request,
+) -> tuple[forms.SurveyRelatedRecordCreateForm, models.SurveyMission]:
     user = get_user(request.session.get("user", {}))
     survey_mission_id = schemas.SurveyMissionId(
         uuid.UUID(request.path_params["survey_mission_id"])
     )
     session_maker = request.state.session_maker
-    template_processor: Jinja2Templates = request.state.templates
     creation_form = await forms.SurveyRelatedRecordCreateForm.from_formdata(request)
     current_language = request.state.language
 
@@ -72,15 +247,24 @@ async def get_survey_related_record_creation_form(request: Request):
                 status_code=404,
                 detail=_(f"Survey mission {survey_mission_id!r} not found."),
             )
+    return creation_form, survey_mission
 
+
+@csrf_protect
+@fancy_requires_auth
+async def get_survey_related_record_creation_form(request: Request):
+    """Get survey-related record creation form."""
+    survey_mission_id = schemas.SurveyMissionId(
+        uuid.UUID(request.path_params["survey_mission_id"])
+    )
+    creation_form, survey_mission = await _get_creation_form(request)
+    template_processor: Jinja2Templates = request.state.templates
     return template_processor.TemplateResponse(
         request,
         "survey-related-records/create.html",
         context={
             "form": creation_form,
-            "survey_mission": schemas.SurveyMissionReadDetail.from_db_instance(
-                survey_mission
-            ),
+            "survey_mission_id": survey_mission_id,
             "breadcrumbs": [
                 schemas.BreadcrumbItem(
                     name=_("Home"), url=str(request.url_for("home"))

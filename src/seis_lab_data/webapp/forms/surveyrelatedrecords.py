@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 class AssetCreateForm(Form):
-    name = FormField(NameForm)
-    description = FormField(DescriptionForm)
+    asset_name = FormField(NameForm, name="name")
+    asset_description = FormField(DescriptionForm, name="description")
     relative_path = StringField(
         _("Relative path"),
         description=_(
@@ -26,8 +26,9 @@ class AssetCreateForm(Form):
             "relative to its parent survey-related record root path"
         ),
     )
-    links = FieldList(
+    asset_links = FieldList(
         FormField(LinkForm),
+        name="links",
         label=_("Links"),
         min_entries=0,
         max_entries=constants.ASSET_MAX_LINKS,

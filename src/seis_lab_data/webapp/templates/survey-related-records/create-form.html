@@ -1,12 +1,8 @@
 {% import "macros.html" as macros %}
 <form>
-    {% for name_field in form.name %}
-        {{ macros.render_form_field(name_field, "name-") }}
-    {% endfor %}
+    {{ macros.render_localizable_field(form.name) }}
 
-    {% for description_field in form.description %}
-        {{ macros.render_form_field(description_field, "description-") }}
-    {% endfor %}
+    {{ macros.render_localizable_field(form.description) }}
 
     {{ macros.render_form_field(form.relative_path) }}
 
@@ -16,12 +12,61 @@
 
     {{ macros.render_form_field(form.workflow_stage_id) }}
 
+    <h3>{{ _("links") | capitalize }}</h3>
+    {{ macros.render_links_fields(
+        form.links,
+        url_for("survey_related_records:add_form_link", survey_mission_id=survey_mission_id),
+        url_for("survey_related_records:remove_form_link", survey_mission_id=survey_mission_id),
+        form.csrf_token.current_token
+    ) }}
+
+    <h3>{{ _("assets") | capitalize }}</h3>
+    <div class="row border p-4 mb-3">
+        <div id="form-assets-container" class="col">
+            {% for asset in form.assets %}
+                <h4>{{ _("asset") | capitalize }} {{ loop.index0 + 1 }}</h4>
+                {{ macros.render_localizable_field(asset.asset_name, "asset-") }}
+                {{ macros.render_localizable_field(asset.asset_description, "asset-") }}
+                {{ macros.render_form_field(asset.relative_path, "asset-") }}
+                {{ macros.render_links_fields(
+                    asset.links,
+                    url_for("survey_related_records:add_asset_link_form", survey_mission_id=survey_mission_id, asset_index=loop.index0),
+                    url_for("survey_related_records:remove_asset_link_form", survey_mission_id=survey_mission_id, asset_index=loop.index0),
+                    form.csrf_token.current_token
+                ) }}
+
+                <button
+                        type="submit"
+                        class="btn btn-outline-secondary"
+                        data-on-click="@post('{{ url_for("survey_related_records:remove_asset_form", survey_mission_id=survey_mission_id) }}?asset_index={{ loop.index0 }}', {
+                  contentType: 'form',
+                  headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'},
+                })"
+                >{{ _("remove") | capitalize }}</button>
+            {% endfor %}
+        </div>
+        <div class="row">
+            <div class="col">
+                <button
+                        type="button"
+                        class="btn btn-outline-secondary"
+                        data-on-click="@post('{{ url_for("survey_related_records:add_asset_form", survey_mission_id=survey_mission_id) }}', {
+          contentType: 'form',
+          headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'},
+        })"
+                >
+                    {{ _("add another asset") | capitalize }}
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div class="row mb-3">
         <div class="col-sm-10 offset-sm-2">
             <button
                     type="submit"
                     class="btn btn-primary"
-                    data-on-click="@post('{{ url_for('survey_missions:detail', survey_mission_id=survey_mission.id) }}', {
+                    data-on-click="@post('{{ url_for('survey_missions:detail', survey_mission_id=survey_mission_id) }}', {
                             contentType: 'form',
                             headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
                         })"

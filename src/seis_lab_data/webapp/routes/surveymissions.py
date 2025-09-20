@@ -15,12 +15,12 @@ from starlette.requests import Request
 from starlette.templating import Jinja2Templates
 from starlette_wtf import csrf_protect
 
-from seis_lab_data import (
+from ... import (
     errors,
     operations,
+    permissions,
     schemas,
 )
-from ... import permissions
 from ...processing import tasks
 from .. import forms
 from .auth import (
@@ -249,3 +249,86 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 yield sse_event
 
         return DatastarResponse(stream_events())
+
+
+@csrf_protect
+async def add_create_survey_mission_form_link(request: Request):
+    """Add a form link to a create_survey_mission form."""
+    user = get_user(request.session.get("user", {}))
+    session_maker = request.state.session_maker
+    project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
+    async with session_maker() as session:
+        try:
+            project = await operations.get_project(
+                project_id,
+                user or None,
+                session,
+                request.state.settings,
+            )
+        except errors.SeisLabDataError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        if project is None:
+            raise HTTPException(
+                status_code=404, detail=_(f"Project {project_id!r} not found.")
+            )
+    creation_form = await forms.SurveyMissionCreateForm.from_formdata(request)
+    creation_form.links.append_entry()
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template("survey-missions/create-form.html")
+    rendered = template.render(
+        form=creation_form,
+        request=request,
+        project=schemas.ProjectReadDetail.from_db_instance(project),
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector="#survey-mission-create-form-container",
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def remove_create_survey_mission_form_link(request: Request):
+    """Remove a form link from a create_survey_mission form."""
+    user = get_user(request.session.get("user", {}))
+    session_maker = request.state.session_maker
+    project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
+    async with session_maker() as session:
+        try:
+            project = await operations.get_project(
+                project_id,
+                user or None,
+                session,
+                request.state.settings,
+            )
+        except errors.SeisLabDataError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        if project is None:
+            raise HTTPException(
+                status_code=404, detail=_(f"Project {project_id!r} not found.")
+            )
+    create_survey_mission_form = await forms.SurveyMissionCreateForm.from_formdata(
+        request
+    )
+    link_index = int(request.query_params.get("link_index", 0))
+    create_survey_mission_form.links.entries.pop(link_index)
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template("survey-missions/create-form.html")
+    rendered = template.render(
+        form=create_survey_mission_form,
+        request=request,
+        project=schemas.ProjectReadDetail.from_db_instance(project),
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector="#survey-mission-create-form-container",
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
