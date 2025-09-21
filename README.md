@@ -104,6 +104,37 @@ End to end tests can be run with the `end-to-end-tester` compose service, by iss
 docker compose --file docker/compose.dev.yaml run --rm end-to-end-tester
 ```
 
+> [!NOTE]
+> ### Running end to end tests in an interactive session
+>
+> Use the `interactive-end-to-end-tester` compose service. Start the stack as normally, then
+> start the `e2e-test` profile with:
+>
+> ```shell
+> docker compose \
+>     --file docker/compose.dev.yaml \
+>     --profile e2e-test \
+>     up -d interactive-end-to-end-tester
+> ```
+>
+> This will start the `interactive-end-to-end-tester` service, which you can then drop you into
+> an interactive shell where you can run the tests, like this:
+>
+> ```shell
+> docker compose \
+>     --file docker/compose.dev.yaml \
+>     exec interactive-end-to-end-tester bash
+> ```
+>
+> Once you are in the container, you can run the tests with:
+>
+> ```shell
+> pip install "playwright==1.53.0" pytest-playwright
+> pytest --base-url http://web-gateway /tests
+> ```
+>
+
+
 
 [docker]: https://www.docker.com/
 [IPMA]: https://www.ipma.pt/pt/index.html
