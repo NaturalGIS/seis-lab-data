@@ -98,43 +98,62 @@ Integration tests can be run with the following incantation:
 docker compose --file docker/compose.dev.yaml exec webapp uv run pytest -m integration
 ```
 
-End to end tests can be run with the `end-to-end-tester` compose service, by issuing a one-off run:
+### End to end tests
+
+End to end tests are run from outside the docker stack. They require the creation of an additional local uv
+environment containing the relevant tools. This can be created with:
 
 ```shell
-docker compose --file docker/compose.dev.yaml run --rm end-to-end-tester
+cd ~/dev  # or wherever you store your code
+uv init seis-lab-data-e2etester
+cd seis-lab-data-e2etester
+uv add ipython playwright pytest-playwright
+uv run playwright install --with-deps chromium
+```
+
+Then tests can be run with:
+
+```shell
+uv run pytest \
+    --config-file ~/dev/seis-lab-data/tests/e2e/conftest.py \
+    ~/dev/seis-lab-data/tests/e2e/ \
+    --user-email akadmin@email.com \
+    --user-password admin123 \
+    --base-url http://localhost:8888
+```
+
+The previous incantation will run all end to end tests in headless mode.
+To run them in headed mode, you can use:
+
+```shell
+uv run pytest \
+    --config-file ~/dev/seis-lab-data/tests/e2e/conftest.py \
+    --user-email akadmin@email.com \
+    --user-password admin123 \
+    --browser chromium \
+    --headed \
+    --slowmo 1500 \
+    --base-url http://localhost:8888 \
+    ~/dev/seis-lab-data/tests/e2e/
 ```
 
 > [!NOTE]
-> ### Running end to end tests in an interactive session
+> ##### Writing end to end tests
 >
-> Use the `interactive-end-to-end-tester` compose service. Start the stack as normally, then
-> start the `e2e-test` profile with:
+> Run an interactive shell with ipython. Start the browser in headed mode:
 >
-> ```shell
-> docker compose \
->     --file docker/compose.dev.yaml \
->     --profile e2e-test \
->     up -d interactive-end-to-end-tester
+> ```python
+> # when using ipython, playwright must be used in async mode
+> from playwright.async_api import (
+>     async_playwright,
+>     expect,
+> )
+> async with async_playwright() as p:
+>     browser = await p.chromium.launch(headless=False, slow_mo=1500)
+>     page = await browser.new_page()
+>     await page.goto("http://localhost:8888")
+>
 > ```
->
-> This will start the `interactive-end-to-end-tester` service, which you can then drop you into
-> an interactive shell where you can run the tests, like this:
->
-> ```shell
-> docker compose \
->     --file docker/compose.dev.yaml \
->     exec interactive-end-to-end-tester bash
-> ```
->
-> Once you are in the container, you can run the tests with:
->
-> ```shell
-> pip install "playwright==1.53.0" pytest-playwright
-> pytest --base-url http://web-gateway /tests
-> ```
->
-
-
 
 [docker]: https://www.docker.com/
 [IPMA]: https://www.ipma.pt/pt/index.html
