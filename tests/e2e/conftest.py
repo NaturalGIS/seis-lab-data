@@ -14,10 +14,12 @@ def pytest_addoption(parser):
 
 def pytest_generate_tests(metafunc):
     if "user_email" in metafunc.fixturenames:
-        metafunc.parametrize("user_email", [metafunc.config.getoption("user_email")])
+        metafunc.parametrize(
+            "user_email", [metafunc.config.getoption("user_email", "replace_me")]
+        )
     if "user_password" in metafunc.fixturenames:
         metafunc.parametrize(
-            "user_password", [metafunc.config.getoption("user_password")]
+            "user_password", [metafunc.config.getoption("user_password", "replace_me")]
         )
 
 

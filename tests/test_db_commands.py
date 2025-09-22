@@ -19,7 +19,7 @@ async def test_create_dataset_category(db, db_session_maker):
     async with db_session_maker() as session:
         created = await commands.create_dataset_category(session, to_create)
         assert created.id == to_create.id
-        assert created.name["en"] == to_create.name["en"]
+        assert created.name["en"] == to_create.name.en
 
 
 @pytest.mark.integration
@@ -46,7 +46,7 @@ async def test_create_domain_type(db, db_session_maker):
     async with db_session_maker() as session:
         created = await commands.create_domain_type(session, to_create)
         assert created.id == to_create.id
-        assert created.name["en"] == to_create.name["en"]
+        assert created.name["en"] == to_create.name.en
 
 
 @pytest.mark.integration
@@ -73,7 +73,7 @@ async def test_create_workflow_stage(db, db_session_maker):
     async with db_session_maker() as session:
         created = await commands.create_workflow_stage(session, to_create)
         assert created.id == to_create.id
-        assert created.name["en"] == to_create.name["en"]
+        assert created.name["en"] == to_create.name.en
 
 
 @pytest.mark.integration
@@ -108,8 +108,8 @@ async def test_create_project(db, db_session_maker):
         assert created.id == to_create.id
         assert created.owner == to_create.owner
         assert created.id == to_create.id
-        assert created.name["en"] == to_create.name["en"]
-        assert created.name["pt"] == to_create.name["pt"]
+        assert created.name["en"] == to_create.name.en
+        assert created.name["pt"] == to_create.name.pt
 
 
 @pytest.mark.integration
@@ -153,8 +153,8 @@ async def test_create_survey_mission(db, db_session_maker, sample_projects):
         assert created.id == to_create.id
         assert created.owner == to_create.owner
         assert created.id == to_create.id
-        assert created.name["en"] == to_create.name["en"]
-        assert created.name["pt"] == to_create.name["pt"]
+        assert created.name["en"] == to_create.name.en
+        assert created.name["pt"] == to_create.name.pt
 
 
 @pytest.mark.integration
@@ -252,8 +252,8 @@ async def test_create_survey_related_record(
         assert created.id == to_create.id
         assert created.owner == to_create.owner
         assert created.id == to_create.id
-        assert created.name["en"] == to_create.name["en"]
-        assert created.name["pt"] == to_create.name["pt"]
+        assert created.name["en"] == to_create.name.en
+        assert created.name["pt"] == to_create.name.pt
 
 
 @pytest.mark.integration

@@ -100,14 +100,10 @@ docker compose --file docker/compose.dev.yaml exec webapp uv run pytest -m integ
 
 ### End to end tests
 
-End to end tests are run from outside the docker stack. They require the creation of an additional local uv
-environment containing the relevant tools. This can be created with:
+End to end tests are run from outside the docker stack. They require that playwright is installed locally.
+You can do this with:
 
 ```shell
-cd ~/dev  # or wherever you store your code
-uv init seis-lab-data-e2etester
-cd seis-lab-data-e2etester
-uv add ipython playwright pytest-playwright
 uv run playwright install --with-deps chromium
 ```
 
@@ -115,8 +111,8 @@ Then tests can be run with:
 
 ```shell
 uv run pytest \
-    --config-file ~/dev/seis-lab-data/tests/e2e/conftest.py \
-    ~/dev/seis-lab-data/tests/e2e/ \
+    tests/e2e/ \
+    -m e2e \
     --user-email akadmin@email.com \
     --user-password admin123 \
     --base-url http://localhost:8888
@@ -127,14 +123,13 @@ To run them in headed mode, you can use:
 
 ```shell
 uv run pytest \
-    --config-file ~/dev/seis-lab-data/tests/e2e/conftest.py \
+    tests/e2e/ \
+    -m e2e \
     --user-email akadmin@email.com \
     --user-password admin123 \
-    --browser chromium \
-    --headed \
-    --slowmo 1500 \
     --base-url http://localhost:8888 \
-    ~/dev/seis-lab-data/tests/e2e/
+    --headed \
+    --slowmo 1500
 ```
 
 > [!NOTE]
