@@ -101,7 +101,7 @@ jobs:
 
       - name: "Run end to end tests"
         run: |
-          uv install run playwright install --with-deps --only-shell chromium
+          uv run playwright install --with-deps --only-shell chromium
           uv run pytest --config-file tests/e2e/conftest.py \
           tests/e2e \
           --user-email akadmin@email.com \
