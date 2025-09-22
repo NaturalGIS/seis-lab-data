@@ -1,7 +1,12 @@
 name: seis-lab-data
 
+x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.8.0-rc6"
+x-auth-admin-token: &auth-admin-token "admin123"
 x-common-image: &common-image "${IMAGE_URL}"
 x-db-image: &db-image "postgis/postgis:17-3.5-alpine"
+x-auth-client-id: &auth-client-id "sld-client-id"
+x-auth-client-secret: &auth-client-secret "sld-client-secret"
+x-auth-redirect-url: &auth-redirect-url "http://localhost:8888/oauth2/callback"
 
 x-common-env: &common-env
   SEIS_LAB_DATA__DEBUG: true
@@ -9,7 +14,86 @@ x-common-env: &common-env
   SEIS_LAB_DATA__TEST_DATABASE_DSN: postgresql+psycopg://sld:sldpass@test-db:5432/seis_lab_data_test
   SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
 
+x-common-auth-env: &common-auth-env
+  AUTHENTIK_LOG_LEVEL: debug
+  AUTHENTIK_SECRET_KEY: mysecret
+  AUTHENTIK_REDIS__HOST: message-broker
+  AUTHENTIK_POSTGRESQL__HOST: auth-db
+  AUTHENTIK_POSTGRESQL__USER: authentik
+  AUTHENTIK_POSTGRESQL__NAME: authentik
+  AUTHENTIK_POSTGRESQL__PASSWORD: authentik_pass
+  AUTHENTIK_WEB__PATH: /auth/
+  SEIS_LAB_DATA_CLIENT_ID: *auth-client-id
+  SEIS_LAB_DATA_CLIENT_SECRET: *auth-client-secret
+  SEIS_LAB_DATA_REDIRECT_URI: *auth-redirect-url
+
 services:
+
+  web-gateway:
+    image: traefik:v3
+    ports:
+      - target: 80
+        published: 8888
+      # traefik API and dashboard
+      - target: 8080
+        published: 8887
+    configs:
+      - source: traefik-conf
+        target: /traefik.toml
+    command: --configFile /traefik.toml
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+
+  auth-db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: authentik
+      POSTGRES_USER: authentik
+      POSTGRES_PASSWORD: authentik_pass
+    healthcheck:
+      test: "pg_isready -d authentik -U authentik"
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+
+  auth-webapp:
+    image: *auth-image
+    command: server
+    environment:
+      <<: *common-auth-env
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth-router.rule=PathRegexp(`^/auth/`)"
+      - "traefik.http.routers.auth-router.entrypoints=web"
+      - "traefik.http.routers.auth-router.priority=100"
+      - "traefik.http.services.auth-service.loadbalancer.server.port=9000"
+    depends_on:
+      auth-db:
+        condition: service_healthy
+      message-broker:
+        condition: service_healthy
+
+  auth-worker:
+    image: *auth-image
+    command: worker
+    environment:
+      <<: *common-auth-env
+      AUTHENTIK_BOOTSTRAP_PASSWORD: admin123
+      AUTHENTIK_BOOTSTRAP_TOKEN: *auth-admin-token
+      AUTHENTIK_BOOTSTRAP_EMAIL: akadmin@email.com
+    volumes:
+      - type: bind
+        source: ./authentik/sld-auth-blueprint-dev.yaml
+        target: /blueprints/custom/sld-auth-blueprint-dev.yaml
+        read_only: true
+    depends_on:
+      auth-db:
+        condition: service_healthy
+      message-broker:
+        condition: service_healthy
 
   message-broker:
     image: redis:8
@@ -39,6 +123,10 @@ services:
       SEIS_LAB_DATA__BIND_HOST: 0.0.0.0
       SEIS_LAB_DATA__BIND_PORT: 5000
       SEIS_LAB_DATA__PUBLIC_URL: http://localhost:8888
+      SEIS_LAB_DATA__AUTH_EXTERNAL_BASE_URL: http://localhost:8888/auth
+      SEIS_LAB_DATA__AUTH_INTERNAL_BASE_URL: http://auth-webapp:9000/auth
+      SEIS_LAB_DATA__AUTH_CLIENT_ID: *auth-client-id
+      SEIS_LAB_DATA__AUTH_CLIENT_SECRET: *auth-client-secret
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.sld-router.rule=PathRegexp(`^/`)"
@@ -57,21 +145,6 @@ services:
     environment:
       <<: *common-env
 
-  end-to-end-tester:
-    image: mcr.microsoft.com/playwright/python:v1.53.0-noble
-    profiles:
-      - "e2e-test"
-    volumes:
-      - type: bind
-        source: $PWD/tests/e2e
-        target: /tests/e2e
-        read_only: true
-    entrypoint: ["/bin/bash", "-c"]
-    command:
-      - |
-        pip install "playwright==1.53.0" pytest-playwright
-        pytest --base-url=http://webapp:5000 /tests
-
   test-db:
     image: *db-image
     environment:
@@ -84,3 +157,9 @@ services:
       interval: 30s
       retries: 5
       timeout: 5s
+
+
+configs:
+
+  traefik-conf:
+    file: ./traefik/dev-config.toml
