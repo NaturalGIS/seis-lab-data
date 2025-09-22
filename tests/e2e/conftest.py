@@ -1,36 +1,75 @@
 import re
 
 import pytest
-from playwright.sync_api import (
-    Page,
-    expect,
-)
+from playwright.sync_api import expect
 
 
 def pytest_addoption(parser):
-    parser.addoption("--user-email")
-    parser.addoption("--user-password")
+    parser.addoption(
+        "--user-email",
+        default=None,
+        help="Email address of the user to authenticate with",
+    )
+    parser.addoption(
+        "--user-password",
+        default=None,
+        help="Password of the user to authenticate with",
+    )
 
 
-def pytest_generate_tests(metafunc):
-    if "user_email" in metafunc.fixturenames:
-        metafunc.parametrize(
-            "user_email", [metafunc.config.getoption("user_email", "replace_me")]
+@pytest.fixture(scope="session")
+def auth_credentials(request):
+    email = request.config.getoption("--user-email")
+    password = request.config.getoption("--user-password")
+    if not email or not password:
+        pytest.skip(
+            "Authentication credentials not provided. Pass the --user-email "
+            "and --user-password CLI options."
         )
-    if "user_password" in metafunc.fixturenames:
-        metafunc.parametrize(
-            "user_password", [metafunc.config.getoption("user_password", "replace_me")]
-        )
+    return email, password
 
 
-@pytest.fixture
-def logged_in_user(page: Page, user_email: str, user_password: str):
-    page.goto("/?lang=en")
-    page.get_by_text(re.compile("login", re.IGNORECASE)).click()
-    page.get_by_placeholder(re.compile("email", re.IGNORECASE)).fill(user_email)
+@pytest.fixture(scope="session")
+def authenticated_context(browser, auth_credentials, base_url):
+    context = browser.new_context(base_url=base_url)
+    page = context.new_page()
+    page.goto("/")
+    page.get_by_test_id("login-nav").click()
+    email, password = auth_credentials
+    page.get_by_placeholder(re.compile("email", re.IGNORECASE)).fill(email)
     page.get_by_placeholder(
         re.compile("please enter your password", re.IGNORECASE)
-    ).fill(user_password)
+    ).fill(password)
     page.get_by_text(re.compile("log in", re.IGNORECASE)).click()
-    expect(page.get_by_text(re.compile("logout", re.IGNORECASE))).to_be_visible()
-    yield
+    expect(page.get_by_test_id("user-menu")).to_be_visible()
+    storage_state = context.storage_state()
+    page.close()
+    context.close()
+    yield storage_state
+
+
+@pytest.fixture(scope="session")
+def shared_authenticated_page(browser, authenticated_context, base_url):
+    context = browser.new_context(
+        storage_state=authenticated_context, base_url=base_url
+    )
+    page = context.new_page()
+    yield page
+    context.close()
+
+
+@pytest.fixture(scope="function")
+def fresh_authenticated_page(browser, auth_credentials, base_url):
+    context = browser.new_context(base_url=base_url)
+    page = context.new_page()
+    page.goto("/")
+    page.get_by_test_id("login-nav").click()
+    email, password = auth_credentials
+    page.get_by_placeholder(re.compile("email", re.IGNORECASE)).fill(email)
+    page.get_by_placeholder(
+        re.compile("please enter your password", re.IGNORECASE)
+    ).fill(password)
+    page.get_by_text(re.compile("log in", re.IGNORECASE)).click()
+    expect(page.get_by_test_id("user-menu")).to_be_visible()
+    yield page
+    context.close()

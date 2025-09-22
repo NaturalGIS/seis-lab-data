@@ -113,6 +113,7 @@ Then tests can be run with:
 uv run pytest \
     tests/e2e/ \
     -m e2e \
+    --confcutdir tests/e2e \
     --user-email akadmin@email.com \
     --user-password admin123 \
     --base-url http://localhost:8888
@@ -125,6 +126,7 @@ To run them in headed mode, you can use:
 uv run pytest \
     tests/e2e/ \
     -m e2e \
+    --confcutdir tests/e2e \
     --user-email akadmin@email.com \
     --user-password admin123 \
     --base-url http://localhost:8888 \

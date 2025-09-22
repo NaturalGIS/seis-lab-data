@@ -17,9 +17,9 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('home') }}">SeisLabData</a>
             <div class="navbar-nav me-auto">
-                <a class="nav-link" href="{{ url_for('projects:list') }}">{{ _("Projects") }}</a>
-                <a class="nav-link" href="{{ url_for('survey_missions:list') }}">{{ _("Survey Missions") }}</a>
-                <a class="nav-link" href="{{ url_for('survey_related_records:list') }}">{{ _("Survey-related Records") }}</a>
+                <a class="nav-link" href="{{ url_for('projects:list') }}" data-testid="projects-nav">{{ _("Projects") }}</a>
+                <a class="nav-link" href="{{ url_for('survey_missions:list') }} " data-testid="survey-missions-nav">{{ _("Survey Missions") }}</a>
+                <a class="nav-link" href="{{ url_for('survey_related_records:list') }}" data-testid="survey-related-records-nav">{{ _("Survey-related Records") }}</a>
                 {% if request.session.user %}
                     <a class="nav-link" href="{{ url_for('profile') }}">{{ _("Profile") }}</a>
                     <a class="nav-link" href="{{ url_for('protected') }}">{{ _("Protected") }}</a>
@@ -49,14 +49,14 @@
               </ul>
             </div>
                 {% if request.session.user %}
-                    <div class="navbar-nav align-items-center">
+                    <div class="navbar-nav align-items-center" data-testid="user-menu">
                         <span class="navbar-text me-3">{{ request.session.user.name }}</span>
-                        <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}">
+                        <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}" data-testid="logout-nav">
                             <i class="bi bi-box-arrow-right"></i> {{ _("Logout") }}
                         </a>
                     </div>
                 {% else %}
-                    <a class="btn btn-outline-light btn-sm" href="{{ url_for('login') }}">
+                    <a class="btn btn-outline-light btn-sm" href="{{ url_for('login') }}" data-testid="login-nav">
                         <i class="bi bi-box-arrow-in-right"></i> {{ _("Login / Register") }}
                     </a>
                 {% endif %}
