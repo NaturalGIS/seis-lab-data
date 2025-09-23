@@ -17,9 +17,9 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('home') }}">SeisLabData</a>
             <div class="navbar-nav me-auto">
-                <a class="nav-link" href="{{ url_for('projects:list') }}" data-testid="projects-nav">{{ _("Projects") }}</a>
-                <a class="nav-link" href="{{ url_for('survey_missions:list') }} " data-testid="survey-missions-nav">{{ _("Survey Missions") }}</a>
-                <a class="nav-link" href="{{ url_for('survey_related_records:list') }}" data-testid="survey-related-records-nav">{{ _("Survey-related Records") }}</a>
+                <a class="nav-link" href="{{ url_for('projects:list') }}" aria-label="list-projects">{{ _("Projects") }}</a>
+                <a class="nav-link" href="{{ url_for('survey_missions:list') }} " aria-label="list-survey-missions">{{ _("Survey Missions") }}</a>
+                <a class="nav-link" href="{{ url_for('survey_related_records:list') }}" aria-label="list-survey-related-records">{{ _("Survey-related Records") }}</a>
                 {% if request.session.user %}
                     <a class="nav-link" href="{{ url_for('profile') }}">{{ _("Profile") }}</a>
                     <a class="nav-link" href="{{ url_for('protected') }}">{{ _("Protected") }}</a>
@@ -29,6 +29,7 @@
                 <div class="dropdown me-3">
                   <button
                           class="btn btn-outline-dark dropdown-toggle"
+                          data-testid="toggle-lang"
                           type="button"
                           data-bs-toggle="dropdown"
                           aria-expanded="false"
@@ -38,11 +39,13 @@
               <ul class="dropdown-menu text-bg-light">
                 <li><a
                         class="dropdown-item"
+                        data-testid="set-lang-en"
                         {% if request.state.locale == "en" %}active{% endif %}
                         href="{{ url_for('set_language', lang='en') }}"
                     >en - {{ _("English") }}</a></li>
                 <li><a
                         class="dropdown-item"
+                        data-testid="set-lang-pt"
                         {% if request.state.locale == "pt" %}active{% endif %}
                         href="{{ url_for('set_language', lang='pt') }}"
                 >pt - {{ _("Portuguese") }}</a></li>

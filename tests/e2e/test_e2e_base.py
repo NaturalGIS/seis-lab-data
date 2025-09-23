@@ -12,3 +12,14 @@ def test_webapp_home_is_up(page: Page):
     # this is intended just as an initial placeholder test though
     locator = page.locator("body > div.container-fluid > div.row > p:last-child")
     expect(locator).to_have_text("Hi there!")
+
+
+@pytest.mark.e2e
+def test_set_language(page: Page):
+    page.goto("/")
+    page.get_by_test_id("toggle-lang").click()
+    page.get_by_test_id("set-lang-en").click()
+    expect(page.get_by_test_id("projects-nav")).to_have_text("Projects")
+    page.get_by_test_id("toggle-lang").click()
+    page.get_by_test_id("set-lang-pt").click()
+    expect(page.get_by_test_id("projects-nav")).to_have_text("Projetos")

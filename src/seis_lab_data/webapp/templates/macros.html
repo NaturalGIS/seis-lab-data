@@ -1,6 +1,7 @@
-{% macro render_form_field(field, name_prefix="") %}
+{% macro render_form_field(field, name_prefix="", test_id=None) %}
     {% set form_element_classes = "form-control is-invalid" if field.errors else "form-control" %}
     {% set form_element_described_by = name_prefix ~ field.name ~ "-help backend-validation-" ~ name_prefix ~ field.name ~ "-feedback" if field.errors else name_prefix ~ field.name ~ "-help" %}
+    {% set stable_test_id = test_id or ("field-" ~ name_prefix ~ field.name) %}
     <div class="row mb-3">
         <div class="col-sm-2">
             {{ field.label(class="form-label") }}
@@ -10,9 +11,18 @@
         </div>
         <div class="col-sm-10{% if field.errors %} has-validation{% endif %}">
             {% if field.flags.backend_required %}
-                {{ field(class=form_element_classes, aria_describedby=form_element_described_by, aria_required="true", data_bind=field.name, **kwargs) }}
+                {{ field(class=form_element_classes,
+                         aria_describedby=form_element_described_by,
+                         aria_required="true",
+                         aria_label=stable_test_id,
+                         data_bind=field.name,
+                         **kwargs) }}
             {% else %}
-                {{ field(class=form_element_classes, aria_describedby=form_element_described_by, data_bind=field.name, **kwargs) }}
+                {{ field(class=form_element_classes,
+                         aria_describedby=form_element_described_by,
+                         aria_label=stable_test_id,
+                         data_bind=field.name,
+                         **kwargs) }}
             {% endif %}
             <div id="{{ name_prefix }}{{ field.name }}-help" class="form-text">
                 {{ field.description }}{% if field.flags.backend_required %} -
@@ -31,7 +41,7 @@
 
 {% macro render_localizable_field(localizable_field, id_prefix="") %}
     {% for field in localizable_field %}
-        {{ render_form_field(field, id_prefix ~ field.name ~ "-") }}
+        {{ render_form_field(field, id_prefix) }}
     {% endfor %}
 {% endmacro %}
 
@@ -79,6 +89,7 @@
                 <button
                         type="button"
                         class="btn btn-outline-secondary"
+                        aria-label="add-another-link"
                         data-on-click="@post('{{ add_link_url }}', {
           contentType: 'form',
           headers: {'X-CSRFToken': '{{ csrf_token }}'},
