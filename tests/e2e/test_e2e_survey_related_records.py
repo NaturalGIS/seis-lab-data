@@ -257,7 +257,7 @@ def test_survey_related_record_lifecycle(shared_authenticated_page: Page):
         "textbox", name="field-asset-assets-1-name-pt"
     ).fill("Segundo recurso de teste e2e")
     shared_authenticated_page.get_by_role(
-        "textbox", name="field--assets-1-description-en"
+        "textbox", name="field-asset-assets-1-description-en"
     ).fill("This the second sample asset used in e2e tests")
     shared_authenticated_page.get_by_role(
         "textbox", name="field-asset-assets-1-description-pt"
@@ -266,7 +266,7 @@ def test_survey_related_record_lifecycle(shared_authenticated_page: Page):
         "textbox", name="field-asset-assets-1-relative_path"
     ).fill("/asset/relative/path")
     shared_authenticated_page.get_by_role(
-        "button", name="asset-0-add-another-link"
+        "button", name="asset-1-add-another-link"
     ).click()
     shared_authenticated_page.get_by_role(
         "textbox", name="field-asset-1-link-assets-1-links-0-url"
