@@ -1,69 +1,67 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-"""
+""" """
 
-import os
 import argparse
+import dataclasses
+from dataclasses import field
+from dataclasses import fields
+from datetime import datetime
+from datetime import UTC
 import json
-from datetime import datetime, UTC
-from osgeo import gdal, ogr, osr
+import os
+from osgeo import gdal
+from osgeo import ogr
+from osgeo import osr
 
+
+@dataclasses.dataclass
 class Metadata:
+    name: str
+    size_bytes: int
+    creation_date: datetime
+    format: str = None
+    driver: str = None
+    spatial: str = None
+    raster: str = None
+    vector: str = None
+    error_no: str = 0
+    error_type: str = ""
+    messages: list[str] = field(default_factory=list)
 
-    @classmethod
-    def new_metadata_dict(cls):
+    def __str__(self):
+        md_d = dict()
+        for f in fields(Metadata):
+            md_d[f.name] = getattr(self, f.name)
 
-        # Let's create a metadata template
+        return json.dumps(md_d)
 
-        metadata = {
-            "file": {
-                "name":   None,
-                "format": None,
-                "driver": None,
-                "size_bytes": None,
-                "creation_date": None
-            },
-            "spatial":  {},
-            "raster":   {},
-            "vector":   {},
-            "survey":   {},
-            "error_no": 0,
-            "error_type": 0,
-            "messages": list()
-        }
-        return metadata
 
+def gdal_open_exceptions_handler(cls, err_class, err_no, msg):
+    if err_class == gdal.CE_Warning:
+        GDALReader.warning_notes.append(msg)
 
 
 class GDALReader:
     warning_notes = []
 
-    @classmethod
-    def gdal_open_exceptions_handler(cls, err_class, err_no, msg):
-        if err_class == gdal.CE_Warning:
-            GDALReader.warning_notes.append(msg)
-
     def extract_metadata(self, path):
         gdal.UseExceptions()
 
-        metadata = Metadata.new_metadata_dict()
-
-        metadata["name"] = os.path.basename(path)
-        metadata["size_bytes"] = os.path.getsize(path)
-        metadata["creation_date"] = datetime.fromtimestamp(
-                    os.path.getctime(path), UTC
-                ).isoformat() + "Z",
+        metadata = Metadata(
+            os.path.basename(path),
+            os.path.getsize(path),
+            datetime.fromtimestamp(os.path.getctime(path), UTC).isoformat() + "Z",
+        )
 
         # Try opening as raster
 
-        gdal.PushErrorHandler(GDALReader.gdal_open_exceptions_handler)
+        gdal.PushErrorHandler(gdal_open_exceptions_handler)
         try:
             ds = gdal.Open(path, gdal.GA_ReadOnly)
         except Exception:
-            metadata["error_type"]  = gdal.GetLastErrorType()
-            metadata["error_no"]    = gdal.GetLastErrorNo()
-            metadata["messages"].append(gdal.GetLastErrorMsg())
+            metadata.error_type = gdal.GetLastErrorType()
+            metadata.error_no = gdal.GetLastErrorNo()
+            metadata.messages.append(gdal.GetLastErrorMsg())
             return metadata
 
         gdal.PopErrorHandler()
@@ -71,9 +69,8 @@ class GDALReader:
         if ds is not None:
             try:
                 drv = ds.GetDriver()
-                print(f"attempt to read {path} as raster file")
-                metadata["file"]["format"] = drv.LongName
-                metadata["file"]["driver"] = drv.ShortName
+                metadata.format = drv.LongName
+                metadata.driver = drv.ShortName
 
                 # Spatial reference
 
@@ -100,7 +97,7 @@ class GDALReader:
                 else:
                     xmin = ymin = xmax = ymax = None
 
-                metadata["spatial"] = {
+                metadata.spatial = {
                     "crs": {"epsg": epsg, "wkt": proj},
                     "extent": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax},
                     "resolution": {
@@ -129,13 +126,13 @@ class GDALReader:
                         }
                     )
 
-                metadata["raster"] = {"bands": ds.RasterCount, "info": bands_info}
+                metadata.raster = {"bands": ds.RasterCount, "info": bands_info}
 
                 ds = None
             except Exception:
                 print(f"not handling {path} as raster")
 
-            metadata["messages"] = GDALReader.warning_notes
+            metadata.messages = GDALReader.warning_notes
             return metadata
 
         # Try opening as vector
@@ -151,8 +148,8 @@ class GDALReader:
                 driver = None
                 print(f"failed to establish a driver for {path}")
 
-            metadata["file"]["driver"] = driver
-            metadata["file"]["format"] = driver
+            metadata.driver = driver
+            metadata.format = driver
 
             layers = []
             for i in range(ds_vec.GetLayerCount()):
@@ -192,7 +189,7 @@ class GDALReader:
                     }
                 )
 
-            metadata["vector"] = {"layers": layers}
+            metadata.vector = {"layers": layers}
             ds_vec = None
         except Exception as e:
             print(f"Error reading vector data from {path}: {e}")
@@ -200,17 +197,16 @@ class GDALReader:
         return metadata
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Attempt to extract metadata from GDAL supported data formats.")
+# Example usage
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Attempt to extract metadata from GDAL supported data formats."
+    )
     parser.add_argument("file_name", help="GDAL supported file path")
     args = parser.parse_args()
 
     gdal_reader = GDALReader()
     m = gdal_reader.extract_metadata(args.file_name)
-    print(json.dumps(m, indent=2))
+    # print(json.dumps(m, indent=2))
+    print(str(m))
     print(f"#### {args.file_name} ####")
-
-# Example usage
-if __name__ == "__main__":
-    main()
-
