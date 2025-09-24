@@ -1,21 +1,18 @@
 from typing import (
     Annotated,
     NewType,
+    Protocol,
 )
 import uuid
 
-import babel
-from pydantic import (
-    AfterValidator,
-    BaseModel,
-    Field,
-)
+import pydantic
 
 from .. import constants
 
 DatasetCategoryId = NewType("DatasetCategoryId", uuid.UUID)
 DomainTypeId = NewType("DomainTypeId", uuid.UUID)
 RecordAssetId = NewType("RecordAssetId", uuid.UUID)
+RequestId = NewType("RequestId", uuid.UUID)
 SurveyRelatedRecordId = NewType("SurveyRelatedRecordId", uuid.UUID)
 SurveyMissionId = NewType("SurveyMissionId", uuid.UUID)
 ProjectId = NewType("ProjectId", uuid.UUID)
@@ -23,46 +20,46 @@ UserId = NewType("UserId", str)
 WorkflowStageId = NewType("WorkflowStageId", uuid.UUID)
 
 
-def has_valid_locales(value: dict[str, str]):
-    try:
-        for key in value.keys():
-            babel.Locale.parse(key)
-    except babel.UnknownLocaleError as exc:
-        raise ValueError(exc) from exc
-    return value
+class Localizable(Protocol):
+    en: str | None
+    pt: str | None
 
 
-def has_english_locale(value: dict[str, str]):
-    try:
-        result = value["en"] != ""
-    except KeyError as exc:
-        raise ValueError("Missing english locale") from exc
-    if not result:
-        raise ValueError("Missing english locale value")
-    return value
+class LocalizableDraftName(pydantic.BaseModel):
+    en: Annotated[
+        str, pydantic.Field(min_length=1, max_length=constants.NAME_MAX_LENGTH)
+    ]
+    pt: Annotated[str, pydantic.Field(max_length=constants.NAME_MAX_LENGTH)] | None = (
+        None
+    )
 
 
-NameString = Annotated[str, Field(max_length=constants.MAX_NAME_LENGTH)]
-LocalizableName = Annotated[dict[str, NameString], AfterValidator(has_valid_locales)]
-AtLeastEnglishName = Annotated[LocalizableName, AfterValidator(has_english_locale)]
+class LocalizableDraftDescription(pydantic.BaseModel):
+    en: (
+        Annotated[str, pydantic.Field(max_length=constants.DESCRIPTION_MAX_LENGTH)]
+        | None
+    ) = None
+    pt: (
+        Annotated[str, pydantic.Field(max_length=constants.DESCRIPTION_MAX_LENGTH)]
+        | None
+    ) = None
 
 
-DescriptionString = Annotated[str, Field(max_length=constants.MAX_DESCRIPTION_LENGTH)]
-LocalizableDescription = Annotated[
-    dict[str, DescriptionString], AfterValidator(has_valid_locales)
-]
-AtLeastEnglishDescription = Annotated[
-    LocalizableDescription, AfterValidator(has_english_locale)
-]
-
-LocalizableString = Annotated[dict[str, str], AfterValidator(has_valid_locales)]
-AtLeastEnglishLocalizableString = Annotated[
-    LocalizableString, AfterValidator(has_english_locale)
-]
-
-
-class LinkSchema(BaseModel):
-    url: str
+class LinkSchema(pydantic.BaseModel):
+    url: pydantic.AnyHttpUrl
     media_type: str
     relation: str
-    description: AtLeastEnglishLocalizableString
+    # NOTE: the below field is named 'link_description' intentionally - do not change
+    #
+    # The reason is that we have some smarts to perform validation on forms
+    # generated with wtforms and this means the names of form fields must be the
+    # same as pydantic model fields. It just so happens that links are modelled
+    # in a wtforms formfield, which also has a 'description' property and this
+    # naming was chosen to avoid clashes
+    link_description: LocalizableDraftDescription
+
+    @pydantic.field_serializer("url")
+    def serialize_url(
+        self, url: pydantic.AnyHttpUrl, _info: pydantic.FieldSerializationInfo
+    ) -> str:
+        return str(url)

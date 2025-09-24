@@ -1,15 +1,13 @@
-from typing import TYPE_CHECKING
-
 import pydantic
 
 from ..db import models
 from ..constants import SurveyRelatedRecordStatus
 from .common import (
-    AtLeastEnglishName,
-    AtLeastEnglishDescription,
     DatasetCategoryId,
     DomainTypeId,
     LinkSchema,
+    LocalizableDraftDescription,
+    LocalizableDraftName,
     RecordAssetId,
     SurveyMissionId,
     SurveyRelatedRecordId,
@@ -18,63 +16,60 @@ from .common import (
 )
 from .surveymissions import SurveyMissionReadEmbedded
 
-if TYPE_CHECKING:
-    from .recordassets import RecordAssetCreate
-
 
 class DatasetCategoryCreate(pydantic.BaseModel):
     id: DatasetCategoryId
-    name: AtLeastEnglishName
+    name: LocalizableDraftName
 
 
 class DatasetCategoryRead(pydantic.BaseModel):
     id: DatasetCategoryId
-    name: AtLeastEnglishName
+    name: LocalizableDraftName
 
 
 class DomainTypeCreate(pydantic.BaseModel):
     id: DomainTypeId
-    name: AtLeastEnglishName
+    name: LocalizableDraftName
 
 
 class DomainTypeRead(pydantic.BaseModel):
     id: DomainTypeId
-    name: AtLeastEnglishName
+    name: LocalizableDraftName
 
 
 class WorkflowStageCreate(pydantic.BaseModel):
     id: WorkflowStageId
-    name: AtLeastEnglishName
+    name: LocalizableDraftName
 
 
 class WorkflowStageRead(pydantic.BaseModel):
     id: WorkflowStageId
-    name: AtLeastEnglishName
+    name: LocalizableDraftName
 
 
 class RecordAssetCreate(pydantic.BaseModel):
     id: RecordAssetId
-    name: AtLeastEnglishName
-    description: AtLeastEnglishDescription
+    name: LocalizableDraftName
+    description: LocalizableDraftDescription
     relative_path: str
     links: list[LinkSchema] = []
 
 
 class RecordAssetUpdate(pydantic.BaseModel):
-    name: AtLeastEnglishName | None = None
-    description: AtLeastEnglishDescription | None = None
+    name: LocalizableDraftName | None = None
+    description: LocalizableDraftDescription | None = None
     relative_path: str | None = None
     links: list[LinkSchema] | None = None
 
 
 class RecordAssetReadListItem(pydantic.BaseModel):
     id: RecordAssetId
-    name: AtLeastEnglishName
+    name: LocalizableDraftName
     is_valid: bool
 
 
 class RecordAssetReadDetailEmbedded(RecordAssetReadListItem):
-    description: AtLeastEnglishDescription
+    description: LocalizableDraftDescription
     relative_path: str
     links: list[LinkSchema] = []
 
@@ -87,8 +82,7 @@ class RecordAssetReadDetailEmbedded(RecordAssetReadListItem):
 
 class SurveyRelatedRecordReadEmbedded(pydantic.BaseModel):
     id: SurveyRelatedRecordId
-    slug: str
-    name: AtLeastEnglishName
+    name: LocalizableDraftName
     status: SurveyRelatedRecordStatus
     is_valid: bool
     survey_mission: SurveyMissionReadEmbedded
@@ -107,7 +101,7 @@ class SurveyRelatedRecordReadEmbedded(pydantic.BaseModel):
 
 class RecordAssetReadDetail(RecordAssetReadListItem):
     survey_related_record: SurveyRelatedRecordReadEmbedded
-    description: AtLeastEnglishDescription
+    description: LocalizableDraftDescription
     relative_path: str
     links: list[LinkSchema] = []
 
@@ -124,8 +118,8 @@ class RecordAssetReadDetail(RecordAssetReadListItem):
 class SurveyRelatedRecordCreate(pydantic.BaseModel):
     id: SurveyRelatedRecordId
     owner: UserId
-    name: AtLeastEnglishName
-    description: AtLeastEnglishDescription
+    name: LocalizableDraftName
+    description: LocalizableDraftDescription
     survey_mission_id: SurveyMissionId
     dataset_category_id: DatasetCategoryId
     domain_type_id: DomainTypeId
@@ -137,8 +131,8 @@ class SurveyRelatedRecordCreate(pydantic.BaseModel):
 
 class SurveyRelatedRecordUpdate(pydantic.BaseModel):
     owner: UserId | None = None
-    name: AtLeastEnglishName | None = None
-    description: AtLeastEnglishDescription | None = None
+    name: LocalizableDraftName | None = None
+    description: LocalizableDraftDescription | None = None
     survey_mission_id: SurveyMissionId | None = None
     dataset_category_id: DatasetCategoryId | None = None
     domain_type_id: DomainTypeId | None = None
@@ -149,9 +143,8 @@ class SurveyRelatedRecordUpdate(pydantic.BaseModel):
 
 class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
     id: SurveyRelatedRecordId
-    slug: str
-    name: AtLeastEnglishName
-    description: AtLeastEnglishDescription
+    name: LocalizableDraftName
+    description: LocalizableDraftDescription
     status: SurveyRelatedRecordStatus
     is_valid: bool
 
@@ -168,17 +161,19 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
 
     @classmethod
     def from_db_instance(
-        cls, instance: models.SurveyRelatedRecord, assets: list[models.RecordAsset]
+        cls, instance: models.SurveyRelatedRecord
     ) -> "SurveyRelatedRecordReadDetail":
         return cls(
             **instance.model_dump(),
             survey_mission=SurveyMissionReadEmbedded.from_db_instance(
                 instance.survey_mission
             ),
-            dataset_category=instance.dataset_category.model_dump(),
-            domain_type=instance.domain_type.model_dump(),
-            workflow_stage=instance.workflow_stage.model_dump(),
+            dataset_category=DatasetCategoryRead(
+                **instance.dataset_category.model_dump()
+            ),
+            domain_type=DomainTypeRead(**instance.domain_type.model_dump()),
+            workflow_stage=WorkflowStageRead(**instance.workflow_stage.model_dump()),
             record_assets=[
-                RecordAssetReadDetailEmbedded(**a.model_dump()) for a in assets
+                RecordAssetReadDetailEmbedded(**a.model_dump()) for a in instance.assets
             ],
         )

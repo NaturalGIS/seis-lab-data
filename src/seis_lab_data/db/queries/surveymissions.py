@@ -39,12 +39,15 @@ async def get_survey_mission(
     return (await session.exec(statement)).first()
 
 
-async def get_survey_mission_by_slug(
-    session: AsyncSession, slug: str
+async def get_survey_mission_by_english_name(
+    session: AsyncSession,
+    project_id: schemas.ProjectId,
+    english_name: str,
 ) -> models.SurveyMission | None:
     statement = (
         select(models.SurveyMission)
-        .where(models.SurveyMission.slug == slug)
+        .where(models.SurveyMission.name["en"].astext == english_name)
+        .where(models.SurveyMission.project_id == project_id)
         .options(selectinload(models.SurveyMission.project))
     )
     return (await session.exec(statement)).first()

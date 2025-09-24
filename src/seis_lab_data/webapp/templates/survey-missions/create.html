@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+    <h1 class="display-1">{{ _("New Survey mission") }}</h1>
+    <div id="survey-mission-create-form-container">
+        {% include "survey-missions/create-form.html" %}
+    </div>
+    <div id="feedback">
+        <ul></ul>
+    </div>
+{% endblock %}

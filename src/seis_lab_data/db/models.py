@@ -33,7 +33,7 @@ class Link(TypedDict):
     url: str
     media_type: str
     relation: str
-    description: LocalizableString
+    link_description: LocalizableString
 
 
 class DatasetCategory(SQLModel, table=True):
@@ -78,7 +78,6 @@ class Project(SQLModel, table=True):
     description: Annotated[
         LocalizableString, PlainSerializer(serialize_localizable_field)
     ] = Field(sa_column=Column(JSONB))
-    slug: str = Field(max_length=constants.MAX_NAME_LENGTH, index=True, unique=True)
     status: constants.ProjectStatus = constants.ProjectStatus.DRAFT
     root_path: str = ""
     is_valid: bool = False
@@ -104,7 +103,6 @@ class SurveyMission(SQLModel, table=True):
     description: Annotated[
         LocalizableString, PlainSerializer(serialize_localizable_field)
     ] = Field(sa_column=Column(JSONB))
-    slug: str = Field(max_length=constants.MAX_NAME_LENGTH, index=True, unique=True)
     project_id: uuid.UUID = Field(foreign_key="project.id", ondelete="CASCADE")
     links: Annotated[list[Link], PlainSerializer(serialize_localizable_field)] = Field(
         sa_column=Column(JSONB), default_factory=list
@@ -132,7 +130,6 @@ class SurveyRelatedRecord(SQLModel, table=True):
     description: Annotated[
         LocalizableString, PlainSerializer(serialize_localizable_field)
     ] = Field(sa_column=Column(JSONB))
-    slug: str = Field(max_length=constants.MAX_NAME_LENGTH, index=True, unique=True)
     status: constants.SurveyRelatedRecordStatus = (
         constants.SurveyRelatedRecordStatus.DRAFT
     )

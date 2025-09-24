@@ -98,12 +98,59 @@ Integration tests can be run with the following incantation:
 docker compose --file docker/compose.dev.yaml exec webapp uv run pytest -m integration
 ```
 
-End to end tests can be run with the `end-to-end-tester` compose service, by issuing a one-off run:
+### End to end tests
+
+End to end tests are run from outside the docker stack. They require that playwright is installed locally.
+You can do this with:
 
 ```shell
-docker compose --file docker/compose.dev.yaml run --rm end-to-end-tester
+uv run playwright install --with-deps chromium
 ```
 
+Then tests can be run with:
+
+```shell
+uv run pytest \
+    tests/e2e/ \
+    -m e2e \
+    --confcutdir tests/e2e \
+    --user-email akadmin@email.com \
+    --user-password admin123 \
+    --base-url http://localhost:8888
+```
+
+The previous incantation will run all end to end tests in headless mode.
+To run them in headed mode, you can use:
+
+```shell
+uv run pytest \
+    tests/e2e/ \
+    -m e2e \
+    --confcutdir tests/e2e \
+    --user-email akadmin@email.com \
+    --user-password admin123 \
+    --base-url http://localhost:8888 \
+    --headed \
+    --slowmo 1500
+```
+
+> [!NOTE]
+> ##### Writing end to end tests
+>
+> Run an interactive shell with ipython. Start the browser in headed mode:
+>
+> ```python
+> # when using ipython, playwright must be used in async mode
+> from playwright.async_api import (
+>     async_playwright,
+>     expect,
+> )
+> async with async_playwright() as p:
+>     browser = await p.chromium.launch(headless=False, slow_mo=1500)
+>     page = await browser.new_page()
+>     await page.goto("http://localhost:8888")
+>
+> ```
 
 [docker]: https://www.docker.com/
 [IPMA]: https://www.ipma.pt/pt/index.html

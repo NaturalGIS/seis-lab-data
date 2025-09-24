@@ -13,21 +13,21 @@ from seis_lab_data import schemas
 @pytest.mark.asyncio
 async def test_create_dataset_category(db, db_session_maker):
     to_create = schemas.DatasetCategoryCreate(
-        id=uuid.UUID("303cad6d-2e0e-447e-85e1-c284c1c882a7"),
-        name={"en": "A fake category"},
+        id=schemas.DatasetCategoryId(uuid.UUID("303cad6d-2e0e-447e-85e1-c284c1c882a7")),
+        name=schemas.LocalizableDraftName(en="A fake category"),
     )
     async with db_session_maker() as session:
         created = await commands.create_dataset_category(session, to_create)
         assert created.id == to_create.id
-        assert created.name["en"] == to_create.name["en"]
+        assert created.name["en"] == to_create.name.en
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_delete_dataset_category(db, db_session_maker):
     to_create = schemas.DatasetCategoryCreate(
-        id=uuid.UUID("26b06713-dce1-4304-bf50-fec5c3f5efe6"),
-        name={"en": "A fake category"},
+        id=schemas.DatasetCategoryId(uuid.UUID("26b06713-dce1-4304-bf50-fec5c3f5efe6")),
+        name=schemas.LocalizableDraftName(en="A fake category"),
     )
     async with db_session_maker() as session:
         await commands.create_dataset_category(session, to_create)
@@ -40,21 +40,21 @@ async def test_delete_dataset_category(db, db_session_maker):
 @pytest.mark.asyncio
 async def test_create_domain_type(db, db_session_maker):
     to_create = schemas.DomainTypeCreate(
-        id=uuid.UUID("28105b9e-03fb-40d2-96c3-6e449b1848ed"),
-        name={"en": "A fake domain type"},
+        id=schemas.DomainTypeId(uuid.UUID("28105b9e-03fb-40d2-96c3-6e449b1848ed")),
+        name=schemas.LocalizableDraftName(en="A fake domain type"),
     )
     async with db_session_maker() as session:
         created = await commands.create_domain_type(session, to_create)
         assert created.id == to_create.id
-        assert created.name["en"] == to_create.name["en"]
+        assert created.name["en"] == to_create.name.en
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_delete_domain_type(db, db_session_maker):
     to_create = schemas.DomainTypeCreate(
-        id=uuid.UUID("d54bb541-a070-483d-8a5b-ac82f6f27a2b"),
-        name={"en": "A fake domain type"},
+        id=schemas.DomainTypeId(uuid.UUID("d54bb541-a070-483d-8a5b-ac82f6f27a2b")),
+        name=schemas.LocalizableDraftName(en="A fake domain type"),
     )
     async with db_session_maker() as session:
         await commands.create_domain_type(session, to_create)
@@ -67,21 +67,21 @@ async def test_delete_domain_type(db, db_session_maker):
 @pytest.mark.asyncio
 async def test_create_workflow_stage(db, db_session_maker):
     to_create = schemas.WorkflowStageCreate(
-        id=uuid.UUID("24d10a9f-8b30-4866-aa1b-5fe34a2f4ecf"),
-        name={"en": "A fake workflow stage"},
+        id=schemas.WorkflowStageId(uuid.UUID("24d10a9f-8b30-4866-aa1b-5fe34a2f4ecf")),
+        name=schemas.LocalizableDraftName(en="A fake workflow stage"),
     )
     async with db_session_maker() as session:
         created = await commands.create_workflow_stage(session, to_create)
         assert created.id == to_create.id
-        assert created.name["en"] == to_create.name["en"]
+        assert created.name["en"] == to_create.name.en
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_delete_workflow_stage(db, db_session_maker):
     to_create = schemas.WorkflowStageCreate(
-        id=uuid.UUID("adaf887f-27a9-40da-afe4-785a169c3edd"),
-        name={"en": "A fake workflow stage"},
+        id=schemas.WorkflowStageId(uuid.UUID("adaf887f-27a9-40da-afe4-785a169c3edd")),
+        name=schemas.LocalizableDraftName(en="A fake workflow stage"),
     )
     async with db_session_maker() as session:
         await commands.create_workflow_stage(session, to_create)
@@ -94,35 +94,35 @@ async def test_delete_workflow_stage(db, db_session_maker):
 @pytest.mark.asyncio
 async def test_create_project(db, db_session_maker):
     to_create = schemas.ProjectCreate(
-        id=uuid.UUID("5fe24752-5919-4a05-be46-aed53a6936db"),
+        id=schemas.ProjectId(uuid.UUID("5fe24752-5919-4a05-be46-aed53a6936db")),
         owner="fakeowner",
-        name={"en": "A fake project", "pt": "Um projeto falso"},
-        description={
-            "en": "A description for fake project",
-            "pt": "Uma descrição para o projeto falso",
-        },
+        name=schemas.LocalizableDraftName(en="A fake project", pt="Um projeto falso"),
+        description=schemas.LocalizableDraftDescription(
+            en="A description for fake project",
+            pt="Uma descrição para o projeto falso",
+        ),
         root_path="/fake-path/to/fake-project/",
     )
     async with db_session_maker() as session:
         created = await commands.create_project(session, to_create)
         assert created.id == to_create.id
         assert created.owner == to_create.owner
-        assert created.slug == "a-fake-project"
-        assert created.name["en"] == to_create.name["en"]
-        assert created.name["pt"] == to_create.name["pt"]
+        assert created.id == to_create.id
+        assert created.name["en"] == to_create.name.en
+        assert created.name["pt"] == to_create.name.pt
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_delete_project(db, db_session_maker):
     to_create = schemas.ProjectCreate(
-        id=uuid.UUID("0637d5d9-6381-4ba8-b9ec-89750baa93a4"),
+        id=schemas.ProjectId(uuid.UUID("0637d5d9-6381-4ba8-b9ec-89750baa93a4")),
         owner="fakeowner",
-        name={"en": "A fake project", "pt": "Um projeto falso"},
-        description={
-            "en": "A description for fake project",
-            "pt": "Uma descrição para o projeto falso",
-        },
+        name=schemas.LocalizableDraftName(en="A fake project", pt="Um projeto falso"),
+        description=schemas.LocalizableDraftDescription(
+            en="A description for fake project",
+            pt="Uma descrição para o projeto falso",
+        ),
         root_path="/fake-path/to/fake-project/",
     )
     async with db_session_maker() as session:
@@ -139,20 +139,22 @@ async def test_create_survey_mission(db, db_session_maker, sample_projects):
         id=schemas.SurveyMissionId(uuid.UUID("1aad09c3-d606-445e-9216-d9620586c332")),
         project_id=schemas.ProjectId(sample_projects[0].id),
         owner=schemas.UserId("fakeowner"),
-        name={"en": "A fake survey mission", "pt": "Uma missão falsa"},
-        description={
-            "en": "A description for fake survey mission",
-            "pt": "Uma descrição para a missão falsa",
-        },
+        name=schemas.LocalizableDraftName(
+            en="A fake survey mission", pt="Uma missão falsa"
+        ),
+        description=schemas.LocalizableDraftDescription(
+            en="A description for fake survey mission",
+            pt="Uma descrição para a missão falsa",
+        ),
         relative_path="fake-mission",
     )
     async with db_session_maker() as session:
         created = await commands.create_survey_mission(session, to_create)
         assert created.id == to_create.id
         assert created.owner == to_create.owner
-        assert created.slug == "a-fake-survey-mission"
-        assert created.name["en"] == to_create.name["en"]
-        assert created.name["pt"] == to_create.name["pt"]
+        assert created.id == to_create.id
+        assert created.name["en"] == to_create.name.en
+        assert created.name["pt"] == to_create.name.pt
 
 
 @pytest.mark.integration
@@ -162,11 +164,13 @@ async def test_delete_survey_mission(db, db_session_maker, sample_projects):
         id=schemas.SurveyMissionId(uuid.UUID("449a96e4-9b3b-41ad-a08b-75d31332b846")),
         project_id=schemas.ProjectId(sample_projects[0].id),
         owner=schemas.UserId("fakeowner"),
-        name={"en": "A fake survey mission", "pt": "Uma missão falsa"},
-        description={
-            "en": "A description for fake survey mission",
-            "pt": "Uma descrição para a missão falsa",
-        },
+        name=schemas.LocalizableDraftName(
+            en="A fake survey mission", pt="Uma missão falsa"
+        ),
+        description=schemas.LocalizableDraftDescription(
+            en="A description for fake survey mission",
+            pt="Uma descrição para a missão falsa",
+        ),
         relative_path="fake-mission",
     )
     async with db_session_maker() as session:
@@ -201,11 +205,13 @@ async def test_create_survey_related_record(
         ),
         survey_mission_id=schemas.SurveyMissionId(sample_survey_missions[0].id),
         owner=schemas.UserId("fakeowner"),
-        name={"en": "A fake survey-related record", "pt": "Um registo falso"},
-        description={
-            "en": "A description for fake survey-related record",
-            "pt": "Uma descrição para o registo falso",
-        },
+        name=schemas.LocalizableDraftName(
+            en="A fake survey-related record", pt="Um registo falso"
+        ),
+        description=schemas.LocalizableDraftDescription(
+            en="A description for fake survey-related record",
+            pt="Uma descrição para o registo falso",
+        ),
         dataset_category_id=schemas.DatasetCategoryId(dataset_category.id),
         domain_type_id=schemas.DomainTypeId(domain_type.id),
         workflow_stage_id=schemas.WorkflowStageId(workflow_stage.id),
@@ -215,28 +221,28 @@ async def test_create_survey_related_record(
                 id=schemas.RecordAssetId(
                     uuid.UUID("3cf81de8-60f3-44df-89f4-6f674a7fb94f")
                 ),
-                name={
-                    "en": "first asset",
-                    "pt": "primeiro registo",
-                },
-                description={
-                    "en": "description for first asset",
-                    "pt": "descrição para o primeiro recurso",
-                },
+                name=schemas.LocalizableDraftName(
+                    en="first asset",
+                    pt="primeiro registo",
+                ),
+                description=schemas.LocalizableDraftDescription(
+                    en="description for first asset",
+                    pt="descrição para o primeiro recurso",
+                ),
                 relative_path="asset1",
             ),
             schemas.RecordAssetCreate(
                 id=schemas.RecordAssetId(
                     uuid.UUID("85ded7b6-a794-4746-b450-c3bdfb07e5c0")
                 ),
-                name={
-                    "en": "second asset",
-                    "pt": "segundo registo",
-                },
-                description={
-                    "en": "description for second asset",
-                    "pt": "descrição para o segundo recurso",
-                },
+                name=schemas.LocalizableDraftName(
+                    en="second asset",
+                    pt="segundo registo",
+                ),
+                description=schemas.LocalizableDraftDescription(
+                    en="description for second asset",
+                    pt="descrição para o segundo recurso",
+                ),
                 relative_path="asset2",
             ),
         ],
@@ -245,9 +251,9 @@ async def test_create_survey_related_record(
         created = await commands.create_survey_related_record(session, to_create)
         assert created.id == to_create.id
         assert created.owner == to_create.owner
-        assert created.slug == "a-fake-survey-related-record"
-        assert created.name["en"] == to_create.name["en"]
-        assert created.name["pt"] == to_create.name["pt"]
+        assert created.id == to_create.id
+        assert created.name["en"] == to_create.name.en
+        assert created.name["pt"] == to_create.name.pt
 
 
 @pytest.mark.integration
@@ -275,11 +281,13 @@ async def test_delete_survey_related_record(
         ),
         survey_mission_id=schemas.SurveyMissionId(sample_survey_missions[0].id),
         owner=schemas.UserId("fakeowner"),
-        name={"en": "A fake survey-related record", "pt": "Um registo falso"},
-        description={
-            "en": "A description for fake survey-related record",
-            "pt": "Uma descrição para o registo falso",
-        },
+        name=schemas.LocalizableDraftName(
+            en="A fake survey-related record", pt="Um registo falso"
+        ),
+        description=schemas.LocalizableDraftDescription(
+            en="A description for fake survey-related record",
+            pt="Uma descrição para o registo falso",
+        ),
         dataset_category_id=schemas.DatasetCategoryId(dataset_category.id),
         domain_type_id=schemas.DomainTypeId(domain_type.id),
         workflow_stage_id=schemas.WorkflowStageId(workflow_stage.id),

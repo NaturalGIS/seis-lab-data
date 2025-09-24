@@ -34,10 +34,10 @@ app.add_typer(bootstrap_app, name="bootstrap")
 def base_callback(ctx: typer.Context) -> None:
     """SeisLabData command line interface"""
     context = config.get_cli_context()
-    config.configure_logging(
-        rich_console=context.status_console, debug=context.settings.debug
+    config.configure_logging(context)
+    engine = get_engine(
+        context.settings.database_dsn.unicode_string(), context.settings.debug
     )
-    engine = get_engine(context.settings)
     session_maker = get_session_maker(engine)
     ctx.obj = {
         "main": context,
@@ -68,7 +68,7 @@ def run_processing_worker(ctx: typer.Context) -> None:
     context.status_console.print(Padding(panel, 1))
     dramatiq_args = [
         "dramatiq",
-        # f"{Path(__file__).parent / 'processing/broker:get_broker'}",
+        "--skip-logging",
         "seis_lab_data.processing.broker:setup_broker",
         "seis_lab_data.processing.tasks",
     ]
@@ -77,7 +77,7 @@ def run_processing_worker(ctx: typer.Context) -> None:
             [
                 "--processes=1",
                 "--threads=1",
-                f"--watch={Path(__file__).parent}",
+                f"--watch={Path(__file__).parents[1]}",
                 "--watch-exclude=__pycache__/*",
             ]
         )

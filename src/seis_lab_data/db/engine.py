@@ -13,7 +13,7 @@ _DB_ENGINE: AsyncEngine | None = None
 _SYNC_DB_ENGINE: AsyncEngine | None = None
 
 
-def get_engine(settings: SeisLabDataSettings) -> AsyncEngine:
+def get_engine(db_dsn: str, debug: bool = False) -> AsyncEngine:
     # This function implements caching of the sqlalchemy engine, relying on the
     # value of the module global `_DB_ENGINE` variable. This is done in order to
     # - reuse the same database engine throughout the lifecycle of the application
@@ -23,9 +23,7 @@ def get_engine(settings: SeisLabDataSettings) -> AsyncEngine:
     # the `settings` parameter is not hashable
     global _DB_ENGINE
     if _DB_ENGINE is None:
-        _DB_ENGINE = create_async_engine(
-            settings.database_dsn.unicode_string(), echo=settings.debug
-        )
+        _DB_ENGINE = create_async_engine(db_dsn, echo=debug)
     return _DB_ENGINE
 
 

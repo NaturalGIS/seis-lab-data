@@ -1,4 +1,3 @@
-from slugify import slugify
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import (
@@ -15,8 +14,12 @@ async def create_project(
     session: AsyncSession, to_create: schemas.ProjectCreate
 ) -> models.Project:
     project = models.Project(
-        **to_create.model_dump(), slug=slugify(to_create.name.get("en", ""))
+        **to_create.model_dump(),
     )
+    if await queries.get_project_by_english_name(session, to_create.name.en):
+        raise errors.SeisLabDataError(
+            f"Project with english name {to_create.name.en!r} already exists."
+        )
     session.add(project)
     await session.commit()
     return await queries.get_project(session, to_create.id)
@@ -40,8 +43,6 @@ async def update_project(
 ) -> models.Project:
     for key, value in to_update.model_dump(exclude_unset=True).items():
         setattr(project, key, value)
-        if key == "name":
-            setattr(project, "slug", slugify(value.get("en", "")))
     session.add(project)
     await session.commit()
     await session.refresh(project)

@@ -6,11 +6,11 @@
             </div>
             <div class="col-md-8">
                 <div class="card-body">
-                    <h5 class="card-title">{{ item.name|translate_localizable_string }}</h5>
+                    <h5 class="card-title">{{ item.name|translate_localizable_string|default(_("name not available"), True) }}</h5>
                     <p class="card-text"><small class="text-body-secondary">{{ item.status.value }}</small></p>
                     <p class="card-text"><small class="text-body-secondary">{{ item.is_valid }}</small></p>
-                    <p class="card-text">{{ item.description|translate_localizable_string }}</p>
-                    <a href="{{ url_for('projects:detail', project_slug=item.slug) }}" class="btn btn-primary">{{ _("View") }}</a>
+                    <p class="card-text">{{ item.description|translate_localizable_string|default(_("description not available"), True) }}</p>
+                    <a href="{{ url_for('projects:detail', project_id=item.id) }}" class="btn btn-primary">{{ _("View") }}</a>
                 </div>
             </div>
         </div>

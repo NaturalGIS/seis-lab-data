@@ -7,6 +7,8 @@
         <title>{% block title %}Page Title{% endblock %}</title>
         <link rel="stylesheet" href="{{ url_for('static', path='/css/bootstrap.min.css') }}">
         <link rel="stylesheet" href="{{ url_for('static', path='/css/custom.css') }}">
+        <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.5/bundles/datastar.js"></script>
+        <script type="module" src="{{ url_for('static', path='/js/main.js') }}"></script>
     {% endblock %}
 </head>
 <body>
@@ -15,9 +17,9 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('home') }}">SeisLabData</a>
             <div class="navbar-nav me-auto">
-                <a class="nav-link" href="{{ url_for('projects:list') }}">{{ _("Projects") }}</a>
-                <a class="nav-link" href="{{ url_for('survey_missions:list') }}">{{ _("Survey Missions") }}</a>
-                <a class="nav-link" href="{{ url_for('survey_related_records:list') }}">{{ _("Survey-related Records") }}</a>
+                <a class="nav-link" href="{{ url_for('projects:list') }}" aria-label="list-projects">{{ _("Projects") }}</a>
+                <a class="nav-link" href="{{ url_for('survey_missions:list') }} " aria-label="list-survey-missions">{{ _("Survey Missions") }}</a>
+                <a class="nav-link" href="{{ url_for('survey_related_records:list') }}" aria-label="list-survey-related-records">{{ _("Survey-related Records") }}</a>
                 {% if request.session.user %}
                     <a class="nav-link" href="{{ url_for('profile') }}">{{ _("Profile") }}</a>
                     <a class="nav-link" href="{{ url_for('protected') }}">{{ _("Protected") }}</a>
@@ -27,6 +29,7 @@
                 <div class="dropdown me-3">
                   <button
                           class="btn btn-outline-dark dropdown-toggle"
+                          aria-label="toggle-lang"
                           type="button"
                           data-bs-toggle="dropdown"
                           aria-expanded="false"
@@ -36,25 +39,27 @@
               <ul class="dropdown-menu text-bg-light">
                 <li><a
                         class="dropdown-item"
+                        aria-label="set-lang-en"
                         {% if request.state.locale == "en" %}active{% endif %}
                         href="{{ url_for('set_language', lang='en') }}"
                     >en - {{ _("English") }}</a></li>
                 <li><a
                         class="dropdown-item"
+                        aria-label="set-lang-pt"
                         {% if request.state.locale == "pt" %}active{% endif %}
                         href="{{ url_for('set_language', lang='pt') }}"
                 >pt - {{ _("Portuguese") }}</a></li>
               </ul>
             </div>
                 {% if request.session.user %}
-                    <div class="navbar-nav align-items-center">
+                    <div class="navbar-nav align-items-center" data-testid="user-menu">
                         <span class="navbar-text me-3">{{ request.session.user.name }}</span>
-                        <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}">
+                        <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}" data-testid="logout-nav">
                             <i class="bi bi-box-arrow-right"></i> {{ _("Logout") }}
                         </a>
                     </div>
                 {% else %}
-                    <a class="btn btn-outline-light btn-sm" href="{{ url_for('login') }}">
+                    <a class="btn btn-outline-light btn-sm" href="{{ url_for('login') }}" data-testid="login-nav">
                         <i class="bi bi-box-arrow-in-right"></i> {{ _("Login / Register") }}
                     </a>
                 {% endif %}
