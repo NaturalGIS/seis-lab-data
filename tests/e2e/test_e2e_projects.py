@@ -1,5 +1,3 @@
-import re
-
 import pytest
 from playwright.sync_api import (
     Page,
@@ -71,9 +69,7 @@ def test_project_lifecycle(shared_authenticated_page: Page):
 
     # expect to see some confirmation that the project was created
     expect(
-        shared_authenticated_page.get_by_text(
-            re.compile("completed successfully", re.IGNORECASE)
-        )
+        shared_authenticated_page.get_by_test_id("processing-success-message")
     ).to_be_visible()
 
     # clean up by deleting the newly-created project

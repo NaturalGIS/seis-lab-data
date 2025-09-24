@@ -89,7 +89,7 @@
                 <button
                         type="button"
                         class="btn btn-outline-secondary"
-                        aria-label="add-another-link"
+                        aria-label="{{ id_prefix }}add-another-link"
                         data-on-click="@post('{{ add_link_url }}', {
           contentType: 'form',
           headers: {'X-CSRFToken': '{{ csrf_token }}'},

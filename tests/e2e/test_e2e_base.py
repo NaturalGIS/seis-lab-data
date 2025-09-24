@@ -17,9 +17,9 @@ def test_webapp_home_is_up(page: Page):
 @pytest.mark.e2e
 def test_set_language(page: Page):
     page.goto("/")
-    page.get_by_test_id("toggle-lang").click()
-    page.get_by_test_id("set-lang-en").click()
-    expect(page.get_by_test_id("projects-nav")).to_have_text("Projects")
-    page.get_by_test_id("toggle-lang").click()
-    page.get_by_test_id("set-lang-pt").click()
-    expect(page.get_by_test_id("projects-nav")).to_have_text("Projetos")
+    page.get_by_role("button", name="toggle-lang").click()
+    page.get_by_role("link", name="set-lang-en").click()
+    expect(page.get_by_role("link", name="list-projects")).to_have_text("Projects")
+    page.get_by_role("button", name="toggle-lang").click()
+    page.get_by_role("link", name="set-lang-pt").click()
+    expect(page.get_by_role("link", name="list-projects")).to_have_text("Projetos")

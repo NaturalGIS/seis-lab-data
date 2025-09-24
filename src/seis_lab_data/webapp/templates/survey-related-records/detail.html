@@ -9,6 +9,7 @@
             {% if user_can_delete %}
                 <button
                         class="btn btn-danger"
+                        aria-label="show-delete-confirmation-modal"
                         data-bs-toggle="modal"
                         data-bs-target="#delete-survey-related-record-modal"
                         data-attr-disabled="$deleting"
@@ -158,6 +159,7 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _("cancel") | capitalize }}</button>
                 <button
                         type="button"
+                        aria-label="delete-survey-related-record"
                         class="btn btn-danger"
                         data-on-click="@delete('{{ url_for('survey_related_records:detail', survey_related_record_id=item.id) }}')"
                         data-indicator="deleting"

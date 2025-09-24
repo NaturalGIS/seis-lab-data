@@ -6,6 +6,7 @@ from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
 from redis.asyncio import Redis
 from starlette.requests import Request
+from starlette.templating import Jinja2Templates
 
 from seis_lab_data import (
     constants,
@@ -22,6 +23,10 @@ async def produce_event_stream_for_topic(
     success_redirect_url: str,
     timeout_seconds: int = 30,
 ):
+    template_processor: Jinja2Templates = request.state.templates
+    message_template = template_processor.get_template(
+        "processing/progress-message-list-item.html"
+    )
     async with redis_client.pubsub() as pubsub:
         await pubsub.subscribe(topic_name)
         try:
@@ -41,8 +46,10 @@ async def produce_event_stream_for_topic(
                             )
                             logger.debug(f"Received message: {processing_message!r}")
                             yield ServerSentEventGenerator.patch_elements(
-                                f"<li>{processing_message.status.get_translated_value()} "
-                                f"- {processing_message.message}</li>",
+                                message_template.render(
+                                    status=processing_message.status,
+                                    message=processing_message.message,
+                                ),
                                 selector="#feedback > ul",
                                 mode=ElementPatchMode.APPEND,
                             )
@@ -55,9 +62,26 @@ async def produce_event_stream_for_topic(
                                     == constants.ProcessingStatus.SUCCESS
                                 ):
                                     yield ServerSentEventGenerator.patch_elements(
-                                        "<li>Processing completed successfully - you will be redirected shortly</li>",
+                                        message_template.render(
+                                            data_test_id="processing-success-message",
+                                            status="Processing completed successfully",
+                                            message="you will be redirected shortly",
+                                        ),
                                         selector="#feedback > ul",
                                         mode=ElementPatchMode.APPEND,
+                                    )
+                                    await asyncio.sleep(1)
+                                    yield ServerSentEventGenerator.redirect(
+                                        success_redirect_url
+                                    )
+                                else:
+                                    # FIXME
+                                    yield ServerSentEventGenerator.patch_elements(
+                                        message_template.render(
+                                            data_test_id="processing-failed-message",
+                                            status=f"Processing failed: {processing_message.message}",
+                                            message="you will be redirected shortly",
+                                        )
                                     )
                                     await asyncio.sleep(1)
                                     yield ServerSentEventGenerator.redirect(
