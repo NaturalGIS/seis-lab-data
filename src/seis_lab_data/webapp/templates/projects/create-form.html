@@ -1,0 +1,37 @@
+{% import "macros.html" as macros %}
+<form>
+    {{ macros.render_localizable_field(form.name) }}
+    {{ macros.render_localizable_field(form.description) }}
+
+    {{ macros.render_form_field(form.root_path) }}
+
+    <h3 data-signals="{nextIndex: {{ form.links|length }}}">{{ _("Links") }}</h3>
+    {{ macros.render_links_fields(
+        form.links,
+        url_for("projects:add_form_link"),
+        url_for("projects:remove_form_link"),
+        form.csrf_token.current_token
+    ) }}
+
+    <div class="row mb-3">
+        <div class="col-sm-10 offset-sm-2">
+            <button
+                    type="submit"
+                    aria-label="submit-create-form"
+                    class="btn btn-primary"
+                    data-on-click="@post('{{ url_for('projects:list') }}', {
+                            contentType: 'form',
+                            headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
+                        })"
+                    data-indicator="posting"
+                    data-attr-disabled="$posting"
+                    data-text="$posting ? '{{ _('Creating project...') }}' : '{{ _('Create project') }}'"
+            >
+            </button>
+            <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
+                 data-attr-hidden="!$posting">
+                <span class="visually-hidden">{{ _("Loading...") }}</span>
+            </div>
+        </div>
+    </div>
+</form>

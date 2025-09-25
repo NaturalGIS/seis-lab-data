@@ -19,6 +19,11 @@ formatters:
 
 handlers:
 
+  default_rich:
+    formatter: default
+    class: rich.logging.RichHandler
+    rich_tracebacks: true
+
   default:
     formatter: default
     class: logging.StreamHandler
@@ -33,7 +38,7 @@ loggers:
 
   uvicorn:
     handlers:
-      - default
+      - default_rich
     level: INFO
     propagate: false
 
@@ -48,11 +53,11 @@ loggers:
 
   seis_lab_data:
     handlers:
-      - default
+      - default_rich
     level: DEBUG
     propagate: false
 
 root:
   level: WARNING
   handlers:
-    - default
+    - default_rich

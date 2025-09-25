@@ -54,16 +54,21 @@ async def get_survey_related_record(
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
         .options(selectinload(models.SurveyRelatedRecord.domain_type))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
+        # adding all assets too, since they will always be a small list
+        .options(selectinload(models.SurveyRelatedRecord.assets))
     )
     return (await session.exec(statement)).first()
 
 
-async def get_survey_related_record_by_slug(
-    session: AsyncSession, slug: str
+async def get_survey_related_record_by_english_name(
+    session: AsyncSession,
+    survey_mission_id: schemas.SurveyMissionId,
+    english_name: str,
 ) -> models.SurveyRelatedRecord | None:
     statement = (
         select(models.SurveyRelatedRecord)
-        .where(models.SurveyRelatedRecord.slug == slug)
+        .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
+        .where(models.SurveyRelatedRecord.name["en"].astext == english_name)
         .options(
             selectinload(models.SurveyRelatedRecord.survey_mission).selectinload(
                 models.SurveyMission.project
@@ -72,6 +77,8 @@ async def get_survey_related_record_by_slug(
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
         .options(selectinload(models.SurveyRelatedRecord.domain_type))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
+        # adding all assets too, since they will always be a small list
+        .options(selectinload(models.SurveyRelatedRecord.assets))
     )
     return (await session.exec(statement)).first()
 
@@ -81,9 +88,18 @@ async def list_dataset_categories(
     limit: int = 20,
     offset: int = 0,
     include_total: bool = False,
+    order_by_clause=models.DatasetCategory.name["en"].astext,
 ) -> tuple[list[models.DatasetCategory], int | None]:
+    # NOTE: limit, offset and order_by are applied only when asking the
+    # session to exec because we want to reuse the statement later, to count
+    # total number of records
     statement = select(models.DatasetCategory)
-    items = (await session.exec(statement.offset(offset).limit(limit))).all()
+    items = (
+        await session.exec(
+            statement.limit(limit).offset(offset).order_by(order_by_clause)
+        )
+    ).all()
+
     num_total = (
         await _get_total_num_records(session, statement) if include_total else None
     )
@@ -91,11 +107,11 @@ async def list_dataset_categories(
 
 
 async def collect_all_dataset_categories(
-    session: AsyncSession,
+    session: AsyncSession, order_by_clause=models.DatasetCategory.name["en"].astext
 ) -> list[models.DatasetCategory]:
     _, num_total = await list_dataset_categories(session, limit=1, include_total=True)
     items, _ = await list_dataset_categories(
-        session, limit=num_total, include_total=False
+        session, limit=num_total, include_total=False, order_by_clause=order_by_clause
     )
     return items
 
@@ -121,9 +137,18 @@ async def list_domain_types(
     limit: int = 20,
     offset: int = 0,
     include_total: bool = False,
+    order_by_clause=models.DomainType.name["en"].astext,
 ) -> tuple[list[models.DomainType], int | None]:
     statement = select(models.DomainType)
-    items = (await session.exec(statement.offset(offset).limit(limit))).all()
+
+    # NOTE: limit, offset and order_by are applied only when asking the
+    # session to exec because we want to reuse the statement later, to count
+    # total number of records
+    items = (
+        await session.exec(
+            statement.offset(offset).limit(limit).order_by(order_by_clause)
+        )
+    ).all()
     num_total = (
         await _get_total_num_records(session, statement) if include_total else None
     )
@@ -131,10 +156,12 @@ async def list_domain_types(
 
 
 async def collect_all_domain_types(
-    session: AsyncSession,
+    session: AsyncSession, order_by_clause=models.DomainType.name["en"].astext
 ) -> list[models.DomainType]:
     _, num_total = await list_domain_types(session, limit=1, include_total=True)
-    items, _ = await list_domain_types(session, limit=num_total, include_total=False)
+    items, _ = await list_domain_types(
+        session, limit=num_total, include_total=False, order_by_clause=order_by_clause
+    )
     return items
 
 
@@ -159,9 +186,18 @@ async def list_workflow_stages(
     limit: int = 20,
     offset: int = 0,
     include_total: bool = False,
+    order_by_clause=models.WorkflowStage.name["en"].astext,
 ) -> tuple[list[models.WorkflowStage], int | None]:
     statement = select(models.WorkflowStage)
-    items = (await session.exec(statement.offset(offset).limit(limit))).all()
+
+    # NOTE: limit, offset and order_by are applied only when asking the
+    # session to exec because we want to reuse the statement later, to count
+    # total number of records
+    items = (
+        await session.exec(
+            statement.offset(offset).limit(limit).order_by(order_by_clause)
+        )
+    ).all()
     num_total = (
         await _get_total_num_records(session, statement) if include_total else None
     )
@@ -169,10 +205,12 @@ async def list_workflow_stages(
 
 
 async def collect_all_workflow_stages(
-    session: AsyncSession,
+    session: AsyncSession, order_by_clause=models.WorkflowStage.name["en"].astext
 ) -> list[models.WorkflowStage]:
     _, num_total = await list_workflow_stages(session, limit=1, include_total=True)
-    items, _ = await list_workflow_stages(session, limit=num_total, include_total=False)
+    items, _ = await list_workflow_stages(
+        session, limit=num_total, include_total=False, order_by_clause=order_by_clause
+    )
     return items
 
 

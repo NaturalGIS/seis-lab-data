@@ -1,44 +1,19 @@
 import logging
-import uuid
 
 import babel
-from starlette_babel import (
-    gettext_lazy as _,
-    get_locale,
-)
+from starlette_babel import gettext_lazy as _
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
-from starlette.routing import (
-    Mount,
-    Route,
-)
 
+from ...config import SeisLabDataSettings
 from .auth import get_user
-from ..config import SeisLabDataSettings
-from ..processing import tasks
-
-from . import auth
-from .projects import routes as project_routes
-from .surveymissions import routes as survey_mission_routes
-from .surveyrelatedrecords import routes as survey_related_record_routes
 
 logger = logging.getLogger(__name__)
 
 
 async def home(request: Request):
     template_processor = request.state.templates
-    request_id = str(uuid.uuid4())
-    logger.debug("This is the home route")
-    logger.debug(f"Request cookies: {request.cookies=}")
-    logger.debug(f"Current locale in the request state is {request.state.locale=}")
-    logger.debug(
-        f"Current locale according to global starlette-babel function {get_locale()=}"
-    )
-    logger.debug(f"Current language is {request.state.language=}")
-    logger.debug("With the global translator that is imported from starlette_babel:")
-    logger.debug(_("Hi there!"))
-    tasks.process_data.send(f"hi from the home route with request id {request_id}")
     return template_processor.TemplateResponse(
         request, "index.html", context={"greeting": _("Hi there!")}
     )
@@ -76,21 +51,3 @@ async def protected(request: Request):
     return template_processor.TemplateResponse(
         request, "protected.html", context={"user": user}
     )
-
-
-routes = [
-    Route("/", home),
-    Route("/login", auth.login),
-    Route("/oauth2/callback", auth.auth_callback),
-    Route("/logout", auth.logout),
-    Route("/profile", profile),
-    Route("/protected", protected),
-    Route("/set-language/{lang}", set_language, name="set_language"),
-    Mount("/projects", routes=project_routes, name="projects"),
-    Mount("/survey-missions", routes=survey_mission_routes, name="survey_missions"),
-    Mount(
-        "/survey-related-records",
-        routes=survey_related_record_routes,
-        name="survey_related_records",
-    ),
-]

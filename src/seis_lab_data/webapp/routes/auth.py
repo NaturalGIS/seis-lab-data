@@ -1,10 +1,13 @@
+import inspect
 import logging
+from functools import wraps
+from typing import Callable
 
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
-from .. import schemas
-from ..constants import AUTH_CLIENT_NAME
+from seis_lab_data import schemas
+from seis_lab_data.constants import AUTH_CLIENT_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -57,3 +60,35 @@ def get_user(
         roles=[role for role in user_info.get("groups", [])],
         active=user_info.get("email_verified"),
     )
+
+
+def requires_auth(route_function: Callable):
+    @wraps(route_function)
+    async def wrapper(request: Request, *args, **kwargs):
+        if not (user := get_user(request.session.get("user", {}))):
+            return RedirectResponse(url=request.url_for("login"), status_code=302)
+        return await route_function(request, user, *args, **kwargs)
+
+    return wrapper
+
+
+def fancy_requires_auth(route_function: Callable):
+    sig = inspect.signature(route_function)
+
+    @wraps(route_function)
+    async def wrapper(*args, **kwargs):
+        bound_args = sig.bind(*args, **kwargs)
+        bound_args.apply_defaults()
+
+        for name, value in bound_args.arguments.items():
+            if isinstance(value, Request):
+                request = value
+                break
+        else:
+            raise ValueError("No Request parameter found in route function.")
+
+        if not get_user(request.session.get("user", {})):
+            return RedirectResponse(url=request.url_for("login"), status_code=302)
+        return await route_function(*args, **kwargs)
+
+    return wrapper

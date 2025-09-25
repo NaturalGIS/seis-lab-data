@@ -3,9 +3,9 @@ import pydantic
 from ..constants import ProjectStatus
 from ..db import models
 from .common import (
-    AtLeastEnglishName,
-    AtLeastEnglishDescription,
     LinkSchema,
+    LocalizableDraftDescription,
+    LocalizableDraftName,
     ProjectId,
     UserId,
 )
@@ -14,24 +14,23 @@ from .common import (
 class ProjectCreate(pydantic.BaseModel):
     id: ProjectId
     owner: UserId
-    name: AtLeastEnglishName
-    description: AtLeastEnglishDescription
+    name: LocalizableDraftName
+    description: LocalizableDraftDescription
     root_path: str
     links: list[LinkSchema] = []
 
 
 class ProjectUpdate(pydantic.BaseModel):
     owner: UserId | None = None
-    name: AtLeastEnglishName | None = None
-    description: AtLeastEnglishDescription | None = None
+    name: LocalizableDraftName | None = None
+    description: LocalizableDraftDescription | None = None
     root_path: str | None = None
     links: list[LinkSchema] | None = None
 
 
 class ProjectReadEmbedded(pydantic.BaseModel):
     id: ProjectId
-    slug: str
-    name: AtLeastEnglishName
+    name: LocalizableDraftName
     status: ProjectStatus
     is_valid: bool
 
@@ -41,7 +40,11 @@ class ProjectReadEmbedded(pydantic.BaseModel):
 
 
 class ProjectReadListItem(ProjectReadEmbedded):
-    description: AtLeastEnglishDescription
+    description: LocalizableDraftDescription
+
+    @classmethod
+    def from_db_instance(cls, instance: models.Project) -> "ProjectReadEmbedded":
+        return cls(**instance.model_dump())
 
 
 class ProjectReadDetail(ProjectReadListItem):

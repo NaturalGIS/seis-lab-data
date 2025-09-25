@@ -1,9 +1,12 @@
+from typing import TYPE_CHECKING
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 
-from ... import schemas
 from ...db import models
 from .common import _get_total_num_records
+
+if TYPE_CHECKING:
+    from ... import schemas
 
 
 async def list_projects(
@@ -31,13 +34,16 @@ async def collect_all_projects(
 
 async def get_project(
     session: AsyncSession,
-    project_id: schemas.ProjectId,
+    project_id: "schemas.ProjectId",
 ) -> models.Project | None:
     return await session.get(models.Project, project_id)
 
 
-async def get_project_by_slug(
-    session: AsyncSession, slug: str
+async def get_project_by_english_name(
+    session: AsyncSession,
+    english_name: str,
 ) -> models.Project | None:
-    statement = select(models.Project).where(models.Project.slug == slug)
+    statement = select(models.Project).where(
+        models.Project.name["en"].astext == english_name
+    )
     return (await session.exec(statement)).first()

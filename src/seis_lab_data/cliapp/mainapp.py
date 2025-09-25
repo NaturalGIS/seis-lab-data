@@ -46,7 +46,7 @@ def survey_related_records_app_callback(ctx: typer.Context):
 @survey_related_records_app.async_command(name="create")
 async def create_survey_related_record(
     ctx: typer.Context,
-    parent_survey_mission_slug: str,
+    parent_survey_mission_id: uuid.UUID,
     owner: str,
     name_en: str,
     name_pt: str,
@@ -59,7 +59,6 @@ async def create_survey_related_record(
     link: Annotated[list[dict], typer.Option(parser=json.loads)] = [],
 ):
     """Create a new survey-related record."""
-    admin_id = ctx.obj["admin_user"].id
     printer = ctx.obj["main"].status_console.print
     async with ctx.obj["session_maker"]() as session:
         if (
@@ -84,8 +83,11 @@ async def create_survey_related_record(
             printer(f"workflow stage '{workflow_stage!r}' not found.")
             raise typer.Abort()
         if (
-            survey_mission := await operations.get_survey_mission_by_slug(
-                parent_survey_mission_slug, admin_id, session, ctx.obj["main"].settings
+            survey_mission := await operations.get_survey_mission(
+                schemas.SurveyMissionId(parent_survey_mission_id),
+                ctx.obj["admin_user"],
+                session,
+                ctx.obj["main"].settings,
             )
         ) is None:
             printer(
@@ -97,16 +99,18 @@ async def create_survey_related_record(
             to_create=schemas.SurveyRelatedRecordCreate(
                 id=schemas.SurveyRelatedRecordId(uuid.uuid4()),
                 owner=schemas.UserId(owner),
-                name={"en": name_en, "pt": name_pt},
-                description={"en": description_en, "pt": description_pt},
+                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
+                description=schemas.LocalizableDraftDescription(
+                    en=description_en, pt=description_pt
+                ),
                 survey_mission_id=schemas.SurveyMissionId(survey_mission.id),
                 dataset_category_id=schemas.DatasetCategoryId(db_dataset_category.id),
                 domain_type_id=schemas.DomainTypeId(db_domain_type.id),
                 workflow_stage_id=schemas.WorkflowStageId(db_workflow_stage.id),
                 relative_path=relative_path,
-                links=link,
+                links=[schemas.LinkSchema(**li) for li in link],
             ),
-            initiator=admin_id,
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -141,21 +145,25 @@ async def list_survey_related_records(
 
 
 @survey_related_records_app.async_command(name="get")
-async def get_survey_related_record(ctx: typer.Context, slug: str):
+async def get_survey_related_record(
+    ctx: typer.Context, survey_related_record_id: uuid.UUID
+):
     """Get details about a survey-related record."""
     async with ctx.obj["session_maker"]() as session:
-        record_details = await operations.get_survey_related_record_by_slug(
-            slug, ctx.obj["admin_user"].id, session, ctx.obj["main"].settings
+        survey_record = await operations.get_survey_related_record(
+            schemas.SurveyRelatedRecordId(survey_related_record_id),
+            ctx.obj["admin_user"].id,
+            session,
+            ctx.obj["main"].settings,
         )
-        if record_details is None:
+        if survey_record is None:
             ctx.obj["main"].status_console.print(
-                f"Survey-related record {slug!r} not found"
+                f"Survey-related record {survey_related_record_id!r} not found"
             )
         else:
-            survey_record, record_assets = record_details
             ctx.obj["main"].status_console.print_json(
                 schemas.SurveyRelatedRecordReadDetail.from_db_instance(
-                    survey_record, assets=record_assets
+                    survey_record
                 ).model_dump_json()
             )
 
@@ -186,7 +194,7 @@ def survey_missions_app_callback(ctx: typer.Context):
 @survey_missions_app.async_command(name="create")
 async def create_survey_mission(
     ctx: typer.Context,
-    parent_project_slug: str,
+    parent_project_id: uuid.UUID,
     owner: str,
     name_en: str,
     name_pt: str,
@@ -196,11 +204,13 @@ async def create_survey_mission(
     link: Annotated[list[dict], typer.Option(parser=json.loads)],
 ):
     """Create a new survey mission."""
-    admin_id = ctx.obj["admin_user"].id
     async with ctx.obj["session_maker"]() as session:
         if (
-            project := await operations.get_project_by_slug(
-                parent_project_slug, admin_id, session, ctx.obj["main"].settings
+            project := await operations.get_project(
+                schemas.ProjectId(parent_project_id),
+                ctx.obj["admin_user"],
+                session,
+                ctx.obj["main"].settings,
             )
         ) is None:
             ctx.obj["main"].status_console.print(
@@ -212,12 +222,14 @@ async def create_survey_mission(
                 id=schemas.SurveyMissionId(uuid.uuid4()),
                 project_id=schemas.ProjectId(project.id),
                 owner=schemas.UserId(owner),
-                name={"en": name_en, "pt": name_pt},
-                description={"en": description_en, "pt": description_pt},
+                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
+                description=schemas.LocalizableDraftDescription(
+                    en=description_en, pt=description_pt
+                ),
                 relative_path=relative_path,
-                links=link,
+                links=[schemas.LinkSchema(**li) for li in link],
             ),
-            initiator=admin_id,
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -249,14 +261,19 @@ async def list_survey_missions(
 
 
 @survey_missions_app.async_command(name="get")
-async def get_survey_mission(ctx: typer.Context, slug: str):
+async def get_survey_mission(ctx: typer.Context, survey_mission_id: uuid.UUID):
     """Get details about a survey mission"""
     async with ctx.obj["session_maker"]() as session:
-        survey_mission = await operations.get_survey_mission_by_slug(
-            slug, ctx.obj["admin_user"].id, session, ctx.obj["main"].settings
+        survey_mission = await operations.get_survey_mission(
+            schemas.SurveyMissionId(survey_mission_id),
+            ctx.obj["admin_user"].id,
+            session,
+            ctx.obj["main"].settings,
         )
         if survey_mission is None:
-            ctx.obj["main"].status_console.print(f"Survey mission {slug!r} not found")
+            ctx.obj["main"].status_console.print(
+                f"Survey mission {survey_mission_id!r} not found"
+            )
         else:
             ctx.obj["main"].status_console.print_json(
                 schemas.SurveyMissionReadDetail.from_db_instance(
@@ -305,12 +322,25 @@ async def create_project(
             to_create=schemas.ProjectCreate(
                 id=schemas.ProjectId(uuid.uuid4()),
                 owner=schemas.UserId(owner),
-                name={"en": name_en, "pt": name_pt},
-                description={"en": description_en, "pt": description_pt},
+                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
+                description=schemas.LocalizableDraftDescription(
+                    en=description_en, pt=description_pt
+                ),
                 root_path=root_path,
-                links=link,
+                links=[
+                    schemas.LinkSchema(
+                        url=li["url"],
+                        link_description=schemas.LocalizableDraftDescription(
+                            en=li.get("link_description", {}).get("en", ""),
+                            pt=li.get("link_description", {}).get("pt", ""),
+                        ),
+                        media_type=li["media_type"],
+                        relation=li["relation"],
+                    )
+                    for li in link
+                ],
             ),
-            initiator=ctx.obj["admin_user"].id,
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -331,7 +361,7 @@ async def list_projects(
     async with ctx.obj["session_maker"]() as session:
         items, num_total = await operations.list_projects(
             session,
-            initiator=ctx.obj["admin_user"].id,
+            initiator=ctx.obj["admin_user"],
             limit=limit,
             offset=offset,
             include_total=True,
@@ -351,7 +381,7 @@ async def delete_project(
     async with ctx.obj["session_maker"]() as session:
         await operations.delete_project(
             schemas.ProjectId(project_id),
-            initiator=ctx.obj["admin_user"].id,
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -374,10 +404,10 @@ async def create_dataset_category(
     async with ctx.obj["session_maker"]() as session:
         created = await operations.create_dataset_category(
             to_create=schemas.DatasetCategoryCreate(
-                id=uuid.uuid4(),
-                name={"en": name_en, "pt": name_pt},
+                id=schemas.DatasetCategoryId(uuid.uuid4()),
+                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
             ),
-            initiator=ctx.obj["admin_user"].id,
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -414,7 +444,7 @@ async def delete_dataset_category(
     async with ctx.obj["session_maker"]() as session:
         await operations.delete_dataset_category(
             dataset_category_id,
-            initiator=ctx.obj["admin_user"].id,
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -437,10 +467,10 @@ async def create_domain_type(
     async with ctx.obj["session_maker"]() as session:
         created = await operations.create_domain_type(
             to_create=schemas.DomainTypeCreate(
-                id=uuid.uuid4(),
-                name={"en": name_en, "pt": name_pt},
+                id=schemas.DomainTypeId(uuid.uuid4()),
+                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
             ),
-            initiator=ctx.obj["admin_user"].id,
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -477,7 +507,7 @@ async def delete_domain_type(
     async with ctx.obj["session_maker"]() as session:
         await operations.delete_domain_type(
             domain_type_id,
-            initiator=ctx.obj["admin_user"].id,
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -500,10 +530,10 @@ async def create_workflow_stage(
     async with ctx.obj["session_maker"]() as session:
         created = await operations.create_workflow_stage(
             to_create=schemas.WorkflowStageCreate(
-                id=uuid.uuid4(),
-                name={"en": name_en, "pt": name_pt},
+                id=schemas.WorkflowStageId(uuid.uuid4()),
+                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
             ),
-            initiator=ctx.obj["admin_user"].id,
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
@@ -540,7 +570,7 @@ async def delete_workflow_stage(
     async with ctx.obj["session_maker"]() as session:
         await operations.delete_workflow_stage(
             workflow_stage_id,
-            initiator=ctx.obj["admin_user"].id,
+            initiator=ctx.obj["admin_user"],
             session=session,
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),

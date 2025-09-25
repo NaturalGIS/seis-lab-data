@@ -38,7 +38,7 @@ async def load_sample_projects(ctx: typer.Context):
                 created.append(
                     await operations.create_project(
                         to_create,
-                        initiator=to_create.owner,
+                        initiator=ctx.obj["admin_user"],
                         session=session,
                         settings=settings,
                         event_emitter=events.get_event_emitter(settings),
@@ -66,7 +66,7 @@ async def load_sample_survey_missions(ctx: typer.Context):
                 created.append(
                     await operations.create_survey_mission(
                         to_create,
-                        initiator=to_create.owner,
+                        initiator=ctx.obj["admin_user"],
                         session=session,
                         settings=settings,
                         event_emitter=events.get_event_emitter(settings),

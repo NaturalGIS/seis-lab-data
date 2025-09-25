@@ -2,8 +2,14 @@ import logging
 
 import dramatiq
 from dramatiq.brokers.redis import RedisBroker
+from dramatiq.middleware.asyncio import AsyncIO
 
 from .. import config
+from .middleware import (
+    AsyncRedisPubSubMiddleware,
+    AsyncSqlAlchemyDbMiddleware,
+    SeisLabDataSettingsMiddleware,
+)
 
 # This import is needed - DO NOT REMOVE
 # Dramatiq's @actor decorator tries to eagerly connect to the global dramatiq broker
@@ -22,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 def setup_broker(settings: config.SeisLabDataSettings | None = None) -> None:
-    """Setup the dramatiq message broker.
+    """Set up the dramatiq message broker.
 
     This function relies on all actors having already been imported and registered into
     a global dramatiq stub broker. It works by inspecting this previous broker, gathering
@@ -32,11 +38,27 @@ def setup_broker(settings: config.SeisLabDataSettings | None = None) -> None:
     This is part of a workaround that enables using dramatiq together with a factory
     pattern. It is not very pretty, but it works.
     """
-    settings = settings or config.get_settings()
+    context = config.get_cli_context()
+    config.configure_logging(context)
+    dramatiq_logger = logging.getLogger("dramatiq")
+    dramatiq_logger.handlers.clear()
+    settings = settings or context.settings
     if settings.message_broker_dsn is not None:
         new_broker = RedisBroker(
             host=settings.message_broker_dsn.host,
             port=settings.message_broker_dsn.port,
+        )
+        new_broker.add_middleware(AsyncIO())
+        new_broker.add_middleware(SeisLabDataSettingsMiddleware(settings))
+        new_broker.add_middleware(
+            AsyncRedisPubSubMiddleware(
+                redis_dsn=settings.message_broker_dsn.unicode_string()
+            )
+        )
+        new_broker.add_middleware(
+            AsyncSqlAlchemyDbMiddleware(
+                db_dsn=settings.database_dsn.unicode_string(), debug=settings.debug
+            )
         )
         old_broker = dramatiq.get_broker()
         # reconfigure actors to use the new broker

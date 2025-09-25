@@ -316,6 +316,15 @@ wheels = [
 ]
 
 [[package]]
+name = "datastar-py"
+version = "0.6.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/1b/47/42b6d24b6170320ecf49e6cd331624804c7a9d655dd1c16866e12858e031/datastar_py-0.6.5.tar.gz", hash = "sha256:a8ec90077b455b0870586ae5f454ae3b0c2c392cf8cdf6853a03adb1c9158b54", size = 72274, upload-time = "2025-08-15T02:28:28.874Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7b/23/410f8598579c891a27d73f58767d39cecf356b280162f1d53d25e05dc3f1/datastar_py-0.6.5-py3-none-any.whl", hash = "sha256:db51e4e4a7f87f11f3bafa8153cdc54ee79df6da59964904217fdb67da55d324", size = 21338, upload-time = "2025-08-15T02:28:27.804Z" },
+]
+
+[[package]]
 name = "debugpy"
 version = "1.8.14"
 source = { registry = "https://pypi.org/simple" }
@@ -1622,6 +1631,7 @@ dependencies = [
     { name = "alembic" },
     { name = "alembic-postgresql-enum" },
     { name = "authlib" },
+    { name = "datastar-py" },
     { name = "dramatiq", extra = ["redis", "watch"] },
     { name = "geoalchemy2" },
     { name = "httpx" },
@@ -1631,13 +1641,13 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-multipart" },
-    { name = "python-slugify" },
     { name = "redis", extra = ["hiredis"] },
     { name = "rich" },
     { name = "sqlalchemy" },
     { name = "sqlmodel" },
     { name = "starlette" },
     { name = "starlette-babel" },
+    { name = "starlette-wtf" },
     { name = "typer" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -1663,6 +1673,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.16.4" },
     { name = "alembic-postgresql-enum", specifier = ">=1.8.0" },
     { name = "authlib", specifier = ">=1.6.1" },
+    { name = "datastar-py", specifier = ">=0.6.5" },
     { name = "dramatiq", extras = ["redis", "watch"], specifier = ">=1.18.0" },
     { name = "geoalchemy2", specifier = ">=0.18.0" },
     { name = "httpx", specifier = ">=0.28.1" },
@@ -1672,13 +1683,13 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.11.7" },
     { name = "pydantic-settings", specifier = ">=2.10.1" },
     { name = "python-multipart", specifier = ">=0.0.20" },
-    { name = "python-slugify", specifier = ">=8.0.4" },
     { name = "redis", extras = ["hiredis"], specifier = ">=6.2.0" },
     { name = "rich", specifier = ">=14.0.0" },
     { name = "sqlalchemy", specifier = ">=2.0.43" },
     { name = "sqlmodel", specifier = ">=0.0.24" },
     { name = "starlette", specifier = ">=0.47.1" },
     { name = "starlette-babel", specifier = ">=1.0.3" },
+    { name = "starlette-wtf", specifier = ">=0.4.5" },
     { name = "typer", specifier = ">=0.16.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.35.0" },
 ]
@@ -1823,6 +1834,18 @@ sdist = { url = "https://files.pythonhosted.org/packages/03/30/1d2148e38016472f5
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d3/35/31d1540f6315be88a8fe25624d1e688276b48472d450a8da00a10c645c2a/starlette_babel-1.0.3-py3-none-any.whl", hash = "sha256:884ce60e74e80da7ef8e0781c025c17e70a1e948cf5c788a1668e7d14646e1a6", size = 14954, upload-time = "2024-11-30T17:37:49.38Z" },
 ]
+
+[[package]]
+name = "starlette-wtf"
+version = "0.4.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "itsdangerous" },
+    { name = "python-multipart" },
+    { name = "starlette" },
+    { name = "wtforms" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a6/15/e20a9eb32c1e51c08bec4b37859f49b5d70c76cd93d925862627d271cbd3/Starlette-WTF-0.4.5.tar.gz", hash = "sha256:411e94c19f47302fe3b12752b3c531581c0bad4cbe603a730bbe516733a99527", size = 15990, upload-time = "2024-04-10T16:23:03.957Z" }
 
 [[package]]
 name = "terminado"
@@ -2123,6 +2146,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ff/83/de1f7709376dc3ca9b7eeb4b9a07b4526b14876b6d372a4dc62312bebee0/websockets-15.0.1-cp312-cp312-win32.whl", hash = "sha256:c338ffa0520bdb12fbc527265235639fb76e7bc7faafbb93f6ba80d9c06578a9", size = 176395, upload-time = "2025-03-05T20:02:33.017Z" },
     { url = "https://files.pythonhosted.org/packages/7d/71/abf2ebc3bbfa40f391ce1428c7168fb20582d0ff57019b69ea20fa698043/websockets-15.0.1-cp312-cp312-win_amd64.whl", hash = "sha256:fcd5cf9e305d7b8338754470cf69cf81f420459dbae8a3b40cee57417f4614a7", size = 176841, upload-time = "2025-03-05T20:02:34.498Z" },
     { url = "https://files.pythonhosted.org/packages/fa/a8/5b41e0da817d64113292ab1f8247140aac61cbf6cfd085d6a0fa77f4984f/websockets-15.0.1-py3-none-any.whl", hash = "sha256:f7a866fbc1e97b5c617ee4116daaa09b722101d4a3c170c787450ba409f9736f", size = 169743, upload-time = "2025-03-05T20:03:39.41Z" },
+]
+
+[[package]]
+name = "wtforms"
+version = "3.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "markupsafe" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/01/e4/633d080897e769ed5712dcfad626e55dbd6cf45db0ff4d9884315c6a82da/wtforms-3.2.1.tar.gz", hash = "sha256:df3e6b70f3192e92623128123ec8dca3067df9cfadd43d59681e210cfb8d4682", size = 137801, upload-time = "2024-10-21T11:34:00.108Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/08/c9/2088fb5645cd289c99ebe0d4cdcc723922a1d8e1beaefb0f6f76dff9b21c/wtforms-3.2.1-py3-none-any.whl", hash = "sha256:583bad77ba1dd7286463f21e11aa3043ca4869d03575921d1a1698d0715e0fd4", size = 152454, upload-time = "2024-10-21T11:33:58.44Z" },
 ]
 
 [[package]]
