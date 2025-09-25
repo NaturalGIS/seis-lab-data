@@ -75,7 +75,7 @@ async def delete_project(
 async def list_projects(
     session: AsyncSession,
     initiator: schemas.UserId | None,
-    page: int = 0,
+    page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
 ) -> tuple[list[models.Project], int | None]:

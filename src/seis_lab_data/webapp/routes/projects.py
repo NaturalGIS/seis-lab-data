@@ -85,14 +85,15 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 page_size=settings.pagination_page_size,
                 include_total=True,
             )
-            _, num_unfiltered_total = await operations.list_projects(
-                session, initiator=user or None, include_total=True
-            )
+            num_unfiltered_total = (
+                await operations.list_projects(
+                    session, initiator=user or None, include_total=True
+                )
+            )[1]
         template_processor = request.state.templates
         pagination_info = get_pagination_info(
             current_page, settings.pagination_page_size, num_total, num_unfiltered_total
         )
-        logger.debug(f"{pagination_info=}")
         return template_processor.TemplateResponse(
             request,
             "projects/list.html",
@@ -100,7 +101,6 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 "items": [
                     schemas.ProjectReadListItem.from_db_instance(i) for i in items
                 ],
-                "num_total": num_total,
                 "pagination": pagination_info,
                 "breadcrumbs": [
                     schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),

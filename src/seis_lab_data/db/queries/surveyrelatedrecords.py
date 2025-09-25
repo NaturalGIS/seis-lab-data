@@ -9,6 +9,21 @@ from ...db import models
 from .common import _get_total_num_records
 
 
+async def paginated_list_survey_related_records(
+    session: AsyncSession,
+    user: schemas.User | None = None,
+    survey_mission_id: schemas.SurveyMissionId | None = None,
+    page: int = 1,
+    page_size: int = 20,
+    include_total: bool = False,
+) -> tuple[list[models.SurveyRelatedRecord], int | None]:
+    limit = page_size
+    offset = limit * (page - 1)
+    return await list_survey_related_records(
+        session, user, survey_mission_id, limit, offset, include_total
+    )
+
+
 async def list_survey_related_records(
     session: AsyncSession,
     user: schemas.User | None = None,

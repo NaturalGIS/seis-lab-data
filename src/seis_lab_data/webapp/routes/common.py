@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 class PaginationInfo:
     current_page: int
     page_size: int
+    total_filtered_items: int
+    total_unfiltered_items: int
     total_filtered_pages: int
     total_unfiltered_pages: int
     next_page: int | None
@@ -40,6 +42,8 @@ def get_pagination_info(
     return PaginationInfo(
         current_page=current_page,
         page_size=page_size,
+        total_filtered_items=total_filtered_items,
+        total_unfiltered_items=total_unfiltered_items,
         total_filtered_pages=total_filtered_pages,
         total_unfiltered_pages=total_unfiltered_pages,
         next_page=None,
