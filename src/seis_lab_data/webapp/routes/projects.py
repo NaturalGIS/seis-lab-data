@@ -16,6 +16,7 @@ from starlette_babel import gettext_lazy as _
 from starlette_wtf import csrf_protect
 
 from ... import (
+    config,
     errors,
     operations,
     permissions,
@@ -27,7 +28,10 @@ from .auth import (
     get_user,
     fancy_requires_auth,
 )
-from .common import produce_event_stream_for_topic
+from .common import (
+    get_pagination_info,
+    produce_event_stream_for_topic,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,15 +70,29 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         """List projects."""
         session_maker = request.state.session_maker
         user = get_user(request.session.get("user", {}))
+        settings: config.SeisLabDataSettings = request.state.settings
+        try:
+            current_page = int(request.query_params.get("page", 1))
+            if current_page < 1:
+                raise ValueError
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid page number")
         async with session_maker() as session:
             items, num_total = await operations.list_projects(
                 session,
                 initiator=user or None,
-                limit=request.query_params.get("limit", 20),
-                offset=request.query_params.get("offset", 0),
+                page=current_page,
+                page_size=settings.pagination_page_size,
                 include_total=True,
             )
+            _, num_unfiltered_total = await operations.list_projects(
+                session, initiator=user or None, include_total=True
+            )
         template_processor = request.state.templates
+        pagination_info = get_pagination_info(
+            current_page, settings.pagination_page_size, num_total, num_unfiltered_total
+        )
+        logger.debug(f"{pagination_info=}")
         return template_processor.TemplateResponse(
             request,
             "projects/list.html",
@@ -83,6 +101,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                     schemas.ProjectReadListItem.from_db_instance(i) for i in items
                 ],
                 "num_total": num_total,
+                "pagination": pagination_info,
                 "breadcrumbs": [
                     schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
                     schemas.BreadcrumbItem(name=_("Projects")),

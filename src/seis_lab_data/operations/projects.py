@@ -75,11 +75,13 @@ async def delete_project(
 async def list_projects(
     session: AsyncSession,
     initiator: schemas.UserId | None,
-    limit: int = 20,
-    offset: int = 0,
+    page: int = 0,
+    page_size: int = 20,
     include_total: bool = False,
 ) -> tuple[list[models.Project], int | None]:
-    return await queries.list_projects(session, initiator, limit, offset, include_total)
+    return await queries.paginated_list_projects(
+        session, initiator, page, page_size, include_total
+    )
 
 
 async def get_project(

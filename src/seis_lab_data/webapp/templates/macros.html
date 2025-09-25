@@ -102,3 +102,48 @@
 
     </div>
 {% endmacro %}
+
+
+{% macro render_pagination(pagination, collection_url) %}
+<nav aria-label="project-pagination">
+    <ul class="pagination">
+        {% if pagination.previous_page %}
+            <li class="page-item">
+                <a class="page-link" href="{{ collection_url }}?page={{ pagination.previous_page }}" aria-label="previous-page">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="{{ collection_url }}?page={{ pagination.previous_page }}">
+                    {{ pagination.previous_page }}
+                </a>
+            </li>
+        {% else %}
+            <li class="page-item disabled">
+                        <span class="page-link" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </span>
+            </li>
+        {% endif %}
+        <li class="page-item active"><span class="page-link">{{ pagination.current_page }}</span></li>
+        {% if pagination.next_page %}
+            <li class="page-item">
+                <a class="page-link" href="{{ collection_url }}?page={{ pagination.next_page }}">
+                    {{ pagination.next_page }}
+                </a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="{{ collection_url }}?page={{ pagination.next_page }}" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+        {% else %}
+            <li class="page-item disabled">
+                        <span class="page-link" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </span>
+            </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endmacro %}

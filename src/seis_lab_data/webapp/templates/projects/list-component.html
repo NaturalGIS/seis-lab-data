@@ -1,7 +1,11 @@
+{% import "macros.html" as macros %}
 <div class="row row-cols-2 g-4">
-    {% for item in items %}
-        {% include "projects/list-item.html" %}
+    {% if items | length > 0 %}
+        {{ macros.render_pagination(pagination, url_for("projects:list")) }}
+        {% for item in items %}
+            {% include "projects/list-item.html" %}
+        {% endfor %}
     {% else %}
         <p>{{ _("No projects found") }}</p>
-    {% endfor %}
+    {% endif %}
 </div>

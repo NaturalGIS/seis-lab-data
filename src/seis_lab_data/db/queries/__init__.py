@@ -3,6 +3,7 @@ from .projects import (
     get_project,
     get_project_by_english_name,
     list_projects,
+    paginated_list_projects,
 )
 from .recordassets import (
     collect_all_record_assets,
@@ -58,4 +59,5 @@ __all__ = [
     list_survey_missions,
     list_survey_related_records,
     list_workflow_stages,
+    paginated_list_projects,
 ]

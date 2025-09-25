@@ -1,7 +1,9 @@
 import asyncio
+import dataclasses
 import json
 import logging
 
+import pydantic
 from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
 from redis.asyncio import Redis
@@ -14,6 +16,42 @@ from seis_lab_data import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclasses.dataclass
+class PaginationInfo:
+    current_page: int
+    page_size: int
+    total_filtered_pages: int
+    total_unfiltered_pages: int
+    next_page: int | None
+    previous_page: int | None
+
+
+@pydantic.validate_call
+def get_pagination_info(
+    current_page: pydantic.NonNegativeInt,
+    page_size: pydantic.PositiveInt,
+    total_filtered_items: pydantic.NonNegativeInt,
+    total_unfiltered_items: pydantic.NonNegativeInt,
+) -> PaginationInfo:
+    total_filtered_pages = get_page_count(total_filtered_items, page_size)
+    total_unfiltered_pages = get_page_count(total_unfiltered_items, page_size)
+    return PaginationInfo(
+        current_page=current_page,
+        page_size=page_size,
+        total_filtered_pages=total_filtered_pages,
+        total_unfiltered_pages=total_unfiltered_pages,
+        next_page=None,
+        previous_page=None,
+    )
+
+
+@pydantic.validate_call
+def get_page_count(
+    total_items: pydantic.NonNegativeInt, page_size: pydantic.PositiveInt
+) -> int:
+    return (total_items + page_size - 1) // page_size
 
 
 async def produce_event_stream_for_topic(
