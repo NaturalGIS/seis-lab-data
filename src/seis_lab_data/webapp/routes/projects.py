@@ -208,6 +208,12 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         """
         Get project details and provide a paginated list of its survey missions.
         """
+        try:
+            current_page = int(request.query_params.get("page", 1))
+            if current_page < 1:
+                raise ValueError
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid page number")
         user = get_user(request.session.get("user", {}))
         session_maker = request.state.session_maker
         project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
@@ -229,11 +235,15 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 session, user, project_filter=project_id, include_total=True
             )
         template_processor = request.state.templates
+        pagination_info = get_pagination_info(
+            current_page, request.state.settings.pagination_page_size, total, total
+        )
         return template_processor.TemplateResponse(
             request,
             "projects/detail.html",
             context={
                 "item": schemas.ProjectReadDetail(**project.model_dump()),
+                "pagination": pagination_info,
                 "survey_missions": {
                     "survey_missions": [
                         schemas.SurveyMissionReadListItem.from_db_instance(sm)

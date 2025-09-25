@@ -140,6 +140,12 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         survey_mission_id = schemas.SurveyMissionId(
             uuid.UUID(request.path_params["survey_mission_id"])
         )
+        try:
+            current_page = int(request.query_params.get("page", 1))
+            if current_page < 1:
+                raise ValueError
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid page number")
         session_maker = request.state.session_maker
         user = get_user(request.session.get("user", {}))
         async with session_maker() as session:
@@ -167,6 +173,9 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 include_total=True,
             )
         template_processor = request.state.templates
+        pagination_info = get_pagination_info(
+            current_page, request.state.settings.pagination_page_size, total, total
+        )
         return template_processor.TemplateResponse(
             request,
             "survey-missions/detail.html",
@@ -174,6 +183,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 "item": schemas.SurveyMissionReadDetail.from_db_instance(
                     survey_mission
                 ),
+                "pagination": pagination_info,
                 "survey_related_records": {
                     "survey_related_records": [
                         schemas.SurveyRelatedRecordReadListItem(**srr.model_dump())
