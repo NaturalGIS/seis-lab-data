@@ -1,3 +1,12 @@
+import random
+import uuid
+from itertools import count
+
+from typing import (
+    Generator,
+    Sequence,
+)
+
 import typer
 from sqlalchemy.exc import IntegrityError
 
@@ -119,3 +128,118 @@ async def load_sample_survey_related_records(ctx: typer.Context):
             **created_survey_record.model_dump()
         )
         ctx.obj["main"].status_console.print(to_show)
+
+
+def generate_sample_projects(
+    owners: Sequence[schemas.UserId],
+    dataset_categories: Sequence[schemas.DatasetCategoryId],
+    domain_types: Sequence[schemas.DomainTypeId],
+    workflow_stages: Sequence[schemas.WorkflowStageId],
+) -> Generator[
+    tuple[
+        schemas.ProjectCreate,
+        list[
+            tuple[schemas.SurveyMissionCreate, list[schemas.SurveyRelatedRecordCreate]]
+        ],
+    ],
+    None,
+    None,
+]:
+    for index in count():
+        project = schemas.ProjectCreate(
+            id=schemas.ProjectId(uuid.uuid4()),
+            owner=random.choice(owners),
+            name=schemas.LocalizableDraftName(
+                en=f"Sample Project {index}", pt=f"Projeto de amostra {index}"
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en="This is a sample project created for testing purposes.",
+                pt="Este é um projeto de amostra criado para fins de teste.",
+            ),
+            root_path="/project-path-{index}",
+            links=[],
+        )
+        mission_generator = generate_sample_survey_missions(
+            owners, project.id, dataset_categories, domain_types, workflow_stages
+        )
+        missions = [next(mission_generator) for _ in range(random.randint(1, 10))]
+        yield project, missions
+
+
+def generate_sample_survey_missions(
+    owners: Sequence[schemas.UserId],
+    project_id: schemas.ProjectId,
+    dataset_categories: Sequence[schemas.DatasetCategoryId],
+    domain_types: Sequence[schemas.DomainTypeId],
+    workflow_stages: Sequence[schemas.WorkflowStageId],
+) -> Generator[
+    tuple[schemas.SurveyMissionCreate, list[schemas.SurveyRelatedRecordCreate]],
+    None,
+    None,
+]:
+    for index in count():
+        mission = schemas.SurveyMissionCreate(
+            id=schemas.SurveyMissionId(uuid.uuid4()),
+            project_id=project_id,
+            owner=random.choice(owners),
+            name=schemas.LocalizableDraftName(
+                en=f"Sample Survey Mission {index}", pt=f"Missão de amostra {index}"
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en="This is a sample survey mission created for testing purposes.",
+                pt="Esta é uma missão de amostra criada para fins de teste.",
+            ),
+            relative_path="mission-path-{index}",
+            links=[],
+        )
+        record_generator = generate_sample_survey_related_records(
+            owners, mission.id, dataset_categories, domain_types, workflow_stages
+        )
+        records = [next(record_generator) for _ in range(random.randint(1, 100))]
+        yield mission, records
+
+
+def generate_sample_survey_related_records(
+    owners: Sequence[schemas.UserId],
+    survey_mission_id: schemas.SurveyMissionId,
+    dataset_categories: Sequence[schemas.DatasetCategoryId],
+    domain_types: Sequence[schemas.DomainTypeId],
+    workflow_stages: Sequence[schemas.WorkflowStageId],
+) -> Generator[schemas.SurveyRelatedRecordCreate, None, None]:
+    for index in count():
+        asset_generator = generate_sample_assets()
+        yield schemas.SurveyRelatedRecordCreate(
+            id=schemas.SurveyRelatedRecordId(uuid.uuid4()),
+            owner=random.choice(owners),
+            name=schemas.LocalizableDraftName(
+                en=f"Sample Survey Related Record {index}",
+                pt=f"Registo de amostra {index}",
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en="This is a sample survey-related record created for testing purposes.",
+                pt="Este é um registo de amostra criado para fins de teste.",
+            ),
+            survey_mission_id=survey_mission_id,
+            dataset_category_id=random.choice(dataset_categories),
+            domain_type_id=random.choice(domain_types),
+            workflow_stage_id=random.choice(workflow_stages),
+            relative_path="some-path-{index}",
+            links=[],
+            assets=[next(asset_generator) for _ in range(random.randint(1, 12))],
+        )
+
+
+def generate_sample_assets() -> Generator[schemas.RecordAssetCreate, None, None]:
+    for index in count():
+        yield schemas.RecordAssetCreate(
+            id=schemas.RecordAssetId(uuid.uuid4()),
+            name=schemas.LocalizableDraftName(
+                en=f"Sample Asset {index}", pt=f"Recurso de amostra {index}"
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en="This is a sample asset created for testing purposes.",
+                pt="Este é um recurso de amostra criado para fins de teste.",
+            ),
+            relative_path=f"some-path-{index}",
+            links=[],
+        )

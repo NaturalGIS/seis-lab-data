@@ -278,6 +278,38 @@ def get_survey_related_records_to_create(
             workflow_stage_id=schemas.WorkflowStageId(workflow_stages["raw data"].id),
             relative_path="first-record",
             links=[],
+            assets=[
+                schemas.RecordAssetCreate(
+                    id=schemas.SurveyRelatedRecordId(
+                        uuid.UUID("85f4683c-7d4a-444c-8896-04278bc89e63")
+                    ),
+                    name=schemas.LocalizableDraftName(
+                        en="First asset",
+                        pt="Primeiro recurso",
+                    ),
+                    description=schemas.LocalizableDraftDescription(
+                        en="Description for first asset",
+                        pt="Descrição do primeiro recurso",
+                    ),
+                    relative_path="first-asset",
+                    links=[],
+                ),
+                schemas.RecordAssetCreate(
+                    id=schemas.SurveyRelatedRecordId(
+                        uuid.UUID("a9eca3df-03ba-4f46-a98d-3e30139eb035")
+                    ),
+                    name=schemas.LocalizableDraftName(
+                        en="Second asset",
+                        pt="Segundo recurso",
+                    ),
+                    description=schemas.LocalizableDraftDescription(
+                        en="Description for second asset",
+                        pt="Descrição do segundo recurso",
+                    ),
+                    relative_path="second-asset",
+                    links=[],
+                ),
+            ],
         ),
         schemas.SurveyRelatedRecordCreate(
             id=schemas.SurveyRelatedRecordId(
@@ -300,5 +332,37 @@ def get_survey_related_records_to_create(
             workflow_stage_id=schemas.WorkflowStageId(workflow_stages["raw data"].id),
             relative_path="second-record",
             links=[],
+            assets=[
+                schemas.RecordAssetCreate(
+                    id=schemas.SurveyRelatedRecordId(
+                        uuid.UUID("a53728ed-5422-4f08-806f-3e75bbb1b3e8")
+                    ),
+                    name=schemas.LocalizableDraftName(
+                        en="Third asset",
+                        pt="Terceiro recurso",
+                    ),
+                    description=schemas.LocalizableDraftDescription(
+                        en="Description for third asset",
+                        pt="Descrição do terceiro recurso",
+                    ),
+                    relative_path="third-asset",
+                    links=[],
+                ),
+                schemas.RecordAssetCreate(
+                    id=schemas.SurveyRelatedRecordId(
+                        uuid.UUID("bd4bed96-43bd-4d5c-a7b2-d04461dfb23c")
+                    ),
+                    name=schemas.LocalizableDraftName(
+                        en="Fourth asset",
+                        pt="Quarto recurso",
+                    ),
+                    description=schemas.LocalizableDraftDescription(
+                        en="Description for fourth asset",
+                        pt="Descrição do quarto recurso",
+                    ),
+                    relative_path="fourth-asset",
+                    links=[],
+                ),
+            ],
         ),
     ]
