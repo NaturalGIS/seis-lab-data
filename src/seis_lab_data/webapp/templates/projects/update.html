@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+    <h1 class="display-1">{{ _("Modify Project") }}</h1>
+    <div id="project-update-form-container">
+        {% include "projects/create-form.html" %}
+    </div>
+    <div id="feedback">
+        <ul></ul>
+    </div>
+{% endblock %}

@@ -16,6 +16,16 @@
         <ul></ul>
     </div>
     <div class="row mb-3">
+        {% if user_can_update %}
+            <div class="col">
+                <a
+                        class="btn btn-secondary"
+                        aria-label="update-project"
+                        href="{{ url_for('projects:get_update_form', project_id=item.id) }}"
+                >{{ _("update project") | capitalize }}
+                </a>
+            </div>
+        {% endif %}
         <div class="col">
             {% if user_can_delete %}
                 <button

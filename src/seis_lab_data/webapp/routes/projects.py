@@ -63,6 +63,80 @@ async def get_project_creation_form(request: Request):
     )
 
 
+@csrf_protect
+@fancy_requires_auth
+async def get_project_update_form(request: Request):
+    """Return a form suitable for updating an existing project."""
+    user = get_user(request.session.get("user", {}))
+    session_maker = request.state.session_maker
+    project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
+    async with session_maker() as session:
+        try:
+            project = await operations.get_project(
+                project_id,
+                user or None,
+                session,
+                request.state.settings,
+            )
+        except errors.SeisLabDataError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        if project is None:
+            raise HTTPException(
+                status_code=404, detail=_(f"Project {project_id!r} not found.")
+            )
+    update_form = forms.ProjectCreateForm(
+        request=request,
+        data={
+            "name": {
+                "en": project.name.get("en", ""),
+                "pt": project.name.get("pt", ""),
+            },
+            "description": {
+                "en": project.description.get("en", ""),
+                "pt": project.description.get("pt", ""),
+            },
+            "root_path": project.root_path,
+            "links": [
+                {
+                    "url": li.get("url", ""),
+                    "media_type": li.get("media_type", ""),
+                    "relation": li.get("relation", ""),
+                    "link_description": {
+                        "en": li.get("link_description", {}).get("en", ""),
+                        "pt": li.get("link_description", {}).get("pt", ""),
+                    },
+                }
+                for li in project.links
+            ],
+        },
+    )
+    template_processor: Jinja2Templates = request.state.templates
+    return template_processor.TemplateResponse(
+        request,
+        "projects/update.html",
+        context={
+            "project": project,
+            "form": update_form,
+            "breadcrumbs": [
+                schemas.BreadcrumbItem(
+                    name=_("Home"), url=str(request.url_for("home"))
+                ),
+                schemas.BreadcrumbItem(
+                    name=_("Projects"),
+                    url=request.url_for("projects:list"),
+                ),
+                schemas.BreadcrumbItem(
+                    name=project.name["en"],
+                    url=request.url_for("projects:detail", project_id=project_id),
+                ),
+                schemas.BreadcrumbItem(
+                    name=_("Update"),
+                ),
+            ],
+        },
+    )
+
+
 class ProjectCollectionEndpoint(HTTPEndpoint):
     """Manage the collection of projects."""
 
@@ -273,6 +347,9 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 "user_can_create_survey_mission": await permissions.can_create_survey_mission(
                     user, project_id=project_id, settings=request.state.settings
                 ),
+                "user_can_update": await permissions.can_update_project(
+                    user, project_id, settings=request.state.settings
+                ),
                 "breadcrumbs": [
                     schemas.BreadcrumbItem(
                         name=_("Home"), url=str(request.url_for("home"))
@@ -396,6 +473,11 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         return DatastarResponse(
             stream_events(), status_code=202 if form_is_valid else 422
         )
+
+    @fancy_requires_auth
+    async def put(self, request: Request):
+        """Update a project."""
+        ...
 
     @fancy_requires_auth
     async def delete(self, request: Request):

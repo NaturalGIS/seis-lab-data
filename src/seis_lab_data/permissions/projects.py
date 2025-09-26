@@ -30,3 +30,12 @@ async def can_delete_project(
     settings: config.SeisLabDataSettings,
 ):
     return True
+
+
+async def can_update_project(
+    user: schemas.User,
+    project_id: schemas.ProjectId,
+    *,
+    settings: config.SeisLabDataSettings,
+):
+    return True
