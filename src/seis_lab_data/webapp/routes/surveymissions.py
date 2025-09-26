@@ -104,7 +104,7 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
             items, num_total = await operations.list_survey_missions(
                 session,
                 initiator=user.id if user else None,
-                page=request.query_params.get("page", 1),
+                page=current_page,
                 page_size=settings.pagination_page_size,
                 include_total=True,
             )
@@ -115,7 +115,11 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
             )[1]
         template_processor = request.state.templates
         pagination_info = get_pagination_info(
-            current_page, settings.pagination_page_size, num_total, num_unfiltered_total
+            current_page,
+            settings.pagination_page_size,
+            num_total,
+            num_unfiltered_total,
+            collection_url=str(request.url_for("survey_missions:list")),
         )
         return template_processor.TemplateResponse(
             request,
@@ -174,7 +178,15 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             )
         template_processor = request.state.templates
         pagination_info = get_pagination_info(
-            current_page, request.state.settings.pagination_page_size, total, total
+            current_page,
+            request.state.settings.pagination_page_size,
+            total,
+            total,
+            collection_url=str(
+                request.url_for(
+                    "survey_missions:detail", survey_mission_id=survey_mission_id
+                )
+            ),
         )
         return template_processor.TemplateResponse(
             request,

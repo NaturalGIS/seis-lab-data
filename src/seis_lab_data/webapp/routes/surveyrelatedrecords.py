@@ -338,7 +338,7 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
             items, num_total = await operations.list_survey_related_records(
                 session,
                 initiator=user.id if user else None,
-                page=request.query_params.get("page", 1),
+                page=current_page,
                 page_size=settings.pagination_page_size,
                 include_total=True,
             )
@@ -349,7 +349,11 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
             )[1]
         template_processor = request.state.templates
         pagination_info = get_pagination_info(
-            current_page, settings.pagination_page_size, num_total, num_unfiltered_total
+            current_page,
+            settings.pagination_page_size,
+            num_total,
+            num_unfiltered_total,
+            collection_url=str(request.url_for("survey_related_records:list")),
         )
         return template_processor.TemplateResponse(
             request,

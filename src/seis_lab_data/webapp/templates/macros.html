@@ -104,18 +104,18 @@
 {% endmacro %}
 
 
-{% macro render_pagination(pagination, collection_url) %}
+{% macro render_pagination(pagination) %}
     {% if pagination.total_filtered_pages > 1 %}
         <nav aria-label="project-pagination">
             <ul class="pagination justify-content-center">
                 {% if pagination.previous_page %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ collection_url }}?page={{ pagination.previous_page }}" aria-label="previous-page">
+                        <a class="page-link" href="{{ pagination.previous_page_url }}" aria-label="previous-page">
                             <span aria-hidden="true">&laquo;</span>
                         </a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="{{ collection_url }}?page={{ pagination.previous_page }}">
+                        <a class="page-link" href="{{ pagination.previous_page_url }}">
                             {{ pagination.previous_page }}
                         </a>
                     </li>
@@ -129,12 +129,12 @@
                 <li class="page-item active"><span class="page-link">{{ pagination.current_page }}</span></li>
                 {% if pagination.next_page %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ collection_url }}?page={{ pagination.next_page }}">
+                        <a class="page-link" href="{{ pagination.next_page_url }}">
                             {{ pagination.next_page }}
                         </a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="{{ collection_url }}?page={{ pagination.next_page }}" aria-label="Next">
+                        <a class="page-link" href="{{ pagination.next_page_url }}" aria-label="Next">
                             <span aria-hidden="true">&raquo;</span>
                         </a>
                     </li>

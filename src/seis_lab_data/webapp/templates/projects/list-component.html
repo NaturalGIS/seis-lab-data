@@ -17,7 +17,7 @@
             <small>{{ _("Total projects: %(total_unfiltered)d") | format(total_unfiltered=pagination.total_unfiltered_items) }}</small>
         </li>
     </ul>
-    {{ macros.render_pagination(pagination, url_for("projects:list")) }}
+    {{ macros.render_pagination(pagination) }}
 {% else %}
     <p>{{ _("No projects found") }}</p>
 {% endif %}

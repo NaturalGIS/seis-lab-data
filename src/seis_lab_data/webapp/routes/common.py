@@ -28,6 +28,9 @@ class PaginationInfo:
     total_unfiltered_pages: int
     next_page: int | None
     previous_page: int | None
+    collection_url: str
+    next_page_url: str | None
+    previous_page_url: str | None
 
 
 @pydantic.validate_call
@@ -36,9 +39,12 @@ def get_pagination_info(
     page_size: pydantic.PositiveInt,
     total_filtered_items: pydantic.NonNegativeInt,
     total_unfiltered_items: pydantic.NonNegativeInt,
+    collection_url: str,
 ) -> PaginationInfo:
     total_filtered_pages = get_page_count(total_filtered_items, page_size)
     total_unfiltered_pages = get_page_count(total_unfiltered_items, page_size)
+    next_page = current_page + 1 if current_page < total_filtered_pages else None
+    previous_page = current_page - 1 if current_page > 0 else None
     return PaginationInfo(
         current_page=current_page,
         page_size=page_size,
@@ -46,8 +52,13 @@ def get_pagination_info(
         total_unfiltered_items=total_unfiltered_items,
         total_filtered_pages=total_filtered_pages,
         total_unfiltered_pages=total_unfiltered_pages,
-        next_page=None,
-        previous_page=None,
+        next_page=next_page,
+        previous_page=previous_page,
+        collection_url=collection_url,
+        next_page_url=f"{collection_url}?page={next_page}" if next_page else None,
+        previous_page_url=(
+            f"{collection_url}?page={previous_page}" if previous_page else None
+        ),
     )
 
 

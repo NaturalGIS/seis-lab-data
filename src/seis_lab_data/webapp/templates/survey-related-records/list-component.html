@@ -17,7 +17,7 @@
             <small>{{ _("Total survey-related records: %(total_unfiltered)d") | format(total_unfiltered=pagination.total_unfiltered_items) }}</small>
         </li>
     </ul>
-    {{ macros.render_pagination(pagination, url_for("survey_missions:list")) }}
+    {{ macros.render_pagination(pagination) }}
 {% else %}
     <p>{{ _("No survey-related records found") }}</p>
 {% endif %}
