@@ -9,6 +9,18 @@ if TYPE_CHECKING:
     from ... import schemas
 
 
+async def paginated_list_projects(
+    session: AsyncSession,
+    user: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
+    include_total: bool = False,
+) -> tuple[list[models.Project], int | None]:
+    limit = page_size
+    offset = limit * (page - 1)
+    return await list_projects(session, user, limit, offset, include_total)
+
+
 async def list_projects(
     session: AsyncSession,
     user: str | None = None,

@@ -1,7 +1,23 @@
-<div class="row row-cols-2 g-4">
-    {% for item in items %}
-        {% include "projects/list-item.html" %}
-    {% else %}
-        <p>{{ _("No projects found") }}</p>
-    {% endfor %}
-</div>
+{% import "macros.html" as macros %}
+
+{% if items | length > 0 %}
+    <div class="row row-cols-2 g-4">
+        {% for item in items %}
+            {% include "projects/list-item.html" %}
+        {% endfor %}
+    </div>
+    <ul class="list-inline text-center">
+        <li class="list-inline-item">
+            <small>{{ _("Total pages: %(total_pages)d") | format(total_pages=pagination.total_filtered_pages) }}</small>
+        </li>
+        <li class="list-inline-item">
+            <small>{{ _("Filtered projects: %(total_filtered)d") | format(total_filtered=pagination.total_filtered_items) }}</small>
+        </li>
+        <li class="list-inline-item">
+            <small>{{ _("Total projects: %(total_unfiltered)d") | format(total_unfiltered=pagination.total_unfiltered_items) }}</small>
+        </li>
+    </ul>
+    {{ macros.render_pagination(pagination) }}
+{% else %}
+    <p>{{ _("No projects found") }}</p>
+{% endif %}

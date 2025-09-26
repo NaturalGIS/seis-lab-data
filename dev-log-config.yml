@@ -38,7 +38,7 @@ loggers:
 
   uvicorn:
     handlers:
-      - default_rich
+      - default
     level: INFO
     propagate: false
 
@@ -53,11 +53,11 @@ loggers:
 
   seis_lab_data:
     handlers:
-      - default_rich
+      - default
     level: DEBUG
     propagate: false
 
 root:
   level: WARNING
   handlers:
-    - default_rich
+    - default
