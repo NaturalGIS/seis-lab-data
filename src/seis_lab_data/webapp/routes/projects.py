@@ -92,7 +92,11 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             )[1]
         template_processor = request.state.templates
         pagination_info = get_pagination_info(
-            current_page, settings.pagination_page_size, num_total, num_unfiltered_total
+            current_page,
+            settings.pagination_page_size,
+            num_total,
+            num_unfiltered_total,
+            collection_url=str(request.url_for("projects:list")),
         )
         return template_processor.TemplateResponse(
             request,
@@ -215,6 +219,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid page number")
         user = get_user(request.session.get("user", {}))
+        settings: config.SeisLabDataSettings = request.state.settings
         session_maker = request.state.session_maker
         project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
         async with session_maker() as session:
@@ -232,11 +237,22 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                     status_code=404, detail=_(f"Project {project_id!r} not found.")
                 )
             survey_missions, total = await operations.list_survey_missions(
-                session, user, project_filter=project_id, include_total=True
+                session,
+                user,
+                project_filter=project_id,
+                include_total=True,
+                page=current_page,
+                page_size=settings.pagination_page_size,
             )
         template_processor = request.state.templates
         pagination_info = get_pagination_info(
-            current_page, request.state.settings.pagination_page_size, total, total
+            current_page,
+            settings.pagination_page_size,
+            total,
+            total,
+            collection_url=str(
+                request.url_for("projects:detail", project_id=project_id)
+            ),
         )
         return template_processor.TemplateResponse(
             request,
