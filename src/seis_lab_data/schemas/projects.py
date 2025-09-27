@@ -43,7 +43,7 @@ class ProjectReadListItem(ProjectReadEmbedded):
     description: LocalizableDraftDescription
 
     @classmethod
-    def from_db_instance(cls, instance: models.Project) -> "ProjectReadEmbedded":
+    def from_db_instance(cls, instance: models.Project) -> "ProjectReadListItem":
         return cls(**instance.model_dump())
 
 
@@ -51,3 +51,7 @@ class ProjectReadDetail(ProjectReadListItem):
     owner: UserId
     root_path: str
     links: list[LinkSchema] = []
+
+    @classmethod
+    def from_db_instance(cls, instance: models.Project) -> "ProjectReadDetail":
+        return cls(**instance.model_dump())

@@ -1,0 +1,44 @@
+{% import "macros.html" as macros %}
+<form>
+    {{ macros.render_localizable_field(form.name) }}
+    {{ macros.render_localizable_field(form.description) }}
+
+    {{ macros.render_form_field(form.root_path) }}
+
+    <h3>{{ _("Links") }}</h3>
+    {{ macros.render_links_fields(
+        form.links,
+        url_for("projects:add_form_link"),
+        url_for("projects:remove_form_link"),
+        form.csrf_token.current_token
+    ) }}
+
+    <div class="row mb-3">
+        <div class="col-sm-10 offset-sm-2">
+            <button
+                    type="reset"
+                    class="btn btn-outline-secondary"
+                    data-on-click="@get('{{ url_for("projects:get_details_component", project_id=project.id) }}')"
+                    aria-label="cancel-update"
+            >{{ _('cancel') | capitalize }}
+            </button>
+            <button
+                    type="submit"
+                    aria-label="submit-update-form"
+                    class="btn btn-primary"
+                    data-on-click="@put('{{ url_for('projects:detail', project_id=project.id) }}', {
+                            contentType: 'form',
+                            headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
+                        })"
+                    data-indicator="updating"
+                    data-attr-disabled="$updating"
+                    data-text="$updating ? '{{ _('updating project...') | capitalize }}' : '{{ _('update project') | capitalize }}'"
+            >
+            </button>
+            <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
+                 data-attr-hidden="!$updating">
+                <span class="visually-hidden">{{ _("loading...") | capitalize }}</span>
+            </div>
+        </div>
+    </div>
+</form>

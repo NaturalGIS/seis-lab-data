@@ -12,6 +12,7 @@ from .base import (
 from .projects import (
     add_create_project_form_link,
     get_project_creation_form,
+    get_project_details_component,
     get_project_update_form,
     ProjectCollectionEndpoint,
     ProjectDetailEndpoint,
@@ -44,6 +45,7 @@ __ALL__ = [
     add_create_survey_related_record_form_asset_link,
     auth_callback,
     get_project_creation_form,
+    get_project_details_component,
     get_project_update_form,
     get_survey_mission_creation_form,
     get_survey_related_record_creation_form,

@@ -2,6 +2,7 @@ import logging
 import typing
 
 import pydantic
+from starlette.requests import Request
 from starlette_babel import gettext_lazy as _
 from starlette_wtf import StarletteForm
 from wtforms import (
@@ -19,14 +20,21 @@ from seis_lab_data import constants
 logger = logging.getLogger(__name__)
 
 
-class CreationFormProtocol(typing.Protocol):
+class FormProtocol(typing.Protocol):
     schema: pydantic.BaseModel
 
+    @classmethod
+    async def from_formdata(cls, request: Request) -> "cls":  # noqa
+        raise NotImplementedError()
+
+    async def validate_on_submit(self) -> Form:
+        raise NotImplementedError()
+
     def validate_with_schema(self) -> None:
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def has_validation_errors(self) -> bool:
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 def get_form_field_by_name(form: Form | FormField, name: str) -> Field | None:

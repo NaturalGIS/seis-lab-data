@@ -1,12 +1,20 @@
+import asyncio
 import dataclasses
 import json
 import logging
 import uuid
+from typing import (
+    AsyncGenerator,
+    Type,
+    TypeVar,
+)
 
 from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
+from datastar_py.sse import DatastarEvent
 from datastar_py.starlette import DatastarResponse
 from dramatiq import Message
+from jinja2 import Template
 from redis.asyncio import Redis
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
@@ -31,9 +39,25 @@ from .auth import (
 from .common import (
     get_pagination_info,
     produce_event_stream_for_topic,
+    new_produce_event_stream_for_topic,
+    PaginationInfo,
 )
 
 logger = logging.getLogger(__name__)
+ProjectFormType = TypeVar(
+    "ProjectFormType", forms.ProjectCreateForm, forms.ProjectUpdateForm
+)
+
+
+@dataclasses.dataclass(frozen=True)
+class _ProjectDetails:
+    project: schemas.ProjectReadDetail
+    survey_missions: list[schemas.SurveyMissionReadListItem]
+    pagination: PaginationInfo
+    user_can_delete: bool
+    user_can_update: bool
+    user_can_create_survey_mission: bool
+    breadcrumbs: list[schemas.BreadcrumbItem]
 
 
 @csrf_protect
@@ -84,7 +108,7 @@ async def get_project_update_form(request: Request):
             raise HTTPException(
                 status_code=404, detail=_(f"Project {project_id!r} not found.")
             )
-    update_form = forms.ProjectCreateForm(
+    update_form = forms.ProjectUpdateForm(
         request=request,
         data={
             "name": {
@@ -111,29 +135,115 @@ async def get_project_update_form(request: Request):
         },
     )
     template_processor: Jinja2Templates = request.state.templates
-    return template_processor.TemplateResponse(
-        request,
-        "projects/update.html",
-        context={
-            "project": project,
-            "form": update_form,
-            "breadcrumbs": [
-                schemas.BreadcrumbItem(
-                    name=_("Home"), url=str(request.url_for("home"))
-                ),
-                schemas.BreadcrumbItem(
-                    name=_("Projects"),
-                    url=request.url_for("projects:list"),
-                ),
-                schemas.BreadcrumbItem(
-                    name=project.name["en"],
-                    url=request.url_for("projects:detail", project_id=project_id),
-                ),
-                schemas.BreadcrumbItem(
-                    name=_("Update"),
-                ),
-            ],
-        },
+    template = template_processor.get_template("projects/update-form.html")
+    rendered = template.render(
+        request=request,
+        project=project,
+        form=update_form,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector="[aria-label='project-details']",
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@fancy_requires_auth
+async def get_project_details_component(request: Request):
+    details = await _get_project_details(request)
+    template_processor = request.state.templates
+    template = template_processor.get_template("projects/detail-component.html")
+    rendered = template.render(
+        request=request,
+        project=details.project,
+        pagination=details.pagination,
+        survey_missions=details.survey_missions,
+        user_can_delete=details.user_can_delete,
+        user_can_create_survey_mission=details.user_can_create_survey_mission,
+        user_can_update=details.user_can_update,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector="[aria-label='project-details']",
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+async def _get_project_details(request: Request) -> _ProjectDetails:
+    try:
+        current_page = int(request.query_params.get("page", 1))
+        if current_page < 1:
+            raise ValueError
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid page number")
+    user = get_user(request.session.get("user", {}))
+    settings: config.SeisLabDataSettings = request.state.settings
+    session_maker = request.state.session_maker
+    project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
+    async with session_maker() as session:
+        try:
+            project = await operations.get_project(
+                project_id,
+                user or None,
+                session,
+                request.state.settings,
+            )
+        except errors.SeisLabDataError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        if project is None:
+            raise HTTPException(
+                status_code=404, detail=_(f"Project {project_id!r} not found.")
+            )
+        survey_missions, total = await operations.list_survey_missions(
+            session,
+            user,
+            project_filter=project_id,
+            include_total=True,
+            page=current_page,
+            page_size=settings.pagination_page_size,
+        )
+    return _ProjectDetails(
+        project=schemas.ProjectReadDetail.from_db_instance(project),
+        survey_missions=[
+            schemas.SurveyMissionReadListItem.from_db_instance(sm)
+            for sm in survey_missions
+        ],
+        pagination=get_pagination_info(
+            current_page,
+            settings.pagination_page_size,
+            total,
+            total,
+            collection_url=str(
+                request.url_for("projects:detail", project_id=project_id)
+            ),
+        ),
+        user_can_delete=await permissions.can_delete_project(
+            user, project_id, settings=request.state.settings
+        ),
+        user_can_create_survey_mission=await permissions.can_create_survey_mission(
+            user, project_id=project_id, settings=request.state.settings
+        ),
+        user_can_update=await permissions.can_update_project(
+            user, project_id, settings=request.state.settings
+        ),
+        breadcrumbs=[
+            schemas.BreadcrumbItem(name=_("Home"), url=str(request.url_for("home"))),
+            schemas.BreadcrumbItem(
+                name=_("Projects"),
+                url=request.url_for("projects:list"),
+            ),
+            schemas.BreadcrumbItem(
+                name=project.name["en"],
+            ),
+        ],
     )
 
 
@@ -204,7 +314,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         session_maker = request.state.session_maker
         async with session_maker() as session:
             await creation_form.check_if_english_name_is_unique(session)
-        form_is_valid = creation_form.has_validation_errors()
+        form_is_valid = not creation_form.has_validation_errors()
 
         async def stream_events():
             if form_is_valid:
@@ -286,82 +396,22 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         """
         Get project details and provide a paginated list of its survey missions.
         """
-        try:
-            current_page = int(request.query_params.get("page", 1))
-            if current_page < 1:
-                raise ValueError
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid page number")
-        user = get_user(request.session.get("user", {}))
-        settings: config.SeisLabDataSettings = request.state.settings
-        session_maker = request.state.session_maker
-        project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
-        async with session_maker() as session:
-            try:
-                project = await operations.get_project(
-                    project_id,
-                    user or None,
-                    session,
-                    request.state.settings,
-                )
-            except errors.SeisLabDataError as exc:
-                raise HTTPException(status_code=404, detail=str(exc)) from exc
-            if project is None:
-                raise HTTPException(
-                    status_code=404, detail=_(f"Project {project_id!r} not found.")
-                )
-            survey_missions, total = await operations.list_survey_missions(
-                session,
-                user,
-                project_filter=project_id,
-                include_total=True,
-                page=current_page,
-                page_size=settings.pagination_page_size,
-            )
+
+        details = await _get_project_details(request)
         template_processor = request.state.templates
-        pagination_info = get_pagination_info(
-            current_page,
-            settings.pagination_page_size,
-            total,
-            total,
-            collection_url=str(
-                request.url_for("projects:detail", project_id=project_id)
-            ),
-        )
         return template_processor.TemplateResponse(
             request,
             "projects/detail.html",
             context={
-                "item": schemas.ProjectReadDetail(**project.model_dump()),
-                "pagination": pagination_info,
+                "project": details.project,
+                "pagination": details.pagination,
                 "survey_missions": {
-                    "survey_missions": [
-                        schemas.SurveyMissionReadListItem.from_db_instance(sm)
-                        for sm in survey_missions
-                    ],
-                    "total": total,
+                    "survey_missions": details.survey_missions,
                 },
-                "user_can_delete": await permissions.can_delete_project(
-                    user, project_id, settings=request.state.settings
-                ),
-                "user_can_create_survey_mission": await permissions.can_create_survey_mission(
-                    user, project_id=project_id, settings=request.state.settings
-                ),
-                "user_can_update": await permissions.can_update_project(
-                    user, project_id, settings=request.state.settings
-                ),
-                "breadcrumbs": [
-                    schemas.BreadcrumbItem(
-                        name=_("Home"), url=str(request.url_for("home"))
-                    ),
-                    schemas.BreadcrumbItem(
-                        name=_("Projects"),
-                        url=request.url_for("projects:list"),
-                    ),
-                    schemas.BreadcrumbItem(
-                        name=project.name["en"],
-                    ),
-                ],
+                "user_can_delete": details.user_can_delete,
+                "user_can_create_survey_mission": details.user_can_create_survey_mission,
+                "user_can_update": details.user_can_update,
+                "breadcrumbs": details.breadcrumbs,
             },
         )
 
@@ -474,10 +524,153 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             stream_events(), status_code=202 if form_is_valid else 422
         )
 
+    @csrf_protect
     @fancy_requires_auth
     async def put(self, request: Request):
         """Update a project."""
-        ...
+        template_processor: Jinja2Templates = request.state.templates
+        user = get_user(request.session.get("user", {}))
+        session_maker = request.state.session_maker
+        try:
+            project_id = schemas.ProjectId(
+                uuid.UUID(request.path_params.get("project_id"))
+            )
+        except ValueError:
+            raise HTTPException(400, "Invalid project ID format")
+        async with session_maker() as session:
+            if (
+                project := await operations.get_project(
+                    project_id, user, session, request.state.settings
+                )
+            ) is None:
+                raise HTTPException(404, f"Project {project_id!r} not found.")
+        form_instance = await _validate_project_form(
+            request, form_type=forms.ProjectUpdateForm
+        )
+        logger.debug(f"{form_instance.has_validation_errors()=}")
+        if not form_instance.has_validation_errors():
+            request_id = schemas.RequestId(uuid.uuid4())
+            to_update = schemas.ProjectUpdate(
+                owner=user.id,
+                name=schemas.LocalizableDraftName(
+                    en=form_instance.name.en.data,
+                    pt=form_instance.name.pt.data,
+                ),
+                description=schemas.LocalizableDraftDescription(
+                    en=form_instance.description.en.data,
+                    pt=form_instance.description.pt.data,
+                ),
+                root_path=form_instance.root_path.data,
+                links=[
+                    schemas.LinkSchema(
+                        url=lf.url.data,
+                        media_type=lf.media_type.data,
+                        relation=lf.relation.data,
+                        link_description=schemas.LocalizableDraftDescription(
+                            en=lf.link_description.en.data,
+                            pt=lf.link_description.pt.data,
+                        ),
+                    )
+                    for lf in form_instance.links.entries
+                ],
+            )
+
+            async def handle_processing_success(
+                final_message: schemas.ProcessingMessage, message_template: Template
+            ) -> AsyncGenerator[DatastarEvent, None]:
+                project_details = await _get_project_details(request)
+                rendered_message = message_template.render(
+                    status=final_message.status.value,
+                    message=f"{final_message.message}",
+                )
+                yield ServerSentEventGenerator.patch_elements(
+                    rendered_message,
+                    selector="[aria-label='feedback-messages']",
+                    mode=ElementPatchMode.APPEND,
+                )
+                await asyncio.sleep(3)
+                template = template_processor.get_template(
+                    "projects/detail-component.html"
+                )
+                yield ServerSentEventGenerator.patch_elements(
+                    template.render(
+                        request=request,
+                        project=project_details.project,
+                        pagination=project_details.pagination,
+                        survey_missions=project_details.survey_missions,
+                        user_can_delete=project_details.user_can_delete,
+                        user_can_create_survey_mission=project_details.user_can_create_survey_mission,
+                        user_can_update=project_details.user_can_update,
+                    ),
+                    selector="[aria-label='project-details']",
+                    mode=ElementPatchMode.INNER,
+                )
+                await asyncio.sleep(2)
+                yield ServerSentEventGenerator.patch_elements(
+                    project_details.project.name.en,
+                    selector="[aria-label='project-name']",
+                    mode=ElementPatchMode.INNER,
+                )
+
+            async def handle_processing_failure(
+                final_message: schemas.ProcessingMessage, message_template: Template
+            ) -> AsyncGenerator[DatastarEvent, None]:
+                rendered = message_template.render(
+                    status=final_message.status.value,
+                    message=f"ERROR: {final_message.message}",
+                )
+                yield ServerSentEventGenerator.patch_elements(
+                    rendered,
+                    selector="[aria-label='feedback-messages']",
+                    mode=ElementPatchMode.APPEND,
+                )
+
+            async def event_streamer():
+                yield ServerSentEventGenerator.patch_elements(
+                    """<li>Updating project as a background task...</li>""",
+                    selector="#feedback > ul",
+                    mode=ElementPatchMode.APPEND,
+                )
+
+                enqueued_message: Message = tasks.update_project.send(
+                    raw_request_id=str(request_id),
+                    raw_project_id=str(project_id),
+                    raw_to_update=to_update.model_dump_json(),
+                    raw_initiator=json.dumps(dataclasses.asdict(user)),
+                )
+                logger.debug(f"{enqueued_message=}")
+                redis_client: Redis = request.state.redis_client
+                event_stream_generator = new_produce_event_stream_for_topic(
+                    redis_client,
+                    request,
+                    topic_name=f"progress:{request_id}",
+                    on_success=handle_processing_success,
+                    on_failure=handle_processing_failure,
+                    timeout_seconds=30,
+                )
+                async for sse_event in event_stream_generator:
+                    yield sse_event
+
+            return DatastarResponse(event_streamer(), status_code=202)
+
+        else:
+            logger.debug("form did not validate")
+            logger.debug(f"{form_instance.errors=}")
+
+            async def event_streamer():
+                template = template_processor.get_template("projects/update-form.html")
+                rendered = template.render(
+                    request=request,
+                    project=project,
+                    form=form_instance,
+                )
+                yield ServerSentEventGenerator.patch_elements(
+                    rendered,
+                    selector="#project-details-container",
+                    mode=ElementPatchMode.INNER,
+                )
+
+        return DatastarResponse(event_streamer(), status_code=422)
 
     @fancy_requires_auth
     async def delete(self, request: Request):
@@ -525,6 +718,20 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 yield sse_event
 
         return DatastarResponse(stream_events())
+
+
+async def _validate_project_form(
+    request: Request, form_type: Type[forms.FormProtocol]
+) -> ProjectFormType:
+    form_instance = await form_type.from_formdata(request)
+    # first validate the form with WTForms' validation logic
+    # then validate the form data with our custom pydantic model
+    await form_instance.validate_on_submit()
+    form_instance.validate_with_schema()
+    session_maker = request.state.session_maker
+    async with session_maker() as session:
+        await form_instance.check_if_english_name_is_unique(session)
+    return form_instance
 
 
 @csrf_protect

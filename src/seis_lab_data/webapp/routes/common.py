@@ -2,18 +2,22 @@ import asyncio
 import dataclasses
 import json
 import logging
+from typing import (
+    Callable,
+    AsyncGenerator,
+)
 
 import pydantic
 from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
+from datastar_py.sse import DatastarEvent
+from jinja2 import Template
 from redis.asyncio import Redis
 from starlette.requests import Request
 from starlette.templating import Jinja2Templates
 
-from seis_lab_data import (
-    constants,
-    schemas,
-)
+from ... import schemas
+from ...constants import ProcessingStatus
 
 logger = logging.getLogger(__name__)
 
@@ -69,11 +73,87 @@ def get_page_count(
     return (total_items + page_size - 1) // page_size
 
 
+async def new_produce_event_stream_for_topic(
+    redis_client: Redis,
+    request: Request,
+    topic_name: str,
+    on_success: Callable[
+        [schemas.ProcessingMessage, Template], AsyncGenerator[DatastarEvent, None]
+    ],
+    on_failure: Callable[
+        [schemas.ProcessingMessage, Template], AsyncGenerator[DatastarEvent, None]
+    ],
+    timeout_seconds: int = 30,
+):
+    template_processor: Jinja2Templates = request.state.templates
+    message_template = template_processor.get_template(
+        "processing/progress-message-list-item.html"
+    )
+    async with redis_client.pubsub() as pubsub:
+        await pubsub.subscribe(topic_name)
+        try:
+            while True:
+                if await request.is_disconnected():
+                    logger.info(f"client disconnected from topic {topic_name!r}")
+                    break
+                try:
+                    if message := await pubsub.get_message(
+                        ignore_subscribe_messages=False, timeout=timeout_seconds
+                    ):
+                        if message["type"] == "subscribe":
+                            logger.debug(f"Subscribed to topic {topic_name!r}")
+                        elif message["type"] == "message":
+                            processing_message = schemas.ProcessingMessage(
+                                **json.loads(message["data"])
+                            )
+                            logger.debug(f"Received message: {processing_message!r}")
+                            if processing_message.status in (
+                                ProcessingStatus.SUCCESS,
+                                ProcessingStatus.FAILED,
+                            ):
+                                if (
+                                    processing_message.status
+                                    == ProcessingStatus.SUCCESS
+                                ):
+                                    async for datastar_event in on_success(
+                                        processing_message, message_template
+                                    ):
+                                        yield datastar_event
+                                else:
+                                    async for datastar_event in on_failure(
+                                        processing_message, message_template
+                                    ):
+                                        yield datastar_event
+                                break
+                            else:
+                                yield ServerSentEventGenerator.patch_elements(
+                                    message_template.render(
+                                        status=processing_message.status,
+                                        message=processing_message.message,
+                                    ),
+                                    selector="#feedback > ul",
+                                    mode=ElementPatchMode.APPEND,
+                                )
+                    else:
+                        logging.info(
+                            f"pubsub listener for topic {topic_name!r} timed out after {timeout_seconds} seconds"
+                        )
+                        break
+                except asyncio.CancelledError:
+                    logger.info(
+                        f"pubsub listener for topic {topic_name!r} was cancelled"
+                    )
+                    raise
+        finally:
+            await pubsub.unsubscribe(topic_name)
+
+
 async def produce_event_stream_for_topic(
     redis_client: Redis,
     request: Request,
     topic_name: str,
-    success_redirect_url: str,
+    success_redirect_url: str | None = None,
+    failure_redirect_url: str | None = None,
     timeout_seconds: int = 30,
 ):
     template_processor: Jinja2Templates = request.state.templates
@@ -107,12 +187,12 @@ async def produce_event_stream_for_topic(
                                 mode=ElementPatchMode.APPEND,
                             )
                             if processing_message.status in (
-                                constants.ProcessingStatus.SUCCESS,
-                                constants.ProcessingStatus.FAILED,
+                                ProcessingStatus.SUCCESS,
+                                ProcessingStatus.FAILED,
                             ):
                                 if (
                                     processing_message.status
-                                    == constants.ProcessingStatus.SUCCESS
+                                    == ProcessingStatus.SUCCESS
                                 ):
                                     yield ServerSentEventGenerator.patch_elements(
                                         message_template.render(
@@ -123,12 +203,12 @@ async def produce_event_stream_for_topic(
                                         selector="#feedback > ul",
                                         mode=ElementPatchMode.APPEND,
                                     )
-                                    await asyncio.sleep(1)
-                                    yield ServerSentEventGenerator.redirect(
-                                        success_redirect_url
-                                    )
+                                    if success_redirect_url:
+                                        await asyncio.sleep(1)
+                                        yield ServerSentEventGenerator.redirect(
+                                            success_redirect_url
+                                        )
                                 else:
-                                    # FIXME
                                     yield ServerSentEventGenerator.patch_elements(
                                         message_template.render(
                                             data_test_id="processing-failed-message",
@@ -136,10 +216,11 @@ async def produce_event_stream_for_topic(
                                             message="you will be redirected shortly",
                                         )
                                     )
-                                    await asyncio.sleep(1)
-                                    yield ServerSentEventGenerator.redirect(
-                                        success_redirect_url
-                                    )
+                                    if failure_redirect_url:
+                                        await asyncio.sleep(1)
+                                        yield ServerSentEventGenerator.redirect(
+                                            failure_redirect_url
+                                        )
                                 break
                     else:
                         logging.info(

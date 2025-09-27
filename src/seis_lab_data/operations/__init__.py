@@ -3,6 +3,7 @@ from .projects import (
     delete_project,
     get_project,
     list_projects,
+    update_project,
 )
 from .surveymissions import (
     create_survey_mission,
@@ -48,4 +49,5 @@ __all__ = [
     list_survey_missions,
     list_survey_related_records,
     list_workflow_stages,
+    update_project,
 ]

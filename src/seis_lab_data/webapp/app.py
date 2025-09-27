@@ -124,6 +124,12 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                         name="get_update_form",
                     ),
                     Route(
+                        "/{project_id}/details",
+                        routes.get_project_details_component,
+                        methods=["GET"],
+                        name="get_details_component",
+                    ),
+                    Route(
                         "/{project_id}",
                         routes.ProjectDetailEndpoint,
                         name="detail",
