@@ -122,7 +122,7 @@ async def get_project(
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
 ) -> models.Project | None:
-    if not permissions.can_read_project(initiator, project_id, settings=settings):
+    if not await permissions.can_read_project(initiator, project_id, settings=settings):
         raise errors.SeisLabDataError(
             f"User is not allowed to read project {project_id!r}."
         )

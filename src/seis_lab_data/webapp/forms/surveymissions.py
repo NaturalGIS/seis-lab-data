@@ -2,6 +2,7 @@ import logging
 
 import pydantic
 from sqlmodel.ext.asyncio.session import AsyncSession
+from starlette.requests import Request
 from starlette_babel import gettext_lazy as _
 from starlette_wtf import StarletteForm
 from wtforms import (
@@ -26,14 +27,19 @@ from .common import (
 logger = logging.getLogger(__name__)
 
 
-class SurveyMissionCreateForm(StarletteForm):
-    # This form performs only a very light validation of user input
-    # There is a more thorough validation phase when checking if the
-    # survey mission can be made public - the idea is to let the creation process
-    # succeed (as much as possible) and give the user a chance to fix errors
-    # later
-    # A notable exception is we do want to validate the max length of string-based
-    # inputs
+class _SurveyMissionForm(StarletteForm):
+    """Base form for survey missions.
+
+    This form performs only a very light validation of user input
+    There is a more thorough validation phase when checking if the
+    project can be made public - the idea is to let the creation process
+    succeed (as much as possible) and give the user a chance to fix errors
+    later.
+
+    A notable exception is we do want to validate the max length of string-based
+    inputs.
+    """
+
     name = FormField(NameForm)
     description = FormField(DescriptionForm)
     relative_path = StringField(
@@ -51,17 +57,79 @@ class SurveyMissionCreateForm(StarletteForm):
     )
 
     async def check_if_english_name_is_unique_for_project(
-        self, session: AsyncSession, project_id: schemas.ProjectId
+        self,
+        session: AsyncSession,
+        project_id: schemas.ProjectId,
+        disregard_id: schemas.ProjectId | None = None,
     ):
-        if await get_survey_mission_by_english_name(
+        """Check if the current english name is already used by another survey mission under the same project.
+
+        The `disregard_id` argument can be used when checking uniqueness of the english name in the
+         context of updating an already existing project, in which case the project itself should be
+         disregarded, as it is not a conflict for a project to have the same english name as itself.
+        """
+        error_message = _(
+            "There is already a survey mission with this english name under the same project"
+        )
+
+        if candidate := await get_survey_mission_by_english_name(
             session, project_id, self.name.en.data
         ):
-            self.name.en.errors.append(
-                _(
-                    "There is already a survey mission with this english name under the same project"
-                )
-            )
+            if disregard_id:
+                if schemas.SurveyMissionId(candidate.id) != disregard_id:
+                    self.name.en.errors.append(error_message)
+            else:
+                self.name.en.errors.append(error_message)
 
+    def has_validation_errors(self) -> bool:
+        # For some unknown reason, wtforms does not report validation errors for
+        # listfields together with the other validation errors. This may
+        # have something to with the fact that we are setting the 'errors' property
+        # of fields manually when performing in the `validate_with_schema()` method.
+        # Anyway, we need to employ the below workaround in order
+        # to verify if the form contains any errors.
+        all_form_validation_errors = {**self.errors}
+        for link in self.links.entries:
+            all_form_validation_errors.update(**link.errors)
+        logger.debug(f"{all_form_validation_errors=}")
+        return bool(all_form_validation_errors)
+
+    def validate_with_schema(self) -> None:
+        raise NotImplementedError()
+
+    @classmethod
+    async def get_validated_form_instance(
+        cls,
+        request: Request,
+        project_id: schemas.ProjectId,
+        disregard_id: schemas.ProjectId | None = None,
+    ):
+        """Performs full validation of a survey-mission-related form.
+
+        This performs multiple validations:
+
+        - validate the form with WTForms' validation logic
+        - validate the form data with our custom pydantic model
+        - validate that the English name is unique across missions of the same
+        project
+
+        The already validated form instance is returned.
+        """
+
+        form_instance = await cls.from_formdata(request)
+        # first validate the form with WTForms' validation logic
+        # then validate the form data with our custom pydantic model
+        await form_instance.validate_on_submit()
+        form_instance.validate_with_schema()
+        session_maker = request.state.session_maker
+        async with session_maker() as session:
+            await form_instance.check_if_english_name_is_unique_for_project(
+                session, project_id=project_id, disregard_id=disregard_id
+            )
+        return form_instance
+
+
+class SurveyMissionCreateForm(_SurveyMissionForm):
     def validate_with_schema(self):
         # note: we build the schema manually and make sure to not use
         # sub-schemas, but rather provide data with lists and dicts. This is
@@ -112,17 +180,3 @@ class SurveyMissionCreateForm(StarletteForm):
                     logger.debug(f"Form field errors {form_field.errors=}")
                 else:
                     logger.debug(f"Unable to find form field for {loc=}")
-
-    def has_validation_errors(self) -> bool:
-        # For some unknown reason, wtforms does not report validation errors for
-        # listfields together with the other validation errors. This may
-        # have something to with the fact that we are setting the 'errors' property
-        # of fields manually when performing in the `validate_with_schema()` method.
-        # Anyway, we need to employ the below workaround in order
-        # to verify if the form contains any erors.
-        all_form_validation_errors = {**self.errors}
-        logger.debug(f"{all_form_validation_errors=}")
-        for link in self.links.entries:
-            all_form_validation_errors.update(**link.errors)
-        logger.debug(f"{all_form_validation_errors=}")
-        return not bool(all_form_validation_errors)

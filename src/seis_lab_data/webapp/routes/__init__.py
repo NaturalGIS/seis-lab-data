@@ -11,12 +11,14 @@ from .base import (
 )
 from .projects import (
     add_create_project_form_link,
+    add_update_project_form_link,
     get_project_creation_form,
     get_project_details_component,
     get_project_update_form,
     ProjectCollectionEndpoint,
     ProjectDetailEndpoint,
     remove_create_project_form_link,
+    remove_update_project_form_link,
 )
 from .surveymissions import (
     add_create_survey_mission_form_link,
@@ -43,6 +45,7 @@ __ALL__ = [
     add_create_survey_related_record_form_asset,
     add_create_survey_related_record_form_link,
     add_create_survey_related_record_form_asset_link,
+    add_update_project_form_link,
     auth_callback,
     get_project_creation_form,
     get_project_details_component,
@@ -61,6 +64,7 @@ __ALL__ = [
     remove_create_survey_related_record_form_asset,
     remove_create_survey_related_record_form_asset_link,
     remove_create_survey_related_record_form_link,
+    remove_update_project_form_link,
     set_language,
     SurveyMissionCollectionEndpoint,
     SurveyMissionDetailEndpoint,

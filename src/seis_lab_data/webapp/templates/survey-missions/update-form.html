@@ -3,13 +3,13 @@
     {{ macros.render_localizable_field(form.name) }}
     {{ macros.render_localizable_field(form.description) }}
 
-    {{ macros.render_form_field(form.root_path) }}
+    {{ macros.render_form_field(form.relative_path) }}
 
-    <h3>{{ _("Links") }}</h3>
+    <h3>{{ _("links") | capitalize }}</h3>
     {{ macros.render_links_fields(
         form.links,
-        url_for("projects:add_update_form_link", project_id=project.id),
-        url_for("projects:remove_update_form_link", project_id=project.id),
+        url_for("survey_missions:add_update_form_link", survey_mission_id=survey_mission.id),
+        url_for("survey_missions:remove_update_form_link", survey_mission_id=survey_mission.id),
         form.csrf_token.current_token
     ) }}
 
@@ -18,7 +18,7 @@
             <button
                     type="reset"
                     class="btn btn-outline-secondary"
-                    data-on-click="@get('{{ url_for("projects:get_details_component", project_id=project.id) }}')"
+                    data-on-click="@get('{{ url_for("survey_missions:get_details_component", survey_mission_id=survey_mission.id) }}')"
                     aria-label="cancel-update"
             >{{ _('cancel') | capitalize }}
             </button>
@@ -26,13 +26,13 @@
                     type="submit"
                     aria-label="submit-update-form"
                     class="btn btn-primary"
-                    data-on-click="@put('{{ url_for('projects:detail', project_id=project.id) }}', {
+                    data-on-click="@put('{{ url_for('survey_missions:detail', survey_mission_id=survey_mission.id) }}', {
                             contentType: 'form',
                             headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
                         })"
                     data-indicator="updating"
                     data-attr-disabled="$updating"
-                    data-text="$updating ? '{{ _('updating project...') | capitalize }}' : '{{ _('update project') | capitalize }}'"
+                    data-text="$updating ? '{{ _('updating survey mission...') | capitalize }}' : '{{ _('update survey mission') | capitalize }}'"
             >
             </button>
             <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"

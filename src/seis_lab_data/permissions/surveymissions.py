@@ -35,3 +35,12 @@ async def can_delete_survey_mission(
     settings: config.SeisLabDataSettings,
 ):
     return True
+
+
+async def can_update_survey_mission(
+    user: schemas.User,
+    survey_mission_id: schemas.SurveyMissionId,
+    *,
+    settings: config.SeisLabDataSettings,
+):
+    return True

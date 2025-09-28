@@ -30,11 +30,119 @@ from .auth import (
 )
 from .common import (
     get_pagination_info,
+    PaginationInfo,
     produce_event_stream_for_topic,
 )
 from .surveyrelatedrecords import generate_survey_related_record_creation_form
 
 logger = logging.getLogger(__name__)
+
+
+@dataclasses.dataclass(frozen=True)
+class _SurveyMissionDetails:
+    survey_mission: schemas.SurveyMissionReadDetail
+    survey_related_records: list[schemas.SurveyRelatedRecordReadListItem]
+    pagination: PaginationInfo
+    user_can_delete: bool
+    user_can_update: bool
+    user_can_create_survey_related_record: bool
+    breadcrumbs: list[schemas.BreadcrumbItem]
+
+
+async def _get_survey_mission_details(request: Request) -> _SurveyMissionDetails:
+    """utility function to get survey mission details and its survey-related records.
+
+    The logic in this function is shared between routes that need to work with the survey mission:
+
+    - details page
+    - deletion page
+    - update page
+    - links form management endpoints (add/remove link) for the update page
+    """
+    try:
+        current_page = int(request.query_params.get("page", 1))
+        if current_page < 1:
+            raise ValueError
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid page number")
+
+    user = get_user(request.session.get("user", {}))
+    settings: config.SeisLabDataSettings = request.state.settings
+    session_maker = request.state.session_maker
+    survey_mission_id = schemas.SurveyMissionId(
+        uuid.UUID(request.path_params["survey_mission_id"])
+    )
+    async with session_maker() as session:
+        try:
+            survey_mission = await operations.get_survey_mission(
+                survey_mission_id,
+                user.id if user else None,
+                session,
+                request.state.settings,
+            )
+        except errors.SeisLabDataError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        if survey_mission is None:
+            raise HTTPException(
+                status_code=404,
+                detail=_(f"Survey mission {survey_mission_id!r} not found."),
+            )
+        (
+            survey_related_records,
+            total,
+        ) = await operations.list_survey_related_records(
+            session,
+            user,
+            survey_mission_filter=survey_mission_id,
+            include_total=True,
+            page=current_page,
+            page_size=settings.pagination.page_size,
+        )
+    return _SurveyMissionDetails(
+        survey_mission=schemas.SurveyMissionReadDetail.from_db_instance(survey_mission),
+        survey_related_records=[
+            schemas.SurveyRelatedRecordReadListItem.from_db_instance(srr)
+            for srr in survey_related_records
+        ],
+        pagination=get_pagination_info(
+            current_page,
+            request.state.settings.pagination_page_size,
+            total,
+            total,
+            collection_url=str(
+                request.url_for(
+                    "survey_missions:detail", survey_mission_id=survey_mission_id
+                )
+            ),
+        ),
+        user_can_delete=await permissions.can_delete_survey_mission(
+            user, survey_mission_id, settings=settings
+        ),
+        user_can_create_survey_related_record=await permissions.can_create_survey_related_record(
+            user, survey_mission_id, settings=settings
+        ),
+        user_can_update=await permissions.can_update_survey_mission(
+            user, survey_mission_id, settings=settings
+        ),
+        breadcrumbs=[
+            schemas.BreadcrumbItem(name=_("Home"), url=str(request.url_for("home"))),
+            schemas.BreadcrumbItem(
+                name=_("Projects"), url=str(request.url_for("projects:list"))
+            ),
+            schemas.BreadcrumbItem(
+                name=str(survey_mission.project.name["en"]),
+                url=str(
+                    request.url_for(
+                        "projects:detail",
+                        project_id=survey_mission.project.id,
+                    )
+                ),
+            ),
+            schemas.BreadcrumbItem(
+                name=str(survey_mission.name["en"]),
+            ),
+        ],
+    )
 
 
 @csrf_protect
@@ -141,96 +249,18 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
     """Survey mission detail endpoint."""
 
     async def get(self, request: Request):
-        survey_mission_id = schemas.SurveyMissionId(
-            uuid.UUID(request.path_params["survey_mission_id"])
-        )
-        try:
-            current_page = int(request.query_params.get("page", 1))
-            if current_page < 1:
-                raise ValueError
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid page number")
-        session_maker = request.state.session_maker
-        user = get_user(request.session.get("user", {}))
-        async with session_maker() as session:
-            try:
-                survey_mission = await operations.get_survey_mission(
-                    survey_mission_id,
-                    user.id if user else None,
-                    session,
-                    request.state.settings,
-                )
-            except errors.SeisLabDataError as exc:
-                raise HTTPException(status_code=404, detail=str(exc)) from exc
-            if survey_mission is None:
-                raise HTTPException(
-                    status_code=404,
-                    detail=_(f"Survey mission {survey_mission_id!r} not found."),
-                )
-            (
-                survey_related_records,
-                total,
-            ) = await operations.list_survey_related_records(
-                session,
-                user,
-                survey_mission_filter=survey_mission_id,
-                include_total=True,
-            )
+        details = await _get_survey_mission_details(request)
         template_processor = request.state.templates
-        pagination_info = get_pagination_info(
-            current_page,
-            request.state.settings.pagination_page_size,
-            total,
-            total,
-            collection_url=str(
-                request.url_for(
-                    "survey_missions:detail", survey_mission_id=survey_mission_id
-                )
-            ),
-        )
         return template_processor.TemplateResponse(
             request,
             "survey-missions/detail.html",
             context={
-                "item": schemas.SurveyMissionReadDetail.from_db_instance(
-                    survey_mission
-                ),
-                "pagination": pagination_info,
-                "survey_related_records": {
-                    "survey_related_records": [
-                        schemas.SurveyRelatedRecordReadListItem(**srr.model_dump())
-                        for srr in survey_related_records
-                    ],
-                    "total": total,
-                },
-                "user_can_delete": await permissions.can_delete_survey_mission(
-                    user, survey_mission_id, settings=request.state.settings
-                ),
-                "user_can_create_survey_related_record": await permissions.can_create_survey_related_record(
-                    user,
-                    survey_mission_id=survey_mission_id,
-                    settings=request.state.settings,
-                ),
-                "breadcrumbs": [
-                    schemas.BreadcrumbItem(
-                        name=_("Home"), url=str(request.url_for("home"))
-                    ),
-                    schemas.BreadcrumbItem(
-                        name=_("Projects"), url=str(request.url_for("projects:list"))
-                    ),
-                    schemas.BreadcrumbItem(
-                        name=str(survey_mission.project.name["en"]),
-                        url=str(
-                            request.url_for(
-                                "projects:detail",
-                                project_id=survey_mission.project.id,
-                            )
-                        ),
-                    ),
-                    schemas.BreadcrumbItem(
-                        name=str(survey_mission.name["en"]),
-                    ),
-                ],
+                "survey_mission": details.survey_mission,
+                "pagination": details.pagination,
+                "survey_related_records": details.survey_related_records,
+                "user_can_delete": details.user_can_delete,
+                "user_can_create_survey_related_record": details.user_can_create_survey_related_record,
+                "breadcrumbs": details.breadcrumbs,
             },
         )
 

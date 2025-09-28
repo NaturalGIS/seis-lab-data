@@ -147,6 +147,18 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
     description: LocalizableDraftDescription
     status: SurveyRelatedRecordStatus
     is_valid: bool
+    survey_mission: SurveyMissionReadEmbedded
+
+    @classmethod
+    def from_db_instance(
+        cls, instance: models.SurveyRelatedRecord
+    ) -> "SurveyRelatedRecordReadListItem":
+        return cls(
+            **instance.model_dump(),
+            survey_mission=SurveyMissionReadEmbedded.from_db_instance(
+                instance.survey_mission
+            ),
+        )
 
 
 class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):

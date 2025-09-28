@@ -5,7 +5,6 @@ import logging
 import uuid
 from typing import (
     AsyncGenerator,
-    Type,
     TypeVar,
 )
 
@@ -178,6 +177,15 @@ async def get_project_details_component(request: Request):
 
 
 async def _get_project_details(request: Request) -> _ProjectDetails:
+    """utility function to get project details and its survey missions.
+
+    The logic in this function is shared between routes that need to work with the project:
+
+    - project details page
+    - project deletion page
+    - project update page
+    - project links form management endpoints (add/remove link) for the update page
+    """
     try:
         current_page = int(request.query_params.get("page", 1))
         if current_page < 1:
@@ -306,77 +314,17 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         """Create a new project."""
         template_processor: Jinja2Templates = request.state.templates
         user = get_user(request.session.get("user", {}))
-        creation_form = await forms.ProjectCreateForm.from_formdata(request)
-        # first validate the form with WTForms' validation logic
-        # then validate the form data with our custom pydantic model
-        await creation_form.validate_on_submit()
-        creation_form.validate_with_schema()
-        session_maker = request.state.session_maker
-        async with session_maker() as session:
-            await creation_form.check_if_english_name_is_unique(session)
-        form_is_valid = not creation_form.has_validation_errors()
+        form_instance = await forms.ProjectCreateForm.get_validated_form_instance(
+            request
+        )
+        if form_instance.has_validation_errors():
+            logger.debug("form did not validate")
 
-        async def stream_events():
-            if form_is_valid:
-                request_id = schemas.RequestId(uuid.uuid4())
-                to_create = schemas.ProjectCreate(
-                    id=schemas.ProjectId(uuid.uuid4()),
-                    owner=user.id,
-                    name=schemas.LocalizableDraftName(
-                        en=creation_form.name.en.data,
-                        pt=creation_form.name.pt.data,
-                    ),
-                    description=schemas.LocalizableDraftDescription(
-                        en=creation_form.description.en.data,
-                        pt=creation_form.description.pt.data,
-                    ),
-                    root_path=creation_form.root_path.data,
-                    links=[
-                        schemas.LinkSchema(
-                            url=lf.url.data,
-                            media_type=lf.media_type.data,
-                            relation=lf.relation.data,
-                            link_description=schemas.LocalizableDraftDescription(
-                                en=lf.link_description.en.data,
-                                pt=lf.link_description.pt.data,
-                            ),
-                        )
-                        for lf in creation_form.links.entries
-                    ],
-                )
-                logger.info(f"{to_create=}")
-
-                yield ServerSentEventGenerator.patch_elements(
-                    """<li>Creating project as a background task...</li>""",
-                    selector="#feedback > ul",
-                    mode=ElementPatchMode.APPEND,
-                )
-
-                enqueued_message: Message = tasks.create_project.send(
-                    raw_request_id=str(request_id),
-                    raw_to_create=to_create.model_dump_json(),
-                    raw_initiator=json.dumps(dataclasses.asdict(user)),
-                )
-                logger.debug(f"{enqueued_message=}")
-                redis_client: Redis = request.state.redis_client
-                event_stream_generator = produce_event_stream_for_topic(
-                    redis_client,
-                    request,
-                    topic_name=f"progress:{request_id}",
-                    success_redirect_url=str(
-                        request.url_for("projects:detail", project_id=to_create.id)
-                    ),
-                    timeout_seconds=30,
-                )
-                async for sse_event in event_stream_generator:
-                    yield sse_event
-
-            else:
-                logger.debug("form did not validate")
+            async def event_streamer():
                 template = template_processor.get_template("projects/create-form.html")
                 rendered = template.render(
                     request=request,
-                    form=creation_form,
+                    form=form_instance,
                 )
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
@@ -384,9 +332,92 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                     mode=ElementPatchMode.INNER,
                 )
 
-        return DatastarResponse(
-            stream_events(), status_code=202 if form_is_valid else 422
+            return DatastarResponse(event_streamer(), status_code=422)
+
+        request_id = schemas.RequestId(uuid.uuid4())
+        to_create = schemas.ProjectCreate(
+            id=schemas.ProjectId(uuid.uuid4()),
+            owner=user.id,
+            name=schemas.LocalizableDraftName(
+                en=form_instance.name.en.data,
+                pt=form_instance.name.pt.data,
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en=form_instance.description.en.data,
+                pt=form_instance.description.pt.data,
+            ),
+            root_path=form_instance.root_path.data,
+            links=[
+                schemas.LinkSchema(
+                    url=lf.url.data,
+                    media_type=lf.media_type.data,
+                    relation=lf.relation.data,
+                    link_description=schemas.LocalizableDraftDescription(
+                        en=lf.link_description.en.data,
+                        pt=lf.link_description.pt.data,
+                    ),
+                )
+                for lf in form_instance.links.entries
+            ],
         )
+        logger.info(f"{to_create=}")
+
+        async def handle_processing_success(
+            final_message: schemas.ProcessingMessage, message_template: Template
+        ) -> AsyncGenerator[DatastarEvent, None]:
+            yield ServerSentEventGenerator.patch_elements(
+                message_template.render(
+                    data_test_id="processing-success-message",
+                    status=final_message.status,
+                    message=f"{final_message.message} - you will be redirected shortly.",
+                ),
+                selector="[aria-label='feedback-messages'] > ul",
+                mode=ElementPatchMode.APPEND,
+            )
+            await asyncio.sleep(1)
+            yield ServerSentEventGenerator.redirect(
+                str(request.url_for("projects:detail", project_id=to_create.id)),
+            )
+
+        async def handle_processing_failure(
+            final_message: schemas.ProcessingMessage, message_template: Template
+        ) -> AsyncGenerator[DatastarEvent, None]:
+            rendered = message_template.render(
+                status=final_message.status.value,
+                message=f"ERROR: {final_message.message}",
+            )
+            yield ServerSentEventGenerator.patch_elements(
+                rendered,
+                selector="[aria-label='feedback-messages'] > ul",
+                mode=ElementPatchMode.APPEND,
+            )
+
+        async def event_streamer():
+            yield ServerSentEventGenerator.patch_elements(
+                """<li>Creating project as a background task...</li>""",
+                selector="[aria-label='feedback-messages'] > ul",
+                mode=ElementPatchMode.APPEND,
+            )
+
+            enqueued_message: Message = tasks.create_project.send(
+                raw_request_id=str(request_id),
+                raw_to_create=to_create.model_dump_json(),
+                raw_initiator=json.dumps(dataclasses.asdict(user)),
+            )
+            logger.debug(f"{enqueued_message=}")
+            redis_client: Redis = request.state.redis_client
+            event_stream_generator = new_produce_event_stream_for_topic(
+                redis_client,
+                request,
+                topic_name=f"progress:{request_id}",
+                on_success=handle_processing_success,
+                on_failure=handle_processing_failure,
+                timeout_seconds=30,
+            )
+            async for sse_event in event_stream_generator:
+                yield sse_event
+
+        return DatastarResponse(event_streamer(), status_code=202)
 
 
 class ProjectDetailEndpoint(HTTPEndpoint):
@@ -414,6 +445,220 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 "breadcrumbs": details.breadcrumbs,
             },
         )
+
+    @csrf_protect
+    @fancy_requires_auth
+    async def put(self, request: Request):
+        """Update an existing project."""
+        template_processor: Jinja2Templates = request.state.templates
+        user = get_user(request.session.get("user", {}))
+        session_maker = request.state.session_maker
+        try:
+            project_id = schemas.ProjectId(
+                uuid.UUID(request.path_params.get("project_id"))
+            )
+        except ValueError:
+            raise HTTPException(400, "Invalid project ID format")
+        async with session_maker() as session:
+            if (
+                project := await operations.get_project(
+                    project_id, user, session, request.state.settings
+                )
+            ) is None:
+                raise HTTPException(404, f"Project {project_id!r} not found.")
+        form_instance = await forms.ProjectUpdateForm.get_validated_form_instance(
+            request, disregard_id=project_id
+        )
+        logger.debug(f"{form_instance.has_validation_errors()=}")
+
+        if form_instance.has_validation_errors():
+            logger.debug("form did not validate")
+            logger.debug(f"{form_instance.errors=}")
+
+            async def event_streamer():
+                template = template_processor.get_template("projects/update-form.html")
+                rendered = template.render(
+                    request=request,
+                    project=project,
+                    form=form_instance,
+                )
+                yield ServerSentEventGenerator.patch_elements(
+                    rendered,
+                    selector="[aria-label='project-details']",
+                    mode=ElementPatchMode.INNER,
+                )
+
+            return DatastarResponse(event_streamer(), status_code=422)
+
+        request_id = schemas.RequestId(uuid.uuid4())
+        to_update = schemas.ProjectUpdate(
+            owner=user.id,
+            name=schemas.LocalizableDraftName(
+                en=form_instance.name.en.data,
+                pt=form_instance.name.pt.data,
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en=form_instance.description.en.data,
+                pt=form_instance.description.pt.data,
+            ),
+            root_path=form_instance.root_path.data,
+            links=[
+                schemas.LinkSchema(
+                    url=lf.url.data,
+                    media_type=lf.media_type.data,
+                    relation=lf.relation.data,
+                    link_description=schemas.LocalizableDraftDescription(
+                        en=lf.link_description.en.data,
+                        pt=lf.link_description.pt.data,
+                    ),
+                )
+                for lf in form_instance.links.entries
+            ],
+        )
+
+        async def handle_processing_success(
+            final_message: schemas.ProcessingMessage, message_template: Template
+        ) -> AsyncGenerator[DatastarEvent, None]:
+            """Handle successful processing of the project update background task.
+
+            After receiving the final message with a success status, update the
+            UI to reflect the changes.
+            """
+            project_details = await _get_project_details(request)
+            rendered_message = message_template.render(
+                status=final_message.status.value,
+                message=f"{final_message.message}",
+            )
+            yield ServerSentEventGenerator.patch_elements(
+                rendered_message,
+                selector="[aria-label='feedback-messages']",
+                mode=ElementPatchMode.APPEND,
+            )
+            template = template_processor.get_template("projects/detail-component.html")
+            # need to update:
+            # - project details section (name, description, links, ...)
+            # - breadcrumbs (project name may have changed)
+            # - page title (project name may have changed)
+            # - clear the feedback section
+            breadcrumbs_template = template_processor.get_template("breadcrumbs.html")
+            yield ServerSentEventGenerator.patch_elements(
+                breadcrumbs_template.render(
+                    request=request, breadcrumbs=project_details.breadcrumbs
+                ),
+                selector="[aria-label='breadcrumbs']",
+                mode=ElementPatchMode.INNER,
+            )
+            yield ServerSentEventGenerator.patch_elements(
+                template.render(
+                    request=request,
+                    project=project_details.project,
+                    pagination=project_details.pagination,
+                    survey_missions=project_details.survey_missions,
+                    user_can_delete=project_details.user_can_delete,
+                    user_can_create_survey_mission=project_details.user_can_create_survey_mission,
+                    user_can_update=project_details.user_can_update,
+                ),
+                selector="[aria-label='project-details']",
+                mode=ElementPatchMode.INNER,
+            )
+            yield ServerSentEventGenerator.patch_elements(
+                project_details.project.name.en,
+                selector="[aria-label='project-name']",
+                mode=ElementPatchMode.INNER,
+            )
+            yield ServerSentEventGenerator.patch_elements(
+                "",
+                selector="[aria-label='feedback-messages']",
+                mode=ElementPatchMode.INNER,
+            )
+
+        async def handle_processing_failure(
+            final_message: schemas.ProcessingMessage, message_template: Template
+        ) -> AsyncGenerator[DatastarEvent, None]:
+            rendered = message_template.render(
+                status=final_message.status.value,
+                message=f"ERROR: {final_message.message}",
+            )
+            yield ServerSentEventGenerator.patch_elements(
+                rendered,
+                selector="[aria-label='feedback-messages']",
+                mode=ElementPatchMode.APPEND,
+            )
+
+        async def event_streamer():
+            yield ServerSentEventGenerator.patch_elements(
+                """<li>Updating project as a background task...</li>""",
+                selector="#feedback > ul",
+                mode=ElementPatchMode.APPEND,
+            )
+
+            enqueued_message: Message = tasks.update_project.send(
+                raw_request_id=str(request_id),
+                raw_project_id=str(project_id),
+                raw_to_update=to_update.model_dump_json(),
+                raw_initiator=json.dumps(dataclasses.asdict(user)),
+            )
+            logger.debug(f"{enqueued_message=}")
+            redis_client: Redis = request.state.redis_client
+            event_stream_generator = new_produce_event_stream_for_topic(
+                redis_client,
+                request,
+                topic_name=f"progress:{request_id}",
+                on_success=handle_processing_success,
+                on_failure=handle_processing_failure,
+                timeout_seconds=30,
+            )
+            async for sse_event in event_stream_generator:
+                yield sse_event
+
+        return DatastarResponse(event_streamer(), status_code=202)
+
+    @fancy_requires_auth
+    async def delete(self, request: Request):
+        """Delete a project."""
+        user = get_user(request.session.get("user", {}))
+        session_maker = request.state.session_maker
+        project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
+        async with session_maker() as session:
+            try:
+                project = await operations.get_project(
+                    project_id,
+                    user or None,
+                    session,
+                    request.state.settings,
+                )
+            except errors.SeisLabDataError as exc:
+                raise HTTPException(status_code=404, detail=str(exc)) from exc
+            if project is None:
+                raise HTTPException(
+                    status_code=404, detail=_(f"Project {project_id!r} not found.")
+                )
+
+        async def stream_events():
+            request_id = schemas.RequestId(uuid.uuid4())
+            yield ServerSentEventGenerator.patch_elements(
+                """<li>Deleting project as a background task...</li>""",
+                selector="#feedback > ul",
+                mode=ElementPatchMode.APPEND,
+            )
+            enqueued_message: Message = tasks.delete_project.send(
+                raw_request_id=str(request_id),
+                raw_project_id=str(project_id),
+                raw_initiator=json.dumps(dataclasses.asdict(user)),
+            )
+            logger.debug(f"{enqueued_message=}")
+            redis_client: Redis = request.state.redis_client
+            event_stream_generator = produce_event_stream_for_topic(
+                redis_client,
+                request,
+                topic_name=f"progress:{request_id}",
+                success_redirect_url=str(request.url_for("projects:list")),
+                timeout_seconds=30,
+            )
+            async for sse_event in event_stream_generator:
+                yield sse_event
+
+        return DatastarResponse(stream_events())
 
     @csrf_protect
     @fancy_requires_auth
@@ -524,215 +769,6 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             stream_events(), status_code=202 if form_is_valid else 422
         )
 
-    @csrf_protect
-    @fancy_requires_auth
-    async def put(self, request: Request):
-        """Update a project."""
-        template_processor: Jinja2Templates = request.state.templates
-        user = get_user(request.session.get("user", {}))
-        session_maker = request.state.session_maker
-        try:
-            project_id = schemas.ProjectId(
-                uuid.UUID(request.path_params.get("project_id"))
-            )
-        except ValueError:
-            raise HTTPException(400, "Invalid project ID format")
-        async with session_maker() as session:
-            if (
-                project := await operations.get_project(
-                    project_id, user, session, request.state.settings
-                )
-            ) is None:
-                raise HTTPException(404, f"Project {project_id!r} not found.")
-        form_instance = await _validate_project_form(
-            request, form_type=forms.ProjectUpdateForm
-        )
-        logger.debug(f"{form_instance.has_validation_errors()=}")
-        if not form_instance.has_validation_errors():
-            request_id = schemas.RequestId(uuid.uuid4())
-            to_update = schemas.ProjectUpdate(
-                owner=user.id,
-                name=schemas.LocalizableDraftName(
-                    en=form_instance.name.en.data,
-                    pt=form_instance.name.pt.data,
-                ),
-                description=schemas.LocalizableDraftDescription(
-                    en=form_instance.description.en.data,
-                    pt=form_instance.description.pt.data,
-                ),
-                root_path=form_instance.root_path.data,
-                links=[
-                    schemas.LinkSchema(
-                        url=lf.url.data,
-                        media_type=lf.media_type.data,
-                        relation=lf.relation.data,
-                        link_description=schemas.LocalizableDraftDescription(
-                            en=lf.link_description.en.data,
-                            pt=lf.link_description.pt.data,
-                        ),
-                    )
-                    for lf in form_instance.links.entries
-                ],
-            )
-
-            async def handle_processing_success(
-                final_message: schemas.ProcessingMessage, message_template: Template
-            ) -> AsyncGenerator[DatastarEvent, None]:
-                project_details = await _get_project_details(request)
-                rendered_message = message_template.render(
-                    status=final_message.status.value,
-                    message=f"{final_message.message}",
-                )
-                yield ServerSentEventGenerator.patch_elements(
-                    rendered_message,
-                    selector="[aria-label='feedback-messages']",
-                    mode=ElementPatchMode.APPEND,
-                )
-                await asyncio.sleep(3)
-                template = template_processor.get_template(
-                    "projects/detail-component.html"
-                )
-                yield ServerSentEventGenerator.patch_elements(
-                    template.render(
-                        request=request,
-                        project=project_details.project,
-                        pagination=project_details.pagination,
-                        survey_missions=project_details.survey_missions,
-                        user_can_delete=project_details.user_can_delete,
-                        user_can_create_survey_mission=project_details.user_can_create_survey_mission,
-                        user_can_update=project_details.user_can_update,
-                    ),
-                    selector="[aria-label='project-details']",
-                    mode=ElementPatchMode.INNER,
-                )
-                await asyncio.sleep(2)
-                yield ServerSentEventGenerator.patch_elements(
-                    project_details.project.name.en,
-                    selector="[aria-label='project-name']",
-                    mode=ElementPatchMode.INNER,
-                )
-
-            async def handle_processing_failure(
-                final_message: schemas.ProcessingMessage, message_template: Template
-            ) -> AsyncGenerator[DatastarEvent, None]:
-                rendered = message_template.render(
-                    status=final_message.status.value,
-                    message=f"ERROR: {final_message.message}",
-                )
-                yield ServerSentEventGenerator.patch_elements(
-                    rendered,
-                    selector="[aria-label='feedback-messages']",
-                    mode=ElementPatchMode.APPEND,
-                )
-
-            async def event_streamer():
-                yield ServerSentEventGenerator.patch_elements(
-                    """<li>Updating project as a background task...</li>""",
-                    selector="#feedback > ul",
-                    mode=ElementPatchMode.APPEND,
-                )
-
-                enqueued_message: Message = tasks.update_project.send(
-                    raw_request_id=str(request_id),
-                    raw_project_id=str(project_id),
-                    raw_to_update=to_update.model_dump_json(),
-                    raw_initiator=json.dumps(dataclasses.asdict(user)),
-                )
-                logger.debug(f"{enqueued_message=}")
-                redis_client: Redis = request.state.redis_client
-                event_stream_generator = new_produce_event_stream_for_topic(
-                    redis_client,
-                    request,
-                    topic_name=f"progress:{request_id}",
-                    on_success=handle_processing_success,
-                    on_failure=handle_processing_failure,
-                    timeout_seconds=30,
-                )
-                async for sse_event in event_stream_generator:
-                    yield sse_event
-
-            return DatastarResponse(event_streamer(), status_code=202)
-
-        else:
-            logger.debug("form did not validate")
-            logger.debug(f"{form_instance.errors=}")
-
-            async def event_streamer():
-                template = template_processor.get_template("projects/update-form.html")
-                rendered = template.render(
-                    request=request,
-                    project=project,
-                    form=form_instance,
-                )
-                yield ServerSentEventGenerator.patch_elements(
-                    rendered,
-                    selector="#project-details-container",
-                    mode=ElementPatchMode.INNER,
-                )
-
-        return DatastarResponse(event_streamer(), status_code=422)
-
-    @fancy_requires_auth
-    async def delete(self, request: Request):
-        """Delete a project."""
-        user = get_user(request.session.get("user", {}))
-        session_maker = request.state.session_maker
-        project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
-        async with session_maker() as session:
-            try:
-                project = await operations.get_project(
-                    project_id,
-                    user or None,
-                    session,
-                    request.state.settings,
-                )
-            except errors.SeisLabDataError as exc:
-                raise HTTPException(status_code=404, detail=str(exc)) from exc
-            if project is None:
-                raise HTTPException(
-                    status_code=404, detail=_(f"Project {project_id!r} not found.")
-                )
-
-        async def stream_events():
-            request_id = schemas.RequestId(uuid.uuid4())
-            yield ServerSentEventGenerator.patch_elements(
-                """<li>Deleting project as a background task...</li>""",
-                selector="#feedback > ul",
-                mode=ElementPatchMode.APPEND,
-            )
-            enqueued_message: Message = tasks.delete_project.send(
-                raw_request_id=str(request_id),
-                raw_project_id=str(project_id),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
-            )
-            logger.debug(f"{enqueued_message=}")
-            redis_client: Redis = request.state.redis_client
-            event_stream_generator = produce_event_stream_for_topic(
-                redis_client,
-                request,
-                topic_name=f"progress:{request_id}",
-                success_redirect_url=str(request.url_for("projects:list")),
-                timeout_seconds=30,
-            )
-            async for sse_event in event_stream_generator:
-                yield sse_event
-
-        return DatastarResponse(stream_events())
-
-
-async def _validate_project_form(
-    request: Request, form_type: Type[forms.FormProtocol]
-) -> ProjectFormType:
-    form_instance = await form_type.from_formdata(request)
-    # first validate the form with WTForms' validation logic
-    # then validate the form data with our custom pydantic model
-    await form_instance.validate_on_submit()
-    form_instance.validate_with_schema()
-    session_maker = request.state.session_maker
-    async with session_maker() as session:
-        await form_instance.check_if_english_name_is_unique(session)
-    return form_instance
-
 
 @csrf_protect
 async def add_create_project_form_link(request: Request):
@@ -773,6 +809,55 @@ async def remove_create_project_form_link(request: Request):
         yield ServerSentEventGenerator.patch_elements(
             rendered,
             selector="#project-create-form-container",
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def add_update_project_form_link(request: Request):
+    """Add a form link to a create_project form."""
+    details = await _get_project_details(request)
+    form_ = await forms.ProjectUpdateForm.from_formdata(request)
+    form_.links.append_entry()
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template("projects/update-form.html")
+    rendered = template.render(
+        form=form_,
+        project=details.project,
+        request=request,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector="[aria-label='project-details']",
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def remove_update_project_form_link(request: Request):
+    """Remove a form link from a update_project form."""
+    details = await _get_project_details(request)
+    form_ = await forms.ProjectUpdateForm.from_formdata(request)
+    link_index = int(request.query_params["link_index"])
+    form_.links.entries.pop(link_index)
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template("projects/update-form.html")
+    rendered = template.render(
+        form=form_,
+        project=details.project,
+        request=request,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector="[aria-label='project-details']",
             mode=ElementPatchMode.INNER,
         )
 
