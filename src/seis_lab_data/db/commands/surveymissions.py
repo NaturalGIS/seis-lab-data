@@ -1,3 +1,5 @@
+import logging
+
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import (
@@ -8,6 +10,8 @@ from .. import (
     models,
     queries,
 )
+
+logger = logging.getLogger(__name__)
 
 
 async def create_survey_mission(
@@ -40,3 +44,18 @@ async def delete_survey_mission(
         raise errors.SeisLabDataError(
             f"Survey mission with id {survey_mission_id!r} does not exist."
         )
+
+
+async def update_survey_mission(
+    session: AsyncSession,
+    survey_mission: models.SurveyMission,
+    to_update: schemas.SurveyMissionUpdate,
+) -> models.SurveyMission:
+    logger.debug(f"{to_update.model_dump()=}")
+    logger.debug(f"{to_update.model_dump(exclude_unset=True)=}")
+    for key, value in to_update.model_dump(exclude_unset=True).items():
+        setattr(survey_mission, key, value)
+    session.add(survey_mission)
+    await session.commit()
+    await session.refresh(survey_mission)
+    return survey_mission

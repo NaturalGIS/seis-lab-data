@@ -51,6 +51,11 @@ from .surveyrelatedrecords import (
 from .user import User
 from .webui import (
     BreadcrumbItem,
+    ItemSelectorInfo,
+    PaginationInfo,
+    ProjectDetails,
+    SurveyMissionDetails,
+    UserPermissionDetails,
 )
 
 __all__ = [
@@ -63,10 +68,13 @@ __all__ = [
     DomainTypeRead,
     EventPayload,
     EventType,
+    ItemSelectorInfo,
     LinkSchema,
     LocalizableDraftDescription,
     LocalizableDraftName,
+    PaginationInfo,
     ProjectCreate,
+    ProjectDetails,
     ProjectId,
     ProjectReadDetail,
     ProjectReadListItem,
@@ -80,6 +88,7 @@ __all__ = [
     RequestId,
     SeisLabDataEvent,
     SurveyMissionCreate,
+    SurveyMissionDetails,
     SurveyMissionId,
     SurveyMissionReadDetail,
     SurveyMissionReadListItem,
@@ -94,4 +103,5 @@ __all__ = [
     WorkflowStageRead,
     User,
     UserId,
+    UserPermissionDetails,
 ]

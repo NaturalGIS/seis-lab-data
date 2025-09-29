@@ -15,7 +15,7 @@ async def can_create_dataset_category(
     to_create: schemas.DatasetCategoryCreate,
     *,
     settings: config.SeisLabDataSettings,
-):
+) -> bool:
     return True
 
 
@@ -24,7 +24,7 @@ async def can_delete_dataset_category(
     dataset_category_id: uuid.UUID,
     *,
     settings: config.SeisLabDataSettings,
-):
+) -> bool:
     return True
 
 
@@ -33,7 +33,7 @@ async def can_create_domain_type(
     to_create: schemas.DomainTypeCreate,
     *,
     settings: config.SeisLabDataSettings,
-):
+) -> bool:
     return True
 
 
@@ -42,7 +42,7 @@ async def can_delete_domain_type(
     domain_type_id: uuid.UUID,
     *,
     settings: config.SeisLabDataSettings,
-):
+) -> bool:
     return True
 
 
@@ -51,7 +51,7 @@ async def can_create_workflow_stage(
     to_create: schemas.WorkflowStageCreate,
     *,
     settings: config.SeisLabDataSettings,
-):
+) -> bool:
     return True
 
 
@@ -60,7 +60,7 @@ async def can_delete_workflow_stage(
     workflow_stage_id: uuid.UUID,
     *,
     settings: config.SeisLabDataSettings,
-):
+) -> bool:
     return True
 
 
@@ -69,7 +69,7 @@ async def can_read_survey_related_record(
     survey_related_record_id: schemas.SurveyRelatedRecordId,
     *,
     settings: config.SeisLabDataSettings,
-):
+) -> bool:
     return True
 
 
@@ -78,7 +78,7 @@ async def can_create_survey_related_record(
     survey_mission_id: schemas.SurveyMissionId,
     *,
     settings: config.SeisLabDataSettings,
-):
+) -> bool:
     return True
 
 
@@ -87,5 +87,5 @@ async def can_delete_survey_related_record(
     survey_related_record_id: schemas.SurveyRelatedRecordId,
     *,
     settings: config.SeisLabDataSettings,
-):
+) -> bool:
     return True

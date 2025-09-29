@@ -7,6 +7,7 @@ from .recordassets import delete_record_asset
 from .surveymissions import (
     create_survey_mission,
     delete_survey_mission,
+    update_survey_mission,
 )
 from .surveyrelatedrecords import (
     create_dataset_category,
@@ -34,4 +35,5 @@ __all__ = [
     delete_survey_related_record,
     delete_workflow_stage,
     update_project,
+    update_survey_mission,
 ]

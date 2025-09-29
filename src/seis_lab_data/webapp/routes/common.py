@@ -73,7 +73,7 @@ def get_page_count(
     return (total_items + page_size - 1) // page_size
 
 
-async def new_produce_event_stream_for_topic(
+async def produce_event_stream_for_topic(
     redis_client: Redis,
     request: Request,
     topic_name: str,
@@ -148,7 +148,7 @@ async def new_produce_event_stream_for_topic(
             await pubsub.unsubscribe(topic_name)
 
 
-async def produce_event_stream_for_topic(
+async def old_produce_event_stream_for_topic(
     redis_client: Redis,
     request: Request,
     topic_name: str,

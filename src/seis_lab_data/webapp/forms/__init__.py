@@ -3,7 +3,10 @@ from .projects import (
     ProjectCreateForm,
     ProjectUpdateForm,
 )
-from .surveymissions import SurveyMissionCreateForm
+from .surveymissions import (
+    SurveyMissionCreateForm,
+    SurveyMissionUpdateForm,
+)
 from .surveyrelatedrecords import SurveyRelatedRecordCreateForm
 
 __all__ = [
@@ -11,5 +14,6 @@ __all__ = [
     ProjectCreateForm,
     ProjectUpdateForm,
     SurveyMissionCreateForm,
+    SurveyMissionUpdateForm,
     SurveyRelatedRecordCreateForm,
 ]

@@ -3,10 +3,7 @@ import dataclasses
 import json
 import logging
 import uuid
-from typing import (
-    AsyncGenerator,
-    TypeVar,
-)
+from typing import AsyncGenerator
 
 from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
@@ -38,25 +35,16 @@ from .auth import (
 from .common import (
     get_pagination_info,
     produce_event_stream_for_topic,
-    new_produce_event_stream_for_topic,
-    PaginationInfo,
 )
 
 logger = logging.getLogger(__name__)
-ProjectFormType = TypeVar(
-    "ProjectFormType", forms.ProjectCreateForm, forms.ProjectUpdateForm
+
+_SELECTOR_INFO = schemas.ItemSelectorInfo(
+    feedback="[aria-label='feedback-messages'] > ul",
+    item_details="[aria-label='project-details']",
+    item_name="[aria-label='project-name']",
+    breadcrumbs="[aria-label='breadcrumbs']",
 )
-
-
-@dataclasses.dataclass(frozen=True)
-class _ProjectDetails:
-    project: schemas.ProjectReadDetail
-    survey_missions: list[schemas.SurveyMissionReadListItem]
-    pagination: PaginationInfo
-    user_can_delete: bool
-    user_can_update: bool
-    user_can_create_survey_mission: bool
-    breadcrumbs: list[schemas.BreadcrumbItem]
 
 
 @csrf_protect
@@ -144,7 +132,7 @@ async def get_project_update_form(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector="[aria-label='project-details']",
+            selector=_SELECTOR_INFO.item_details,
             mode=ElementPatchMode.INNER,
         )
 
@@ -158,25 +146,23 @@ async def get_project_details_component(request: Request):
     template = template_processor.get_template("projects/detail-component.html")
     rendered = template.render(
         request=request,
-        project=details.project,
+        project=details.item,
         pagination=details.pagination,
-        survey_missions=details.survey_missions,
-        user_can_delete=details.user_can_delete,
-        user_can_create_survey_mission=details.user_can_create_survey_mission,
-        user_can_update=details.user_can_update,
+        survey_missions=details.children,
+        permissions=details.permissions,
     )
 
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector="[aria-label='project-details']",
+            selector=_SELECTOR_INFO.item_details,
             mode=ElementPatchMode.INNER,
         )
 
     return DatastarResponse(event_streamer())
 
 
-async def _get_project_details(request: Request) -> _ProjectDetails:
+async def _get_project_details(request: Request) -> schemas.ProjectDetails:
     """utility function to get project details and its survey missions.
 
     The logic in this function is shared between routes that need to work with the project:
@@ -218,9 +204,9 @@ async def _get_project_details(request: Request) -> _ProjectDetails:
             page=current_page,
             page_size=settings.pagination_page_size,
         )
-    return _ProjectDetails(
-        project=schemas.ProjectReadDetail.from_db_instance(project),
-        survey_missions=[
+    return schemas.ProjectDetails(
+        item=schemas.ProjectReadDetail.from_db_instance(project),
+        children=[
             schemas.SurveyMissionReadListItem.from_db_instance(sm)
             for sm in survey_missions
         ],
@@ -233,14 +219,16 @@ async def _get_project_details(request: Request) -> _ProjectDetails:
                 request.url_for("projects:detail", project_id=project_id)
             ),
         ),
-        user_can_delete=await permissions.can_delete_project(
-            user, project_id, settings=request.state.settings
-        ),
-        user_can_create_survey_mission=await permissions.can_create_survey_mission(
-            user, project_id=project_id, settings=request.state.settings
-        ),
-        user_can_update=await permissions.can_update_project(
-            user, project_id, settings=request.state.settings
+        permissions=schemas.UserPermissionDetails(
+            can_delete=await permissions.can_delete_project(
+                user, project_id, settings=request.state.settings
+            ),
+            can_update=await permissions.can_update_project(
+                user, project_id, settings=request.state.settings
+            ),
+            can_create_children=await permissions.can_create_survey_mission(
+                user, project_id=project_id, settings=request.state.settings
+            ),
         ),
         breadcrumbs=[
             schemas.BreadcrumbItem(name=_("Home"), url=str(request.url_for("home"))),
@@ -371,7 +359,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                     status=final_message.status,
                     message=f"{final_message.message} - you will be redirected shortly.",
                 ),
-                selector="[aria-label='feedback-messages'] > ul",
+                selector=_SELECTOR_INFO.feedback,
                 mode=ElementPatchMode.APPEND,
             )
             await asyncio.sleep(1)
@@ -388,14 +376,14 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             )
             yield ServerSentEventGenerator.patch_elements(
                 rendered,
-                selector="[aria-label='feedback-messages'] > ul",
+                selector=_SELECTOR_INFO.feedback,
                 mode=ElementPatchMode.APPEND,
             )
 
         async def event_streamer():
             yield ServerSentEventGenerator.patch_elements(
                 """<li>Creating project as a background task...</li>""",
-                selector="[aria-label='feedback-messages'] > ul",
+                selector=_SELECTOR_INFO.feedback,
                 mode=ElementPatchMode.APPEND,
             )
 
@@ -406,7 +394,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             )
             logger.debug(f"{enqueued_message=}")
             redis_client: Redis = request.state.redis_client
-            event_stream_generator = new_produce_event_stream_for_topic(
+            event_stream_generator = produce_event_stream_for_topic(
                 redis_client,
                 request,
                 topic_name=f"progress:{request_id}",
@@ -434,14 +422,10 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             request,
             "projects/detail.html",
             context={
-                "project": details.project,
+                "project": details.item,
                 "pagination": details.pagination,
-                "survey_missions": {
-                    "survey_missions": details.survey_missions,
-                },
-                "user_can_delete": details.user_can_delete,
-                "user_can_create_survey_mission": details.user_can_create_survey_mission,
-                "user_can_update": details.user_can_update,
+                "survey_missions": details.children,
+                "permissions": details.permissions,
                 "breadcrumbs": details.breadcrumbs,
             },
         )
@@ -484,7 +468,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 )
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
-                    selector="[aria-label='project-details']",
+                    selector=_SELECTOR_INFO.item_details,
                     mode=ElementPatchMode.INNER,
                 )
 
@@ -531,7 +515,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             )
             yield ServerSentEventGenerator.patch_elements(
                 rendered_message,
-                selector="[aria-label='feedback-messages']",
+                selector=_SELECTOR_INFO.feedback,
                 mode=ElementPatchMode.APPEND,
             )
             template = template_processor.get_template("projects/detail-component.html")
@@ -545,7 +529,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 breadcrumbs_template.render(
                     request=request, breadcrumbs=project_details.breadcrumbs
                 ),
-                selector="[aria-label='breadcrumbs']",
+                selector=_SELECTOR_INFO.breadcrumbs,
                 mode=ElementPatchMode.INNER,
             )
             yield ServerSentEventGenerator.patch_elements(
@@ -554,21 +538,19 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                     project=project_details.project,
                     pagination=project_details.pagination,
                     survey_missions=project_details.survey_missions,
-                    user_can_delete=project_details.user_can_delete,
-                    user_can_create_survey_mission=project_details.user_can_create_survey_mission,
-                    user_can_update=project_details.user_can_update,
+                    permissions=project_details.permissions,
                 ),
-                selector="[aria-label='project-details']",
+                selector=_SELECTOR_INFO.item_details,
                 mode=ElementPatchMode.INNER,
             )
             yield ServerSentEventGenerator.patch_elements(
                 project_details.project.name.en,
-                selector="[aria-label='project-name']",
+                selector=_SELECTOR_INFO.item_name,
                 mode=ElementPatchMode.INNER,
             )
             yield ServerSentEventGenerator.patch_elements(
                 "",
-                selector="[aria-label='feedback-messages']",
+                selector=_SELECTOR_INFO.feedback,
                 mode=ElementPatchMode.INNER,
             )
 
@@ -581,7 +563,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             )
             yield ServerSentEventGenerator.patch_elements(
                 rendered,
-                selector="[aria-label='feedback-messages']",
+                selector=_SELECTOR_INFO.feedback,
                 mode=ElementPatchMode.APPEND,
             )
 
@@ -600,7 +582,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             )
             logger.debug(f"{enqueued_message=}")
             redis_client: Redis = request.state.redis_client
-            event_stream_generator = new_produce_event_stream_for_topic(
+            event_stream_generator = produce_event_stream_for_topic(
                 redis_client,
                 request,
                 topic_name=f"progress:{request_id}",
@@ -634,11 +616,42 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                     status_code=404, detail=_(f"Project {project_id!r} not found.")
                 )
 
+        request_id = schemas.RequestId(uuid.uuid4())
+
+        async def handle_processing_success(
+            final_message: schemas.ProcessingMessage, message_template: Template
+        ) -> AsyncGenerator[DatastarEvent, None]:
+            yield ServerSentEventGenerator.patch_elements(
+                message_template.render(
+                    data_test_id="processing-success-message",
+                    status=final_message.status,
+                    message=f"{final_message.message} - you will be redirected shortly.",
+                ),
+                selector=_SELECTOR_INFO.feedback,
+                mode=ElementPatchMode.APPEND,
+            )
+            await asyncio.sleep(1)
+            yield ServerSentEventGenerator.redirect(
+                str(request.url_for("projects:list")),
+            )
+
+        async def handle_processing_failure(
+            final_message: schemas.ProcessingMessage, message_template: Template
+        ) -> AsyncGenerator[DatastarEvent, None]:
+            rendered = message_template.render(
+                status=final_message.status.value,
+                message=f"ERROR: {final_message.message}",
+            )
+            yield ServerSentEventGenerator.patch_elements(
+                rendered,
+                selector=_SELECTOR_INFO.feedback,
+                mode=ElementPatchMode.APPEND,
+            )
+
         async def stream_events():
-            request_id = schemas.RequestId(uuid.uuid4())
             yield ServerSentEventGenerator.patch_elements(
                 """<li>Deleting project as a background task...</li>""",
-                selector="#feedback > ul",
+                selector=_SELECTOR_INFO.feedback,
                 mode=ElementPatchMode.APPEND,
             )
             enqueued_message: Message = tasks.delete_project.send(
@@ -652,7 +665,8 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 redis_client,
                 request,
                 topic_name=f"progress:{request_id}",
-                success_redirect_url=str(request.url_for("projects:list")),
+                on_success=handle_processing_success,
+                on_failure=handle_processing_failure,
                 timeout_seconds=30,
             )
             async for sse_event in event_stream_generator:
@@ -688,68 +702,9 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             )
         form_is_valid = creation_form.has_validation_errors()
 
-        async def stream_events():
-            # first validate the form with WTForms' validation logic
-            # then validate the form data with our custom pydantic model
-            if form_is_valid:
-                request_id = schemas.RequestId(uuid.uuid4())
-                to_create = schemas.SurveyMissionCreate(
-                    id=schemas.SurveyMissionId(uuid.uuid4()),
-                    project_id=project.id,
-                    owner=user.id,
-                    name=schemas.LocalizableDraftName(
-                        en=creation_form.name.en.data,
-                        pt=creation_form.name.pt.data,
-                    ),
-                    description=schemas.LocalizableDraftDescription(
-                        en=creation_form.description.en.data,
-                        pt=creation_form.description.pt.data,
-                    ),
-                    relative_path=creation_form.relative_path.data,
-                    links=[
-                        schemas.LinkSchema(
-                            url=lf.url.data,
-                            media_type=lf.media_type.data,
-                            relation=lf.relation.data,
-                            link_description=schemas.LocalizableDraftDescription(
-                                en=lf.link_description.en.data,
-                                pt=lf.link_description.pt.data,
-                            ),
-                        )
-                        for lf in creation_form.links.entries
-                    ],
-                )
-                logger.info(f"{to_create=}")
+        if not form_is_valid:
 
-                yield ServerSentEventGenerator.patch_elements(
-                    """<li>Creating survey mission as a background task...</li>""",
-                    selector="#feedback > ul",
-                    mode=ElementPatchMode.APPEND,
-                )
-
-                enqueued_message: Message = tasks.create_survey_mission.send(
-                    raw_request_id=str(request_id),
-                    raw_to_create=to_create.model_dump_json(),
-                    raw_initiator=json.dumps(dataclasses.asdict(user)),
-                )
-                logger.debug(f"{enqueued_message=}")
-                redis_client: Redis = request.state.redis_client
-                event_stream_generator = produce_event_stream_for_topic(
-                    redis_client,
-                    request,
-                    topic_name=f"progress:{request_id}",
-                    success_redirect_url=str(
-                        request.url_for(
-                            "survey_missions:detail",
-                            survey_mission_id=to_create.id,
-                        )
-                    ),
-                    timeout_seconds=30,
-                )
-                async for sse_event in event_stream_generator:
-                    yield sse_event
-
-            else:
+            async def stream_validation_failed_events():
                 logger.debug("form did not validate")
                 template = template_processor.get_template(
                     "survey-missions/create-form.html"
@@ -765,9 +720,98 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                     mode=ElementPatchMode.INNER,
                 )
 
-        return DatastarResponse(
-            stream_events(), status_code=202 if form_is_valid else 422
+            return DatastarResponse(stream_validation_failed_events(), 422)
+
+        request_id = schemas.RequestId(uuid.uuid4())
+        to_create = schemas.SurveyMissionCreate(
+            id=schemas.SurveyMissionId(uuid.uuid4()),
+            project_id=project.id,
+            owner=user.id,
+            name=schemas.LocalizableDraftName(
+                en=creation_form.name.en.data,
+                pt=creation_form.name.pt.data,
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en=creation_form.description.en.data,
+                pt=creation_form.description.pt.data,
+            ),
+            relative_path=creation_form.relative_path.data,
+            links=[
+                schemas.LinkSchema(
+                    url=lf.url.data,
+                    media_type=lf.media_type.data,
+                    relation=lf.relation.data,
+                    link_description=schemas.LocalizableDraftDescription(
+                        en=lf.link_description.en.data,
+                        pt=lf.link_description.pt.data,
+                    ),
+                )
+                for lf in creation_form.links.entries
+            ],
         )
+        logger.info(f"{to_create=}")
+
+        async def handle_processing_success(
+            final_message: schemas.ProcessingMessage, message_template: Template
+        ) -> AsyncGenerator[DatastarEvent, None]:
+            yield ServerSentEventGenerator.patch_elements(
+                message_template.render(
+                    data_test_id="processing-success-message",
+                    status=final_message.status,
+                    message=f"{final_message.message} - you will be redirected shortly.",
+                ),
+                selector=_SELECTOR_INFO.feedback,
+                mode=ElementPatchMode.APPEND,
+            )
+            await asyncio.sleep(1)
+            yield ServerSentEventGenerator.redirect(
+                str(
+                    request.url_for(
+                        "survey_missions:detail",
+                        survey_mission_id=to_create.id,
+                    )
+                ),
+            )
+
+        async def handle_processing_failure(
+            final_message: schemas.ProcessingMessage, message_template: Template
+        ) -> AsyncGenerator[DatastarEvent, None]:
+            rendered = message_template.render(
+                status=final_message.status.value,
+                message=f"ERROR: {final_message.message}",
+            )
+            yield ServerSentEventGenerator.patch_elements(
+                rendered,
+                selector=_SELECTOR_INFO.feedback,
+                mode=ElementPatchMode.APPEND,
+            )
+
+        async def stream_events():
+            yield ServerSentEventGenerator.patch_elements(
+                """<li>Creating survey mission as a background task...</li>""",
+                selector="#feedback > ul",
+                mode=ElementPatchMode.APPEND,
+            )
+
+            enqueued_message: Message = tasks.create_survey_mission.send(
+                raw_request_id=str(request_id),
+                raw_to_create=to_create.model_dump_json(),
+                raw_initiator=json.dumps(dataclasses.asdict(user)),
+            )
+            logger.debug(f"{enqueued_message=}")
+            redis_client: Redis = request.state.redis_client
+            event_stream_generator = produce_event_stream_for_topic(
+                redis_client,
+                request,
+                topic_name=f"progress:{request_id}",
+                on_success=handle_processing_success,
+                on_failure=handle_processing_failure,
+                timeout_seconds=30,
+            )
+            async for sse_event in event_stream_generator:
+                yield sse_event
+
+        return DatastarResponse(stream_events(), status_code=202)
 
 
 @csrf_protect
@@ -817,7 +861,7 @@ async def remove_create_project_form_link(request: Request):
 
 @csrf_protect
 async def add_update_project_form_link(request: Request):
-    """Add a form link to a create_project form."""
+    """Add a form link to an update_project form."""
     details = await _get_project_details(request)
     form_ = await forms.ProjectUpdateForm.from_formdata(request)
     form_.links.append_entry()
@@ -825,14 +869,14 @@ async def add_update_project_form_link(request: Request):
     template = template_processor.get_template("projects/update-form.html")
     rendered = template.render(
         form=form_,
-        project=details.project,
+        project=details.item,
         request=request,
     )
 
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector="[aria-label='project-details']",
+            selector=_SELECTOR_INFO.item_details,
             mode=ElementPatchMode.INNER,
         )
 
@@ -841,7 +885,7 @@ async def add_update_project_form_link(request: Request):
 
 @csrf_protect
 async def remove_update_project_form_link(request: Request):
-    """Remove a form link from a update_project form."""
+    """Remove a form link from an update_project form."""
     details = await _get_project_details(request)
     form_ = await forms.ProjectUpdateForm.from_formdata(request)
     link_index = int(request.query_params["link_index"])
@@ -850,14 +894,14 @@ async def remove_update_project_form_link(request: Request):
     template = template_processor.get_template("projects/update-form.html")
     rendered = template.render(
         form=form_,
-        project=details.project,
+        project=details.item,
         request=request,
     )
 
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector="[aria-label='project-details']",
+            selector=_SELECTOR_INFO.item_details,
             mode=ElementPatchMode.INNER,
         )
 

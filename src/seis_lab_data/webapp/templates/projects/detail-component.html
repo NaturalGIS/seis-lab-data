@@ -1,6 +1,6 @@
 <div class="row">
     <div class="col">
-        {% if user_can_create_survey_mission %}
+        {% if permissions.can_create_children %}
             <a
                     class="btn btn-primary"
                     aria-label="new-survey-mission"
@@ -9,11 +9,8 @@
         {% endif %}
     </div>
 </div>
-<div id="feedback" data-signals-deleting="false">
-    <ul></ul>
-</div>
 <div class="row mb-3">
-    {% if user_can_update %}
+    {% if permissions.can_update %}
         <div class="col">
             <button
                     class="btn btn-outline-primary"
@@ -23,8 +20,8 @@
             </button>
         </div>
     {% endif %}
-    <div class="col">
-        {% if user_can_delete %}
+    <div class="col" data-signals-deleting="false">
+        {% if permissions.can_delete %}
             <button
                     class="btn btn-danger"
                     aria-label="show-delete-confirmation-modal"
@@ -132,7 +129,7 @@
             aria-labelledby="survey-missions-tab"
             tabindex="0"
     >
-        {% with missions = survey_missions.survey_missions %}
+        {% with items = survey_missions %}
             {% include "survey-missions/list-component.html" %}
         {% endwith %}
     </div>

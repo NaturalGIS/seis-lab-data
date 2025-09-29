@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
     <h1 class="display-1" aria-label="project-name">{{ project.name|translate_localizable_string }}</h1>
-    <div aria-label="feedback-messages"></div>
+    <div aria-label="feedback-messages">
+        <ul></ul>
+    </div>
     <div aria-label="project-details">
         {% include "projects/detail-component.html" %}
     </div>

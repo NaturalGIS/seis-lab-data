@@ -34,7 +34,7 @@ from .auth import (
 )
 from .common import (
     get_pagination_info,
-    produce_event_stream_for_topic,
+    old_produce_event_stream_for_topic,
 )
 
 logger = logging.getLogger(__name__)
@@ -360,10 +360,8 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
             "survey-related-records/list.html",
             context={
                 "items": [
-                    schemas.SurveyRelatedRecordReadListItem(
-                        **i.model_dump(),
-                    )
-                    for i in items
+                    schemas.SurveyRelatedRecordReadListItem.from_db_instance(item)
+                    for item in items
                 ],
                 "pagination": pagination_info,
                 "breadcrumbs": [
@@ -478,7 +476,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
             )
             logger.debug(f"{enqueued_message=}")
             redis_client: Redis = request.state.redis_client
-            event_stream_generator = produce_event_stream_for_topic(
+            event_stream_generator = old_produce_event_stream_for_topic(
                 redis_client,
                 request,
                 topic_name=f"progress:{request_id}",

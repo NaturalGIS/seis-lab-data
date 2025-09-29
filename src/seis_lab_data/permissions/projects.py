@@ -12,14 +12,14 @@ async def can_read_project(
     project_id: schemas.ProjectId,
     *,
     settings: config.SeisLabDataSettings,
-):
+) -> bool:
     return True
 
 
 async def can_create_project(
     user: schemas.User,
     settings: config.SeisLabDataSettings,
-):
+) -> bool:
     return True
 
 
@@ -28,7 +28,7 @@ async def can_delete_project(
     project_id: schemas.ProjectId,
     *,
     settings: config.SeisLabDataSettings,
-):
+) -> bool:
     return True
 
 
@@ -37,5 +37,5 @@ async def can_update_project(
     project_id: schemas.ProjectId,
     *,
     settings: config.SeisLabDataSettings,
-):
+) -> bool:
     return True

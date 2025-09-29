@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-    <h1 class="display-1">{{ _("Projects") }}</h1>
+    <h1 class="display-1"><span class="material-icons-outlined">view_timeline</span>{{ _("Projects") }}</h1>
     <div class="row">
         <div class="col">
             {% if user_can_create %}
@@ -8,7 +8,7 @@
                         class="btn btn-primary"
                         href="{{ url_for('projects:get_creation_form') }}"
                         aria-label="new-project"
-                >{{ _("New project") }}</a>
+                ><span class="material-icons-outlined">add_circle_outline</span>{{ _("New project") }}</a>
             {% endif %}
         </div>
     </div>

@@ -10,6 +10,7 @@ from .surveymissions import (
     delete_survey_mission,
     get_survey_mission,
     list_survey_missions,
+    update_survey_mission,
 )
 from .surveyrelatedrecords import (
     create_dataset_category,
@@ -50,4 +51,5 @@ __all__ = [
     list_survey_related_records,
     list_workflow_stages,
     update_project,
+    update_survey_mission,
 ]

@@ -102,7 +102,7 @@ class _SurveyMissionForm(StarletteForm):
         cls,
         request: Request,
         project_id: schemas.ProjectId,
-        disregard_id: schemas.ProjectId | None = None,
+        disregard_id: schemas.SurveyMissionId | None = None,
     ):
         """Performs full validation of a survey-mission-related form.
 
@@ -140,6 +140,58 @@ class SurveyMissionCreateForm(_SurveyMissionForm):
             schemas.SurveyMissionCreate(
                 # these are not part of the form, but we must provide something
                 id=None,
+                owner=None,
+                project_id=None,
+                name={
+                    **get_form_field_by_name(self, "name").data,
+                },
+                description={
+                    **get_form_field_by_name(self, "description").data,
+                },
+                relative_path=self.relative_path.data,
+                links=[
+                    {
+                        "url": li.url.data,
+                        "media_type": li.media_type.data,
+                        "relation": li.relation.data,
+                        "link_description": {
+                            **li.link_description.data,
+                        },
+                    }
+                    for li in self.links.entries
+                ],
+            )
+        except pydantic.ValidationError as exc:
+            logger.error(f"pydantic errors {exc.errors()=}")
+            for error in exc.errors():
+                if "id" in error["loc"]:
+                    # we don't care about validating errors related to missing id fields,
+                    # as the forms never have them
+                    continue
+                loc = error["loc"]
+                logger.debug(f"Analyzing error {loc=} {error['msg']=}...")
+                form_field = retrieve_form_field_by_pydantic_loc(self, loc)
+                logger.debug(f"{form_field=}")
+                if form_field is not None:
+                    try:
+                        form_field.errors.append(error["msg"])
+                    except AttributeError:
+                        form_field.errors[None] = error["msg"]
+                    logger.debug(f"Form field errors {form_field.errors=}")
+                else:
+                    logger.debug(f"Unable to find form field for {loc=}")
+
+
+class SurveyMissionUpdateForm(_SurveyMissionForm):
+    def validate_with_schema(self):
+        # note: we build the schema manually and make sure to not use
+        # sub-schemas, but rather provide data with lists and dicts. This is
+        # in order to ensure pydantic validates the full set of data at once and
+        # includes full error locations - otherwise it would be harder to match
+        # pydantic validation errors with wtforms field errors
+        try:
+            schemas.SurveyMissionUpdate(
+                # these are not part of the form, but we must provide something
                 owner=None,
                 project_id=None,
                 name={

@@ -7,6 +7,8 @@
             <div class="col-md-8">
                 <div class="card-body">
                     <h5 class="card-title">{{ item.name|translate_localizable_string }}</h5>
+                    <p><small class="card-text"><a href="{{ url_for('projects:detail', project_id=item.survey_mission.project.id) }}">{{ item.survey_mission.project.name|translate_localizable_string }}</a></small></p>
+                    <p><small class="card-text"><a href="{{ url_for('survey_missions:detail', survey_mission_id=item.survey_mission.id) }}">{{ item.survey_mission.name|translate_localizable_string }}</a></small></p>
                     <p class="card-text"><small class="text-body-secondary">{{ item.status|translate_enum }}</small></p>
                     <p class="card-text"><small class="text-body-secondary">{{ item.is_valid }}</small></p>
                     <p class="card-text">{{ item.description|translate_localizable_string }}</p>

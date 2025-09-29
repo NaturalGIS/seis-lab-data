@@ -137,7 +137,7 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                     ),
                     Route(
                         "/{project_id}/details",
-                        routes.get_project_details_component,
+                        routes.get_survey_mission_details_component,
                         methods=["GET"],
                         name="get_details_component",
                     ),
@@ -175,6 +175,30 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                         routes.remove_create_survey_mission_form_link,
                         methods=["POST"],
                         name="remove_form_link",
+                    ),
+                    Route(
+                        "/{survey_mission_id}/add-update-form-link",
+                        routes.add_update_survey_mission_form_link,
+                        methods=["POST"],
+                        name="add_update_form_link",
+                    ),
+                    Route(
+                        "/{survey_mission_id}/remove-update-form-link",
+                        routes.remove_update_survey_mission_form_link,
+                        methods=["POST"],
+                        name="remove_update_form_link",
+                    ),
+                    Route(
+                        "/{survey_mission_id}/details",
+                        routes.get_survey_mission_details_component,
+                        methods=["GET"],
+                        name="get_details_component",
+                    ),
+                    Route(
+                        "/{survey_mission_id}/update",
+                        routes.get_survey_mission_update_form,
+                        methods=["GET"],
+                        name="get_update_form",
                     ),
                     Route(
                         "/{survey_mission_id}",

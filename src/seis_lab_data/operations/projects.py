@@ -53,7 +53,7 @@ async def update_project(
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
-):
+) -> models.Project:
     if initiator is None or not await permissions.can_update_project(
         initiator, project_id, settings=settings
     ):
