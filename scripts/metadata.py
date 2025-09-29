@@ -5,19 +5,17 @@ from datetime import datetime
 
 from osgeo import gdal
 
-
 @dataclasses.dataclass
 class Metadata:
-    name: str
+    name:       str
     size_bytes: int
     creation_date: datetime
     media_type: str
-    driver: str
-    spatial: str
+    driver:     str
+    spatial:    str
 
     data_repr_class: bool  # 0: raster 1: vector
     auxiliary: dict = field(default_factory=dict)
-    messages: list[str] = field(default_factory=list)
 
     def is_vector(self):
         return self.data_repr_class == 1
@@ -25,9 +23,7 @@ class Metadata:
     def is_raster(self):
         return self.data_repr_class == 0
 
-
 warning_notes = []
-
 
 def gdal_open_exceptions_handler(err_class, err_no, msg):
     global warning_notes
@@ -50,7 +46,7 @@ def gdal_open_file(path):
         e.details["message"] = gdal.GetLastErrorMsg()
         gdal.PopErrorHandler()
         raise
-
-    gdal.PopErrorHandler()
+    finally:
+        gdal.PopErrorHandler()
 
     return ds
