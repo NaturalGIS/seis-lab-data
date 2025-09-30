@@ -16,6 +16,7 @@ from starlette.templating import Jinja2Templates
 from starlette_wtf import csrf_protect
 
 from ... import (
+    config,
     errors,
     operations,
     permissions,
@@ -27,7 +28,10 @@ from .auth import (
     fancy_requires_auth,
     get_user,
 )
-from .common import produce_event_stream_for_topic
+from .common import (
+    get_pagination_info,
+    produce_event_stream_for_topic,
+)
 from .surveyrelatedrecords import generate_survey_related_record_creation_form
 
 logger = logging.getLogger(__name__)
@@ -88,16 +92,35 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
     async def get(self, request: Request):
         """List survey missions."""
         session_maker = request.state.session_maker
+        settings: config.SeisLabDataSettings = request.state.settings
+        try:
+            current_page = int(request.query_params.get("page", 1))
+            if current_page < 1:
+                raise ValueError
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid page number")
         user = get_user(request.session.get("user", {}))
         async with session_maker() as session:
             items, num_total = await operations.list_survey_missions(
                 session,
                 initiator=user.id if user else None,
-                limit=request.query_params.get("limit", 20),
-                offset=request.query_params.get("offset", 0),
+                page=current_page,
+                page_size=settings.pagination_page_size,
                 include_total=True,
             )
+            num_unfiltered_total = (
+                await operations.list_survey_missions(
+                    session, initiator=user or None, include_total=True
+                )
+            )[1]
         template_processor = request.state.templates
+        pagination_info = get_pagination_info(
+            current_page,
+            settings.pagination_page_size,
+            num_total,
+            num_unfiltered_total,
+            collection_url=str(request.url_for("survey_missions:list")),
+        )
         return template_processor.TemplateResponse(
             request,
             "survey-missions/list.html",
@@ -105,7 +128,7 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
                 "items": [
                     schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items
                 ],
-                "num_total": num_total,
+                "pagination": pagination_info,
                 "breadcrumbs": [
                     schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
                     schemas.BreadcrumbItem(name=_("Survey Missions")),
@@ -121,6 +144,12 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         survey_mission_id = schemas.SurveyMissionId(
             uuid.UUID(request.path_params["survey_mission_id"])
         )
+        try:
+            current_page = int(request.query_params.get("page", 1))
+            if current_page < 1:
+                raise ValueError
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid page number")
         session_maker = request.state.session_maker
         user = get_user(request.session.get("user", {}))
         async with session_maker() as session:
@@ -148,6 +177,17 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 include_total=True,
             )
         template_processor = request.state.templates
+        pagination_info = get_pagination_info(
+            current_page,
+            request.state.settings.pagination_page_size,
+            total,
+            total,
+            collection_url=str(
+                request.url_for(
+                    "survey_missions:detail", survey_mission_id=survey_mission_id
+                )
+            ),
+        )
         return template_processor.TemplateResponse(
             request,
             "survey-missions/detail.html",
@@ -155,6 +195,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 "item": schemas.SurveyMissionReadDetail.from_db_instance(
                     survey_mission
                 ),
+                "pagination": pagination_info,
                 "survey_related_records": {
                     "survey_related_records": [
                         schemas.SurveyRelatedRecordReadListItem(**srr.model_dump())

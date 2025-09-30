@@ -55,6 +55,7 @@ class SeisLabDataSettings(BaseSettings):
     locales: list[str] = ["pt", "en"]
     translations_dir: Optional[Path] = Path(__file__).parent / "translations"
     emit_events: bool = False
+    pagination_page_size: int = 20
 
 
 class SeisLabDataCliContext(BaseModel):

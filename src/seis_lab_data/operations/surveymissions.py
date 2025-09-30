@@ -80,16 +80,16 @@ async def list_survey_missions(
     session: AsyncSession,
     initiator: schemas.UserId | None,
     project_filter: schemas.ProjectId | None = None,
-    limit: int = 20,
-    offset: int = 0,
+    page: int = 1,
+    page_size: int = 20,
     include_total: bool = False,
 ) -> tuple[list[models.SurveyMission], int | None]:
-    return await queries.list_survey_missions(
+    return await queries.paginated_list_survey_missions(
         session,
         initiator,
         project_id=project_filter,
-        limit=limit,
-        offset=offset,
+        page=page,
+        page_size=page_size,
         include_total=include_total,
     )
 
