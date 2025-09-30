@@ -1,9 +1,12 @@
 import argparse
 import dataclasses
+
 from dataclasses import field
-from datetime import datetime
-from datetime import UTC
+from datetime    import datetime
+from datetime    import UTC
+
 import os
+
 from osgeo import gdal
 from osgeo import ogr
 from osgeo import osr
@@ -23,9 +26,7 @@ class Metadata:
     error_type: str = ""
     messages: list[str] = field(default_factory=list)
 
-
 warning_notes = []
-
 
 def gdal_open_exceptions_handler(err_class, err_no, msg):
     global warning_notes
