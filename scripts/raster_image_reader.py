@@ -20,9 +20,8 @@ class GeoRasterMetadata:
     media_type: str
     driver:     str
     
-    image_size: Tuple[int,int] 
+    image_size: Tuple[int,int]
     bands:      int
-    geo_transform: [int]
     wkt:        str
     # Coordinate Model
 
@@ -34,7 +33,7 @@ class GeoRasterMetadata:
     projection: str
     central_meridian: float 
 
-    extent:     [int]
+    extent:     [float]
 
     projection: str
     datum:      str
@@ -55,7 +54,7 @@ class GeoRasterMetadata:
 
         # model transform data
 
-        self.geo_transform = gdal_ds.GetGeoTransform()
+        gt = gdal_ds.GetGeoTransform()
         
         # CRS
 
@@ -76,7 +75,6 @@ class GeoRasterMetadata:
         self.authority_name = srs.GetAuthorityName(None)
         self.authority_code = srs.GetAuthorityCode(None)
 
-        gt = self.geo_transform
         cols,rows = self.image_size
         self.extent = (gt[0], gt[3] + cols * gt[4] + rows * gt[5],
                        gt[0] + cols * gt[1] + rows * gt[2], gt[3]) 
