@@ -19,7 +19,7 @@ async def create_survey_mission(
     to_create: schemas.SurveyMissionCreate,
 ) -> models.SurveyMission:
     survey_mission = models.SurveyMission(**to_create.model_dump())
-    # need to ensure the english name is unique for this combination of project and survey mission
+    # need to ensure english name is unique for combination of project and survey mission
     if await queries.get_survey_mission_by_english_name(
         session, schemas.ProjectId(to_create.project_id), to_create.name.en
     ):
@@ -52,7 +52,6 @@ async def update_survey_mission(
     to_update: schemas.SurveyMissionUpdate,
 ) -> models.SurveyMission:
     logger.debug(f"{to_update.model_dump()=}")
-    logger.debug(f"{to_update.model_dump(exclude_unset=True)=}")
     for key, value in to_update.model_dump(exclude_unset=True).items():
         setattr(survey_mission, key, value)
     session.add(survey_mission)

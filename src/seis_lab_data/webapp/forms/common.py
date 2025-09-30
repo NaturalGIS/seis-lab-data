@@ -46,6 +46,34 @@ def get_form_field_by_name(form: Form | FormField, name: str) -> Field | None:
         return None
 
 
+def incorporate_schema_validation_errors_into_form(
+    schema_validation_errors: list[dict], form_: Form
+) -> None:
+    """Incorporate pydantic validation errors into a WTForms form instance.
+
+    This is useful when a pydantic schema is used to validate data
+    that was originally collected with a WTForms form, and we want
+    to show the validation errors in the form itself.
+    """
+    for error in schema_validation_errors:
+        if "id" in error["loc"]:
+            # we don't care about validating errors related to missing id fields,
+            # as the forms never have them
+            continue
+        loc = error["loc"]
+        logger.debug(f"Analyzing error {loc=} {error['msg']=}...")
+        form_field = retrieve_form_field_by_pydantic_loc(form_, loc)
+        logger.debug(f"{form_field=}")
+        if form_field is not None:
+            try:
+                form_field.errors.append(error["msg"])
+            except AttributeError:
+                form_field.errors[None] = error["msg"]
+            logger.debug(f"Form field errors {form_field.errors=}")
+        else:
+            logger.debug(f"Unable to find form field for {loc=}")
+
+
 def retrieve_form_field_by_pydantic_loc(
     form_instance: StarletteForm, loc: tuple
 ) -> Field | None:

@@ -7,7 +7,10 @@ from .surveymissions import (
     SurveyMissionCreateForm,
     SurveyMissionUpdateForm,
 )
-from .surveyrelatedrecords import SurveyRelatedRecordCreateForm
+from .surveyrelatedrecords import (
+    SurveyRelatedRecordCreateForm,
+    SurveyRelatedRecordUpdateForm,
+)
 
 __all__ = [
     FormProtocol,
@@ -16,4 +19,5 @@ __all__ = [
     SurveyMissionCreateForm,
     SurveyMissionUpdateForm,
     SurveyRelatedRecordCreateForm,
+    SurveyRelatedRecordUpdateForm,
 ]

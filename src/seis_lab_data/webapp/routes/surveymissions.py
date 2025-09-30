@@ -32,6 +32,7 @@ from .auth import (
     get_user,
 )
 from .common import (
+    get_id_from_request_path,
     get_pagination_info,
     produce_event_stream_for_topic,
 )
@@ -68,7 +69,9 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
     user = get_user(request.session.get("user", {}))
     settings: config.SeisLabDataSettings = request.state.settings
     session_maker = request.state.session_maker
-    survey_mission_id = _get_survey_mission_id_from_request_path(request)
+    survey_mission_id = get_id_from_request_path(
+        request, "survey_mission_id", schemas.SurveyMissionId
+    )
     async with session_maker() as session:
         try:
             survey_mission = await operations.get_survey_mission(
@@ -293,7 +296,9 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         template_processor: Jinja2Templates = request.state.templates
         user = get_user(request.session.get("user", {}))
         session_maker = request.state.session_maker
-        survey_mission_id = _get_survey_mission_id_from_request_path(request)
+        survey_mission_id = get_id_from_request_path(
+            request, "survey_mission_id", schemas.SurveyMissionId
+        )
         async with session_maker() as session:
             if (
                 survey_mission := await operations.get_survey_mission(
@@ -459,7 +464,9 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
     async def post(self, request: Request):
         """Create a new record in the survey mission's collection."""
         user = get_user(request.session.get("user", {}))
-        survey_mission_id = _get_survey_mission_id_from_request_path(request)
+        survey_mission_id = get_id_from_request_path(
+            request, "survey_mission_id", schemas.SurveyMissionId
+        )
         (
             creation_form,
             survey_mission,
@@ -619,8 +626,12 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             stream_events(), status_code=202 if form_is_valid else 422
         )
 
+    @csrf_protect
+    @fancy_requires_auth
     async def delete(self, request: Request):
-        survey_mission_id = _get_survey_mission_id_from_request_path(request)
+        survey_mission_id = get_id_from_request_path(
+            request, "survey_mission_id", schemas.SurveyMissionId
+        )
         session_maker = request.state.session_maker
         user = get_user(request.session.get("user", {}))
         async with session_maker() as session:
@@ -836,7 +847,9 @@ async def get_survey_mission_update_form(request: Request):
     """Return a form suitable for updating an existing survey mission."""
     user = get_user(request.session.get("user", {}))
     session_maker = request.state.session_maker
-    survey_mission_id = _get_survey_mission_id_from_request_path(request)
+    survey_mission_id = get_id_from_request_path(
+        request, "survey_mission_id", schemas.SurveyMissionId
+    )
     async with session_maker() as session:
         try:
             survey_mission = await operations.get_survey_mission(
@@ -894,14 +907,3 @@ async def get_survey_mission_update_form(request: Request):
         )
 
     return DatastarResponse(event_streamer())
-
-
-def _get_survey_mission_id_from_request_path(
-    request: Request,
-) -> schemas.SurveyMissionId:
-    try:
-        return schemas.SurveyMissionId(
-            uuid.UUID(request.path_params["survey_mission_id"])
-        )
-    except ValueError as err:
-        raise HTTPException(400, "Invalid survey mission ID format") from err

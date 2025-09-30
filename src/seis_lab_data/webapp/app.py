@@ -260,6 +260,42 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                         name="remove_asset_link_form",
                     ),
                     Route(
+                        "/{survey_related_record_id}/add-update-form-link",
+                        routes.add_update_survey_related_record_form_link,
+                        methods=["POST"],
+                        name="add_update_form_link",
+                    ),
+                    Route(
+                        "/{survey_related_record_id}/remove-update-form-link",
+                        routes.remove_update_survey_related_record_form_link,
+                        methods=["POST"],
+                        name="remove_update_form_link",
+                    ),
+                    Route(
+                        "/{survey_related_record_id}/add-asset-form",
+                        routes.add_update_survey_related_record_form_asset,
+                        methods=["POST"],
+                        name="add_update_form_asset",
+                    ),
+                    Route(
+                        "/{survey_related_record_id}/remove-asset-form",
+                        routes.remove_update_survey_related_record_form_asset,
+                        methods=["POST"],
+                        name="remove_update_form_asset",
+                    ),
+                    Route(
+                        "/{survey_related_record_id}/details",
+                        routes.get_survey_related_record_details_component,
+                        methods=["GET"],
+                        name="get_details_component",
+                    ),
+                    Route(
+                        "/{survey_related_record_id}/update",
+                        routes.get_survey_related_record_update_form,
+                        methods=["GET"],
+                        name="get_update_form",
+                    ),
+                    Route(
                         "/{survey_related_record_id}",
                         routes.SurveyRelatedRecordDetailEndpoint,
                         name="detail",

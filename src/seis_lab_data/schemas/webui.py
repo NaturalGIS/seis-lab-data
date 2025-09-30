@@ -13,8 +13,6 @@ from .surveymissions import (
 from .surveyrelatedrecords import (
     SurveyRelatedRecordReadDetail,
     SurveyRelatedRecordReadListItem,
-    RecordAssetReadDetail,
-    RecordAssetReadListItem,
 )
 
 
@@ -59,15 +57,12 @@ ItemWithDetails = typing.TypeVar(
     "ItemWithDetails",
     ProjectReadDetail,
     SurveyMissionReadDetail,
-    SurveyRelatedRecordReadDetail,
-    RecordAssetReadDetail,
 )
 
 ItemChildSummary = typing.TypeVar(
     "ItemChildSummary",
     SurveyMissionReadListItem,
     SurveyRelatedRecordReadListItem,
-    RecordAssetReadListItem,
 )
 
 
@@ -76,6 +71,13 @@ class ItemDetails(typing.Generic[ItemWithDetails, ItemChildSummary]):
     item: ItemWithDetails
     children: list[ItemChildSummary]
     pagination: PaginationInfo
+    permissions: UserPermissionDetails
+    breadcrumbs: list[BreadcrumbItem]
+
+
+@dataclasses.dataclass(frozen=True)
+class SurveyRelatedRecordDetails:
+    item: SurveyRelatedRecordReadDetail
     permissions: UserPermissionDetails
     breadcrumbs: list[BreadcrumbItem]
 

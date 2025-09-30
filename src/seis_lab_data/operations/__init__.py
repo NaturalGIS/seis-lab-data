@@ -26,6 +26,7 @@ from .surveyrelatedrecords import (
     list_domain_types,
     list_survey_related_records,
     list_workflow_stages,
+    update_survey_related_record,
 )
 
 __all__ = [
@@ -52,4 +53,5 @@ __all__ = [
     list_workflow_stages,
     update_project,
     update_survey_mission,
+    update_survey_related_record,
 ]

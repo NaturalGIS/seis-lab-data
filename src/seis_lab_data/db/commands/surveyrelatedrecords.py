@@ -96,6 +96,14 @@ async def create_survey_related_record(
     survey_record = models.SurveyRelatedRecord(
         **to_create.model_dump(exclude={"assets"}),
     )
+    # need to ensure english name is unique for combination of mission and record
+    if await queries.get_survey_related_record_by_english_name(
+        session, schemas.SurveyMissionId(to_create.survey_mission_id), to_create.name.en
+    ):
+        raise errors.SeisLabDataError(
+            f"There is already a survey-related record with english name {to_create.name.en!r} for "
+            f"the same survey mission."
+        )
     session.add(survey_record)
     for asset_to_create in to_create.assets:
         db_asset = models.RecordAsset(
@@ -120,3 +128,47 @@ async def delete_survey_related_record(
         raise errors.SeisLabDataError(
             f"Survey-related record with id {survey_related_record_id!r} does not exist."
         )
+
+
+async def update_survey_related_record(
+    session: AsyncSession,
+    survey_related_record: models.SurveyRelatedRecord,
+    to_update: schemas.SurveyRelatedRecordUpdate,
+):
+    """Update a survey-related record and its assets.
+
+    Updating the record also means that underlying assets may be
+    added, updated, or removed.
+    """
+    for key, value in to_update.model_dump(
+        exclude={"assets"}, exclude_unset=True
+    ).items():
+        setattr(survey_related_record, key, value)
+    session.add(survey_related_record)
+
+    for proposed_asset in to_update.assets:
+        try:
+            existing_asset = [
+                a
+                for a in survey_related_record.assets
+                if schemas.RecordAssetId(a.id) == proposed_asset.id
+            ][0]
+        except IndexError:  # this is a new asset that needs to be created
+            db_asset = models.RecordAsset(
+                **proposed_asset.model_dump(),
+                survey_related_record_id=survey_related_record.id,
+            )
+            session.add(db_asset)
+        else:  # this is an existing asset that needs to be updated
+            for key, value in proposed_asset.model_dump(exclude_unset=True).items():
+                setattr(existing_asset, key, value)
+            session.add(existing_asset)
+
+    proposed_asset_ids = [s.id for s in to_update.assets]
+    for existing_asset in survey_related_record.assets:
+        if schemas.RecordAssetId(existing_asset.id) not in proposed_asset_ids:
+            await session.delete(existing_asset)
+    await session.commit()
+    return await queries.get_survey_related_record(
+        session, schemas.SurveyRelatedRecordId(survey_related_record.id)
+    )

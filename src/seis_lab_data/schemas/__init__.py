@@ -56,6 +56,7 @@ from .webui import (
     ProjectDetails,
     SurveyMissionDetails,
     UserPermissionDetails,
+    SurveyRelatedRecordDetails,
 )
 
 __all__ = [
@@ -94,6 +95,7 @@ __all__ = [
     SurveyMissionReadListItem,
     SurveyMissionUpdate,
     SurveyRelatedRecordCreate,
+    SurveyRelatedRecordDetails,
     SurveyRelatedRecordId,
     SurveyRelatedRecordReadDetail,
     SurveyRelatedRecordReadListItem,

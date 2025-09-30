@@ -18,6 +18,7 @@ from .surveyrelatedrecords import (
     delete_domain_type,
     delete_survey_related_record,
     delete_workflow_stage,
+    update_survey_related_record,
 )
 
 __all__ = [
@@ -36,4 +37,5 @@ __all__ = [
     delete_workflow_stage,
     update_project,
     update_survey_mission,
+    update_survey_related_record,
 ]

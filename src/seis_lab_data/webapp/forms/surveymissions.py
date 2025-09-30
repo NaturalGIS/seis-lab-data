@@ -19,9 +19,9 @@ from ...db.queries import get_survey_mission_by_english_name
 from .common import (
     NameForm,
     DescriptionForm,
+    incorporate_schema_validation_errors_into_form,
     get_form_field_by_name,
     LinkForm,
-    retrieve_form_field_by_pydantic_loc,
 )
 
 logger = logging.getLogger(__name__)
@@ -65,8 +65,8 @@ class _SurveyMissionForm(StarletteForm):
         """Check if the current english name is already used by another survey mission under the same project.
 
         The `disregard_id` argument can be used when checking uniqueness of the english name in the
-         context of updating an already existing project, in which case the project itself should be
-         disregarded, as it is not a conflict for a project to have the same english name as itself.
+        context of updating an already existing mission, in which case the mission itself should be
+        disregarded, as it is not a conflict for a mission to have the same english name as itself.
         """
         error_message = _(
             "There is already a survey mission with this english name under the same project"
@@ -163,23 +163,7 @@ class SurveyMissionCreateForm(_SurveyMissionForm):
             )
         except pydantic.ValidationError as exc:
             logger.error(f"pydantic errors {exc.errors()=}")
-            for error in exc.errors():
-                if "id" in error["loc"]:
-                    # we don't care about validating errors related to missing id fields,
-                    # as the forms never have them
-                    continue
-                loc = error["loc"]
-                logger.debug(f"Analyzing error {loc=} {error['msg']=}...")
-                form_field = retrieve_form_field_by_pydantic_loc(self, loc)
-                logger.debug(f"{form_field=}")
-                if form_field is not None:
-                    try:
-                        form_field.errors.append(error["msg"])
-                    except AttributeError:
-                        form_field.errors[None] = error["msg"]
-                    logger.debug(f"Form field errors {form_field.errors=}")
-                else:
-                    logger.debug(f"Unable to find form field for {loc=}")
+            incorporate_schema_validation_errors_into_form(exc.errors(), self)
 
 
 class SurveyMissionUpdateForm(_SurveyMissionForm):
@@ -215,20 +199,4 @@ class SurveyMissionUpdateForm(_SurveyMissionForm):
             )
         except pydantic.ValidationError as exc:
             logger.error(f"pydantic errors {exc.errors()=}")
-            for error in exc.errors():
-                if "id" in error["loc"]:
-                    # we don't care about validating errors related to missing id fields,
-                    # as the forms never have them
-                    continue
-                loc = error["loc"]
-                logger.debug(f"Analyzing error {loc=} {error['msg']=}...")
-                form_field = retrieve_form_field_by_pydantic_loc(self, loc)
-                logger.debug(f"{form_field=}")
-                if form_field is not None:
-                    try:
-                        form_field.errors.append(error["msg"])
-                    except AttributeError:
-                        form_field.errors[None] = error["msg"]
-                    logger.debug(f"Form field errors {form_field.errors=}")
-                else:
-                    logger.debug(f"Unable to find form field for {loc=}")
+            incorporate_schema_validation_errors_into_form(exc.errors(), self)

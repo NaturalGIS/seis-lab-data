@@ -18,10 +18,10 @@ from ... import (
 from ...db.queries import get_project_by_english_name
 from .common import (
     DescriptionForm,
+    incorporate_schema_validation_errors_into_form,
     get_form_field_by_name,
     LinkForm,
     NameForm,
-    retrieve_form_field_by_pydantic_loc,
 )
 
 logger = logging.getLogger(__name__)
@@ -152,23 +152,7 @@ class ProjectCreateForm(_ProjectForm):
             )
         except pydantic.ValidationError as exc:
             logger.error(f"pydantic errors {exc.errors()=}")
-            for error in exc.errors():
-                if "id" in error["loc"]:
-                    # we don't care about validating errors related to missing id fields,
-                    # as the forms never have them
-                    continue
-                loc = error["loc"]
-                logger.debug(f"Analyzing error {loc=} {error['msg']=}...")
-                form_field = retrieve_form_field_by_pydantic_loc(self, loc)
-                logger.debug(f"{form_field=}")
-                if form_field is not None:
-                    try:
-                        form_field.errors.append(error["msg"])
-                    except AttributeError:
-                        form_field.errors[None] = error["msg"]
-                    logger.debug(f"Form field errors {form_field.errors=}")
-                else:
-                    logger.debug(f"Unable to find form field for {loc=}")
+            incorporate_schema_validation_errors_into_form(exc.errors(), self)
 
 
 class ProjectUpdateForm(_ProjectForm):
@@ -202,20 +186,4 @@ class ProjectUpdateForm(_ProjectForm):
             )
         except pydantic.ValidationError as exc:
             logger.error(f"pydantic errors {exc.errors()=}")
-            for error in exc.errors():
-                if "id" in error["loc"]:
-                    # we don't care about validating errors related to missing id fields,
-                    # as the forms never have them
-                    continue
-                loc = error["loc"]
-                logger.debug(f"Analyzing error {loc=} {error['msg']=}...")
-                form_field = retrieve_form_field_by_pydantic_loc(self, loc)
-                logger.debug(f"{form_field=}")
-                if form_field is not None:
-                    try:
-                        form_field.errors.append(error["msg"])
-                    except AttributeError:
-                        form_field.errors[None] = error["msg"]
-                    logger.debug(f"Form field errors {form_field.errors=}")
-                else:
-                    logger.debug(f"Unable to find form field for {loc=}")
+            incorporate_schema_validation_errors_into_form(exc.errors(), self)

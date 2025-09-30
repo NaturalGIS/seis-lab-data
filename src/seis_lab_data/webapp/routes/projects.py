@@ -33,6 +33,7 @@ from .auth import (
     fancy_requires_auth,
 )
 from .common import (
+    get_id_from_request_path,
     get_pagination_info,
     produce_event_stream_for_topic,
 )
@@ -80,7 +81,7 @@ async def get_project_update_form(request: Request):
     """Return a form suitable for updating an existing project."""
     user = get_user(request.session.get("user", {}))
     session_maker = request.state.session_maker
-    project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
+    project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
     async with session_maker() as session:
         try:
             project = await operations.get_project(
@@ -181,7 +182,7 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
     user = get_user(request.session.get("user", {}))
     settings: config.SeisLabDataSettings = request.state.settings
     session_maker = request.state.session_maker
-    project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
+    project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
     async with session_maker() as session:
         try:
             project = await operations.get_project(
@@ -437,12 +438,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         template_processor: Jinja2Templates = request.state.templates
         user = get_user(request.session.get("user", {}))
         session_maker = request.state.session_maker
-        try:
-            project_id = schemas.ProjectId(
-                uuid.UUID(request.path_params.get("project_id"))
-            )
-        except ValueError:
-            raise HTTPException(400, "Invalid project ID format")
+        project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
         async with session_maker() as session:
             if (
                 project := await operations.get_project(
@@ -600,7 +596,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         """Delete a project."""
         user = get_user(request.session.get("user", {}))
         session_maker = request.state.session_maker
-        project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
+        project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
         async with session_maker() as session:
             try:
                 project = await operations.get_project(
@@ -679,7 +675,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
     async def post(self, request: Request):
         """Create a new survey mission belonging to the project."""
         user = get_user(request.session.get("user", {}))
-        project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
+        project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
         session_maker = request.state.session_maker
         template_processor: Jinja2Templates = request.state.templates
         creation_form = await forms.SurveyMissionCreateForm.from_formdata(request)

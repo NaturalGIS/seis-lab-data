@@ -20,6 +20,7 @@ from .surveyrelatedrecords import (
     can_delete_survey_related_record,
     can_delete_workflow_stage,
     can_read_survey_related_record,
+    can_update_survey_related_record,
 )
 
 __all__ = [
@@ -40,4 +41,5 @@ __all__ = [
     can_read_survey_related_record,
     can_update_project,
     can_update_survey_mission,
+    can_update_survey_related_record,
 ]

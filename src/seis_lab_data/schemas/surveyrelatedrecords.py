@@ -1,4 +1,5 @@
 import pydantic
+from typing import Annotated
 
 from ..db import models
 from ..constants import SurveyRelatedRecordStatus
@@ -56,6 +57,7 @@ class RecordAssetCreate(pydantic.BaseModel):
 
 
 class RecordAssetUpdate(pydantic.BaseModel):
+    id: RecordAssetId
     name: LocalizableDraftName | None = None
     description: LocalizableDraftDescription | None = None
     relative_path: str | None = None
@@ -115,30 +117,50 @@ class RecordAssetReadDetail(RecordAssetReadListItem):
         )
 
 
+def check_asset_english_names_for_uniqueness(
+    assets: list[RecordAssetCreate],
+) -> list[RecordAssetCreate]:
+    seen_names = set()
+    for asset in assets:
+        if asset.name.en in seen_names:
+            raise ValueError(f"Duplicate asset english name found: {asset.name.en!r}")
+        seen_names.add(asset.name.en)
+    return assets
+
+
 class SurveyRelatedRecordCreate(pydantic.BaseModel):
     id: SurveyRelatedRecordId
     owner: UserId
+    survey_mission_id: SurveyMissionId
+
     name: LocalizableDraftName
     description: LocalizableDraftDescription
-    survey_mission_id: SurveyMissionId
     dataset_category_id: DatasetCategoryId
     domain_type_id: DomainTypeId
     workflow_stage_id: WorkflowStageId
     relative_path: str
     links: list[LinkSchema] = []
-    assets: list[RecordAssetCreate] = []
+    assets: Annotated[
+        list[RecordAssetCreate],
+        pydantic.AfterValidator(check_asset_english_names_for_uniqueness),
+    ] = []
 
 
 class SurveyRelatedRecordUpdate(pydantic.BaseModel):
     owner: UserId | None = None
+    survey_mission_id: SurveyMissionId | None = None
+
     name: LocalizableDraftName | None = None
     description: LocalizableDraftDescription | None = None
-    survey_mission_id: SurveyMissionId | None = None
     dataset_category_id: DatasetCategoryId | None = None
     domain_type_id: DomainTypeId | None = None
     workflow_stage_id: WorkflowStageId | None = None
     relative_path: str | None = None
     links: list[LinkSchema] | None = None
+    assets: Annotated[
+        list[RecordAssetUpdate],
+        pydantic.AfterValidator(check_asset_english_names_for_uniqueness),
+    ] = []
 
 
 class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
