@@ -30,7 +30,6 @@ class GeoRasterMetadata:
     local:      bool
     geocentric: bool
 
-    projection: str
     central_meridian: float 
 
     extent:     [float]
