@@ -1,3 +1,6 @@
+
+## GEOTiff and other raster formats common metadata (GDAL Domains)
+
 | Format                       | Example Domains                                        |
 | ---------------------------- | ------------------------------------------------------ |
 | **GeoTIFF (.tif/.tiff)**     | `None`, `GEOTIFF`, `IMAGE_STRUCTURE`, `RPC`, `xml:XMP` |
@@ -12,23 +15,21 @@
 | **SAR / SAR-C**              | Depends on format; often `RPC`                         |
 
 
-## Hierarchy Clarified
+## Concepts Hierarchy
 
 ```
 Pixel space (row, col)
    │
-   ▼
-Raster→Model transform = affine mapping: pixels → coordinates (x,y)
+Raster→Model transform = affine mapping: pixels -> coordinates (x,y) (see GetProjection())
    │
-   ▼
 Coordinate Reference System (CRS) = semantics of (x,y)
    ├─ Ellipsoid
    ├─ Datum
    ├─ Geographic CRS (lat/lon)
    ├─ Projected CRS
-   │    └─ Projection (spherical/ellipsoidal → plane mapping)
+   │    └─ Projection (spherical/ellipsoidal -> plane mapping)
    │
-   ▼
+   v
 AUTHORITY (e.g. EPSG:4326 = WGS84 geographic)
 ```
 
@@ -47,14 +48,14 @@ CRS
 
 A projection specifies:
 
- * The mathematical transformation from latitude/longitude (on the ellipsoid) → planar x/y.
+ * The mathematical transformation from latitude/longitude (on the ellipsoid) -> planar x/y.
  * The parameters of that transform:
     1. central meridian
     2. latitude of origin
     3. scale factor
-    4. false easting / northing
+    4. false easting / northing (?)
 
-Projection definition are ofter standardized by authorities (EPSG)
+Projection definition are standardized by authorities (EPSG)
 
  * EPSG:4326 → WGS84 geographic CRS (no projection, lat/lon)
  * EPSG:32633 → WGS84 / UTM zone 33N = (datum: WGS84 + projection: Transverse Mercator + params)
