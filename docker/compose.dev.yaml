@@ -182,6 +182,20 @@ services:
     volumes:
       *common-volumes
 
+  object-storage:
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+
+  # needs a /data directory with pmtiles files, or maybe even better, use a bucket from minio
+  static-tile-server:
+    image: protomaps/go-pmtiles:v1.28.1
+    volumes:
+      - type: bind
+        source: ../data/pmtiles
+        target: /data
+        read_only: true
+    command:
+      - "serve /data --public-url=http://localhost:8888/tiles"
+
   jupyter:
     image: *common-image
     environment:
