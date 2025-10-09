@@ -31,24 +31,10 @@ from .surveymissions import (
     SurveyMissionCollectionEndpoint,
     SurveyMissionDetailEndpoint,
 )
-from .surveyrelatedrecords import (
-    add_create_survey_related_record_form_link,
-    add_create_survey_related_record_form_asset,
-    add_create_survey_related_record_form_asset_link,
-    get_survey_related_record_creation_form,
-    remove_create_survey_related_record_form_link,
-    remove_create_survey_related_record_form_asset,
-    remove_create_survey_related_record_form_asset_link,
-    SurveyRelatedRecordCollectionEndpoint,
-    SurveyRelatedRecordDetailEndpoint,
-)
 
 __ALL__ = [
     add_create_project_form_link,
     add_create_survey_mission_form_link,
-    add_create_survey_related_record_form_asset,
-    add_create_survey_related_record_form_link,
-    add_create_survey_related_record_form_asset_link,
     add_update_project_form_link,
     add_update_survey_mission_form_link,
     auth_callback,
@@ -59,7 +45,6 @@ __ALL__ = [
     get_survey_mission_creation_form,
     get_survey_mission_details_component,
     get_survey_mission_update_form,
-    get_survey_related_record_creation_form,
     home,
     login,
     logout,
@@ -69,14 +54,9 @@ __ALL__ = [
     protected,
     remove_create_project_form_link,
     remove_create_survey_mission_form_link,
-    remove_create_survey_related_record_form_asset,
-    remove_create_survey_related_record_form_asset_link,
-    remove_create_survey_related_record_form_link,
     remove_update_project_form_link,
     remove_update_survey_mission_form_link,
     set_language,
     SurveyMissionCollectionEndpoint,
     SurveyMissionDetailEndpoint,
-    SurveyRelatedRecordCollectionEndpoint,
-    SurveyRelatedRecordDetailEndpoint,
 ]

@@ -18,6 +18,7 @@ from starlette_babel import gettext_lazy as _
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
+from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 from starlette_wtf import csrf_protect
 
@@ -135,7 +136,7 @@ async def _get_survey_related_record_details(
 
 
 @fancy_requires_auth
-async def get_survey_related_record_details_component(request: Request):
+async def get_details_component(request: Request):
     details = await _get_survey_related_record_details(request)
     template_processor = request.state.templates
     template = template_processor.get_template(
@@ -163,7 +164,9 @@ FormType = TypeVar(
 )
 
 
-async def _build_form_instance(request: Request, form_type: type[FormType]) -> FormType:
+async def build_survey_related_record_form_instance(
+    request: Request, form_type: type[FormType]
+) -> FormType:
     form_instance = await form_type.from_formdata(request)
     current_language = request.state.language
     async with request.state.session_maker() as session:
@@ -191,7 +194,9 @@ async def _build_form_instance(request: Request, form_type: type[FormType]) -> F
     return form_instance
 
 
-async def _get_parent_survey_mission(request: Request) -> models.SurveyMission:
+async def get_record_parent_survey_mission_from_request(
+    request: Request,
+) -> models.SurveyMission:
     user = get_user(request.session.get("user", {}))
     parent_survey_mission_id = get_id_from_request_path(
         request, "survey_mission_id", schemas.SurveyMissionId
@@ -210,11 +215,11 @@ async def _get_parent_survey_mission(request: Request) -> models.SurveyMission:
 
 @csrf_protect
 @fancy_requires_auth
-async def get_survey_related_record_creation_form(request: Request):
-    """Get survey-related record creation form."""
-    parent_survey_mission = await _get_parent_survey_mission(request)
+async def get_creation_form(request: Request):
+    """Show an HTML form for the client to prepare a record creation operation."""
+    parent_survey_mission = await get_record_parent_survey_mission_from_request(request)
     survey_mission_id = schemas.SurveyMissionId(parent_survey_mission.id)
-    form_instance = await _build_form_instance(
+    form_instance = await build_survey_related_record_form_instance(
         request, forms.SurveyRelatedRecordCreateForm
     )
 
@@ -256,139 +261,11 @@ async def get_survey_related_record_creation_form(request: Request):
 
 
 @csrf_protect
-async def add_create_survey_related_record_form_asset_link(request: Request):
-    """Add an asset link form to a create_survey_related_record form."""
-    survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
-    )
-    asset_index = int(request.path_params["asset_index"])
-    form_instance = await _build_form_instance(
-        request, forms.SurveyRelatedRecordCreateForm
-    )
-    form_instance.assets[asset_index].asset_links.append_entry()
-    template_processor: Jinja2Templates = request.state.templates
-    template = template_processor.get_template(
-        "survey-related-records/create-form.html"
-    )
-    rendered = template.render(
-        form=form_instance,
-        request=request,
-        survey_mission_id=survey_mission_id,
-    )
-
-    async def event_streamer():
-        yield ServerSentEventGenerator.patch_elements(
-            rendered,
-            selector="#survey-related-record-create-form-container",
-            mode=ElementPatchMode.INNER,
-        )
-
-    return DatastarResponse(event_streamer())
-
-
-@csrf_protect
-async def remove_create_survey_related_record_form_asset_link(request: Request):
-    """Remove an asset link form to a create_survey_related_record form."""
-    survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
-    )
-
-    asset_index = int(request.path_params["asset_index"])
-    link_index = int(request.query_params.get("link_index", 0))
-
-    form_instance = await _build_form_instance(
-        request, forms.SurveyRelatedRecordCreateForm
-    )
-
-    form_instance.assets[asset_index].asset_links.entries.pop(link_index)
-    template_processor: Jinja2Templates = request.state.templates
-    template = template_processor.get_template(
-        "survey-related-records/create-form.html"
-    )
-    rendered = template.render(
-        form=form_instance,
-        request=request,
-        survey_mission_id=survey_mission_id,
-    )
-
-    async def event_streamer():
-        yield ServerSentEventGenerator.patch_elements(
-            rendered,
-            selector="#survey-related-record-create-form-container",
-            mode=ElementPatchMode.INNER,
-        )
-
-    return DatastarResponse(event_streamer())
-
-
-@csrf_protect
-async def add_create_survey_related_record_form_asset(request: Request):
-    """Add an asset form to a create_survey_related_record form."""
+async def add_creation_form_link(request: Request):
     parent_survey_mission_id = get_id_from_request_path(
         request, "survey_mission_id", schemas.SurveyMissionId
     )
-    form_instance = await _build_form_instance(
-        request, forms.SurveyRelatedRecordCreateForm
-    )
-    form_instance.assets.append_entry()
-    template_processor: Jinja2Templates = request.state.templates
-    template = template_processor.get_template(
-        "survey-related-records/create-form.html"
-    )
-    rendered = template.render(
-        form=form_instance,
-        request=request,
-        survey_mission_id=parent_survey_mission_id,
-    )
-
-    async def event_streamer():
-        yield ServerSentEventGenerator.patch_elements(
-            rendered,
-            selector="#survey-related-record-create-form-container",
-            mode=ElementPatchMode.INNER,
-        )
-
-    return DatastarResponse(event_streamer())
-
-
-@csrf_protect
-async def remove_create_survey_related_record_form_asset(request: Request):
-    """Remove an asset from a create_survey_related_record form."""
-    parent_survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
-    )
-    form_instance = await _build_form_instance(
-        request, forms.SurveyRelatedRecordCreateForm
-    )
-    asset_index = int(request.query_params.get("asset_index", 0))
-    form_instance.assets.entries.pop(asset_index)
-    template_processor: Jinja2Templates = request.state.templates
-    template = template_processor.get_template(
-        "survey-related-records/create-form.html"
-    )
-    rendered = template.render(
-        form=form_instance,
-        request=request,
-        survey_mission_id=parent_survey_mission_id,
-    )
-
-    async def event_streamer():
-        yield ServerSentEventGenerator.patch_elements(
-            rendered,
-            selector="#survey-related-record-create-form-container",
-            mode=ElementPatchMode.INNER,
-        )
-
-    return DatastarResponse(event_streamer())
-
-
-@csrf_protect
-async def add_create_survey_related_record_form_link(request: Request):
-    """Add a form link to a create_survey_related_record form."""
-    parent_survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
-    )
-    form_instance = await _build_form_instance(
+    form_instance = await build_survey_related_record_form_instance(
         request, forms.SurveyRelatedRecordCreateForm
     )
     form_instance.links.append_entry()
@@ -405,7 +282,7 @@ async def add_create_survey_related_record_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector="#survey-related-record-create-form-container",
+            selector=_SELECTOR_INFO.item_details,
             mode=ElementPatchMode.INNER,
         )
 
@@ -413,12 +290,11 @@ async def add_create_survey_related_record_form_link(request: Request):
 
 
 @csrf_protect
-async def remove_create_survey_related_record_form_link(request: Request):
-    """Remove a form link from a create_survey_related_record form."""
+async def remove_creation_form_link(request: Request):
     parent_survey_mission_id = get_id_from_request_path(
         request, "survey_mission_id", schemas.SurveyMissionId
     )
-    form_instance = await _build_form_instance(
+    form_instance = await build_survey_related_record_form_instance(
         request, forms.SurveyRelatedRecordCreateForm
     )
     link_index = int(request.query_params.get("link_index", 0))
@@ -436,7 +312,333 @@ async def remove_create_survey_related_record_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector="#survey-related-record-create-form-container",
+            selector=_SELECTOR_INFO.item_details,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def add_creation_form_asset(request: Request):
+    parent_survey_mission_id = get_id_from_request_path(
+        request, "survey_mission_id", schemas.SurveyMissionId
+    )
+    form_instance = await build_survey_related_record_form_instance(
+        request, forms.SurveyRelatedRecordCreateForm
+    )
+    form_instance.assets.append_entry()
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/create-form.html"
+    )
+    rendered = template.render(
+        form=form_instance,
+        request=request,
+        survey_mission_id=parent_survey_mission_id,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=_SELECTOR_INFO.item_details,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def remove_creation_form_asset(request: Request):
+    parent_survey_mission_id = get_id_from_request_path(
+        request, "survey_mission_id", schemas.SurveyMissionId
+    )
+    form_instance = await build_survey_related_record_form_instance(
+        request, forms.SurveyRelatedRecordCreateForm
+    )
+    asset_index = int(request.query_params.get("asset_index", 0))
+    form_instance.assets.entries.pop(asset_index)
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/create-form.html"
+    )
+    rendered = template.render(
+        form=form_instance,
+        request=request,
+        survey_mission_id=parent_survey_mission_id,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=_SELECTOR_INFO.item_details,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def add_creation_form_asset_link(request: Request):
+    survey_mission_id = get_id_from_request_path(
+        request, "survey_mission_id", schemas.SurveyMissionId
+    )
+    asset_index = int(request.path_params["asset_index"])
+    form_instance = await build_survey_related_record_form_instance(
+        request, forms.SurveyRelatedRecordCreateForm
+    )
+    form_instance.assets[asset_index].asset_links.append_entry()
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/create-form.html"
+    )
+    rendered = template.render(
+        form=form_instance,
+        request=request,
+        survey_mission_id=survey_mission_id,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=_SELECTOR_INFO.item_details,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def remove_creation_form_asset_link(request: Request):
+    survey_mission_id = get_id_from_request_path(
+        request, "survey_mission_id", schemas.SurveyMissionId
+    )
+
+    asset_index = int(request.path_params["asset_index"])
+    link_index = int(request.query_params.get("link_index", 0))
+
+    form_instance = await build_survey_related_record_form_instance(
+        request, forms.SurveyRelatedRecordCreateForm
+    )
+
+    form_instance.assets[asset_index].asset_links.entries.pop(link_index)
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/create-form.html"
+    )
+    rendered = template.render(
+        form=form_instance,
+        request=request,
+        survey_mission_id=survey_mission_id,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=_SELECTOR_INFO.item_details,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def get_update_form(request: Request):
+    """Show an HTML form for the client to prepare a record update operation."""
+    details = await _get_survey_related_record_details(request)
+    form_instance = await build_survey_related_record_form_instance(
+        request, forms.SurveyRelatedRecordUpdateForm
+    )
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/update-form.html"
+    )
+    rendered = template.render(
+        request=request,
+        survey_related_record=details.item,
+        form=form_instance,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=_SELECTOR_INFO.item_details,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def add_update_form_link(request: Request):
+    details = await _get_survey_related_record_details(request)
+    form_instance = await build_survey_related_record_form_instance(
+        request, forms.SurveyRelatedRecordUpdateForm
+    )
+    # TODO: implement some logic to limit the number of links that can be added
+    form_instance.links.append_entry()
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/update-form.html"
+    )
+    rendered = template.render(
+        form=form_instance,
+        request=request,
+        survey_related_record=details.item,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=_SELECTOR_INFO.item_details,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def remove_update_form_link(request: Request):
+    details = await _get_survey_related_record_details(request)
+    form_instance = await build_survey_related_record_form_instance(
+        request, forms.SurveyRelatedRecordUpdateForm
+    )
+    # TODO: Check we are not trying to remove an index that is invalid
+    link_index = int(request.query_params.get("link_index", 0))
+    form_instance.links.entries.pop(link_index)
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/update-form.html"
+    )
+    rendered = template.render(
+        form=form_instance,
+        request=request,
+        survey_related_record=details.item,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=_SELECTOR_INFO.item_details,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def add_update_form_asset(request: Request):
+    details = await _get_survey_related_record_details(request)
+    form_instance = await build_survey_related_record_form_instance(
+        request, forms.SurveyRelatedRecordUpdateForm
+    )
+    # TODO: implement some logic to limit the number of assets that can be added
+    form_instance.assets.append_entry()
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/update-form.html"
+    )
+    rendered = template.render(
+        form=form_instance,
+        request=request,
+        survey_related_record=details.item,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=_SELECTOR_INFO.item_details,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def remove_update_form_asset(request: Request):
+    details = await _get_survey_related_record_details(request)
+    form_instance = await build_survey_related_record_form_instance(
+        request, forms.SurveyRelatedRecordUpdateForm
+    )
+    # TODO: Check we are not trying to remove an index that is invalid
+    link_index = int(request.query_params.get("link_index", 0))
+    form_instance.asset.entries.pop(link_index)
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/update-form.html"
+    )
+    rendered = template.render(
+        form=form_instance,
+        request=request,
+        survey_related_record=details.item,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=_SELECTOR_INFO.item_details,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def add_update_form_asset_link(request: Request):
+    details = await _get_survey_related_record_details(request)
+    # TODO: Check we have a valid index
+    asset_index = int(request.path_params["asset_index"])
+    form_instance = await build_survey_related_record_form_instance(
+        request, forms.SurveyRelatedRecordUpdateForm
+    )
+    # TODO: implement some logic to limit the number of links that can be added
+    form_instance.assets[asset_index].asset_links.append_entry()
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/update-form.html"
+    )
+    rendered = template.render(
+        form=form_instance,
+        request=request,
+        survey_related_record=details.item,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=_SELECTOR_INFO.item_details,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def remove_update_form_asset_link(request: Request):
+    details = await _get_survey_related_record_details(request)
+    # TODO: Check we have valid indexes for both asset and link
+    asset_index = int(request.path_params["asset_index"])
+    link_index = int(request.query_params.get("link_index", 0))
+
+    form_instance = await build_survey_related_record_form_instance(
+        request, forms.SurveyRelatedRecordUpdateForm
+    )
+
+    form_instance.assets[asset_index].asset_links.entries.pop(link_index)
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/update-form.html"
+    )
+    rendered = template.render(
+        form=form_instance,
+        request=request,
+        survey_related_record=details.item,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=_SELECTOR_INFO.item_details,
             mode=ElementPatchMode.INNER,
         )
 
@@ -565,9 +767,8 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         survey_related_record_id = get_id_from_request_path(
             request, "survey_related_record_id", schemas.SurveyRelatedRecordId
         )
-        session_maker = request.state.session_maker
         user = get_user(request.session.get("user", {}))
-        async with session_maker() as session:
+        async with request.state.session_maker() as session:
             if (
                 survey_related_record := await operations.get_survey_related_record(
                     survey_related_record_id,
@@ -848,3 +1049,108 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 yield sse_event
 
         return DatastarResponse(event_streamer(), status_code=202)
+
+
+routes = [
+    Route(
+        "/{survey_mission_id}/new",
+        get_creation_form,
+        methods=["GET"],
+        name="get_creation_form",
+    ),
+    Route(
+        "/{survey_mission_id}/new/add-form-link",
+        add_creation_form_link,
+        methods=["POST"],
+        name="add_form_link",
+    ),
+    Route(
+        "/{survey_mission_id}/new/remove-form-link",
+        remove_creation_form_link,
+        methods=["POST"],
+        name="remove_form_link",
+    ),
+    Route(
+        "/{survey_mission_id}/new/add-asset-form",
+        add_creation_form_asset,
+        methods=["POST"],
+        name="add_asset_form",
+    ),
+    Route(
+        "/{survey_mission_id}/new/remove-asset-form",
+        remove_creation_form_asset,
+        methods=["POST"],
+        name="remove_asset_form",
+    ),
+    Route(
+        "/{survey_mission_id}/new/add-asset-link-form/{asset_index}",
+        add_creation_form_asset_link,
+        methods=["POST"],
+        name="add_asset_link_form",
+    ),
+    Route(
+        "/{survey_mission_id}/new/remove-asset-link-form/{asset_index}",
+        remove_creation_form_asset_link,
+        methods=["POST"],
+        name="remove_asset_link_form",
+    ),
+    Route(
+        "/",
+        SurveyRelatedRecordCollectionEndpoint,
+        methods=["GET"],
+        name="list",
+    ),
+    Route(
+        "/{survey_related_record_id}",
+        SurveyRelatedRecordDetailEndpoint,
+        name="detail",
+    ),
+    Route(
+        "/{survey_related_record_id}/details",
+        get_details_component,
+        methods=["GET"],
+        name="get_details_component",
+    ),
+    Route(
+        "/{survey_related_record_id}/update",
+        get_update_form,
+        methods=["GET"],
+        name="get_update_form",
+    ),
+    Route(
+        "/{survey_related_record_id}/update/add-form-link",
+        add_update_form_link,
+        methods=["POST"],
+        name="add_update_form_link",
+    ),
+    Route(
+        "/{survey_related_record_id}/update/remove-form-link",
+        remove_update_form_link,
+        methods=["POST"],
+        name="remove_update_form_link",
+    ),
+    Route(
+        "/{survey_related_record_id}/update/add-asset-form",
+        add_update_form_asset,
+        methods=["POST"],
+        name="add_update_form_asset",
+    ),
+    Route(
+        "/{survey_related_record_id}/update/remove-asset-form",
+        remove_update_form_asset,
+        methods=["POST"],
+        name="remove_update_form_asset",
+    ),
+    Route(
+        "/{survey_related_record_id}/update/add-asset-link-form",
+        add_update_form_asset_link,
+        methods=["POST"],
+        name="add_update_form_asset_link",
+    ),
+    Route(
+        "/{survey_related_record_id}/update/remove-asset-link-form",
+        remove_update_form_asset_link,
+        methods=["POST"],
+        name="remove_update_form_asset_link",
+    ),
+]

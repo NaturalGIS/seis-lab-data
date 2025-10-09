@@ -40,6 +40,7 @@ from ..db.engine import (
 from ..processing.broker import setup_broker
 
 from . import routes
+from .routes.surveyrelatedrecords import routes as records_routes
 from .jinjafilters import (
     translate_enum,
     translate_localizable_string,
@@ -210,97 +211,7 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
             Mount(
                 "/survey-related-records",
                 name="survey_related_records",
-                routes=[
-                    Route(
-                        "/",
-                        routes.SurveyRelatedRecordCollectionEndpoint,
-                        methods=["GET"],
-                        name="list",
-                    ),
-                    Route(
-                        "/{survey_mission_id}/new",
-                        routes.get_survey_related_record_creation_form,
-                        methods=["GET"],
-                        name="get_creation_form",
-                    ),
-                    Route(
-                        "/{survey_mission_id}/new/add-form-link",
-                        routes.add_create_survey_related_record_form_link,
-                        methods=["POST"],
-                        name="add_form_link",
-                    ),
-                    Route(
-                        "/{survey_mission_id}/new/remove-form-link",
-                        routes.remove_create_survey_related_record_form_link,
-                        methods=["POST"],
-                        name="remove_form_link",
-                    ),
-                    Route(
-                        "/{survey_mission_id}/new/add-asset-form",
-                        routes.add_create_survey_related_record_form_asset,
-                        methods=["POST"],
-                        name="add_asset_form",
-                    ),
-                    Route(
-                        "/{survey_mission_id}/new/remove-asset-form",
-                        routes.remove_create_survey_related_record_form_asset,
-                        methods=["POST"],
-                        name="remove_asset_form",
-                    ),
-                    Route(
-                        "/{survey_mission_id}/new/add-asset-link-form/{asset_index}",
-                        routes.add_create_survey_related_record_form_asset_link,
-                        methods=["POST"],
-                        name="add_asset_link_form",
-                    ),
-                    Route(
-                        "/{survey_mission_id}/new/remove-asset-link-form/{asset_index}",
-                        routes.remove_create_survey_related_record_form_asset_link,
-                        methods=["POST"],
-                        name="remove_asset_link_form",
-                    ),
-                    Route(
-                        "/{survey_related_record_id}/add-update-form-link",
-                        routes.add_update_survey_related_record_form_link,
-                        methods=["POST"],
-                        name="add_update_form_link",
-                    ),
-                    Route(
-                        "/{survey_related_record_id}/remove-update-form-link",
-                        routes.remove_update_survey_related_record_form_link,
-                        methods=["POST"],
-                        name="remove_update_form_link",
-                    ),
-                    Route(
-                        "/{survey_related_record_id}/add-asset-form",
-                        routes.add_update_survey_related_record_form_asset,
-                        methods=["POST"],
-                        name="add_update_form_asset",
-                    ),
-                    Route(
-                        "/{survey_related_record_id}/remove-asset-form",
-                        routes.remove_update_survey_related_record_form_asset,
-                        methods=["POST"],
-                        name="remove_update_form_asset",
-                    ),
-                    Route(
-                        "/{survey_related_record_id}/details",
-                        routes.get_survey_related_record_details_component,
-                        methods=["GET"],
-                        name="get_details_component",
-                    ),
-                    Route(
-                        "/{survey_related_record_id}/update",
-                        routes.get_survey_related_record_update_form,
-                        methods=["GET"],
-                        name="get_update_form",
-                    ),
-                    Route(
-                        "/{survey_related_record_id}",
-                        routes.SurveyRelatedRecordDetailEndpoint,
-                        name="detail",
-                    ),
-                ],
+                routes=records_routes,
             ),
         ],
         lifespan=lifespan,

@@ -36,7 +36,6 @@ from .common import (
     get_pagination_info,
     produce_event_stream_for_topic,
 )
-from .surveyrelatedrecords import generate_survey_related_record_creation_form
 
 logger = logging.getLogger(__name__)
 
@@ -467,40 +466,28 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         survey_mission_id = get_id_from_request_path(
             request, "survey_mission_id", schemas.SurveyMissionId
         )
-        (
-            creation_form,
-            survey_mission,
-        ) = await generate_survey_related_record_creation_form(request)
-        session_maker = request.state.session_maker
-        template_processor: Jinja2Templates = request.state.templates
-        try:
-            await creation_form.validate_on_submit()
-        except TypeError as err:
-            logger.exception("Failed to create survey-related record creation form.")
-            raise HTTPException(status_code=500) from err
-        creation_form.validate_with_schema()
-        async with session_maker() as session:
-            await creation_form.check_if_english_name_is_unique_for_survey_mission(
-                session, survey_mission_id
+        form_instance = (
+            await forms.SurveyRelatedRecordCreateForm.get_validated_form_instance(
+                request, survey_mission_id
             )
-        form_is_valid = creation_form.has_validation_errors()
-        logger.debug(f"{form_is_valid=}")
+        )
+        template_processor: Jinja2Templates = request.state.templates
 
-        if not form_is_valid:
+        if form_instance.has_validation_errors():
             logger.debug("form did not validate")
             template = template_processor.get_template(
                 "survey-related-records/create-form.html"
             )
             rendered = template.render(
                 request=request,
-                form=creation_form,
+                form=form_instance,
                 survey_mission_id=survey_mission_id,
             )
 
             async def event_streamer():
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
-                    selector="#survey-related-record-create-form-container",
+                    selector=_SELECTOR_INFO.item_details,
                     mode=ElementPatchMode.INNER,
                 )
 
@@ -512,17 +499,17 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             survey_mission_id=survey_mission_id,
             owner=user.id,
             name=schemas.LocalizableDraftName(
-                en=creation_form.name.en.data,
-                pt=creation_form.name.pt.data,
+                en=form_instance.name.en.data,
+                pt=form_instance.name.pt.data,
             ),
             description=schemas.LocalizableDraftDescription(
-                en=creation_form.description.en.data,
-                pt=creation_form.description.pt.data,
+                en=form_instance.description.en.data,
+                pt=form_instance.description.pt.data,
             ),
-            relative_path=creation_form.relative_path.data,
-            dataset_category_id=creation_form.dataset_category_id.data,
-            domain_type_id=creation_form.domain_type_id.data,
-            workflow_stage_id=creation_form.workflow_stage_id.data,
+            relative_path=form_instance.relative_path.data,
+            dataset_category_id=form_instance.dataset_category_id.data,
+            domain_type_id=form_instance.domain_type_id.data,
+            workflow_stage_id=form_instance.workflow_stage_id.data,
             links=[
                 schemas.LinkSchema(
                     url=lf.url.data,
@@ -533,7 +520,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                         pt=lf.link_description.pt.data,
                     ),
                 )
-                for lf in creation_form.links.entries
+                for lf in form_instance.links.entries
             ],
             assets=[
                 schemas.RecordAssetCreate(
@@ -560,7 +547,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                         for afl in af.asset_links.entries
                     ],
                 )
-                for af in creation_form.assets.entries
+                for af in form_instance.assets.entries
             ],
         )
         logger.info(f"{to_create=}")
@@ -622,9 +609,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             async for sse_event in event_stream_generator:
                 yield sse_event
 
-        return DatastarResponse(
-            stream_events(), status_code=202 if form_is_valid else 422
-        )
+        return DatastarResponse(stream_events(), status_code=202)
 
     @csrf_protect
     @fancy_requires_auth
