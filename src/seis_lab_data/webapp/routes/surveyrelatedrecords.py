@@ -124,7 +124,7 @@ async def _get_survey_related_record_details(
                 url=str(
                     request.url_for(
                         "survey_missions:detail",
-                        project_id=survey_related_record.survey_mission.id,
+                        survey_mission_id=survey_related_record.survey_mission.id,
                     )
                 ),
             ),
@@ -616,13 +616,23 @@ async def add_update_form_asset_link(request: Request):
 @csrf_protect
 async def remove_update_form_asset_link(request: Request):
     details = await _get_survey_related_record_details(request)
-    # TODO: Check we have valid indexes for both asset and link
-    asset_index = int(request.path_params["asset_index"])
-    link_index = int(request.query_params.get("link_index", 0))
-
     form_instance = await build_survey_related_record_form_instance(
         request, forms.SurveyRelatedRecordUpdateForm
     )
+    try:
+        asset_index = int(request.path_params["asset_index"])
+        if asset_index < 0 or asset_index >= len(form_instance.assets.entries):
+            raise RuntimeError("Invalid asset index")
+    except (ValueError, KeyError):
+        raise HTTPException(404, "Invalid asset index")
+    try:
+        link_index = int(request.query_params.get("link_index", 0))
+        if link_index < 0 or link_index >= len(
+            form_instance.assets[asset_index].links.entries
+        ):
+            raise RuntimeError("Invalid asset link index")
+    except (ValueError, KeyError):
+        raise HTTPException(404, "Invalid asset link index")
 
     form_instance.assets[asset_index].asset_links.entries.pop(link_index)
     template_processor: Jinja2Templates = request.state.templates
@@ -643,57 +653,6 @@ async def remove_update_form_asset_link(request: Request):
         )
 
     return DatastarResponse(event_streamer())
-
-
-# TODO: remove this function and use _build_form_instance() and _get_parent_survey_mission() instead
-async def generate_survey_related_record_creation_form(
-    request: Request,
-) -> tuple[forms.SurveyRelatedRecordCreateForm, models.SurveyMission]:
-    user = get_user(request.session.get("user", {}))
-    survey_mission_id = schemas.SurveyMissionId(
-        uuid.UUID(request.path_params["survey_mission_id"])
-    )
-    session_maker = request.state.session_maker
-    creation_form = await forms.SurveyRelatedRecordCreateForm.from_formdata(request)
-    current_language = request.state.language
-
-    async with session_maker() as session:
-        try:
-            creation_form.dataset_category_id.choices = [
-                (dc.id, dc.name.get(current_language, dc.name["en"]))
-                for dc in await queries.collect_all_dataset_categories(
-                    session,
-                    order_by_clause=models.DatasetCategory.name[
-                        current_language
-                    ].astext,
-                )
-            ]
-            creation_form.domain_type_id.choices = [
-                (dt.id, dt.name.get(current_language, dt.name["en"]))
-                for dt in await queries.collect_all_domain_types(
-                    session,
-                    order_by_clause=models.DomainType.name[current_language].astext,
-                )
-            ]
-            creation_form.workflow_stage_id.choices = [
-                (ws.id, ws.name.get(current_language, ws.name["en"]))
-                for ws in await queries.collect_all_workflow_stages(
-                    session,
-                    order_by_clause=models.WorkflowStage.name[current_language].astext,
-                )
-            ]
-
-            survey_mission = await operations.get_survey_mission(
-                survey_mission_id, user, session, request.state.settings
-            )
-        except errors.SeisLabDataError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
-        if survey_mission is None:
-            raise HTTPException(
-                status_code=404,
-                detail=_(f"Survey mission {survey_mission_id!r} not found."),
-            )
-    return creation_form, survey_mission
 
 
 class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
