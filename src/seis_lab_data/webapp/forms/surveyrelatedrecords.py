@@ -19,7 +19,10 @@ from ... import (
     constants,
     schemas,
 )
-from ...db.queries import get_survey_related_record_by_english_name
+from ...db import (
+    models,
+    queries,
+)
 from .common import (
     DescriptionForm,
     get_form_field_by_name,
@@ -107,7 +110,7 @@ class _SurveyRelatedRecordForm(StarletteForm):
         error_message = _(
             "There is already a survey-related record with this english name under the same survey mission"
         )
-        if candidate := await get_survey_related_record_by_english_name(
+        if candidate := await queries.get_survey_related_record_by_english_name(
             session, survey_mission_id, self.name.en.data
         ):
             if disregard_id:
@@ -136,6 +139,41 @@ class _SurveyRelatedRecordForm(StarletteForm):
         raise NotImplementedError()
 
     @classmethod
+    async def from_request(cls, request):
+        """Creates a form instance from the request.
+
+        This method's main reason for existing is to ensure select fields are
+        populated dynamically, with choices from the database.
+        """
+        form_instance = await cls.from_formdata(request)
+        current_language = request.state.language
+        async with request.state.session_maker() as session:
+            form_instance.dataset_category_id.choices = [
+                (dc.id, dc.name.get(current_language, dc.name["en"]))
+                for dc in await queries.collect_all_dataset_categories(
+                    session,
+                    order_by_clause=models.DatasetCategory.name[
+                        current_language
+                    ].astext,
+                )
+            ]
+            form_instance.domain_type_id.choices = [
+                (dt.id, dt.name.get(current_language, dt.name["en"]))
+                for dt in await queries.collect_all_domain_types(
+                    session,
+                    order_by_clause=models.DomainType.name[current_language].astext,
+                )
+            ]
+            form_instance.workflow_stage_id.choices = [
+                (ws.id, ws.name.get(current_language, ws.name["en"]))
+                for ws in await queries.collect_all_workflow_stages(
+                    session,
+                    order_by_clause=models.WorkflowStage.name[current_language].astext,
+                )
+            ]
+        return form_instance
+
+    @classmethod
     async def get_validated_form_instance(
         cls,
         request: Request,
@@ -154,7 +192,7 @@ class _SurveyRelatedRecordForm(StarletteForm):
         The already validated form instance is returned.
         """
 
-        form_instance = await cls.from_formdata(request)
+        form_instance = await cls.from_request(request)
         await form_instance.validate_on_submit()
         form_instance.validate_with_schema()
         session_maker = request.state.session_maker

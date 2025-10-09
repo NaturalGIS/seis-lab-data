@@ -219,10 +219,7 @@ async def get_creation_form(request: Request):
     """Show an HTML form for the client to prepare a record creation operation."""
     parent_survey_mission = await get_record_parent_survey_mission_from_request(request)
     survey_mission_id = schemas.SurveyMissionId(parent_survey_mission.id)
-    form_instance = await build_survey_related_record_form_instance(
-        request, forms.SurveyRelatedRecordCreateForm
-    )
-
+    form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     template_processor: Jinja2Templates = request.state.templates
     return template_processor.TemplateResponse(
         request,
@@ -265,9 +262,7 @@ async def add_creation_form_link(request: Request):
     parent_survey_mission_id = get_id_from_request_path(
         request, "survey_mission_id", schemas.SurveyMissionId
     )
-    form_instance = await build_survey_related_record_form_instance(
-        request, forms.SurveyRelatedRecordCreateForm
-    )
+    form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     form_instance.links.append_entry()
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template(
@@ -294,9 +289,7 @@ async def remove_creation_form_link(request: Request):
     parent_survey_mission_id = get_id_from_request_path(
         request, "survey_mission_id", schemas.SurveyMissionId
     )
-    form_instance = await build_survey_related_record_form_instance(
-        request, forms.SurveyRelatedRecordCreateForm
-    )
+    form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     link_index = int(request.query_params.get("link_index", 0))
     form_instance.links.entries.pop(link_index)
     template_processor: Jinja2Templates = request.state.templates
@@ -324,9 +317,7 @@ async def add_creation_form_asset(request: Request):
     parent_survey_mission_id = get_id_from_request_path(
         request, "survey_mission_id", schemas.SurveyMissionId
     )
-    form_instance = await build_survey_related_record_form_instance(
-        request, forms.SurveyRelatedRecordCreateForm
-    )
+    form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     form_instance.assets.append_entry()
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template(
@@ -353,9 +344,7 @@ async def remove_creation_form_asset(request: Request):
     parent_survey_mission_id = get_id_from_request_path(
         request, "survey_mission_id", schemas.SurveyMissionId
     )
-    form_instance = await build_survey_related_record_form_instance(
-        request, forms.SurveyRelatedRecordCreateForm
-    )
+    form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     asset_index = int(request.query_params.get("asset_index", 0))
     form_instance.assets.entries.pop(asset_index)
     template_processor: Jinja2Templates = request.state.templates
@@ -384,9 +373,7 @@ async def add_creation_form_asset_link(request: Request):
         request, "survey_mission_id", schemas.SurveyMissionId
     )
     asset_index = int(request.path_params["asset_index"])
-    form_instance = await build_survey_related_record_form_instance(
-        request, forms.SurveyRelatedRecordCreateForm
-    )
+    form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     form_instance.assets[asset_index].asset_links.append_entry()
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template(
@@ -417,9 +404,7 @@ async def remove_creation_form_asset_link(request: Request):
     asset_index = int(request.path_params["asset_index"])
     link_index = int(request.query_params.get("link_index", 0))
 
-    form_instance = await build_survey_related_record_form_instance(
-        request, forms.SurveyRelatedRecordCreateForm
-    )
+    form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
 
     form_instance.assets[asset_index].asset_links.entries.pop(link_index)
     template_processor: Jinja2Templates = request.state.templates
@@ -446,9 +431,7 @@ async def remove_creation_form_asset_link(request: Request):
 async def get_update_form(request: Request):
     """Show an HTML form for the client to prepare a record update operation."""
     details = await _get_survey_related_record_details(request)
-    form_instance = await build_survey_related_record_form_instance(
-        request, forms.SurveyRelatedRecordUpdateForm
-    )
+    form_instance = await forms.SurveyRelatedRecordUpdateForm.from_request(request)
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template(
         "survey-related-records/update-form.html"
@@ -472,9 +455,7 @@ async def get_update_form(request: Request):
 @csrf_protect
 async def add_update_form_link(request: Request):
     details = await _get_survey_related_record_details(request)
-    form_instance = await build_survey_related_record_form_instance(
-        request, forms.SurveyRelatedRecordUpdateForm
-    )
+    form_instance = await forms.SurveyRelatedRecordUpdateForm.from_request(request)
     # TODO: implement some logic to limit the number of links that can be added
     form_instance.links.append_entry()
     template_processor: Jinja2Templates = request.state.templates
@@ -500,9 +481,7 @@ async def add_update_form_link(request: Request):
 @csrf_protect
 async def remove_update_form_link(request: Request):
     details = await _get_survey_related_record_details(request)
-    form_instance = await build_survey_related_record_form_instance(
-        request, forms.SurveyRelatedRecordUpdateForm
-    )
+    form_instance = await forms.SurveyRelatedRecordUpdateForm.from_request(request)
     # TODO: Check we are not trying to remove an index that is invalid
     link_index = int(request.query_params.get("link_index", 0))
     form_instance.links.entries.pop(link_index)
@@ -529,9 +508,7 @@ async def remove_update_form_link(request: Request):
 @csrf_protect
 async def add_update_form_asset(request: Request):
     details = await _get_survey_related_record_details(request)
-    form_instance = await build_survey_related_record_form_instance(
-        request, forms.SurveyRelatedRecordUpdateForm
-    )
+    form_instance = await forms.SurveyRelatedRecordUpdateForm.from_request(request)
     # TODO: implement some logic to limit the number of assets that can be added
     form_instance.assets.append_entry()
     template_processor: Jinja2Templates = request.state.templates
@@ -557,9 +534,7 @@ async def add_update_form_asset(request: Request):
 @csrf_protect
 async def remove_update_form_asset(request: Request):
     details = await _get_survey_related_record_details(request)
-    form_instance = await build_survey_related_record_form_instance(
-        request, forms.SurveyRelatedRecordUpdateForm
-    )
+    form_instance = await forms.SurveyRelatedRecordUpdateForm.from_request(request)
     # TODO: Check we are not trying to remove an index that is invalid
     link_index = int(request.query_params.get("link_index", 0))
     form_instance.asset.entries.pop(link_index)
@@ -588,9 +563,7 @@ async def add_update_form_asset_link(request: Request):
     details = await _get_survey_related_record_details(request)
     # TODO: Check we have a valid index
     asset_index = int(request.path_params["asset_index"])
-    form_instance = await build_survey_related_record_form_instance(
-        request, forms.SurveyRelatedRecordUpdateForm
-    )
+    form_instance = await forms.SurveyRelatedRecordUpdateForm.from_request(request)
     # TODO: implement some logic to limit the number of links that can be added
     form_instance.assets[asset_index].asset_links.append_entry()
     template_processor: Jinja2Templates = request.state.templates
@@ -616,9 +589,7 @@ async def add_update_form_asset_link(request: Request):
 @csrf_protect
 async def remove_update_form_asset_link(request: Request):
     details = await _get_survey_related_record_details(request)
-    form_instance = await build_survey_related_record_form_instance(
-        request, forms.SurveyRelatedRecordUpdateForm
-    )
+    form_instance = await forms.SurveyRelatedRecordUpdateForm.from_request(request)
     try:
         asset_index = int(request.path_params["asset_index"])
         if asset_index < 0 or asset_index >= len(form_instance.assets.entries):
