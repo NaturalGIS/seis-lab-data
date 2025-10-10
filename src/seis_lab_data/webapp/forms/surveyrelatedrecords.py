@@ -139,13 +139,16 @@ class _SurveyRelatedRecordForm(StarletteForm):
         raise NotImplementedError()
 
     @classmethod
-    async def from_request(cls, request):
+    async def from_request(cls, request, data: dict | None = None):
         """Creates a form instance from the request.
 
         This method's main reason for existing is to ensure select fields are
         populated dynamically, with choices from the database.
         """
-        form_instance = await cls.from_formdata(request)
+        if data:
+            form_instance = cls(data=data)
+        else:
+            form_instance = await cls.from_formdata(request)
         current_language = request.state.language
         async with request.state.session_maker() as session:
             form_instance.dataset_category_id.choices = [

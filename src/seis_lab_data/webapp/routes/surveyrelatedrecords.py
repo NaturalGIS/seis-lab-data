@@ -431,7 +431,62 @@ async def remove_creation_form_asset_link(request: Request):
 async def get_update_form(request: Request):
     """Show an HTML form for the client to prepare a record update operation."""
     details = await _get_survey_related_record_details(request)
-    form_instance = await forms.SurveyRelatedRecordUpdateForm.from_request(request)
+    form_instance = await forms.SurveyRelatedRecordUpdateForm.from_request(
+        request,
+        data={
+            "name": {
+                "en": details.item.name.en,
+                "pt": details.item.name.pt,
+            },
+            "description": {
+                "en": details.item.description.get("en", ""),
+                "pt": details.item.description.get("pt", ""),
+            },
+            "dataset_category_id": details.item.dataset_category_id,
+            "domain_type_id": details.item.domain_type_id,
+            "workflow_stage_id": details.item.workflow_stage_id,
+            "relative_path": details.item.relative_path,
+            "links": [
+                {
+                    "url": li.get("url", ""),
+                    "media_type": li.get("media_type", ""),
+                    "relation": li.get("relation", ""),
+                    "link_description": {
+                        "en": li.get("link_description", {}).get("en", ""),
+                        "pt": li.get("link_description", {}).get("pt", ""),
+                    },
+                }
+                for li in details.item.links
+            ],
+            "assets": [
+                {
+                    "asset_id": str(ass.id),
+                    "asset_name": {
+                        "en": ass.name["en"],
+                        "pt": ass.name.get("pt", ""),
+                    },
+                    "asset_description": {
+                        "en": ass.description.get("en", ""),
+                        "pt": ass.description.get("pt", ""),
+                    },
+                    "relative_path": ass.relative_path,
+                    "asset_links": [
+                        {
+                            "url": ali.get("url", ""),
+                            "media_type": ali.get("media_type", ""),
+                            "relation": ali.get("relation", ""),
+                            "link_description": {
+                                "en": ali.get("link_description", {}).get("en", ""),
+                                "pt": ali.get("link_description", {}).get("pt", ""),
+                            },
+                        }
+                        for ali in ass.links
+                    ],
+                }
+                for ass in details.item.assets
+            ],
+        },
+    )
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template(
         "survey-related-records/update-form.html"
