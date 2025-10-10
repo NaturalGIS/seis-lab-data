@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
-from typing import List, Optional, Dict, Any, Set, Tuple
+from typing import List, Set, Tuple
 
 @dataclasses.dataclass
 class GeoMetadata:
@@ -22,8 +22,8 @@ class GeoMetadata:
 
 @dataclass
 class FieldDef:
-    name: str
-    type: str
+    name:           str
+    type:           str
     nullable:       bool    = True
     width:          int     = None
     precision:      int     = None

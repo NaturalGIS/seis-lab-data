@@ -14,30 +14,29 @@ from osgeo import osr
 
 @dataclasses.dataclass
 class GeoRasterMetadata:
-    name:       str
-    size_bytes: int
+    name:           str
+    size_bytes:     int
     creation_date: datetime
-    media_type: str
-    driver:     str
+    media_type:     str
+    driver:         str
     
     image_size: Tuple[int,int]
     bands:      int
-    wkt:        str
+
     # Coordinate Model
 
-    geographic: bool
-    projected:  bool
-    local:      bool
-    geocentric: bool
+    geographic:     bool
+    projected:      bool
+    local:          bool
+    geocentric:     bool
 
-    central_meridian: float 
+    extent:          Tuple[float,float,float,float]
 
-    extent:     [float]
-
-    projection: str
-    datum:      str
-    authority_name:  str
-    authority_code:  int
+    projection:      str
+    datum:           str
+    crs_auth:        Optional[str] = None         # e.g., "EPSG"
+    crs_code:        Optional[str] = None         # e.g., "4326"
+    crs_wkt:         Optional[str] = None
 
 
     def __init__(self,gdal_ds):
@@ -57,27 +56,26 @@ class GeoRasterMetadata:
         
         # CRS
 
-        self.wkt = gdal_ds.GetProjection()
+        self.crs_wkt = gdal_ds.GetProjection()
         
         # Spatial Reference
 
-        srs = osr.SpatialReference(wkt=self.wkt)
+        srs = osr.SpatialReference(wkt=self.crs_wkt)
         self.geographic = srs.IsGeographic()
         self.projected = srs.IsProjected()
         self.local = srs.IsLocal()
         self.geocentric = srs.IsGeocentric()
 
-        self.central_meridian = srs.GetProjParm("central_meridian")
+        #self.central_meridian = srs.GetProjParm("central_meridian")
         self.projection = srs.GetAttrValue("PROJECTION")
         self.datum = srs.GetAttrValue("DATUM")
 
-        self.authority_name = srs.GetAuthorityName(None)
-        self.authority_code = srs.GetAuthorityCode(None)
+        self.crs_auth = srs.GetAuthorityName(None)
+        self.crs_code = srs.GetAuthorityCode(None)
 
         cols,rows = self.image_size
         self.extent = (gt[0], gt[3] + cols * gt[4] + rows * gt[5],
-                       gt[0] + cols * gt[1] + rows * gt[2], gt[3]) 
-
+                       gt[0] + cols * gt[1] + rows * gt[2], gt[3])
 
 warning_notes = []
 
