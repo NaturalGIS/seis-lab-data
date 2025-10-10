@@ -50,8 +50,8 @@ logger = logging.getLogger(__name__)
 
 _SELECTOR_INFO = schemas.ItemSelectorInfo(
     feedback="[aria-label='feedback-messages'] > ul",
-    item_details="[aria-label='survey-mission-details']",
-    item_name="[aria-label='survey-mission-name']",
+    item_details="[aria-label='survey-related-record-details']",
+    item_name="[aria-label='survey-related-record-name']",
     breadcrumbs="[aria-label='breadcrumbs']",
 )
 
@@ -706,8 +706,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                     session,
                     request.state.settings,
                 )
-                is None
-            ):
+            ) is None:
                 raise HTTPException(
                     status_code=404,
                     detail=_(
@@ -716,6 +715,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 )
 
         request_id = schemas.RequestId(uuid.uuid4())
+        logger.debug(f"{survey_related_record=}")
 
         async def handle_processing_success(
             final_message: schemas.ProcessingMessage, message_template: Template
@@ -1072,13 +1072,13 @@ routes = [
         name="remove_update_form_asset",
     ),
     Route(
-        "/{survey_related_record_id}/update/add-asset-link-form",
+        "/{survey_related_record_id}/update/add-asset-link-form/{asset_index}",
         add_update_form_asset_link,
         methods=["POST"],
         name="add_update_form_asset_link",
     ),
     Route(
-        "/{survey_related_record_id}/update/remove-asset-link-form",
+        "/{survey_related_record_id}/update/remove-asset-link-form/{asset_index}",
         remove_update_form_asset_link,
         methods=["POST"],
         name="remove_update_form_asset_link",

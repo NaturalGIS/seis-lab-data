@@ -567,7 +567,8 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             yield ServerSentEventGenerator.redirect(
                 str(
                     request.url_for(
-                        "survey_related_records:detail", survey_mission_id=to_create.id
+                        "survey_related_records:detail",
+                        survey_related_record_id=to_create.id,
                     )
                 )
             )

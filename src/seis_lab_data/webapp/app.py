@@ -23,7 +23,10 @@ from starlette_babel import (
     get_translator,
     LocaleMiddleware,
 )
-from starlette_wtf import CSRFProtectMiddleware
+from starlette_wtf import (
+    CSRFProtectMiddleware,
+    csrf_token,
+)
 
 from .. import (
     config,
@@ -65,6 +68,11 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
     shared_translator.load_from_directory(settings.translations_dir)
     jinja_env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(settings.templates_dir), autoescape=True
+    )
+    jinja_env.globals.update(
+        {
+            "csrf_token": csrf_token,
+        }
     )
     jinja_env.filters["translate_localizable_string"] = translate_localizable_string
     jinja_env.filters["translate_enum"] = translate_enum

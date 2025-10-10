@@ -31,7 +31,9 @@
                         type="button"
                         aria-label="delete-survey-related-record"
                         class="btn btn-danger"
-                        data-on-click="@delete('{{ url_for('survey_related_records:detail', survey_related_record_id=survey_related_record.id) }}')"
+                        data-on-click="@delete('{{ url_for('survey_related_records:detail', survey_related_record_id=survey_related_record.id) }}', {
+                                headers: {'X-CSRFToken': '{{ csrf_token(request) }}'}
+                            })"
                         data-indicator="deleting"
                         data-bs-dismiss="modal"
                 >{{ _("delete survey-related record") | capitalize }}</button>

@@ -26,8 +26,8 @@
                 <h5>{{ _("asset links") | capitalize }}</h5>
                 {{ macros.render_links_fields(
                     asset.asset_links,
-                    url_for("survey_related_records:add_update_form_asset_link", survey_mission_id=survey_mission.id, asset_index=loop.index0),
-                    url_for("survey_related_records:remove_update_form_asset_link", survey_mission_id=survey_mission.id, asset_index=loop.index0),
+                    url_for("survey_related_records:add_update_form_asset_link", survey_related_record_id=survey_related_record.id, asset_index=loop.index0),
+                    url_for("survey_related_records:remove_update_form_asset_link", survey_related_record_id=survey_related_record.id, asset_index=loop.index0),
                     form.csrf_token.current_token,
                     "asset-" ~ loop.index0 ~ "-"
                 ) }}
@@ -62,6 +62,13 @@
     <div class="row mb-3">
         <div class="col-sm-10 offset-sm-2">
             <button
+                    type="reset"
+                    class="btn btn-outline-secondary"
+                    data-on-click="@get('{{ url_for("survey_related_records:get_details_component", survey_related_record_id=survey_related_record.id) }}')"
+                    aria-label="cancel-update"
+            >{{ _('cancel') | capitalize }}
+            </button>
+            <button
                     type="submit"
                     aria-label="submit-create-form"
                     class="btn btn-primary"
@@ -71,7 +78,7 @@
                         })"
                     data-indicator="posting"
                     data-attr-disabled="$posting"
-                    data-text="$posting ? '{{ _('Creating survey record...') }}' : '{{ _('Create survey record') }}'"
+                    data-text="$posting ? '{{ _('Updating survey-related record...') }}' : '{{ _('Update survey-related record') }}'"
             >
             </button>
             <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"

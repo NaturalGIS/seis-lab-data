@@ -51,6 +51,12 @@ loggers:
     level: INFO
     propagate: false
 
+  sqlalchemy.engine:
+    handlers:
+      - default
+    level: WARNING
+    propagate: false
+
   seis_lab_data:
     handlers:
       - default

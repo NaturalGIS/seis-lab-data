@@ -133,7 +133,7 @@ class _SurveyRelatedRecordForm(StarletteForm):
         for asset in self.assets.entries:
             all_form_validation_errors.update(**asset.errors)
         logger.debug(f"{all_form_validation_errors=}")
-        return not bool(all_form_validation_errors)
+        return bool(all_form_validation_errors)
 
     def validate_with_schema(self) -> None:
         raise NotImplementedError()
