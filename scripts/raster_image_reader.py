@@ -18,24 +18,27 @@ class GeoRasterMetadata:
     creation_date: datetime
     media_type:     str
     driver:         str
-    
-    image_size: Tuple[int,int]
-    bands:      int
 
     # Coordinate Model
-
-    geographic:     bool
-    projected:      bool
-    local:          bool
-    geocentric:     bool
+    projection:     str
+    datum:          str
 
     extent:          Tuple[float,float,float,float]
 
-    projection:      str
-    datum:           str
-    crs_auth:        str = None         # e.g., "EPSG"
-    crs_code:        str = None         # e.g., "4326"
-    crs_wkt:         str = None
+    geographic:     bool = False
+    projected:      bool = False
+    local:          bool = False
+    geocentric:     bool = False
+
+    crs_auth:       str = None         # e.g., "EPSG"
+    crs_code:       str = None         # e.g., "4326"
+    crs_wkt:        str = None
+
+    # raster image specific
+    
+    image_size:     Tuple[int,int] = (0,0)
+    bands:          int = 1
+
 
 
     def __init__(self,gdal_ds):
