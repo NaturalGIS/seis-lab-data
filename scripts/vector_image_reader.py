@@ -1,6 +1,14 @@
-from dataclasses import dataclass, field, asdict
+import argparse
+import os
+import dataclasses
+from dataclasses import dataclass
+from dataclasses import field
+from dataclasses import asdict
 from datetime import datetime
+from datetime import UTC
 from typing import List, Set, Tuple
+from osgeo  import gdal
+from osgeo  import ogr
 
 @dataclasses.dataclass
 class GeoMetadata:
@@ -11,7 +19,6 @@ class GeoMetadata:
     driver:     str
 
     data_repr_class: bool  # 0: raster 1: vector
-    auxiliary: dict = field(default_factory=dict)
 
     def is_vector(self):
         return self.data_repr_class == 1
@@ -20,18 +27,18 @@ class GeoMetadata:
         return self.data_repr_class == 0
 
 
-@dataclass
+@dataclasses.dataclass
 class FieldDef:
     name:           str
     type:           str
-    nullable:       bool    = True
-    width:          int     = None
-    precision:      int     = None
-    units:          str     = None
+    nullable:       bool
+    width:          int
+    precision:      int
+    units:          str
 
-@dataclass
+@dataclasses.dataclass
 class VectorMetadata(GeoMetadata):
-    layer_name:     str
+    layer_name:     str = None
     geometry_types: Set[str] = field(default_factory=set)
     has_z:          bool = False
     has_m:          bool = False
@@ -39,115 +46,119 @@ class VectorMetadata(GeoMetadata):
     feature_count:  int = 0
     fields_schema:  List[FieldDef] = field(default_factory=list)
     primary_key:    str = None
-    unique_fields:  List[str] = field(default_factory=list)
+    #unique_fields:  List[str] = field(default_factory=list)
 
-def __init__(self,ogr_ds):
+    def __init__(self,ogr_ds):
+        self.data_repr_class = 1
+        try:
+            self.driver = ds.GetDriver()
+            self.media_type = drv.LongName
+            self.driver = drv.ShortName
+        except Exception:
+            self.driver = None
+            self.media_type = None
+            self.driver = None
 
-    try:
-        self.driver = ds.GetDriver()
-    except Exception:
-        self.driver = None
+        lyr = None
+        if args.layer_name is not None:
+            lyr = ds.GetLayerByName(args.layer_name)
+            if lyr is None:
+                raise RuntimeError(f"Layer '{layer_name}' not found in {path_or_url}")
+        else:
+            lyr = ds.GetLayer(0)
+            if lyr is None:
+                raise RuntimeError(f"No layers found in {path_or_url}")
 
-    lyr = None
-    if args.layer_name is not None:
-        lyr = ds.GetLayerByName(layer_name)
-        if lyr is None:
-            raise RuntimeError(f"Layer '{layer_name}' not found in {path_or_url}")
-    else:
-        lyr = ds.GetLayer(0)
-        if lyr is None:
-            raise RuntimeError(f"No layers found in {path_or_url}")
-
-    # Layer name
-    try:
-        self.layer_name = lyr.GetName()
-    except Exception:
-        pass
+        # Layer name
+        try:
+            self.layer_name = lyr.GetName()
+        except Exception:
+            pass
 
 
-# CRS (authority + WKT)
-    srs = None
-    try:
-        srs = lyr.GetSpatialRef()
-    except Exception:
+    # CRS (authority + WKT)
         srs = None
-
-    if srs:
         try:
-            auth = srs.GetAuthorityName(None)
-            code = srs.GetAuthorityCode(None)
-            if auth and code:
-                self.crs_auth, self.crs_code = auth, code
+            srs = lyr.GetSpatialRef()
         except Exception:
-            pass
-        try:
-            self.crs_wkt = srs.ExportToWkt()
-        except Exception:
-            self.crs_wkt = None
+            srs = None
 
-# Extent (OGR returns minX, maxX, minY, maxY)
-    try:
-        self.extent = lyr.GetExtent(True)  # True may compute if unknown
-    except Exception:
-        self.extent = None
-
-    # Feature count (force fast when possible)
-    try:
-        fc = lyr.GetFeatureCount(True)
-        if fc < 0:
-            fc = lyr.GetFeatureCount(False)
-        self.feature_count = int(fc) if fc is not None and fc >= 0 else None
-    except Exception:
-        self.feature_count = None
-
-# Geometry types, Z/M flags (read from layer definition)
-    try:
-        gdefn = lyr.GetLayerDefn()
-        gtype = gdefn.GetGeomType()
-        # Geometry type name (handles 25D, etc.)
-        try:
-            name = ogr.GeometryTypeToName(gtype)
-            if name:
-                self.geometry_types.add(name)
-        except Exception:
-            pass
-
-        # Z/M flags (GDAL >= 2.0 has helpers)
-        try:
-            self.has_z = bool(ogr.GeometryTypeHasZ(gtype))
-        except Exception:
-            # Fallback: 25D suffix in name
-            self.has_z = name.endswith("25D") if isinstance(name, str) else False
-
-        try:
-            self.has_m = bool(ogr.GeometryTypeHasM(gtype))
-        except Exception:
-            self.has_m = False
-    except Exception:
-        pass
-
-# Field schema
-    try:
-        ldefn = lyr.GetLayerDefn()
-        fields = []
-        for i in range(ldefn.GetFieldCount()):
-            fdefn = ldefn.GetFieldDefn(i)
-            ftype_name = fdefn.GetFieldTypeName(fdefn.GetType())
-            width = fdefn.GetWidth() if fdefn.GetWidth() > 0 else None
-            precision = fdefn.GetPrecision() if fdefn.GetPrecision() > 0 else None
-            # Nullable/unique are not always available across drivers/GDAL versions
+        if srs:
             try:
-                nullable = bool(fdefn.IsNullable())
+                auth = srs.GetAuthorityName(None)
+                code = srs.GetAuthorityCode(None)
+                if auth and code:
+                    self.crs_auth, self.crs_code = auth, code
             except Exception:
-                fields.append(FieldDef (name = fdefn.GetName(),
-                                        type = ftype_name.lower(),
-                                        nullable = True,
-                                        width = width,
-                                        precision = precision))
+                pass
+            try:
+                self.crs_wkt = srs.ExportToWkt()
+            except Exception:
+                self.crs_wkt = None
 
-        self.fields_schema = fields
-    except Exception:
-        self.fields_schema = []
+    # Extent (OGR returns minX, maxX, minY, maxY)
+        try:
+            self.extent = lyr.GetExtent(True)  # True may compute if unknown
+        except Exception:
+            self.extent = None
+
+        # Feature count (force fast when possible)
+        try:
+            fc = lyr.GetFeatureCount(True)
+            if fc < 0:
+                fc = lyr.GetFeatureCount(False)
+            self.feature_count = int(fc) if fc is not None and fc >= 0 else None
+        except Exception:
+            self.feature_count = None
+
+    # Geometry types, Z/M flags (read from layer definition)
+        try:
+            gdefn = lyr.GetLayerDefn()
+            gtype = gdefn.GetGeomType()
+            # Geometry type name (handles 25D, etc.)
+            try:
+                name = ogr.GeometryTypeToName(gtype)
+                if name:
+                    self.geometry_types.add(name)
+            except Exception:
+                self.geometry_types = None
+
+            # Z/M flags (GDAL >= 2.0 has helpers)
+            try:
+                self.has_z = bool(ogr.GeometryTypeHasZ(gtype))
+            except Exception:
+                # Fallback: 25D suffix in name
+                self.has_z = name.endswith("25D") if isinstance(name, str) else False
+
+            try:
+                self.has_m = bool(ogr.GeometryTypeHasM(gtype))
+            except Exception:
+                self.has_m = False
+        except Exception:
+            pass
+
+    # Field schema
+        try:
+            ldefn = lyr.GetLayerDefn()
+            fields = []
+            for i in range(ldefn.GetFieldCount()):
+                fdefn = ldefn.GetFieldDefn(i)
+                ftype_name = fdefn.GetFieldTypeName(fdefn.GetType())
+                width = fdefn.GetWidth() if fdefn.GetWidth() > 0 else None
+                precision = fdefn.GetPrecision() if fdefn.GetPrecision() > 0 else None
+                # Nullable/unique are not always available across drivers/GDAL versions
+                try:
+                    nullable = bool(fdefn.IsNullable())
+                except Exception:
+                    fields.append(FieldDef (name = fdefn.GetName(),
+                                            type = ftype_name.lower(),
+                                            nullable = True,
+                                            width = width,
+                                            precision = precision))
+
+            self.fields_schema = fields
+        except Exception:
+            self.fields_schema = []
 
 # Vector file layers helper
 
@@ -172,7 +183,7 @@ if __name__ == "__main__":
         description="Attempt to extract metadata from GDAL/OGR supported data formats."
     )
     parser.add_argument("file_name",help="GDAL/OGR supported file path")
-    parser.add_argument("layer_name",help="Name of the layer to be read")
+    parser.add_argument("-l","--layer-name",default=None,help="Layer name to be read")
     args = parser.parse_args()
     ds = ogr.Open(args.file_name,update = 0)
     if ds is None:
@@ -181,6 +192,8 @@ if __name__ == "__main__":
 
     md = VectorMetadata(ds)
     md.name = args.file_name
+    md.size_bytes = os.path.getsize(args.file_name)
+    md.creation_date = datetime.fromtimestamp(os.path.getctime(args.file_name),UTC).isoformat() + "Z"
 
-    print(str(m))
+    print(str(md))
     print(f"#### {args.file_name} ####")

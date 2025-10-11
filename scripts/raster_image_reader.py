@@ -7,7 +7,6 @@ from datetime import UTC
 import os
 from typing import Tuple
 
-
 from osgeo import gdal
 from osgeo import ogr
 from osgeo import osr
@@ -34,12 +33,14 @@ class GeoRasterMetadata:
 
     projection:      str
     datum:           str
-    crs_auth:        Optional[str] = None         # e.g., "EPSG"
-    crs_code:        Optional[str] = None         # e.g., "4326"
-    crs_wkt:         Optional[str] = None
+    crs_auth:        str = None         # e.g., "EPSG"
+    crs_code:        str = None         # e.g., "4326"
+    crs_wkt:         str = None
 
 
     def __init__(self,gdal_ds):
+        self.data_repr_class = 0
+
         self.name = gdal_ds.GetDescription()
         self.size_bytes = os.path.getsize(self.name)
         self.creation_date = datetime.fromtimestamp(os.path.getctime(self.name),UTC).isoformat() + "Z"
