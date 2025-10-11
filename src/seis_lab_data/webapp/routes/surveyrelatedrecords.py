@@ -439,21 +439,21 @@ async def get_update_form(request: Request):
                 "pt": details.item.name.pt,
             },
             "description": {
-                "en": details.item.description.get("en", ""),
-                "pt": details.item.description.get("pt", ""),
+                "en": details.item.description.en,
+                "pt": details.item.description.pt,
             },
-            "dataset_category_id": details.item.dataset_category_id,
-            "domain_type_id": details.item.domain_type_id,
-            "workflow_stage_id": details.item.workflow_stage_id,
+            "dataset_category_id": details.item.dataset_category.id,
+            "domain_type_id": details.item.domain_type.id,
+            "workflow_stage_id": details.item.workflow_stage.id,
             "relative_path": details.item.relative_path,
             "links": [
                 {
-                    "url": li.get("url", ""),
-                    "media_type": li.get("media_type", ""),
-                    "relation": li.get("relation", ""),
+                    "url": li.url,
+                    "media_type": li.media_type,
+                    "relation": li.relation,
                     "link_description": {
-                        "en": li.get("link_description", {}).get("en", ""),
-                        "pt": li.get("link_description", {}).get("pt", ""),
+                        "en": li.link_description.en,
+                        "pt": li.link_description.pt,
                     },
                 }
                 for li in details.item.links
@@ -462,28 +462,28 @@ async def get_update_form(request: Request):
                 {
                     "asset_id": str(ass.id),
                     "asset_name": {
-                        "en": ass.name["en"],
-                        "pt": ass.name.get("pt", ""),
+                        "en": ass.name.en,
+                        "pt": ass.name.pt,
                     },
                     "asset_description": {
-                        "en": ass.description.get("en", ""),
-                        "pt": ass.description.get("pt", ""),
+                        "en": ass.description.en,
+                        "pt": ass.description.pt,
                     },
                     "relative_path": ass.relative_path,
                     "asset_links": [
                         {
-                            "url": ali.get("url", ""),
-                            "media_type": ali.get("media_type", ""),
-                            "relation": ali.get("relation", ""),
+                            "url": ali.url,
+                            "media_type": ali.media_type,
+                            "relation": ali.relation,
                             "link_description": {
-                                "en": ali.get("link_description", {}).get("en", ""),
-                                "pt": ali.get("link_description", {}).get("pt", ""),
+                                "en": ali.en,
+                                "pt": ali.pt,
                             },
                         }
                         for ali in ass.links
                     ],
                 }
-                for ass in details.item.assets
+                for ass in details.item.record_assets
             ],
         },
     )
@@ -915,12 +915,12 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 schemas.RecordAssetUpdate(
                     id=schemas.RecordAssetId(uuid.UUID(af.asset_id.data)),
                     name=schemas.LocalizableDraftName(
-                        en=af.name.en.data,
-                        pt=af.name.pt.data,
+                        en=af.asset_name.en.data,
+                        pt=af.asset_name.pt.data,
                     ),
                     description=schemas.LocalizableDraftDescription(
-                        en=af.description.en.data,
-                        pt=af.description.pt.data,
+                        en=af.asset_description.en.data,
+                        pt=af.asset_description.pt.data,
                     ),
                     relative_path=af.relative_path.data,
                     links=[
@@ -933,7 +933,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                                 pt=afl.link_description.pt.data,
                             ),
                         )
-                        for afl in af.links.entries
+                        for afl in af.asset_links.entries
                     ],
                 )
                 for af in form_instance.assets.entries

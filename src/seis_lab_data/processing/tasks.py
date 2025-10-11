@@ -593,11 +593,11 @@ async def update_survey_related_record(
                 message="Survey-related record successfully updated",
             ).model_dump_json(),
         )
-    except Exception as e:
-        logger.error(f"Task failed with error: {e}")
+    except Exception as err:
+        logger.exception("Task failed with error")
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(
-                request_id=request_id, status=ProcessingStatus.FAILED, message=str(e)
+                request_id=request_id, status=ProcessingStatus.FAILED, message=str(err)
             ).model_dump_json(),
         )
