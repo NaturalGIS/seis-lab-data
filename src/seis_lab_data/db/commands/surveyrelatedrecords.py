@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -10,6 +11,8 @@ from .. import (
     models,
     queries,
 )
+
+logger = logging.getLogger(__name__)
 
 
 async def create_dataset_category(
@@ -140,6 +143,7 @@ async def update_survey_related_record(
     Updating the record also means that underlying assets may be
     added, updated, or removed.
     """
+    logger.debug(f"{to_update=}")
     for key, value in to_update.model_dump(
         exclude={"assets"}, exclude_unset=True
     ).items():

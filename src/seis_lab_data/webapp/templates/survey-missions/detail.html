@@ -35,7 +35,9 @@
                         type="button"
                         aria-label="delete-survey-mission"
                         class="btn btn-danger"
-                        data-on-click="@delete('{{ url_for('survey_missions:detail', survey_mission_id=survey_mission.id) }}')"
+                        data-on-click="@delete('{{ url_for('survey_missions:detail', survey_mission_id=survey_mission.id) }}', {
+                                headers: {'X-CSRFToken': '{{ csrf_token(request) }}'}
+                            })"
                         data-indicator="deleting"
                         data-bs-dismiss="modal"
                 >{{ _("Delete survey mission") }}</button>

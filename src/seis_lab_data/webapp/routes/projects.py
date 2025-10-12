@@ -15,6 +15,7 @@ from redis.asyncio import Redis
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
+from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 from starlette_babel import gettext_lazy as _
 from starlette_wtf import csrf_protect
@@ -37,10 +38,12 @@ from .common import (
     get_pagination_info,
     produce_event_stream_for_topic,
 )
+from .surveymissions import get_survey_mission_details_component
 
 logger = logging.getLogger(__name__)
 
 _SELECTOR_INFO = schemas.ItemSelectorInfo(
+    creation_container="#create-form-container",
     feedback="[aria-label='feedback-messages'] > ul",
     item_details="[aria-label='project-details']",
     item_name="[aria-label='project-name']",
@@ -317,7 +320,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 )
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
-                    selector="#project-create-form-container",
+                    selector=_SELECTOR_INFO.creation_container,
                     mode=ElementPatchMode.INNER,
                 )
 
@@ -401,6 +404,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 topic_name=f"progress:{request_id}",
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
+                patch_elements_selector=_SELECTOR_INFO.feedback,
                 timeout_seconds=30,
             )
             async for sse_event in event_stream_generator:
@@ -566,7 +570,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         async def event_streamer():
             yield ServerSentEventGenerator.patch_elements(
                 """<li>Updating project as a background task...</li>""",
-                selector="#feedback > ul",
+                selector=_SELECTOR_INFO.feedback,
                 mode=ElementPatchMode.APPEND,
             )
 
@@ -584,6 +588,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 topic_name=f"progress:{request_id}",
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
+                patch_elements_selector=_SELECTOR_INFO.feedback,
                 timeout_seconds=30,
             )
             async for sse_event in event_stream_generator:
@@ -591,6 +596,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
 
         return DatastarResponse(event_streamer(), status_code=202)
 
+    @csrf_protect
     @fancy_requires_auth
     async def delete(self, request: Request):
         """Delete a project."""
@@ -663,6 +669,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 topic_name=f"progress:{request_id}",
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
+                patch_elements_selector=_SELECTOR_INFO.feedback,
                 timeout_seconds=30,
             )
             async for sse_event in event_stream_generator:
@@ -696,9 +703,8 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             await creation_form.check_if_english_name_is_unique_for_project(
                 session, project_id
             )
-        form_is_valid = creation_form.has_validation_errors()
 
-        if not form_is_valid:
+        if creation_form.has_validation_errors():
 
             async def stream_validation_failed_events():
                 logger.debug("form did not validate")
@@ -712,7 +718,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 )
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
-                    selector="#survey-mission-create-form-container",
+                    selector=_SELECTOR_INFO.creation_container,
                     mode=ElementPatchMode.INNER,
                 )
 
@@ -756,7 +762,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                     status=final_message.status,
                     message=f"{final_message.message} - you will be redirected shortly.",
                 ),
-                selector=_SELECTOR_INFO.feedback,
+                selector=_SELECTOR_INFO.creation_container,
                 mode=ElementPatchMode.APPEND,
             )
             await asyncio.sleep(1)
@@ -785,7 +791,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         async def stream_events():
             yield ServerSentEventGenerator.patch_elements(
                 """<li>Creating survey mission as a background task...</li>""",
-                selector="#feedback > ul",
+                selector=_SELECTOR_INFO.feedback,
                 mode=ElementPatchMode.APPEND,
             )
 
@@ -802,6 +808,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 topic_name=f"progress:{request_id}",
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
+                patch_elements_selector=_SELECTOR_INFO.feedback,
                 timeout_seconds=30,
             )
             async for sse_event in event_stream_generator:
@@ -825,7 +832,7 @@ async def add_create_project_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector="#project-create-form-container",
+            selector=_SELECTOR_INFO.creation_container,
             mode=ElementPatchMode.INNER,
         )
 
@@ -848,7 +855,7 @@ async def remove_create_project_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector="#project-create-form-container",
+            selector=_SELECTOR_INFO.creation_container,
             mode=ElementPatchMode.INNER,
         )
 
@@ -902,3 +909,55 @@ async def remove_update_project_form_link(request: Request):
         )
 
     return DatastarResponse(event_streamer())
+
+
+routes = [
+    Route("/", ProjectCollectionEndpoint, name="list"),
+    Route(
+        "/new/add-form-link",
+        add_create_project_form_link,
+        methods=["POST"],
+        name="add_form_link",
+    ),
+    Route(
+        "/new/remove-form-link",
+        remove_create_project_form_link,
+        methods=["POST"],
+        name="remove_form_link",
+    ),
+    Route(
+        "/new",
+        get_project_creation_form,
+        methods=["GET"],
+        name="get_creation_form",
+    ),
+    Route(
+        "/{project_id}/update",
+        get_project_update_form,
+        methods=["GET"],
+        name="get_update_form",
+    ),
+    Route(
+        "/{project_id}/add-update-form-link",
+        add_update_project_form_link,
+        methods=["POST"],
+        name="add_update_form_link",
+    ),
+    Route(
+        "/{project_id}/remove-update-form-link",
+        remove_update_project_form_link,
+        methods=["POST"],
+        name="remove_update_form_link",
+    ),
+    Route(
+        "/{project_id}/details",
+        get_survey_mission_details_component,
+        methods=["GET"],
+        name="get_details_component",
+    ),
+    Route(
+        "/{project_id}",
+        ProjectDetailEndpoint,
+        name="detail",
+    ),
+]

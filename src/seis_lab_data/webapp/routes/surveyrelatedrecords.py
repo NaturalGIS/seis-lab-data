@@ -49,6 +49,7 @@ logger = logging.getLogger(__name__)
 
 
 _SELECTOR_INFO = schemas.ItemSelectorInfo(
+    creation_container="#create-form-container",
     feedback="[aria-label='feedback-messages'] > ul",
     item_details="[aria-label='survey-related-record-details']",
     item_name="[aria-label='survey-related-record-name']",
@@ -277,7 +278,7 @@ async def add_creation_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=_SELECTOR_INFO.creation_container,
             mode=ElementPatchMode.INNER,
         )
 
@@ -305,7 +306,7 @@ async def remove_creation_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=_SELECTOR_INFO.creation_container,
             mode=ElementPatchMode.INNER,
         )
 
@@ -332,7 +333,7 @@ async def add_creation_form_asset(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=_SELECTOR_INFO.creation_container,
             mode=ElementPatchMode.INNER,
         )
 
@@ -360,7 +361,7 @@ async def remove_creation_form_asset(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=_SELECTOR_INFO.creation_container,
             mode=ElementPatchMode.INNER,
         )
 
@@ -388,7 +389,7 @@ async def add_creation_form_asset_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=_SELECTOR_INFO.creation_container,
             mode=ElementPatchMode.INNER,
         )
 
@@ -420,7 +421,7 @@ async def remove_creation_form_asset_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=_SELECTOR_INFO.creation_container,
             mode=ElementPatchMode.INNER,
         )
 
@@ -476,8 +477,8 @@ async def get_update_form(request: Request):
                             "media_type": ali.media_type,
                             "relation": ali.relation,
                             "link_description": {
-                                "en": ali.en,
-                                "pt": ali.pt,
+                                "en": ali.link_description.en,
+                                "pt": ali.link_description.pt,
                             },
                         }
                         for ali in ass.links
@@ -822,6 +823,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 topic_name=f"progress:{request_id}",
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
+                patch_elements_selector=_SELECTOR_INFO.feedback,
                 timeout_seconds=30,
             )
             async for sse_event in event_stream_generator:
@@ -1028,6 +1030,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 topic_name=f"progress:{request_id}",
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
+                patch_elements_selector=_SELECTOR_INFO.feedback,
                 timeout_seconds=30,
             )
             async for sse_event in event_stream_generator:

@@ -42,7 +42,12 @@ from ..db.engine import (
 )
 from ..processing.broker import setup_broker
 
-from . import routes
+from .routes import (
+    auth,
+    base,
+)
+from .routes.projects import routes as projects_routes
+from .routes.surveymissions import routes as missions_routes
 from .routes.surveyrelatedrecords import routes as records_routes
 from .jinjafilters import (
     translate_enum,
@@ -96,126 +101,15 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
     app = Starlette(
         debug=settings.debug,
         routes=[
-            Route("/", routes.home),
-            Route("/login", routes.login),
-            Route("/oauth2/callback", routes.auth_callback),
-            Route("/logout", routes.logout),
-            Route("/profile", routes.profile),
-            Route("/protected", routes.protected),
-            Route("/set-language/{lang}", routes.set_language, name="set_language"),
-            Mount(
-                "/projects",
-                name="projects",
-                routes=[
-                    Route("/", routes.ProjectCollectionEndpoint, name="list"),
-                    Route(
-                        "/new/add-form-link",
-                        routes.add_create_project_form_link,
-                        methods=["POST"],
-                        name="add_form_link",
-                    ),
-                    Route(
-                        "/new/remove-form-link",
-                        routes.remove_create_project_form_link,
-                        methods=["POST"],
-                        name="remove_form_link",
-                    ),
-                    Route(
-                        "/new",
-                        routes.get_project_creation_form,
-                        methods=["GET"],
-                        name="get_creation_form",
-                    ),
-                    Route(
-                        "/{project_id}/update",
-                        routes.get_project_update_form,
-                        methods=["GET"],
-                        name="get_update_form",
-                    ),
-                    Route(
-                        "/{project_id}/add-update-form-link",
-                        routes.add_update_project_form_link,
-                        methods=["POST"],
-                        name="add_update_form_link",
-                    ),
-                    Route(
-                        "/{project_id}/remove-update-form-link",
-                        routes.remove_update_project_form_link,
-                        methods=["POST"],
-                        name="remove_update_form_link",
-                    ),
-                    Route(
-                        "/{project_id}/details",
-                        routes.get_survey_mission_details_component,
-                        methods=["GET"],
-                        name="get_details_component",
-                    ),
-                    Route(
-                        "/{project_id}",
-                        routes.ProjectDetailEndpoint,
-                        name="detail",
-                    ),
-                ],
-            ),
-            Mount(
-                "/survey-missions",
-                name="survey_missions",
-                routes=[
-                    Route(
-                        "/",
-                        routes.SurveyMissionCollectionEndpoint,
-                        methods=["GET"],
-                        name="list",
-                    ),
-                    Route(
-                        "/{project_id}/new",
-                        routes.get_survey_mission_creation_form,
-                        methods=["GET"],
-                        name="get_creation_form",
-                    ),
-                    Route(
-                        "/{project_id}/new/add-form-link",
-                        routes.add_create_survey_mission_form_link,
-                        methods=["POST"],
-                        name="add_form_link",
-                    ),
-                    Route(
-                        "/{project_id}/new/remove-form-link",
-                        routes.remove_create_survey_mission_form_link,
-                        methods=["POST"],
-                        name="remove_form_link",
-                    ),
-                    Route(
-                        "/{survey_mission_id}/add-update-form-link",
-                        routes.add_update_survey_mission_form_link,
-                        methods=["POST"],
-                        name="add_update_form_link",
-                    ),
-                    Route(
-                        "/{survey_mission_id}/remove-update-form-link",
-                        routes.remove_update_survey_mission_form_link,
-                        methods=["POST"],
-                        name="remove_update_form_link",
-                    ),
-                    Route(
-                        "/{survey_mission_id}/details",
-                        routes.get_survey_mission_details_component,
-                        methods=["GET"],
-                        name="get_details_component",
-                    ),
-                    Route(
-                        "/{survey_mission_id}/update",
-                        routes.get_survey_mission_update_form,
-                        methods=["GET"],
-                        name="get_update_form",
-                    ),
-                    Route(
-                        "/{survey_mission_id}",
-                        routes.SurveyMissionDetailEndpoint,
-                        name="detail",
-                    ),
-                ],
-            ),
+            Route("/", base.home),
+            Route("/login", auth.login),
+            Route("/oauth2/callback", auth.auth_callback),
+            Route("/logout", auth.logout),
+            Route("/profile", base.profile),
+            Route("/protected", base.protected),
+            Route("/set-language/{lang}", base.set_language, name="set_language"),
+            Mount("/projects", name="projects", routes=projects_routes),
+            Mount("/survey-missions", name="survey_missions", routes=missions_routes),
             Mount(
                 "/survey-related-records",
                 name="survey_related_records",

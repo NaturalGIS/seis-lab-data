@@ -1,41 +1,45 @@
 {% macro render_form_field(field, name_prefix="", test_id=None) %}
-    {% set form_element_classes = "form-control is-invalid" if field.errors else "form-control" %}
-    {% set form_element_described_by = name_prefix ~ field.name ~ "-help backend-validation-" ~ name_prefix ~ field.name ~ "-feedback" if field.errors else name_prefix ~ field.name ~ "-help" %}
-    {% set stable_test_id = test_id or ("field-" ~ name_prefix ~ field.name) %}
-    <div class="row mb-3">
-        <div class="col-sm-2">
-            {{ field.label(class="form-label") }}
-            {% if field.flags.backend_required %}
-                <span class="text-danger">*</span>
-            {% endif %}
-        </div>
-        <div class="col-sm-10{% if field.errors %} has-validation{% endif %}">
-            {% if field.flags.backend_required %}
-                {{ field(class=form_element_classes,
+    {% if field.type == "HiddenField" %}
+        {{ field(data_bind=field.name) }}
+    {% else %}
+        {% set form_element_classes = "form-control is-invalid" if field.errors else "form-control" %}
+        {% set form_element_described_by = name_prefix ~ field.name ~ "-help backend-validation-" ~ name_prefix ~ field.name ~ "-feedback" if field.errors else name_prefix ~ field.name ~ "-help" %}
+        {% set stable_test_id = test_id or ("field-" ~ name_prefix ~ field.name) %}
+        <div class="row mb-3">
+            <div class="col-sm-2">
+                {{ field.label(class="form-label") }}
+                {% if field.flags.backend_required %}
+                    <span class="text-danger">*</span>
+                {% endif %}
+            </div>
+            <div class="col-sm-10{% if field.errors %} has-validation{% endif %}">
+                {% if field.flags.backend_required %}
+                    {{ field(class=form_element_classes,
                          aria_describedby=form_element_described_by,
                          aria_required="true",
                          aria_label=stable_test_id,
                          data_bind=field.name,
                          **kwargs) }}
-            {% else %}
-                {{ field(class=form_element_classes,
+                {% else %}
+                    {{ field(class=form_element_classes,
                          aria_describedby=form_element_described_by,
                          aria_label=stable_test_id,
                          data_bind=field.name,
                          **kwargs) }}
-            {% endif %}
-            <div id="{{ name_prefix }}{{ field.name }}-help" class="form-text">
-                {{ field.description }}{% if field.flags.backend_required %} -
-                    {{ _("This is a required field") }}{% endif %}</div>
-            {% if field.errors %}
-                <div class="invalid-feedback" id="backend-validation-{{ name_prefix }}{{ field.name }}-feedback">
-                    {% for error in field.errors %}
-                        <p>{{ error }}</p>
-                    {% endfor %}
-                </div>
-            {% endif %}
+                {% endif %}
+                <div id="{{ name_prefix }}{{ field.name }}-help" class="form-text">
+                    {{ field.description }}{% if field.flags.backend_required %} -
+                        {{ _("This is a required field") }}{% endif %}</div>
+                {% if field.errors %}
+                    <div class="invalid-feedback" id="backend-validation-{{ name_prefix }}{{ field.name }}-feedback">
+                        {% for error in field.errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
         </div>
-    </div>
+    {% endif %}
 {% endmacro %}
 
 

@@ -25,6 +25,7 @@ class BreadcrumbItem(pydantic.BaseModel):
 
 @dataclasses.dataclass(frozen=True)
 class ItemSelectorInfo:
+    creation_container: str
     feedback: str
     item_details: str
     item_name: str

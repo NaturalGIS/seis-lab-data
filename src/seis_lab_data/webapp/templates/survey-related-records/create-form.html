@@ -20,6 +20,7 @@
         <div id="form-assets-container" class="col">
             {% for asset in form.assets %}
                 <h4>{{ _("asset") | capitalize }} {{ loop.index0 + 1 }}</h4>
+                {{ macros.render_form_field(asset.asset_id, "asset-") }}
                 {{ macros.render_localizable_field(asset.asset_name, "asset-") }}
                 {{ macros.render_localizable_field(asset.asset_description, "asset-") }}
                 {{ macros.render_form_field(asset.relative_path, "asset-") }}

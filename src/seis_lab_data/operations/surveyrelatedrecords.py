@@ -343,7 +343,7 @@ async def update_survey_related_record(
             initiator=initiator.id,
             payload=schemas.EventPayload(
                 before=serialized_before,
-                after=schemas.SurveyMissionReadDetail.from_db_instance(
+                after=schemas.SurveyRelatedRecordReadDetail.from_db_instance(
                     updated_survey_related_record
                 ).model_dump(),
             ),

@@ -104,6 +104,7 @@ async def produce_event_stream_for_topic(
     on_failure: Callable[
         [schemas.ProcessingMessage, Template], AsyncGenerator[DatastarEvent, None]
     ],
+    patch_elements_selector: str,
     timeout_seconds: int = 30,
 ):
     template_processor: Jinja2Templates = request.state.templates
@@ -152,7 +153,7 @@ async def produce_event_stream_for_topic(
                                         status=processing_message.status,
                                         message=processing_message.message,
                                     ),
-                                    selector="#feedback > ul",
+                                    selector=patch_elements_selector,
                                     mode=ElementPatchMode.APPEND,
                                 )
                     else:

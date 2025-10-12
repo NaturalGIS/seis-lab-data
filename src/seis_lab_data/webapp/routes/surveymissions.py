@@ -15,6 +15,7 @@ from starlette_babel import gettext_lazy as _
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
+from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 from starlette_wtf import csrf_protect
 
@@ -41,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 
 _SELECTOR_INFO = schemas.ItemSelectorInfo(
+    creation_container="#create-form-container",
     feedback="[aria-label='feedback-messages'] > ul",
     item_details="[aria-label='survey-mission-details']",
     item_name="[aria-label='survey-mission-name']",
@@ -451,6 +453,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 topic_name=f"progress:{request_id}",
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
+                patch_elements_selector=_SELECTOR_INFO.feedback,
                 timeout_seconds=30,
             )
             async for sse_event in event_stream_generator:
@@ -561,7 +564,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 message_template.render(
                     status=final_message.status.value, message=final_message.message
                 ),
-                selector=_SELECTOR_INFO.feedback,
+                selector=_SELECTOR_INFO.creation_container,
                 mode=ElementPatchMode.APPEND,
             )
             yield ServerSentEventGenerator.redirect(
@@ -605,6 +608,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 topic_name=f"progress:{request_id}",
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
+                patch_elements_selector=_SELECTOR_INFO.feedback,
                 timeout_seconds=30,
             )
             async for sse_event in event_stream_generator:
@@ -687,6 +691,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 topic_name=f"progress:{request_id}",
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
+                patch_elements_selector=_SELECTOR_INFO.feedback,
                 timeout_seconds=30,
             )
             async for sse_event in event_stream_generator:
@@ -728,7 +733,7 @@ async def add_create_survey_mission_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector="#survey-mission-create-form-container",
+            selector=_SELECTOR_INFO.creation_container,
             mode=ElementPatchMode.INNER,
         )
 
@@ -771,7 +776,7 @@ async def remove_create_survey_mission_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector="#survey-mission-create-form-container",
+            selector=_SELECTOR_INFO.creation_container,
             mode=ElementPatchMode.INNER,
         )
 
@@ -893,3 +898,60 @@ async def get_survey_mission_update_form(request: Request):
         )
 
     return DatastarResponse(event_streamer())
+
+
+routes = [
+    Route(
+        "/",
+        SurveyMissionCollectionEndpoint,
+        methods=["GET"],
+        name="list",
+    ),
+    Route(
+        "/{project_id}/new",
+        get_survey_mission_creation_form,
+        methods=["GET"],
+        name="get_creation_form",
+    ),
+    Route(
+        "/{project_id}/new/add-form-link",
+        add_create_survey_mission_form_link,
+        methods=["POST"],
+        name="add_form_link",
+    ),
+    Route(
+        "/{project_id}/new/remove-form-link",
+        remove_create_survey_mission_form_link,
+        methods=["POST"],
+        name="remove_form_link",
+    ),
+    Route(
+        "/{survey_mission_id}/add-update-form-link",
+        add_update_survey_mission_form_link,
+        methods=["POST"],
+        name="add_update_form_link",
+    ),
+    Route(
+        "/{survey_mission_id}/remove-update-form-link",
+        remove_update_survey_mission_form_link,
+        methods=["POST"],
+        name="remove_update_form_link",
+    ),
+    Route(
+        "/{survey_mission_id}/details",
+        get_survey_mission_details_component,
+        methods=["GET"],
+        name="get_details_component",
+    ),
+    Route(
+        "/{survey_mission_id}/update",
+        get_survey_mission_update_form,
+        methods=["GET"],
+        name="get_update_form",
+    ),
+    Route(
+        "/{survey_mission_id}",
+        SurveyMissionDetailEndpoint,
+        name="detail",
+    ),
+]

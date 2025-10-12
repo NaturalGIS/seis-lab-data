@@ -34,7 +34,9 @@
                             type="button"
                             aria-label="delete-project"
                             class="btn btn-danger"
-                            data-on-click="@delete('{{ url_for('projects:detail', project_id=project.id) }}')"
+                            data-on-click="@delete('{{ url_for('projects:detail', project_id=project.id) }}', {
+                                    headers: {'X-CSRFToken': '{{ csrf_token(request) }}'}
+                                })"
                             data-indicator="deleting"
                             data-bs-dismiss="modal"
                     >{{ _("Delete project") }}</button>
