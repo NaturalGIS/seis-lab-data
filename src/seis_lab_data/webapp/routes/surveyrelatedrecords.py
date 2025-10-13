@@ -48,15 +48,6 @@ from .common import (
 logger = logging.getLogger(__name__)
 
 
-_SELECTOR_INFO = schemas.ItemSelectorInfo(
-    creation_container="#create-form-container",
-    feedback="[aria-label='feedback-messages'] > ul",
-    item_details="[aria-label='survey-related-record-details']",
-    item_name="[aria-label='survey-related-record-name']",
-    breadcrumbs="[aria-label='breadcrumbs']",
-)
-
-
 async def _get_survey_related_record_details(
     request: Request,
 ) -> schemas.SurveyRelatedRecordDetails:
@@ -152,7 +143,7 @@ async def get_details_component(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -222,40 +213,62 @@ async def get_creation_form(request: Request):
     survey_mission_id = schemas.SurveyMissionId(parent_survey_mission.id)
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     template_processor: Jinja2Templates = request.state.templates
-    return template_processor.TemplateResponse(
-        request,
-        "survey-related-records/create.html",
-        context={
-            "form": form_instance,
-            "survey_mission_id": survey_mission_id,
-            "breadcrumbs": [
-                schemas.BreadcrumbItem(
-                    name=_("Home"), url=str(request.url_for("home"))
-                ),
-                schemas.BreadcrumbItem(
-                    name=_("Projects"),
-                    url=request.url_for("projects:list"),
-                ),
-                schemas.BreadcrumbItem(
-                    name=str(parent_survey_mission.project.name["en"]),
-                    url=request.url_for(
-                        "projects:detail",
-                        project_id=schemas.ProjectId(parent_survey_mission.project.id),
-                    ),
-                ),
-                schemas.BreadcrumbItem(
-                    name=str(parent_survey_mission.name["en"]),
-                    url=request.url_for(
-                        "survey_missions:detail",
-                        survey_mission_id=survey_mission_id,
-                    ),
-                ),
-                schemas.BreadcrumbItem(
-                    name=_("New survey-related record"),
-                ),
-            ],
-        },
+    template = template_processor.get_template(
+        "survey-related-records/create-form.html"
     )
+    rendered = template.render(
+        request=request,
+        form=form_instance,
+        survey_mission_id=survey_mission_id,
+    )
+    breadcrumbs_template = template_processor.get_template("breadcrumbs.html")
+    rendered_breadcrumbs = breadcrumbs_template.render(
+        request=request,
+        breadcrumbs=[
+            schemas.BreadcrumbItem(name=_("Home"), url=str(request.url_for("home"))),
+            schemas.BreadcrumbItem(
+                name=_("Projects"), url=str(request.url_for("projects:list"))
+            ),
+            schemas.BreadcrumbItem(
+                name=parent_survey_mission.project.name["en"],
+                url=str(
+                    request.url_for(
+                        "projects:detail", project_id=parent_survey_mission.project.id
+                    )
+                ),
+            ),
+            schemas.BreadcrumbItem(
+                name=parent_survey_mission.name["en"],
+                url=str(
+                    request.url_for(
+                        "survey_missions:detail", survey_mission_id=survey_mission_id
+                    )
+                ),
+            ),
+            schemas.BreadcrumbItem(
+                name=_("New survey-related record"),
+            ),
+        ],
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=schemas.selector_info.main_content_selector,
+            mode=ElementPatchMode.INNER,
+        )
+        yield ServerSentEventGenerator.patch_elements(
+            rendered_breadcrumbs,
+            selector=schemas.selector_info.breadcrumbs_selector,
+            mode=ElementPatchMode.INNER,
+        )
+        yield ServerSentEventGenerator.patch_elements(
+            _("new survey-related record"),
+            selector=schemas.selector_info.page_title_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
 
 
 @csrf_protect
@@ -278,7 +291,7 @@ async def add_creation_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.creation_container,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -306,7 +319,7 @@ async def remove_creation_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.creation_container,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -333,7 +346,7 @@ async def add_creation_form_asset(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.creation_container,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -361,7 +374,7 @@ async def remove_creation_form_asset(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.creation_container,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -389,7 +402,7 @@ async def add_creation_form_asset_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.creation_container,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -421,7 +434,7 @@ async def remove_creation_form_asset_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.creation_container,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -429,6 +442,7 @@ async def remove_creation_form_asset_link(request: Request):
 
 
 @csrf_protect
+@fancy_requires_auth
 async def get_update_form(request: Request):
     """Show an HTML form for the client to prepare a record update operation."""
     details = await _get_survey_related_record_details(request)
@@ -501,7 +515,7 @@ async def get_update_form(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -527,7 +541,7 @@ async def add_update_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -554,7 +568,7 @@ async def remove_update_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -580,7 +594,7 @@ async def add_update_form_asset(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -607,7 +621,7 @@ async def remove_update_form_asset(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -635,7 +649,7 @@ async def add_update_form_asset_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -675,7 +689,7 @@ async def remove_update_form_asset_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -780,7 +794,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 message_template.render(
                     status=final_message.status.value, message=final_message.message
                 ),
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
             yield ServerSentEventGenerator.redirect(
@@ -800,7 +814,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                     status=final_message.status.value,
                     message=f"ERROR: {final_message.message}",
                 ),
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
 
@@ -823,7 +837,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 topic_name=f"progress:{request_id}",
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
-                patch_elements_selector=_SELECTOR_INFO.feedback,
+                patch_elements_selector=schemas.selector_info.feedback_selector,
                 timeout_seconds=30,
             )
             async for sse_event in event_stream_generator:
@@ -879,7 +893,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 )
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
-                    selector=_SELECTOR_INFO.item_details,
+                    selector=schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
 
@@ -957,7 +971,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
             )
             yield ServerSentEventGenerator.patch_elements(
                 rendered_message,
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
             template = template_processor.get_template(
@@ -973,7 +987,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 breadcrumbs_template.render(
                     request=request, breadcrumbs=details.breadcrumbs
                 ),
-                selector=_SELECTOR_INFO.breadcrumbs,
+                selector=schemas.selector_info.breadcrumbs_selector,
                 mode=ElementPatchMode.INNER,
             )
             yield ServerSentEventGenerator.patch_elements(
@@ -982,17 +996,17 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                     survey_related_record=details.item,
                     permissions=details.permissions,
                 ),
-                selector=_SELECTOR_INFO.item_details,
+                selector=schemas.selector_info.main_content_selector,
                 mode=ElementPatchMode.INNER,
             )
             yield ServerSentEventGenerator.patch_elements(
                 details.item.name.en,
-                selector=_SELECTOR_INFO.item_name,
+                selector=schemas.selector_info.page_title_selector,
                 mode=ElementPatchMode.INNER,
             )
             yield ServerSentEventGenerator.patch_elements(
                 "",
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.INNER,
             )
 
@@ -1005,14 +1019,14 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
             )
             yield ServerSentEventGenerator.patch_elements(
                 rendered,
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
 
         async def event_streamer():
             yield ServerSentEventGenerator.patch_elements(
                 """<li>Updating survey-related record as a background task...</li>""",
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
 
@@ -1030,7 +1044,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 topic_name=f"progress:{request_id}",
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
-                patch_elements_selector=_SELECTOR_INFO.feedback,
+                patch_elements_selector=schemas.selector_info.feedback_selector,
                 timeout_seconds=30,
             )
             async for sse_event in event_stream_generator:

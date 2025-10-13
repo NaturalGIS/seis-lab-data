@@ -38,44 +38,51 @@ from .common import (
     get_pagination_info,
     produce_event_stream_for_topic,
 )
-from .surveymissions import get_survey_mission_details_component
 
 logger = logging.getLogger(__name__)
-
-_SELECTOR_INFO = schemas.ItemSelectorInfo(
-    creation_container="#create-form-container",
-    feedback="[aria-label='feedback-messages'] > ul",
-    item_details="[aria-label='project-details']",
-    item_name="[aria-label='project-name']",
-    breadcrumbs="[aria-label='breadcrumbs']",
-)
 
 
 @csrf_protect
 @fancy_requires_auth
 async def get_project_creation_form(request: Request):
     """Return a form suitable for creating a new project."""
+    form_instance = await forms.ProjectCreateForm.from_formdata(request)
     template_processor: Jinja2Templates = request.state.templates
-    creation_form = await forms.ProjectCreateForm.from_formdata(request)
-    return template_processor.TemplateResponse(
-        request,
-        "projects/create.html",
-        context={
-            "form": creation_form,
-            "breadcrumbs": [
-                schemas.BreadcrumbItem(
-                    name=_("Home"), url=str(request.url_for("home"))
-                ),
-                schemas.BreadcrumbItem(
-                    name=_("Projects"),
-                    url=request.url_for("projects:list"),
-                ),
-                schemas.BreadcrumbItem(
-                    name=_("New Project"),
-                ),
-            ],
-        },
+    template = template_processor.get_template("projects/create-form.html")
+    rendered = template.render(
+        request=request,
+        form=form_instance,
     )
+    breadcrumbs_template = template_processor.get_template("breadcrumbs.html")
+    rendered_breadcrumbs = breadcrumbs_template.render(
+        request=request,
+        breadcrumbs=[
+            schemas.BreadcrumbItem(name=_("Home"), url=str(request.url_for("home"))),
+            schemas.BreadcrumbItem(
+                name=_("Projects"), url=str(request.url_for("projects:list"))
+            ),
+            schemas.BreadcrumbItem(name=_("New project")),
+        ],
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=schemas.selector_info.main_content_selector,
+            mode=ElementPatchMode.INNER,
+        )
+        yield ServerSentEventGenerator.patch_elements(
+            rendered_breadcrumbs,
+            selector=schemas.selector_info.breadcrumbs_selector,
+            mode=ElementPatchMode.INNER,
+        )
+        yield ServerSentEventGenerator.patch_elements(
+            _("new project"),
+            selector=schemas.selector_info.page_title_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
 
 
 @csrf_protect
@@ -136,7 +143,7 @@ async def get_project_update_form(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -159,7 +166,7 @@ async def get_project_details_component(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -320,7 +327,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 )
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
-                    selector=_SELECTOR_INFO.creation_container,
+                    selector=schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
 
@@ -363,7 +370,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                     status=final_message.status,
                     message=f"{final_message.message} - you will be redirected shortly.",
                 ),
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
             await asyncio.sleep(1)
@@ -380,14 +387,14 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             )
             yield ServerSentEventGenerator.patch_elements(
                 rendered,
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
 
         async def event_streamer():
             yield ServerSentEventGenerator.patch_elements(
                 """<li>Creating project as a background task...</li>""",
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
 
@@ -404,7 +411,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 topic_name=f"progress:{request_id}",
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
-                patch_elements_selector=_SELECTOR_INFO.feedback,
+                patch_elements_selector=schemas.selector_info.feedback_selector,
                 timeout_seconds=30,
             )
             async for sse_event in event_stream_generator:
@@ -468,7 +475,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 )
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
-                    selector=_SELECTOR_INFO.item_details,
+                    selector=schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
 
@@ -515,7 +522,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             )
             yield ServerSentEventGenerator.patch_elements(
                 rendered_message,
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
             template = template_processor.get_template("projects/detail-component.html")
@@ -529,7 +536,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 breadcrumbs_template.render(
                     request=request, breadcrumbs=project_details.breadcrumbs
                 ),
-                selector=_SELECTOR_INFO.breadcrumbs,
+                selector=schemas.selector_info.breadcrumbs_selector,
                 mode=ElementPatchMode.INNER,
             )
             yield ServerSentEventGenerator.patch_elements(
@@ -540,17 +547,17 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                     survey_missions=project_details.survey_missions,
                     permissions=project_details.permissions,
                 ),
-                selector=_SELECTOR_INFO.item_details,
+                selector=schemas.selector_info.main_content_selector,
                 mode=ElementPatchMode.INNER,
             )
             yield ServerSentEventGenerator.patch_elements(
                 project_details.project.name.en,
-                selector=_SELECTOR_INFO.item_name,
+                selector=schemas.selector_info.page_title_selector,
                 mode=ElementPatchMode.INNER,
             )
             yield ServerSentEventGenerator.patch_elements(
                 "",
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.INNER,
             )
 
@@ -563,14 +570,14 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             )
             yield ServerSentEventGenerator.patch_elements(
                 rendered,
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
 
         async def event_streamer():
             yield ServerSentEventGenerator.patch_elements(
                 """<li>Updating project as a background task...</li>""",
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
 
@@ -588,7 +595,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 topic_name=f"progress:{request_id}",
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
-                patch_elements_selector=_SELECTOR_INFO.feedback,
+                patch_elements_selector=schemas.selector_info.feedback_selector,
                 timeout_seconds=30,
             )
             async for sse_event in event_stream_generator:
@@ -629,7 +636,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                     status=final_message.status,
                     message=f"{final_message.message} - you will be redirected shortly.",
                 ),
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
             await asyncio.sleep(1)
@@ -646,14 +653,14 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             )
             yield ServerSentEventGenerator.patch_elements(
                 rendered,
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
 
         async def stream_events():
             yield ServerSentEventGenerator.patch_elements(
                 """<li>Deleting project as a background task...</li>""",
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
             enqueued_message: Message = tasks.delete_project.send(
@@ -669,7 +676,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 topic_name=f"progress:{request_id}",
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
-                patch_elements_selector=_SELECTOR_INFO.feedback,
+                patch_elements_selector=schemas.selector_info.feedback_selector,
                 timeout_seconds=30,
             )
             async for sse_event in event_stream_generator:
@@ -718,7 +725,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 )
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
-                    selector=_SELECTOR_INFO.creation_container,
+                    selector=schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
 
@@ -762,7 +769,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                     status=final_message.status,
                     message=f"{final_message.message} - you will be redirected shortly.",
                 ),
-                selector=_SELECTOR_INFO.creation_container,
+                selector=schemas.selector_info.main_content_selector,
                 mode=ElementPatchMode.APPEND,
             )
             await asyncio.sleep(1)
@@ -784,14 +791,14 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             )
             yield ServerSentEventGenerator.patch_elements(
                 rendered,
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
 
         async def stream_events():
             yield ServerSentEventGenerator.patch_elements(
                 """<li>Creating survey mission as a background task...</li>""",
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
 
@@ -808,7 +815,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 topic_name=f"progress:{request_id}",
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
-                patch_elements_selector=_SELECTOR_INFO.feedback,
+                patch_elements_selector=schemas.selector_info.feedback_selector,
                 timeout_seconds=30,
             )
             async for sse_event in event_stream_generator:
@@ -832,7 +839,7 @@ async def add_create_project_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.creation_container,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -855,7 +862,7 @@ async def remove_create_project_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.creation_container,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -879,7 +886,7 @@ async def add_update_project_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -904,7 +911,7 @@ async def remove_update_project_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -951,7 +958,7 @@ routes = [
     ),
     Route(
         "/{project_id}/details",
-        get_survey_mission_details_component,
+        get_project_details_component,
         methods=["GET"],
         name="get_details_component",
     ),

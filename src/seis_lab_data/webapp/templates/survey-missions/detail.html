@@ -1,47 +1,9 @@
 {% extends "base.html" %}
-{% block content %}
-    <h1 class="display-1" aria-label="survey-mission-name">{{ survey_mission.name|translate_localizable_string }}</h1>
-    <div aria-label="feedback-messages">
-        <ul></ul>
-    </div>
-    <div aria-label="survey-mission-details">
-        {% include "survey-missions/detail-component.html" %}
-    </div>
-    <div
-            id="delete-survey-mission-modal"
-            class="modal fade"
-            tabindex="-1"
-            aria-labelledby="delete-survey-mission-modal-label"
-            aria-hidden="true"
-    >
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h1 class="modal-title fs-5"
-                    id="delete-survey-mission-modal-label">{{ _("Delete survey mission") }}</h1>
-                <button
-                        type="button"
-                        class="btn-close"
-                        data-bs-dismiss="modal"
-                        aria-label={{ _("Close") }}
-                ></button>
-            </div>
-            <div class="modal-body">
-                {{ _("Are you sure you want to delete this survey mission?") }}
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
-                <button
-                        type="button"
-                        aria-label="delete-survey-mission"
-                        class="btn btn-danger"
-                        data-on-click="@delete('{{ url_for('survey_missions:detail', survey_mission_id=survey_mission.id) }}', {
-                                headers: {'X-CSRFToken': '{{ csrf_token(request) }}'}
-                            })"
-                        data-indicator="deleting"
-                        data-bs-dismiss="modal"
-                >{{ _("Delete survey mission") }}</button>
-            </div>
-        </div>
-    </div>
-{% endblock %}
+
+{% block page_title %}
+    {{ survey_mission.name|translate_localizable_string }}
+{% endblock page_title %}
+
+{% block details %}
+    {% include "survey-missions/detail-component.html" %}
+{% endblock details %}

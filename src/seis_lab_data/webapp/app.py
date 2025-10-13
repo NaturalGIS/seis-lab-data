@@ -77,6 +77,13 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
     jinja_env.globals.update(
         {
             "csrf_token": csrf_token,
+            "icons": {
+                "view_details": "info",
+                "new_item": "add_circle_outline",
+                "projects": "view_timeline",
+                "survey_missions": "directions_boat",
+                "survey_related_records": "source",
+            },
         }
     )
     jinja_env.filters["translate_localizable_string"] = translate_localizable_string

@@ -1,3 +1,10 @@
+{#
+This template is always loaded via a server-sent event - it is shown on the /projects
+endpoint when users ask to create a new project.
+
+It is patched into the already existing DOM, as the inner content of the the element that contains
+an aria-label of 'content'.
+#}
 {% import "macros.html" as macros %}
 <form>
     {{ macros.render_localizable_field(form.name) }}
@@ -15,6 +22,13 @@
 
     <div class="row mb-3">
         <div class="col-sm-10 offset-sm-2">
+            <button
+                    type="reset"
+                    class="btn btn-outline-secondary"
+                    data-on-click="@get('{{ url_for("projects:list") }}')"
+                    aria-label="cancel-creation"
+            >{{ _('cancel') | capitalize }}
+            </button>
             <button
                     type="submit"
                     aria-label="submit-create-form"

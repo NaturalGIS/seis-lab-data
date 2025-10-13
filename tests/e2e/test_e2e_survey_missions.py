@@ -14,7 +14,7 @@ def test_survey_mission_lifecycle(shared_authenticated_page: Page):
 
     # navigate to the projects page and click the create new project button
     shared_authenticated_page.get_by_role("link", name="list-projects").click()
-    shared_authenticated_page.get_by_role("link", name="new-project").click()
+    shared_authenticated_page.get_by_role("button", name="new-project").click()
 
     # fill out the form and submit it
     shared_authenticated_page.get_by_role("textbox", name="field-name-en").fill(
@@ -75,7 +75,7 @@ def test_survey_mission_lifecycle(shared_authenticated_page: Page):
     ).to_be_visible()
 
     # now create the new survey mission
-    shared_authenticated_page.get_by_role("link", name="new-survey-mission").click()
+    shared_authenticated_page.get_by_role("button", name="new-survey-mission").click()
     # fill out the form and submit it
     shared_authenticated_page.get_by_role("textbox", name="field-name-en").fill(
         "e2e test survey mission"
@@ -138,18 +138,16 @@ def test_survey_mission_lifecycle(shared_authenticated_page: Page):
     shared_authenticated_page.get_by_role(
         "button", name="show-delete-confirmation-modal"
     ).click()
-    shared_authenticated_page.get_by_role(
-        "button", name="delete-survey-mission"
-    ).click()
+    shared_authenticated_page.get_by_role("button", name="delete-item").click()
     expect(
-        shared_authenticated_page.get_by_role("link", name="new-survey-mission")
+        shared_authenticated_page.get_by_role("button", name="new-survey-mission")
     ).to_be_visible()
 
     # and then delete also the also newly-created project
     shared_authenticated_page.get_by_role(
         "button", name="show-delete-confirmation-modal"
     ).click()
-    shared_authenticated_page.get_by_role("button", name="delete-project").click()
+    shared_authenticated_page.get_by_role("button", name="delete-item").click()
     expect(
-        shared_authenticated_page.get_by_role("link", name="new-project")
+        shared_authenticated_page.get_by_role("button", name="new-project")
     ).to_be_visible()

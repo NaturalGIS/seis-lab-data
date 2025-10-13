@@ -24,6 +24,17 @@ class BreadcrumbItem(pydantic.BaseModel):
 
 
 @dataclasses.dataclass(frozen=True)
+class NewItemSelectorInfo:
+    breadcrumbs_selector: str = "[aria-label='breadcrumbs']"
+    page_title_selector: str = "[aria-label='title']"
+    main_content_selector: str = "[aria-label='content']"
+    feedback_selector: str = "output"
+
+
+selector_info = NewItemSelectorInfo()
+
+
+@dataclasses.dataclass(frozen=True)
 class ItemSelectorInfo:
     creation_container: str
     feedback: str

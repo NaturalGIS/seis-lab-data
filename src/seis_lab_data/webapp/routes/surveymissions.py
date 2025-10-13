@@ -1,3 +1,4 @@
+import asyncio
 import dataclasses
 import json
 import logging
@@ -39,15 +40,6 @@ from .common import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-_SELECTOR_INFO = schemas.ItemSelectorInfo(
-    creation_container="#create-form-container",
-    feedback="[aria-label='feedback-messages'] > ul",
-    item_details="[aria-label='survey-mission-details']",
-    item_name="[aria-label='survey-mission-name']",
-    breadcrumbs="[aria-label='breadcrumbs']",
-)
 
 
 async def _get_survey_mission_details(request: Request) -> schemas.SurveyMissionDetails:
@@ -164,7 +156,7 @@ async def get_survey_mission_details_component(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -177,10 +169,7 @@ async def get_survey_mission_creation_form(request: Request):
     user = get_user(request.session.get("user", {}))
     project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
     session_maker = request.state.session_maker
-    template_processor: Jinja2Templates = request.state.templates
-    create_survey_mission_form = await forms.SurveyMissionCreateForm.from_formdata(
-        request
-    )
+    form_instance = await forms.SurveyMissionCreateForm.from_formdata(request)
 
     async with session_maker() as session:
         try:
@@ -194,30 +183,49 @@ async def get_survey_mission_creation_form(request: Request):
                 status_code=404, detail=_(f"Project {project_id!r} not found.")
             )
 
-    return template_processor.TemplateResponse(
-        request,
-        "survey-missions/create.html",
-        context={
-            "form": create_survey_mission_form,
-            "project": schemas.ProjectReadDetail.from_db_instance(project),
-            "breadcrumbs": [
-                schemas.BreadcrumbItem(
-                    name=_("Home"), url=str(request.url_for("home"))
-                ),
-                schemas.BreadcrumbItem(
-                    name=_("Projects"),
-                    url=request.url_for("projects:list"),
-                ),
-                schemas.BreadcrumbItem(
-                    name=str(project.id),
-                    url=request.url_for("projects:detail", project_id=project_id),
-                ),
-                schemas.BreadcrumbItem(
-                    name=_("New survey mission"),
-                ),
-            ],
-        },
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template("survey-missions/create-form.html")
+    rendered = template.render(
+        request=request,
+        project=schemas.ProjectReadDetail.from_db_instance(project),
+        form=form_instance,
     )
+    breadcrumbs_template = template_processor.get_template("breadcrumbs.html")
+    rendered_breadcrumbs = breadcrumbs_template.render(
+        request=request,
+        breadcrumbs=[
+            schemas.BreadcrumbItem(name=_("Home"), url=str(request.url_for("home"))),
+            schemas.BreadcrumbItem(
+                name=_("Projects"), url=str(request.url_for("projects:list"))
+            ),
+            schemas.BreadcrumbItem(
+                name=project.name["en"],
+                url=str(request.url_for("projects:detail", project_id=project.id)),
+            ),
+            schemas.BreadcrumbItem(
+                name=_("New Survey mission"),
+            ),
+        ],
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=schemas.selector_info.main_content_selector,
+            mode=ElementPatchMode.INNER,
+        )
+        yield ServerSentEventGenerator.patch_elements(
+            rendered_breadcrumbs,
+            selector=schemas.selector_info.breadcrumbs_selector,
+            mode=ElementPatchMode.INNER,
+        )
+        yield ServerSentEventGenerator.patch_elements(
+            _("new survey mission"),
+            selector=schemas.selector_info.page_title_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
 
 
 class SurveyMissionCollectionEndpoint(HTTPEndpoint):
@@ -331,7 +339,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 )
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
-                    selector=_SELECTOR_INFO.item_details,
+                    selector=schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
 
@@ -378,7 +386,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             )
             yield ServerSentEventGenerator.patch_elements(
                 rendered_message,
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
             template = template_processor.get_template(
@@ -394,7 +402,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 breadcrumbs_template.render(
                     request=request, breadcrumbs=details.breadcrumbs
                 ),
-                selector=_SELECTOR_INFO.breadcrumbs,
+                selector=schemas.selector_info.breadcrumbs_selector,
                 mode=ElementPatchMode.INNER,
             )
             yield ServerSentEventGenerator.patch_elements(
@@ -405,17 +413,17 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                     items=details.children,
                     permissions=details.permissions,
                 ),
-                selector=_SELECTOR_INFO.item_details,
+                selector=schemas.selector_info.main_content_selector,
                 mode=ElementPatchMode.INNER,
             )
             yield ServerSentEventGenerator.patch_elements(
                 details.item.name.en,
-                selector=_SELECTOR_INFO.item_name,
+                selector=schemas.selector_info.page_title_selector,
                 mode=ElementPatchMode.INNER,
             )
             yield ServerSentEventGenerator.patch_elements(
                 "",
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.INNER,
             )
 
@@ -428,14 +436,14 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             )
             yield ServerSentEventGenerator.patch_elements(
                 rendered,
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
 
         async def event_streamer():
             yield ServerSentEventGenerator.patch_elements(
                 """<li>Updating survey mission as a background task...</li>""",
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
 
@@ -453,7 +461,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 topic_name=f"progress:{request_id}",
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
-                patch_elements_selector=_SELECTOR_INFO.feedback,
+                patch_elements_selector=schemas.selector_info.feedback_selector,
                 timeout_seconds=30,
             )
             async for sse_event in event_stream_generator:
@@ -490,7 +498,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             async def event_streamer():
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
-                    selector=_SELECTOR_INFO.item_details,
+                    selector=schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
 
@@ -562,11 +570,14 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
 
             yield ServerSentEventGenerator.patch_elements(
                 message_template.render(
-                    status=final_message.status.value, message=final_message.message
+                    data_test_id="processing-success-message",
+                    status=final_message.status.value,
+                    message=final_message.message,
                 ),
-                selector=_SELECTOR_INFO.creation_container,
+                selector=schemas.selector_info.main_content_selector,
                 mode=ElementPatchMode.APPEND,
             )
+            await asyncio.sleep(1)
             yield ServerSentEventGenerator.redirect(
                 str(
                     request.url_for(
@@ -584,14 +595,14 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                     status=final_message.status.value,
                     message=f"ERROR: {final_message.message}",
                 ),
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
 
         async def stream_events():
             yield ServerSentEventGenerator.patch_elements(
                 """<li>Creating survey-related record as a background task...</li>""",
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
 
@@ -608,7 +619,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 topic_name=f"progress:{request_id}",
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
-                patch_elements_selector=_SELECTOR_INFO.feedback,
+                patch_elements_selector=schemas.selector_info.feedback_selector,
                 timeout_seconds=30,
             )
             async for sse_event in event_stream_generator:
@@ -649,7 +660,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 message_template.render(
                     status=final_message.status.value, message=final_message.message
                 ),
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
             yield ServerSentEventGenerator.redirect(
@@ -668,14 +679,14 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                     status=final_message.status.value,
                     message=f"ERROR: {final_message.message}",
                 ),
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
 
         async def stream_events():
             yield ServerSentEventGenerator.patch_elements(
                 """<li>Deleting survey mission as a background task...</li>""",
-                selector=_SELECTOR_INFO.feedback,
+                selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
             enqueued_message: Message = tasks.delete_survey_mission.send(
@@ -691,7 +702,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 topic_name=f"progress:{request_id}",
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
-                patch_elements_selector=_SELECTOR_INFO.feedback,
+                patch_elements_selector=schemas.selector_info.feedback_selector,
                 timeout_seconds=30,
             )
             async for sse_event in event_stream_generator:
@@ -733,7 +744,7 @@ async def add_create_survey_mission_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.creation_container,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -776,7 +787,7 @@ async def remove_create_survey_mission_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.creation_container,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -800,7 +811,7 @@ async def add_update_survey_mission_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -825,7 +836,7 @@ async def remove_update_survey_mission_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -893,7 +904,7 @@ async def get_survey_mission_update_form(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=_SELECTOR_INFO.item_details,
+            selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 

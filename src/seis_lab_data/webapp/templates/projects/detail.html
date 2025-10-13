@@ -1,47 +1,18 @@
+{#
+This template is loaded as a GET response to the /projects/{project_id} endpoint. It is used to both:
+
+- Show details of a specific project
+- Show a form for updating the project (if the user has permissions to do so), when the user clicks the project
+  update button - this is loaded via a server-sent event and patched into the already existing DOM
+- Show a modal for confirming project deletion, when the user clicks the project delete button - this is already
+  in the DOM but hidden, and is shown when the user clicks the delete button
+#}
 {% extends "base.html" %}
-{% block content %}
-    <h1 class="display-1" aria-label="project-name">{{ project.name|translate_localizable_string }}</h1>
-    <div aria-label="feedback-messages">
-        <ul></ul>
-    </div>
-    <div aria-label="project-details">
-        {% include "projects/detail-component.html" %}
-    </div>
-    <div
-            id="delete-project-modal"
-            class="modal fade"
-            tabindex="-1"
-            aria-labelledby="delete-project-modal-label"
-            aria-hidden="true"
-    >
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="delete-project-modal-label">{{ _("Delete project") }}</h1>
-                    <button
-                            type="button"
-                            class="btn-close"
-                            data-bs-dismiss="modal"
-                            aria-label={{ _("Close") }}
-                    ></button>
-                </div>
-                <div class="modal-body">
-                    {{ _("Are you sure you want to delete this project?") }}
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
-                    <button
-                            type="button"
-                            aria-label="delete-project"
-                            class="btn btn-danger"
-                            data-on-click="@delete('{{ url_for('projects:detail', project_id=project.id) }}', {
-                                    headers: {'X-CSRFToken': '{{ csrf_token(request) }}'}
-                                })"
-                            data-indicator="deleting"
-                            data-bs-dismiss="modal"
-                    >{{ _("Delete project") }}</button>
-                </div>
-            </div>
-        </div>
-    </div>
-{% endblock %}
+
+{% block page_title %}
+    {{ project.name|translate_localizable_string }}
+{% endblock page_title %}
+
+{% block details %}
+    {% include "projects/detail-component.html" %}
+{% endblock details %}

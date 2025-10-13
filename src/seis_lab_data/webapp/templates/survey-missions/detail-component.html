@@ -1,11 +1,14 @@
+{% import "macros.html" as macros %}
 <div class="row">
     <div class="col">
         {% if permissions.can_create_children %}
-            <a
+            <button
                     class="btn btn-primary"
+                    data-on-click="@get('{{ url_for("survey_related_records:get_creation_form", survey_mission_id=survey_mission.id) }}')"
                     aria-label="new-survey-related-record"
-                    href="{{ url_for('survey_related_records:get_creation_form', survey_mission_id=survey_mission.id) }}"
-            >{{ _("New survey-related record") }}</a>
+            >
+                <span class="material-icons-outlined">{{ icons.new_item }}</span>{{ _("New survey-related record") }}
+            </button>
         {% endif %}
     </div>
 </div>
@@ -22,68 +25,22 @@
     {% endif %}
     <div class="col" data-signals-deleting="false">
         {% if permissions.can_delete %}
-            <button
-                    class="btn btn-danger"
-                    aria-label="show-delete-confirmation-modal"
-                    data-bs-toggle="modal"
-                    data-bs-target="#delete-survey-mission-modal"
-                    data-attr-disabled="$deleting"
-                    data-text="$deleting ? '{{ _('Deleting survey mission...') }}' : '{{ _('delete survey mission...') }}'"
-            >
-            </button>
-            <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
-                 data-attr-hidden="!$deleting">
-                <span class="visually-hidden">{{ _("Loading...") }}</span>
-            </div>
+            {{ macros.render_delete_item_button(
+            deletion_url=url_for("survey_missions:detail", survey_mission_id=survey_mission.id),
+            signal_name="deleting",
+            idle_message="delete survey mission",
+            running_message="deleting survey mission...",
+            generated_csrf_token=csrf_token(request),
+            modal_dialog_title=_("delete survey mission"),
+            modal_dialog_confirmation_text=_("are you sure you want to delete this survey mission?")
+            ) }}
         {% endif %}
     </div>
 </div>
-<ul class="nav nav-tabs" id="item-detail" role="tablist">
-    <li class="nav-item" role="presentation">
-        <a
-                class="nav-link active"
-                id="properties-tab"
-                data-bs-toggle="tab"
-                data-bs-target="#properties-tab-pane"
-                type="button"
-                role="tab"
-                aria-controls="properties-tab-pane"
-                aria-selected="true"
-        >{{ _("Properties") }}</a>
-    </li>
-    <li class="nav-item" role="presentation">
-        <a
-                class="nav-link"
-                id="links-tab"
-                data-bs-toggle="tab"
-                data-bs-target="#links-tab-pane"
-                type="button"
-                role="tab"
-                aria-controls="links-tab-pane"
-                aria-selected="false"
-        >{{ _("Links") }}</a>
-    </li>
-    <li class="nav-item" role="presentation">
-        <a
-                class="nav-link"
-                id="survey-related-records-tab"
-                data-bs-toggle="tab"
-                data-bs-target="#survey-related-records-tab-pane"
-                type="button"
-                role="tab"
-                aria-controls="survey-related-records-tab-pane"
-                aria-selected="false"
-        >{{ _("Survey-related records") }}</a>
-    </li>
-</ul>
-<div class="tab-content" id="tab-content">
-    <div
-            class="tab-pane fade show active"
-            id="properties-tab-pane"
-            role="tabpanel"
-            aria-labelledby="properties-tab"
-            tabindex="0"
-    >
+
+<div class="row">
+    <div class="col">
+        <h2>{{ _("properties") | capitalize }}</h2>
         <dl class="row">
             <dt class="col-sm-3">{{ _("Name") }}</dt>
             <dd class="col-sm-9">{{ survey_mission.name|translate_localizable_string }}</dd>
@@ -101,13 +58,11 @@
             <dd class="col-sm-9">{{ survey_mission.relative_path }}</dd>
         </dl>
     </div>
-    <div
-            class="tab-pane fade"
-            id="links-tab-pane"
-            role="tabpanel"
-            aria-labelledby="links-tab"
-            tabindex="0"
-    >
+</div>
+
+<div class="row">
+    <div class="col">
+        <h2>{{ _("links") | capitalize }}</h2>
         {% for link in survey_mission.links %}
             <dl class="row">
                 <dt class="col-sm-3">{{ _("url") | capitalize }}</dt>
@@ -122,13 +77,11 @@
             {{ _("no links found") | capitalize }}
         {% endfor %}
     </div>
-    <div
-            class="tab-pane fade"
-            id="survey-related-records-tab-pane"
-            role="tabpanel"
-            aria-labelledby="survey-related-records-tab"
-            tabindex="0"
-    >
+</div>
+
+<div class="row">
+    <div class="col">
+        <h2>{{ _("survey-related-records") | capitalize }}</h2>
         {% with items = survey_related_records %}
             {% include "survey-related-records/list-component.html" %}
         {% endwith %}

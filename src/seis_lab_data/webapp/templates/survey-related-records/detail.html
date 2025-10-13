@@ -1,43 +1,9 @@
 {% extends "base.html" %}
-{% block content %}
-    <h1 class="display-1">{{ survey_related_record.name|translate_localizable_string }}</h1>
 
-    <div aria-label="feedback-messages">
-        <ul></ul>
-    </div>
-    <div aria-label="survey-related-record-details">
-        {% include "survey-related-records/detail-component.html" %}
-    </div>
+{% block page_title %}
+    {{ survey_related_record.name|translate_localizable_string }}
+{% endblock page_title %}
 
-    <div
-            id="delete-survey-related-record-modal"
-            class="modal fade"
-            tabindex="-1"
-            aria-labelledby="delete-survey-related-record-modal-label"
-            aria-hidden="true"
-    >
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h1 class="modal-title fs-5" id="delete-survey-related-record-modal-label">{{ _("delete survey-related record") | capitalize }}</h1>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label={{ _("close") | capitalize }}></button>
-            </div>
-            <div class="modal-body">
-                {{ _("Are you sure you want to delete this survey-related record?") }}
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _("cancel") | capitalize }}</button>
-                <button
-                        type="button"
-                        aria-label="delete-survey-related-record"
-                        class="btn btn-danger"
-                        data-on-click="@delete('{{ url_for('survey_related_records:detail', survey_related_record_id=survey_related_record.id) }}', {
-                                headers: {'X-CSRFToken': '{{ csrf_token(request) }}'}
-                            })"
-                        data-indicator="deleting"
-                        data-bs-dismiss="modal"
-                >{{ _("delete survey-related record") | capitalize }}</button>
-            </div>
-        </div>
-    </div>
-{% endblock %}
+{% block details %}
+    {% include "survey-related-records/detail-component.html" %}
+{% endblock details %}
