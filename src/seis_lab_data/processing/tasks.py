@@ -114,6 +114,61 @@ async def create_project(
 @decorators.sld_settings
 @decorators.redis_client
 @decorators.session_maker
+async def update_project(
+    raw_request_id: str,
+    raw_project_id: str,
+    raw_to_update: str,
+    raw_initiator: str,
+    *,
+    settings: config.SeisLabDataSettings,
+    redis_client: Redis,
+    session_maker: Callable,
+):
+    logger.debug("Hi from the update_project task")
+    request_id = schemas.RequestId(uuid.UUID(raw_request_id))
+    topic_name = f"progress:{request_id}"
+    initiator = schemas.User(**json.loads(raw_initiator))
+    to_update = schemas.ProjectUpdate(**json.loads(raw_to_update))
+    try:
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id,
+                status=ProcessingStatus.RUNNING,
+                message="Project update started",
+            ).model_dump_json(),
+        )
+        async with session_maker() as session:
+            await operations.update_project(
+                project_id=schemas.ProjectId(uuid.UUID(raw_project_id)),
+                to_update=to_update,
+                initiator=initiator,
+                session=session,
+                settings=settings,
+                event_emitter=get_event_emitter(settings),
+            )
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id,
+                status=ProcessingStatus.SUCCESS,
+                message="Project successfully updated",
+            ).model_dump_json(),
+        )
+    except Exception as e:
+        logger.error(f"Task failed with error: {e}")
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id, status=ProcessingStatus.FAILED, message=str(e)
+            ).model_dump_json(),
+        )
+
+
+@dramatiq.actor
+@decorators.sld_settings
+@decorators.redis_client
+@decorators.session_maker
 async def delete_project(
     raw_request_id: str,
     raw_project_id: str,
@@ -232,6 +287,63 @@ async def create_survey_mission(
                 request_id=request_id,
                 status=ProcessingStatus.SUCCESS,
                 message="Survey mission successfully created",
+            ).model_dump_json(),
+        )
+    except Exception as e:
+        logger.error(f"Task failed with error: {e}")
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id, status=ProcessingStatus.FAILED, message=str(e)
+            ).model_dump_json(),
+        )
+
+
+@dramatiq.actor
+@decorators.sld_settings
+@decorators.redis_client
+@decorators.session_maker
+async def update_survey_mission(
+    raw_request_id: str,
+    raw_survey_mission_id: str,
+    raw_to_update: str,
+    raw_initiator: str,
+    *,
+    settings: config.SeisLabDataSettings,
+    redis_client: Redis,
+    session_maker: Callable,
+):
+    logger.debug("Hi from the update_survey_mission task")
+    request_id = schemas.RequestId(uuid.UUID(raw_request_id))
+    topic_name = f"progress:{request_id}"
+    initiator = schemas.User(**json.loads(raw_initiator))
+    to_update = schemas.SurveyMissionUpdate(**json.loads(raw_to_update))
+    try:
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id,
+                status=ProcessingStatus.RUNNING,
+                message="Survey mission update started",
+            ).model_dump_json(),
+        )
+        async with session_maker() as session:
+            await operations.update_survey_mission(
+                survey_mission_id=schemas.SurveyMissionId(
+                    uuid.UUID(raw_survey_mission_id)
+                ),
+                to_update=to_update,
+                initiator=initiator,
+                session=session,
+                settings=settings,
+                event_emitter=get_event_emitter(settings),
+            )
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id,
+                status=ProcessingStatus.SUCCESS,
+                message="Survey mission successfully updated",
             ).model_dump_json(),
         )
     except Exception as e:
@@ -430,5 +542,62 @@ async def delete_survey_related_record(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id, status=ProcessingStatus.FAILED, message=str(e)
+            ).model_dump_json(),
+        )
+
+
+@dramatiq.actor
+@decorators.sld_settings
+@decorators.redis_client
+@decorators.session_maker
+async def update_survey_related_record(
+    raw_request_id: str,
+    raw_survey_related_record_id: str,
+    raw_to_update: str,
+    raw_initiator: str,
+    *,
+    settings: config.SeisLabDataSettings,
+    redis_client: Redis,
+    session_maker: Callable,
+):
+    logger.debug("Hi from the update_survey_related_record task")
+    request_id = schemas.RequestId(uuid.UUID(raw_request_id))
+    topic_name = f"progress:{request_id}"
+    initiator = schemas.User(**json.loads(raw_initiator))
+    to_update = schemas.SurveyRelatedRecordUpdate(**json.loads(raw_to_update))
+    try:
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id,
+                status=ProcessingStatus.RUNNING,
+                message="Survey-related record update started",
+            ).model_dump_json(),
+        )
+        async with session_maker() as session:
+            await operations.update_survey_related_record(
+                survey_related_record_id=schemas.SurveyRelatedRecordId(
+                    uuid.UUID(raw_survey_related_record_id)
+                ),
+                to_update=to_update,
+                initiator=initiator,
+                session=session,
+                settings=settings,
+                event_emitter=get_event_emitter(settings),
+            )
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id,
+                status=ProcessingStatus.SUCCESS,
+                message="Survey-related record successfully updated",
+            ).model_dump_json(),
+        )
+    except Exception as err:
+        logger.exception("Task failed with error")
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id, status=ProcessingStatus.FAILED, message=str(err)
             ).model_dump_json(),
         )

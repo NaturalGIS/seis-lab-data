@@ -46,6 +46,46 @@ async def create_survey_mission(
     return survey_mission
 
 
+async def update_survey_mission(
+    survey_mission_id: schemas.SurveyMissionId,
+    to_update: schemas.SurveyMissionUpdate,
+    initiator: schemas.User | None,
+    session: AsyncSession,
+    settings: config.SeisLabDataSettings,
+    event_emitter: events.EventEmitterProtocol,
+) -> models.SurveyMission:
+    if initiator is None or not await permissions.can_update_survey_mission(
+        initiator, survey_mission_id, settings=settings
+    ):
+        raise errors.SeisLabDataError("User is not allowed to update survey mission.")
+    if (
+        survey_mission := await queries.get_survey_mission(session, survey_mission_id)
+    ) is None:
+        raise errors.SeisLabDataError(
+            f"Survey mission with id {survey_mission_id} does not exist."
+        )
+    serialized_mission_before = schemas.SurveyMissionReadDetail.from_db_instance(
+        survey_mission
+    ).model_dump()
+    updated_survey_mission = await commands.update_survey_mission(
+        session, survey_mission, to_update
+    )
+
+    event_emitter(
+        schemas.SeisLabDataEvent(
+            type_=schemas.EventType.SURVEY_MISSION_UPDATED,
+            initiator=initiator.id,
+            payload=schemas.EventPayload(
+                before=serialized_mission_before,
+                after=schemas.SurveyMissionReadDetail.from_db_instance(
+                    updated_survey_mission
+                ).model_dump(),
+            ),
+        )
+    )
+    return updated_survey_mission
+
+
 async def delete_survey_mission(
     survey_mission_id: schemas.SurveyMissionId,
     initiator: schemas.User | None,

@@ -1,5 +1,13 @@
+{#
+This template is loaded as a GET response to the /survey-related-records/ endpoint. It is used to show a list of
+existing missions
+#}
 {% extends "base.html" %}
-{% block content %}
-    <h1 class="display-1">{{ _("Survey-related records") }}</h1>
+
+{% block page_title %}
+	<span class="material-icons-outlined">source</span>{{ _("Survey-related records") }}
+{% endblock page_title %}
+
+{% block details %}
     {% include "survey-related-records/list-component.html" %}
-{% endblock %}
+{% endblock details %}

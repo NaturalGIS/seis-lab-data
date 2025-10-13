@@ -46,6 +46,7 @@ dev = [
     "pytest-asyncio>=1.1.0",
     "pytest-playwright>=0.7.0",
     "ruff>=0.12.1",
+    "ty>=0.0.1a21",
 ]
 jupyter = [
     "jupyterlab>=4.4.4",

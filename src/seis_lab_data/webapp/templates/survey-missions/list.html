@@ -1,5 +1,13 @@
+{#
+This template is loaded as a GET response to the /survey-missions/ endpoint. It is used to show a list of
+existing missions
+#}
 {% extends "base.html" %}
-{% block content %}
-    <h1 class="display-1">{{ _("Survey missions") }}</h1>
+
+{% block page_title %}
+    <span class="material-icons-outlined">directions_boat</span>{{ _("survey missions") | capitalize }}
+{% endblock page_title %}
+
+{% block details %}
     {% include "survey-missions/list-component.html" %}
-{% endblock %}
+{% endblock details %}

@@ -6,6 +6,7 @@
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <title>{% block title %}Page Title{% endblock %}</title>
         <link rel="stylesheet" href="{{ url_for('static', path='/css/bootstrap.min.css') }}">
+        <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
         <link rel="stylesheet" href="{{ url_for('static', path='/css/custom.css') }}">
         <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.5/bundles/datastar.js"></script>
         <script type="module" src="{{ url_for('static', path='/js/main.js') }}"></script>
@@ -17,9 +18,9 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('home') }}">SeisLabData</a>
             <div class="navbar-nav me-auto">
-                <a class="nav-link" href="{{ url_for('projects:list') }}" aria-label="list-projects">{{ _("Projects") }}</a>
-                <a class="nav-link" href="{{ url_for('survey_missions:list') }} " aria-label="list-survey-missions">{{ _("Survey Missions") }}</a>
-                <a class="nav-link" href="{{ url_for('survey_related_records:list') }}" aria-label="list-survey-related-records">{{ _("Survey-related Records") }}</a>
+                <a class="nav-link" href="{{ url_for('projects:list') }}" aria-label="list-projects"><span class="material-icons-outlined" aria-hidden="true">{{ icons.projects }}</span>{{ _("Projects") }}</a>
+                <a class="nav-link" href="{{ url_for('survey_missions:list') }} " aria-label="list-survey-missions"><span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_missions }}</span>{{ _("Survey Missions") }}</a>
+                <a class="nav-link" href="{{ url_for('survey_related_records:list') }}" aria-label="list-survey-related-records"><span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_related_records }}</span>{{ _("Survey-related Records") }}</a>
                 {% if request.session.user %}
                     <a class="nav-link" href="{{ url_for('profile') }}">{{ _("Profile") }}</a>
                     <a class="nav-link" href="{{ url_for('protected') }}">{{ _("Protected") }}</a>
@@ -70,25 +71,30 @@
 </header>
 <div class="container-fluid">
     {% if breadcrumbs %}
-    <div class="row">
-        <nav aria-label="breadcrumb">
-            <ul class="breadcrumb p-3 bg-body-tertiary rounded-3">
-                {% for item in breadcrumbs %}
-                <li class="breadcrumb-item">
-                    {% if item.url %}
-                        <a href="{{ item.url }}">{{ item.name }}</a>
-                    {% else %}
-                        {{ item.name }}
-                    {% endif %}
-                </li>
-                {% endfor %}
-            </ul>
-        </nav>
-    </div>
+        {% include 'breadcrumbs.html' %}
     {% endif %}
     <div class="row">
-        {% block content %}
-        {% endblock %}
+        <div class="col">
+            {% block content %}
+                {% block header %}
+                    <h1 class="display-1" aria-label="title">{% block page_title %}{% endblock page_title %}</h1>
+                {% endblock %}
+
+                <div aria-label="content">
+                    {% block details %}{% endblock %}
+                </div>
+
+                {% block footer %}{% endblock %}
+
+            {% endblock %}
+        </div>
+    </div>
+    <div class="row">
+        <div class="col">
+            {% block feedback %}
+                <output></output>
+            {% endblock feedback %}
+        </div>
     </div>
 </div>
 <script src="{{ url_for('static', path='js/bootstrap.bundle.min.js') }}"></script>

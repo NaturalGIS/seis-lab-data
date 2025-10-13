@@ -1,16 +1,29 @@
+{#
+This template is loaded as a GET response to the /projects/ endpoint. It is used to both:
+
+- Show a list of existing projects
+- Show a form for creating a new project (if the user has permissions to do so), when the user clicks the project
+  creation button - this is loaded via a server-sent event and patched into the already existing DOM, replacing the
+  list of projects
+#}
 {% extends "base.html" %}
-{% block content %}
-    <h1 class="display-1">{{ _("Projects") }}</h1>
+
+{% block page_title %}
+    <span class="material-icons-outlined">view_timeline</span>{{ _("Projects") }}
+{% endblock page_title %}
+
+{% block details %}
     <div class="row">
         <div class="col">
             {% if user_can_create %}
-                <a
+                <button
                         class="btn btn-primary"
-                        href="{{ url_for('projects:get_creation_form') }}"
+                        data-on-click="@get('{{ url_for("projects:get_creation_form") }}')"
                         aria-label="new-project"
-                >{{ _("New project") }}</a>
+                ><span class="material-icons-outlined">{{ icons.new_item }}</span>{{ _("new project") | capitalize}}
+                </button>
             {% endif %}
         </div>
     </div>
     {% include "projects/list-component.html" %}
-{% endblock %}
+{% endblock details %}

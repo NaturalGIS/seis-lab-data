@@ -1,41 +1,45 @@
 {% macro render_form_field(field, name_prefix="", test_id=None) %}
-    {% set form_element_classes = "form-control is-invalid" if field.errors else "form-control" %}
-    {% set form_element_described_by = name_prefix ~ field.name ~ "-help backend-validation-" ~ name_prefix ~ field.name ~ "-feedback" if field.errors else name_prefix ~ field.name ~ "-help" %}
-    {% set stable_test_id = test_id or ("field-" ~ name_prefix ~ field.name) %}
-    <div class="row mb-3">
-        <div class="col-sm-2">
-            {{ field.label(class="form-label") }}
-            {% if field.flags.backend_required %}
-                <span class="text-danger">*</span>
-            {% endif %}
-        </div>
-        <div class="col-sm-10{% if field.errors %} has-validation{% endif %}">
-            {% if field.flags.backend_required %}
-                {{ field(class=form_element_classes,
+    {% if field.type == "HiddenField" %}
+        {{ field(data_bind=field.name) }}
+    {% else %}
+        {% set form_element_classes = "form-control is-invalid" if field.errors else "form-control" %}
+        {% set form_element_described_by = name_prefix ~ field.name ~ "-help backend-validation-" ~ name_prefix ~ field.name ~ "-feedback" if field.errors else name_prefix ~ field.name ~ "-help" %}
+        {% set stable_test_id = test_id or ("field-" ~ name_prefix ~ field.name) %}
+        <div class="row mb-3">
+            <div class="col-sm-2">
+                {{ field.label(class="form-label") }}
+                {% if field.flags.backend_required %}
+                    <span class="text-danger">*</span>
+                {% endif %}
+            </div>
+            <div class="col-sm-10{% if field.errors %} has-validation{% endif %}">
+                {% if field.flags.backend_required %}
+                    {{ field(class=form_element_classes,
                          aria_describedby=form_element_described_by,
                          aria_required="true",
                          aria_label=stable_test_id,
                          data_bind=field.name,
                          **kwargs) }}
-            {% else %}
-                {{ field(class=form_element_classes,
+                {% else %}
+                    {{ field(class=form_element_classes,
                          aria_describedby=form_element_described_by,
                          aria_label=stable_test_id,
                          data_bind=field.name,
                          **kwargs) }}
-            {% endif %}
-            <div id="{{ name_prefix }}{{ field.name }}-help" class="form-text">
-                {{ field.description }}{% if field.flags.backend_required %} -
-                    {{ _("This is a required field") }}{% endif %}</div>
-            {% if field.errors %}
-                <div class="invalid-feedback" id="backend-validation-{{ name_prefix }}{{ field.name }}-feedback">
-                    {% for error in field.errors %}
-                        <p>{{ error }}</p>
-                    {% endfor %}
-                </div>
-            {% endif %}
+                {% endif %}
+                <div id="{{ name_prefix }}{{ field.name }}-help" class="form-text">
+                    {{ field.description }}{% if field.flags.backend_required %} -
+                        {{ _("This is a required field") }}{% endif %}</div>
+                {% if field.errors %}
+                    <div class="invalid-feedback" id="backend-validation-{{ name_prefix }}{{ field.name }}-feedback">
+                        {% for error in field.errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
         </div>
-    </div>
+    {% endif %}
 {% endmacro %}
 
 
@@ -148,4 +152,70 @@
             </ul>
         </nav>
     {% endif %}
+{% endmacro %}
+
+
+{% macro render_view_details_button(details_url) %}
+    <a
+            href="{{ details_url }}"
+            class="btn btn-outline-primary"
+    >
+        <span class="material-icons-outlined">{{ icons.view_details }}</span>{{ _("View") }}
+    </a>
+{% endmacro %}
+
+
+{% macro render_delete_item_button(deletion_url, signal_name, idle_message, running_message, generated_csrf_token, modal_dialog_title=_("delete item"), modal_dialog_confirmation_text=_("Are you sure you want to delete this item?")) %}
+
+    <button
+            class="btn btn-danger"
+            aria-label="show-delete-confirmation-modal"
+            data-bs-toggle="modal"
+            data-bs-target="#delete-item-modal"
+            data-attr-disabled="${{ signal_name }}"
+            data-text="${{ signal_name }} ? '{{ running_message }}' : '{{ idle_message }}...'"
+    >
+    </button>
+    <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
+         data-attr-hidden="!${{ signal_name }}">
+        <span class="visually-hidden">{{ _("Loading...") }}</span>
+    </div>
+    <div
+            id="delete-item-modal"
+            class="modal fade"
+            tabindex="-1"
+            aria-labelledby="delete-item-modal-label"
+            aria-hidden="true"
+    >
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="delete-item-modal-label">{{ modal_dialog_title | capitalize }}</h1>
+                    <button
+                            type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label={{ _("Close") }}
+                    ></button>
+                </div>
+                <div class="modal-body">
+                    {{ modal_dialog_confirmation_text }}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                    <button
+                            type="button"
+                            aria-label="delete-item"
+                            class="btn btn-danger"
+                            data-on-click="@delete('{{ deletion_url }}', {
+                                    headers: {'X-CSRFToken': '{{ generated_csrf_token }}'}
+                                })"
+                            data-indicator="{{ signal_name }}"
+                            data-bs-dismiss="modal"
+                    >{{ idle_message }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 {% endmacro %}

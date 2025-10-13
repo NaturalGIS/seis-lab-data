@@ -26,24 +26,58 @@ async def create_project(
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
-):
+) -> models.Project:
     if initiator is None or not await permissions.can_create_project(
         initiator, settings
     ):
         raise errors.SeisLabDataError(
             "User is not allowed to create a marine campaign."
         )
-    campaign = await commands.create_project(session, to_create)
+    project = await commands.create_project(session, to_create)
     event_emitter(
         schemas.SeisLabDataEvent(
             type_=schemas.EventType.PROJECT_CREATED,
             initiator=initiator.id,
             payload=schemas.EventPayload(
-                after=schemas.ProjectReadDetail(**campaign.model_dump()).model_dump()
+                after=schemas.ProjectReadDetail(**project.model_dump()).model_dump()
             ),
         )
     )
-    return campaign
+    return project
+
+
+async def update_project(
+    project_id: schemas.ProjectId,
+    to_update: schemas.ProjectUpdate,
+    initiator: schemas.User | None,
+    session: AsyncSession,
+    settings: config.SeisLabDataSettings,
+    event_emitter: events.EventEmitterProtocol,
+) -> models.Project:
+    if initiator is None or not await permissions.can_update_project(
+        initiator, project_id, settings=settings
+    ):
+        raise errors.SeisLabDataError("User is not allowed to update project.")
+    if (project := await queries.get_project(session, project_id)) is None:
+        raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
+    serialized_project_before = schemas.ProjectReadDetail.from_db_instance(
+        project
+    ).model_dump()
+    updated_project = await commands.update_project(session, project, to_update)
+
+    event_emitter(
+        schemas.SeisLabDataEvent(
+            type_=schemas.EventType.PROJECT_UPDATED,
+            initiator=initiator.id,
+            payload=schemas.EventPayload(
+                before=serialized_project_before,
+                after=schemas.ProjectReadDetail.from_db_instance(
+                    updated_project
+                ).model_dump(),
+            ),
+        )
+    )
+    return updated_project
 
 
 async def delete_project(
@@ -53,14 +87,12 @@ async def delete_project(
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
-    if not await permissions.can_delete_project(
+    if initiator is None or not await permissions.can_delete_project(
         initiator, project_id, settings=settings
     ):
         raise errors.SeisLabDataError("User is not allowed to delete projects.")
     if (project := await queries.get_project(session, project_id)) is None:
-        raise errors.SeisLabDataError(
-            f"Marine campaign with id {project_id} does not exist."
-        )
+        raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
     serialized_project = schemas.ProjectReadDetail(**project.model_dump()).model_dump()
     await commands.delete_project(session, project_id)
     event_emitter(
@@ -90,7 +122,7 @@ async def get_project(
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
 ) -> models.Project | None:
-    if not permissions.can_read_project(initiator, project_id, settings=settings):
+    if not await permissions.can_read_project(initiator, project_id, settings=settings):
         raise errors.SeisLabDataError(
             f"User is not allowed to read project {project_id!r}."
         )

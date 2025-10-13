@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from playwright.sync_api import (
     Page,
@@ -10,7 +12,9 @@ def test_webapp_home_is_up(page: Page):
     page.goto("/?lang=en")
     # NOTE: the below is a bad example of how to use playwright locators
     # this is intended just as an initial placeholder test though
-    locator = page.locator("body > div.container-fluid > div.row > p:last-child")
+    locator = page.locator(
+        "body > div.container-fluid > div.row > div.col > p:last-child"
+    )
     expect(locator).to_have_text("Hi there!")
 
 
@@ -19,7 +23,11 @@ def test_set_language(page: Page):
     page.goto("/")
     page.get_by_role("button", name="toggle-lang").click()
     page.get_by_role("link", name="set-lang-en").click()
-    expect(page.get_by_role("link", name="list-projects")).to_have_text("Projects")
+    expect(page.get_by_role("link", name="list-projects")).to_have_text(
+        re.compile(".*Projects$")
+    )
     page.get_by_role("button", name="toggle-lang").click()
     page.get_by_role("link", name="set-lang-pt").click()
-    expect(page.get_by_role("link", name="list-projects")).to_have_text("Projetos")
+    expect(page.get_by_role("link", name="list-projects")).to_have_text(
+        re.compile(".*Projetos")
+    )

@@ -3,12 +3,14 @@ from .projects import (
     delete_project,
     get_project,
     list_projects,
+    update_project,
 )
 from .surveymissions import (
     create_survey_mission,
     delete_survey_mission,
     get_survey_mission,
     list_survey_missions,
+    update_survey_mission,
 )
 from .surveyrelatedrecords import (
     create_dataset_category,
@@ -24,6 +26,7 @@ from .surveyrelatedrecords import (
     list_domain_types,
     list_survey_related_records,
     list_workflow_stages,
+    update_survey_related_record,
 )
 
 __all__ = [
@@ -48,4 +51,7 @@ __all__ = [
     list_survey_missions,
     list_survey_related_records,
     list_workflow_stages,
+    update_project,
+    update_survey_mission,
+    update_survey_related_record,
 ]

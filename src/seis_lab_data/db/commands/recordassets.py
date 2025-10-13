@@ -1,3 +1,5 @@
+import logging
+
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import (
@@ -5,6 +7,8 @@ from ... import (
     schemas,
 )
 from .. import queries
+
+logger = logging.getLogger(__name__)
 
 
 async def delete_record_asset(

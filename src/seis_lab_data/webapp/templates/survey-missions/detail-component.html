@@ -1,0 +1,89 @@
+{% import "macros.html" as macros %}
+<div class="row">
+    <div class="col">
+        {% if permissions.can_create_children %}
+            <button
+                    class="btn btn-primary"
+                    data-on-click="@get('{{ url_for("survey_related_records:get_creation_form", survey_mission_id=survey_mission.id) }}')"
+                    aria-label="new-survey-related-record"
+            >
+                <span class="material-icons-outlined">{{ icons.new_item }}</span>{{ _("New survey-related record") }}
+            </button>
+        {% endif %}
+    </div>
+</div>
+<div class="row mb-3">
+    {% if permissions.can_update %}
+        <div class="col">
+            <button
+                    class="btn btn-outline-primary"
+                    data-on-click="@get('{{ url_for("survey_missions:get_update_form", survey_mission_id=survey_mission.id) }}')"
+                    aria-label="edit-survey-mission"
+            >{{ _("edit survey mission") | capitalize }}
+            </button>
+        </div>
+    {% endif %}
+    <div class="col" data-signals-deleting="false">
+        {% if permissions.can_delete %}
+            {{ macros.render_delete_item_button(
+            deletion_url=url_for("survey_missions:detail", survey_mission_id=survey_mission.id),
+            signal_name="deleting",
+            idle_message="delete survey mission",
+            running_message="deleting survey mission...",
+            generated_csrf_token=csrf_token(request),
+            modal_dialog_title=_("delete survey mission"),
+            modal_dialog_confirmation_text=_("are you sure you want to delete this survey mission?")
+            ) }}
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col">
+        <h2>{{ _("properties") | capitalize }}</h2>
+        <dl class="row">
+            <dt class="col-sm-3">{{ _("Name") }}</dt>
+            <dd class="col-sm-9">{{ survey_mission.name|translate_localizable_string }}</dd>
+            <dt class="col-sm-3">{{ _("Description") }}</dt>
+            <dd class="col-sm-9">{{ survey_mission.description|translate_localizable_string }}</dd>
+            <dt class="col-sm-3">{{ _("Status") }}</dt>
+            <dd class="col-sm-9">{{ survey_mission.status.value }}</dd>
+            <dt class="col-sm-3">{{ _("Is valid") }}</dt>
+            <dd class="col-sm-9">{{ survey_mission.is_valid }}</dd>
+            <dt class="col-sm-3">{{ _("Project") }}</dt>
+            <dd class="col-sm-9"><a
+                    href="{{ url_for('projects:detail', project_id=survey_mission.project.id) }}">{{ survey_mission.project.name|translate_localizable_string }}</a>
+            </dd>
+            <dt class="col-sm-3">{{ _("Relative path") }}</dt>
+            <dd class="col-sm-9">{{ survey_mission.relative_path }}</dd>
+        </dl>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col">
+        <h2>{{ _("links") | capitalize }}</h2>
+        {% for link in survey_mission.links %}
+            <dl class="row">
+                <dt class="col-sm-3">{{ _("url") | capitalize }}</dt>
+                <dd class="col-sm-9"><a href="{{ link.url }}" rel="{{ link.relation }}" target="_blank"
+                                        type="{{ link.media_type }}">{{ link.url }}</a></dd>
+                <dt class="col-sm-3">{{ _("description") | capitalize }}</dt>
+                <dd class="col-sm-9">{{ link.link_description |translate_localizable_string }}</dd>
+                <dt class="col-sm-3">{{ _("media type") | capitalize }}</dt>
+                <dd class="col-sm-9">{{ link.media_type }}</dd>
+            </dl>
+        {% else %}
+            {{ _("no links found") | capitalize }}
+        {% endfor %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col">
+        <h2>{{ _("survey-related-records") | capitalize }}</h2>
+        {% with items = survey_related_records %}
+            {% include "survey-related-records/list-component.html" %}
+        {% endwith %}
+    </div>
+</div>

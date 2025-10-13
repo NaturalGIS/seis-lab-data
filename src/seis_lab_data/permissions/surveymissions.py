@@ -13,7 +13,7 @@ async def can_read_survey_mission(
     survey_mission_id: schemas.SurveyMissionId,
     *,
     settings: config.SeisLabDataSettings,
-):
+) -> bool:
     return True
 
 
@@ -22,7 +22,7 @@ async def can_create_survey_mission(
     project_id: schemas.ProjectId,
     *,
     settings: config.SeisLabDataSettings,
-):
+) -> bool:
     # allow if user is admin
     # or if user is the owner of the parent campaign
     return True
@@ -33,5 +33,14 @@ async def can_delete_survey_mission(
     survey_mission_id: schemas.SurveyMissionId,
     *,
     settings: config.SeisLabDataSettings,
-):
+) -> bool:
+    return True
+
+
+async def can_update_survey_mission(
+    user: schemas.User,
+    survey_mission_id: schemas.SurveyMissionId,
+    *,
+    settings: config.SeisLabDataSettings,
+) -> bool:
     return True
