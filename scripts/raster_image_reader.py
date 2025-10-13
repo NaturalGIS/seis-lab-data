@@ -23,16 +23,11 @@ class GeoRasterMetadata:
     projection:     str
     datum:          str
 
-    extent:          Tuple[float,float,float,float]
-
     geographic:     bool = False
     projected:      bool = False
     local:          bool = False
     geocentric:     bool = False
 
-    crs_auth:       str = None         # e.g., "EPSG"
-    crs_code:       str = None         # e.g., "4326"
-    crs_wkt:        str = None
 
     # raster image specific
     

@@ -9,13 +9,17 @@ import os
 
 @dataclasses.dataclass
 class GeoMetadata:
-    name:           str = None
-    size_bytes:     int = 0
-    creation_date:  datetime = datetime.now()
-    media_type:     str = None
-    driver:         str = None
+    name:           str
+    size_bytes:     int
+    media_type:     str
+    driver:         str
 
+    creation_date:  datetime = datetime.now()
     data_repr_class: bool  = 0 # 0: raster 1: vector
+    extent:         Tuple[float,float,float,float] = (0,0,0,0)
+    crs_wkt:        str = None
+    crs_auth:       str = None         # e.g., "EPSG"
+    crs_code:       str = None         # e.g., "4326"
 
     def is_vector(self):
         return self.data_repr_class == 1
