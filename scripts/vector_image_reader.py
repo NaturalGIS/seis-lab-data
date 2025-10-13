@@ -1,30 +1,32 @@
-import argparse
-import os
 import dataclasses
 from dataclasses import dataclass
 from dataclasses import field
 from dataclasses import asdict
+import argparse
 from datetime import datetime
 from datetime import UTC
 from typing import List, Set, Tuple
 from osgeo  import gdal
 from osgeo  import ogr
+from osgeo  import osr
 
-@dataclasses.dataclass
-class GeoMetadata:
-    name:       str
-    size_bytes: int
-    creation_date: datetime
-    media_type: str
-    driver:     str
+from metadata import GeoMetadata
 
-    data_repr_class: bool  # 0: raster 1: vector
-
-    def is_vector(self):
-        return self.data_repr_class == 1
-
-    def is_raster(self):
-        return self.data_repr_class == 0
+#@dataclasses.dataclass
+#class GeoMetadata:
+#    name:       str
+#    size_bytes: int
+#    creation_date: datetime
+#    media_type: str
+#    driver:     str
+#
+#    data_repr_class: bool = 0 # 0: raster 1: vector
+#
+#    def is_vector(self):
+#        return self.data_repr_class == 1
+#
+#    def is_raster(self):
+#        return self.data_repr_class == 0
 
 
 @dataclasses.dataclass
@@ -46,28 +48,29 @@ class VectorMetadata(GeoMetadata):
     feature_count:  int = 0
     fields_schema:  List[FieldDef] = field(default_factory=list)
     primary_key:    str = None
-    #unique_fields:  List[str] = field(default_factory=list)
 
-    def __init__(self,ogr_ds):
+    def __init__(self,file_path,layer_name=None):
         self.data_repr_class = 1
-        try:
-            self.driver = ds.GetDriver()
-            self.media_type = drv.LongName
-            self.driver = drv.ShortName
-        except Exception:
-            self.driver = None
-            self.media_type = None
-            self.driver = None
 
+        ogr_ds = ogr_open_file(file_path)
+        try:
+            drv        = ogr_ds.GetDriver()
+            driver     = drv.ShortName
+            media_type = drv.LongName
+        except Exception:
+            driver     = None
+            media_type = None
+
+        super().__init__(file_path,driver,media_type)
         lyr = None
-        if args.layer_name is not None:
-            lyr = ds.GetLayerByName(args.layer_name)
+        if layer_name is not None:
+            lyr = ogr_ds.GetLayerByName(layer_name)
             if lyr is None:
-                raise RuntimeError(f"Layer '{layer_name}' not found in {path_or_url}")
+                raise RuntimeError(f"Layer '{layer_name}' not found in {file_path}")
         else:
-            lyr = ds.GetLayer(0)
+            lyr = ogr_ds.GetLayer(0)
             if lyr is None:
-                raise RuntimeError(f"No layers found in {path_or_url}")
+                raise RuntimeError(f"No layers found in {file_path}")
 
         # Layer name
         try:
@@ -91,6 +94,7 @@ class VectorMetadata(GeoMetadata):
                     self.crs_auth, self.crs_code = auth, code
             except Exception:
                 pass
+
             try:
                 self.crs_wkt = srs.ExportToWkt()
             except Exception:
@@ -160,12 +164,108 @@ class VectorMetadata(GeoMetadata):
         except Exception:
             self.fields_schema = []
 
+
+    def _extent_from_layer(lyr: ogr.Layer) -> Optional[Tuple[float,float,float,float]]:
+        try:
+            ext = lyr.GetExtent(True)  # (minX, maxX, minY, maxY) or None
+            if ext:
+                minx, maxx, miny, maxy = ext
+                return (minx, miny, maxx, maxy)
+        except Exception:
+            pass
+
+        # Fallback: sample features to compute extent
+        try:
+            lyr.SetSpatialFilter(None)
+            lyr.ResetReading()
+            first = True
+            minx = miny = float("inf")
+            maxx = maxy = float("-inf")
+            for i, f in enumerate(lyr):
+                g = f.GetGeometryRef()
+                if g is None:
+                    continue
+                bx = g.GetEnvelope()  # (minx, maxx, miny, maxy)
+                if bx:
+                    if first:
+                        minx, maxx, miny, maxy = bx
+                        first = False
+                    else:
+                        minx = min(minx, bx[0]); maxx = max(maxx, bx[1])
+                        miny = min(miny, bx[2]); maxy = max(maxy, bx[3])
+                if i > 5000:  # don’t scan huge layers fully; this is a fallback
+                    break
+            if not first:
+                return (minx, miny, maxx, maxy)
+        except Exception:
+            pass
+        return None
+
+    def _to_wgs84_bbox_osr(bbox: Tuple[float,float,float,float], srs: osr.SpatialReference,
+                           samples_per_edge: int = 0) -> Optional[Tuple[float,float,float,float]]:
+        try:
+            srs84 = osr.SpatialReference()
+            srs84.ImportFromEPSG(4326)
+            ct = osr.CoordinateTransformation(srs, srs84)
+        except Exception:
+            return None
+        minx, miny, maxx, maxy = bbox
+        pts = [(minx,miny), (maxx,miny), (maxx,maxy), (minx,maxy)]
+        if samples_per_edge > 0:
+            def interp(a,b,n):
+                for i in range(1,n+1):
+                    t = i/(n+1)
+                    yield (a[0]*(1-t)+b[0]*t, a[1]*(1-t)+b[1]*t)
+            edges = [(0,1),(1,2),(2,3),(3,0)]
+            base = pts.copy()
+            for i0,i1 in edges:
+                pts.extend(list(interp(base[i0], base[i1], samples_per_edge)))
+        xs, ys = [], []
+        for x,y in pts:
+            try:
+                X,Y,_ = ct.TransformPoint(x,y)  # returns lon,lat,z
+                xs.append(X); ys.append(Y)
+            except Exception:
+                continue
+        if not xs:
+            return None
+        return (min(xs), min(ys), max(xs), max(ys))
+
+
+warning_notes = []
+
+def ogr_open_exceptions_handler(err_class, err_no, msg):
+    global warning_notes
+    if err_class == gdal.CE_Warning:
+        warning_notes.append(msg)
+
+def ogr_open_file(path):
+    global warning_notes
+
+    ogr.UseExceptions()
+    warning_notes = []
+    gdal.PushErrorHandler(ogr_open_exceptions_handler)
+    try:
+        ds = ogr.Open(path, gdal.GA_ReadOnly)
+    except Exception as e:
+        msg = (
+            f"{e}\n"
+            f"call       = gdal.Open({path}, gdal.GA_ReadOnly)\n"
+            f"error_no   = {gdal.GetLastErrorNo()}\n"
+            f"error_type = {gdal.GetLastErrorType()}\n"
+            f"message    = {gdal.GetLastErrorMsg()}"
+        )
+        raise type(e)(msg).with_traceback(e.__traceback__)
+
+
+    gdal.PopErrorHandler()
+
+    return ds
+
 # Vector file layers helper
 
 def list_layers_ogr(path_or_url: str) -> List[str]:
-    ds = ogr.Open(path_or_url,update = 0)
-    if ds is None:
-        return []
+    ds = ogr_open_file(path_or_url)
     names = []
     try:
         for i in range(ds.GetLayerCount()):
@@ -176,7 +276,6 @@ def list_layers_ogr(path_or_url: str) -> List[str]:
         pass
     return names
 
-
 # Example usage
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -184,16 +283,14 @@ if __name__ == "__main__":
     )
     parser.add_argument("file_name",help="GDAL/OGR supported file path")
     parser.add_argument("-l","--layer-name",default=None,help="Layer name to be read")
+    parser.add_argument("-L","--list-layers",default=False,help="List layers and then exit")
     args = parser.parse_args()
-    ds = ogr.Open(args.file_name,update = 0)
-    if ds is None:
-        raise RuntimeError(f"Could not open: {args.file_name}")
 
+    #ds = ogr.Open(args.file_name,update = 0)
+    #if ds is None:
+    #    raise RuntimeError(f"Could not open: {args.file_name}")
 
-    md = VectorMetadata(ds)
-    md.name = args.file_name
-    md.size_bytes = os.path.getsize(args.file_name)
-    md.creation_date = datetime.fromtimestamp(os.path.getctime(args.file_name),UTC).isoformat() + "Z"
+    md = VectorMetadata(args.file_name)
 
     print(str(md))
     print(f"#### {args.file_name} ####")

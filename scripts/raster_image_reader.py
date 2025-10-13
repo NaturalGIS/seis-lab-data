@@ -39,8 +39,6 @@ class GeoRasterMetadata:
     image_size:     Tuple[int,int] = (0,0)
     bands:          int = 1
 
-
-
     def __init__(self,gdal_ds):
         self.data_repr_class = 0
 
