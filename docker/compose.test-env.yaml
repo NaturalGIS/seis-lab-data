@@ -64,11 +64,12 @@ services:
     environment:
       <<: *common-auth-env
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.auth-router.rule=PathRegexp(`^/auth/`)"
-      - "traefik.http.routers.auth-router.entrypoints=web"
-      - "traefik.http.routers.auth-router.priority=100"
-      - "traefik.http.services.auth-service.loadbalancer.server.port=9000"
+      - exposed.outside=true
+      - traefik.enable=true
+      - "traefik.http.routers.auth-router.rule=Host(`seis-lab-data.naturalgis.pt`) && PathPrefix(`/auth`)"
+      - traefik.http.routers.auth-router.entrypoints=web
+      - traefik.http.routers.auth-router.priority=100
+      - traefik.http.services.auth-service.loadbalancer.server.port=9000
     depends_on:
       auth-db:
         condition: service_healthy
