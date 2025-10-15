@@ -182,39 +182,26 @@ services:
     volumes:
       *common-volumes
 
-  object-storage:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-      MINIO_BROWSER_REDIRECT_URL: http://minio-console.localhost:8888
-    volumes:
-      - type: bind
-        source: ../sample-data/minio
-        target: /mnt/minio/data
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.minio-api.rule=Host(`minio.localhost`)"
-      - "traefik.http.routers.minio-api.entrypoints=web"
-      - "traefik.http.routers.minio-api.service=minio-api"
-      - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
-      - "traefik.http.routers.minio-console.rule=Host(`minio-console.localhost`)"
-      - "traefik.http.routers.minio-console.entrypoints=web"
-      - "traefik.http.routers.minio-console.service=minio-console"
-      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
-
-    command: server /mnt/minio/data --console-address ":9001"
-
-  # needs a /data directory with pmtiles files, or maybe even better, use a bucket from minio
   static-tile-server:
     image: protomaps/go-pmtiles:v1.28.1
     volumes:
       - type: bind
-        source: ../data/pmtiles
-        target: /data
+        source: ../sample-data/pmtiles
+        target: /tiles
         read_only: true
     command:
-      - "serve /data --public-url=http://localhost:8888/tiles"
+      - "serve"
+      - "--public-url=http://localhost:8888"
+      - "--cors=*"
+      - "/tiles"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.pm-tiles-stripprefix.stripprefix.prefixes=/tiles"
+      - "traefik.http.routers.pm-tiles.rule=PathPrefix(`/tiles`)"
+      - "traefik.http.routers.pm-tiles.entrypoints=web"
+      - "traefik.http.routers.pm-tiles.priority=90"
+      - "traefik.http.routers.pm-tiles.middlewares=pm-tiles-stripprefix"
+      - "traefik.http.services.pm-tiles.loadbalancer.server.port=8080"
 
   jupyter:
     image: *common-image
