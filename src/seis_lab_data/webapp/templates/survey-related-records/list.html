@@ -3,11 +3,15 @@ This template is loaded as a GET response to the /survey-related-records/ endpoi
 existing missions
 #}
 {% extends "base.html" %}
+{% import "macros.html" as macros %}
 
 {% block page_title %}
 	<span class="material-icons-outlined">source</span>{{ _("Survey-related records") }}
 {% endblock page_title %}
 
 {% block details %}
+
+    {{ macros.render_search_component(url_for("survey_related_records:get_list_component"), _("search survey-related records")) }}
+
     {% include "survey-related-records/list-component.html" %}
 {% endblock details %}

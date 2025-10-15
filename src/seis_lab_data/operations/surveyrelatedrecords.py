@@ -282,6 +282,8 @@ async def list_survey_related_records(
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     return await queries.paginated_list_survey_related_records(
         session,
@@ -290,6 +292,8 @@ async def list_survey_related_records(
         page=page,
         page_size=page_size,
         include_total=include_total,
+        en_name_filter=en_name_filter,
+        pt_name_filter=pt_name_filter,
     )
 
 

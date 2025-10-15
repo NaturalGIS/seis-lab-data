@@ -110,9 +110,17 @@ async def list_projects(
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
 ) -> tuple[list[models.Project], int | None]:
     return await queries.paginated_list_projects(
-        session, initiator, page, page_size, include_total
+        session,
+        initiator,
+        page,
+        page_size,
+        include_total,
+        en_name_filter=en_name_filter,
+        pt_name_filter=pt_name_filter,
     )
 
 

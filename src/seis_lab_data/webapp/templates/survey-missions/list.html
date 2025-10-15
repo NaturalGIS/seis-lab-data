@@ -3,11 +3,15 @@ This template is loaded as a GET response to the /survey-missions/ endpoint. It 
 existing missions
 #}
 {% extends "base.html" %}
+{% import "macros.html" as macros %}
 
 {% block page_title %}
     <span class="material-icons-outlined">directions_boat</span>{{ _("survey missions") | capitalize }}
 {% endblock page_title %}
 
 {% block details %}
+
+    {{ macros.render_search_component(url_for("survey_missions:get_list_component"), _("search survey missions")) }}
+
     {% include "survey-missions/list-component.html" %}
 {% endblock details %}

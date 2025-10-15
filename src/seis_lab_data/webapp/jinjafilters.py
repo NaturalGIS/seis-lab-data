@@ -16,8 +16,6 @@ def translate_localizable_string(
     context: dict[str, typing.Any], value: Localizable
 ) -> str:
     current_lang = context["request"].state.language
-    logger.debug(f"{current_lang=}")
-    logger.debug(f"{value=}")
     return getattr(value, current_lang, value.en) or ""
 
 

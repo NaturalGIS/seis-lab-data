@@ -7,6 +7,7 @@ This template is loaded as a GET response to the /projects/ endpoint. It is used
   list of projects
 #}
 {% extends "base.html" %}
+{% import "macros.html" as macros %}
 
 {% block page_title %}
     <span class="material-icons-outlined">view_timeline</span>{{ _("Projects") }}
@@ -25,5 +26,8 @@ This template is loaded as a GET response to the /projects/ endpoint. It is used
             {% endif %}
         </div>
     </div>
+
+    {{ macros.render_search_component(url_for("projects:get_list_component"), _("search projects")) }}
+
     {% include "projects/list-component.html" %}
 {% endblock details %}
