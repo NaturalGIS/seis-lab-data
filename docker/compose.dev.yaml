@@ -182,6 +182,27 @@ services:
     volumes:
       *common-volumes
 
+  static-tile-server:
+    image: protomaps/go-pmtiles:v1.28.1
+    volumes:
+      - type: bind
+        source: ../sample-data/pmtiles
+        target: /tiles
+        read_only: true
+    command:
+      - "serve"
+      - "--public-url=http://localhost:8888"
+      - "--cors=*"
+      - "/tiles"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.pm-tiles-stripprefix.stripprefix.prefixes=/tiles"
+      - "traefik.http.routers.pm-tiles.rule=PathPrefix(`/tiles`)"
+      - "traefik.http.routers.pm-tiles.entrypoints=web"
+      - "traefik.http.routers.pm-tiles.priority=90"
+      - "traefik.http.routers.pm-tiles.middlewares=pm-tiles-stripprefix"
+      - "traefik.http.services.pm-tiles.loadbalancer.server.port=8080"
+
   jupyter:
     image: *common-image
     environment:
