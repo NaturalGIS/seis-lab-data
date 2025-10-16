@@ -278,18 +278,22 @@ async def delete_survey_related_record(
 async def list_survey_related_records(
     session: AsyncSession,
     initiator: schemas.UserId | None,
-    survey_mission_filter: schemas.SurveyMissionId | None = None,
+    survey_mission_id: schemas.SurveyMissionId | None = None,
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     return await queries.paginated_list_survey_related_records(
         session,
         initiator,
-        survey_mission_id=survey_mission_filter,
+        survey_mission_id=survey_mission_id,
         page=page,
         page_size=page_size,
         include_total=include_total,
+        en_name_filter=en_name_filter,
+        pt_name_filter=pt_name_filter,
     )
 
 
@@ -307,3 +311,46 @@ async def get_survey_related_record(
             f"record {survey_related_record_id!r}."
         )
     return await queries.get_survey_related_record(session, survey_related_record_id)
+
+
+async def update_survey_related_record(
+    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    to_update: schemas.SurveyRelatedRecordUpdate,
+    initiator: schemas.User | None,
+    session: AsyncSession,
+    settings: config.SeisLabDataSettings,
+    event_emitter: events.EventEmitterProtocol,
+) -> models.SurveyRelatedRecord:
+    if initiator is None or not await permissions.can_update_survey_related_record(
+        initiator, survey_related_record_id, settings=settings
+    ):
+        raise errors.SeisLabDataError(
+            "User is not allowed to update survey-related record."
+        )
+    if (
+        survey_related_record := await queries.get_survey_related_record(
+            session, survey_related_record_id
+        )
+    ) is None:
+        raise errors.SeisLabDataError(
+            f"Survey-related record with id {survey_related_record_id} does not exist."
+        )
+    serialized_before = schemas.SurveyRelatedRecordReadDetail.from_db_instance(
+        survey_related_record
+    ).model_dump()
+    updated_survey_related_record = await commands.update_survey_related_record(
+        session, survey_related_record, to_update
+    )
+    event_emitter(
+        schemas.SeisLabDataEvent(
+            type_=schemas.EventType.SURVEY_MISSION_UPDATED,
+            initiator=initiator.id,
+            payload=schemas.EventPayload(
+                before=serialized_before,
+                after=schemas.SurveyRelatedRecordReadDetail.from_db_instance(
+                    updated_survey_related_record
+                ).model_dump(),
+            ),
+        )
+    )
+    return updated_survey_related_record

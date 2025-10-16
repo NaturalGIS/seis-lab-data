@@ -2,18 +2,26 @@ import asyncio
 import dataclasses
 import json
 import logging
+import uuid
+from typing import (
+    Callable,
+    AsyncGenerator,
+    Type,
+    TypeVar,
+)
 
 import pydantic
 from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
+from datastar_py.sse import DatastarEvent
+from jinja2 import Template
 from redis.asyncio import Redis
+from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.templating import Jinja2Templates
 
-from seis_lab_data import (
-    constants,
-    schemas,
-)
+from ... import schemas
+from ...constants import ProcessingStatus
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +70,36 @@ def get_pagination_info(
     )
 
 
+RequestPathRetrievableIdType = TypeVar(
+    "RequestPathRetrievableIdType",
+    schemas.ProjectId,
+    schemas.SurveyMissionId,
+    schemas.SurveyRelatedRecordId,
+)
+
+
+def get_id_from_request_path[RequestPathRetrievableIdType](
+    request: Request, path_param_name: str, id_type: Type[RequestPathRetrievableIdType]
+) -> RequestPathRetrievableIdType:
+    try:
+        return id_type(uuid.UUID(request.path_params[path_param_name]))
+    except ValueError as err:
+        raise HTTPException(400, f"Invalid ID format for {id_type.__name__}") from err
+
+
+def get_page_from_request_params(
+    request: Request,
+    query_param_name: str = "page",
+) -> int:
+    try:
+        current_page = int(request.query_params.get(query_param_name, 1))
+        if current_page < 1:
+            raise ValueError
+        return current_page
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid page number")
+
+
 @pydantic.validate_call
 def get_page_count(
     total_items: pydantic.NonNegativeInt, page_size: pydantic.PositiveInt
@@ -73,7 +111,13 @@ async def produce_event_stream_for_topic(
     redis_client: Redis,
     request: Request,
     topic_name: str,
-    success_redirect_url: str,
+    on_success: Callable[
+        [schemas.ProcessingMessage, Template], AsyncGenerator[DatastarEvent, None]
+    ],
+    on_failure: Callable[
+        [schemas.ProcessingMessage, Template], AsyncGenerator[DatastarEvent, None]
+    ],
+    patch_elements_selector: str,
     timeout_seconds: int = 30,
 ):
     template_processor: Jinja2Templates = request.state.templates
@@ -98,49 +142,33 @@ async def produce_event_stream_for_topic(
                                 **json.loads(message["data"])
                             )
                             logger.debug(f"Received message: {processing_message!r}")
-                            yield ServerSentEventGenerator.patch_elements(
-                                message_template.render(
-                                    status=processing_message.status,
-                                    message=processing_message.message,
-                                ),
-                                selector="#feedback > ul",
-                                mode=ElementPatchMode.APPEND,
-                            )
                             if processing_message.status in (
-                                constants.ProcessingStatus.SUCCESS,
-                                constants.ProcessingStatus.FAILED,
+                                ProcessingStatus.SUCCESS,
+                                ProcessingStatus.FAILED,
                             ):
                                 if (
                                     processing_message.status
-                                    == constants.ProcessingStatus.SUCCESS
+                                    == ProcessingStatus.SUCCESS
                                 ):
-                                    yield ServerSentEventGenerator.patch_elements(
-                                        message_template.render(
-                                            data_test_id="processing-success-message",
-                                            status="Processing completed successfully",
-                                            message="you will be redirected shortly",
-                                        ),
-                                        selector="#feedback > ul",
-                                        mode=ElementPatchMode.APPEND,
-                                    )
-                                    await asyncio.sleep(1)
-                                    yield ServerSentEventGenerator.redirect(
-                                        success_redirect_url
-                                    )
+                                    async for datastar_event in on_success(
+                                        processing_message, message_template
+                                    ):
+                                        yield datastar_event
                                 else:
-                                    # FIXME
-                                    yield ServerSentEventGenerator.patch_elements(
-                                        message_template.render(
-                                            data_test_id="processing-failed-message",
-                                            status=f"Processing failed: {processing_message.message}",
-                                            message="you will be redirected shortly",
-                                        )
-                                    )
-                                    await asyncio.sleep(1)
-                                    yield ServerSentEventGenerator.redirect(
-                                        success_redirect_url
-                                    )
+                                    async for datastar_event in on_failure(
+                                        processing_message, message_template
+                                    ):
+                                        yield datastar_event
                                 break
+                            else:
+                                yield ServerSentEventGenerator.patch_elements(
+                                    message_template.render(
+                                        status=processing_message.status,
+                                        message=processing_message.message,
+                                    ),
+                                    selector=patch_elements_selector,
+                                    mode=ElementPatchMode.APPEND,
+                                )
                     else:
                         logging.info(
                             f"pubsub listener for topic {topic_name!r} timed out after {timeout_seconds} seconds"

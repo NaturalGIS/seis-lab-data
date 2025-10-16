@@ -6,3 +6,17 @@
     width: 100%;
     height: 100%;
 }
+
+.material-icons-outlined {
+    vertical-align: middle;
+    font-size: 24px;
+}
+
+a > .material-icons-outlined {
+    margin-right: 8px;
+}
+
+h1 > .material-icons-outlined {
+    font-size: inherit;
+    margin-right: 8px;
+}

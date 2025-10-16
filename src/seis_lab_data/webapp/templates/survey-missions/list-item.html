@@ -1,3 +1,4 @@
+{% import "macros.html" as macros %}
 <div class="col">
     <div class="card mb-3">
         <div class="row g-0">
@@ -7,10 +8,11 @@
             <div class="col-md-8">
                 <div class="card-body">
                     <h5 class="card-title">{{ item.name|translate_localizable_string }}</h5>
+                    <small class="card-text"><a href="{{ url_for('projects:detail', project_id=item.project.id) }}">{{ item.project.name|translate_localizable_string }}</a></small>
                     <p class="card-text"><small class="text-body-secondary">{{ item.status.value }}</small></p>
                     <p class="card-text"><small class="text-body-secondary">{{ item.is_valid }}</small></p>
                     <p class="card-text">{{ item.description|translate_localizable_string }}</p>
-                    <a href="{{ url_for('survey_missions:detail', survey_mission_id=item.id) }}" class="btn btn-primary">{{ _("View") }}</a>
+                    {{ macros.render_view_details_button(url_for('survey_missions:detail', survey_mission_id=item.id)) }}
                 </div>
             </div>
         </div>

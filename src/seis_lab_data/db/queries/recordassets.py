@@ -54,3 +54,17 @@ async def get_record_asset(
         .options(_SELECT_IN_LOAD_OPTIONS)
     )
     return (await session.exec(statement)).first()
+
+
+async def get_record_asset_by_english_name(
+    session: AsyncSession,
+    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    english_name: str,
+) -> models.RecordAsset | None:
+    statement = (
+        select(models.RecordAsset)
+        .where(models.RecordAsset.name["en"].astext == english_name)
+        .where(models.RecordAsset.survey_related_record_id == survey_related_record_id)
+        .options(_SELECT_IN_LOAD_OPTIONS)
+    )
+    return (await session.exec(statement)).first()

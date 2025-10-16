@@ -64,11 +64,12 @@ services:
     environment:
       <<: *common-auth-env
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.auth-router.rule=PathRegexp(`^/auth/`)"
-      - "traefik.http.routers.auth-router.entrypoints=web"
-      - "traefik.http.routers.auth-router.priority=100"
-      - "traefik.http.services.auth-service.loadbalancer.server.port=9000"
+      - exposed.outside=true
+      - traefik.enable=true
+      - "traefik.http.routers.auth-router.rule=Host(`seis-lab-data.naturalgis.pt`) && PathPrefix(`/auth`)"
+      - traefik.http.routers.auth-router.entrypoints=web
+      - traefik.http.routers.auth-router.priority=100
+      - traefik.http.services.auth-service.loadbalancer.server.port=9000
     depends_on:
       auth-db:
         condition: service_healthy
@@ -158,6 +159,30 @@ services:
       <<: *common-env
     <<: *common-secrets
     restart: unless-stopped
+
+  static-tile-server:
+    image: protomaps/go-pmtiles:v1.28.1
+    volumes:
+      - type: bind
+        source: /opt/data/pmtiles
+        target: /tiles
+        read_only: true
+    command:
+      - "serve"
+      - "--public-url=http://localhost:8888"
+      - "--cors=*"
+      - "/tiles"
+    networks:
+      - traefik-network
+    labels:
+      - exposed.outside=true
+      - traefik.enable=true
+      - traefik.http.middlewares.pm-tiles-stripprefix.stripprefix.prefixes=/tiles
+      - traefik.http.routers.pm-tiles.rule=PathPrefix(`/tiles`)
+      - traefik.http.routers.pm-tiles.entrypoints=web
+      - traefik.http.routers.pm-tiles.priority=90
+      - traefik.http.routers.pm-tiles.middlewares=pm-tiles-stripprefix
+      - traefik.http.services.pm-tiles.loadbalancer.server.port=8080
 
 networks:
   traefik-network:

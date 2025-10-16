@@ -23,7 +23,10 @@ from starlette_babel import (
     get_translator,
     LocaleMiddleware,
 )
-from starlette_wtf import CSRFProtectMiddleware
+from starlette_wtf import (
+    CSRFProtectMiddleware,
+    csrf_token,
+)
 
 from .. import (
     config,
@@ -39,7 +42,13 @@ from ..db.engine import (
 )
 from ..processing.broker import setup_broker
 
-from . import routes
+from .routes import (
+    auth,
+    base,
+)
+from .routes.projects import routes as projects_routes
+from .routes.surveymissions import routes as missions_routes
+from .routes.surveyrelatedrecords import routes as records_routes
 from .jinjafilters import (
     translate_enum,
     translate_localizable_string,
@@ -65,6 +74,20 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
     jinja_env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(settings.templates_dir), autoescape=True
     )
+    jinja_env.globals.update(
+        {
+            "csrf_token": csrf_token,
+            "icons": {
+                "delete_item": "delete",
+                "edit_item": "edit",
+                "new_item": "add_circle_outline",
+                "projects": "view_timeline",
+                "survey_missions": "directions_boat",
+                "survey_related_records": "source",
+                "view_details": "info",
+            },
+        }
+    )
     jinja_env.filters["translate_localizable_string"] = translate_localizable_string
     jinja_env.filters["translate_enum"] = translate_enum
     configure_jinja_env(jinja_env)
@@ -87,136 +110,19 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
     app = Starlette(
         debug=settings.debug,
         routes=[
-            Route("/", routes.home),
-            Route("/login", routes.login),
-            Route("/oauth2/callback", routes.auth_callback),
-            Route("/logout", routes.logout),
-            Route("/profile", routes.profile),
-            Route("/protected", routes.protected),
-            Route("/set-language/{lang}", routes.set_language, name="set_language"),
-            Mount(
-                "/projects",
-                name="projects",
-                routes=[
-                    Route("/", routes.ProjectCollectionEndpoint, name="list"),
-                    Route(
-                        "/new/add-form-link",
-                        routes.add_create_project_form_link,
-                        methods=["POST"],
-                        name="add_form_link",
-                    ),
-                    Route(
-                        "/new/remove-form-link",
-                        routes.remove_create_project_form_link,
-                        methods=["POST"],
-                        name="remove_form_link",
-                    ),
-                    Route(
-                        "/new",
-                        routes.get_project_creation_form,
-                        methods=["GET"],
-                        name="get_creation_form",
-                    ),
-                    Route(
-                        "/{project_id}",
-                        routes.ProjectDetailEndpoint,
-                        name="detail",
-                    ),
-                ],
-            ),
-            Mount(
-                "/survey-missions",
-                name="survey_missions",
-                routes=[
-                    Route(
-                        "/",
-                        routes.SurveyMissionCollectionEndpoint,
-                        methods=["GET"],
-                        name="list",
-                    ),
-                    Route(
-                        "/{project_id}/new",
-                        routes.get_survey_mission_creation_form,
-                        methods=["GET"],
-                        name="get_creation_form",
-                    ),
-                    Route(
-                        "/{project_id}/new/add-form-link",
-                        routes.add_create_survey_mission_form_link,
-                        methods=["POST"],
-                        name="add_form_link",
-                    ),
-                    Route(
-                        "/{project_id}/new/remove-form-link",
-                        routes.remove_create_survey_mission_form_link,
-                        methods=["POST"],
-                        name="remove_form_link",
-                    ),
-                    Route(
-                        "/{survey_mission_id}",
-                        routes.SurveyMissionDetailEndpoint,
-                        name="detail",
-                    ),
-                ],
-            ),
+            Route("/", base.home),
+            Route("/login", auth.login),
+            Route("/oauth2/callback", auth.auth_callback),
+            Route("/logout", auth.logout),
+            Route("/profile", base.profile),
+            Route("/protected", base.protected),
+            Route("/set-language/{lang}", base.set_language, name="set_language"),
+            Mount("/projects", name="projects", routes=projects_routes),
+            Mount("/survey-missions", name="survey_missions", routes=missions_routes),
             Mount(
                 "/survey-related-records",
                 name="survey_related_records",
-                routes=[
-                    Route(
-                        "/",
-                        routes.SurveyRelatedRecordCollectionEndpoint,
-                        methods=["GET"],
-                        name="list",
-                    ),
-                    Route(
-                        "/{survey_mission_id}/new",
-                        routes.get_survey_related_record_creation_form,
-                        methods=["GET"],
-                        name="get_creation_form",
-                    ),
-                    Route(
-                        "/{survey_mission_id}/new/add-form-link",
-                        routes.add_create_survey_related_record_form_link,
-                        methods=["POST"],
-                        name="add_form_link",
-                    ),
-                    Route(
-                        "/{survey_mission_id}/new/remove-form-link",
-                        routes.remove_create_survey_related_record_form_link,
-                        methods=["POST"],
-                        name="remove_form_link",
-                    ),
-                    Route(
-                        "/{survey_mission_id}/new/add-asset-form",
-                        routes.add_create_survey_related_record_form_asset,
-                        methods=["POST"],
-                        name="add_asset_form",
-                    ),
-                    Route(
-                        "/{survey_mission_id}/new/remove-asset-form",
-                        routes.remove_create_survey_related_record_form_asset,
-                        methods=["POST"],
-                        name="remove_asset_form",
-                    ),
-                    Route(
-                        "/{survey_mission_id}/new/add-asset-link-form/{asset_index}",
-                        routes.add_create_survey_related_record_form_asset_link,
-                        methods=["POST"],
-                        name="add_asset_link_form",
-                    ),
-                    Route(
-                        "/{survey_mission_id}/new/remove-asset-link-form/{asset_index}",
-                        routes.remove_create_survey_related_record_form_asset_link,
-                        methods=["POST"],
-                        name="remove_asset_link_form",
-                    ),
-                    Route(
-                        "/{survey_related_record_id}",
-                        routes.SurveyRelatedRecordDetailEndpoint,
-                        name="detail",
-                    ),
-                ],
+                routes=records_routes,
             ),
         ],
         lifespan=lifespan,

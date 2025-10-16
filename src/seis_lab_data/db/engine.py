@@ -23,7 +23,7 @@ def get_engine(db_dsn: str, debug: bool = False) -> AsyncEngine:
     # the `settings` parameter is not hashable
     global _DB_ENGINE
     if _DB_ENGINE is None:
-        _DB_ENGINE = create_async_engine(db_dsn, echo=debug)
+        _DB_ENGINE = create_async_engine(db_dsn, echo=False)
     return _DB_ENGINE
 
 

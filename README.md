@@ -6,6 +6,14 @@ Marine data catalog for internal usage at [IPMA]
 ## Development
 
 - Clone this repo
+- Make a symlink to the directory where you have your sample data into a `sample-data` directory under the root of the
+  project - For example:
+
+   ```shell
+   # assuming your sample-data directory lives at `~/my-seis-lab-data-sample-data`
+   ln -s ~/my-seis-lab-data-sample-data sample-data
+   ```
+
 - Ensure you have installed [docker] and [uv] on your machine
 - Create a Python virtualenv and install the project dependencies into it with:
 
@@ -81,6 +89,9 @@ Marine data catalog for internal usage at [IPMA]
 > Because the docker compose file used for dev bind mounts the entire `src` directory, it will
 > mask the container's own compiled `*.mo` files. This means that after running
 > `seis-lab-data translations compile` you need to restart the `webapp` service for the changes to take effect.
+
+
+### Data
 
 
 ## Running tests

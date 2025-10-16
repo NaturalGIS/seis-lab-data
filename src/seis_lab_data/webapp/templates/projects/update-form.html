@@ -2,14 +2,14 @@
 <form>
     {{ macros.render_localizable_field(form.name) }}
     {{ macros.render_localizable_field(form.description) }}
-    {{ macros.render_form_field(form.relative_path) }}
 
-    <h3 data-signals="{nextIndex: {{ form.links|length }}}">{{ _("Links") }}</h3>
+    {{ macros.render_form_field(form.root_path) }}
 
+    <h3>{{ _("Links") }}</h3>
     {{ macros.render_links_fields(
         form.links,
-        url_for("survey_missions:add_form_link", project_id=project.id),
-        url_for("survey_missions:remove_form_link", project_id=project.id),
+        url_for("projects:add_update_form_link", project_id=project.id),
+        url_for("projects:remove_update_form_link", project_id=project.id),
         form.csrf_token.current_token
     ) }}
 
@@ -19,24 +19,25 @@
                     type="reset"
                     class="btn btn-outline-secondary"
                     data-on-click="@get('{{ url_for("projects:get_details_component", project_id=project.id) }}')"
-                    aria-label="cancel-creation"
+                    aria-label="cancel-update"
             >{{ _('cancel') | capitalize }}
+            </button>
             <button
                     type="submit"
-                    aria-label="submit-create-form"
+                    aria-label="submit-update-form"
                     class="btn btn-primary"
-                    data-on-click="@post('{{ url_for('projects:detail', project_id=project.id) }}', {
+                    data-on-click="@put('{{ url_for('projects:detail', project_id=project.id) }}', {
                             contentType: 'form',
                             headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
                         })"
-                    data-indicator="posting"
-                    data-attr-disabled="$posting"
-                    data-text="$posting ? '{{ _('Creating survey mission...') }}' : '{{ _('Create survey mission') }}'"
+                    data-indicator="updating"
+                    data-attr-disabled="$updating"
+                    data-text="$updating ? '{{ _('updating project...') | capitalize }}' : '{{ _('update project') | capitalize }}'"
             >
             </button>
             <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
-                 data-attr-hidden="!$posting">
-                <span class="visually-hidden">{{ _("Loading...") }}</span>
+                 data-attr-hidden="!$updating">
+                <span class="visually-hidden">{{ _("loading...") | capitalize }}</span>
             </div>
         </div>
     </div>

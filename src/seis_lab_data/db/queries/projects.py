@@ -15,10 +15,20 @@ async def paginated_list_projects(
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
 ) -> tuple[list[models.Project], int | None]:
     limit = page_size
     offset = limit * (page - 1)
-    return await list_projects(session, user, limit, offset, include_total)
+    return await list_projects(
+        session,
+        user,
+        limit,
+        offset,
+        include_total,
+        en_name_filter=en_name_filter,
+        pt_name_filter=pt_name_filter,
+    )
 
 
 async def list_projects(
@@ -27,8 +37,18 @@ async def list_projects(
     limit: int = 20,
     offset: int = 0,
     include_total: bool = False,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
 ) -> tuple[list[models.Project], int | None]:
     statement = select(models.Project)
+    if en_name_filter:
+        statement = statement.where(
+            models.Project.name["en"].astext.ilike(f"%{en_name_filter}%")
+        )
+    if pt_name_filter:
+        statement = statement.where(
+            models.Project.name["pt"].astext.ilike(f"%{pt_name_filter}%")
+        )
     items = (await session.exec(statement.offset(offset).limit(limit))).all()
     num_total = (
         await _get_total_num_records(session, statement) if include_total else None

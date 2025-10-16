@@ -16,11 +16,20 @@ async def paginated_list_survey_related_records(
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     limit = page_size
     offset = limit * (page - 1)
     return await list_survey_related_records(
-        session, user, survey_mission_id, limit, offset, include_total
+        session,
+        user,
+        survey_mission_id,
+        limit,
+        offset,
+        include_total,
+        en_name_filter=en_name_filter,
+        pt_name_filter=pt_name_filter,
     )
 
 
@@ -31,6 +40,8 @@ async def list_survey_related_records(
     limit: int = 20,
     offset: int = 0,
     include_total: bool = False,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     statement = (
         select(models.SurveyRelatedRecord)
@@ -43,6 +54,14 @@ async def list_survey_related_records(
         .options(selectinload(models.SurveyRelatedRecord.domain_type))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
     )
+    if en_name_filter:
+        statement = statement.where(
+            models.SurveyRelatedRecord.name["en"].astext.ilike(f"%{en_name_filter}%")
+        )
+    if pt_name_filter:
+        statement = statement.where(
+            models.SurveyRelatedRecord.name["pt"].astext.ilike(f"%{pt_name_filter}%")
+        )
     if survey_mission_id is not None:
         statement = statement.where(
             models.SurveyRelatedRecord.survey_mission_id == survey_mission_id

@@ -8,6 +8,7 @@ from .projects import (
 from .recordassets import (
     collect_all_record_assets,
     get_record_asset,
+    get_record_asset_by_english_name,
     list_record_assets,
 )
 from .surveymissions import (
@@ -48,6 +49,7 @@ __all__ = [
     get_project,
     get_project_by_english_name,
     get_record_asset,
+    get_record_asset_by_english_name,
     get_survey_mission,
     get_survey_mission_by_english_name,
     get_survey_related_record,
