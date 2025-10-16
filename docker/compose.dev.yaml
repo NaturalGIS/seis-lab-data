@@ -51,6 +51,9 @@ x-common-volumes: &common-volumes
   - type: bind
     source: ../dev-log-config.yml
     target: /home/ubuntu/app/dev-log-config.yml
+  - type: bind
+    source: ../sample-data
+    target: /data
 
 services:
 

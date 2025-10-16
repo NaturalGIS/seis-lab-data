@@ -27,6 +27,11 @@ x-common-auth-env: &common-auth-env
   SEIS_LAB_DATA_CLIENT_SECRET: *auth-client-secret
   SEIS_LAB_DATA_REDIRECT_URI: *auth-redirect-url
 
+x-common-volumes: &common-volumes
+  - type: bind
+    source: ../tests/data
+    target: /data
+
 services:
 
   web-gateway:
@@ -137,6 +142,8 @@ services:
         condition: service_healthy
       message-broker:
         condition: service_healthy
+    volumes:
+      *common-volumes
 
   processing-worker:
     image: *common-image
@@ -144,12 +151,14 @@ services:
       - "run-processing-worker"
     environment:
       <<: *common-env
+    volumes:
+      *common-volumes
 
   static-tile-server:
     image: protomaps/go-pmtiles:v1.28.1
     volumes:
       - type: bind
-        source: ../tests/data
+        source: ../tests/data/pmtiles
         target: /tiles
         read_only: true
     command:
