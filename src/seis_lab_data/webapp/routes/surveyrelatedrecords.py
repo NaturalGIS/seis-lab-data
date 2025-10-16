@@ -41,6 +41,7 @@ from .auth import (
 )
 from .common import (
     get_id_from_request_path,
+    get_page_from_request_params,
     get_pagination_info,
     produce_event_stream_for_topic,
 )
@@ -52,13 +53,6 @@ async def _get_survey_related_record_details(
     request: Request,
 ) -> schemas.SurveyRelatedRecordDetails:
     """Utility function to get survey-related record details and its assets."""
-    try:
-        current_page = int(request.query_params.get("page", 1))
-        if current_page < 1:
-            raise ValueError
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid page number")
-
     user = get_user(request.session.get("user", {}))
     settings: config.SeisLabDataSettings = request.state.settings
     session_maker = request.state.session_maker
@@ -696,17 +690,91 @@ async def remove_update_form_asset_link(request: Request):
     return DatastarResponse(event_streamer())
 
 
+async def get_list_component(request: Request):
+    if (raw_search_params := request.query_params.get("datastar")) is not None:
+        try:
+            search_params = json.loads(raw_search_params)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid search params")
+        else:
+            current_lang = request.state.language
+            list_filters = {}
+            if name_filter := search_params.get("search"):
+                list_filters[f"{current_lang}_name_filter"] = name_filter
+            if "surveyMissionId" in search_params:
+                try:
+                    list_filters["survey_mission_id"] = schemas.SurveyMissionId(
+                        uuid.UUID(search_params["surveyMissionId"])
+                    )
+                except ValueError:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Invalid surveyMissionId filter",
+                    )
+    else:
+        list_filters = {}
+    current_page = get_page_from_request_params(request)
+    session_maker = request.state.session_maker
+    user = get_user(request.session.get("user", {}))
+    settings: config.SeisLabDataSettings = request.state.settings
+    async with session_maker() as session:
+        items, num_total = await operations.list_survey_related_records(
+            session,
+            initiator=user.id if user else None,
+            page=current_page,
+            page_size=settings.pagination_page_size,
+            include_total=True,
+            **list_filters,
+        )
+        num_unfiltered_total = (
+            await operations.list_survey_related_records(
+                session, initiator=user or None, include_total=True
+            )
+        )[1]
+    pagination_info = get_pagination_info(
+        current_page,
+        settings.pagination_page_size,
+        num_total,
+        num_unfiltered_total,
+        collection_url=str(request.url_for("survey_related_records:list")),
+    )
+    template_processor = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/list-component.html"
+    )
+    # serialize query params back so that we may update the current URL
+    serialized_filters = "&".join(
+        f"{k}={v}"
+        for k, v in list_filters.items()
+        if k != "survey_mission_id" and v != ""
+    )
+    serialized_list_filters = f"?{serialized_filters}" if serialized_filters else ""
+    rendered = template.render(
+        request=request,
+        items=[
+            schemas.SurveyRelatedRecordReadListItem.from_db_instance(item)
+            for item in items
+        ],
+        pagination=pagination_info,
+        update_current_url_with=serialized_list_filters,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=schemas.selector_info.items_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
 class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
     async def get(self, request: Request):
         """List survey-related records."""
+        current_page = get_page_from_request_params(request)
         session_maker = request.state.session_maker
         settings: config.SeisLabDataSettings = request.state.settings
-        try:
-            current_page = int(request.query_params.get("page", 1))
-            if current_page < 1:
-                raise ValueError
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid page number")
         user = get_user(request.session.get("user", {}))
         async with session_maker() as session:
             items, num_total = await operations.list_survey_related_records(
@@ -1101,6 +1169,12 @@ routes = [
         SurveyRelatedRecordCollectionEndpoint,
         methods=["GET"],
         name="list",
+    ),
+    Route(
+        "/search",
+        get_list_component,
+        methods=["GET"],
+        name="get_list_component",
     ),
     Route(
         "/{survey_related_record_id}",

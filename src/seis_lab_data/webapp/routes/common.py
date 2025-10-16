@@ -87,6 +87,19 @@ def get_id_from_request_path[RequestPathRetrievableIdType](
         raise HTTPException(400, f"Invalid ID format for {id_type.__name__}") from err
 
 
+def get_page_from_request_params(
+    request: Request,
+    query_param_name: str = "page",
+) -> int:
+    try:
+        current_page = int(request.query_params.get(query_param_name, 1))
+        if current_page < 1:
+            raise ValueError
+        return current_page
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid page number")
+
+
 @pydantic.validate_call
 def get_page_count(
     total_items: pydantic.NonNegativeInt, page_size: pydantic.PositiveInt

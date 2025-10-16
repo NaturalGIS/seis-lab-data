@@ -35,6 +35,7 @@ from .auth import (
 )
 from .common import (
     get_id_from_request_path,
+    get_page_from_request_params,
     get_pagination_info,
     produce_event_stream_for_topic,
 )
@@ -174,21 +175,18 @@ async def get_project_details_component(request: Request):
 
 
 async def _get_project_details(request: Request) -> schemas.ProjectDetails:
-    """utility function to get project details and its survey missions.
-
-    The logic in this function is shared between routes that need to work with the project:
-
-    - project details page
-    - project deletion page
-    - project update page
-    - project links form management endpoints (add/remove link) for the update page
-    """
-    try:
-        current_page = int(request.query_params.get("page", 1))
-        if current_page < 1:
-            raise ValueError
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid page number")
+    """utility function to get project details and its survey missions."""
+    survey_mission_current_page = get_page_from_request_params(request)
+    survey_mission_search_filters = {
+        k: v
+        for k, v in (
+            {
+                "en_name": request.query_params.get("en_name"),
+                "pt_name": request.query_params.get("pt_name"),
+            }
+        ).items()
+        if v is not None
+    }
     user = get_user(request.session.get("user", {}))
     settings: config.SeisLabDataSettings = request.state.settings
     session_maker = request.state.session_maker
@@ -210,10 +208,11 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
         survey_missions, total = await operations.list_survey_missions(
             session,
             user,
-            project_filter=project_id,
+            project_id=project_id,
             include_total=True,
-            page=current_page,
+            page=survey_mission_current_page,
             page_size=settings.pagination_page_size,
+            **survey_mission_search_filters,
         )
     return schemas.ProjectDetails(
         item=schemas.ProjectReadDetail.from_db_instance(project),
@@ -221,8 +220,9 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
             schemas.SurveyMissionReadListItem.from_db_instance(sm)
             for sm in survey_missions
         ],
+        children_filter=survey_mission_search_filters,
         pagination=get_pagination_info(
-            current_page,
+            survey_mission_current_page,
             settings.pagination_page_size,
             total,
             total,
@@ -254,6 +254,64 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
     )
 
 
+async def get_list_component(request: Request):
+    if (raw_search_params := request.query_params.get("datastar")) is not None:
+        try:
+            search_params = json.loads(raw_search_params)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid search params")
+        else:
+            current_lang = request.state.language
+            list_filters = {}
+            if name_filter := search_params.get("search"):
+                list_filters[f"{current_lang}_name_filter"] = name_filter
+    else:
+        list_filters = {}
+    current_page = get_page_from_request_params(request)
+    logger.debug(f"{list_filters=}")
+    session_maker = request.state.session_maker
+    user = get_user(request.session.get("user", {}))
+    settings: config.SeisLabDataSettings = request.state.settings
+    async with session_maker() as session:
+        items, num_total = await operations.list_projects(
+            session,
+            initiator=user or None,
+            page=current_page,
+            page_size=settings.pagination_page_size,
+            include_total=True,
+            **list_filters,
+        )
+        num_unfiltered_total = (
+            await operations.list_projects(
+                session, initiator=user or None, include_total=True
+            )
+        )[1]
+
+    pagination_info = get_pagination_info(
+        current_page,
+        settings.pagination_page_size,
+        num_total,
+        num_unfiltered_total,
+        collection_url=str(request.url_for("projects:list")),
+    )
+    template_processor = request.state.templates
+    template = template_processor.get_template("projects/list-component.html")
+    rendered = template.render(
+        request=request,
+        items=[schemas.ProjectReadListItem.from_db_instance(i) for i in items],
+        pagination=pagination_info,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=schemas.selector_info.items_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
 class ProjectCollectionEndpoint(HTTPEndpoint):
     """Manage the collection of projects."""
 
@@ -262,12 +320,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         session_maker = request.state.session_maker
         user = get_user(request.session.get("user", {}))
         settings: config.SeisLabDataSettings = request.state.settings
-        try:
-            current_page = int(request.query_params.get("page", 1))
-            if current_page < 1:
-                raise ValueError
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid page number")
+        current_page = get_page_from_request_params(request)
         async with session_maker() as session:
             items, num_total = await operations.list_projects(
                 session,
@@ -430,6 +483,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
 
         details = await _get_project_details(request)
         template_processor = request.state.templates
+        current_name_filter = f"{request.state.language}_name"
         return template_processor.TemplateResponse(
             request,
             "projects/detail.html",
@@ -437,6 +491,9 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 "project": details.item,
                 "pagination": details.pagination,
                 "survey_missions": details.children,
+                "search_initial_value": (
+                    details.children_filter.get(current_name_filter) or ""
+                ),
                 "permissions": details.permissions,
                 "breadcrumbs": details.breadcrumbs,
             },
@@ -920,6 +977,7 @@ async def remove_update_project_form_link(request: Request):
 
 routes = [
     Route("/", ProjectCollectionEndpoint, name="list"),
+    Route("/search", get_list_component, name="get_list_component"),
     Route(
         "/new/add-form-link",
         add_create_project_form_link,

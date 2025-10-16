@@ -28,6 +28,7 @@ class NewItemSelectorInfo:
     breadcrumbs_selector: str = "[aria-label='breadcrumbs']"
     page_title_selector: str = "[aria-label='title']"
     main_content_selector: str = "[aria-label='content']"
+    items_selector: str = "[aria-label='items']"
     feedback_selector: str = "output"
 
 
@@ -82,6 +83,7 @@ ItemChildSummary = typing.TypeVar(
 class ItemDetails(typing.Generic[ItemWithDetails, ItemChildSummary]):
     item: ItemWithDetails
     children: list[ItemChildSummary]
+    children_filter: dict[str, str]
     pagination: PaginationInfo
     permissions: UserPermissionDetails
     breadcrumbs: list[BreadcrumbItem]

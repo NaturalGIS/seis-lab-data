@@ -84,7 +84,7 @@ def test_survey_related_record_lifecycle(shared_authenticated_page: Page):
     ).to_be_visible()
 
     # now create the new survey mission
-    shared_authenticated_page.get_by_role("button", name="new-survey-mission").click()
+    shared_authenticated_page.get_by_role("button", name="new-item").click()
     # fill out the form and submit it
     shared_authenticated_page.get_by_role("textbox", name="field-name-en").fill(
         "e2e test survey mission"
@@ -152,9 +152,7 @@ def test_survey_related_record_lifecycle(shared_authenticated_page: Page):
     ).to_be_visible()
 
     # now create a new survey-related record under that survey mission
-    shared_authenticated_page.get_by_role(
-        "button", name="new-survey-related-record"
-    ).click()
+    shared_authenticated_page.get_by_role("button", name="new-item").click()
 
     # fill out the form and submit it
     shared_authenticated_page.get_by_role("textbox", name="field-name-en").fill(
@@ -297,9 +295,7 @@ def test_survey_related_record_lifecycle(shared_authenticated_page: Page):
     ).click()
     shared_authenticated_page.get_by_role("button", name="delete-item").click()
     expect(
-        shared_authenticated_page.get_by_role(
-            "button", name="new-survey-related-record"
-        )
+        shared_authenticated_page.get_by_role("button", name="new-item")
     ).to_be_visible()
 
     # and then delete also the newly-created survey mission
@@ -308,7 +304,7 @@ def test_survey_related_record_lifecycle(shared_authenticated_page: Page):
     ).click()
     shared_authenticated_page.get_by_role("button", name="delete-item").click()
     expect(
-        shared_authenticated_page.get_by_role("button", name="new-survey-mission")
+        shared_authenticated_page.get_by_role("button", name="new-item")
     ).to_be_visible()
 
     # and then delete also the also newly-created project

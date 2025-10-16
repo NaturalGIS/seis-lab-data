@@ -119,18 +119,22 @@ async def delete_survey_mission(
 async def list_survey_missions(
     session: AsyncSession,
     initiator: schemas.UserId | None,
-    project_filter: schemas.ProjectId | None = None,
+    project_id: schemas.ProjectId | None = None,
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
+    en_name: str | None = None,
+    pt_name: str | None = None,
 ) -> tuple[list[models.SurveyMission], int | None]:
     return await queries.paginated_list_survey_missions(
         session,
         initiator,
-        project_id=project_filter,
+        project_id=project_id,
         page=page,
         page_size=page_size,
         include_total=include_total,
+        en_name=en_name,
+        pt_name=pt_name,
     )
 
 

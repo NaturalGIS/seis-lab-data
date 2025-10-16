@@ -2,43 +2,39 @@
 <div class="row">
     <div class="col">
         {% if permissions.can_create_children %}
-            <button
-                    class="btn btn-primary"
-                    data-on-click="@get('{{ url_for("survey_missions:get_creation_form", project_id=project.id) }}')"
-                    aria-label="new-survey-mission"
-            >
-                <span class="material-icons-outlined">{{ icons.new_item }}</span>{{ _("new survey mission") | capitalize }}
-            </button>
+            {{ macros.render_new_item_button(
+                url_for("survey_missions:get_creation_form", project_id=project.id),
+                _("new survey mission")
+            ) }}
         {% endif %}
     </div>
 </div>
 <div class="row mb-3">
     {% if permissions.can_update %}
         <div class="col">
-            <button
-                    class="btn btn-outline-primary"
-                    data-on-click="@get('{{ url_for("projects:get_update_form", project_id=project.id) }}')"
-                    aria-label="edit-project"
-            >{{ _("edit project") | capitalize }}
-            </button>
+            {{ macros.render_update_item_button(
+                url_for("projects:get_update_form", project_id=project.id),
+                _("edit project")
+            ) }}
         </div>
     {% endif %}
     <div class="col" data-signals-deleting="false">
         {% if permissions.can_delete %}
             {{ macros.render_delete_item_button(
-            deletion_url=url_for("projects:detail", project_id=project.id),
-            signal_name="deleting",
-            idle_message="delete project",
-            running_message="deleting project...",
-            generated_csrf_token=csrf_token(request),
-            modal_dialog_title=_("delete project"),
-            modal_dialog_confirmation_text=_("are you sure you want to delete this project?")) }}
+                deletion_url=url_for("projects:detail", project_id=project.id),
+                signal_name="deleting",
+                idle_message="delete project",
+                running_message="deleting project...",
+                generated_csrf_token=csrf_token(request),
+                modal_dialog_title=_("delete project"),
+                modal_dialog_confirmation_text=_("are you sure you want to delete this project?")
+            ) }}
         {% endif %}
     </div>
 </div>
 
 
-<div class="row">
+<div class="row" data-signals-project-id="'{{ project.id }}'">
     <div class="col">
         <h2>{{ _("properties") | capitalize }}</h2>
         <dl class="row">
@@ -82,8 +78,19 @@
 <div class="row">
     <div class="col">
         <h2>{{ _("survey missions") | capitalize }}</h2>
-        {% with items = survey_missions %}
-            {% include "survey-missions/list-component.html" %}
-        {% endwith %}
+
+        {{ macros.render_search_component(
+               url_for("survey_missions:get_list_component"),
+               _("search project survey-missions"),
+               initial_value=search_initial_value
+        ) }}
+
+        <div class="row" aria-label="items">
+            <div class="col">
+                {% with items = survey_missions %}
+                    {% include "survey-missions/list-component.html" %}
+                {% endwith %}
+            </div>
+        </div>
     </div>
 </div>

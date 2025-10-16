@@ -78,11 +78,13 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
         {
             "csrf_token": csrf_token,
             "icons": {
-                "view_details": "info",
+                "delete_item": "delete",
+                "edit_item": "edit",
                 "new_item": "add_circle_outline",
                 "projects": "view_timeline",
                 "survey_missions": "directions_boat",
                 "survey_related_records": "source",
+                "view_details": "info",
             },
         }
     )

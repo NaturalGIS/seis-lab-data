@@ -35,6 +35,7 @@ from .auth import (
 )
 from .common import (
     get_id_from_request_path,
+    get_page_from_request_params,
     get_pagination_info,
     produce_event_stream_for_topic,
 )
@@ -43,22 +44,18 @@ logger = logging.getLogger(__name__)
 
 
 async def _get_survey_mission_details(request: Request) -> schemas.SurveyMissionDetails:
-    """utility function to get survey mission details and its survey-related records.
-
-    The logic in this function is shared between routes that need to work with the survey mission:
-
-    - details page
-    - deletion page
-    - update page
-    - links form management endpoints (add/remove link) for the update page
-    """
-    try:
-        current_page = int(request.query_params.get("page", 1))
-        if current_page < 1:
-            raise ValueError
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid page number")
-
+    """utility function to get survey mission details and its survey-related records."""
+    records_current_page = get_page_from_request_params(request)
+    records_search_filters = {
+        k: v
+        for k, v in (
+            {
+                "en_name": request.query_params.get("en_name"),
+                "pt_name": request.query_params.get("pt_name"),
+            }
+        ).items()
+        if v is not None
+    }
     user = get_user(request.session.get("user", {}))
     settings: config.SeisLabDataSettings = request.state.settings
     session_maker = request.state.session_maker
@@ -86,9 +83,9 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
         ) = await operations.list_survey_related_records(
             session,
             user,
-            survey_mission_filter=survey_mission_id,
+            survey_mission_id=survey_mission_id,
             include_total=True,
-            page=current_page,
+            page=records_current_page,
             page_size=settings.pagination_page_size,
         )
     return schemas.SurveyMissionDetails(
@@ -97,8 +94,9 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
             schemas.SurveyRelatedRecordReadListItem.from_db_instance(srr)
             for srr in survey_related_records
         ],
+        children_filter=records_search_filters,
         pagination=get_pagination_info(
-            current_page,
+            records_current_page,
             request.state.settings.pagination_page_size,
             total,
             total,
@@ -228,19 +226,88 @@ async def get_survey_mission_creation_form(request: Request):
     return DatastarResponse(event_streamer())
 
 
+async def get_list_component(request: Request):
+    if (raw_search_params := request.query_params.get("datastar")) is not None:
+        try:
+            search_params = json.loads(raw_search_params)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid search params")
+        else:
+            current_lang = request.state.language
+            list_filters = {}
+            if name_filter := search_params.get("search"):
+                list_filters[f"{current_lang}_name"] = name_filter
+            if "projectId" in search_params:
+                try:
+                    list_filters["project_id"] = schemas.ProjectId(
+                        uuid.UUID(search_params["projectId"])
+                    )
+                except ValueError:
+                    raise HTTPException(
+                        status_code=400, detail="Invalid project ID format"
+                    )
+    else:
+        list_filters = {}
+    current_page = get_page_from_request_params(request)
+    session_maker = request.state.session_maker
+    settings: config.SeisLabDataSettings = request.state.settings
+    user = get_user(request.session.get("user", {}))
+    async with session_maker() as session:
+        items, num_total = await operations.list_survey_missions(
+            session,
+            initiator=user.id if user else None,
+            page=current_page,
+            page_size=settings.pagination_page_size,
+            include_total=True,
+            **list_filters,
+        )
+        logger.debug(f"{items=}, {num_total=}")
+        num_unfiltered_total = (
+            await operations.list_survey_missions(
+                session, initiator=user or None, include_total=True
+            )
+        )[1]
+    pagination_info = get_pagination_info(
+        current_page,
+        settings.pagination_page_size,
+        num_total,
+        num_unfiltered_total,
+        collection_url=str(request.url_for("survey_missions:list")),
+    )
+    template_processor = request.state.templates
+    template = template_processor.get_template("survey-missions/list-component.html")
+    # serialize query params back so that we may update the current URL,
+    # which allows the client to refresh the page, if needed
+    serialized_filters = "&".join(
+        f"{k}={v}" for k, v in list_filters.items() if k != "project_id" and v != ""
+    )
+    serialized_list_filters = f"?{serialized_filters}" if serialized_filters else ""
+
+    rendered = template.render(
+        request=request,
+        items=[schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items],
+        pagination=pagination_info,
+        update_current_url_with=serialized_list_filters,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=schemas.selector_info.items_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
 class SurveyMissionCollectionEndpoint(HTTPEndpoint):
     """Manage collection of survey missions."""
 
     async def get(self, request: Request):
         """List survey missions."""
+        current_page = get_page_from_request_params(request)
         session_maker = request.state.session_maker
         settings: config.SeisLabDataSettings = request.state.settings
-        try:
-            current_page = int(request.query_params.get("page", 1))
-            if current_page < 1:
-                raise ValueError
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid page number")
         user = get_user(request.session.get("user", {}))
         async with session_maker() as session:
             items, num_total = await operations.list_survey_missions(
@@ -286,6 +353,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
     async def get(self, request: Request):
         details = await _get_survey_mission_details(request)
         template_processor = request.state.templates
+        current_name_filter = f"{request.state.language}_name"
         return template_processor.TemplateResponse(
             request,
             "survey-missions/detail.html",
@@ -293,6 +361,9 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 "survey_mission": details.item,
                 "pagination": details.pagination,
                 "survey_related_records": details.children,
+                "search_initial_value": (
+                    details.children_filter.get(current_name_filter) or ""
+                ),
                 "permissions": details.permissions,
                 "breadcrumbs": details.breadcrumbs,
             },
@@ -917,6 +988,12 @@ routes = [
         SurveyMissionCollectionEndpoint,
         methods=["GET"],
         name="list",
+    ),
+    Route(
+        "/search",
+        get_list_component,
+        methods=["GET"],
+        name="get_list_component",
     ),
     Route(
         "/{project_id}/new",

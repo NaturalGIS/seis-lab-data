@@ -2,43 +2,38 @@
 <div class="row">
     <div class="col">
         {% if permissions.can_create_children %}
-            <button
-                    class="btn btn-primary"
-                    data-on-click="@get('{{ url_for("survey_related_records:get_creation_form", survey_mission_id=survey_mission.id) }}')"
-                    aria-label="new-survey-related-record"
-            >
-                <span class="material-icons-outlined">{{ icons.new_item }}</span>{{ _("New survey-related record") }}
-            </button>
+            {{ macros.render_new_item_button(
+                url_for("survey_related_records:get_creation_form", survey_mission_id=survey_mission.id),
+                _("new survey-related record")
+            ) }}
         {% endif %}
     </div>
 </div>
 <div class="row mb-3">
     {% if permissions.can_update %}
         <div class="col">
-            <button
-                    class="btn btn-outline-primary"
-                    data-on-click="@get('{{ url_for("survey_missions:get_update_form", survey_mission_id=survey_mission.id) }}')"
-                    aria-label="edit-survey-mission"
-            >{{ _("edit survey mission") | capitalize }}
-            </button>
+            {{ macros.render_update_item_button(
+                url_for("survey_missions:get_update_form", survey_mission_id=survey_mission.id),
+                _("edit survey mission")
+            ) }}
         </div>
     {% endif %}
     <div class="col" data-signals-deleting="false">
         {% if permissions.can_delete %}
             {{ macros.render_delete_item_button(
-            deletion_url=url_for("survey_missions:detail", survey_mission_id=survey_mission.id),
-            signal_name="deleting",
-            idle_message="delete survey mission",
-            running_message="deleting survey mission...",
-            generated_csrf_token=csrf_token(request),
-            modal_dialog_title=_("delete survey mission"),
-            modal_dialog_confirmation_text=_("are you sure you want to delete this survey mission?")
+                deletion_url=url_for("survey_missions:detail", survey_mission_id=survey_mission.id),
+                signal_name="deleting",
+                idle_message="delete survey mission",
+                running_message="deleting survey mission...",
+                generated_csrf_token=csrf_token(request),
+                modal_dialog_title=_("delete survey mission"),
+                modal_dialog_confirmation_text=_("are you sure you want to delete this survey mission?")
             ) }}
         {% endif %}
     </div>
 </div>
 
-<div class="row">
+<div class="row" data-signals-survey-mission-id="'{{ survey_mission.id }}'">
     <div class="col">
         <h2>{{ _("properties") | capitalize }}</h2>
         <dl class="row">
@@ -82,8 +77,19 @@
 <div class="row">
     <div class="col">
         <h2>{{ _("survey-related-records") | capitalize }}</h2>
-        {% with items = survey_related_records %}
-            {% include "survey-related-records/list-component.html" %}
-        {% endwith %}
+
+        {{ macros.render_search_component(
+               url_for("survey_related_records:get_list_component"),
+               _("search survey-related records"),
+               initial_value=search_initial_value
+        ) }}
+
+        <div class="row" aria-label="items">
+            <div class="col">
+                {% with items = survey_related_records %}
+                    {% include "survey-related-records/list-component.html" %}
+                {% endwith %}
+            </div>
+        </div>
     </div>
 </div>
