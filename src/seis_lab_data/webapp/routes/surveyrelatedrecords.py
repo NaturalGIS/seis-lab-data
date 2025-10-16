@@ -701,10 +701,19 @@ async def get_list_component(request: Request):
             list_filters = {}
             if name_filter := search_params.get("search"):
                 list_filters[f"{current_lang}_name_filter"] = name_filter
+            if "surveyMissionId" in search_params:
+                try:
+                    list_filters["survey_mission_id"] = schemas.SurveyMissionId(
+                        uuid.UUID(search_params["surveyMissionId"])
+                    )
+                except ValueError:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Invalid surveyMissionId filter",
+                    )
     else:
         list_filters = {}
     current_page = get_page_from_request_params(request)
-    logger.debug(f"{list_filters=}")
     session_maker = request.state.session_maker
     user = get_user(request.session.get("user", {}))
     settings: config.SeisLabDataSettings = request.state.settings
@@ -733,6 +742,13 @@ async def get_list_component(request: Request):
     template = template_processor.get_template(
         "survey-related-records/list-component.html"
     )
+    # serialize query params back so that we may update the current URL
+    serialized_filters = "&".join(
+        f"{k}={v}"
+        for k, v in list_filters.items()
+        if k != "survey_mission_id" and v != ""
+    )
+    serialized_list_filters = f"?{serialized_filters}" if serialized_filters else ""
     rendered = template.render(
         request=request,
         items=[
@@ -740,6 +756,7 @@ async def get_list_component(request: Request):
             for item in items
         ],
         pagination=pagination_info,
+        update_current_url_with=serialized_list_filters,
     )
 
     async def event_streamer():

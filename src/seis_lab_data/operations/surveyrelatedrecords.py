@@ -278,7 +278,7 @@ async def delete_survey_related_record(
 async def list_survey_related_records(
     session: AsyncSession,
     initiator: schemas.UserId | None,
-    survey_mission_filter: schemas.SurveyMissionId | None = None,
+    survey_mission_id: schemas.SurveyMissionId | None = None,
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
@@ -288,7 +288,7 @@ async def list_survey_related_records(
     return await queries.paginated_list_survey_related_records(
         session,
         initiator,
-        survey_mission_id=survey_mission_filter,
+        survey_mission_id=survey_mission_id,
         page=page,
         page_size=page_size,
         include_total=include_total,

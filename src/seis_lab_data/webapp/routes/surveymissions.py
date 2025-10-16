@@ -44,16 +44,18 @@ logger = logging.getLogger(__name__)
 
 
 async def _get_survey_mission_details(request: Request) -> schemas.SurveyMissionDetails:
-    """utility function to get survey mission details and its survey-related records.
-
-    The logic in this function is shared between routes that need to work with the survey mission:
-
-    - details page
-    - deletion page
-    - update page
-    - links form management endpoints (add/remove link) for the update page
-    """
-    current_page = get_page_from_request_params(request)
+    """utility function to get survey mission details and its survey-related records."""
+    records_current_page = get_page_from_request_params(request)
+    records_search_filters = {
+        k: v
+        for k, v in (
+            {
+                "en_name": request.query_params.get("en_name"),
+                "pt_name": request.query_params.get("pt_name"),
+            }
+        ).items()
+        if v is not None
+    }
     user = get_user(request.session.get("user", {}))
     settings: config.SeisLabDataSettings = request.state.settings
     session_maker = request.state.session_maker
@@ -81,9 +83,9 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
         ) = await operations.list_survey_related_records(
             session,
             user,
-            survey_mission_filter=survey_mission_id,
+            survey_mission_id=survey_mission_id,
             include_total=True,
-            page=current_page,
+            page=records_current_page,
             page_size=settings.pagination_page_size,
         )
     return schemas.SurveyMissionDetails(
@@ -92,8 +94,9 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
             schemas.SurveyRelatedRecordReadListItem.from_db_instance(srr)
             for srr in survey_related_records
         ],
+        children_filter=records_search_filters,
         pagination=get_pagination_info(
-            current_page,
+            records_current_page,
             request.state.settings.pagination_page_size,
             total,
             total,
@@ -275,12 +278,10 @@ async def get_list_component(request: Request):
     template = template_processor.get_template("survey-missions/list-component.html")
     # serialize query params back so that we may update the current URL,
     # which allows the client to refresh the page, if needed
-    serialized_list_filters = "&".join(
+    serialized_filters = "&".join(
         f"{k}={v}" for k, v in list_filters.items() if k != "project_id" and v != ""
     )
-    serialized_list_filters = (
-        f"?{serialized_list_filters}" if serialized_list_filters else ""
-    )
+    serialized_list_filters = f"?{serialized_filters}" if serialized_filters else ""
 
     rendered = template.render(
         request=request,
@@ -352,6 +353,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
     async def get(self, request: Request):
         details = await _get_survey_mission_details(request)
         template_processor = request.state.templates
+        current_name_filter = f"{request.state.language}_name"
         return template_processor.TemplateResponse(
             request,
             "survey-missions/detail.html",
@@ -359,6 +361,9 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 "survey_mission": details.item,
                 "pagination": details.pagination,
                 "survey_related_records": details.children,
+                "search_initial_value": (
+                    details.children_filter.get(current_name_filter) or ""
+                ),
                 "permissions": details.permissions,
                 "breadcrumbs": details.breadcrumbs,
             },

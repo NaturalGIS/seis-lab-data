@@ -1,12 +1,3 @@
-{#
-This template is loaded as a GET response to the /projects/{project_id} endpoint. It is used to both:
-
-- Show details of a specific project
-- Show a form for updating the project (if the user has permissions to do so), when the user clicks the project
-  update button - this is loaded via a server-sent event and patched into the already existing DOM
-- Show a modal for confirming project deletion, when the user clicks the project delete button - this is already
-  in the DOM but hidden, and is shown when the user clicks the delete button
-#}
 {% extends "base.html" %}
 
 {% block page_title %}

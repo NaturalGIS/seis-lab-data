@@ -175,15 +175,7 @@ async def get_project_details_component(request: Request):
 
 
 async def _get_project_details(request: Request) -> schemas.ProjectDetails:
-    """utility function to get project details and its survey missions.
-
-    The logic in this function is shared between routes that need to work with the project:
-
-    - project details page
-    - project deletion page
-    - project update page
-    - project links form management endpoints (add/remove link) for the update page
-    """
+    """utility function to get project details and its survey missions."""
     survey_mission_current_page = get_page_from_request_params(request)
     survey_mission_search_filters = {
         k: v

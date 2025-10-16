@@ -165,7 +165,36 @@
 {% endmacro %}
 
 
-{% macro render_delete_item_button(deletion_url, signal_name, idle_message, running_message, generated_csrf_token, modal_dialog_title=_("delete item"), modal_dialog_confirmation_text=_("Are you sure you want to delete this item?")) %}
+{% macro render_new_item_button(url, text) %}
+    <button
+            class="btn btn-primary"
+            data-on-click="@get('{{ url }}')"
+            aria-label="new-item"
+    >
+        <span class="material-icons-outlined">{{ icons.new_item }}</span>{{ text | capitalize }}
+    </button>
+{% endmacro %}
+
+
+{% macro render_update_item_button(url, text) %}
+    <button
+            class="btn btn-outline-primary"
+            data-on-click="@get('{{ url }}')"
+            aria-label="update-item"
+    ><span class="material-icons-outlined">{{ icons.edit_item }}</span>{{ text | capitalize }}
+    </button>
+{% endmacro %}
+
+
+{% macro render_delete_item_button(
+    deletion_url,
+    signal_name,
+    idle_message,
+    running_message,
+    generated_csrf_token,
+    modal_dialog_title=_("delete item"),
+    modal_dialog_confirmation_text=_("Are you sure you want to delete this item?")
+) %}
 
     <button
             class="btn btn-danger"
@@ -173,8 +202,8 @@
             data-bs-toggle="modal"
             data-bs-target="#delete-item-modal"
             data-attr-disabled="${{ signal_name }}"
-            data-text="${{ signal_name }} ? '{{ running_message }}' : '{{ idle_message }}...'"
     >
+        <span class="material-icons-outlined">{{ icons.delete_item }}</span><span data-text="${{ signal_name }} ? '{{ running_message }}' : '{{ idle_message }}...'"></span>
     </button>
     <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
          data-attr-hidden="!${{ signal_name }}">
