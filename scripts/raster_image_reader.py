@@ -11,50 +11,52 @@ from osgeo import gdal
 from osgeo import ogr
 from osgeo import osr
 
+
 @dataclasses.dataclass
 class GeoRasterMetadata:
-    name:           str
-    size_bytes:     int
+    name: str
+    size_bytes: int
     creation_date: datetime
-    media_type:     str
-    driver:         str
+    media_type: str
+    driver: str
 
     # Coordinate Model
-    projection:     str
-    datum:          str
+    projection: str
+    datum: str
 
-    geographic:     bool = False
-    projected:      bool = False
-    local:          bool = False
-    geocentric:     bool = False
-
+    geographic: bool = False
+    projected: bool = False
+    local: bool = False
+    geocentric: bool = False
 
     # raster image specific
-    
-    image_size:     Tuple[int,int] = (0,0)
-    bands:          int = 1
 
-    def __init__(self,gdal_ds):
+    image_size: Tuple[int, int] = (0, 0)
+    bands: int = 1
+
+    def __init__(self, gdal_ds):
         self.data_repr_class = 0
 
         self.name = gdal_ds.GetDescription()
         self.size_bytes = os.path.getsize(self.name)
-        self.creation_date = datetime.fromtimestamp(os.path.getctime(self.name),UTC).isoformat() + "Z"
+        self.creation_date = (
+            datetime.fromtimestamp(os.path.getctime(self.name), UTC).isoformat() + "Z"
+        )
         drv = gdal_ds.GetDriver()
         self.media_type = drv.LongName
         self.driver = drv.ShortName
 
-        self.image_size = (gdal_ds.RasterXSize,gdal_ds.RasterYSize)
+        self.image_size = (gdal_ds.RasterXSize, gdal_ds.RasterYSize)
         self.bands = gdal_ds.RasterCount
 
         # model transform data
 
         gt = gdal_ds.GetGeoTransform()
-        
+
         # CRS
 
         self.crs_wkt = gdal_ds.GetProjection()
-        
+
         # Spatial Reference
 
         srs = osr.SpatialReference(wkt=self.crs_wkt)
@@ -63,23 +65,30 @@ class GeoRasterMetadata:
         self.local = srs.IsLocal()
         self.geocentric = srs.IsGeocentric()
 
-        #self.central_meridian = srs.GetProjParm("central_meridian")
+        # self.central_meridian = srs.GetProjParm("central_meridian")
         self.projection = srs.GetAttrValue("PROJECTION")
         self.datum = srs.GetAttrValue("DATUM")
 
         self.crs_auth = srs.GetAuthorityName(None)
         self.crs_code = srs.GetAuthorityCode(None)
 
-        cols,rows = self.image_size
-        self.extent = (gt[0], gt[3] + cols * gt[4] + rows * gt[5],
-                       gt[0] + cols * gt[1] + rows * gt[2], gt[3])
+        cols, rows = self.image_size
+        self.extent = (
+            gt[0],
+            gt[3] + cols * gt[4] + rows * gt[5],
+            gt[0] + cols * gt[1] + rows * gt[2],
+            gt[3],
+        )
+
 
 warning_notes = []
+
 
 def gdal_open_exceptions_handler(err_class, err_no, msg):
     global warning_notes
     if err_class == gdal.CE_Warning:
         warning_notes.append(msg)
+
 
 def gdal_open_file(path):
     global warning_notes
@@ -99,22 +108,23 @@ def gdal_open_file(path):
         )
         raise type(e)(msg).with_traceback(e.__traceback__)
 
-
     gdal.PopErrorHandler()
 
     return ds
+
 
 def read_metadata_from_raster(path):
     ds = gdal_open_file(path)
 
     return GeoRasterMetadata(ds)
 
+
 # Example usage
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Attempt to extract metadata from GDAL supported data formats."
     )
-    parser.add_argument("file_name",help="GDAL supported file path")
+    parser.add_argument("file_name", help="GDAL supported file path")
     args = parser.parse_args()
 
     m = read_metadata_from_raster(args.file_name)
