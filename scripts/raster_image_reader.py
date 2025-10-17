@@ -1,14 +1,13 @@
 import argparse
 import dataclasses
-from dataclasses import field
+import os
+
 from datetime import datetime
 from datetime import UTC
 
-import os
 from typing import Tuple
 
 from osgeo import gdal
-from osgeo import ogr
 from osgeo import osr
 
 

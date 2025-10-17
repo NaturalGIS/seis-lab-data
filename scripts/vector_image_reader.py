@@ -1,36 +1,65 @@
 import dataclasses
-from dataclasses import dataclass
 from dataclasses import field
-from dataclasses import asdict
 import argparse
-from datetime import datetime
-from datetime import UTC
+
 from typing import List
 from typing import Set
 from typing import Tuple
 from typing import Optional
+
 from osgeo import gdal
 from osgeo import ogr
 from osgeo import osr
-from pyproj import CRS, Transformer
+from pyproj import Transformer
 
 from metadata import GeoMetadata
 
-# @dataclasses.dataclass
-# class GeoMetadata:
-#    name:       str
-#    size_bytes: int
-#    creation_date: datetime
-#    media_type: str
-#    driver:     str
-#
-#    data_repr_class: bool = 0 # 0: raster 1: vector
-#
-#    def is_vector(self):
-#        return self.data_repr_class == 1
-#
-#    def is_raster(self):
-#        return self.data_repr_class == 0
+def get_layer(self, ds, samples_per_edge, layer_arg=None):
+    # No layer specified → first layer
+    if layer_arg is None:
+        lyr = ds.GetLayer(0)
+        if lyr is None:
+            raise RuntimeError("Datasource has no layers")
+        return lyr
+
+    # If user passed an integer index (or a stringified integer)
+    if isinstance(layer_arg, int) or (
+        isinstance(layer_arg, str) and layer_arg.isdigit()
+    ):
+        idx = int(layer_arg)
+        lyr = ds.GetLayer(idx)
+        if lyr is None:
+            names = [ds.GetLayer(i).GetName() for i in range(ds.GetLayerCount())]
+            raise RuntimeError(
+                f"Layer index {idx} out of range. Available layers: {names}"
+            )
+        return lyr
+
+    # If bytes → decode
+    if isinstance(layer_arg, (bytes, bytearray)):
+        layer_arg = layer_arg.decode("utf-8", errors="replace")
+
+    # If bool sneaks in (e.g., argparse store_true) → this is invalid
+    if isinstance(layer_arg, bool):
+        raise TypeError(
+            "Invalid --layer-name value: got a boolean. Did you mean to pass a layer name or index?"
+        )
+
+    # Finally, expect a string name
+    if isinstance(layer_arg, str):
+        lyr = ds.GetLayerByName(layer_arg)
+        if lyr is None:
+            names = [ds.GetLayer(i).GetName() for i in range(ds.GetLayerCount())]
+            raise RuntimeError(
+                f"Layer '{layer_arg}' not found. Available layers: {names}"
+            )
+        return lyr
+
+    # Anything else → error
+    raise TypeError(
+        f"Unsupported type for layer selection: {type(layer_arg).__name__}"
+    )
+
 
 
 @dataclasses.dataclass
@@ -56,51 +85,6 @@ class VectorMetadata(GeoMetadata):
 
     geometry_types = set()
 
-    def get_layer(ds, samples_per_edge, layer_arg=None):
-        # No layer specified → first layer
-        if layer_arg is None:
-            lyr = ds.GetLayer(0)
-            if lyr is None:
-                raise RuntimeError("Datasource has no layers")
-            return lyr
-
-        # If user passed an integer index (or a stringified integer)
-        if isinstance(layer_arg, int) or (
-            isinstance(layer_arg, str) and layer_arg.isdigit()
-        ):
-            idx = int(layer_arg)
-            lyr = ds.GetLayer(idx)
-            if lyr is None:
-                names = [ds.GetLayer(i).GetName() for i in range(ds.GetLayerCount())]
-                raise RuntimeError(
-                    f"Layer index {idx} out of range. Available layers: {names}"
-                )
-            return lyr
-
-        # If bytes → decode
-        if isinstance(layer_arg, (bytes, bytearray)):
-            layer_arg = layer_arg.decode("utf-8", errors="replace")
-
-        # If bool sneaks in (e.g., argparse store_true) → this is invalid
-        if isinstance(layer_arg, bool):
-            raise TypeError(
-                "Invalid --layer-name value: got a boolean. Did you mean to pass a layer name or index?"
-            )
-
-        # Finally, expect a string name
-        if isinstance(layer_arg, str):
-            lyr = ds.GetLayerByName(layer_arg)
-            if lyr is None:
-                names = [ds.GetLayer(i).GetName() for i in range(ds.GetLayerCount())]
-                raise RuntimeError(
-                    f"Layer '{layer_arg}' not found. Available layers: {names}"
-                )
-            return lyr
-
-        # Anything else → error
-        raise TypeError(
-            f"Unsupported type for layer selection: {type(layer_arg).__name__}"
-        )
 
     def _extent_from_layer(
         self, lyr: ogr.Layer
@@ -214,7 +198,7 @@ class VectorMetadata(GeoMetadata):
         # a string representing an integer
 
         try:
-            lyr = get_layer(ogr_ds, layer_name)
+            lyr = get_layer(ogr_ds, samples_per_edge, layer_name)
             self.layer_name = lyr.GetName()
         except Exception:
             pass
@@ -304,7 +288,7 @@ class VectorMetadata(GeoMetadata):
                     FieldDef(
                         name=fdefn.GetName(),
                         type=ftype_name.lower(),
-                        nullable=True,
+                        nullable=nullable,
                         width=width,
                         precision=precision,
                     )
