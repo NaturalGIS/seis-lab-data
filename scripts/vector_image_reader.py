@@ -14,6 +14,7 @@ from pyproj import Transformer
 
 from metadata import GeoMetadata
 
+
 def get_layer(self, ds, samples_per_edge, layer_arg=None):
     # No layer specified → first layer
     if layer_arg is None:
@@ -56,10 +57,7 @@ def get_layer(self, ds, samples_per_edge, layer_arg=None):
         return lyr
 
     # Anything else → error
-    raise TypeError(
-        f"Unsupported type for layer selection: {type(layer_arg).__name__}"
-    )
-
+    raise TypeError(f"Unsupported type for layer selection: {type(layer_arg).__name__}")
 
 
 @dataclasses.dataclass
@@ -84,7 +82,6 @@ class VectorMetadata(GeoMetadata):
     primary_key: str = None
 
     geometry_types = set()
-
 
     def _extent_from_layer(
         self, lyr: ogr.Layer
