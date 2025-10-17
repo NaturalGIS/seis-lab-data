@@ -24,7 +24,9 @@ jobs:
       - name: inspect if deployment is triggered
         run: |
           echo 'Event payload:'
-          echo '${{ toJSON(github.event) }}'
+          cat << 'EOF'
+          ${{ toJSON(github.event) }}
+          EOF
       - name: Create GitHub deployment
         id: create-deployment
         uses: chrnorm/deployment-action@v2
