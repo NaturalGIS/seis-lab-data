@@ -1,5 +1,14 @@
 {% extends "base.html" %}
 
+{% block head %}
+    {{ super() }}
+    <script src='https://unpkg.com/maplibre-gl@v5.9.0/dist/maplibre-gl.js'></script>
+    <link href='https://unpkg.com/maplibre-gl@v5.9.0/dist/maplibre-gl.css' rel='stylesheet' />
+    <script src="https://unpkg.com/terra-draw@1.0.0/dist/terra-draw.umd.js"></script>
+    <script src="https://unpkg.com/terra-draw-maplibre-gl-adapter@1.0.0/dist/terra-draw-maplibre-gl-adapter.umd.js"></script>
+    <script type="module" src="{{ url_for('static', path='/js/bbox-map.js') }}"></script>
+{% endblock head %}
+
 {% block page_title %}
     {{ project.name|translate_localizable_string }}
 {% endblock page_title %}
