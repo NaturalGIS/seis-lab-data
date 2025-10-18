@@ -8,9 +8,9 @@ export class BoundingBoxMap extends HTMLElement {
     static get observedAttributes() {
         return [
             'data-min-lat',
-            'data-min-lng',
+            'data-min-lon',
             'data-max-lat',
-            'data-max-lng',
+            'data-max-lon',
             'data-tile-url',
             'data-center-x',
             'data-center-y',
@@ -28,7 +28,7 @@ export class BoundingBoxMap extends HTMLElement {
         console.log(`Attribute changes: ${name} from ${oldValue} to ${newValue}`)
         if (oldValue === newValue || !this.draw) return;
 
-        if (['data-min-lat', 'data-min-lng', 'data-max-lat', 'data-max-lng'].includes(name)) {
+        if (['data-min-lat', 'data-min-lon', 'data-max-lat', 'data-max-lon'].includes(name)) {
             console.log('dispatching updateMapFromAttributes...')
             this.updateMapFromAttributes();
         }
@@ -127,9 +127,9 @@ export class BoundingBoxMap extends HTMLElement {
         console.log('Continuing...')
 
         const minLat = parseFloat(this.getAttribute('data-min-lat'))
-        const minLng = parseFloat(this.getAttribute('data-min-lng'))
+        const minLng = parseFloat(this.getAttribute('data-min-lon'))
         const maxLat = parseFloat(this.getAttribute('data-max-lat'))
-        const maxLng = parseFloat(this.getAttribute('data-max-lng'))
+        const maxLng = parseFloat(this.getAttribute('data-max-lon'))
 
         console.log(`minLat: ${minLat}, minLng: ${minLng}, maxLat: ${maxLat}, maxLng: ${maxLng}`)
 
@@ -167,13 +167,13 @@ export class BoundingBoxMap extends HTMLElement {
         if (this._suppressUpdate) return
 
         const coords = feature.geometry.coordinates[0]
-        const lngs = coords.map(c => c[0])
+        const lons = coords.map(c => c[0])
         const lats = coords.map(c => c[1])
 
         const bbox = {
-            minLng: Math.min(...lngs),
+            minLng: Math.min(...lons),
             minLat: Math.min(...lats),
-            maxLng: Math.max(...lngs),
+            maxLng: Math.max(...lons),
             maxLat: Math.max(...lats),
         }
 
