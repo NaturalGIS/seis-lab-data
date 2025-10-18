@@ -56,6 +56,12 @@ class SeisLabDataSettings(BaseSettings):
     translations_dir: Optional[Path] = Path(__file__).parent / "translations"
     emit_events: bool = False
     pagination_page_size: int = 20
+    webmap_base_tile_layer_url: str = (
+        "https://localhost:8888/tiles/world-bathymetry/{z}/{x}/{y}.png"
+    )
+    webmap_default_center_lon: float = 0.0
+    webmap_default_center_lat: float = 0.0
+    webmap_default_zoom_level: int = 3
 
 
 class SeisLabDataCliContext(BaseModel):

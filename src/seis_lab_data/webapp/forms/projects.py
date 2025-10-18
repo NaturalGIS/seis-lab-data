@@ -6,7 +6,9 @@ from starlette.requests import Request
 from starlette_babel import gettext_lazy as _
 from starlette_wtf import StarletteForm
 from wtforms import (
+    DecimalField,
     FieldList,
+    Form,
     FormField,
     StringField,
 )
@@ -25,6 +27,13 @@ from .common import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class BoundingBoxForm(Form):
+    min_lon = DecimalField("min_lon", default=10, places=5)
+    min_lat = DecimalField("min_lat", default=10, places=5)
+    max_lon = DecimalField("max_lon", default=20, places=5)
+    max_lat = DecimalField("max_lat", default=20, places=5)
 
 
 class _ProjectForm(StarletteForm):
@@ -46,6 +55,7 @@ class _ProjectForm(StarletteForm):
         _("Root path"),
         description=_("Base path for the project in the archive file system"),
     )
+    bounding_box = FormField(BoundingBoxForm)
     links = FieldList(
         FormField(LinkForm),
         label=_("Links"),
