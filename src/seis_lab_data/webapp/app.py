@@ -86,6 +86,7 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
                 "survey_related_records": "source",
                 "view_details": "info",
             },
+            "settings": settings,
         }
     )
     jinja_env.filters["translate_localizable_string"] = translate_localizable_string

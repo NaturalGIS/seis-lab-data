@@ -2,10 +2,10 @@
 
 {% block head %}
     {{ super() }}
-    <script src='https://unpkg.com/maplibre-gl@v5.9.0/dist/maplibre-gl.js'></script>
-    <link href='https://unpkg.com/maplibre-gl@v5.9.0/dist/maplibre-gl.css' rel='stylesheet' />
-    <script src="https://unpkg.com/terra-draw@1.0.0/dist/terra-draw.umd.js"></script>
-    <script src="https://unpkg.com/terra-draw-maplibre-gl-adapter@1.0.0/dist/terra-draw-maplibre-gl-adapter.umd.js"></script>
+    <script type="module" src="{{ url_for('static', path='/js/maplibre-gl-v5.9.0.js') }}"></script>
+    <link href="{{ url_for('static', path='/css/maplibre-gl-v5.9.0.css') }}" rel='stylesheet' />
+    <script type="module" src="{{ url_for('static', path='/js/terra-draw-v1.0.0.umd.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='/js/terra-draw-maplibre-gl-adapter-v1.0.0.umd.js') }}"></script>
     <script type="module" src="{{ url_for('static', path='/js/bbox-map.js') }}"></script>
 {% endblock head %}
 

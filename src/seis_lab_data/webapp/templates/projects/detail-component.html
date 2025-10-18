@@ -32,19 +32,13 @@
         {% endif %}
     </div>
 </div>
-{#
-
-data-on-bbox-changed="console.log(`this is coming from datastar and the new bbox is ${JSON.stringify(evt.detail.bbox)}`)"
-data-on-bbox-changed="$bbox=evt.detail.bbox"
-
-#}
 <div class="row" data-signals="{bbox:{minLat: 0, minLng:0, maxLat:0, maxLng:0}}">
     <div class="col">
         <bbox-map
-                data-tile-url="http://localhost:8888/tiles/emodnet-bathymetry-l8/{z}/{x}/{y}.png"
-                data-center-lng="0"
-                data-center-lat="0"
-                data-zoom="2"
+                data-tile-url="{{ settings.webmap_base_tile_layer_url }}"
+                data-center-lng="{{ settings.webmap_default_center_lon }}"
+                data-center-lat="{{ settings.webmap_default_center_lat }}"
+                data-zoom="{{ settings.webmap_default_zoom_level }}"
                 data-min-lat=""
                 data-min-lng=""
                 data-max-lat=""
