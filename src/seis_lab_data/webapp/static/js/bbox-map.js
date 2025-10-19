@@ -11,12 +11,6 @@ export class BoundingBoxMap extends HTMLElement {
             'data-min-lon',
             'data-max-lat',
             'data-max-lon',
-            'data-tile-url',
-            'data-center-x',
-            'data-center-y',
-            'data-zoom',
-            'data-min-zoom',
-            'data-max-zoom',
         ];
     }
 
@@ -122,18 +116,16 @@ export class BoundingBoxMap extends HTMLElement {
     }
 
     updateMapFromAttributes() {
-        console.log(`Inside updateMapFromAttributes with suppressUpate=${this._suppressUpdate} and draw=${this.draw}`)
         if (this._suppressUpdate || !this.draw) return
-        console.log('Continuing...')
 
         const minLat = parseFloat(this.getAttribute('data-min-lat'))
-        const minLng = parseFloat(this.getAttribute('data-min-lon'))
+        const minLon = parseFloat(this.getAttribute('data-min-lon'))
         const maxLat = parseFloat(this.getAttribute('data-max-lat'))
-        const maxLng = parseFloat(this.getAttribute('data-max-lon'))
+        const maxLon = parseFloat(this.getAttribute('data-max-lon'))
 
-        console.log(`minLat: ${minLat}, minLng: ${minLng}, maxLat: ${maxLat}, maxLng: ${maxLng}`)
+        console.log(`minLat: ${minLat}, minLon: ${minLon}, maxLat: ${maxLat}, maxLon: ${maxLon}`)
 
-        if (!isNaN(minLat) && !isNaN(minLng) && !isNaN(maxLat) && !isNaN(maxLng)) {
+        if (!isNaN(minLat) && !isNaN(minLon) && !isNaN(maxLat) && !isNaN(maxLon)) {
             this._suppressUpdate = true
 
             this.draw.clear()
@@ -146,17 +138,17 @@ export class BoundingBoxMap extends HTMLElement {
                 geometry: {
                     type: 'Polygon',
                     coordinates: [[
-                        [minLng, minLat],
-                        [maxLng, minLat],
-                        [maxLng, maxLat],
-                        [minLng, maxLat],
-                        [minLng, minLat],
+                        [minLon, minLat],
+                        [maxLon, minLat],
+                        [maxLon, maxLat],
+                        [minLon, maxLat],
+                        [minLon, minLat],
                     ]]
                 }
             }
 
             this.draw.addFeatures([feature])
-            this.map.fitBounds([[minLng, minLat], [maxLng, maxLat]], {padding: 20})
+            this.map.fitBounds([[minLon, minLat], [maxLon, maxLat]], {padding: 20})
 
             this._suppressUpdate = false
         }
@@ -171,9 +163,9 @@ export class BoundingBoxMap extends HTMLElement {
         const lats = coords.map(c => c[1])
 
         const bbox = {
-            minLng: Math.min(...lons),
+            minLon: Math.min(...lons),
             minLat: Math.min(...lats),
-            maxLng: Math.max(...lons),
+            maxLon: Math.max(...lons),
             maxLat: Math.max(...lats),
         }
 

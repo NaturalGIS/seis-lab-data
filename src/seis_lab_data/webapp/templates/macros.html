@@ -18,13 +18,11 @@
                          aria_describedby=form_element_described_by,
                          aria_required="true",
                          aria_label=stable_test_id,
-                         data_bind=field.name,
                          **kwargs) }}
                 {% else %}
                     {{ field(class=form_element_classes,
                          aria_describedby=form_element_described_by,
                          aria_label=stable_test_id,
-                         data_bind=field.name,
                          **kwargs) }}
                 {% endif %}
                 <div id="{{ name_prefix }}{{ field.name }}-help" class="form-text">

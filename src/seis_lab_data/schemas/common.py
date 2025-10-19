@@ -1,11 +1,14 @@
 from typing import (
     Annotated,
+    cast,
     NewType,
     Protocol,
 )
 import uuid
 
 import pydantic
+import shapely
+from geoalchemy2 import WKBElement
 
 from .. import constants
 
@@ -63,3 +66,60 @@ class LinkSchema(pydantic.BaseModel):
         self, url: pydantic.AnyHttpUrl, _info: pydantic.FieldSerializationInfo
     ) -> str:
         return str(url)
+
+
+def parse_wkt_polygon_into_geom(value: str) -> shapely.Polygon:
+    try:
+        geom = shapely.from_wkt(value)
+    except shapely.GEOSException as err:
+        raise ValueError(f"Could not parse {value} as WKT") from err
+    else:
+        if not geom.is_valid:
+            raise ValueError("Geometry is not valid")
+        if geom.geom_type != "Polygon":
+            raise ValueError("Geometry is not a Polygon")
+        if geom.area == 0:
+            raise ValueError("Polygon has zero area")
+    return cast(shapely.Polygon, geom)
+
+
+def parse_wkbelement_polygon_into_geom(value: WKBElement) -> shapely.Polygon:
+    try:
+        geom = shapely.from_wkb(value.data)
+    except shapely.GEOSException as err:
+        raise ValueError(f"Could not parse {value} as WKB") from err
+    else:
+        if not geom.is_valid:
+            raise ValueError("Geometry is not valid")
+        if geom.geom_type != "Polygon":
+            raise ValueError("Geometry is not a Polygon")
+        if geom.area == 0:
+            raise ValueError("Polygon has zero area")
+    return cast(shapely.Polygon, geom)
+
+
+def serialize_polygon_to_wkt(value: shapely.Polygon) -> str:
+    return value.wkt
+
+
+def serialize_polygon_to_bounds(
+    value: shapely.Polygon,
+) -> tuple[float, float, float, float]:
+    return value.bounds
+
+
+# suitable for putting values into the DB
+# parses a WKT string into a shapely Polygon, serializes back to WKT string
+Polygon = Annotated[
+    shapely.Polygon,
+    pydantic.PlainValidator(parse_wkt_polygon_into_geom),
+    pydantic.PlainSerializer(serialize_polygon_to_wkt),
+]
+
+# suitable for outputting values from the API
+# parses a WKBElement into a shapely Polygon, serializes to a min_lon, min_lat, max_lon, max_lat tuple
+PolygonOut = Annotated[
+    shapely.Polygon,
+    pydantic.PlainValidator(parse_wkbelement_polygon_into_geom),
+    pydantic.PlainSerializer(serialize_polygon_to_bounds),
+]

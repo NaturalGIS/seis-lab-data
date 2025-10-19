@@ -4,7 +4,13 @@
     {{ macros.render_localizable_field(form.description) }}
     {{ macros.render_form_field(form.root_path) }}
 
-    <div class="row" data-signals="{bbox:{minLat: 0, minLon:0, maxLat:0, maxLon:0}}">
+    <div
+            class="row"
+            data-signals-bbox.min-lon="{{ default_webmap_bounds.min_lon }}"
+            data-signals-bbox.max-lon="{{ default_webmap_bounds.max_lon }}"
+            data-signals-bbox.min-lat="{{ default_webmap_bounds.min_lat }}"
+            data-signals-bbox.max-lat="{{ default_webmap_bounds.max_lat }}"
+    >
         <div class="col">
             <bbox-map
                     data-tile-url="{{ settings.webmap_base_tile_layer_url }}"
@@ -24,11 +30,10 @@
             ></bbox-map>
         </div>
     </div>
-    {{ macros.render_form_field(form.bounding_box.min_lon) }}
-    {{ macros.render_form_field(form.bounding_box.max_lon) }}
-    {{ macros.render_form_field(form.bounding_box.min_lat) }}
-    {{ macros.render_form_field(form.bounding_box.max_lat) }}
-
+    {{ macros.render_form_field(form.bounding_box.min_lon, data_bind="bbox.minLon") }}
+    {{ macros.render_form_field(form.bounding_box.max_lon, data_bind="bbox.maxLon") }}
+    {{ macros.render_form_field(form.bounding_box.min_lat, data_bind="bbox.minLat") }}
+    {{ macros.render_form_field(form.bounding_box.max_lat, data_bind="bbox.maxLat") }}
 
     <h3>{{ _("Links") }}</h3>
     {{ macros.render_links_fields(

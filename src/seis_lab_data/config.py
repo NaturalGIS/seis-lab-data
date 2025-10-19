@@ -62,6 +62,18 @@ class SeisLabDataSettings(BaseSettings):
     webmap_default_center_lon: float = 0.0
     webmap_default_center_lat: float = 0.0
     webmap_default_zoom_level: int = 3
+    # the below WKT Polygon corresponds to the bbox of Portugal's Exclusive Economic Zone, as gotten
+    # by postprocessing the dataset of the world EEZs, available
+    # for download at https://www.marineregions.org/downloads.php#eez
+    webmap_default_bbox_wkt: str = (
+        "Polygon (("
+        "-35.58558 29.24784, "
+        "-7.25694 29.24784, "
+        "-7.25694 43.06482, "
+        "-35.58558 43.06482, "
+        "-35.58558 29.24784"
+        "))"
+    )
 
 
 class SeisLabDataCliContext(BaseModel):

@@ -6,6 +6,7 @@ from typing import (
 )
 
 import jinja2
+import shapely
 from authlib.integrations.starlette_client import OAuth
 from redis import asyncio as aioredis
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -74,6 +75,9 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
     jinja_env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(settings.templates_dir), autoescape=True
     )
+    default_bbox = shapely.from_wkt(settings.webmap_default_bbox_wkt)
+    min_lon, min_lat, max_lon, max_lat = default_bbox.bounds
+    print(f"{min_lon=}, {min_lat=}, {max_lon=}, {max_lat=}")
     jinja_env.globals.update(
         {
             "csrf_token": csrf_token,
@@ -87,6 +91,12 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
                 "view_details": "info",
             },
             "settings": settings,
+            "default_webmap_bounds": {
+                "min_lon": min_lon,
+                "max_lon": max_lon,
+                "min_lat": min_lat,
+                "max_lat": max_lat,
+            },
         }
     )
     jinja_env.filters["translate_localizable_string"] = translate_localizable_string
