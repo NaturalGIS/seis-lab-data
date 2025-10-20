@@ -12,6 +12,39 @@ an aria-label of 'content'.
 
     {{ macros.render_form_field(form.root_path) }}
 
+    <div
+            class="row"
+            data-signals-bbox.min-lon="{{ default_webmap_bounds.min_lon }}"
+            data-signals-bbox.max-lon="{{ default_webmap_bounds.max_lon }}"
+            data-signals-bbox.min-lat="{{ default_webmap_bounds.min_lat }}"
+            data-signals-bbox.max-lat="{{ default_webmap_bounds.max_lat }}"
+    >
+        <div class="col">
+            <h3>{{ _('spatial extent') }}</h3>
+            <bbox-map
+                    data-tile-url="{{ settings.webmap_base_tile_layer_url }}"
+                    data-center-lon="{{ settings.webmap_default_center_lon }}"
+                    data-center-lat="{{ settings.webmap_default_center_lat }}"
+                    data-zoom="{{ settings.webmap_default_zoom_level }}"
+                    data-min-lat=""
+                    data-min-lon=""
+                    data-max-lat=""
+                    data-max-lon=""
+                    data-attr-data-min-lat="$bbox.minLat"
+                    data-attr-data-min-lon="$bbox.minLon"
+                    data-attr-data-max-lat="$bbox.maxLat"
+                    data-attr-data-max-lon="$bbox.maxLon"
+                    style="display: block; width: 100%; height: 30vh"
+                    data-on-bbox-changed="$bbox = evt.detail.bbox"
+            ></bbox-map>
+        </div>
+    </div>
+    {{ macros.render_form_field(form.bounding_box.min_lon, data_bind="bbox.minLon") }}
+    {{ macros.render_form_field(form.bounding_box.max_lon, data_bind="bbox.maxLon") }}
+    {{ macros.render_form_field(form.bounding_box.min_lat, data_bind="bbox.minLat") }}
+    {{ macros.render_form_field(form.bounding_box.max_lat, data_bind="bbox.maxLat") }}
+
+
     <h3 data-signals="{nextIndex: {{ form.links|length }}}">{{ _("Links") }}</h3>
     {{ macros.render_links_fields(
         form.links,

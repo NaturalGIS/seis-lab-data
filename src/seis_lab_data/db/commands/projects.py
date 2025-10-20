@@ -1,3 +1,5 @@
+import logging
+
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import (
@@ -8,6 +10,8 @@ from .. import (
     models,
     queries,
 )
+
+logger = logging.getLogger(__name__)
 
 
 async def create_project(
@@ -22,6 +26,7 @@ async def create_project(
         )
     session.add(project)
     await session.commit()
+    await session.refresh(project)
     return await queries.get_project(session, to_create.id)
 
 

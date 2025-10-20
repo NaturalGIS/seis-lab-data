@@ -9,6 +9,15 @@ This template is loaded as a GET response to the /projects/ endpoint. It is used
 {% extends "base.html" %}
 {% import "macros.html" as macros %}
 
+{% block head %}
+    {{ super() }}
+    <script type="module" src="{{ url_for('static', path='/js/maplibre-gl-v5.9.0.js') }}"></script>
+    <link href="{{ url_for('static', path='/css/maplibre-gl-v5.9.0.css') }}" rel='stylesheet' />
+    <script type="module" src="{{ url_for('static', path='/js/terra-draw-v1.0.0.umd.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='/js/terra-draw-maplibre-gl-adapter-v1.0.0.umd.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='/js/bbox-map.js') }}"></script>
+{% endblock head %}
+
 {% block page_title %}
     <span class="material-icons-outlined">view_timeline</span>{{ _("Projects") }}
 {% endblock page_title %}

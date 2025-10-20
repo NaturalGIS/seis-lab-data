@@ -5,6 +5,7 @@ import logging
 import uuid
 from typing import AsyncGenerator
 
+import shapely
 from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
 from datastar_py.sse import DatastarEvent
@@ -107,6 +108,11 @@ async def get_project_update_form(request: Request):
             raise HTTPException(
                 status_code=404, detail=_(f"Project {project_id!r} not found.")
             )
+    current_bbox = (
+        shapely.from_wkb(project.bbox_4326.data)
+        if project.bbox_4326 is not None
+        else None
+    )
     update_form = forms.ProjectUpdateForm(
         request=request,
         data={
@@ -119,6 +125,14 @@ async def get_project_update_form(request: Request):
                 "pt": project.description.get("pt", ""),
             },
             "root_path": project.root_path,
+            "bounding_box": {
+                "min_lon": current_bbox.bounds[0],
+                "min_lat": current_bbox.bounds[1],
+                "max_lon": current_bbox.bounds[2],
+                "max_lat": current_bbox.bounds[3],
+            }
+            if current_bbox
+            else None,
             "links": [
                 {
                     "url": li.get("url", ""),
@@ -137,7 +151,7 @@ async def get_project_update_form(request: Request):
     template = template_processor.get_template("projects/update-form.html")
     rendered = template.render(
         request=request,
-        project=project,
+        project=schemas.ProjectReadDetail.from_db_instance(project),
         form=update_form,
     )
 
@@ -399,6 +413,15 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 pt=form_instance.description.pt.data,
             ),
             root_path=form_instance.root_path.data,
+            bbox_4326=(
+                f"POLYGON(("
+                f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}, "
+                f"{form_instance.bounding_box.max_lon.data} {form_instance.bounding_box.min_lat.data}, "
+                f"{form_instance.bounding_box.max_lon.data} {form_instance.bounding_box.max_lat.data}, "
+                f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.max_lat.data}, "
+                f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}"
+                f"))"
+            ),
             links=[
                 schemas.LinkSchema(
                     url=lf.url.data,
@@ -527,7 +550,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 template = template_processor.get_template("projects/update-form.html")
                 rendered = template.render(
                     request=request,
-                    project=project,
+                    project=schemas.ProjectReadDetail.from_db_instance(project),
                     form=form_instance,
                 )
                 yield ServerSentEventGenerator.patch_elements(
@@ -550,6 +573,15 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 pt=form_instance.description.pt.data,
             ),
             root_path=form_instance.root_path.data,
+            bbox_4326=(
+                f"POLYGON(("
+                f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}, "
+                f"{form_instance.bounding_box.max_lon.data} {form_instance.bounding_box.min_lat.data}, "
+                f"{form_instance.bounding_box.max_lon.data} {form_instance.bounding_box.max_lat.data}, "
+                f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.max_lat.data}, "
+                f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}"
+                f"))"
+            ),
             links=[
                 schemas.LinkSchema(
                     url=lf.url.data,
@@ -599,16 +631,16 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             yield ServerSentEventGenerator.patch_elements(
                 template.render(
                     request=request,
-                    project=project_details.project,
+                    project=project_details.item,
                     pagination=project_details.pagination,
-                    survey_missions=project_details.survey_missions,
+                    survey_missions=project_details.children,
                     permissions=project_details.permissions,
                 ),
                 selector=schemas.selector_info.main_content_selector,
                 mode=ElementPatchMode.INNER,
             )
             yield ServerSentEventGenerator.patch_elements(
-                project_details.project.name.en,
+                project_details.item.name.en,
                 selector=schemas.selector_info.page_title_selector,
                 mode=ElementPatchMode.INNER,
             )

@@ -30,8 +30,8 @@ export class BoundingBoxMap extends HTMLElement {
 
     initMap() {
         const tileUrl = this.getAttribute("data-tile-url")
-        const centerX = this.getAttribute("data-center-x") || 0
-        const centerY = this.getAttribute("data-center-y") || 0
+        const centerX = this.getAttribute("data-center-lon") || 0
+        const centerY = this.getAttribute("data-center-lat") || 0
         const zoom = this.getAttribute("data-zoom") || 2
         const minZoom = this.getAttribute("data-min-zoom") || 0
         const maxZoom = this.getAttribute("data-max-zoom") || 14

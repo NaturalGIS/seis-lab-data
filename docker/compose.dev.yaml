@@ -162,7 +162,7 @@ services:
       SEIS_LAB_DATA__AUTH_INTERNAL_BASE_URL: http://auth-webapp:9000/auth
       SEIS_LAB_DATA__AUTH_CLIENT_ID: *auth-client-id
       SEIS_LAB_DATA__AUTH_CLIENT_SECRET: *auth-client-secret
-      SEIS_LAB_DATA__WEBMAP_BASE_TILE_LAYER_URL: http://localhost:8888/tiles/emodnet-bathymetry-l6/{z}/{x}/{y}.png
+      SEIS_LAB_DATA__WEBMAP_BASE_TILE_LAYER_URL: http://localhost:8888/tiles/emodnet-bathymetry/{z}/{x}/{y}.png
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.sld-router.rule=PathRegexp(`^/`)"

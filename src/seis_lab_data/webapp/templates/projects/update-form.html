@@ -6,16 +6,16 @@
 
     <div
             class="row"
-            data-signals-bbox.min-lon="{{ default_webmap_bounds.min_lon }}"
-            data-signals-bbox.max-lon="{{ default_webmap_bounds.max_lon }}"
-            data-signals-bbox.min-lat="{{ default_webmap_bounds.min_lat }}"
-            data-signals-bbox.max-lat="{{ default_webmap_bounds.max_lat }}"
+            data-signals-bbox.min-lon="{{ form.bounding_box.min_lon.data }}"
+            data-signals-bbox.max-lon="{{ form.bounding_box.max_lon.data }}"
+            data-signals-bbox.min-lat="{{ form.bounding_box.min_lat.data }}"
+            data-signals-bbox.max-lat="{{ form.bounding_box.max_lat.data }}"
     >
         <div class="col">
             <bbox-map
                     data-tile-url="{{ settings.webmap_base_tile_layer_url }}"
-                    data-center-lon="{{ settings.webmap_default_center_lon }}"
-                    data-center-lat="{{ settings.webmap_default_center_lat }}"
+                    data-center-lon="{{ form.bounding_box.min_lon.data }}"
+                    data-center-lat="{{ form.bounding_box.min_lat.data }}"
                     data-zoom="{{ settings.webmap_default_zoom_level }}"
                     data-min-lat=""
                     data-min-lon=""

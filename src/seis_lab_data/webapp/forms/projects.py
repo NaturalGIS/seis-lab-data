@@ -30,10 +30,10 @@ logger = logging.getLogger(__name__)
 
 
 class BoundingBoxForm(Form):
-    min_lon = DecimalField("min_lon", default=10, places=5)
-    max_lon = DecimalField("max_lon", default=20, places=5)
-    min_lat = DecimalField("min_lat", default=10, places=5)
-    max_lat = DecimalField("max_lat", default=20, places=5)
+    min_lon = DecimalField("min_lon", places=5, render_kw={"min": -180, "max": 180})
+    max_lon = DecimalField("max_lon", places=5, render_kw={"min": -180, "max": 180})
+    min_lat = DecimalField("min_lat", places=5, render_kw={"min": -90, "max": 90})
+    max_lat = DecimalField("max_lat", places=5, render_kw={"min": -90, "max": 90})
 
 
 class _ProjectForm(StarletteForm):
