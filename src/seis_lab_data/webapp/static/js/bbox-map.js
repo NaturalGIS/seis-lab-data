@@ -19,8 +19,14 @@ export class BoundingBoxMap extends HTMLElement {
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
+
+        if (!this.draw) return
+
+        if (oldValue === newValue) return
+
+        if ((!oldValue || oldValue === '') && (!newValue || newValue === '')) return;
+
         console.log(`Attribute changes: ${name} from ${oldValue} to ${newValue}`)
-        if (oldValue === newValue || !this.draw) return;
 
         if (['data-min-lat', 'data-min-lon', 'data-max-lat', 'data-max-lon'].includes(name)) {
             console.log('dispatching updateMapFromAttributes...')
@@ -126,9 +132,14 @@ export class BoundingBoxMap extends HTMLElement {
         console.log(`minLat: ${minLat}, minLon: ${minLon}, maxLat: ${maxLat}, maxLon: ${maxLon}`)
 
         if (!isNaN(minLat) && !isNaN(minLon) && !isNaN(maxLat) && !isNaN(maxLon)) {
-            this._suppressUpdate = true
 
             this.draw.clear()
+
+            if (minLat === maxLat || minLon === maxLon) return
+            if (minLat >= maxLat || minLon >= maxLon) return
+
+            this._suppressUpdate = true
+
 
             const feature = {
                 type: 'Feature',
