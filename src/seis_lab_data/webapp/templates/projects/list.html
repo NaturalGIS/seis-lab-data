@@ -28,7 +28,7 @@ This template is loaded as a GET response to the /projects/ endpoint. It is used
             {% if user_can_create %}
                 <button
                         class="btn btn-primary"
-                        data-on-click="@get('{{ url_for("projects:get_creation_form") }}')"
+                        data-on:click="@get('{{ url_for("projects:get_creation_form") }}')"
                         aria-label="new-project"
                 ><span class="material-icons-outlined">{{ icons.new_item }}</span>{{ _("new project") | capitalize}}
                 </button>

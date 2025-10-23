@@ -6,7 +6,7 @@ It is patched into the already existing DOM, as the inner content of the the ele
 an aria-label of 'content'.
 #}
 {% import "macros.html" as macros %}
-<form>
+<form data-on:datastar-fetch="evt.detail.type === 'finished' && document.querySelector('bbox-map')?.initMap()">
     {{ macros.render_localizable_field(form.name) }}
     {{ macros.render_localizable_field(form.description) }}
 
@@ -14,10 +14,10 @@ an aria-label of 'content'.
 
     <div
             class="row"
-            data-signals-bbox.min-lon="null"
-            data-signals-bbox.max-lon="null"
-            data-signals-bbox.min-lat="null"
-            data-signals-bbox.max-lat="null"
+            data-signals:bbox.min-lon="null"
+            data-signals:bbox.max-lon="null"
+            data-signals:bbox.min-lat="null"
+            data-signals:bbox.max-lat="null"
     >
         <div class="col">
             <h3>{{ _('spatial extent') }}</h3>
@@ -30,12 +30,12 @@ an aria-label of 'content'.
                     data-min-lon=""
                     data-max-lat=""
                     data-max-lon=""
-                    data-attr-data-min-lat="$bbox.minLat"
-                    data-attr-data-min-lon="$bbox.minLon"
-                    data-attr-data-max-lat="$bbox.maxLat"
-                    data-attr-data-max-lon="$bbox.maxLon"
+                    data-attr:data-min-lat="$bbox.minLat"
+                    data-attr:data-min-lon="$bbox.minLon"
+                    data-attr:data-max-lat="$bbox.maxLat"
+                    data-attr:data-max-lon="$bbox.maxLon"
                     style="display: block; width: 100%; height: 30vh"
-                    data-on-bbox-changed="$bbox = evt.detail.bbox"
+                    data-on:bbox-changed="$bbox = evt.detail.bbox"
             ></bbox-map>
         </div>
     </div>
@@ -58,7 +58,7 @@ an aria-label of 'content'.
             <button
                     type="reset"
                     class="btn btn-outline-secondary"
-                    data-on-click="@get('{{ url_for("projects:list") }}')"
+                    data-on:click="@get('{{ url_for("projects:list") }}')"
                     aria-label="cancel-creation"
             >{{ _('cancel') | capitalize }}
             </button>
@@ -66,17 +66,17 @@ an aria-label of 'content'.
                     type="submit"
                     aria-label="submit-create-form"
                     class="btn btn-primary"
-                    data-on-click="@post('{{ url_for('projects:list') }}', {
+                    data-on:click="@post('{{ url_for('projects:list') }}', {
                             contentType: 'form',
                             headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
                         })"
                     data-indicator="posting"
-                    data-attr-disabled="$posting"
+                    data-attr:disabled="$posting"
                     data-text="$posting ? '{{ _('Creating project...') }}' : '{{ _('Create project') }}'"
             >
             </button>
             <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
-                 data-attr-hidden="!$posting">
+                 data-attr:hidden="!$posting">
                 <span class="visually-hidden">{{ _("Loading...") }}</span>
             </div>
         </div>

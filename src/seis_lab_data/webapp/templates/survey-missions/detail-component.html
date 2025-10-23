@@ -18,7 +18,7 @@
             ) }}
         </div>
     {% endif %}
-    <div class="col" data-signals-deleting="false">
+    <div class="col" data-signals:deleting="false">
         {% if permissions.can_delete %}
             {{ macros.render_delete_item_button(
                 deletion_url=url_for("survey_missions:detail", survey_mission_id=survey_mission.id),
@@ -33,7 +33,7 @@
     </div>
 </div>
 
-<div class="row" data-signals-survey-mission-id="'{{ survey_mission.id }}'">
+<div class="row" data-signals:survey-mission-id="'{{ survey_mission.id }}'">
     <div class="col">
         <h2>{{ _("properties") | capitalize }}</h2>
         <dl class="row">

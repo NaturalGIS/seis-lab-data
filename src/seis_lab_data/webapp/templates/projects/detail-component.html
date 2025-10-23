@@ -18,7 +18,7 @@
             ) }}
         </div>
     {% endif %}
-    <div class="col" data-signals-deleting="false">
+    <div class="col" data-signals:deleting="false">
         {% if permissions.can_delete %}
             {{ macros.render_delete_item_button(
                 deletion_url=url_for("projects:detail", project_id=project.id),
@@ -35,18 +35,18 @@
 {% if project.bbox_4326 is none %}
     <div
             class="row"
-            data-signals-bbox.min-lon="NaN"
-            data-signals-bbox.min-lat="NaN"
-            data-signals-bbox.max-lon="NaN"
-            data-signals-bbox.max-lat="NaN"
+            data-signals:bbox.min-lon="NaN"
+            data-signals:bbox.min-lat="NaN"
+            data-signals:bbox.max-lon="NaN"
+            data-signals:bbox.max-lat="NaN"
     >
 {% else %}
     <div
             class="row"
-            data-signals-bbox.min-lon="{{ project.bbox_4326.bounds[0] }}"
-            data-signals-bbox.min-lat="{{ project.bbox_4326.bounds[1] }}"
-            data-signals-bbox.max-lon="{{ project.bbox_4326.bounds[2] }}"
-            data-signals-bbox.max-lat="{{ project.bbox_4326.bounds[3] }}"
+            data-signals:bbox.min-lon="{{ project.bbox_4326.bounds[0] }}"
+            data-signals:bbox.min-lat="{{ project.bbox_4326.bounds[1] }}"
+            data-signals:bbox.max-lon="{{ project.bbox_4326.bounds[2] }}"
+            data-signals:bbox.max-lat="{{ project.bbox_4326.bounds[3] }}"
     >
         <div class="col">
             <bbox-map
@@ -58,12 +58,12 @@
                     data-min-lon=""
                     data-max-lat=""
                     data-max-lon=""
-                    data-attr-data-min-lat="$bbox.minLat"
-                    data-attr-data-min-lon="$bbox.minLon"
-                    data-attr-data-max-lat="$bbox.maxLat"
-                    data-attr-data-max-lon="$bbox.maxLon"
+                    data-attr:data-min-lat="$bbox.minLat"
+                    data-attr:data-min-lon="$bbox.minLon"
+                    data-attr:data-max-lat="$bbox.maxLat"
+                    data-attr:data-max-lon="$bbox.maxLon"
                     style="display: block; width: 100%; height: 30vh"
-                    data-on-bbox-changed="$bbox = evt.detail.bbox"
+                    data-on:bbox-changed="$bbox = evt.detail.bbox"
             ></bbox-map>
         </div>
     </div>
@@ -86,7 +86,7 @@
 {% endif %}
 
 
-<div class="row" data-signals-project-id="'{{ project.id }}'">
+<div class="row" data-signals:project-id="'{{ project.id }}'">
     <div class="col">
         <h2>{{ _("properties") | capitalize }}</h2>
         <dl class="row">

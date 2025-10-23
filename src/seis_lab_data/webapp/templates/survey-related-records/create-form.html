@@ -36,7 +36,7 @@
                 <button
                         type="submit"
                         class="btn btn-outline-danger"
-                        data-on-click="@post('{{ url_for("survey_related_records:remove_asset_form", survey_mission_id=survey_mission_id) }}?asset_index={{ loop.index0 }}', {
+                        data-on:click="@post('{{ url_for("survey_related_records:remove_asset_form", survey_mission_id=survey_mission_id) }}?asset_index={{ loop.index0 }}', {
                   contentType: 'form',
                   headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'},
                 })"
@@ -49,7 +49,7 @@
                         type="button"
                         class="btn btn-outline-secondary"
                         aria-label="add-another-asset"
-                        data-on-click="@post('{{ url_for("survey_related_records:add_asset_form", survey_mission_id=survey_mission_id) }}', {
+                        data-on:click="@post('{{ url_for("survey_related_records:add_asset_form", survey_mission_id=survey_mission_id) }}', {
           contentType: 'form',
           headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'},
         })"
@@ -66,17 +66,17 @@
                     type="submit"
                     aria-label="submit-create-form"
                     class="btn btn-primary"
-                    data-on-click="@post('{{ url_for('survey_missions:detail', survey_mission_id=survey_mission_id) }}', {
+                    data-on:click="@post('{{ url_for('survey_missions:detail', survey_mission_id=survey_mission_id) }}', {
                             contentType: 'form',
                             headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
                         })"
                     data-indicator="posting"
-                    data-attr-disabled="$posting"
+                    data-attr:disabled="$posting"
                     data-text="$posting ? '{{ _('Creating survey record...') }}' : '{{ _('Create survey record') }}'"
             >
             </button>
             <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
-                 data-attr-hidden="!$posting">
+                 data-attr:hidden="!$posting">
                 <span class="visually-hidden">{{ _("Loading...") }}</span>
             </div>
         </div>

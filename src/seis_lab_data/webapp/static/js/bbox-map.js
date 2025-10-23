@@ -2,7 +2,7 @@ export class BoundingBoxMap extends HTMLElement {
 
     constructor() {
         super()
-        this._suppressUpdate = false;
+        this._suppressUpdate = true;
     }
 
     static get observedAttributes() {
@@ -19,7 +19,6 @@ export class BoundingBoxMap extends HTMLElement {
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
-
         if (!this.draw) return
 
         if (oldValue === newValue) return
@@ -116,12 +115,19 @@ export class BoundingBoxMap extends HTMLElement {
 
         this.draw.start()
         this.draw.setMode("rectangle")
+        this._suppressUpdate = false
+
+        setTimeout(() => {
+            this.map.resize()
+            this.map.triggerRepaint()
+        }, 50)
 
         this.updateMapFromAttributes()
 
     }
 
     updateMapFromAttributes() {
+        console.log('updateMapFromAttributes called')
         if (this._suppressUpdate || !this.draw) return
 
         const minLat = parseFloat(this.getAttribute('data-min-lat'))
@@ -129,9 +135,10 @@ export class BoundingBoxMap extends HTMLElement {
         const maxLat = parseFloat(this.getAttribute('data-max-lat'))
         const maxLon = parseFloat(this.getAttribute('data-max-lon'))
 
-        console.log(`minLat: ${minLat}, minLon: ${minLon}, maxLat: ${maxLat}, maxLon: ${maxLon}`)
 
         if (!isNaN(minLat) && !isNaN(minLon) && !isNaN(maxLat) && !isNaN(maxLon)) {
+
+            console.log(`minLat: ${minLat}, minLon: ${minLon}, maxLat: ${maxLat}, maxLon: ${maxLon}`)
 
             this.draw.clear()
 

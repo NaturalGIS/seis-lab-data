@@ -36,7 +36,7 @@
                 <button
                         type="submit"
                         class="btn btn-outline-danger"
-                        data-on-click="@post('{{ url_for("survey_related_records:remove_update_form_asset", survey_related_record_id=survey_related_record.id) }}?asset_index={{ loop.index0 }}', {
+                        data-on:click="@post('{{ url_for("survey_related_records:remove_update_form_asset", survey_related_record_id=survey_related_record.id) }}?asset_index={{ loop.index0 }}', {
                   contentType: 'form',
                   headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'},
                 })"
@@ -49,7 +49,7 @@
                         type="button"
                         class="btn btn-outline-secondary"
                         aria-label="add-another-asset"
-                        data-on-click="@post('{{ url_for("survey_related_records:add_update_form_asset", survey_related_record_id=survey_related_record.id) }}', {
+                        data-on:click="@post('{{ url_for("survey_related_records:add_update_form_asset", survey_related_record_id=survey_related_record.id) }}', {
           contentType: 'form',
           headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'},
         })"
@@ -65,7 +65,7 @@
             <button
                     type="reset"
                     class="btn btn-outline-secondary"
-                    data-on-click="@get('{{ url_for("survey_related_records:get_details_component", survey_related_record_id=survey_related_record.id) }}')"
+                    data-on:click="@get('{{ url_for("survey_related_records:get_details_component", survey_related_record_id=survey_related_record.id) }}')"
                     aria-label="cancel-update"
             >{{ _('cancel') | capitalize }}
             </button>
@@ -73,17 +73,17 @@
                     type="submit"
                     aria-label="submit-create-form"
                     class="btn btn-primary"
-                    data-on-click="@put('{{ url_for('survey_related_records:detail', survey_related_record_id=survey_related_record.id) }}', {
+                    data-on:click="@put('{{ url_for('survey_related_records:detail', survey_related_record_id=survey_related_record.id) }}', {
                             contentType: 'form',
                             headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
                         })"
                     data-indicator="putting"
-                    data-attr-disabled="$putting"
+                    data-attr:disabled="$putting"
                     data-text="$putting ? '{{ _('Updating survey-related record...') }}' : '{{ _('Update survey-related record') }}'"
             >
             </button>
             <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
-                 data-attr-hidden="!$putting">
+                 data-attr:hidden="!$putting">
                 <span class="visually-hidden">{{ _("Loading...") }}</span>
             </div>
         </div>

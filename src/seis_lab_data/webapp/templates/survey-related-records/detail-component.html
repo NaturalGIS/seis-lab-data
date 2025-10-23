@@ -4,17 +4,17 @@
             <div class="col">
                 <button
                         class="btn btn-outline-primary"
-                        data-on-click="@get('{{ url_for("survey_related_records:get_update_form", survey_related_record_id=survey_related_record.id) }}')"
+                        data-on:click="@get('{{ url_for("survey_related_records:get_update_form", survey_related_record_id=survey_related_record.id) }}')"
                         aria-label="update-record"
                 >{{ _("edit survey-related record") | capitalize }}
                 </button>
                 <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
-                     data-attr-hidden="!$deleting">
+                     data-attr:hidden="!$deleting">
                     <span class="visually-hidden">{{ _("Loading...") }}</span>
                 </div>
             </div>
         {% endif %}
-    <div class="col" data-signals-deleting="false">
+    <div class="col" data-signals:deleting="false">
         {% if permissions.can_delete %}
             {{ macros.render_delete_item_button(
             deletion_url=url_for("survey_related_records:detail", survey_related_record_id=survey_related_record.id),
