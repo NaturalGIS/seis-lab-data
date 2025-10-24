@@ -27,6 +27,7 @@ dependencies = [
     "python-multipart>=0.0.20",
     "redis[hiredis]>=6.2.0",
     "rich>=14.0.0",
+    "shapely>=2.1.2",
     "sqlalchemy>=2.0.43",
     "sqlmodel>=0.0.24",
     "starlette>=0.47.1",

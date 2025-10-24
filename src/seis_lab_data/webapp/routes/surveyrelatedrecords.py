@@ -983,6 +983,15 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
             domain_type_id=form_instance.domain_type_id.data,
             workflow_stage_id=form_instance.workflow_stage_id.data,
             relative_path=form_instance.relative_path.data,
+            bbox_4326=(
+                f"POLYGON(("
+                f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}, "
+                f"{form_instance.bounding_box.max_lon.data} {form_instance.bounding_box.min_lat.data}, "
+                f"{form_instance.bounding_box.max_lon.data} {form_instance.bounding_box.max_lat.data}, "
+                f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.max_lat.data}, "
+                f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}"
+                f"))"
+            ),
             links=[
                 schemas.LinkSchema(
                     url=lf.url.data,

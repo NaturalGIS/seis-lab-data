@@ -17,6 +17,7 @@ from ... import (
 )
 from ...db.queries import get_survey_mission_by_english_name
 from .common import (
+    BoundingBoxForm,
     NameForm,
     DescriptionForm,
     incorporate_schema_validation_errors_into_form,
@@ -49,6 +50,7 @@ class _SurveyMissionForm(StarletteForm):
             "relative to its parent project root path"
         ),
     )
+    bounding_box = FormField(BoundingBoxForm)
     links = FieldList(
         FormField(LinkForm),
         label=_("Links"),

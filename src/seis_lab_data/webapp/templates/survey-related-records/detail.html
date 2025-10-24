@@ -1,5 +1,15 @@
 {% extends "base.html" %}
 
+{% block head %}
+    {{ super() }}
+    <script type="module" src="{{ url_for('static', path='/js/maplibre-gl-v5.9.0.js') }}"></script>
+    <link href="{{ url_for('static', path='/css/maplibre-gl-v5.9.0.css') }}" rel='stylesheet' />
+    <script type="module" src="{{ url_for('static', path='/js/terra-draw-v1.0.0.umd.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='/js/terra-draw-maplibre-gl-adapter-v1.0.0.umd.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='/js/bbox-map.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='/js/readonly-bbox-map.js') }}"></script>
+{% endblock head %}
+
 {% block page_title %}
     {{ survey_related_record.name|translate_localizable_string }}
 {% endblock page_title %}

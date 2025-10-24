@@ -18,7 +18,7 @@
             ) }}
         </div>
     {% endif %}
-    <div class="col" data-signals-deleting="false">
+    <div class="col" data-signals:deleting="false">
         {% if permissions.can_delete %}
             {{ macros.render_delete_item_button(
                 deletion_url=url_for("projects:detail", project_id=project.id),
@@ -32,9 +32,16 @@
         {% endif %}
     </div>
 </div>
+{% if project.bbox_4326 is not none %}
+    {{ macros.render_bbox_display_component(
+        settings.webmap_base_tile_layer_url,
+        settings.webmap_default_zoom_level,
+        project.bbox_4326
+    ) }}
+{% endif %}
 
 
-<div class="row" data-signals-project-id="'{{ project.id }}'">
+<div class="row" data-signals:project-id="'{{ project.id }}'">
     <div class="col">
         <h2>{{ _("properties") | capitalize }}</h2>
         <dl class="row">

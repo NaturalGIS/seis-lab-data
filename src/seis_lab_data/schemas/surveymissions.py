@@ -8,6 +8,8 @@ from .common import (
     LinkSchema,
     LocalizableDraftDescription,
     LocalizableDraftName,
+    PolygonOut,
+    PossiblyInvalidPolygon,
     ProjectId,
     SurveyMissionId,
     UserId,
@@ -22,6 +24,7 @@ class SurveyMissionCreate(pydantic.BaseModel):
     name: LocalizableDraftName
     description: LocalizableDraftDescription
     relative_path: str
+    bbox_4326: PossiblyInvalidPolygon | None = None
     links: list[LinkSchema] = []
 
 
@@ -31,6 +34,7 @@ class SurveyMissionUpdate(pydantic.BaseModel):
     name: LocalizableDraftName | None = None
     description: LocalizableDraftDescription | None = None
     relative_path: str | None = None
+    bbox_4326: PossiblyInvalidPolygon | None = None
     links: list[LinkSchema] | None = None
 
 
@@ -73,6 +77,7 @@ class SurveyMissionReadDetail(SurveyMissionReadListItem):
     owner: UserId
     relative_path: str
     links: list[LinkSchema] = []
+    bbox_4326: PolygonOut | None
 
     @classmethod
     def from_db_instance(

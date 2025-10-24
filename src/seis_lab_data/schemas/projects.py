@@ -6,6 +6,8 @@ from .common import (
     LinkSchema,
     LocalizableDraftDescription,
     LocalizableDraftName,
+    PolygonOut,
+    PossiblyInvalidPolygon,
     ProjectId,
     UserId,
 )
@@ -15,9 +17,10 @@ class ProjectCreate(pydantic.BaseModel):
     id: ProjectId
     owner: UserId
     name: LocalizableDraftName
-    description: LocalizableDraftDescription
+    description: LocalizableDraftDescription | None = None
     root_path: str
     links: list[LinkSchema] = []
+    bbox_4326: PossiblyInvalidPolygon | None = None
 
 
 class ProjectUpdate(pydantic.BaseModel):
@@ -26,6 +29,7 @@ class ProjectUpdate(pydantic.BaseModel):
     description: LocalizableDraftDescription | None = None
     root_path: str | None = None
     links: list[LinkSchema] | None = None
+    bbox_4326: PossiblyInvalidPolygon | None = None
 
 
 class ProjectReadEmbedded(pydantic.BaseModel):
@@ -51,6 +55,7 @@ class ProjectReadDetail(ProjectReadListItem):
     owner: UserId
     root_path: str
     links: list[LinkSchema] = []
+    bbox_4326: PolygonOut | None
 
     @classmethod
     def from_db_instance(cls, instance: models.Project) -> "ProjectReadDetail":

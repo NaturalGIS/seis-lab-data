@@ -1,10 +1,19 @@
+import json
 import uuid
 from typing import (
     Annotated,
     TypedDict,
 )
 
-from pydantic import PlainSerializer
+import shapely
+from geoalchemy2 import (
+    Geometry,
+    WKBElement,
+)
+from pydantic import (
+    ConfigDict,
+    PlainSerializer,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import (
     Column,
@@ -18,6 +27,11 @@ from .. import constants
 
 class LocalizableString(TypedDict):
     locale: str
+
+
+def serialize_wkbelement(wkbelement: WKBElement):
+    geom = shapely.from_wkb(bytes(wkbelement.data))
+    return json.loads(shapely.to_geojson(geom))
 
 
 def serialize_localizable_field(value: LocalizableString, _info):
@@ -70,6 +84,8 @@ class WorkflowStage(SQLModel, table=True):
 
 
 class Project(SQLModel, table=True):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner: str = Field(max_length=100, index=True)
     name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
@@ -84,6 +100,18 @@ class Project(SQLModel, table=True):
     links: Annotated[list[Link], PlainSerializer(serialize_localizable_field)] = Field(
         sa_column=Column(JSONB), default_factory=list
     )
+    bbox_4326: Annotated[
+        WKBElement,
+        PlainSerializer(serialize_wkbelement, return_type=dict, when_used="json"),
+    ] = Field(
+        sa_column=Column(
+            Geometry(
+                srid=4326,
+                geometry_type="POLYGON",
+                spatial_index=True,
+            ),
+        )
+    )
 
     survey_missions: list["SurveyMission"] = Relationship(
         back_populates="project",
@@ -95,6 +123,8 @@ class Project(SQLModel, table=True):
 
 
 class SurveyMission(SQLModel, table=True):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner: str = Field(max_length=100, index=True)
     name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
@@ -110,6 +140,18 @@ class SurveyMission(SQLModel, table=True):
     relative_path: str = ""
     status: constants.SurveyMissionStatus = constants.SurveyMissionStatus.DRAFT
     is_valid: bool = False
+    bbox_4326: Annotated[
+        WKBElement,
+        PlainSerializer(serialize_wkbelement, return_type=dict, when_used="json"),
+    ] = Field(
+        sa_column=Column(
+            Geometry(
+                srid=4326,
+                geometry_type="POLYGON",
+                spatial_index=True,
+            ),
+        )
+    )
 
     project: Project = Relationship(back_populates="survey_missions")
     survey_related_records: list["SurveyRelatedRecord"] = Relationship(
@@ -122,6 +164,8 @@ class SurveyMission(SQLModel, table=True):
 
 
 class SurveyRelatedRecord(SQLModel, table=True):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner: str = Field(max_length=100, index=True)
     name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
@@ -159,6 +203,18 @@ class SurveyRelatedRecord(SQLModel, table=True):
     domain_type: DomainType = Relationship(back_populates="survey_related_records")
     workflow_stage: WorkflowStage = Relationship(
         back_populates="survey_related_records"
+    )
+    bbox_4326: Annotated[
+        WKBElement,
+        PlainSerializer(serialize_wkbelement, return_type=dict, when_used="json"),
+    ] = Field(
+        sa_column=Column(
+            Geometry(
+                srid=4326,
+                geometry_type="POLYGON",
+                spatial_index=True,
+            ),
+        )
     )
     assets: list["RecordAsset"] = Relationship(
         back_populates="survey_related_record",

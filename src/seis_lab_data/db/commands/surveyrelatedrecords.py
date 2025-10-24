@@ -11,6 +11,7 @@ from .. import (
     models,
     queries,
 )
+from .common import get_creation_bbox_4326
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +98,12 @@ async def create_survey_related_record(
     to_create: schemas.SurveyRelatedRecordCreate,
 ) -> models.SurveyRelatedRecord:
     survey_record = models.SurveyRelatedRecord(
-        **to_create.model_dump(exclude={"assets"}),
+        **to_create.model_dump(exclude={"assets", "bbox_4326"}),
+        bbox_4326=(
+            get_creation_bbox_4326(bbox)
+            if (bbox := to_create.bbox_4326) is not None
+            else bbox
+        ),
     )
     # need to ensure english name is unique for combination of mission and record
     if await queries.get_survey_related_record_by_english_name(
@@ -115,6 +121,7 @@ async def create_survey_related_record(
         )
         session.add(db_asset)
     await session.commit()
+    await session.refresh(survey_record)
     return await queries.get_survey_related_record(session, to_create.id)
 
 
