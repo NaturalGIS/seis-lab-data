@@ -28,6 +28,13 @@
         {% endif %}
     </div>
 </div>
+{% if survey_related_record.bbox_4326 is not none %}
+    {{ macros.render_bbox_display_component(
+        settings.webmap_base_tile_layer_url,
+        settings.webmap_default_zoom_level,
+        survey_related_record.bbox_4326
+    ) }}
+{% endif %}
 
 <div class="row">
     <div class="col">

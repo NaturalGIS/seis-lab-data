@@ -24,6 +24,7 @@ from ...db import (
     queries,
 )
 from .common import (
+    BoundingBoxForm,
     DescriptionForm,
     get_form_field_by_name,
     incorporate_schema_validation_errors_into_form,
@@ -88,6 +89,7 @@ class _SurveyRelatedRecordForm(StarletteForm):
         min_entries=0,
         max_entries=constants.SURVEY_MISSION_MAX_LINKS,
     )
+    bounding_box = FormField(BoundingBoxForm)
     assets = FieldList(
         FormField(AssetCreateForm),
         label=_("Assets"),

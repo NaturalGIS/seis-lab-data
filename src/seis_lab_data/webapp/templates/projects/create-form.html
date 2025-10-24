@@ -1,10 +1,3 @@
-{#
-This template is always loaded via a server-sent event - it is shown on the /projects
-endpoint when users ask to create a new project.
-
-It is patched into the already existing DOM, as the inner content of the the element that contains
-an aria-label of 'content'.
-#}
 {% import "macros.html" as macros %}
 <form data-on:datastar-fetch="evt.detail.type === 'finished' && document.querySelector('bbox-map')?.initMap()">
     {{ macros.render_localizable_field(form.name) }}
@@ -14,10 +7,10 @@ an aria-label of 'content'.
 
     <div
             class="row"
-            data-signals:bbox.min-lon="null"
-            data-signals:bbox.max-lon="null"
-            data-signals:bbox.min-lat="null"
-            data-signals:bbox.max-lat="null"
+            data-signals:bbox.min-lon="{{ form.bounding_box.min_lon | int }}"
+            data-signals:bbox.max-lon="{{ form.bounding_box.max_lon | int }}"
+            data-signals:bbox.min-lat="{{ form.bounding_box.min_lat | int }}"
+            data-signals:bbox.max-lat="{{ form.bounding_box.max_lat | int }}"
     >
         <div class="col">
             <h3>{{ _('spatial extent') }}</h3>

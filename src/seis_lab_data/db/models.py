@@ -123,6 +123,8 @@ class Project(SQLModel, table=True):
 
 
 class SurveyMission(SQLModel, table=True):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner: str = Field(max_length=100, index=True)
     name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
@@ -138,6 +140,18 @@ class SurveyMission(SQLModel, table=True):
     relative_path: str = ""
     status: constants.SurveyMissionStatus = constants.SurveyMissionStatus.DRAFT
     is_valid: bool = False
+    bbox_4326: Annotated[
+        WKBElement,
+        PlainSerializer(serialize_wkbelement, return_type=dict, when_used="json"),
+    ] = Field(
+        sa_column=Column(
+            Geometry(
+                srid=4326,
+                geometry_type="POLYGON",
+                spatial_index=True,
+            ),
+        )
+    )
 
     project: Project = Relationship(back_populates="survey_missions")
     survey_related_records: list["SurveyRelatedRecord"] = Relationship(
@@ -150,6 +164,8 @@ class SurveyMission(SQLModel, table=True):
 
 
 class SurveyRelatedRecord(SQLModel, table=True):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner: str = Field(max_length=100, index=True)
     name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
@@ -187,6 +203,18 @@ class SurveyRelatedRecord(SQLModel, table=True):
     domain_type: DomainType = Relationship(back_populates="survey_related_records")
     workflow_stage: WorkflowStage = Relationship(
         back_populates="survey_related_records"
+    )
+    bbox_4326: Annotated[
+        WKBElement,
+        PlainSerializer(serialize_wkbelement, return_type=dict, when_used="json"),
+    ] = Field(
+        sa_column=Column(
+            Geometry(
+                srid=4326,
+                geometry_type="POLYGON",
+                spatial_index=True,
+            ),
+        )
     )
     assets: list["RecordAsset"] = Relationship(
         back_populates="survey_related_record",

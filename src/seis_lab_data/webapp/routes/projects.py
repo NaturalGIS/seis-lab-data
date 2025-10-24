@@ -834,6 +834,15 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 pt=creation_form.description.pt.data,
             ),
             relative_path=creation_form.relative_path.data,
+            bbox_4326=(
+                f"POLYGON(("
+                f"{creation_form.bounding_box.min_lon.data} {creation_form.bounding_box.min_lat.data}, "
+                f"{creation_form.bounding_box.max_lon.data} {creation_form.bounding_box.min_lat.data}, "
+                f"{creation_form.bounding_box.max_lon.data} {creation_form.bounding_box.max_lat.data}, "
+                f"{creation_form.bounding_box.min_lon.data} {creation_form.bounding_box.max_lat.data}, "
+                f"{creation_form.bounding_box.min_lon.data} {creation_form.bounding_box.min_lat.data}"
+                f"))"
+            ),
             links=[
                 schemas.LinkSchema(
                     url=lf.url.data,

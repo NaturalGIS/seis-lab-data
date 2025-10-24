@@ -10,6 +10,7 @@ from .. import (
     models,
     queries,
 )
+from .common import get_creation_bbox_4326
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,12 @@ async def create_project(
     session: AsyncSession, to_create: schemas.ProjectCreate
 ) -> models.Project:
     project = models.Project(
-        **to_create.model_dump(),
+        **to_create.model_dump(exclude={"bbox_4326"}),
+        bbox_4326=(
+            get_creation_bbox_4326(bbox)
+            if (bbox := to_create.bbox_4326) is not None
+            else bbox
+        ),
     )
     if await queries.get_project_by_english_name(session, to_create.name.en):
         raise errors.SeisLabDataError(

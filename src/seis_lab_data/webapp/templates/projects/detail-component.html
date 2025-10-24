@@ -32,57 +32,12 @@
         {% endif %}
     </div>
 </div>
-{% if project.bbox_4326 is none %}
-    <div
-            class="row"
-            data-signals:bbox.min-lon="NaN"
-            data-signals:bbox.min-lat="NaN"
-            data-signals:bbox.max-lon="NaN"
-            data-signals:bbox.max-lat="NaN"
-    >
-{% else %}
-    <div
-            class="row"
-            data-signals:bbox.min-lon="{{ project.bbox_4326.bounds[0] }}"
-            data-signals:bbox.min-lat="{{ project.bbox_4326.bounds[1] }}"
-            data-signals:bbox.max-lon="{{ project.bbox_4326.bounds[2] }}"
-            data-signals:bbox.max-lat="{{ project.bbox_4326.bounds[3] }}"
-    >
-        <div class="col">
-            <bbox-map
-                    data-tile-url="{{ settings.webmap_base_tile_layer_url }}"
-                    data-center-lon="{{ project.bbox_4326.bounds[0] }}"
-                    data-center-lat="{{ project.bbox_4326.bounds[1] }}"
-                    data-zoom="{{ settings.webmap_default_zoom_level }}"
-                    data-min-lat=""
-                    data-min-lon=""
-                    data-max-lat=""
-                    data-max-lon=""
-                    data-attr:data-min-lat="$bbox.minLat"
-                    data-attr:data-min-lon="$bbox.minLon"
-                    data-attr:data-max-lat="$bbox.maxLat"
-                    data-attr:data-max-lon="$bbox.maxLon"
-                    style="display: block; width: 100%; height: 30vh"
-                    data-on:bbox-changed="$bbox = evt.detail.bbox"
-            ></bbox-map>
-        </div>
-    </div>
-    <div class="row mb-3">
-        <div class="col-sm-2">minLon</div>
-        <div class="col-sm-10"><input type="number" data-bind="bbox.minLon"></div>
-    </div>
-    <div class="row mb-3">
-        <div class="col-sm-2">minLat</div>
-        <div class="col-sm-10"><input type="number" data-bind="bbox.minLat"></div>
-    </div>
-    <div class="row mb-3">
-        <div class="col-sm-2">maxLon</div>
-        <div class="col-sm-10"><input type="number" data-bind="bbox.maxLon"></div>
-    </div>
-    <div class="row mb-3">
-        <div class="col-sm-2">maxLat</div>
-        <div class="col-sm-10"><input type="number" data-bind="bbox.maxLat"></div>
-    </div>
+{% if project.bbox_4326 is not none %}
+    {{ macros.render_bbox_display_component(
+        settings.webmap_base_tile_layer_url,
+        settings.webmap_default_zoom_level,
+        project.bbox_4326
+    ) }}
 {% endif %}
 
 

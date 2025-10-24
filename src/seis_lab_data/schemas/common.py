@@ -83,6 +83,16 @@ def parse_wkt_polygon_into_geom(value: str) -> shapely.Polygon:
     return cast(shapely.Polygon, geom)
 
 
+def parse_wkt_into_possibly_invalid_polygon(value: str) -> shapely.Geometry:
+    try:
+        geom = shapely.from_wkt(value)
+    except shapely.GEOSException as err:
+        raise ValueError(f"Could not parse {value} as WKT") from err
+    if geom.geom_type != "Polygon":
+        raise ValueError("Geometry is not a Polygon")
+    return geom
+
+
 def parse_wkbelement_polygon_into_geom(value: WKBElement) -> shapely.Polygon:
     try:
         geom = shapely.from_wkb(value.data)
@@ -98,8 +108,8 @@ def parse_wkbelement_polygon_into_geom(value: WKBElement) -> shapely.Polygon:
     return cast(shapely.Polygon, geom)
 
 
-def serialize_polygon_to_wkt(value: shapely.Polygon) -> str:
-    return value.wkt
+def serialize_geom_to_wkt(value: shapely.Geometry) -> str:
+    return shapely.to_wkt(value)
 
 
 def serialize_polygon_to_bounds(
@@ -113,7 +123,13 @@ def serialize_polygon_to_bounds(
 Polygon = Annotated[
     shapely.Polygon,
     pydantic.PlainValidator(parse_wkt_polygon_into_geom),
-    pydantic.PlainSerializer(serialize_polygon_to_wkt),
+    pydantic.PlainSerializer(serialize_geom_to_wkt),
+]
+
+PossiblyInvalidPolygon = Annotated[
+    shapely.Polygon,
+    pydantic.PlainValidator(parse_wkt_into_possibly_invalid_polygon),
+    pydantic.PlainSerializer(serialize_geom_to_wkt),
 ]
 
 # suitable for outputting values from the API

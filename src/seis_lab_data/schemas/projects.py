@@ -6,8 +6,8 @@ from .common import (
     LinkSchema,
     LocalizableDraftDescription,
     LocalizableDraftName,
-    Polygon,
     PolygonOut,
+    PossiblyInvalidPolygon,
     ProjectId,
     UserId,
 )
@@ -20,7 +20,7 @@ class ProjectCreate(pydantic.BaseModel):
     description: LocalizableDraftDescription | None = None
     root_path: str
     links: list[LinkSchema] = []
-    bbox_4326: Polygon | None = None
+    bbox_4326: PossiblyInvalidPolygon | None = None
 
 
 class ProjectUpdate(pydantic.BaseModel):
@@ -29,7 +29,7 @@ class ProjectUpdate(pydantic.BaseModel):
     description: LocalizableDraftDescription | None = None
     root_path: str | None = None
     links: list[LinkSchema] | None = None
-    bbox_4326: Polygon | None = None
+    bbox_4326: PossiblyInvalidPolygon | None = None
 
 
 class ProjectReadEmbedded(pydantic.BaseModel):

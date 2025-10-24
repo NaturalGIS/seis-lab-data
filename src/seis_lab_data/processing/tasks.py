@@ -208,7 +208,7 @@ async def delete_project(
             ).model_dump_json(),
         )
     except Exception as err:
-        logger.error("Task failed")
+        logger.exception("Task failed")
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(
@@ -290,7 +290,7 @@ async def create_survey_mission(
             ).model_dump_json(),
         )
     except Exception as err:
-        logger.error("Task failed")
+        logger.exception("Task failed")
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(
@@ -347,7 +347,7 @@ async def update_survey_mission(
             ).model_dump_json(),
         )
     except Exception as err:
-        logger.error("Task failed")
+        logger.exception("Task failed")
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(
@@ -401,7 +401,7 @@ async def delete_survey_mission(
             ).model_dump_json(),
         )
     except Exception as err:
-        logger.error("Task failed")
+        logger.exception("Task failed")
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(
@@ -483,7 +483,7 @@ async def create_survey_related_record(
             ).model_dump_json(),
         )
     except Exception as err:
-        logger.error("Task failed")
+        logger.exception("Task failed")
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(
@@ -537,7 +537,7 @@ async def delete_survey_related_record(
             ).model_dump_json(),
         )
     except Exception as err:
-        logger.error("Task failed")
+        logger.exception("Task failed")
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(

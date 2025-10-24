@@ -6,9 +6,7 @@ from starlette.requests import Request
 from starlette_babel import gettext_lazy as _
 from starlette_wtf import StarletteForm
 from wtforms import (
-    DecimalField,
     FieldList,
-    Form,
     FormField,
     StringField,
 )
@@ -19,6 +17,7 @@ from ... import (
 )
 from ...db.queries import get_project_by_english_name
 from .common import (
+    BoundingBoxForm,
     DescriptionForm,
     incorporate_schema_validation_errors_into_form,
     get_form_field_by_name,
@@ -27,13 +26,6 @@ from .common import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-class BoundingBoxForm(Form):
-    min_lon = DecimalField("min_lon", places=5, render_kw={"min": -180, "max": 180})
-    max_lon = DecimalField("max_lon", places=5, render_kw={"min": -180, "max": 180})
-    min_lat = DecimalField("min_lat", places=5, render_kw={"min": -90, "max": 90})
-    max_lat = DecimalField("max_lat", places=5, render_kw={"min": -90, "max": 90})
 
 
 class _ProjectForm(StarletteForm):

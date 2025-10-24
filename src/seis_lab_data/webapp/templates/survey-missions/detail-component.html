@@ -32,6 +32,13 @@
         {% endif %}
     </div>
 </div>
+{% if survey_mission.bbox_4326 is not none %}
+    {{ macros.render_bbox_display_component(
+        settings.webmap_base_tile_layer_url,
+        settings.webmap_default_zoom_level,
+        survey_mission.bbox_4326
+    ) }}
+{% endif %}
 
 <div class="row" data-signals:survey-mission-id="'{{ survey_mission.id }}'">
     <div class="col">

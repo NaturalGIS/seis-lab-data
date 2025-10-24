@@ -9,6 +9,8 @@ from .common import (
     LinkSchema,
     LocalizableDraftDescription,
     LocalizableDraftName,
+    PolygonOut,
+    PossiblyInvalidPolygon,
     RecordAssetId,
     SurveyMissionId,
     SurveyRelatedRecordId,
@@ -139,6 +141,7 @@ class SurveyRelatedRecordCreate(pydantic.BaseModel):
     domain_type_id: DomainTypeId
     workflow_stage_id: WorkflowStageId
     relative_path: str
+    bbox_4326: PossiblyInvalidPolygon | None = None
     links: list[LinkSchema] = []
     assets: Annotated[
         list[RecordAssetCreate],
@@ -156,6 +159,7 @@ class SurveyRelatedRecordUpdate(pydantic.BaseModel):
     domain_type_id: DomainTypeId | None = None
     workflow_stage_id: WorkflowStageId | None = None
     relative_path: str | None = None
+    bbox_4326: PossiblyInvalidPolygon | None = None
     links: list[LinkSchema] | None = None
     assets: Annotated[
         list[RecordAssetUpdate],
@@ -186,6 +190,7 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
 class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
     owner: UserId
     relative_path: str
+    bbox_4326: PolygonOut | None
     links: list[LinkSchema] = []
     survey_mission: SurveyMissionReadEmbedded
     dataset_category: DatasetCategoryRead
