@@ -3,7 +3,10 @@ import dataclasses
 import json
 import logging
 import uuid
-from typing import AsyncGenerator
+from typing import (
+    AsyncGenerator,
+    Mapping,
+)
 
 import shapely
 from datastar_py import ServerSentEventGenerator
@@ -191,16 +194,9 @@ async def get_project_details_component(request: Request):
 async def _get_project_details(request: Request) -> schemas.ProjectDetails:
     """utility function to get project details and its survey missions."""
     survey_mission_current_page = get_page_from_request_params(request)
-    survey_mission_search_filters = {
-        k: v
-        for k, v in (
-            {
-                "en_name": request.query_params.get("en_name"),
-                "pt_name": request.query_params.get("pt_name"),
-            }
-        ).items()
-        if v is not None
-    }
+    survey_mission_search_filters = _get_list_filters(
+        request.query_params, request.state.language
+    )
     user = get_user(request.session.get("user", {}))
     settings: config.SeisLabDataSettings = request.state.settings
     session_maker = request.state.session_maker
@@ -268,6 +264,63 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
     )
 
 
+def _get_list_filters(params: Mapping, current_language: str) -> dict:
+    list_filters = {}
+    if (current_name_filter_value := params.get("search")) is not None:
+        current_name_filter = f"{current_language}_name_filter"
+        list_filters[current_name_filter] = current_name_filter_value
+    for name_filter in ("en_name", "pt_name"):
+        if (name_filter_value := params.get(name_filter)) is not None:
+            list_filters[f"{name_filter}_filter"] = name_filter_value
+
+    raw_min_lon = params.get("minLon")
+    raw_min_lat = params.get("minLat")
+    raw_max_lon = params.get("maxLon")
+    raw_max_lat = params.get("maxLat")
+    if any((raw_min_lon, raw_min_lat, raw_max_lon, raw_max_lat)):
+        if all((raw_min_lon, raw_min_lat, raw_max_lon, raw_max_lat)):
+            try:
+                spatial_intersect = shapely.box(
+                    xmin=float(raw_min_lon),
+                    ymin=float(raw_min_lat),
+                    xmax=float(raw_max_lon),
+                    ymax=float(raw_max_lat),
+                )
+                list_filters["spatial_intersect"] = spatial_intersect
+            except TypeError as err:
+                logger.exception(err)
+                raise HTTPException(status_code=400, detail=str(err))
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Must provide all of minLon, minLat, maxLon and maxLat",
+            )
+    return list_filters
+
+
+def _serialize_list_filters(list_filters: dict) -> str:
+    """Serialize input dict into a string usable as a URL query string"""
+    logger.debug(f"inside _serialize_list_filters: {list_filters=}")
+    result = ""
+    if (bbox := list_filters.get("spatial_intersect")) is not None:
+        bbox: shapely.Polygon
+        min_lon, min_lat, max_lon, max_lat = bbox.bounds
+        bbox_fragment = "&".join(
+            (
+                f"minLon={min_lon}",
+                f"minLat={min_lat}",
+                f"maxLon={max_lon}",
+                f"maxLat={max_lat}",
+            )
+        )
+        result += bbox_fragment
+    if en_name := list_filters.get("en_name_filter"):
+        result = "&".join((result, f"en_name={en_name}"))
+    if pt_name := list_filters.get("pt_name_filter"):
+        result = "&".join((result, f"pt_name={pt_name}"))
+    return result[1:] if result.startswith("&") else result
+
+
 async def get_list_component(request: Request):
     if (raw_search_params := request.query_params.get("datastar")) is not None:
         try:
@@ -276,26 +329,7 @@ async def get_list_component(request: Request):
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid search params")
         else:
-            current_lang = request.state.language
-            list_filters = {}
-            if name_filter := search_params.get("search"):
-                list_filters[f"{current_lang}_name_filter"] = name_filter
-            raw_min_lon = search_params.get("minLon")
-            raw_min_lat = search_params.get("minLat")
-            raw_max_lon = search_params.get("maxLon")
-            raw_max_lat = search_params.get("maxLat")
-            if all((raw_min_lon, raw_min_lat, raw_max_lon, raw_max_lat)):
-                try:
-                    spatial_intersect = shapely.box(
-                        xmin=float(raw_min_lon),
-                        ymin=float(raw_min_lat),
-                        xmax=float(raw_max_lon),
-                        ymax=float(raw_max_lat),
-                    )
-                    list_filters["spatial_intersect"] = spatial_intersect
-                except TypeError as err:
-                    logger.exception(err)
-                    raise HTTPException(status_code=400, detail=str(err))
+            list_filters = _get_list_filters(search_params, request.state.language)
     else:
         list_filters = {}
     current_page = get_page_from_request_params(request)
@@ -327,9 +361,13 @@ async def get_list_component(request: Request):
     )
     template_processor = request.state.templates
     template = template_processor.get_template("projects/list-component.html")
+    serialized_list_filters = _serialize_list_filters(list_filters)
     rendered = template.render(
         request=request,
         items=[schemas.ProjectReadListItem.from_db_instance(i) for i in items],
+        update_current_url_with=f"?{serialized_list_filters}"
+        if serialized_list_filters
+        else "",
         pagination=pagination_info,
     )
 
@@ -337,7 +375,7 @@ async def get_list_component(request: Request):
         yield ServerSentEventGenerator.patch_elements(
             rendered,
             selector=schemas.selector_info.items_selector,
-            mode=ElementPatchMode.INNER,
+            mode=ElementPatchMode.REPLACE,
         )
 
     return DatastarResponse(event_streamer())
@@ -352,6 +390,9 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         user = get_user(request.session.get("user", {}))
         settings: config.SeisLabDataSettings = request.state.settings
         current_page = get_page_from_request_params(request)
+        current_language = request.state.language
+        list_filters = _get_list_filters(request.query_params, current_language)
+        logger.debug(f"{list_filters=}")
         async with session_maker() as session:
             items, num_total = await operations.list_projects(
                 session,
@@ -359,6 +400,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 page=current_page,
                 page_size=settings.pagination_page_size,
                 include_total=True,
+                **list_filters,
             )
             num_unfiltered_total = (
                 await operations.list_projects(
@@ -373,6 +415,12 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             num_unfiltered_total,
             collection_url=str(request.url_for("projects:list")),
         )
+        if (current_bbox := list_filters.get("spatial_intersect")) is not None:
+            min_lon, min_lat, max_lon, max_lat = current_bbox.bounds
+        else:
+            default_bbox = shapely.from_wkt(settings.webmap_default_bbox_wkt)
+            min_lon, min_lat, max_lon, max_lat = default_bbox.bounds
+
         return template_processor.TemplateResponse(
             request,
             "projects/list.html",
@@ -381,12 +429,21 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                     schemas.ProjectReadListItem.from_db_instance(i) for i in items
                 ],
                 "pagination": pagination_info,
+                "map_bounds": {
+                    "min_lon": min_lon,
+                    "min_lat": min_lat,
+                    "max_lon": max_lon,
+                    "max_lat": max_lat,
+                },
                 "breadcrumbs": [
                     schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
                     schemas.BreadcrumbItem(name=_("Projects")),
                 ],
                 "user_can_create": await permissions.can_create_project(
                     user, request.state.settings
+                ),
+                "search_initial_value": list_filters.get(
+                    f"{current_language}_name_filter", ""
                 ),
             },
         )

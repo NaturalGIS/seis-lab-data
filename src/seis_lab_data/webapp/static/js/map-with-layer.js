@@ -16,6 +16,14 @@ export class MapWithPolygonLayer extends HTMLElement {
         const centerX = this.getAttribute("data-center-lon") || 0
         const centerY = this.getAttribute("data-center-lat") || 0
         const zoom = this.getAttribute("data-zoom") || 2
+
+        const initialMinLon = parseFloat(this.getAttribute("data-initial-min-lon" || 0))
+        const initialMinLat = parseFloat(this.getAttribute("data-initial-min-lat" || 0))
+        const initialMaxLon = parseFloat(this.getAttribute("data-initial-max-lon" || 0))
+        const initialMaxLat = parseFloat(this.getAttribute("data-initial-max-lat" || 0))
+
+        console.log(`initialMinLon: ${initialMinLon} initialMinLat: ${initialMinLat} initialMaxLon: ${initialMaxLon} initialMaxLat: ${initialMaxLat}`)
+
         const minZoom = this.getAttribute("data-min-zoom") || 0
         const maxZoom = this.getAttribute("data-max-zoom") || 14
         const polygonFillColor = this.getAttribute("data-polygon-fill-color") || '#000000'
@@ -46,8 +54,7 @@ export class MapWithPolygonLayer extends HTMLElement {
                 ],
                 'id': 'blank'
             },
-            center: [centerX, centerY],
-            zoom: zoom,
+            bounds: [initialMinLon, initialMinLat, initialMaxLon, initialMaxLat]
         })
 
         this.map.on('load', () => {

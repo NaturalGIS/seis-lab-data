@@ -55,13 +55,21 @@ This template is loaded as a GET response to the /projects/ endpoint. It is used
                     data-polygon-outline-color="{{ settings.webmap_default_polygon_outline_color }}"
                     data-polygon-outline-opacity="{{ settings.webmap_default_polygon_outline_opacity }}"
                     data-polygon-outline-width="{{ settings.webmap_default_polygon_outline_width }}"
+                    data-initial-min-lon="{{ map_bounds.min_lon }}"
+                    data-initial-min-lat="{{ map_bounds.min_lat }}"
+                    data-initial-max-lon="{{ map_bounds.max_lon }}"
+                    data-initial-max-lat="{{ map_bounds.max_lat }}"
                     style="display: block; width: 100%; height: 30vh"
                     data-on:map-moveend="$currentBbox=evt.detail.map.getBounds().toArray(); @get('{{ url_for('projects:get_list_component') }}')"
             ></map-with-polygon-layer>
         </div>
     </div>
 
-    {{ macros.render_search_component(url_for("projects:get_list_component"), _("search projects")) }}
+    {{ macros.render_search_component(
+        url_for("projects:get_list_component"),
+        _("search projects"),
+        initial_value=search_initial_value
+    ) }}
 
     {% include "projects/list-component.html" %}
 {% endblock details %}

@@ -1,7 +1,11 @@
 {% import "macros.html" as macros %}
 
 {% block items %}
-    <div class="row" aria-label="items">
+    <div
+            class="row"
+            aria-label="items"
+            {% if update_current_url_with is defined %}data-effect="window.history.replaceState({}, '', `${window.location.href.split('?')[0]}{{ update_current_url_with }}`)"{% endif %}
+    >
         <div class="col">
             {% if items | length > 0 %}
                 <div class="row row-cols-2 g-4">

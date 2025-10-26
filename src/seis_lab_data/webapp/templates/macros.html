@@ -248,7 +248,7 @@
 {% endmacro %}
 
 
-{% macro render_search_component(search_url, label_text, initial_value="") %}
+{% macro render_search_component(search_url, label_text, initial_value="", set_autofocus=False) %}
     <div class="row mb-3" data-signals:search="'{{ initial_value }}'">
         <div class="col">
             <search data-signals:searching="false">
@@ -264,6 +264,7 @@
                         data-bind:search
                         data-on:input__debounce.200ms="@get('{{ search_url }}')"
                         data-indicator="searching"
+                        {% if set_autofocus %}autofocus{% endif %}
                 />
             </search>
         </div>
