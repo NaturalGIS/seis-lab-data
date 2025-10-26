@@ -79,19 +79,12 @@ export class BoundingBoxMap extends HTMLElement {
                 lib: maplibregl
             }),
             modes: [
-                new terraDraw.TerraDrawRectangleMode(),
-                new terraDraw.TerraDrawSelectMode({
-                    flags: {
-                        rectangle: {
-                            feature: {
-                                draggable: true,
-                                coordinates: {
-                                    midpoints: false,
-                                    draggable: false,
-                                    deletable: false,
-                                }
-                            }
-                        }
+                new terraDraw.TerraDrawRectangleMode({
+                    styles: {
+                        fillColor: '#c27d0e',
+                        fillOpacity: 0.3,
+                        outlineColor: '#c27d0e',
+                        outlineWidth: 4,
                     }
                 }),
             ]

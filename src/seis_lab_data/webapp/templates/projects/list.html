@@ -16,6 +16,7 @@ This template is loaded as a GET response to the /projects/ endpoint. It is used
     <script type="module" src="{{ url_for('static', path='/js/terra-draw-v1.0.0.umd.js') }}"></script>
     <script type="module" src="{{ url_for('static', path='/js/terra-draw-maplibre-gl-adapter-v1.0.0.umd.js') }}"></script>
     <script type="module" src="{{ url_for('static', path='/js/bbox-map.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='/js/map-with-layer.js') }}"></script>
 {% endblock head %}
 
 {% block page_title %}
@@ -33,6 +34,30 @@ This template is loaded as a GET response to the /projects/ endpoint. It is used
                 ><span class="material-icons-outlined">{{ icons.new_item }}</span>{{ _("new project") | capitalize}}
                 </button>
             {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div
+                class="col"
+                data-signals:current-bbox="null"
+                data-computed:min-lon="$currentBbox?.[0]?.[0]"
+                data-computed:min-lat="$currentBbox?.[0]?.[1]"
+                data-computed:max-lon="$currentBbox?.[1]?.[0]"
+                data-computed:max-lat="$currentBbox?.[1]?.[1]"
+        >
+            <map-with-polygon-layer
+                    data-base-map-tile-url="{{ settings.webmap_base_tile_layer_url }}"
+                    data-polygon-layer-tile-url="http://localhost:8888/tiles/projects"
+                    data-polygon-layer-name="projects"
+                    data-polygon-fill-color="{{ settings.webmap_default_polygon_fill_color }}"
+                    data-polygon-fill-opacity="{{ settings.webmap_default_polygon_fill_opacity }}"
+                    data-polygon-outline-color="{{ settings.webmap_default_polygon_outline_color }}"
+                    data-polygon-outline-opacity="{{ settings.webmap_default_polygon_outline_opacity }}"
+                    data-polygon-outline-width="{{ settings.webmap_default_polygon_outline_width }}"
+                    style="display: block; width: 100%; height: 30vh"
+                    data-on:map-moveend="$currentBbox=evt.detail.map.getBounds().toArray(); @get('{{ url_for('projects:get_list_component') }}')"
+            ></map-with-polygon-layer>
         </div>
     </div>
 

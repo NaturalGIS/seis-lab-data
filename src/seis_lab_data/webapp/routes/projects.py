@@ -272,6 +272,7 @@ async def get_list_component(request: Request):
     if (raw_search_params := request.query_params.get("datastar")) is not None:
         try:
             search_params = json.loads(raw_search_params)
+            logger.debug(f"{search_params=}")
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid search params")
         else:
@@ -279,6 +280,22 @@ async def get_list_component(request: Request):
             list_filters = {}
             if name_filter := search_params.get("search"):
                 list_filters[f"{current_lang}_name_filter"] = name_filter
+            raw_min_lon = search_params.get("minLon")
+            raw_min_lat = search_params.get("minLat")
+            raw_max_lon = search_params.get("maxLon")
+            raw_max_lat = search_params.get("maxLat")
+            if all((raw_min_lon, raw_min_lat, raw_max_lon, raw_max_lat)):
+                try:
+                    spatial_intersect = shapely.box(
+                        xmin=float(raw_min_lon),
+                        ymin=float(raw_min_lat),
+                        xmax=float(raw_max_lon),
+                        ymax=float(raw_max_lat),
+                    )
+                    list_filters["spatial_intersect"] = spatial_intersect
+                except TypeError as err:
+                    logger.exception(err)
+                    raise HTTPException(status_code=400, detail=str(err))
     else:
         list_filters = {}
     current_page = get_page_from_request_params(request)
