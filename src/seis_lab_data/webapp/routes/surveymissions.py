@@ -29,6 +29,7 @@ from ... import (
 )
 from ...processing import tasks
 from .. import forms
+from . import filters
 from .auth import (
     fancy_requires_auth,
     get_user,
@@ -229,25 +230,17 @@ async def get_survey_mission_creation_form(request: Request):
 async def get_list_component(request: Request):
     if (raw_search_params := request.query_params.get("datastar")) is not None:
         try:
-            search_params = json.loads(raw_search_params)
+            list_filters = filters.SurveyMissionListFilters.from_json(
+                raw_search_params, request.state.language
+            )
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid search params")
         else:
-            current_lang = request.state.language
-            list_filters = {}
-            if name_filter := search_params.get("search"):
-                list_filters[f"{current_lang}_name"] = name_filter
-            if "projectId" in search_params:
-                try:
-                    list_filters["project_id"] = schemas.ProjectId(
-                        uuid.UUID(search_params["projectId"])
-                    )
-                except ValueError:
-                    raise HTTPException(
-                        status_code=400, detail="Invalid project ID format"
-                    )
+            internal_filter_kwargs = list_filters.as_kwargs()
+            filter_query_string = list_filters.serialize_to_query_string()
     else:
-        list_filters = {}
+        internal_filter_kwargs = {}
+        filter_query_string = ""
     current_page = get_page_from_request_params(request)
     session_maker = request.state.session_maker
     settings: config.SeisLabDataSettings = request.state.settings
@@ -259,7 +252,7 @@ async def get_list_component(request: Request):
             page=current_page,
             page_size=settings.pagination_page_size,
             include_total=True,
-            **list_filters,
+            **internal_filter_kwargs,
         )
         logger.debug(f"{items=}, {num_total=}")
         num_unfiltered_total = (
@@ -276,18 +269,11 @@ async def get_list_component(request: Request):
     )
     template_processor = request.state.templates
     template = template_processor.get_template("survey-missions/list-component.html")
-    # serialize query params back so that we may update the current URL,
-    # which allows the client to refresh the page, if needed
-    serialized_filters = "&".join(
-        f"{k}={v}" for k, v in list_filters.items() if k != "project_id" and v != ""
-    )
-    serialized_list_filters = f"?{serialized_filters}" if serialized_filters else ""
-
     rendered = template.render(
         request=request,
         items=[schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items],
         pagination=pagination_info,
-        update_current_url_with=serialized_list_filters,
+        update_current_url_with=filter_query_string,
     )
 
     async def event_streamer():

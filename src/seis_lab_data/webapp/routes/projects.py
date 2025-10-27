@@ -3,10 +3,7 @@ import dataclasses
 import json
 import logging
 import uuid
-from typing import (
-    AsyncGenerator,
-    Mapping,
-)
+from typing import AsyncGenerator
 
 import shapely
 from datastar_py import ServerSentEventGenerator
@@ -33,6 +30,7 @@ from ... import (
 )
 from ...processing import tasks
 from .. import forms
+from . import filters
 from .auth import (
     get_user,
     fancy_requires_auth,
@@ -194,8 +192,9 @@ async def get_project_details_component(request: Request):
 async def _get_project_details(request: Request) -> schemas.ProjectDetails:
     """utility function to get project details and its survey missions."""
     survey_mission_current_page = get_page_from_request_params(request)
-    survey_mission_search_filters = _get_list_filters(
-        request.query_params, request.state.language
+    current_language = request.state.language
+    survey_mission_list_filters = filters.SurveyMissionListFilters.from_params(
+        request.query_params, current_language
     )
     user = get_user(request.session.get("user", {}))
     settings: config.SeisLabDataSettings = request.state.settings
@@ -222,7 +221,7 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
             include_total=True,
             page=survey_mission_current_page,
             page_size=settings.pagination_page_size,
-            **survey_mission_search_filters,
+            **survey_mission_list_filters.as_kwargs(),
         )
     return schemas.ProjectDetails(
         item=schemas.ProjectReadDetail.from_db_instance(project),
@@ -230,7 +229,9 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
             schemas.SurveyMissionReadListItem.from_db_instance(sm)
             for sm in survey_missions
         ],
-        children_filter=survey_mission_search_filters,
+        children_filter=survey_mission_list_filters.get_text_search_filter(
+            current_language
+        ),
         pagination=get_pagination_info(
             survey_mission_current_page,
             settings.pagination_page_size,
@@ -264,76 +265,21 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
     )
 
 
-def _get_list_filters(params: Mapping, current_language: str) -> dict:
-    list_filters = {}
-    if (current_name_filter_value := params.get("search")) is not None:
-        current_name_filter = f"{current_language}_name_filter"
-        list_filters[current_name_filter] = current_name_filter_value
-    for name_filter in ("en_name", "pt_name"):
-        if (name_filter_value := params.get(name_filter)) is not None:
-            list_filters[f"{name_filter}_filter"] = name_filter_value
-
-    raw_min_lon = params.get("minLon")
-    raw_min_lat = params.get("minLat")
-    raw_max_lon = params.get("maxLon")
-    raw_max_lat = params.get("maxLat")
-    if any((raw_min_lon, raw_min_lat, raw_max_lon, raw_max_lat)):
-        if all((raw_min_lon, raw_min_lat, raw_max_lon, raw_max_lat)):
-            try:
-                spatial_intersect = shapely.box(
-                    xmin=float(raw_min_lon),
-                    ymin=float(raw_min_lat),
-                    xmax=float(raw_max_lon),
-                    ymax=float(raw_max_lat),
-                )
-                list_filters["spatial_intersect"] = spatial_intersect
-            except TypeError as err:
-                logger.exception(err)
-                raise HTTPException(status_code=400, detail=str(err))
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail="Must provide all of minLon, minLat, maxLon and maxLat",
-            )
-    return list_filters
-
-
-def _serialize_list_filters(list_filters: dict) -> str:
-    """Serialize input dict into a string usable as a URL query string"""
-    logger.debug(f"inside _serialize_list_filters: {list_filters=}")
-    result = ""
-    if (bbox := list_filters.get("spatial_intersect")) is not None:
-        bbox: shapely.Polygon
-        min_lon, min_lat, max_lon, max_lat = bbox.bounds
-        bbox_fragment = "&".join(
-            (
-                f"minLon={min_lon}",
-                f"minLat={min_lat}",
-                f"maxLon={max_lon}",
-                f"maxLat={max_lat}",
-            )
-        )
-        result += bbox_fragment
-    if en_name := list_filters.get("en_name_filter"):
-        result = "&".join((result, f"en_name={en_name}"))
-    if pt_name := list_filters.get("pt_name_filter"):
-        result = "&".join((result, f"pt_name={pt_name}"))
-    return result[1:] if result.startswith("&") else result
-
-
 async def get_list_component(request: Request):
     if (raw_search_params := request.query_params.get("datastar")) is not None:
         try:
-            search_params = json.loads(raw_search_params)
-            logger.debug(f"{search_params=}")
+            list_filters = filters.ProjectListFilters.from_json(
+                raw_search_params, request.state.language
+            )
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid search params")
         else:
-            list_filters = _get_list_filters(search_params, request.state.language)
+            internal_filter_kwargs = list_filters.as_kwargs()
+            filter_query_string = list_filters.serialize_to_query_string()
     else:
-        list_filters = {}
+        internal_filter_kwargs = {}
+        filter_query_string = ""
     current_page = get_page_from_request_params(request)
-    logger.debug(f"{list_filters=}")
     session_maker = request.state.session_maker
     user = get_user(request.session.get("user", {}))
     settings: config.SeisLabDataSettings = request.state.settings
@@ -344,7 +290,7 @@ async def get_list_component(request: Request):
             page=current_page,
             page_size=settings.pagination_page_size,
             include_total=True,
-            **list_filters,
+            **internal_filter_kwargs,
         )
         num_unfiltered_total = (
             await operations.list_projects(
@@ -361,13 +307,10 @@ async def get_list_component(request: Request):
     )
     template_processor = request.state.templates
     template = template_processor.get_template("projects/list-component.html")
-    serialized_list_filters = _serialize_list_filters(list_filters)
     rendered = template.render(
         request=request,
         items=[schemas.ProjectReadListItem.from_db_instance(i) for i in items],
-        update_current_url_with=f"?{serialized_list_filters}"
-        if serialized_list_filters
-        else "",
+        update_current_url_with=filter_query_string,
         pagination=pagination_info,
     )
 
@@ -391,8 +334,9 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         settings: config.SeisLabDataSettings = request.state.settings
         current_page = get_page_from_request_params(request)
         current_language = request.state.language
-        list_filters = _get_list_filters(request.query_params, current_language)
-        logger.debug(f"{list_filters=}")
+        list_filters = filters.ProjectListFilters.from_params(
+            request.query_params, current_language
+        )
         async with session_maker() as session:
             items, num_total = await operations.list_projects(
                 session,
@@ -400,7 +344,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 page=current_page,
                 page_size=settings.pagination_page_size,
                 include_total=True,
-                **list_filters,
+                **list_filters.as_kwargs(),
             )
             num_unfiltered_total = (
                 await operations.list_projects(
@@ -415,8 +359,8 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             num_unfiltered_total,
             collection_url=str(request.url_for("projects:list")),
         )
-        if (current_bbox := list_filters.get("spatial_intersect")) is not None:
-            min_lon, min_lat, max_lon, max_lat = current_bbox.bounds
+        if (current_bbox := list_filters.spatial_intersect_filter) is not None:
+            min_lon, min_lat, max_lon, max_lat = current_bbox.value.bounds
         else:
             default_bbox = shapely.from_wkt(settings.webmap_default_bbox_wkt)
             min_lon, min_lat, max_lon, max_lat = default_bbox.bounds
@@ -442,8 +386,8 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 "user_can_create": await permissions.can_create_project(
                     user, request.state.settings
                 ),
-                "search_initial_value": list_filters.get(
-                    f"{current_language}_name_filter", ""
+                "search_initial_value": list_filters.get_text_search_filter(
+                    current_language
                 ),
             },
         )
@@ -580,7 +524,6 @@ class ProjectDetailEndpoint(HTTPEndpoint):
 
         details = await _get_project_details(request)
         template_processor = request.state.templates
-        current_name_filter = f"{request.state.language}_name"
         return template_processor.TemplateResponse(
             request,
             "projects/detail.html",
@@ -588,9 +531,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 "project": details.item,
                 "pagination": details.pagination,
                 "survey_missions": details.children,
-                "search_initial_value": (
-                    details.children_filter.get(current_name_filter) or ""
-                ),
+                "search_initial_value": details.children_filter,
                 "permissions": details.permissions,
                 "breadcrumbs": details.breadcrumbs,
             },

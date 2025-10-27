@@ -14,8 +14,8 @@ async def paginated_list_survey_missions(
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
-    en_name: str | None = None,
-    pt_name: str | None = None,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
 ) -> tuple[list[models.SurveyMission], int | None]:
     limit = page_size
     offset = limit * (page - 1)
@@ -26,8 +26,8 @@ async def paginated_list_survey_missions(
         limit,
         offset,
         include_total,
-        en_name=en_name,
-        pt_name=pt_name,
+        en_name_filter=en_name_filter,
+        pt_name_filter=pt_name_filter,
     )
 
 
@@ -38,19 +38,19 @@ async def list_survey_missions(
     limit: int = 20,
     offset: int = 0,
     include_total: bool = False,
-    en_name: str | None = None,
-    pt_name: str | None = None,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
 ) -> tuple[list[models.SurveyMission], int | None]:
     statement = select(models.SurveyMission).options(
         selectinload(models.SurveyMission.project)
     )
-    if en_name:
+    if en_name_filter:
         statement = statement.where(
-            models.SurveyMission.name["en"].astext.ilike(f"%{en_name}%")
+            models.SurveyMission.name["en"].astext.ilike(f"%{en_name_filter}%")
         )
-    if pt_name:
+    if pt_name_filter:
         statement = statement.where(
-            models.SurveyMission.name["pt"].astext.ilike(f"%{pt_name}%")
+            models.SurveyMission.name["pt"].astext.ilike(f"%{pt_name_filter}%")
         )
     if project_id is not None:
         statement = statement.where(models.SurveyMission.project_id == project_id)
