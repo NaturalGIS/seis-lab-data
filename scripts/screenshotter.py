@@ -33,6 +33,12 @@ class GeospatialBounds:
 
 
 @dataclasses.dataclass
+class PolygonDrawLayer:
+    features: list[shapely.Polygon]
+    fill_color: str
+
+
+@dataclasses.dataclass
 class MapConfig:
     base_layer: BaseLayerConfig
     bounds: GeospatialBounds
@@ -44,9 +50,20 @@ class MapConfig:
         "https://unpkg.com/maplibre-gl@^5.10.0/dist/maplibre-gl.css"
     )
     terra_draw_script_src: str = (
-        "https://unpkg.com/terra-draw@1.0.0/dist/terra-draw.umd.js"
+        "https://unpkg.com/terra-draw@1.18.1/dist/terra-draw.umd.js"
     )
-    terra_draw_maplibre_adapter_script_src: str = "https://unpkg.com/terra-draw-maplibre-gl-adapter@1.0.0/dist/terra-draw-maplibre-gl-adapter.umd.js"
+    terra_draw_maplibre_adapter_script_src: str = (
+        "https://unpkg.com/terra-draw-maplibre-gl-adapter@1.2.2/"
+        "dist/terra-draw-maplibre-gl-adapter.umd.js"
+    )
+
+
+def _quantize_features(draw_layers: list[PolygonDrawLayer]) -> None:
+    for layer in draw_layers:
+        quantized_features = []
+        for feat in layer.features:
+            quantized_features.append(shapely.set_precision(feat, grid_size=10**-5))
+        layer.features = quantized_features
 
 
 def render_map_to_image(
@@ -55,19 +72,17 @@ def render_map_to_image(
     width: int = 800,
     height: int = 600,
     timeout_seconds: int = 30,
-    polygon_overlay_wkt: str | None = None,
+    polygon_draw_layers: list[PolygonDrawLayer] | None = None,
 ) -> bytes:
-    if polygon_overlay_wkt is not None:
-        polygon_overlay = shapely.from_wkt(polygon_overlay_wkt)
-        polygon_overlay = shapely.set_precision(polygon_overlay, grid_size=10**-5)
-    else:
-        polygon_overlay = None
+    if polygon_draw_layers is not None:
+        _quantize_features(polygon_draw_layers)
+
     jinja_env = Environment(loader=FileSystemLoader(template_path.parent))
     template = jinja_env.get_template(template_path.name)
     rendered_html = template.render(
-        map_conf=map_options,
-        polygon_overlay=polygon_overlay,
+        map_conf=map_options, polygon_draw_layers=polygon_draw_layers
     )
+    # print(rendered_html)
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=False)
         context = browser.new_context(
@@ -82,6 +97,7 @@ def render_map_to_image(
             "console",
             lambda msg: logger.info(f"Browser console: {msg.type}: {msg.text}"),
         )
+        page.on("pageerror", lambda exc: logger.error(f"Browser error: {exc}"))
         page.wait_for_function(
             "window.mapReady === true", timeout=timeout_seconds * 1000
         )
@@ -94,7 +110,7 @@ def render_map_to_image(
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     image_ = render_map_to_image(
-        MapConfig(
+        map_options=MapConfig(
             base_layer=BaseLayerConfig(
                 tile_url="http://localhost:8888/tiles/emodnet-bathymetry/{z}/{x}/{y}"
             ),
@@ -105,21 +121,57 @@ if __name__ == "__main__":
                 max_lat=46.07667,
             ),
         ),
-        Path(__file__).parent / "map-template.j2.html",
-        polygon_overlay_wkt=(
-            "Polygon (("
-            "-10.20441798456907989 38.70119610558277401, "
-            "-11.2205635792250753 37.79169190233002951, "
-            "-10.20441798456907989 36.44529103260797598, "
-            "-8.50087978176344627 36.44529103260797598, "
-            "-7.48473418710745175 37.77397648137093, "
-            "-7.19333949452227639 39.21248186032001115, "
-            "-8.15718347768862273 39.77751803104943917, "
-            "-9.23310234261849949 40.00682370756641149, "
-            "-9.23310234261849949 40.00682370756641149, "
-            "-10.20441798456907989 38.70119610558277401"
-            "))"
-        ),
+        template_path=Path(__file__).parent / "map-template.j2.html",
+        polygon_draw_layers=[
+            PolygonDrawLayer(
+                features=[
+                    shapely.from_wkt(
+                        "Polygon (("
+                        "-10.20441798456907989 38.70119610558277401, "
+                        "-11.2205635792250753 37.79169190233002951, "
+                        "-10.20441798456907989 36.44529103260797598, "
+                        "-8.50087978176344627 36.44529103260797598, "
+                        "-7.48473418710745175 37.77397648137093, "
+                        "-7.19333949452227639 39.21248186032001115, "
+                        "-8.15718347768862273 39.77751803104943917, "
+                        "-9.23310234261849949 40.00682370756641149, "
+                        "-9.23310234261849949 40.00682370756641149, "
+                        "-10.20441798456907989 38.70119610558277401"
+                        "))"
+                    ),
+                    shapely.from_wkt(
+                        "Polygon (("
+                        "-9.1901403046091179 42.38732340111175034, "
+                        "-10.63217044996652128 42.33763634579012347, "
+                        "-11.39427964595851783 41.93872599766462628, "
+                        "-12.08914391289239632 41.26268112034399138, "
+                        "-11.11782827094181414 40.92482812098014477, "
+                        "-9.5413082674681764 40.58523904194483123, "
+                        "-8.43550276740135985 40.94740569811249742, "
+                        "-7.9199583112891272 41.57085219933940579, "
+                        "-7.9199583112891272 41.57085219933940579, "
+                        "-9.1901403046091179 42.38732340111175034"
+                        "))"
+                    ),
+                ],
+                fill_color="#ff0000",
+            ),
+            PolygonDrawLayer(
+                features=[
+                    shapely.from_wkt(
+                        "Polygon (("
+                        "-11.25978978784228879 39.59064268176609147, "
+                        "-10.45285063914488255 38.26546780283469218, "
+                        "-8.51021935524371465 38.0068891936002089, "
+                        "-6.1192885442884366 38.4295403925900203, "
+                        "-7.19520740921831248 39.68270605610847213, "
+                        "-11.25978978784228879 39.59064268176609147"
+                        "))"
+                    )
+                ],
+                fill_color="#00ff00",
+            ),
+        ],
     )
     output_to = Path(__file__).parent / "out.png"
     output_to.write_bytes(image_)

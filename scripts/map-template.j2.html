@@ -4,9 +4,9 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <script src="{{ map_conf.maplibre_script_src }}"></script>
     <link href="{{ map_conf.maplibre_css_link_href }}" rel="stylesheet"/>
-    {% if polygon_overlay %}
-        <script src="{{ map_conf.terra_draw_script_src }}"></script>
-        <script src="{{ map_conf.terra_draw_maplibre_adapter_script_src }}"></script>
+    {% if polygon_draw_layers %}
+    <script src="{{ map_conf.terra_draw_script_src }}"></script>
+    <script src="{{ map_conf.terra_draw_maplibre_adapter_script_src }}"></script>
     {% endif %}
     <style>
         body {
@@ -57,7 +57,7 @@
         attributionControl: false,
     })
 
-    {% if polygon_overlay %}
+    {% if polygon_draw_layers %}
     map.on('load', () => {
         const draw = new terraDraw.TerraDraw({
             adapter: new terraDrawMaplibreGlAdapter.TerraDrawMapLibreGLAdapter({
@@ -65,27 +65,46 @@
                 lib: maplibregl
             }),
             modes: [
-                new terraDraw.TerraDrawPolygonMode()
+                new terraDraw.TerraDrawPolygonMode({
+                    styles: {
+                        fillColor: ({id}) => {
+                            const feat = draw.getSnapshotFeature(id)
+                            return feat.properties.layerFillColor
+                        }
+                    }
+                })
             ]
         })
 
         draw.start()
         draw.setMode('polygon')
-        const polygonCoordinates = {{ polygon_overlay.__geo_interface__['coordinates'] | tojson }}
-        console.log('Adding polygon with coordinates:', polygonCoordinates)
-        const featureAddResult = draw.addFeatures([
+
+
+        let polygonCoords = null
+        let storeAddResult = null
+
+        {% for polygon_draw_layer in polygon_draw_layers %}
+        console.log('processing layer...')
+
+        {% for draw_feature in polygon_draw_layer.features %}
+        polygonCoords = {{ draw_feature.__geo_interface__['coordinates'] | tojson }}
+        storeAddResult = draw.addFeatures([
             {
                 type: 'Feature',
                 geometry: {
                     type: 'Polygon',
-                    coordinates: polygonCoordinates,
+                    coordinates: polygonCoords,
                 },
                 properties: {
-                    mode: 'polygon'
+                    mode: 'polygon',
+                    layerFillColor: '{{ polygon_draw_layer.fill_color }}',
                 }
             }
         ])
-        console.log(`add result: ${JSON.stringify(featureAddResult)}`)
+        console.log(`add result: ${JSON.stringify(storeAddResult)}`)
+        {% endfor %}
+        {% endfor %}
+
 
         map.once('idle', () => {
             window.mapReady = true
