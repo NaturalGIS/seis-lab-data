@@ -32,13 +32,14 @@ existing missions
         >
             <map-with-polygon-layer
                     data-base-map-tile-url="{{ settings.webmap_base_tile_layer_url }}"
-                    data-polygon-layer-tile-url="http://localhost:8888/tiles/projects"
-                    data-polygon-layer-name="projects"
+                    data-polygon-layer-tile-url="http://localhost:8888/tiles/survey_missions"
+                    data-polygon-layer-name="survey_missions"
                     data-polygon-fill-color="{{ settings.webmap_default_polygon_fill_color }}"
                     data-polygon-fill-opacity="{{ settings.webmap_default_polygon_fill_opacity }}"
                     data-polygon-outline-color="{{ settings.webmap_default_polygon_outline_color }}"
                     data-polygon-outline-opacity="{{ settings.webmap_default_polygon_outline_opacity }}"
                     data-polygon-outline-width="{{ settings.webmap_default_polygon_outline_width }}"
+                    data-item-detail-base-url="{{ map_popup_detail_base_url | default('') }}"
                     data-initial-min-lon="{{ map_bounds.min_lon }}"
                     data-initial-min-lat="{{ map_bounds.min_lat }}"
                     data-initial-max-lon="{{ map_bounds.max_lon }}"

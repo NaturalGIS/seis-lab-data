@@ -1,6 +1,11 @@
+import shapely
 from sqlalchemy.orm import selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
+from sqlmodel import (
+    func,
+    or_,
+    select,
+)
 
 from ... import schemas
 from ...db import models
@@ -16,6 +21,7 @@ async def paginated_list_survey_missions(
     include_total: bool = False,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
 ) -> tuple[list[models.SurveyMission], int | None]:
     limit = page_size
     offset = limit * (page - 1)
@@ -28,9 +34,11 @@ async def paginated_list_survey_missions(
         include_total,
         en_name_filter=en_name_filter,
         pt_name_filter=pt_name_filter,
+        spatial_intersect=spatial_intersect,
     )
 
 
+# TODO: explicitly add an 'order by' clause
 async def list_survey_missions(
     session: AsyncSession,
     user: schemas.User | None = None,
@@ -40,6 +48,7 @@ async def list_survey_missions(
     include_total: bool = False,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
 ) -> tuple[list[models.SurveyMission], int | None]:
     statement = select(models.SurveyMission).options(
         selectinload(models.SurveyMission.project)
@@ -51,6 +60,16 @@ async def list_survey_missions(
     if pt_name_filter:
         statement = statement.where(
             models.SurveyMission.name["pt"].astext.ilike(f"%{pt_name_filter}%")
+        )
+    if spatial_intersect is not None:
+        statement = statement.where(
+            or_(
+                func.ST_Intersects(
+                    models.SurveyMission.bbox_4326,
+                    func.ST_GeomFromText(spatial_intersect.wkt, 4326),
+                ),
+                models.SurveyMission.bbox_4326 is None,
+            )
         )
     if project_id is not None:
         statement = statement.where(models.SurveyMission.project_id == project_id)

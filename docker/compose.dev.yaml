@@ -211,28 +211,6 @@ services:
       - "traefik.http.routers.martin-router.middlewares=martin-stripprefix"
       - "traefik.http.services.martin.loadbalancer.server.port=3000"
 
-
-#  static-tile-server:
-#    image: protomaps/go-pmtiles:v1.28.1
-#    volumes:
-#      - type: bind
-#        source: ../sample-data/pmtiles
-#        target: /tiles
-#        read_only: true
-#    command:
-#      - "serve"
-#      - "--public-url=http://localhost:8888"
-#      - "--cors=*"
-#      - "/tiles"
-#    labels:
-#      - "traefik.enable=true"
-#      - "traefik.http.middlewares.pm-tiles-stripprefix.stripprefix.prefixes=/tiles"
-#      - "traefik.http.routers.pm-tiles.rule=PathPrefix(`/tiles`)"
-#      - "traefik.http.routers.pm-tiles.entrypoints=web"
-#      - "traefik.http.routers.pm-tiles.priority=90"
-#      - "traefik.http.routers.pm-tiles.middlewares=pm-tiles-stripprefix"
-#      - "traefik.http.services.pm-tiles.loadbalancer.server.port=8080"
-
   jupyter:
     image: *common-image
     environment:
@@ -287,6 +265,30 @@ configs:
           projects:
             schema: public
             table: project
+            srid: 4326
+            geometry_column: bbox_4326
+            id_column: ~
+            geometry_type: POLYGON
+            buffer: 256
+            properties:
+              id: uuid
+              name: jsonb
+
+          survey_missions:
+            schema: public
+            table: surveymission
+            srid: 4326
+            geometry_column: bbox_4326
+            id_column: ~
+            geometry_type: POLYGON
+            buffer: 256
+            properties:
+              id: uuid
+              name: jsonb
+
+          survey_related_records:
+            schema: public
+            table: surveyrelatedrecord
             srid: 4326
             geometry_column: bbox_4326
             id_column: ~

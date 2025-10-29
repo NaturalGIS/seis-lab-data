@@ -13,6 +13,7 @@ export class MapWithPolygonLayer extends HTMLElement {
         const baseMapTileUrl = this.getAttribute("data-base-map-tile-url")
         const polygonLayerTileUrl = this.getAttribute("data-polygon-layer-tile-url")
         const polygonLayerName = this.getAttribute("data-polygon-layer-name")
+        const itemDetailBaseUrl = this.getAttribute("data-item-detail-base-url")
         const centerX = this.getAttribute("data-center-lon") || 0
         const centerY = this.getAttribute("data-center-lat") || 0
         const zoom = this.getAttribute("data-zoom") || 2
@@ -110,7 +111,7 @@ export class MapWithPolygonLayer extends HTMLElement {
             console.log(evt)
             new maplibregl.Popup()
                 .setLngLat(evt.lngLat)
-                .setHTML(`<a href="/projects/${evt.features[0].properties.id}">${evt.features[0].properties.en}</a>`)
+                .setHTML(`<a href="${itemDetailBaseUrl}/${evt.features[0].properties.id}">${evt.features[0].properties.en}</a>`)
                 .addTo(this.map)
         })
     }

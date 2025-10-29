@@ -77,35 +77,31 @@ class BoundingBoxFilter(SimpleListFilter):
 
 @dataclasses.dataclass
 class _StringFilter(SimpleListFilter):
-    internal_name: str
-    public_name: str
     value: str
+    internal_name: str = ""
+    public_name: str = ""
 
     @classmethod
     def from_params(cls, params: Mapping[str, str]) -> Self:
         try:
-            return cls(
-                internal_name=cls.internal_name,
-                public_name=cls.public_name,
-                value=params[cls.public_name],
-            )
+            return cls(value=params[cls.public_name])
         except KeyError as err:
             raise ValueError(f"Cannot find {cls.public_name!r} in params") from err
 
     def serialize_to_query_string(self) -> str:
-        return f"{self.public_name}={self.value}"
+        return f"{self.public_name}={self.value}" if self.value else ""
 
 
 @dataclasses.dataclass
 class EnNameFilter(_StringFilter):
-    internal_name = "en_name_filter"
-    public_name = "en_name"
+    internal_name: str = "en_name_filter"
+    public_name: str = "en_name"
 
 
 @dataclasses.dataclass
 class PtNameFilter(_StringFilter):
-    internal_name = "pt_name_filter"
-    public_name = "pt_name"
+    internal_name: str = "pt_name_filter"
+    public_name: str = "pt_name"
 
 
 @dataclasses.dataclass
@@ -127,7 +123,7 @@ class SearchNameFilter(LanguageDependantListFilter):
             raise ValueError(f"Cannot find {_name!r} in params") from err
 
     def serialize_to_query_string(self) -> str:
-        return f"{self.public_name}={self.value}"
+        return f"{self.public_name}={self.value}" if self.value else ""
 
 
 class ItemListFilters(Protocol):
@@ -147,7 +143,7 @@ class ItemListFilters(Protocol):
 
     def get_text_search_filter(self, current_language: str) -> str:
         filter_internal_name = f"{current_language}_name_filter"
-        return self.filters.get(filter_internal_name, "")
+        return self.filters.get(filter_internal_name, "").value
 
     def serialize_to_query_string(self) -> str:
         result = ""
