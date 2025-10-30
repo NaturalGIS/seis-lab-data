@@ -55,6 +55,7 @@ This template is loaded as a GET response to the /projects/ endpoint. It is used
                     data-polygon-outline-color="{{ settings.webmap_default_polygon_outline_color }}"
                     data-polygon-outline-opacity="{{ settings.webmap_default_polygon_outline_opacity }}"
                     data-polygon-outline-width="{{ settings.webmap_default_polygon_outline_width }}"
+                    data-item-detail-base-url="{{ map_popup_detail_base_url | default('') }}"
                     data-initial-min-lon="{{ map_bounds.min_lon }}"
                     data-initial-min-lat="{{ map_bounds.min_lat }}"
                     data-initial-max-lon="{{ map_bounds.max_lon }}"

@@ -391,6 +391,9 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 "search_initial_value": list_filters.get_text_search_filter(
                     current_language
                 ),
+                "map_popup_detail_base_url": str(
+                    request.url_for("projects:detail", project_id="_")
+                ).rpartition("/")[0],
             },
         )
 

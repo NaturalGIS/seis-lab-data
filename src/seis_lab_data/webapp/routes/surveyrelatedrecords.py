@@ -754,11 +754,6 @@ async def get_list_component(request: Request):
         ],
         update_current_url_with=filter_query_string,
         pagination=pagination_info,
-        map_popup_detail_base_url=str(
-            request.url_for(
-                "survey_related_records:detail", survey_related_record_id="_"
-            )
-        ).rpartition("/")[0],
     )
 
     async def event_streamer():
