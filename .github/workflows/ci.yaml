@@ -79,7 +79,7 @@ jobs:
         run: |
           docker run --rm --entrypoint bash \
           ${{ fromJSON(steps.docker_metadata.outputs.json).tags[0] }} -c \
-          "uv sync --locked --group dev && uv run pytest"
+          "uv sync --locked --group dev --group gdal && uv run pytest"
 
       - name: "Stand up compose stack"
         run: |
@@ -97,7 +97,7 @@ jobs:
         run: |
           IMAGE_URL=${{ fromJSON(steps.docker_metadata.outputs.json).tags[0] }} \
           docker compose --file docker/compose.ci.yaml exec -t webapp bash -c \
-          "uv sync --locked --group dev && uv run pytest -m integration"
+          "uv sync --locked --group dev --group gdal && uv run pytest -m integration"
 
       - name: "Run end to end tests"
         run: |

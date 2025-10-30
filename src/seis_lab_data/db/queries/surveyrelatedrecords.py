@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 import shapely
@@ -12,6 +13,8 @@ from sqlmodel import (
 from ... import schemas
 from ...db import models
 from .common import _get_total_num_records
+
+logger = logging.getLogger(__name__)
 
 
 async def paginated_list_survey_related_records(
@@ -78,7 +81,7 @@ async def list_survey_related_records(
                     models.SurveyRelatedRecord.bbox_4326,
                     func.ST_GeomFromText(spatial_intersect.wkt, 4326),
                 ),
-                models.SurveyRelatedRecord.bbox_4326 is None,
+                models.SurveyRelatedRecord.bbox_4326.is_(None),
             )
         )
     if survey_mission_id is not None:

@@ -147,7 +147,7 @@ async def get_survey_mission(
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
 ) -> models.SurveyMission | None:
-    if not permissions.can_read_survey_mission(
+    if not await permissions.can_read_survey_mission(
         initiator, survey_mission_id, settings=settings
     ):
         raise errors.SeisLabDataError(

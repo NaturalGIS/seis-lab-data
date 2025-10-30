@@ -180,6 +180,7 @@ async def update_survey_related_record(
         if schemas.RecordAssetId(existing_asset.id) not in proposed_asset_ids:
             await session.delete(existing_asset)
     await session.commit()
+    await session.refresh(survey_related_record)
     return await queries.get_survey_related_record(
         session, schemas.SurveyRelatedRecordId(survey_related_record.id)
     )

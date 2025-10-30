@@ -99,7 +99,7 @@ Marine data catalog for internal usage at [IPMA]
 Normal tests can be run from inside the `webapp` compose container, after installing the required dependencies:
 
 ```shell
-docker compose --file docker/compose.dev.yaml exec webapp uv sync --locked --group dev
+docker compose --file docker/compose.dev.yaml exec webapp uv sync --locked --group gdal --group dev
 docker compose --file docker/compose.dev.yaml exec webapp uv run pytest
 ```
 

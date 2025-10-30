@@ -29,8 +29,10 @@ from ... import (
     schemas,
 )
 from ...processing import tasks
-from .. import forms
-from . import filters
+from .. import (
+    filters,
+    forms,
+)
 from .auth import (
     get_user,
     fancy_requires_auth,

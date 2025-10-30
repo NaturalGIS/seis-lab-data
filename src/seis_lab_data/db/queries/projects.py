@@ -66,7 +66,7 @@ async def list_projects(
                     models.Project.bbox_4326,
                     func.ST_GeomFromText(spatial_intersect.wkt, 4326),
                 ),
-                models.Project.bbox_4326 is None,
+                models.Project.bbox_4326.is_(None),
             )
         )
     items = (await session.exec(statement.offset(offset).limit(limit))).all()

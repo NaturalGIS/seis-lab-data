@@ -29,8 +29,10 @@ from ... import (
     schemas,
 )
 from ...processing import tasks
-from .. import forms
-from . import filters
+from .. import (
+    filters,
+    forms,
+)
 from .auth import (
     fancy_requires_auth,
     get_user,
@@ -48,16 +50,12 @@ logger = logging.getLogger(__name__)
 async def _get_survey_mission_details(request: Request) -> schemas.SurveyMissionDetails:
     """utility function to get survey mission details and its survey-related records."""
     records_current_page = get_page_from_request_params(request)
-    records_search_filters = {
-        k: v
-        for k, v in (
-            {
-                "en_name": request.query_params.get("en_name"),
-                "pt_name": request.query_params.get("pt_name"),
-            }
-        ).items()
-        if v is not None
-    }
+    current_language = request.state.language
+    survey_related_records_list_filters = (
+        filters.SurveyRelatedRecordListFilters.from_params(
+            request.query_params, current_language
+        )
+    )
     user = get_user(request.session.get("user", {}))
     settings: config.SeisLabDataSettings = request.state.settings
     session_maker = request.state.session_maker
@@ -89,6 +87,7 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
             include_total=True,
             page=records_current_page,
             page_size=settings.pagination_page_size,
+            **survey_related_records_list_filters.as_kwargs(),
         )
     return schemas.SurveyMissionDetails(
         item=schemas.SurveyMissionReadDetail.from_db_instance(survey_mission),
@@ -96,7 +95,9 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
             schemas.SurveyRelatedRecordReadListItem.from_db_instance(srr)
             for srr in survey_related_records
         ],
-        children_filter=records_search_filters,
+        children_filter=survey_related_records_list_filters.get_text_search_filter(
+            current_language
+        ),
         pagination=get_pagination_info(
             records_current_page,
             request.state.settings.pagination_page_size,
@@ -230,12 +231,10 @@ async def get_survey_mission_creation_form(request: Request):
 
 async def get_list_component(request: Request):
     if (raw_search_params := request.query_params.get("datastar")) is not None:
-        logger.debug(f"{raw_search_params=}")
         try:
             list_filters = filters.SurveyMissionListFilters.from_json(
                 raw_search_params, request.state.language
             )
-            logger.debug(f"{list_filters=}")
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid search params")
         else:
@@ -245,7 +244,6 @@ async def get_list_component(request: Request):
         internal_filter_kwargs = {}
         filter_query_string = ""
 
-    logger.debug(f"{filter_query_string=}")
     current_page = get_page_from_request_params(request)
     session_maker = request.state.session_maker
     user = get_user(request.session.get("user", {}))
@@ -288,7 +286,7 @@ async def get_list_component(request: Request):
         yield ServerSentEventGenerator.patch_elements(
             rendered,
             selector=schemas.selector_info.items_selector,
-            mode=ElementPatchMode.INNER,
+            mode=ElementPatchMode.REPLACE,
         )
 
     return DatastarResponse(event_streamer())
@@ -316,7 +314,6 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
                 include_total=True,
                 **list_filters.as_kwargs(),
             )
-            logger.debug(f"{items=}, {num_total=}")
             num_unfiltered_total = (
                 await operations.list_survey_missions(
                     session, initiator=user or None, include_total=True
@@ -369,7 +366,6 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
     async def get(self, request: Request):
         details = await _get_survey_mission_details(request)
         template_processor = request.state.templates
-        current_name_filter = f"{request.state.language}_name"
         return template_processor.TemplateResponse(
             request,
             "survey-missions/detail.html",
@@ -377,9 +373,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 "survey_mission": details.item,
                 "pagination": details.pagination,
                 "survey_related_records": details.children,
-                "search_initial_value": (
-                    details.children_filter.get(current_name_filter) or ""
-                ),
+                "search_initial_value": details.children_filter,
                 "permissions": details.permissions,
                 "breadcrumbs": details.breadcrumbs,
             },

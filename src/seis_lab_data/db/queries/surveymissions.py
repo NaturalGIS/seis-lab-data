@@ -68,7 +68,7 @@ async def list_survey_missions(
                     models.SurveyMission.bbox_4326,
                     func.ST_GeomFromText(spatial_intersect.wkt, 4326),
                 ),
-                models.SurveyMission.bbox_4326 is None,
+                models.SurveyMission.bbox_4326.is_(None),
             )
         )
     if project_id is not None:

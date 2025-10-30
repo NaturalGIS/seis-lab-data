@@ -64,6 +64,9 @@ class BoundingBoxFilter(SimpleListFilter):
             raise ValueError(msg) from err
 
     def serialize_to_query_string(self) -> str:
+        if not self.value.is_valid:
+            logger.debug("bbox filter geometry is not valid")
+            return ""
         min_lon, min_lat, max_lon, max_lat = self.value.bounds
         return "&".join(
             (
@@ -89,7 +92,11 @@ class _StringFilter(SimpleListFilter):
             raise ValueError(f"Cannot find {cls.public_name!r} in params") from err
 
     def serialize_to_query_string(self) -> str:
-        return f"{self.public_name}={self.value}" if self.value else ""
+        return (
+            f"{self.public_name}={self.value}"
+            if all((self.value, self.public_name))
+            else ""
+        )
 
 
 @dataclasses.dataclass
@@ -102,6 +109,42 @@ class EnNameFilter(_StringFilter):
 class PtNameFilter(_StringFilter):
     internal_name: str = "pt_name_filter"
     public_name: str = "pt_name"
+
+
+@dataclasses.dataclass
+class DatasetCategoryFilter(_StringFilter):
+    internal_name: str = "dataset_category_filter"
+    public_name: str = "dataset_category"
+
+
+@dataclasses.dataclass
+class DomainTypeFilter(_StringFilter):
+    internal_name: str = "domain_type_filter"
+    public_name: str = "domain_type"
+
+
+@dataclasses.dataclass
+class WorkflowStageFilter(_StringFilter):
+    internal_name: str = "workflow_stage_filter"
+    public_name: str = "workflow_stage"
+
+
+@dataclasses.dataclass
+class ProjectIdFilter(_StringFilter):
+    internal_name: str = "project_id"
+    public_name: str = "projectId"
+
+    def serialize_to_query_string(self) -> str:
+        return ""
+
+
+@dataclasses.dataclass
+class SurveyMissionIdFilter(_StringFilter):
+    internal_name: str = "survey_mission_id"
+    public_name: str = "surveyMissionId"
+
+    def serialize_to_query_string(self) -> str:
+        return ""
 
 
 @dataclasses.dataclass
@@ -143,7 +186,7 @@ class ItemListFilters(Protocol):
 
     def get_text_search_filter(self, current_language: str) -> str:
         filter_internal_name = f"{current_language}_name_filter"
-        return self.filters.get(filter_internal_name, "").value
+        return f_.value if (f_ := self.filters.get(filter_internal_name)) else ""
 
     def serialize_to_query_string(self) -> str:
         result = ""
@@ -184,4 +227,62 @@ class ProjectListFilters(ItemListFilters):
 
 
 @dataclasses.dataclass
-class SurveyMissionListFilters(ProjectListFilters): ...
+class SurveyMissionListFilters(ItemListFilters):
+    filters: dict[str, ListFilter]
+
+    @classmethod
+    def from_params(cls, params: Mapping[str, str], current_language: str) -> Self:
+        filters: dict[str, SimpleListFilter | LanguageDependantListFilter] = {}
+        for simple_type in (
+            BoundingBoxFilter,
+            EnNameFilter,
+            PtNameFilter,
+            DatasetCategoryFilter,
+            DomainTypeFilter,
+            WorkflowStageFilter,
+            ProjectIdFilter,
+        ):
+            try:
+                filter_: SimpleListFilter = simple_type.from_params(params)
+                filters[filter_.internal_name] = filter_
+            except ValueError as err:
+                logger.info(str(err))
+        try:
+            filter_: LanguageDependantListFilter = SearchNameFilter.from_params(
+                params, current_language
+            )
+            filters[filter_.internal_name] = filter_
+        except ValueError as err:
+            logger.info(str(err))
+        return cls(filters=filters)
+
+
+@dataclasses.dataclass
+class SurveyRelatedRecordListFilters(ItemListFilters):
+    filters: dict[str, ListFilter]
+
+    @classmethod
+    def from_params(cls, params: Mapping[str, str], current_language: str) -> Self:
+        filters: dict[str, SimpleListFilter | LanguageDependantListFilter] = {}
+        for simple_type in (
+            BoundingBoxFilter,
+            EnNameFilter,
+            PtNameFilter,
+            DatasetCategoryFilter,
+            DomainTypeFilter,
+            WorkflowStageFilter,
+            SurveyMissionIdFilter,
+        ):
+            try:
+                filter_: SimpleListFilter = simple_type.from_params(params)
+                filters[filter_.internal_name] = filter_
+            except ValueError as err:
+                logger.info(str(err))
+        try:
+            filter_: LanguageDependantListFilter = SearchNameFilter.from_params(
+                params, current_language
+            )
+            filters[filter_.internal_name] = filter_
+        except ValueError as err:
+            logger.info(str(err))
+        return cls(filters=filters)
