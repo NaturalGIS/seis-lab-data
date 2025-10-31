@@ -43,18 +43,26 @@ def authenticated_context(browser, auth_credentials, base_url):
     page.get_by_text(re.compile("log in", re.IGNORECASE)).click()
     expect(page.get_by_test_id("user-menu")).to_be_visible()
     storage_state = context.storage_state()
+    yield storage_state
     page.close()
     context.close()
-    yield storage_state
 
 
-@pytest.fixture(scope="session")
-def shared_authenticated_page(browser, authenticated_context, base_url):
+@pytest.fixture(scope="function")
+def authenticated_page(browser, authenticated_context, base_url, request):
     context = browser.new_context(
         storage_state=authenticated_context, base_url=base_url
     )
+
+    if (use_tracing := request.config.getoption("--tracing")) == "on":
+        context.tracing.start(screenshots=True, snapshots=True, sources=True)
+
     page = context.new_page()
     yield page
+    if use_tracing == "on":
+        trace_path = f"test-results/{request.node.name}-trace.zip"
+        context.tracing.stop(path=trace_path)
+
     context.close()
 
 

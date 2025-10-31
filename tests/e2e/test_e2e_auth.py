@@ -6,9 +6,9 @@ from playwright.sync_api import (
 
 
 @pytest.mark.e2e
-def test_login(shared_authenticated_page: Page):
-    shared_authenticated_page.goto("/")
-    expect(shared_authenticated_page.get_by_test_id("user-menu")).to_be_visible()
+def test_login(authenticated_page: Page):
+    authenticated_page.goto("/")
+    expect(authenticated_page.get_by_test_id("user-menu")).to_be_visible()
 
 
 @pytest.mark.e2e
