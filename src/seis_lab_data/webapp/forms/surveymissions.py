@@ -6,6 +6,7 @@ from starlette.requests import Request
 from starlette_babel import gettext_lazy as _
 from starlette_wtf import StarletteForm
 from wtforms import (
+    DateField,
     FieldList,
     FormField,
     StringField,
@@ -51,6 +52,8 @@ class _SurveyMissionForm(StarletteForm):
         ),
     )
     bounding_box = FormField(BoundingBoxForm)
+    temporal_extent_begin = DateField()
+    temporal_extent_end = DateField()
     links = FieldList(
         FormField(LinkForm),
         label=_("Links"),
@@ -151,6 +154,8 @@ class SurveyMissionCreateForm(_SurveyMissionForm):
                     **get_form_field_by_name(self, "description").data,
                 },
                 relative_path=self.relative_path.data,
+                temporal_extent_begin=self.temporal_extent_begin.data or None,
+                temporal_extent_end=self.temporal_extent_end.data or None,
                 links=[
                     {
                         "url": li.url.data,
@@ -187,6 +192,8 @@ class SurveyMissionUpdateForm(_SurveyMissionForm):
                     **get_form_field_by_name(self, "description").data,
                 },
                 relative_path=self.relative_path.data,
+                temporal_extent_begin=self.temporal_extent_begin.data or None,
+                temporal_extent_end=self.temporal_extent_end.data or None,
                 links=[
                     {
                         "url": li.url.data,

@@ -37,6 +37,8 @@
     {{ macros.render_form_field(form.bounding_box.min_lat, data_bind="bbox.minLat") }}
     {{ macros.render_form_field(form.bounding_box.max_lat, data_bind="bbox.maxLat") }}
 
+    {{ macros.render_form_field(form.temporal_extent_begin) }}
+    {{ macros.render_form_field(form.temporal_extent_end) }}
 
     <h3 data-signals="{nextIndex: {{ form.links|length }}}">{{ _("Links") }}</h3>
     {{ macros.render_links_fields(

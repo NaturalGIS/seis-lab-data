@@ -1,3 +1,5 @@
+import datetime as dt
+
 import pydantic
 from typing import Annotated
 
@@ -89,6 +91,8 @@ class SurveyRelatedRecordReadEmbedded(pydantic.BaseModel):
     name: LocalizableDraftName
     status: SurveyRelatedRecordStatus
     is_valid: bool
+    temporal_extent_begin: dt.date | None
+    temporal_extent_end: dt.date | None
     survey_mission: SurveyMissionReadEmbedded
 
     @classmethod
@@ -142,6 +146,8 @@ class SurveyRelatedRecordCreate(pydantic.BaseModel):
     workflow_stage_id: WorkflowStageId
     relative_path: str
     bbox_4326: PossiblyInvalidPolygon | None = None
+    temporal_extent_begin: dt.date | None = None
+    temporal_extent_end: dt.date | None = None
     links: list[LinkSchema] = []
     assets: Annotated[
         list[RecordAssetCreate],
@@ -160,6 +166,8 @@ class SurveyRelatedRecordUpdate(pydantic.BaseModel):
     workflow_stage_id: WorkflowStageId | None = None
     relative_path: str | None = None
     bbox_4326: PossiblyInvalidPolygon | None = None
+    temporal_extent_begin: dt.date | None = None
+    temporal_extent_end: dt.date | None = None
     links: list[LinkSchema] | None = None
     assets: Annotated[
         list[RecordAssetUpdate],
@@ -174,6 +182,8 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
     status: SurveyRelatedRecordStatus
     is_valid: bool
     survey_mission: SurveyMissionReadEmbedded
+    temporal_extent_begin: dt.date | None
+    temporal_extent_end: dt.date | None
 
     @classmethod
     def from_db_instance(

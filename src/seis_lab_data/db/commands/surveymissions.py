@@ -10,7 +10,7 @@ from .. import (
     models,
     queries,
 )
-from .common import get_creation_bbox_4326
+from .common import get_bbox_4326_for_db
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ async def create_survey_mission(
     survey_mission = models.SurveyMission(
         **to_create.model_dump(exclude={"bbox_4326"}),
         bbox_4326=(
-            get_creation_bbox_4326(bbox)
+            get_bbox_4326_for_db(bbox)
             if (bbox := to_create.bbox_4326) is not None
             else bbox
         ),
@@ -61,8 +61,16 @@ async def update_survey_mission(
     to_update: schemas.SurveyMissionUpdate,
 ) -> models.SurveyMission:
     logger.debug(f"{to_update.model_dump()=}")
-    for key, value in to_update.model_dump(exclude_unset=True).items():
+    for key, value in to_update.model_dump(
+        exclude={"bbox_4326"}, exclude_unset=True
+    ).items():
         setattr(survey_mission, key, value)
+    updated_bbox_4326 = (
+        get_bbox_4326_for_db(bbox)
+        if (bbox := to_update.bbox_4326) is not None
+        else None
+    )
+    survey_mission.bbox_4326 = updated_bbox_4326
     session.add(survey_mission)
     await session.commit()
     await session.refresh(survey_mission)

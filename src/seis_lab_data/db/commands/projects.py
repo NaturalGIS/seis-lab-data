@@ -10,7 +10,7 @@ from .. import (
     models,
     queries,
 )
-from .common import get_creation_bbox_4326
+from .common import get_bbox_4326_for_db
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ async def create_project(
     project = models.Project(
         **to_create.model_dump(exclude={"bbox_4326"}),
         bbox_4326=(
-            get_creation_bbox_4326(bbox)
+            get_bbox_4326_for_db(bbox)
             if (bbox := to_create.bbox_4326) is not None
             else bbox
         ),
@@ -52,8 +52,16 @@ async def update_project(
     project: models.Project,
     to_update: schemas.ProjectUpdate,
 ) -> models.Project:
-    for key, value in to_update.model_dump(exclude_unset=True).items():
+    for key, value in to_update.model_dump(
+        exclude={"bbox_4326"}, exclude_unset=True
+    ).items():
         setattr(project, key, value)
+    updated_bbox_4326 = (
+        get_bbox_4326_for_db(bbox)
+        if (bbox := to_update.bbox_4326) is not None
+        else None
+    )
+    project.bbox_4326 = updated_bbox_4326
     session.add(project)
     await session.commit()
     await session.refresh(project)

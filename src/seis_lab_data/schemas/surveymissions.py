@@ -1,3 +1,4 @@
+import datetime as dt
 import uuid
 
 import pydantic
@@ -25,6 +26,8 @@ class SurveyMissionCreate(pydantic.BaseModel):
     description: LocalizableDraftDescription
     relative_path: str
     bbox_4326: PossiblyInvalidPolygon | None = None
+    temporal_extent_begin: dt.date | None = None
+    temporal_extent_end: dt.date | None = None
     links: list[LinkSchema] = []
 
 
@@ -35,6 +38,8 @@ class SurveyMissionUpdate(pydantic.BaseModel):
     description: LocalizableDraftDescription | None = None
     relative_path: str | None = None
     bbox_4326: PossiblyInvalidPolygon | None = None
+    temporal_extent_begin: dt.date | None = None
+    temporal_extent_end: dt.date | None = None
     links: list[LinkSchema] | None = None
 
 
@@ -43,6 +48,8 @@ class SurveyMissionReadEmbedded(pydantic.BaseModel):
     name: LocalizableDraftName
     status: SurveyMissionStatus
     is_valid: bool
+    temporal_extent_begin: dt.date | None
+    temporal_extent_end: dt.date | None
     project: ProjectReadEmbedded
 
     @classmethod

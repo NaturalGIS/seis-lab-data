@@ -6,6 +6,7 @@ from starlette.requests import Request
 from starlette_babel import gettext_lazy as _
 from starlette_wtf import StarletteForm
 from wtforms import (
+    DateField,
     FieldList,
     FormField,
     StringField,
@@ -48,6 +49,8 @@ class _ProjectForm(StarletteForm):
         description=_("Base path for the project in the archive file system"),
     )
     bounding_box = FormField(BoundingBoxForm)
+    temporal_extent_begin = DateField()
+    temporal_extent_end = DateField()
     links = FieldList(
         FormField(LinkForm),
         label=_("Links"),
@@ -151,6 +154,8 @@ class ProjectCreateForm(_ProjectForm):
                     }
                     for li in self.links.entries
                 ],
+                temporal_extent_begin=self.temporal_extent_begin.data or None,
+                temporal_extent_end=self.temporal_extent_end.data or None,
             )
         except pydantic.ValidationError as exc:
             logger.error(f"pydantic errors {exc.errors()=}")
@@ -174,6 +179,8 @@ class ProjectUpdateForm(_ProjectForm):
                     **get_form_field_by_name(self, "description").data,
                 },
                 root_path=self.root_path.data,
+                temporal_extent_begin=self.temporal_extent_begin.data or None,
+                temporal_extent_end=self.temporal_extent_end.data or None,
                 links=[
                     {
                         "url": li.url.data,

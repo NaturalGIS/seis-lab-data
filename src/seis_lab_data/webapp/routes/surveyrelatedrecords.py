@@ -467,6 +467,8 @@ async def get_update_form(request: Request):
             }
             if (bbox := details.item.bbox_4326)
             else None,
+            "temporal_extent_begin": details.item.temporal_extent_begin,
+            "temporal_extent_end": details.item.temporal_extent_end,
             "links": [
                 {
                     "url": li.url,
@@ -1013,6 +1015,8 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}"
                 f"))"
             ),
+            temporal_extent_begin=form_instance.temporal_extent_begin.data,
+            temporal_extent_end=form_instance.temporal_extent_end.data,
             links=[
                 schemas.LinkSchema(
                     url=lf.url.data,

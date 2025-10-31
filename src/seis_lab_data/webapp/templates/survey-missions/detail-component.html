@@ -44,20 +44,22 @@
     <div class="col">
         <h2>{{ _("properties") | capitalize }}</h2>
         <dl class="row">
-            <dt class="col-sm-3">{{ _("Name") }}</dt>
+            <dt class="col-sm-3">{{ _("name") | capitalize }}</dt>
             <dd class="col-sm-9">{{ survey_mission.name|translate_localizable_string }}</dd>
-            <dt class="col-sm-3">{{ _("Description") }}</dt>
+            <dt class="col-sm-3">{{ _("description") | capitalize }}</dt>
             <dd class="col-sm-9">{{ survey_mission.description|translate_localizable_string }}</dd>
-            <dt class="col-sm-3">{{ _("Status") }}</dt>
+            <dt class="col-sm-3">{{ _("status") | capitalize }}</dt>
             <dd class="col-sm-9">{{ survey_mission.status.value }}</dd>
-            <dt class="col-sm-3">{{ _("Is valid") }}</dt>
+            <dt class="col-sm-3">{{ _("is valid") | capitalize }}</dt>
             <dd class="col-sm-9">{{ survey_mission.is_valid }}</dd>
-            <dt class="col-sm-3">{{ _("Project") }}</dt>
+            <dt class="col-sm-3">{{ _("project") | capitalize }}</dt>
             <dd class="col-sm-9"><a
                     href="{{ url_for('projects:detail', project_id=survey_mission.project.id) }}">{{ survey_mission.project.name|translate_localizable_string }}</a>
             </dd>
-            <dt class="col-sm-3">{{ _("Relative path") }}</dt>
+            <dt class="col-sm-3">{{ _("relative path") | capitalize }}</dt>
             <dd class="col-sm-9">{{ survey_mission.relative_path }}</dd>
+            <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
+            <dd class="col-sm-9">{{ survey_mission.temporal_extent_begin|default(_(".."), True) }}/{{ survey_mission.temporal_extent_end|default(_(".."), True) }}</dd>
         </dl>
     </div>
 </div>

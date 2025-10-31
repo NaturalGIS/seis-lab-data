@@ -11,7 +11,7 @@ from .. import (
     models,
     queries,
 )
-from .common import get_creation_bbox_4326
+from .common import get_bbox_4326_for_db
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +100,7 @@ async def create_survey_related_record(
     survey_record = models.SurveyRelatedRecord(
         **to_create.model_dump(exclude={"assets", "bbox_4326"}),
         bbox_4326=(
-            get_creation_bbox_4326(bbox)
+            get_bbox_4326_for_db(bbox)
             if (bbox := to_create.bbox_4326) is not None
             else bbox
         ),
@@ -152,9 +152,15 @@ async def update_survey_related_record(
     """
     logger.debug(f"{to_update=}")
     for key, value in to_update.model_dump(
-        exclude={"assets"}, exclude_unset=True
+        exclude={"bbox_4326", "assets"}, exclude_unset=True
     ).items():
         setattr(survey_related_record, key, value)
+    updated_bbox_4326 = (
+        get_bbox_4326_for_db(bbox)
+        if (bbox := to_update.bbox_4326) is not None
+        else None
+    )
+    survey_related_record.bbox_4326 = updated_bbox_4326
     session.add(survey_related_record)
 
     for proposed_asset in to_update.assets:
