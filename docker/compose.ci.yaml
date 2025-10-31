@@ -80,6 +80,12 @@ services:
         condition: service_healthy
       message-broker:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import requests; requests.get(\"http://localhost:9000/auth/-/health/ready/\").raise_for_status()'"]
+      start_period: 30s
+      interval: 10s
+      retries: 10
+      timeout: 5s
 
   auth-worker:
     image: *auth-image
@@ -142,6 +148,8 @@ services:
       db:
         condition: service_healthy
       message-broker:
+        condition: service_healthy
+      auth-webapp:
         condition: service_healthy
     volumes:
       *common-volumes
