@@ -3,6 +3,7 @@
 import logging
 import typing
 
+import shapely
 from jinja2 import pass_context
 
 from ..constants import TranslatableEnumProtocol
@@ -21,3 +22,8 @@ def translate_localizable_string(
 
 def translate_enum(value: TranslatableEnumProtocol) -> str:
     return value.get_translated_value()
+
+
+def get_polygon_bounds(polygon_wkt: str) -> tuple[float, float, float, float]:
+    geom = shapely.from_wkt(polygon_wkt)
+    return geom.bounds

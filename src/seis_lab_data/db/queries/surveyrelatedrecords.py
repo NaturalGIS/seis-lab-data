@@ -1,12 +1,20 @@
+import logging
 import uuid
 
+import shapely
 from sqlalchemy.orm import selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
+from sqlmodel import (
+    func,
+    or_,
+    select,
+)
 
 from ... import schemas
 from ...db import models
 from .common import _get_total_num_records
+
+logger = logging.getLogger(__name__)
 
 
 async def paginated_list_survey_related_records(
@@ -18,6 +26,7 @@ async def paginated_list_survey_related_records(
     include_total: bool = False,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     limit = page_size
     offset = limit * (page - 1)
@@ -30,9 +39,11 @@ async def paginated_list_survey_related_records(
         include_total,
         en_name_filter=en_name_filter,
         pt_name_filter=pt_name_filter,
+        spatial_intersect=spatial_intersect,
     )
 
 
+# TODO: explicitly add an 'order by' clause
 async def list_survey_related_records(
     session: AsyncSession,
     user: schemas.User | None = None,
@@ -42,6 +53,7 @@ async def list_survey_related_records(
     include_total: bool = False,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     statement = (
         select(models.SurveyRelatedRecord)
@@ -61,6 +73,16 @@ async def list_survey_related_records(
     if pt_name_filter:
         statement = statement.where(
             models.SurveyRelatedRecord.name["pt"].astext.ilike(f"%{pt_name_filter}%")
+        )
+    if spatial_intersect is not None:
+        statement = statement.where(
+            or_(
+                func.ST_Intersects(
+                    models.SurveyRelatedRecord.bbox_4326,
+                    func.ST_GeomFromText(spatial_intersect.wkt, 4326),
+                ),
+                models.SurveyRelatedRecord.bbox_4326.is_(None),
+            )
         )
     if survey_mission_id is not None:
         statement = statement.where(

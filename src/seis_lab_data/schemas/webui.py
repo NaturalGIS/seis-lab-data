@@ -83,7 +83,7 @@ ItemChildSummary = typing.TypeVar(
 class ItemDetails(typing.Generic[ItemWithDetails, ItemChildSummary]):
     item: ItemWithDetails
     children: list[ItemChildSummary]
-    children_filter: dict[str, str]
+    children_filter: str
     pagination: PaginationInfo
     permissions: UserPermissionDetails
     breadcrumbs: list[BreadcrumbItem]

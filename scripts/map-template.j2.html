@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <script src="{{ map_conf.maplibre_script_src }}"></script>
+    <link href="{{ map_conf.maplibre_css_link_href }}" rel="stylesheet"/>
+    {% if polygon_draw_layers %}
+    <script src="{{ map_conf.terra_draw_script_src }}"></script>
+    <script src="{{ map_conf.terra_draw_maplibre_adapter_script_src }}"></script>
+    {% endif %}
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+    const map = new maplibregl.Map({
+        container: 'map',
+        style: {
+            'version': 8,
+            'sources': {
+                'raster-tiles': {
+                    'type': 'raster',
+                    'tiles': ['{{ map_conf.base_layer.tile_url }}'],
+                    'tileSize': {{ map_conf.base_layer.tile_size }},
+                    'minZoom': {{ map_conf.base_layer.min_zoom }},
+                    'maxZoom': {{ map_conf.base_layer.max_zoom }},
+                }
+            },
+            'layers': [
+                {
+                    'id': 'base',
+                    'type': 'raster',
+                    'source': 'raster-tiles',
+                    'paint': {
+                        'raster-fade-duration': 0,
+                    }
+                }
+            ],
+            'id': 'blank',
+        },
+        bounds: [
+            {{ map_conf.bounds.min_lon }},
+            {{ map_conf.bounds.min_lat }},
+            {{ map_conf.bounds.max_lon }},
+            {{ map_conf.bounds.max_lat }}
+        ],
+        attributionControl: false,
+    })
+
+    {% if polygon_draw_layers %}
+    map.on('load', () => {
+        const draw = new terraDraw.TerraDraw({
+            adapter: new terraDrawMaplibreGlAdapter.TerraDrawMapLibreGLAdapter({
+                map: map,
+                lib: maplibregl
+            }),
+            modes: [
+                new terraDraw.TerraDrawPolygonMode({
+                    styles: {
+                        fillColor: ({id}) => {
+                            const feat = draw.getSnapshotFeature(id)
+                            return feat.properties.layerFillColor
+                        }
+                    }
+                })
+            ]
+        })
+
+        draw.start()
+        draw.setMode('polygon')
+
+
+        let polygonCoords = null
+        let storeAddResult = null
+
+        {% for polygon_draw_layer in polygon_draw_layers %}
+        console.log('processing layer...')
+
+        {% for draw_feature in polygon_draw_layer.features %}
+        polygonCoords = {{ draw_feature.__geo_interface__['coordinates'] | tojson }}
+        storeAddResult = draw.addFeatures([
+            {
+                type: 'Feature',
+                geometry: {
+                    type: 'Polygon',
+                    coordinates: polygonCoords,
+                },
+                properties: {
+                    mode: 'polygon',
+                    layerFillColor: '{{ polygon_draw_layer.fill_color }}',
+                }
+            }
+        ])
+        console.log(`add result: ${JSON.stringify(storeAddResult)}`)
+        {% endfor %}
+        {% endfor %}
+
+
+        map.once('idle', () => {
+            window.mapReady = true
+        })
+
+    })
+    {% else %}
+    map.on('idle', () => {
+        window.mapReady = true
+    })
+    {% endif %}
+
+</script>
+</body>
+</html>

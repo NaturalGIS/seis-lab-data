@@ -17,6 +17,7 @@ from ... import (
 )
 from ...db.queries import get_project_by_english_name
 from .common import (
+    BoundingBoxForm,
     DescriptionForm,
     incorporate_schema_validation_errors_into_form,
     get_form_field_by_name,
@@ -46,6 +47,7 @@ class _ProjectForm(StarletteForm):
         _("Root path"),
         description=_("Base path for the project in the archive file system"),
     )
+    bounding_box = FormField(BoundingBoxForm)
     links = FieldList(
         FormField(LinkForm),
         label=_("Links"),

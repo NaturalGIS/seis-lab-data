@@ -4,8 +4,8 @@ import json
 import logging
 import uuid
 from typing import (
-    Callable,
     AsyncGenerator,
+    Callable,
     Type,
     TypeVar,
 )

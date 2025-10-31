@@ -47,4 +47,4 @@ class SeisLabDataEvent:
     type_: EventType
     initiator: str
     payload: EventPayload
-    timestamp: dt.datetime = dataclasses.field(default=get_utc_now)
+    timestamp: dt.datetime = dataclasses.field(default_factory=get_utc_now)

@@ -1,6 +1,11 @@
+import shapely
 from typing import TYPE_CHECKING
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
+from sqlmodel import (
+    func,
+    or_,
+    select,
+)
 
 from ...db import models
 from .common import _get_total_num_records
@@ -17,6 +22,7 @@ async def paginated_list_projects(
     include_total: bool = False,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
 ) -> tuple[list[models.Project], int | None]:
     limit = page_size
     offset = limit * (page - 1)
@@ -28,9 +34,12 @@ async def paginated_list_projects(
         include_total,
         en_name_filter=en_name_filter,
         pt_name_filter=pt_name_filter,
+        spatial_intersect=spatial_intersect,
     )
 
 
+# TODO: explicitly add an 'order by' clause
+# TODO: only show projects that are either owned by user or published
 async def list_projects(
     session: AsyncSession,
     user: str | None = None,
@@ -39,6 +48,7 @@ async def list_projects(
     include_total: bool = False,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
 ) -> tuple[list[models.Project], int | None]:
     statement = select(models.Project)
     if en_name_filter:
@@ -48,6 +58,16 @@ async def list_projects(
     if pt_name_filter:
         statement = statement.where(
             models.Project.name["pt"].astext.ilike(f"%{pt_name_filter}%")
+        )
+    if spatial_intersect is not None:
+        statement = statement.where(
+            or_(
+                func.ST_Intersects(
+                    models.Project.bbox_4326,
+                    func.ST_GeomFromText(spatial_intersect.wkt, 4326),
+                ),
+                models.Project.bbox_4326.is_(None),
+            )
         )
     items = (await session.exec(statement.offset(offset).limit(limit))).all()
     num_total = (

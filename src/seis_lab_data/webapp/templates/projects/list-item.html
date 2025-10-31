@@ -1,6 +1,13 @@
 {% import "macros.html" as macros %}
 <div class="col">
-    <div class="card mb-3">
+    <div
+            class="card mb-3"
+            data-signals:hovering-{{ item.id }}="false"
+            data-on:mouseenter="$hovering-{{ item.id }}=true"
+            data-on:mouseleave="$hovering-{{ item.id }}=false"
+            data-class:shadow-lg="$hovering-{{ item.id }}"
+            data-class:bigger="$hovering-{{ item.id }}"
+    >
         <div class="row g-0">
             <div class="col-md-4">
                 <div class="placeholder-rectangle bg-secondary"></div>

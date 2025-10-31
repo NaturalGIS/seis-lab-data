@@ -2,6 +2,7 @@ import json
 import uuid
 from typing import Annotated
 
+import shapely
 import typer
 
 from .. import (
@@ -305,16 +306,34 @@ def projects_app_callback(ctx: typer.Context):
     """Manage projects."""
 
 
+def _parse_bbox_bounds(raw_bounds: str) -> shapely.Polygon:
+    bounds = [float(coord) for coord in raw_bounds.split(",")]
+    if len(bounds) != 4:
+        raise ValueError("Bounds must have exactly four comma-separated values.")
+    min_lon, min_lat, max_lon, max_lat = bounds
+    return shapely.box(min_lon, min_lat, max_lon, max_lat)
+
+
 @projects_app.async_command(name="create")
 async def create_project(
     ctx: typer.Context,
     owner: str,
     name_en: str,
-    name_pt: str,
-    description_en: str,
-    description_pt: str,
     root_path: str,
-    link: Annotated[list[dict], typer.Option(parser=json.loads)],
+    link: Annotated[list[dict], typer.Option(parser=json.loads)] = None,
+    name_pt: str | None = None,
+    description_en: str | None = None,
+    description_pt: str | None = None,
+    bbox_4326: Annotated[
+        shapely.Polygon,
+        typer.Option(
+            parser=_parse_bbox_bounds,
+            help=(
+                "Bounds of the bounding box as a comma-separated list of "
+                "min_lon,min_lat,max_lon,max_lat"
+            ),
+        ),
+    ] = None,
 ):
     """Create a new project."""
     async with ctx.obj["session_maker"]() as session:
@@ -327,6 +346,7 @@ async def create_project(
                     en=description_en, pt=description_pt
                 ),
                 root_path=root_path,
+                bbox_4326=bbox_4326.wkt,
                 links=[
                     schemas.LinkSchema(
                         url=li["url"],
@@ -337,7 +357,7 @@ async def create_project(
                         media_type=li["media_type"],
                         relation=li["relation"],
                     )
-                    for li in link
+                    for li in link or []
                 ],
             ),
             initiator=ctx.obj["admin_user"],
@@ -350,11 +370,29 @@ async def create_project(
         )
 
 
+@projects_app.async_command(name="get")
+async def get_project(ctx: typer.Context, project_id: uuid.UUID):
+    """Get details about a project"""
+    async with ctx.obj["session_maker"]() as session:
+        project = await operations.get_project(
+            schemas.ProjectId(project_id),
+            ctx.obj["admin_user"].id,
+            session,
+            ctx.obj["main"].settings,
+        )
+        if project is None:
+            ctx.obj["main"].status_console.print(f"Project {project_id!r} not found")
+        else:
+            ctx.obj["main"].status_console.print_json(
+                schemas.ProjectReadDetail.from_db_instance(project).model_dump_json()
+            )
+
+
 @projects_app.async_command(name="list")
 async def list_projects(
     ctx: typer.Context,
-    limit: int = 20,
-    offset: int = 0,
+    page: int = 1,
+    page_size: int = 20,
 ):
     """List projects."""
     printer = ctx.obj["main"].status_console.print
@@ -362,8 +400,8 @@ async def list_projects(
         items, num_total = await operations.list_projects(
             session,
             initiator=ctx.obj["admin_user"],
-            limit=limit,
-            offset=offset,
+            page=page,
+            page_size=page_size,
             include_total=True,
         )
     printer(f"Total records: {num_total}")

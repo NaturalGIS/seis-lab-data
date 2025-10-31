@@ -1,5 +1,6 @@
 import logging
 
+import shapely
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from .. import (
@@ -123,8 +124,9 @@ async def list_survey_missions(
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
-    en_name: str | None = None,
-    pt_name: str | None = None,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
 ) -> tuple[list[models.SurveyMission], int | None]:
     return await queries.paginated_list_survey_missions(
         session,
@@ -133,8 +135,9 @@ async def list_survey_missions(
         page=page,
         page_size=page_size,
         include_total=include_total,
-        en_name=en_name,
-        pt_name=pt_name,
+        en_name_filter=en_name_filter,
+        pt_name_filter=pt_name_filter,
+        spatial_intersect=spatial_intersect,
     )
 
 
@@ -144,7 +147,7 @@ async def get_survey_mission(
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
 ) -> models.SurveyMission | None:
-    if not permissions.can_read_survey_mission(
+    if not await permissions.can_read_survey_mission(
         initiator, survey_mission_id, settings=settings
     ):
         raise errors.SeisLabDataError(

@@ -7,6 +7,7 @@ from typing import (
 )
 import uuid
 
+import shapely
 from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
 from datastar_py.sse import DatastarEvent
@@ -34,7 +35,10 @@ from ...db import (
     queries,
 )
 from ...processing import tasks
-from .. import forms
+from .. import (
+    filters,
+    forms,
+)
 from .auth import (
     get_user,
     fancy_requires_auth,
@@ -455,6 +459,14 @@ async def get_update_form(request: Request):
             "domain_type_id": details.item.domain_type.id,
             "workflow_stage_id": details.item.workflow_stage.id,
             "relative_path": details.item.relative_path,
+            "bounding_box": {
+                "min_lon": bbox.bounds[0],
+                "min_lat": bbox.bounds[1],
+                "max_lon": bbox.bounds[2],
+                "max_lat": bbox.bounds[3],
+            }
+            if (bbox := details.item.bbox_4326)
+            else None,
             "links": [
                 {
                     "url": li.url,
@@ -693,26 +705,18 @@ async def remove_update_form_asset_link(request: Request):
 async def get_list_component(request: Request):
     if (raw_search_params := request.query_params.get("datastar")) is not None:
         try:
-            search_params = json.loads(raw_search_params)
+            list_filters = filters.SurveyRelatedRecordListFilters.from_json(
+                raw_search_params, request.state.language
+            )
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid search params")
         else:
-            current_lang = request.state.language
-            list_filters = {}
-            if name_filter := search_params.get("search"):
-                list_filters[f"{current_lang}_name_filter"] = name_filter
-            if "surveyMissionId" in search_params:
-                try:
-                    list_filters["survey_mission_id"] = schemas.SurveyMissionId(
-                        uuid.UUID(search_params["surveyMissionId"])
-                    )
-                except ValueError:
-                    raise HTTPException(
-                        status_code=400,
-                        detail="Invalid surveyMissionId filter",
-                    )
+            internal_filter_kwargs = list_filters.as_kwargs()
+            filter_query_string = list_filters.serialize_to_query_string()
     else:
-        list_filters = {}
+        internal_filter_kwargs = {}
+        filter_query_string = ""
+    logger.debug(f"{internal_filter_kwargs=}")
     current_page = get_page_from_request_params(request)
     session_maker = request.state.session_maker
     user = get_user(request.session.get("user", {}))
@@ -724,7 +728,7 @@ async def get_list_component(request: Request):
             page=current_page,
             page_size=settings.pagination_page_size,
             include_total=True,
-            **list_filters,
+            **internal_filter_kwargs,
         )
         num_unfiltered_total = (
             await operations.list_survey_related_records(
@@ -742,28 +746,21 @@ async def get_list_component(request: Request):
     template = template_processor.get_template(
         "survey-related-records/list-component.html"
     )
-    # serialize query params back so that we may update the current URL
-    serialized_filters = "&".join(
-        f"{k}={v}"
-        for k, v in list_filters.items()
-        if k != "survey_mission_id" and v != ""
-    )
-    serialized_list_filters = f"?{serialized_filters}" if serialized_filters else ""
     rendered = template.render(
         request=request,
         items=[
             schemas.SurveyRelatedRecordReadListItem.from_db_instance(item)
             for item in items
         ],
+        update_current_url_with=filter_query_string,
         pagination=pagination_info,
-        update_current_url_with=serialized_list_filters,
     )
 
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
             selector=schemas.selector_info.items_selector,
-            mode=ElementPatchMode.INNER,
+            mode=ElementPatchMode.REPLACE,
         )
 
     return DatastarResponse(event_streamer())
@@ -773,6 +770,10 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
     async def get(self, request: Request):
         """List survey-related records."""
         current_page = get_page_from_request_params(request)
+        current_language = request.state.language
+        list_filters = filters.SurveyRelatedRecordListFilters.from_params(
+            request.query_params, current_language
+        )
         session_maker = request.state.session_maker
         settings: config.SeisLabDataSettings = request.state.settings
         user = get_user(request.session.get("user", {}))
@@ -783,6 +784,7 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
                 page=current_page,
                 page_size=settings.pagination_page_size,
                 include_total=True,
+                **list_filters.as_kwargs(),
             )
             num_unfiltered_total = (
                 await operations.list_survey_related_records(
@@ -797,6 +799,11 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
             num_unfiltered_total,
             collection_url=str(request.url_for("survey_related_records:list")),
         )
+        if (current_bbox := list_filters.spatial_intersect_filter) is not None:
+            min_lon, min_lat, max_lon, max_lat = current_bbox.value.bounds
+        else:
+            default_bbox = shapely.from_wkt(settings.webmap_default_bbox_wkt)
+            min_lon, min_lat, max_lon, max_lat = default_bbox.bounds
         return template_processor.TemplateResponse(
             request,
             "survey-related-records/list.html",
@@ -806,10 +813,24 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
                     for item in items
                 ],
                 "pagination": pagination_info,
+                "map_bounds": {
+                    "min_lon": min_lon,
+                    "min_lat": min_lat,
+                    "max_lon": max_lon,
+                    "max_lat": max_lat,
+                },
                 "breadcrumbs": [
                     schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
                     schemas.BreadcrumbItem(name=_("Survey-related records")),
                 ],
+                "search_initial_value": list_filters.get_text_search_filter(
+                    current_language
+                ),
+                "map_popup_detail_base_url": str(
+                    request.url_for(
+                        "survey_related_records:detail", survey_related_record_id="_"
+                    )
+                ).rpartition("/")[0],
             },
         )
 
@@ -983,6 +1004,15 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
             domain_type_id=form_instance.domain_type_id.data,
             workflow_stage_id=form_instance.workflow_stage_id.data,
             relative_path=form_instance.relative_path.data,
+            bbox_4326=(
+                f"POLYGON(("
+                f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}, "
+                f"{form_instance.bounding_box.max_lon.data} {form_instance.bounding_box.min_lat.data}, "
+                f"{form_instance.bounding_box.max_lon.data} {form_instance.bounding_box.max_lat.data}, "
+                f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.max_lat.data}, "
+                f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}"
+                f"))"
+            ),
             links=[
                 schemas.LinkSchema(
                     url=lf.url.data,

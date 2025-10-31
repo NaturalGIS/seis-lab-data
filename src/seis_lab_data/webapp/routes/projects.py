@@ -5,6 +5,7 @@ import logging
 import uuid
 from typing import AsyncGenerator
 
+import shapely
 from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
 from datastar_py.sse import DatastarEvent
@@ -28,7 +29,10 @@ from ... import (
     schemas,
 )
 from ...processing import tasks
-from .. import forms
+from .. import (
+    filters,
+    forms,
+)
 from .auth import (
     get_user,
     fancy_requires_auth,
@@ -107,6 +111,11 @@ async def get_project_update_form(request: Request):
             raise HTTPException(
                 status_code=404, detail=_(f"Project {project_id!r} not found.")
             )
+    current_bbox = (
+        shapely.from_wkb(project.bbox_4326.data)
+        if project.bbox_4326 is not None
+        else None
+    )
     update_form = forms.ProjectUpdateForm(
         request=request,
         data={
@@ -119,6 +128,14 @@ async def get_project_update_form(request: Request):
                 "pt": project.description.get("pt", ""),
             },
             "root_path": project.root_path,
+            "bounding_box": {
+                "min_lon": current_bbox.bounds[0],
+                "min_lat": current_bbox.bounds[1],
+                "max_lon": current_bbox.bounds[2],
+                "max_lat": current_bbox.bounds[3],
+            }
+            if current_bbox
+            else None,
             "links": [
                 {
                     "url": li.get("url", ""),
@@ -137,7 +154,7 @@ async def get_project_update_form(request: Request):
     template = template_processor.get_template("projects/update-form.html")
     rendered = template.render(
         request=request,
-        project=project,
+        project=schemas.ProjectReadDetail.from_db_instance(project),
         form=update_form,
     )
 
@@ -177,16 +194,10 @@ async def get_project_details_component(request: Request):
 async def _get_project_details(request: Request) -> schemas.ProjectDetails:
     """utility function to get project details and its survey missions."""
     survey_mission_current_page = get_page_from_request_params(request)
-    survey_mission_search_filters = {
-        k: v
-        for k, v in (
-            {
-                "en_name": request.query_params.get("en_name"),
-                "pt_name": request.query_params.get("pt_name"),
-            }
-        ).items()
-        if v is not None
-    }
+    current_language = request.state.language
+    survey_mission_list_filters = filters.SurveyMissionListFilters.from_params(
+        request.query_params, current_language
+    )
     user = get_user(request.session.get("user", {}))
     settings: config.SeisLabDataSettings = request.state.settings
     session_maker = request.state.session_maker
@@ -212,7 +223,7 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
             include_total=True,
             page=survey_mission_current_page,
             page_size=settings.pagination_page_size,
-            **survey_mission_search_filters,
+            **survey_mission_list_filters.as_kwargs(),
         )
     return schemas.ProjectDetails(
         item=schemas.ProjectReadDetail.from_db_instance(project),
@@ -220,7 +231,9 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
             schemas.SurveyMissionReadListItem.from_db_instance(sm)
             for sm in survey_missions
         ],
-        children_filter=survey_mission_search_filters,
+        children_filter=survey_mission_list_filters.get_text_search_filter(
+            current_language
+        ),
         pagination=get_pagination_info(
             survey_mission_current_page,
             settings.pagination_page_size,
@@ -257,18 +270,18 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
 async def get_list_component(request: Request):
     if (raw_search_params := request.query_params.get("datastar")) is not None:
         try:
-            search_params = json.loads(raw_search_params)
+            list_filters = filters.ProjectListFilters.from_json(
+                raw_search_params, request.state.language
+            )
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid search params")
         else:
-            current_lang = request.state.language
-            list_filters = {}
-            if name_filter := search_params.get("search"):
-                list_filters[f"{current_lang}_name_filter"] = name_filter
+            internal_filter_kwargs = list_filters.as_kwargs()
+            filter_query_string = list_filters.serialize_to_query_string()
     else:
-        list_filters = {}
+        internal_filter_kwargs = {}
+        filter_query_string = ""
     current_page = get_page_from_request_params(request)
-    logger.debug(f"{list_filters=}")
     session_maker = request.state.session_maker
     user = get_user(request.session.get("user", {}))
     settings: config.SeisLabDataSettings = request.state.settings
@@ -279,7 +292,7 @@ async def get_list_component(request: Request):
             page=current_page,
             page_size=settings.pagination_page_size,
             include_total=True,
-            **list_filters,
+            **internal_filter_kwargs,
         )
         num_unfiltered_total = (
             await operations.list_projects(
@@ -299,6 +312,7 @@ async def get_list_component(request: Request):
     rendered = template.render(
         request=request,
         items=[schemas.ProjectReadListItem.from_db_instance(i) for i in items],
+        update_current_url_with=filter_query_string,
         pagination=pagination_info,
     )
 
@@ -306,7 +320,7 @@ async def get_list_component(request: Request):
         yield ServerSentEventGenerator.patch_elements(
             rendered,
             selector=schemas.selector_info.items_selector,
-            mode=ElementPatchMode.INNER,
+            mode=ElementPatchMode.REPLACE,
         )
 
     return DatastarResponse(event_streamer())
@@ -321,6 +335,10 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         user = get_user(request.session.get("user", {}))
         settings: config.SeisLabDataSettings = request.state.settings
         current_page = get_page_from_request_params(request)
+        current_language = request.state.language
+        list_filters = filters.ProjectListFilters.from_params(
+            request.query_params, current_language
+        )
         async with session_maker() as session:
             items, num_total = await operations.list_projects(
                 session,
@@ -328,6 +346,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 page=current_page,
                 page_size=settings.pagination_page_size,
                 include_total=True,
+                **list_filters.as_kwargs(),
             )
             num_unfiltered_total = (
                 await operations.list_projects(
@@ -342,6 +361,12 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             num_unfiltered_total,
             collection_url=str(request.url_for("projects:list")),
         )
+        if (current_bbox := list_filters.spatial_intersect_filter) is not None:
+            min_lon, min_lat, max_lon, max_lat = current_bbox.value.bounds
+        else:
+            default_bbox = shapely.from_wkt(settings.webmap_default_bbox_wkt)
+            min_lon, min_lat, max_lon, max_lat = default_bbox.bounds
+
         return template_processor.TemplateResponse(
             request,
             "projects/list.html",
@@ -350,6 +375,12 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                     schemas.ProjectReadListItem.from_db_instance(i) for i in items
                 ],
                 "pagination": pagination_info,
+                "map_bounds": {
+                    "min_lon": min_lon,
+                    "min_lat": min_lat,
+                    "max_lon": max_lon,
+                    "max_lat": max_lat,
+                },
                 "breadcrumbs": [
                     schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
                     schemas.BreadcrumbItem(name=_("Projects")),
@@ -357,6 +388,12 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 "user_can_create": await permissions.can_create_project(
                     user, request.state.settings
                 ),
+                "search_initial_value": list_filters.get_text_search_filter(
+                    current_language
+                ),
+                "map_popup_detail_base_url": str(
+                    request.url_for("projects:detail", project_id="_")
+                ).rpartition("/")[0],
             },
         )
 
@@ -399,6 +436,15 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 pt=form_instance.description.pt.data,
             ),
             root_path=form_instance.root_path.data,
+            bbox_4326=(
+                f"POLYGON(("
+                f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}, "
+                f"{form_instance.bounding_box.max_lon.data} {form_instance.bounding_box.min_lat.data}, "
+                f"{form_instance.bounding_box.max_lon.data} {form_instance.bounding_box.max_lat.data}, "
+                f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.max_lat.data}, "
+                f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}"
+                f"))"
+            ),
             links=[
                 schemas.LinkSchema(
                     url=lf.url.data,
@@ -483,7 +529,6 @@ class ProjectDetailEndpoint(HTTPEndpoint):
 
         details = await _get_project_details(request)
         template_processor = request.state.templates
-        current_name_filter = f"{request.state.language}_name"
         return template_processor.TemplateResponse(
             request,
             "projects/detail.html",
@@ -491,9 +536,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 "project": details.item,
                 "pagination": details.pagination,
                 "survey_missions": details.children,
-                "search_initial_value": (
-                    details.children_filter.get(current_name_filter) or ""
-                ),
+                "search_initial_value": details.children_filter,
                 "permissions": details.permissions,
                 "breadcrumbs": details.breadcrumbs,
             },
@@ -527,7 +570,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 template = template_processor.get_template("projects/update-form.html")
                 rendered = template.render(
                     request=request,
-                    project=project,
+                    project=schemas.ProjectReadDetail.from_db_instance(project),
                     form=form_instance,
                 )
                 yield ServerSentEventGenerator.patch_elements(
@@ -550,6 +593,15 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 pt=form_instance.description.pt.data,
             ),
             root_path=form_instance.root_path.data,
+            bbox_4326=(
+                f"POLYGON(("
+                f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}, "
+                f"{form_instance.bounding_box.max_lon.data} {form_instance.bounding_box.min_lat.data}, "
+                f"{form_instance.bounding_box.max_lon.data} {form_instance.bounding_box.max_lat.data}, "
+                f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.max_lat.data}, "
+                f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}"
+                f"))"
+            ),
             links=[
                 schemas.LinkSchema(
                     url=lf.url.data,
@@ -599,16 +651,16 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             yield ServerSentEventGenerator.patch_elements(
                 template.render(
                     request=request,
-                    project=project_details.project,
+                    project=project_details.item,
                     pagination=project_details.pagination,
-                    survey_missions=project_details.survey_missions,
+                    survey_missions=project_details.children,
                     permissions=project_details.permissions,
                 ),
                 selector=schemas.selector_info.main_content_selector,
                 mode=ElementPatchMode.INNER,
             )
             yield ServerSentEventGenerator.patch_elements(
-                project_details.project.name.en,
+                project_details.item.name.en,
                 selector=schemas.selector_info.page_title_selector,
                 mode=ElementPatchMode.INNER,
             )
@@ -802,6 +854,15 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 pt=creation_form.description.pt.data,
             ),
             relative_path=creation_form.relative_path.data,
+            bbox_4326=(
+                f"POLYGON(("
+                f"{creation_form.bounding_box.min_lon.data} {creation_form.bounding_box.min_lat.data}, "
+                f"{creation_form.bounding_box.max_lon.data} {creation_form.bounding_box.min_lat.data}, "
+                f"{creation_form.bounding_box.max_lon.data} {creation_form.bounding_box.max_lat.data}, "
+                f"{creation_form.bounding_box.min_lon.data} {creation_form.bounding_box.max_lat.data}, "
+                f"{creation_form.bounding_box.min_lon.data} {creation_form.bounding_box.min_lat.data}"
+                f"))"
+            ),
             links=[
                 schemas.LinkSchema(
                     url=lf.url.data,

@@ -9,6 +9,16 @@ This template is loaded as a GET response to the /projects/ endpoint. It is used
 {% extends "base.html" %}
 {% import "macros.html" as macros %}
 
+{% block head %}
+    {{ super() }}
+    <script type="module" src="{{ url_for('static', path='/js/maplibre-gl-v5.9.0.js') }}"></script>
+    <link href="{{ url_for('static', path='/css/maplibre-gl-v5.9.0.css') }}" rel='stylesheet' />
+    <script type="module" src="{{ url_for('static', path='/js/terra-draw-v1.0.0.umd.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='/js/terra-draw-maplibre-gl-adapter-v1.0.0.umd.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='/js/bbox-map.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='/js/map-with-layer.js') }}"></script>
+{% endblock head %}
+
 {% block page_title %}
     <span class="material-icons-outlined">view_timeline</span>{{ _("Projects") }}
 {% endblock page_title %}
@@ -19,7 +29,7 @@ This template is loaded as a GET response to the /projects/ endpoint. It is used
             {% if user_can_create %}
                 <button
                         class="btn btn-primary"
-                        data-on-click="@get('{{ url_for("projects:get_creation_form") }}')"
+                        data-on:click="@get('{{ url_for("projects:get_creation_form") }}')"
                         aria-label="new-project"
                 ><span class="material-icons-outlined">{{ icons.new_item }}</span>{{ _("new project") | capitalize}}
                 </button>
@@ -27,7 +37,40 @@ This template is loaded as a GET response to the /projects/ endpoint. It is used
         </div>
     </div>
 
-    {{ macros.render_search_component(url_for("projects:get_list_component"), _("search projects")) }}
+    <div class="row">
+        <div
+                class="col"
+                data-signals:current-bbox="null"
+                data-computed:min-lon="$currentBbox?.[0]?.[0]"
+                data-computed:min-lat="$currentBbox?.[0]?.[1]"
+                data-computed:max-lon="$currentBbox?.[1]?.[0]"
+                data-computed:max-lat="$currentBbox?.[1]?.[1]"
+        >
+            <map-with-polygon-layer
+                    data-base-map-tile-url="{{ settings.webmap_base_tile_layer_url }}"
+                    data-polygon-layer-tile-url="http://localhost:8888/tiles/projects"
+                    data-polygon-layer-name="projects"
+                    data-polygon-fill-color="{{ settings.webmap_default_polygon_fill_color }}"
+                    data-polygon-fill-opacity="{{ settings.webmap_default_polygon_fill_opacity }}"
+                    data-polygon-outline-color="{{ settings.webmap_default_polygon_outline_color }}"
+                    data-polygon-outline-opacity="{{ settings.webmap_default_polygon_outline_opacity }}"
+                    data-polygon-outline-width="{{ settings.webmap_default_polygon_outline_width }}"
+                    data-item-detail-base-url="{{ map_popup_detail_base_url | default('') }}"
+                    data-initial-min-lon="{{ map_bounds.min_lon }}"
+                    data-initial-min-lat="{{ map_bounds.min_lat }}"
+                    data-initial-max-lon="{{ map_bounds.max_lon }}"
+                    data-initial-max-lat="{{ map_bounds.max_lat }}"
+                    style="display: block; width: 100%; height: 30vh"
+                    data-on:map-moveend="$currentBbox=evt.detail.map.getBounds().toArray(); @get('{{ url_for('projects:get_list_component') }}')"
+            ></map-with-polygon-layer>
+        </div>
+    </div>
+
+    {{ macros.render_search_component(
+        url_for("projects:get_list_component"),
+        _("search projects"),
+        initial_value=search_initial_value
+    ) }}
 
     {% include "projects/list-component.html" %}
 {% endblock details %}

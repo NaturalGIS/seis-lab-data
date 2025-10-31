@@ -8,7 +8,7 @@
         <link rel="stylesheet" href="{{ url_for('static', path='/css/bootstrap.min.css') }}">
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
         <link rel="stylesheet" href="{{ url_for('static', path='/css/custom.css') }}">
-        <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.5/bundles/datastar.js"></script>
+        <script type="module" src="{{ url_for('static', path='/js/datastar-v1.0.0-rc6.js') }}"></script>
         <script type="module" src="{{ url_for('static', path='/js/main.js') }}"></script>
     {% endblock %}
 </head>

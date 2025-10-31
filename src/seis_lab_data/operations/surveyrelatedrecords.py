@@ -1,6 +1,7 @@
 import logging
 import uuid
 
+import shapely
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from .. import (
@@ -284,6 +285,7 @@ async def list_survey_related_records(
     include_total: bool = False,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     return await queries.paginated_list_survey_related_records(
         session,
@@ -294,6 +296,7 @@ async def list_survey_related_records(
         include_total=include_total,
         en_name_filter=en_name_filter,
         pt_name_filter=pt_name_filter,
+        spatial_intersect=spatial_intersect,
     )
 
 

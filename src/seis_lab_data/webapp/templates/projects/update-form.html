@@ -2,8 +2,13 @@
 <form>
     {{ macros.render_localizable_field(form.name) }}
     {{ macros.render_localizable_field(form.description) }}
-
     {{ macros.render_form_field(form.root_path) }}
+
+    {{ macros.render_bbox_update_component(
+        settings.webmap_base_tile_layer_url,
+        settings.webmap_default_zoom_level,
+        form.bounding_box
+    ) }}
 
     <h3>{{ _("Links") }}</h3>
     {{ macros.render_links_fields(
@@ -18,7 +23,7 @@
             <button
                     type="reset"
                     class="btn btn-outline-secondary"
-                    data-on-click="@get('{{ url_for("projects:get_details_component", project_id=project.id) }}')"
+                    data-on:click="@get('{{ url_for("projects:get_details_component", project_id=project.id) }}')"
                     aria-label="cancel-update"
             >{{ _('cancel') | capitalize }}
             </button>
@@ -26,17 +31,17 @@
                     type="submit"
                     aria-label="submit-update-form"
                     class="btn btn-primary"
-                    data-on-click="@put('{{ url_for('projects:detail', project_id=project.id) }}', {
+                    data-on:click="@put('{{ url_for('projects:detail', project_id=project.id) }}', {
                             contentType: 'form',
                             headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
                         })"
                     data-indicator="updating"
-                    data-attr-disabled="$updating"
+                    data-attr:disabled="$updating"
                     data-text="$updating ? '{{ _('updating project...') | capitalize }}' : '{{ _('update project') | capitalize }}'"
             >
             </button>
             <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
-                 data-attr-hidden="!$updating">
+                 data-attr:hidden="!$updating">
                 <span class="visually-hidden">{{ _("loading...") | capitalize }}</span>
             </div>
         </div>

@@ -1,5 +1,6 @@
 import logging
 
+import shapely
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from .. import (
@@ -30,10 +31,9 @@ async def create_project(
     if initiator is None or not await permissions.can_create_project(
         initiator, settings
     ):
-        raise errors.SeisLabDataError(
-            "User is not allowed to create a marine campaign."
-        )
+        raise errors.SeisLabDataError("User is not allowed to create a project.")
     project = await commands.create_project(session, to_create)
+    logger.debug(f"newly created {project=}")
     event_emitter(
         schemas.SeisLabDataEvent(
             type_=schemas.EventType.PROJECT_CREATED,
@@ -112,6 +112,7 @@ async def list_projects(
     include_total: bool = False,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
 ) -> tuple[list[models.Project], int | None]:
     return await queries.paginated_list_projects(
         session,
@@ -121,6 +122,7 @@ async def list_projects(
         include_total,
         en_name_filter=en_name_filter,
         pt_name_filter=pt_name_filter,
+        spatial_intersect=spatial_intersect,
     )
 
 
