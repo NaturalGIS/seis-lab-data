@@ -8,6 +8,7 @@
             <div class="col-md-8">
                 <div class="card-body">
                     <h5 class="card-title">{{ item.name|translate_localizable_string }}</h5>
+                    <p class="card-text"><small class="text-body-secondary">{{ item.temporal_extent_begin | default(_("..", True)) }}/{{ item.temporal_extent_end | default(_(".."), True) }}</small></p>
                     <small class="card-text"><a href="{{ url_for('projects:detail', project_id=item.project.id) }}">{{ item.project.name|translate_localizable_string }}</a></small>
                     <p class="card-text"><small class="text-body-secondary">{{ item.status.value }}</small></p>
                     <p class="card-text"><small class="text-body-secondary">{{ item.is_valid }}</small></p>

@@ -1,5 +1,7 @@
+import datetime as dt
 import json
 import uuid
+from functools import partial
 from typing import (
     Annotated,
     TypedDict,
@@ -17,12 +19,17 @@ from pydantic import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import (
     Column,
+    Date,
+    DateTime,
     Field,
+    func,
     SQLModel,
     Relationship,
 )
 
 from .. import constants
+
+now_ = partial(dt.datetime.now, tz=dt.timezone.utc)
 
 
 class LocalizableString(TypedDict):
@@ -112,6 +119,12 @@ class Project(SQLModel, table=True):
             ),
         )
     )
+    created_at: dt.datetime | None = Field(default_factory=now_)
+    updated_at: dt.datetime | None = Field(
+        sa_column=Column(DateTime(), onupdate=func.now())
+    )
+    temporal_extent_begin: dt.date | None = Field(sa_column=Column(Date()))
+    temporal_extent_end: dt.date | None = Field(sa_column=Column(Date()))
 
     survey_missions: list["SurveyMission"] = Relationship(
         back_populates="project",
@@ -152,6 +165,12 @@ class SurveyMission(SQLModel, table=True):
             ),
         )
     )
+    created_at: dt.datetime | None = Field(default_factory=now_)
+    updated_at: dt.datetime | None = Field(
+        sa_column=Column(DateTime(), onupdate=func.now())
+    )
+    temporal_extent_begin: dt.date | None = Field(sa_column=Column(Date()))
+    temporal_extent_end: dt.date | None = Field(sa_column=Column(Date()))
 
     project: Project = Relationship(back_populates="survey_missions")
     survey_related_records: list["SurveyRelatedRecord"] = Relationship(
@@ -216,6 +235,12 @@ class SurveyRelatedRecord(SQLModel, table=True):
             ),
         )
     )
+    created_at: dt.datetime | None = Field(default_factory=now_)
+    updated_at: dt.datetime | None = Field(
+        sa_column=Column(DateTime(), onupdate=func.now())
+    )
+    temporal_extent_begin: dt.date | None = Field(sa_column=Column(Date()))
+    temporal_extent_end: dt.date | None = Field(sa_column=Column(Date()))
     assets: list["RecordAsset"] = Relationship(
         back_populates="survey_related_record",
         sa_relationship_kwargs={

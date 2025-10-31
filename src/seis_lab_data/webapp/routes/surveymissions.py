@@ -444,6 +444,8 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}"
                 f"))"
             ),
+            temporal_extent_begin=form_instance.temporal_extent_begin.data,
+            temporal_extent_end=form_instance.temporal_extent_end.data,
             links=[
                 schemas.LinkSchema(
                     url=lf.url.data,
@@ -617,6 +619,8 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}"
                 f"))"
             ),
+            temporal_extent_begin=form_instance.temporal_extent_begin.data,
+            temporal_extent_end=form_instance.temporal_extent_end.data,
             links=[
                 schemas.LinkSchema(
                     url=lf.url.data,
@@ -988,6 +992,8 @@ async def get_survey_mission_update_form(request: Request):
             }
             if current_bbox
             else None,
+            "temporal_extent_begin": survey_mission.temporal_extent_begin,
+            "temporal_extent_end": survey_mission.temporal_extent_end,
             "links": [
                 {
                     "url": li.get("url", ""),

@@ -53,12 +53,14 @@
             <dd class="col-sm-9">{{ project.description.en | default(_("english description not available yet"), True) }}</dd>
             <dt class="col-sm-3">{{ _("portuguese description") | capitalize }}</dt>
             <dd class="col-sm-9">{{ project.description.pt | default(_("portuguese description not available yet"), True) }}</dd>
-            <dt class="col-sm-3">{{ _("Status") }}</dt>
+            <dt class="col-sm-3">{{ _("status") | capitalize }}</dt>
             <dd class="col-sm-9">{{ project.status.value }}</dd>
-            <dt class="col-sm-3">{{ _("Is valid") }}</dt>
+            <dt class="col-sm-3">{{ _("is valid") | capitalize }}</dt>
             <dd class="col-sm-9">{{ project.is_valid }}</dd>
-            <dt class="col-sm-3">{{ _("Root path") }}</dt>
+            <dt class="col-sm-3">{{ _("root path") | capitalize }}</dt>
             <dd class="col-sm-9">{{ project.root_path|default(_("root path not available"), True) }}</dd>
+            <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
+            <dd class="col-sm-9">{{ project.temporal_extent_begin|default(_(".."), True) }}/{{ project.temporal_extent_end|default(_(".."), True) }}</dd>
         </dl>
     </div>
 </div>

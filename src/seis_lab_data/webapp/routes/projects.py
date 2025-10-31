@@ -136,6 +136,8 @@ async def get_project_update_form(request: Request):
             }
             if current_bbox
             else None,
+            "temporal_extent_begin": project.temporal_extent_begin,
+            "temporal_extent_end": project.temporal_extent_end,
             "links": [
                 {
                     "url": li.get("url", ""),
@@ -445,6 +447,8 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}"
                 f"))"
             ),
+            temporal_extent_begin=form_instance.temporal_extent_begin.data,
+            temporal_extent_end=form_instance.temporal_extent_end.data,
             links=[
                 schemas.LinkSchema(
                     url=lf.url.data,
@@ -602,6 +606,8 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}"
                 f"))"
             ),
+            temporal_extent_begin=form_instance.temporal_extent_begin.data,
+            temporal_extent_end=form_instance.temporal_extent_end.data,
             links=[
                 schemas.LinkSchema(
                     url=lf.url.data,
@@ -863,6 +869,8 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 f"{creation_form.bounding_box.min_lon.data} {creation_form.bounding_box.min_lat.data}"
                 f"))"
             ),
+            temporal_extent_begin=creation_form.temporal_extent_begin.data,
+            temporal_extent_end=creation_form.temporal_extent_end.data,
             links=[
                 schemas.LinkSchema(
                     url=lf.url.data,
