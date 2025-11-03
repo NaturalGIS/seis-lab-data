@@ -343,6 +343,10 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
                     "max_lon": max_lon,
                     "max_lat": max_lat,
                 },
+                "current_temporal_extent": {
+                    "begin": settings.default_temporal_extent_begin,
+                    "end": settings.default_temporal_extent_end,
+                },
                 "breadcrumbs": [
                     schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
                     schemas.BreadcrumbItem(name=_("Survey Missions")),

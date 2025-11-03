@@ -17,6 +17,7 @@ from .events import (
     EventPayload,
     SeisLabDataEvent,
 )
+from .filters import TemporalExtentFilterValue
 from .processing import (
     ProcessingMessage,
 )
@@ -102,6 +103,7 @@ __all__ = [
     SurveyRelatedRecordReadDetail,
     SurveyRelatedRecordReadListItem,
     SurveyRelatedRecordUpdate,
+    TemporalExtentFilterValue,
     WorkflowStageCreate,
     WorkflowStageId,
     WorkflowStageRead,
