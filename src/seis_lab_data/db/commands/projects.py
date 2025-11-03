@@ -6,6 +6,7 @@ from ... import (
     errors,
     schemas,
 )
+from ...constants import ProjectStatus
 from .. import (
     models,
     queries,
@@ -66,3 +67,31 @@ async def update_project(
     await session.commit()
     await session.refresh(project)
     return project
+
+
+async def set_project_status(
+    session: AsyncSession, project_id: schemas.ProjectId, status: ProjectStatus
+) -> models.Project:
+    """Unconditionally sets the project's status."""
+    if (project := (await queries.get_project(session, project_id))) is None:
+        raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
+    project.status = status
+    session.add(project)
+    await session.commit()
+    await session.refresh(project)
+    return queries.get_project(session, project_id)
+
+
+async def set_project_validation_flag(
+    session: AsyncSession,
+    project_id: schemas.ProjectId,
+    is_valid: bool,
+) -> models.Project:
+    """Unconditionally sets the project's valid flag."""
+    if (project := (await queries.get_project(session, project_id))) is None:
+        raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
+    project.is_valid = is_valid
+    session.add(project)
+    await session.commit()
+    await session.refresh(project)
+    return queries.get_project(session, project_id)

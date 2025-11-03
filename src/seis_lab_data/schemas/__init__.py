@@ -60,6 +60,10 @@ from .webui import (
     UserPermissionDetails,
     SurveyRelatedRecordDetails,
 )
+from .validation import (
+    ValidProject,
+    ValidationError,
+)
 
 __all__ = [
     BreadcrumbItem,
@@ -110,4 +114,6 @@ __all__ = [
     User,
     UserId,
     UserPermissionDetails,
+    ValidProject,
+    ValidationError,
 ]

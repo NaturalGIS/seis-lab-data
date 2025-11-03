@@ -39,31 +39,47 @@ class ProcessingStatus(str, enum.Enum):
 class ProjectStatus(str, enum.Enum):
     DRAFT = "draft"
     PUBLISHED = "published"
+    UNDER_PARSING = "under_parsing"
+    UNDER_VALIDATION = "under_validation"
 
     def get_translated_value(self) -> str:
         return {
             self.DRAFT: _("draft"),
             self.PUBLISHED: _("published"),
+            self.UNDER_PARSING: _("under_parsing"),
+            self.UNDER_VALIDATION: _("under_validation"),
         }.get(self, self.value)
 
 
 class SurveyMissionStatus(str, enum.Enum):
     DRAFT = "draft"
     PUBLISHED = "published"
+    UNDER_PARSING = "under_parsing"
+    UNDER_VALIDATION = "under_validation"
 
     def get_translated_value(self) -> str:
         return {
             self.DRAFT: _("draft"),
             self.PUBLISHED: _("published"),
+            self.UNDER_PARSING: _("under_parsing"),
+            self.UNDER_VALIDATION: _("under_validation"),
         }.get(self, self.value)
 
 
 class SurveyRelatedRecordStatus(str, enum.Enum):
     DRAFT = "draft"
     PUBLISHED = "published"
+    UNDER_DERIVATION = "under_derivation"
+    UNDER_EXPORT = "under_export"
+    UNDER_VALIDATION = "under_validation"
+    UNDER_PARSING = "under_parsing"
 
     def get_translated_value(self) -> str:
         return {
             self.DRAFT: _("draft"),
             self.PUBLISHED: _("published"),
+            self.UNDER_DERIVATION: _("under_derivation"),
+            self.UNDER_EXPORT: _("under_export"),
+            self.UNDER_PARSING: _("under_parsing"),
+            self.UNDER_VALIDATION: _("under_validation"),
         }.get(self, self.value)

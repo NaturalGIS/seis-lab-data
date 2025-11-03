@@ -31,6 +31,24 @@ dramatiq.set_broker(_stub_broker)
 @decorators.sld_settings
 @decorators.redis_client
 @decorators.session_maker
+async def validate_project(
+    raw_request_id: str,
+    raw_project_id: str,
+    raw_initiator: str,
+    *,
+    settings: config.SeisLabDataSettings,
+    redis_client: Redis,
+    session_maker: Callable,
+):
+    # call operation that performs the validation
+    # relay validation result back
+    ...
+
+
+@dramatiq.actor
+@decorators.sld_settings
+@decorators.redis_client
+@decorators.session_maker
 async def create_project(
     raw_request_id: str,
     raw_to_create: str,

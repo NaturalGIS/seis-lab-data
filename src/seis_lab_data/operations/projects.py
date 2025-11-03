@@ -1,5 +1,6 @@
 import logging
 
+import pydantic
 import shapely
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -8,6 +9,7 @@ from .. import (
     errors,
     events,
 )
+from ..constants import ProjectStatus
 from ..db import (
     commands,
     queries,
@@ -44,6 +46,66 @@ async def create_project(
         )
     )
     return project
+
+
+async def validate_project(
+    project_id: schemas.ProjectId,
+    initiator: schemas.User | None,
+    session: AsyncSession,
+    settings: config.SeisLabDataSettings,
+    event_emitter: events.EventEmitterProtocol,
+) -> tuple[models.Project, list[schemas.ValidationError] | None]:
+    if initiator is None or not await permissions.can_validate_project(
+        initiator, project_id, settings=settings
+    ):
+        raise errors.SeisLabDataError("User is not allowed to validate project.")
+    if (project := await queries.get_project(session, project_id)) is None:
+        raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
+    if project.status != ProjectStatus.DRAFT:
+        raise errors.SeisLabDataError(
+            f"Project is currently busy with status {project.status} - retry later"
+        )
+
+    old_validation_flag = project.is_valid
+    project = await commands.set_project_status(
+        session, project_id, ProjectStatus.UNDER_VALIDATION
+    )
+
+    validation_errors = []
+    try:
+        schemas.ValidProject(**project.model_dump())
+    except pydantic.ValidationError as err:
+        project = await commands.set_project_validation_flag(
+            session, project_id, is_valid=False
+        )
+        for error in err.errors():
+            validation_errors.append(
+                schemas.ValidationError(
+                    name=" ".join(error["loc"]), message=error["msg"]
+                )
+            )
+    else:
+        project = await commands.set_project_validation_flag(
+            session, project_id, is_valid=True
+        )
+    finally:
+        event_emitter(
+            schemas.SeisLabDataEvent(
+                type_=schemas.EventType.PROJECT_VALIDATED,
+                initiator=initiator.id,
+                payload=schemas.EventPayload(
+                    before={"valid": old_validation_flag},
+                    after={
+                        "valid": project.is_valid,
+                        "validation_errors": [
+                            err.model_dump() for err in validation_errors
+                        ],
+                    },
+                ),
+            )
+        )
+        await commands.set_project_status(session, project_id, ProjectStatus.DRAFT)
+        return project, validation_errors
 
 
 async def update_project(
