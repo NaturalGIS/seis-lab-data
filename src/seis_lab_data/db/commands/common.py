@@ -5,7 +5,7 @@ import shapely
 logger = logging.getLogger(__name__)
 
 
-def get_creation_bbox_4326(original_bbox: shapely.Polygon):
+def get_bbox_4326_for_db(original_bbox: shapely.Polygon):
     if original_bbox.is_valid:
         bbox_to_create = original_bbox.wkt
     else:

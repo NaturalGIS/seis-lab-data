@@ -40,30 +40,32 @@
     <div class="col">
         <h2>{{ _("properties") | capitalize }}</h2>
         <dl class="row">
-            <dt class="col-sm-3">{{ _("Name") }}</dt>
+            <dt class="col-sm-3">{{ _("name") | capitalize }}</dt>
             <dd class="col-sm-9">{{ survey_related_record.name|translate_localizable_string }}</dd>
-            <dt class="col-sm-3">{{ _("Description") }}</dt>
+            <dt class="col-sm-3">{{ _("description") | capitalize }}</dt>
             <dd class="col-sm-9">{{ survey_related_record.description|translate_localizable_string }}</dd>
-            <dt class="col-sm-3">{{ _("Dataset category") }}</dt>
+            <dt class="col-sm-3">{{ _("dataset category") | capitalize }}</dt>
             <dd class="col-sm-9">{{ survey_related_record.dataset_category.name|translate_localizable_string }}</dd>
-            <dt class="col-sm-3">{{ _("Domain type") }}</dt>
+            <dt class="col-sm-3">{{ _("domain type") | capitalize }}</dt>
             <dd class="col-sm-9">{{ survey_related_record.domain_type.name|translate_localizable_string }}</dd>
-            <dt class="col-sm-3">{{ _("Workflow stage") }}</dt>
+            <dt class="col-sm-3">{{ _("workflow stage") | capitalize }}</dt>
             <dd class="col-sm-9">{{ survey_related_record.workflow_stage.name|translate_localizable_string }}</dd>
-            <dt class="col-sm-3">{{ _("Status") }}</dt>
+            <dt class="col-sm-3">{{ _("status") | capitalize }}</dt>
             <dd class="col-sm-9">{{ survey_related_record.status|translate_enum }}</dd>
-            <dt class="col-sm-3">{{ _("Is valid") }}</dt>
+            <dt class="col-sm-3">{{ _("is valid") | capitalize }}</dt>
             <dd class="col-sm-9">{{ survey_related_record.is_valid }}</dd>
-            <dt class="col-sm-3">{{ _("Survey mission") }}</dt>
+            <dt class="col-sm-3">{{ _("survey mission") | capitalize }}</dt>
             <dd class="col-sm-9"><a
                     href="{{ url_for('survey_missions:detail', survey_mission_id=survey_related_record.survey_mission.id) }}">{{ survey_related_record.survey_mission.name|translate_localizable_string }}</a>
             </dd>
-            <dt class="col-sm-3">{{ _("Project") }}</dt>
+            <dt class="col-sm-3">{{ _("project") | capitalize }}</dt>
             <dd class="col-sm-9"><a
                     href="{{ url_for('projects:detail', project_id=survey_related_record.survey_mission.project.id) }}">{{ survey_related_record.survey_mission.project.name|translate_localizable_string }}</a>
             </dd>
-            <dt class="col-sm-3">{{ _("Relative path") }}</dt>
+            <dt class="col-sm-3">{{ _("relative path") | capitalize }}</dt>
             <dd class="col-sm-9">{{ survey_related_record.relative_path }}</dd>
+            <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
+            <dd class="col-sm-9">{{ survey_related_record.temporal_extent_begin|default(_(".."), True) }}/{{ survey_related_record.temporal_extent_end|default(_(".."), True) }}</dd>
         </dl>
     </div>
 </div>

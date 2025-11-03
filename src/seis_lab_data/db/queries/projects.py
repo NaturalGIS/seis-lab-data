@@ -1,5 +1,6 @@
+import logging
+
 import shapely
-from typing import TYPE_CHECKING
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import (
     func,
@@ -7,11 +8,11 @@ from sqlmodel import (
     select,
 )
 
-from ...db import models
+from ... import schemas
+from .. import models
 from .common import _get_total_num_records
 
-if TYPE_CHECKING:
-    from ... import schemas
+logger = logging.getLogger(__name__)
 
 
 async def paginated_list_projects(
@@ -23,6 +24,7 @@ async def paginated_list_projects(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
+    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.Project], int | None]:
     limit = page_size
     offset = limit * (page - 1)
@@ -35,10 +37,10 @@ async def paginated_list_projects(
         en_name_filter=en_name_filter,
         pt_name_filter=pt_name_filter,
         spatial_intersect=spatial_intersect,
+        temporal_extent=temporal_extent,
     )
 
 
-# TODO: explicitly add an 'order by' clause
 # TODO: only show projects that are either owned by user or published
 async def list_projects(
     session: AsyncSession,
@@ -49,6 +51,7 @@ async def list_projects(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
+    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.Project], int | None]:
     statement = select(models.Project)
     if en_name_filter:
@@ -69,6 +72,18 @@ async def list_projects(
                 models.Project.bbox_4326.is_(None),
             )
         )
+    if temporal_extent is not None:
+        if temporal_extent.begin is not None:
+            statement = statement.where(
+                models.Project.temporal_extent_begin >= temporal_extent.begin
+            )
+        if temporal_extent.end is not None:
+            statement = statement.where(
+                models.Project.temporal_extent_end <= temporal_extent.end
+            )
+    statement = statement.order_by(
+        models.Project.temporal_extent_end.desc().nullslast()
+    ).order_by(models.Project.temporal_extent_begin.desc().nullslast())
     items = (await session.exec(statement.offset(offset).limit(limit))).all()
     num_total = (
         await _get_total_num_records(session, statement) if include_total else None

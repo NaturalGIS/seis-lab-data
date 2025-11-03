@@ -1,4 +1,5 @@
 import dataclasses
+import datetime as dt
 import json
 import logging
 from typing import (
@@ -9,6 +10,8 @@ from typing import (
 from typing_extensions import Self
 
 import shapely
+
+from ..schemas import TemporalExtentFilterValue
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +34,38 @@ class SimpleListFilter(ListFilter, Protocol):
 class LanguageDependantListFilter(ListFilter, Protocol):
     @classmethod
     def from_params(cls, params: Mapping[str, str], current_language: str) -> Self: ...
+
+
+@dataclasses.dataclass
+class TemporalExtentFilter(SimpleListFilter):
+    internal_name = "temporal_extent"
+    value: TemporalExtentFilterValue
+
+    @classmethod
+    def from_params(cls, params: Mapping[str, str]) -> Self:
+        raw_begin = params.get("temporalExtentBegin") or None
+        raw_end = params.get("temporalExtentEnd") or None
+        if not any((raw_begin, raw_end)):
+            raise ValueError("Could not find temporal extent parameters")
+        value = TemporalExtentFilterValue(
+            begin=(
+                dt.datetime.strptime(raw_begin, "%Y-%m-%d").date()
+                if raw_begin
+                else raw_begin
+            ),
+            end=(
+                dt.datetime.strptime(raw_end, "%Y-%m-%d").date() if raw_end else raw_end
+            ),
+        )
+        return cls(value=value)
+
+    def serialize_to_query_string(self) -> str:
+        result = ""
+        if self.value.begin:
+            result = f"temporalExtentBegin={self.value.begin.strftime('%Y-%m-%d')}"
+        if self.value.end:
+            result += f"&temporalExtentEnd={self.value.end.strftime('%Y-%m-%d')}"
+        return result[1:] if result.startswith("&") else result
 
 
 @dataclasses.dataclass
@@ -208,6 +243,7 @@ class ProjectListFilters(ItemListFilters):
         filters: dict[str, SimpleListFilter | LanguageDependantListFilter] = {}
         for simple_type in (
             BoundingBoxFilter,
+            TemporalExtentFilter,
             EnNameFilter,
             PtNameFilter,
         ):
@@ -235,6 +271,7 @@ class SurveyMissionListFilters(ItemListFilters):
         filters: dict[str, SimpleListFilter | LanguageDependantListFilter] = {}
         for simple_type in (
             BoundingBoxFilter,
+            TemporalExtentFilter,
             EnNameFilter,
             PtNameFilter,
             DatasetCategoryFilter,
@@ -266,6 +303,7 @@ class SurveyRelatedRecordListFilters(ItemListFilters):
         filters: dict[str, SimpleListFilter | LanguageDependantListFilter] = {}
         for simple_type in (
             BoundingBoxFilter,
+            TemporalExtentFilter,
             EnNameFilter,
             PtNameFilter,
             DatasetCategoryFilter,

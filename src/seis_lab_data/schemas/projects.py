@@ -1,3 +1,5 @@
+import datetime as dt
+
 import pydantic
 
 from ..constants import ProjectStatus
@@ -21,6 +23,8 @@ class ProjectCreate(pydantic.BaseModel):
     root_path: str
     links: list[LinkSchema] = []
     bbox_4326: PossiblyInvalidPolygon | None = None
+    temporal_extent_begin: dt.date | None = None
+    temporal_extent_end: dt.date | None = None
 
 
 class ProjectUpdate(pydantic.BaseModel):
@@ -30,6 +34,8 @@ class ProjectUpdate(pydantic.BaseModel):
     root_path: str | None = None
     links: list[LinkSchema] | None = None
     bbox_4326: PossiblyInvalidPolygon | None = None
+    temporal_extent_begin: dt.date | None = None
+    temporal_extent_end: dt.date | None = None
 
 
 class ProjectReadEmbedded(pydantic.BaseModel):
@@ -37,6 +43,8 @@ class ProjectReadEmbedded(pydantic.BaseModel):
     name: LocalizableDraftName
     status: ProjectStatus
     is_valid: bool
+    temporal_extent_begin: dt.date | None
+    temporal_extent_end: dt.date | None
 
     @classmethod
     def from_db_instance(cls, instance: models.Project) -> "ProjectReadEmbedded":

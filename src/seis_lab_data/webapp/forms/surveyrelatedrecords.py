@@ -31,6 +31,7 @@ from .common import (
     LinkForm,
     NameForm,
 )
+from .fields import OptionalDateField
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,8 @@ class _SurveyRelatedRecordForm(StarletteForm):
         max_entries=constants.SURVEY_MISSION_MAX_LINKS,
     )
     bounding_box = FormField(BoundingBoxForm)
+    temporal_extent_begin = OptionalDateField()
+    temporal_extent_end = OptionalDateField()
     assets = FieldList(
         FormField(AssetCreateForm),
         label=_("Assets"),
@@ -227,6 +230,8 @@ class SurveyRelatedRecordCreateForm(_SurveyRelatedRecordForm):
                 domain_type_id=self.domain_type_id.data,
                 workflow_stage_id=self.workflow_stage_id.data,
                 relative_path=self.relative_path.data,
+                temporal_extent_begin=self.temporal_extent_begin.data or None,
+                temporal_extent_end=self.temporal_extent_end.data or None,
                 links=[
                     {
                         "url": li.url.data,
@@ -281,6 +286,8 @@ class SurveyRelatedRecordUpdateForm(_SurveyRelatedRecordForm):
                 domain_type_id=self.domain_type_id.data,
                 workflow_stage_id=self.workflow_stage_id.data,
                 relative_path=self.relative_path.data,
+                temporal_extent_begin=self.temporal_extent_begin.data or None,
+                temporal_extent_end=self.temporal_extent_end.data or None,
                 links=[
                     {
                         "url": li.url.data,

@@ -286,6 +286,7 @@ async def list_survey_related_records(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
+    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     return await queries.paginated_list_survey_related_records(
         session,
@@ -297,6 +298,7 @@ async def list_survey_related_records(
         en_name_filter=en_name_filter,
         pt_name_filter=pt_name_filter,
         spatial_intersect=spatial_intersect,
+        temporal_extent=temporal_extent,
     )
 
 

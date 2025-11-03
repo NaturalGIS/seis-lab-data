@@ -24,6 +24,7 @@ from .common import (
     get_form_field_by_name,
     LinkForm,
 )
+from .fields import OptionalDateField
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,8 @@ class _SurveyMissionForm(StarletteForm):
         ),
     )
     bounding_box = FormField(BoundingBoxForm)
+    temporal_extent_begin = OptionalDateField()
+    temporal_extent_end = OptionalDateField()
     links = FieldList(
         FormField(LinkForm),
         label=_("Links"),
@@ -151,6 +154,8 @@ class SurveyMissionCreateForm(_SurveyMissionForm):
                     **get_form_field_by_name(self, "description").data,
                 },
                 relative_path=self.relative_path.data,
+                temporal_extent_begin=self.temporal_extent_begin.data or None,
+                temporal_extent_end=self.temporal_extent_end.data or None,
                 links=[
                     {
                         "url": li.url.data,
@@ -187,6 +192,8 @@ class SurveyMissionUpdateForm(_SurveyMissionForm):
                     **get_form_field_by_name(self, "description").data,
                 },
                 relative_path=self.relative_path.data,
+                temporal_extent_begin=self.temporal_extent_begin.data or None,
+                temporal_extent_end=self.temporal_extent_end.data or None,
                 links=[
                     {
                         "url": li.url.data,

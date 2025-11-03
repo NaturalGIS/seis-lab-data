@@ -79,6 +79,8 @@ class SeisLabDataSettings(BaseSettings):
         "-35.58558 29.24784"
         "))"
     )
+    default_temporal_extent_begin: str = ""
+    default_temporal_extent_end: str = ""
 
 
 class SeisLabDataCliContext(BaseModel):

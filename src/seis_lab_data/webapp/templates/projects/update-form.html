@@ -10,6 +10,9 @@
         form.bounding_box
     ) }}
 
+    {{ macros.render_form_field(form.temporal_extent_begin) }}
+    {{ macros.render_form_field(form.temporal_extent_end) }}
+
     <h3>{{ _("Links") }}</h3>
     {{ macros.render_links_fields(
         form.links,

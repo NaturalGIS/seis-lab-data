@@ -27,6 +27,7 @@ async def paginated_list_survey_related_records(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
+    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     limit = page_size
     offset = limit * (page - 1)
@@ -40,10 +41,10 @@ async def paginated_list_survey_related_records(
         en_name_filter=en_name_filter,
         pt_name_filter=pt_name_filter,
         spatial_intersect=spatial_intersect,
+        temporal_extent=temporal_extent,
     )
 
 
-# TODO: explicitly add an 'order by' clause
 async def list_survey_related_records(
     session: AsyncSession,
     user: schemas.User | None = None,
@@ -54,6 +55,7 @@ async def list_survey_related_records(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
+    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     statement = (
         select(models.SurveyRelatedRecord)
@@ -88,6 +90,19 @@ async def list_survey_related_records(
         statement = statement.where(
             models.SurveyRelatedRecord.survey_mission_id == survey_mission_id
         )
+    if temporal_extent is not None:
+        if temporal_extent.begin is not None:
+            statement = statement.where(
+                models.SurveyRelatedRecord.temporal_extent_begin
+                >= temporal_extent.begin
+            )
+        if temporal_extent.end is not None:
+            statement = statement.where(
+                models.SurveyRelatedRecord.temporal_extent_end <= temporal_extent.end
+            )
+    statement = statement.order_by(
+        models.SurveyRelatedRecord.temporal_extent_end.desc().nullslast()
+    ).order_by(models.SurveyRelatedRecord.temporal_extent_begin.desc().nullslast())
     items = (await session.exec(statement.offset(offset).limit(limit))).all()
     num_total = (
         await _get_total_num_records(session, statement) if include_total else None

@@ -248,6 +248,36 @@
 {% endmacro %}
 
 
+{% macro render_temporal_extent_search_component(
+    search_url,
+    begin_label_text,
+    end_label_text,
+    begin_initial_value="",
+    end_initial_value=""
+) %}
+    <div class="row mb-3">
+        <label for="search-temporal-extent-begin">{{ begin_label_text }}</label>
+        <input
+                id="search-temporal-extent-begin"
+                class="form-control" type="date"
+                data-bind="temporalExtentBegin"
+                data-on:input__debounce.200ms="@get('{{ search_url }}')"
+                value="{{ begin_initial_value }}"
+        >
+    </div>
+    <div class="row mb-3">
+        <label for="search-temporal-extent-end">{{ end_label_text }}</label>
+        <input
+                id="search-temporal-extent-end"
+                class="form-control"
+                type="date"
+                data-bind="temporalExtentEnd"
+                data-on:input__debounce.200ms="@get('{{ search_url }}')"
+                value="{{ end_initial_value }}"
+        >
+    </div>
+{% endmacro %}
+
 {% macro render_search_component(search_url, label_text, initial_value="", set_autofocus=False) %}
     <div class="row mb-3" data-signals:search="'{{ initial_value }}'">
         <div class="col">

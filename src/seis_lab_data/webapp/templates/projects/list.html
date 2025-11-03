@@ -66,6 +66,14 @@ This template is loaded as a GET response to the /projects/ endpoint. It is used
         </div>
     </div>
 
+    {{ macros.render_temporal_extent_search_component(
+        url_for("projects:get_list_component"),
+        _("Temporal extent begin"),
+        _("Temporal extent end"),
+        "{{ current_temporal_extent.begin }}",
+        "{{ current_temporal_extent.end }}"
+    ) }}
+
     {{ macros.render_search_component(
         url_for("projects:get_list_component"),
         _("search projects"),
