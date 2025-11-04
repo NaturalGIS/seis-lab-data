@@ -1,5 +1,5 @@
 {% import "macros.html" as macros %}
-<div class="row">
+<div class="row" data-effect="@get('{{ url_for("projects:get_detail_updates", project_id=project.id) }}')">
     <div class="col">
         {% if permissions.can_create_children %}
             {{ macros.render_new_item_button(

@@ -32,6 +32,16 @@ from .. import constants
 now_ = partial(dt.datetime.now, tz=dt.timezone.utc)
 
 
+class ValidationError(TypedDict):
+    name: str
+    message: str
+
+
+class ValidationResult(TypedDict):
+    is_valid: bool
+    errors: list[ValidationError] | None
+
+
 class LocalizableString(TypedDict):
     locale: str
 
@@ -104,6 +114,7 @@ class Project(SQLModel, table=True):
     status: constants.ProjectStatus = constants.ProjectStatus.DRAFT
     root_path: str = ""
     is_valid: bool = False
+    validation_result: ValidationResult = Field(sa_column=Column(JSONB))
     links: Annotated[list[Link], PlainSerializer(serialize_localizable_field)] = Field(
         sa_column=Column(JSONB), default_factory=list
     )
@@ -153,6 +164,7 @@ class SurveyMission(SQLModel, table=True):
     relative_path: str = ""
     status: constants.SurveyMissionStatus = constants.SurveyMissionStatus.DRAFT
     is_valid: bool = False
+    validation_result: ValidationResult = Field(sa_column=Column(JSONB))
     bbox_4326: Annotated[
         WKBElement,
         PlainSerializer(serialize_wkbelement, return_type=dict, when_used="json"),
@@ -197,6 +209,7 @@ class SurveyRelatedRecord(SQLModel, table=True):
         constants.SurveyRelatedRecordStatus.DRAFT
     )
     is_valid: bool = False
+    validation_result: ValidationResult = Field(sa_column=Column(JSONB))
     survey_mission_id: uuid.UUID = Field(
         foreign_key="surveymission.id", ondelete="CASCADE"
     )

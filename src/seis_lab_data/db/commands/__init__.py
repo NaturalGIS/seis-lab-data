@@ -2,8 +2,8 @@ from .projects import (
     create_project,
     delete_project,
     update_project,
+    update_project_validation_result,
     set_project_status,
-    set_project_validation_flag,
 )
 from .recordassets import delete_record_asset
 from .surveymissions import (
@@ -38,8 +38,8 @@ __all__ = [
     delete_survey_related_record,
     delete_workflow_stage,
     set_project_status,
-    set_project_validation_flag,
     update_project,
+    update_project_validation_result,
     update_survey_mission,
     update_survey_related_record,
 ]

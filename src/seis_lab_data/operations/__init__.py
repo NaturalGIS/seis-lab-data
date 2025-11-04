@@ -4,6 +4,7 @@ from .projects import (
     get_project,
     list_projects,
     update_project,
+    validate_project,
 )
 from .surveymissions import (
     create_survey_mission,
@@ -54,4 +55,5 @@ __all__ = [
     update_project,
     update_survey_mission,
     update_survey_related_record,
+    validate_project,
 ]

@@ -107,6 +107,44 @@ def get_page_count(
     return (total_items + page_size - 1) // page_size
 
 
+async def produce_event_stream_for_item_updates_topic(
+    redis_client: Redis,
+    request: Request,
+    topic_name: str,
+    on_message: Callable[[dict], AsyncGenerator[DatastarEvent, None]],
+    timeout_seconds: int = 30,
+):
+    async with redis_client.pubsub() as pubsub:
+        await pubsub.subscribe(topic_name)
+        try:
+            while True:
+                if await request.is_disconnected():
+                    logger.info(f"client disconnected from topic {topic_name!r}")
+                    break
+                try:
+                    if message := await pubsub.get_message(
+                        ignore_subscribe_messages=False, timeout=timeout_seconds
+                    ):
+                        if message["type"] == "subscribe":
+                            logger.debug(f"Subscribed to topic {topic_name!r}")
+                        elif message["type"] == "message":
+                            logger.debug(f"received message: {message=}")
+                            async for datastar_event in on_message(message["data"]):
+                                yield datastar_event
+                    else:
+                        logging.info(
+                            f"pubsub listener for topic {topic_name!r} timed out after {timeout_seconds} seconds"
+                        )
+                        break
+                except asyncio.CancelledError:
+                    logger.info(
+                        f"pubsub listener for topic {topic_name!r} was cancelled"
+                    )
+                    raise
+        finally:
+            await pubsub.unsubscribe(topic_name)
+
+
 async def produce_event_stream_for_topic(
     redis_client: Redis,
     request: Request,

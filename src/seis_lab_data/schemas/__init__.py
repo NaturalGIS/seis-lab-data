@@ -20,6 +20,8 @@ from .events import (
 from .filters import TemporalExtentFilterValue
 from .processing import (
     ProcessingMessage,
+    ProjectUpdatedMessage,
+    ProjectEvent,
 )
 from .projects import (
     ProjectCreate,
@@ -62,7 +64,6 @@ from .webui import (
 )
 from .validation import (
     ValidProject,
-    ValidationError,
 )
 
 __all__ = [
@@ -82,10 +83,12 @@ __all__ = [
     PaginationInfo,
     ProjectCreate,
     ProjectDetails,
+    ProjectEvent,
     ProjectId,
     ProjectReadDetail,
     ProjectReadListItem,
     ProjectUpdate,
+    ProjectUpdatedMessage,
     ProcessingMessage,
     RecordAssetCreate,
     RecordAssetId,
@@ -115,5 +118,4 @@ __all__ = [
     UserId,
     UserPermissionDetails,
     ValidProject,
-    ValidationError,
 ]

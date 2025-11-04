@@ -1,8 +1,12 @@
 import datetime as dt
-from typing import Annotated
+from typing import (
+    Annotated,
+    cast,
+)
 
 import shapely
 import pydantic
+from geoalchemy2 import WKBElement
 
 from .. import constants
 from . import common
@@ -16,11 +20,6 @@ def validate_polygon_geometry(value: shapely.Polygon) -> shapely.Polygon:
 
 def ensure_root_path_exists(value: str) -> str:
     return value
-
-
-class ValidationError(pydantic.BaseModel):
-    name: str
-    message: str
 
 
 class LocalizableValidName(pydantic.BaseModel):
@@ -70,6 +69,25 @@ class ValidLinkSchema(pydantic.BaseModel):
     link_description: LocalizableValidDescription
 
 
+def parse_possibly_empty_wkbelement_polygon_into_valid_geometry(
+    value: WKBElement | None,
+) -> shapely.Polygon:
+    if value is None:
+        raise ValueError("value is None")
+    try:
+        geom = shapely.from_wkb(value.data)
+    except shapely.GEOSException as err:
+        raise ValueError(f"Could not parse {value} as WKB") from err
+    else:
+        if not geom.is_valid:
+            raise ValueError("Geometry is not valid")
+        if geom.geom_type != "Polygon":
+            raise ValueError("Geometry is not a Polygon")
+        if geom.area == 0:
+            raise ValueError("Polygon has zero area")
+    return cast(shapely.Polygon, geom)
+
+
 class ValidProject(pydantic.BaseModel):
     id: common.ProjectId
     name: LocalizableValidName
@@ -80,5 +98,8 @@ class ValidProject(pydantic.BaseModel):
     root_path: Annotated[str, pydantic.PlainValidator(ensure_root_path_exists)]
     links: list[ValidLinkSchema] = []
     bbox_4326: Annotated[
-        shapely.Polygon, pydantic.PlainValidator(validate_polygon_geometry)
+        shapely.Polygon,
+        pydantic.PlainValidator(
+            parse_possibly_empty_wkbelement_polygon_into_valid_geometry
+        ),
     ]

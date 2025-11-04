@@ -28,6 +28,10 @@ from ... import (
     permissions,
     schemas,
 )
+from ...constants import (
+    PROJECT_UPDATES_TOPIC_NAME_TEMPLATE,
+    PROJECT_EVENTS_TOPIC_NAME_TEMPLATE,
+)
 from ...processing import tasks
 from .. import (
     filters,
@@ -42,6 +46,7 @@ from .common import (
     get_page_from_request_params,
     get_pagination_info,
     produce_event_stream_for_topic,
+    produce_event_stream_for_item_updates_topic,
 )
 
 logger = logging.getLogger(__name__)
@@ -189,6 +194,69 @@ async def get_project_details_component(request: Request):
             selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
+
+    return DatastarResponse(event_streamer())
+
+
+@fancy_requires_auth
+async def get_project_detail_updates(request: Request):
+    if (raw_params := request.query_params.get("datastar", "null")) is None:
+        raise HTTPException(status_code=404, detail="Invalid request query parameters")
+    try:
+        params = json.loads(raw_params)
+        project_id = schemas.ProjectId(uuid.UUID(params["projectId"]))
+    except (json.JSONDecodeError, KeyError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid search params") from exc
+
+    redis_client: Redis = request.state.redis_client
+
+    async def on_project_update_message_received(
+        raw_message: str,
+    ) -> AsyncGenerator[DatastarEvent, None]:
+        message = schemas.ProjectUpdatedMessage(**json.loads(raw_message))
+        updated_project_id = message.project_id
+        if updated_project_id == project_id:
+            yield ServerSentEventGenerator.patch_elements(
+                "Project has been updated - page about to refresh...",
+                selector=schemas.selector_info.feedback_selector,
+                mode=ElementPatchMode.INNER,
+            )
+            await asyncio.sleep(1)
+            yield ServerSentEventGenerator.redirect(
+                str(request.url_for("projects:detail", project_id=project_id)),
+            )
+
+    async def on_project_event_message_received(
+        raw_message: str,
+    ) -> AsyncGenerator[DatastarEvent, None]:
+        message = schemas.ProjectEvent(**json.loads(raw_message))
+        event_project_id = message.project_id
+        if event_project_id == project_id:
+            yield ServerSentEventGenerator.patch_elements(
+                f"Project event received - {message.message}",
+                selector=schemas.selector_info.feedback_selector,
+                mode=ElementPatchMode.INNER,
+            )
+
+    async def event_streamer():
+        updates_stream_generator = produce_event_stream_for_item_updates_topic(
+            redis_client,
+            request,
+            topic_name=PROJECT_UPDATES_TOPIC_NAME_TEMPLATE.format(
+                project_id=project_id
+            ),
+            on_message=on_project_update_message_received,
+            timeout_seconds=30,
+        )
+        events_stream_generator = produce_event_stream_for_item_updates_topic(  # noqa
+            redis_client,
+            request,
+            topic_name=PROJECT_EVENTS_TOPIC_NAME_TEMPLATE.format(project_id=project_id),
+            on_message=None,
+            timeout_seconds=30,
+        )
+        async for sse_event in updates_stream_generator:
+            yield sse_event
 
     return DatastarResponse(event_streamer())
 
@@ -537,6 +605,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
 
         details = await _get_project_details(request)
         template_processor = request.state.templates
+
         return template_processor.TemplateResponse(
             request,
             "projects/detail.html",
@@ -639,6 +708,14 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 status=final_message.status.value,
                 message=f"{final_message.message}",
             )
+
+            # let's now also validate the project
+            tasks.validate_project.send(
+                raw_request_id=str(request_id),
+                raw_project_id=str(project_id),
+                raw_initiator=json.dumps(dataclasses.asdict(user)),
+            )
+
             yield ServerSentEventGenerator.patch_elements(
                 rendered_message,
                 selector=schemas.selector_info.feedback_selector,
@@ -1092,6 +1169,12 @@ routes = [
         get_project_details_component,
         methods=["GET"],
         name="get_details_component",
+    ),
+    Route(
+        "/{project_id}/detail-updates",
+        get_project_detail_updates,
+        methods=["GET"],
+        name="get_detail_updates",
     ),
     Route(
         "/{project_id}",

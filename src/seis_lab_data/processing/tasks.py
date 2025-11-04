@@ -13,7 +13,10 @@ from .. import (
     schemas,
     operations,
 )
-from ..constants import ProcessingStatus
+from ..constants import (
+    ProcessingStatus,
+    PROJECT_UPDATES_TOPIC_NAME_TEMPLATE,
+)
 
 from ..events import get_event_emitter
 from . import decorators
@@ -42,7 +45,25 @@ async def validate_project(
 ):
     # call operation that performs the validation
     # relay validation result back
-    ...
+    request_id = schemas.RequestId(uuid.UUID(raw_request_id))
+    topic_name = f"progress:{request_id}"
+    try:
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id,
+                status=ProcessingStatus.RUNNING,
+                message="Project creation started",
+            ).model_dump_json(),
+        )
+    except Exception as err:
+        logger.exception("Task failed")
+        await redis_client.publish(
+            topic_name,
+            schemas.ProcessingMessage(
+                request_id=request_id, status=ProcessingStatus.FAILED, message=str(err)
+            ).model_dump_json(),
+        )
 
 
 @dramatiq.actor
@@ -147,6 +168,7 @@ async def update_project(
     topic_name = f"progress:{request_id}"
     initiator = schemas.User(**json.loads(raw_initiator))
     to_update = schemas.ProjectUpdate(**json.loads(raw_to_update))
+    event_emitter = get_event_emitter(settings)
     try:
         await redis_client.publish(
             topic_name,
@@ -157,13 +179,13 @@ async def update_project(
             ).model_dump_json(),
         )
         async with session_maker() as session:
-            await operations.update_project(
+            updated_project = await operations.update_project(
                 project_id=schemas.ProjectId(uuid.UUID(raw_project_id)),
                 to_update=to_update,
                 initiator=initiator,
                 session=session,
                 settings=settings,
-                event_emitter=get_event_emitter(settings),
+                event_emitter=event_emitter,
             )
         await redis_client.publish(
             topic_name,
@@ -171,6 +193,13 @@ async def update_project(
                 request_id=request_id,
                 status=ProcessingStatus.SUCCESS,
                 message="Project successfully updated",
+            ).model_dump_json(),
+        )
+        # on success, publish also to the project updates topic
+        await redis_client.publish(
+            PROJECT_UPDATES_TOPIC_NAME_TEMPLATE.format(project_id=updated_project.id),
+            schemas.ProjectUpdatedMessage(
+                project_id=schemas.ProjectId(updated_project.id)
             ).model_dump_json(),
         )
     except Exception as err:

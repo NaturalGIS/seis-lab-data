@@ -14,6 +14,10 @@ PROJECT_MAX_LINKS: typing.Final[int] = 5
 SURVEY_MISSION_MAX_LINKS: typing.Final[int] = 5
 SURVEY_RELATED_RECORD_MAX_ASSETS: typing.Final[int] = 20
 
+PROGRESS_TOPIC_NAME_TEMPLATE: typing.Final[str] = "progress:{request_id}"
+PROJECT_UPDATES_TOPIC_NAME_TEMPLATE: typing.Final[str] = "updated:{project_id}"
+PROJECT_EVENTS_TOPIC_NAME_TEMPLATE: typing.Final[str] = "event:{project_id}"
+
 
 class TranslatableEnumProtocol(typing.Protocol):
     def get_translated_value(self) -> str: ...
