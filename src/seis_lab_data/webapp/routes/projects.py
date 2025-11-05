@@ -29,8 +29,11 @@ from ... import (
     schemas,
 )
 from ...constants import (
-    PROJECT_UPDATES_TOPIC_NAME_TEMPLATE,
-    PROJECT_EVENTS_TOPIC_NAME_TEMPLATE,
+    PROGRESS_TOPIC_NAME_TEMPLATE,
+    PROJECT_DELETED_TOPIC,
+    PROJECT_STATUS_CHANGED_TOPIC,
+    PROJECT_UPDATED_TOPIC,
+    PROJECT_VALIDITY_CHANGED_TOPIC,
 )
 from ...processing import tasks
 from .. import (
@@ -46,7 +49,7 @@ from .common import (
     get_page_from_request_params,
     get_pagination_info,
     produce_event_stream_for_topic,
-    produce_event_stream_for_item_updates_topic,
+    produce_event_stream_for_item_updates,
 )
 
 logger = logging.getLogger(__name__)
@@ -200,6 +203,16 @@ async def get_project_details_component(request: Request):
 
 @fancy_requires_auth
 async def get_project_detail_updates(request: Request):
+    """Informs client about modifications to project details.
+
+    This endpoint uses an SSE connection to the client and reports back on
+    modifications that may happen to the project. These consist of:
+
+    - project deletion -> ask client to redirect back to the projects page
+    - project status changes -> client updates just the status-related display
+    - project validation results -> client updates just the validation-related display
+    - project updates -> ask client to reload project details page
+    """
     if (raw_params := request.query_params.get("datastar", "null")) is None:
         raise HTTPException(status_code=404, detail="Invalid request query parameters")
     try:
@@ -208,16 +221,89 @@ async def get_project_detail_updates(request: Request):
     except (json.JSONDecodeError, KeyError) as exc:
         raise HTTPException(status_code=400, detail="Invalid search params") from exc
 
+    session_maker = request.state.session_maker
+    settings: config.SeisLabDataSettings = request.state.settings
     redis_client: Redis = request.state.redis_client
+    user = get_user(request.session.get("user", {}))
 
-    async def on_project_update_message_received(
+    async def on_project_deleted_message(
         raw_message: str,
     ) -> AsyncGenerator[DatastarEvent, None]:
-        message = schemas.ProjectUpdatedMessage(**json.loads(raw_message))
-        updated_project_id = message.project_id
-        if updated_project_id == project_id:
+        message = schemas.ProjectEvent(**json.loads(raw_message))
+        deleted_project_id = message.project_id
+        if deleted_project_id == project_id:
+            logger.debug(
+                "Received message about recent project deletion, "
+                "redirecting frontend..."
+            )
             yield ServerSentEventGenerator.patch_elements(
-                "Project has been updated - page about to refresh...",
+                "Project has been deleted",
+                selector=schemas.selector_info.feedback_selector,
+                mode=ElementPatchMode.INNER,
+            )
+            await asyncio.sleep(1)
+            yield ServerSentEventGenerator.redirect(
+                str(request.url_for("projects:list"))
+            )
+
+    async def on_status_update_message(
+        raw_message: str,
+    ) -> AsyncGenerator[DatastarEvent, None]:
+        message = schemas.ProjectEvent(**json.loads(raw_message))
+        if message.project_id == project_id:
+            logger.debug(
+                "Received message about recent project status update, "
+                "patching frontend..."
+            )
+            async with session_maker() as session:
+                updated_project = await operations.get_project(
+                    project_id, user or None, session, settings
+                )
+                yield ServerSentEventGenerator.patch_elements(
+                    updated_project.status,
+                    selector=schemas.selector_info.status_selector,
+                    mode=ElementPatchMode.INNER,
+                )
+
+    async def on_validation_update_message(
+        raw_message: str,
+    ) -> AsyncGenerator[DatastarEvent, None]:
+        message = schemas.ProjectEvent(**json.loads(raw_message))
+        if message.project_id == project_id:
+            logger.debug(
+                "Received message about recent project validation update, "
+                "patching frontend..."
+            )
+            async with session_maker() as session:
+                updated_project = await operations.get_project(
+                    project_id, user or None, session, settings
+                )
+                details_message = ""
+                if not updated_project.validation_result.get("is_valid"):
+                    for err in updated_project.validation_result.get("errors", []):
+                        detail = f"{err['name']}: {err['message']}"
+                        details_message = " - ".join((details_message, detail))
+                yield ServerSentEventGenerator.patch_elements(
+                    "valid"
+                    if updated_project.validation_result["is_valid"]
+                    else "invalid",
+                    selector=schemas.selector_info.validation_result_selector,
+                    mode=ElementPatchMode.INNER,
+                )
+                yield ServerSentEventGenerator.patch_elements(
+                    details_message,
+                    selector=schemas.selector_info.validation_result_details_selector,
+                    mode=ElementPatchMode.INNER,
+                )
+
+    async def on_project_update_message(
+        raw_message: str,
+    ) -> AsyncGenerator[DatastarEvent, None]:
+        message = schemas.ProjectEvent(**json.loads(raw_message))
+        if message.project_id == project_id:
+            logger.debug("Received message about recent project update")
+            yield ServerSentEventGenerator.patch_elements(
+                "Project has been updated - refreshing the page shortly",
                 selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.INNER,
             )
@@ -226,36 +312,21 @@ async def get_project_detail_updates(request: Request):
                 str(request.url_for("projects:detail", project_id=project_id)),
             )
 
-    async def on_project_event_message_received(
-        raw_message: str,
-    ) -> AsyncGenerator[DatastarEvent, None]:
-        message = schemas.ProjectEvent(**json.loads(raw_message))
-        event_project_id = message.project_id
-        if event_project_id == project_id:
-            yield ServerSentEventGenerator.patch_elements(
-                f"Project event received - {message.message}",
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.INNER,
-            )
+    topic_handlers = {
+        PROJECT_DELETED_TOPIC.format(project_id=project_id): on_project_deleted_message,
+        PROJECT_VALIDITY_CHANGED_TOPIC.format(
+            project_id=project_id
+        ): on_validation_update_message,
+        PROJECT_STATUS_CHANGED_TOPIC.format(
+            project_id=project_id
+        ): on_status_update_message,
+        PROJECT_UPDATED_TOPIC.format(project_id=project_id): on_project_update_message,
+    }
 
     async def event_streamer():
-        updates_stream_generator = produce_event_stream_for_item_updates_topic(
-            redis_client,
-            request,
-            topic_name=PROJECT_UPDATES_TOPIC_NAME_TEMPLATE.format(
-                project_id=project_id
-            ),
-            on_message=on_project_update_message_received,
-            timeout_seconds=30,
-        )
-        events_stream_generator = produce_event_stream_for_item_updates_topic(  # noqa
-            redis_client,
-            request,
-            topic_name=PROJECT_EVENTS_TOPIC_NAME_TEMPLATE.format(project_id=project_id),
-            on_message=None,
-            timeout_seconds=30,
-        )
-        async for sse_event in updates_stream_generator:
+        async for sse_event in produce_event_stream_for_item_updates(
+            redis_client, request, timeout_seconds=30, **topic_handlers
+        ):
             yield sse_event
 
     return DatastarResponse(event_streamer())
@@ -583,7 +654,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             event_stream_generator = produce_event_stream_for_topic(
                 redis_client,
                 request,
-                topic_name=f"progress:{request_id}",
+                topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
                 patch_elements_selector=schemas.selector_info.feedback_selector,
@@ -788,7 +859,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             event_stream_generator = produce_event_stream_for_topic(
                 redis_client,
                 request,
-                topic_name=f"progress:{request_id}",
+                topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
                 patch_elements_selector=schemas.selector_info.feedback_selector,
@@ -869,7 +940,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             event_stream_generator = produce_event_stream_for_topic(
                 redis_client,
                 request,
-                topic_name=f"progress:{request_id}",
+                topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
                 patch_elements_selector=schemas.selector_info.feedback_selector,
@@ -1019,7 +1090,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             event_stream_generator = produce_event_stream_for_topic(
                 redis_client,
                 request,
-                topic_name=f"progress:{request_id}",
+                topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
                 patch_elements_selector=schemas.selector_info.feedback_selector,

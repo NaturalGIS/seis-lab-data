@@ -1,0 +1,67 @@
+{% import "macros.html" as macros %}
+
+{% macro render_bbox_display_component(
+    webmap_base_tile_layer_url,
+    webmap_default_zoom_level,
+    bbox_4326
+) %}
+    <bbox-map-readonly
+            data-tile-url="{{ webmap_base_tile_layer_url }}"
+            data-center-lon="{{ bbox_4326.bounds[0] }}"
+            data-center-lat="{{ bbox_4326.bounds[1] }}"
+            data-zoom="{{ webmap_default_zoom_level }}"
+            data-min-lon="{{ bbox_4326.bounds[0] }}"
+            data-min-lat="{{ bbox_4326.bounds[1] }}"
+            data-max-lon="{{ bbox_4326.bounds[2] }}"
+            data-max-lat="{{ bbox_4326.bounds[3] }}"
+            style="display: block; width: 100%; height: 30vh"
+    ></bbox-map-readonly>
+    <dl class="row">
+        <dt class="col-sm-3">{{ _("Minimum longitude") | capitalize }}</dt>
+        <dt class="col-sm-9">{{ bbox_4326.bounds[0] }}</dt>
+        <dt class="col-sm-3">{{ _("Minimum latitude" | capitalize) }}</dt>
+        <dt class="col-sm-9">{{ bbox_4326.bounds[1] }}</dt>
+        <dt class="col-sm-3">{{ _("Maximum longitude" | capitalize) }}</dt>
+        <dt class="col-sm-9">{{ bbox_4326.bounds[2] }}</dt>
+        <dt class="col-sm-3">{{ _("Maximum latitude" | capitalize) }}</dt>
+        <dt class="col-sm-9">{{ bbox_4326.bounds[3] }}</dt>
+    </dl>
+{% endmacro %}
+
+
+{% macro render_bbox_update_component(
+    webmap_base_tile_layer_url,
+    webmap_default_zoom_level,
+    bounding_box_form_field
+) %}
+    <div
+            class="row"
+            data-signals:bbox.min-lon="{{ bounding_box_form_field.min_lon.data }}"
+            data-signals:bbox.max-lon="{{ bounding_box_form_field.max_lon.data }}"
+            data-signals:bbox.min-lat="{{ bounding_box_form_field.min_lat.data }}"
+            data-signals:bbox.max-lat="{{ bounding_box_form_field.max_lat.data }}"
+    >
+        <div class="col">
+            <bbox-map
+                    data-tile-url="{{ webmap_base_tile_layer_url }}"
+                    data-center-lon="{{ bounding_box_form_field.min_lon.data }}"
+                    data-center-lat="{{ bounding_box_form_field.min_lat.data }}"
+                    data-zoom="{{ webmap_default_zoom_level }}"
+                    data-min-lat=""
+                    data-min-lon=""
+                    data-max-lat=""
+                    data-max-lon=""
+                    data-attr:data-min-lat="$bbox.minLat"
+                    data-attr:data-min-lon="$bbox.minLon"
+                    data-attr:data-max-lat="$bbox.maxLat"
+                    data-attr:data-max-lon="$bbox.maxLon"
+                    style="display: block; width: 100%; height: 30vh"
+                    data-on:bbox-changed="$bbox = evt.detail.bbox"
+            ></bbox-map>
+        </div>
+    </div>
+    {{ macros.render_form_field(bounding_box_form_field.min_lon, data_bind="bbox.minLon") }}
+    {{ macros.render_form_field(bounding_box_form_field.max_lon, data_bind="bbox.maxLon") }}
+    {{ macros.render_form_field(bounding_box_form_field.min_lat, data_bind="bbox.minLat") }}
+    {{ macros.render_form_field(bounding_box_form_field.max_lat, data_bind="bbox.maxLat") }}
+{% endmacro %}

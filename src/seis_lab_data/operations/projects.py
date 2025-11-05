@@ -48,6 +48,40 @@ async def create_project(
     return project
 
 
+async def change_project_status(
+    target_status: ProjectStatus,
+    project_id: schemas.ProjectId,
+    initiator: schemas.User | None,
+    session: AsyncSession,
+    settings: config.SeisLabDataSettings,
+    event_emitter: events.EventEmitterProtocol,
+) -> models.Project:
+    if initiator is None or not await permissions.can_change_project_status(
+        initiator, project_id, settings=settings
+    ):
+        raise errors.SeisLabDataError("User is not allowed to chang project status.")
+    if (project := await queries.get_project(session, project_id)) is None:
+        raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
+    if (old_status := project.status) == target_status:
+        logger.info(f"Project status is already set to {target_status} - nothing to do")
+        return project
+    else:
+        updated_project = await commands.set_project_status(
+            session, schemas.ProjectId(project.id), target_status
+        )
+        event_emitter(
+            schemas.SeisLabDataEvent(
+                type_=schemas.EventType.PROJECT_STATUS_CHANGED,
+                initiator=initiator.id,
+                payload=schemas.EventPayload(
+                    before={"status": old_status.value},
+                    after={"status": updated_project.status.value},
+                ),
+            )
+        )
+        return updated_project
+
+
 async def validate_project(
     project_id: schemas.ProjectId,
     initiator: schemas.User | None,
@@ -70,10 +104,6 @@ async def validate_project(
         "is_valid": False,
         "errors": None,
     }
-    project = await commands.set_project_status(
-        session, project_id, ProjectStatus.UNDER_VALIDATION
-    )
-
     validation_errors = []
     try:
         schemas.ValidProject(**project.model_dump())
@@ -96,10 +126,6 @@ async def validate_project(
     else:
         await commands.update_project_validation_result(
             session, project, validation_result={"is_valid": True, "errors": None}
-        )
-    finally:
-        project = await commands.set_project_status(
-            session, project_id, ProjectStatus.DRAFT
         )
     event_emitter(
         schemas.SeisLabDataEvent(

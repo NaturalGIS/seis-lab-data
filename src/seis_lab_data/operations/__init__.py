@@ -1,4 +1,5 @@
 from .projects import (
+    change_project_status,
     create_project,
     delete_project,
     get_project,
@@ -31,6 +32,7 @@ from .surveyrelatedrecords import (
 )
 
 __all__ = [
+    change_project_status,
     create_dataset_category,
     create_domain_type,
     create_project,

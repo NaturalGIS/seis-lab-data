@@ -1,4 +1,4 @@
-{% import "macros.html" as macros %}
+{% import "macros-buttons.html" as macros_buttons %}
 <div class="col">
     <div class="card mb-3">
         <div class="row g-0">
@@ -13,7 +13,7 @@
                     <p class="card-text"><small class="text-body-secondary">{{ item.status.value }}</small></p>
                     <p class="card-text"><small class="text-body-secondary">{{ item.is_valid }}</small></p>
                     <p class="card-text">{{ item.description|translate_localizable_string }}</p>
-                    {{ macros.render_view_details_button(url_for('survey_missions:detail', survey_mission_id=item.id)) }}
+                    {{ macros_buttons.render_view_details_button(url_for('survey_missions:detail', survey_mission_id=item.id)) }}
                 </div>
             </div>
         </div>

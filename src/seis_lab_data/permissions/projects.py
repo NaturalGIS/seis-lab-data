@@ -48,3 +48,12 @@ async def can_validate_project(
     settings: config.SeisLabDataSettings,
 ) -> bool:
     return await can_update_project(user, project_id, settings=settings)
+
+
+async def can_change_project_status(
+    user: schemas.User,
+    project_id: schemas.ProjectId,
+    *,
+    settings: config.SeisLabDataSettings,
+) -> bool:
+    return await can_update_project(user, project_id, settings=settings)

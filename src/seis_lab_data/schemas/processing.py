@@ -6,6 +6,8 @@ from .common import (
     RequestId,
 )
 
+from . import events
+
 
 class ProjectUpdatedMessage(pydantic.BaseModel):
     project_id: ProjectId
@@ -13,7 +15,8 @@ class ProjectUpdatedMessage(pydantic.BaseModel):
 
 class ProjectEvent(pydantic.BaseModel):
     project_id: ProjectId
-    message: str
+    event: events.EventType
+    message: str | None = None
 
 
 class ProcessingMessage(pydantic.BaseModel):

@@ -15,8 +15,11 @@ SURVEY_MISSION_MAX_LINKS: typing.Final[int] = 5
 SURVEY_RELATED_RECORD_MAX_ASSETS: typing.Final[int] = 20
 
 PROGRESS_TOPIC_NAME_TEMPLATE: typing.Final[str] = "progress:{request_id}"
-PROJECT_UPDATES_TOPIC_NAME_TEMPLATE: typing.Final[str] = "updated:{project_id}"
-PROJECT_EVENTS_TOPIC_NAME_TEMPLATE: typing.Final[str] = "event:{project_id}"
+
+PROJECT_UPDATED_TOPIC: typing.Final[str] = "updated:{project_id}"
+PROJECT_STATUS_CHANGED_TOPIC: typing.Final[str] = "status-changed:{project_id}"
+PROJECT_VALIDITY_CHANGED_TOPIC: typing.Final[str] = "validity-changed:{project_id}"
+PROJECT_DELETED_TOPIC: typing.Final[str] = "deleted:{project_id}"
 
 
 class TranslatableEnumProtocol(typing.Protocol):

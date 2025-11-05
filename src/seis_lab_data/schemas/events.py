@@ -17,6 +17,7 @@ class EventType(enum.Enum):
     PROJECT_UPDATED = "project_updated"
     PROJECT_VALIDATED = "project_validated"
     PROJECT_VALIDATION_PROGRESS = "project_validation_progress"
+    PROJECT_STATUS_CHANGED = "project_status_changed"
     SURVEY_MISSION_CREATED = "survey_mission_created"
     SURVEY_MISSION_DELETED = "survey_mission_deleted"
     SURVEY_MISSION_UPDATED = "survey_mission_updated"
