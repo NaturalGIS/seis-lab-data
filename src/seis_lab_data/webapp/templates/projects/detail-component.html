@@ -1,8 +1,13 @@
 {% import "macros.html" as macros %}
 {% import "macros-buttons-list-items.html" as macros_buttons_list_items %}
 {% import "macros-maps.html" as macros_maps %}
-<div class="row" data-signals:project-id="'{{ project.id }}'"
-     data-effect="@get('{{ url_for("projects:get_detail_updates", project_id=project.id) }}')">
+<div
+    class="row"
+    data-signals:project-id="'{{ project.id }}'"
+    data-signals:is-valid="{{ 'true' if project.validation_result.is_valid else 'false' }}"
+    data-signals:status="'{{ project.status | translate_enum }}'"
+    data-effect="@get('{{ url_for("projects:get_detail_updates", project_id=project.id) }}')"
+>
     <div class="col">
         <div class="row mb-5">
             <div class="col">
@@ -78,17 +83,6 @@
                 icon_name=icons.survey_missions
             ) }}
             {% endif %}
-            {% if permissions.can_publish and project.status == ProjectStatus.DRAFT and project.validation_result.is_valid %}
-                {{ macros_buttons_list_items.render_publish_item_button(
-                    publishing_url="#",
-                    signal_name="publishing",
-                        idle_message="publish project",
-                        running_message="publishing project...",
-                        generated_csrf_token=csrf_token(request),
-                        modal_dialog_title=_("publish project"),
-                        modal_dialog_confirmation_text=_("are you sure you want to publish this project?")
-                ) }}
-            {% endif %}
             {% if permissions.can_delete %}
                 {{ macros_buttons_list_items.render_delete_item_button(
                 deletion_url=url_for("projects:detail", project_id=project.id),
@@ -101,33 +95,37 @@
             ) }}
             {% endif %}
         </div>
-        {% set is_valid = project.validation_result.is_valid %}
         {% set validation_details = project.validation_result.errors or [] %}
         <h5>{{ _("info") | capitalize }}</h5>
+        <script>
+            window.iconNames = JSON.parse('{{ icons | tojson }}')
+        </script>
         <ul class="list-group">
-            {% if project.status != ProjectStatus.PUBLISHED %}
-                <li class="list-group-item" aria-label="status"><span
-                        class="material-icons-outlined me-1">{{ project.status | get_status_icon_name }}</span>{{ project.status.value | upper }}
-                </li>
-                <li class="list-group-item {% if is_valid %}list-group-item-success{% else %}list-group-item-warning{% endif %}"
-                    aria-label="validation-result"
-                >
-                    {% if is_valid %}
-                        <h6>
-                            <span class="material-icons-outlined me-1">{{ icons.valid_item }}</span>
-                            {{ _("project is valid") | capitalize }}
-                        </h6>
-                    {% else %}
-                        <h6>
-                            <span class="material-icons-outlined me-1">{{ icons.invalid_item }}</span>
-                            {{ _("project is invalid") | capitalize }}
-                        </h6>
-                    {% endif %}
-                    {% if validation_details %}
-                        <p class="mb-1" aria-label="validation-result-details">{{ validation_details }}</p>
-                    {% endif %}
-                </li>
-            {% endif %}
+            <li
+                    class="list-group-item"
+                    aria-label="status"
+                    data-attr:display="$status === 'published' ? 'none' : 'block'"
+            >
+                <span
+                    class="material-icons-outlined me-1"
+                    data-text="iconNames['status_' + $status]"
+                ></span>
+                <span data-text="$status"></span>
+            </li>
+            <li
+                    data-class:list-group-item-success="$isValid"
+                    data-class:list-group-item-danger="!$isValid"
+                    class="list-group-item"
+                aria-label="validation-result"
+            >
+                <h6>
+                    <span class="material-icons-outlined me-1" data-text="$isValid ? '{{ icons.valid_item }}' : '{{ icons.invalid_item }}'"></span>
+                    <span data-text="$isValid ? '{{ _('project is valid') | capitalize }}' : '{{ _('project is invalid') | capitalize  }}'"></span>
+                </h6>
+                {% if validation_details %}
+                    <p class="mb-1" aria-label="validation-result-details">{{ validation_details }}</p>
+                {% endif %}
+            </li>
             <li class="list-group-item">
                 <p>{{ _("Projects with a status of DRAFT are only visible to their owners") }}</p>
                 <p>{{ _("In order to become viewable by all users, a project must be published. Publication is only possible once the project is considered valid.") }}</p>

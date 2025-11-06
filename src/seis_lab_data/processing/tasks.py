@@ -56,6 +56,7 @@ async def validate_project(
     event_emitter = get_event_emitter(settings)
     async with session_maker() as session:
         try:
+            await asyncio.sleep(5)
             await operations.change_project_status(
                 ProjectStatus.UNDER_VALIDATION,
                 project_id,
@@ -71,7 +72,7 @@ async def validate_project(
                     event=schemas.EventType.PROJECT_STATUS_CHANGED,
                 ).model_dump_json(),
             )
-            await asyncio.sleep(3)
+            await asyncio.sleep(5)
             await operations.validate_project(
                 project_id, initiator, session, settings, event_emitter
             )
@@ -81,7 +82,7 @@ async def validate_project(
                     project_id=project_id, event=schemas.EventType.PROJECT_VALIDATED
                 ).model_dump_json(),
             )
-            await asyncio.sleep(3)
+            await asyncio.sleep(5)
             await operations.change_project_status(
                 ProjectStatus.DRAFT,
                 project_id,
@@ -97,7 +98,7 @@ async def validate_project(
                     event=schemas.EventType.PROJECT_STATUS_CHANGED,
                 ).model_dump_json(),
             )
-            await asyncio.sleep(3)
+            await asyncio.sleep(5)
         except Exception:
             logger.exception("Task failed")
 

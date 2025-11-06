@@ -259,10 +259,10 @@ async def get_project_detail_updates(request: Request):
                 updated_project = await operations.get_project(
                     project_id, user or None, session, settings
                 )
-                yield ServerSentEventGenerator.patch_elements(
-                    updated_project.status,
-                    selector=schemas.selector_info.status_selector,
-                    mode=ElementPatchMode.INNER,
+                yield ServerSentEventGenerator.patch_signals(
+                    {
+                        "status": updated_project.status.value,
+                    },
                 )
 
     async def on_validation_update_message(
@@ -284,16 +284,14 @@ async def get_project_detail_updates(request: Request):
                         detail = f"{err['name']}: {err['message']}"
                         details_message = " - ".join((details_message, detail))
                 yield ServerSentEventGenerator.patch_elements(
-                    "valid"
-                    if updated_project.validation_result["is_valid"]
-                    else "invalid",
-                    selector=schemas.selector_info.validation_result_selector,
-                    mode=ElementPatchMode.INNER,
-                )
-                yield ServerSentEventGenerator.patch_elements(
                     details_message,
                     selector=schemas.selector_info.validation_result_details_selector,
                     mode=ElementPatchMode.INNER,
+                )
+                yield ServerSentEventGenerator.patch_signals(
+                    {
+                        "isValid": updated_project.validation_result["is_valid"],
+                    },
                 )
 
     async def on_project_update_message(
@@ -782,9 +780,6 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             logger.info("project update has been successful")
             logger.info("requesting project validation...")
 
-            # submit background task but don't bother subscribing for its
-            # messages - we are going to redirect the user anyway so no point in
-            # subscribing
             enqueued_validation_request_message: Message = tasks.validate_project.send(
                 raw_request_id=str(request_id),
                 raw_project_id=str(project_id),
