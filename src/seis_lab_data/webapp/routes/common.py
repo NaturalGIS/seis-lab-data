@@ -113,30 +113,37 @@ async def produce_event_stream_for_item_updates(
     timeout_seconds: int = 30,
     **topic_handler: Callable[[dict], AsyncGenerator[DatastarEvent, None]],
 ):
+    logger.debug("Inside produce_event_stream_for_item_updates")
     async with redis_client.pubsub() as pubsub:
+        logger.debug(f"Subscribing to {topic_handler.keys()=}...")
         await pubsub.subscribe(*topic_handler.keys())
         try:
             while True:
-                if await request.is_disconnected():
-                    logger.info("client disconnected")
-                    break
+                try:
+                    if await request.is_disconnected():
+                        logger.info("client disconnected")
+                        break
+                except Exception:
+                    logger.exception("Error checking disconnection")
+                    raise
                 try:
                     if message := await pubsub.get_message(
-                        ignore_subscribe_messages=True, timeout=timeout_seconds
+                        ignore_subscribe_messages=True
                     ):
                         logger.debug(f"received message: {message=}")
-                        handler = topic_handler[message["channel"]]
+                        from_channel = message["channel"].decode("utf-8")
+                        handler = topic_handler[from_channel]
+                        logger.info(f"the handler for this message is {handler=}")
                         async for datastar_event in handler(message["data"]):
                             yield datastar_event
-                    else:
-                        logging.info(
-                            f"pubsub listener for timed out after {timeout_seconds} seconds"
-                        )
-                        break
                 except asyncio.CancelledError:
                     logger.info("pubsub listener was cancelled")
                     raise
+                except Exception:
+                    logger.exception("Some error happened")
+                    raise
         finally:
+            logger.info(f"unsubscribing from {topic_handler.keys()=}...")
             await pubsub.unsubscribe(*topic_handler.keys())
 
 

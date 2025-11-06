@@ -1,66 +1,72 @@
 {% import "macros.html" as macros %}
 {% import "macros-buttons-list-items.html" as macros_buttons_list_items %}
 {% import "macros-maps.html" as macros_maps %}
-<div class="row m-5" data-effect="@get('{{ url_for("projects:get_detail_updates", project_id=project.id) }}')">
+<div class="row" data-signals:project-id="'{{ project.id }}'"
+     data-effect="@get('{{ url_for("projects:get_detail_updates", project_id=project.id) }}')">
     <div class="col">
-        <div class="row">
+        <div class="row mb-5">
             <div class="col">
-                {% if project.bbox_4326 is not none %}
-                    {{ macros_maps.render_bbox_display_component(
-                settings.webmap_base_tile_layer_url,
-                settings.webmap_default_zoom_level,
-                project.bbox_4326
-            ) }}
-                {% endif %}
+                <div class="card">
+                    {% if project.bbox_4326 is not none %}
+                        {{ macros_maps.render_bbox_display_component(
+                            settings.webmap_base_tile_layer_url,
+                            settings.webmap_default_zoom_level,
+                            project.bbox_4326
+                        ) }}
+                    {% endif %}
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col">
+                                <p>{{ project.description | translate_localizable_string }}</p>
+                                <dl class="row">
+                                    <dt class="col-sm-3">{{ _("root path") | capitalize }}</dt>
+                                    <dd class="col-sm-9">{{ project.root_path|default(_("root path not available"), True) }}</dd>
+                                    <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
+                                    <dd class="col-sm-9">{{ project.temporal_extent_begin|default(_(".."), True) }}/{{ project.temporal_extent_end|default(_(".."), True) }}</dd>
+                                    <dt class="col-sm-3">{{ _("spatial extent") | capitalize }}
+                                    <dd class="col-sm-9">{{ project.bbox_4326.bounds }}</dd>
+                                </dl>
+                            </div>
+                            <div class="col-3">
+                                <h5>{{ _("links") | capitalize }}</h5>
+                                <div class="list-group list-group-flush">
+                                    {% for link in project.links %}
+                                        <a
+                                                class="list-group-item list-group-item-action"
+                                                href="{{ link.url }}"
+                                                rel="{{ link.relation }}"
+                                                target="_blank"
+                                                type="{{ link.media_type }}"
+                                        >
+                                            <h6>
+                                    <span
+                                            class="material-icons-outlined me-1"
+                                    >
+                                        {{ icons.open_link }}
+                                    </span>
+                                                {{ link.url }}
+                                                <span class="badge rounded-pill bg-light">{{ link.media_type }}</span>
+                                                <span class="badge rounded-pill bg-light">{{ link.relation }}</span>
+                                            </h6>
+                                            <small>{{ link.link_description | translate_localizable_string }}</small>
+                                        </a>
+                                    {% else %}
+                                        <p class="list-group-item">{{ _("no links found") | capitalize }}</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="row">
-            <div class="col">
-                <dl class="row">
-                    <dt class="col-sm-3">{{ _("english name") | capitalize }}</dt>
-                    <dd class="col-sm-9">{{ project.name.en }}</dd>
-                    <dt class="col-sm-3">{{ _("portuguese name") | capitalize }}</dt>
-                    <dd class="col-sm-9">{{ project.name.pt|default(_("portuguese name not available yet"), True) }}</dd>
-                    <dt class="col-sm-3">{{ _("english description") | capitalize }}</dt>
-                    <dd class="col-sm-9">{{ project.description.en | default(_("english description not available yet"), True) }}</dd>
-                    <dt class="col-sm-3">{{ _("portuguese description") | capitalize }}</dt>
-                    <dd class="col-sm-9">{{ project.description.pt | default(_("portuguese description not available yet"), True) }}</dd>
-                    <dt class="col-sm-3">{{ _("status") | capitalize }}</dt>
-                    <dd class="col-sm-9">{{ project.status.value }}</dd>
-                    <dt class="col-sm-3">{{ _("is valid") | capitalize }}</dt>
-                    <dd class="col-sm-9">{{ project.is_valid }}</dd>
-                    <dt class="col-sm-3">{{ _("root path") | capitalize }}</dt>
-                    <dd class="col-sm-9">{{ project.root_path|default(_("root path not available"), True) }}</dd>
-                    <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
-                    <dd class="col-sm-9">{{ project.temporal_extent_begin|default(_(".."), True) }}/{{ project.temporal_extent_end|default(_(".."), True) }}</dd>
-                </dl>
-            </div>
-        </div>
+
     </div>
     <div class="col-3">
-        {% set is_valid = project.validation_result.is_valid %}
-        {% set validation_details = project.validation_result.errors or [] | join(" ") %}
-        <h5>{{ _("info") | capitalize }}</h5>
-        <ul class="list-group mb-3">
-            {% if project.status != ProjectStatus.PUBLISHED %}
-                <li class="list-group-item" aria-label="status"><span class="material-icons-outlined me-1">{{ project.status | get_status_icon_name }}</span>{{ project.status.value | upper }}</li>
-                <li class="list-group-item {% if is_valid %}list-group-item-success{% else %}list-group-item-warning{% endif %}" aria-label="validation-result">
-                    <h6>{% if is_valid %}<span class="material-icons-outlined me-1">{{ icons.valid_item }}</span>{{ _("project is valid") | capitalize }}{% else %}<span class="material-icons-outlined me-1">{{ icons.invalid_item }}</span>{{ _("invalid") | capitalize }}{% endif %}</h6>
-                    {% if validation_details %}
-                        <p class="mb-1" aria-label="validation-result-details">{{ validation_details }}</p>
-                    {% endif %}
-                </li>
-            {% endif %}
-            <li class="list-group-item">
-                <p>{{ _("Projects with a status of DRAFT are only visible to their owners") }}</p>
-                <p>{{ _("In order to become viewable by all users, a project must be published. Publication is only possible once the project is considered valid.") }}</p>
-                <p>{{ _("Valid projects can be published. When published, a project becomes visible for all users") }}</p>
-            </li>
-        </ul>
         <h5>{{ _("actions") | capitalize }}</h5>
         <div class="list-group mb-3" data-signals:deleting="false">
             {% if permissions.can_update %}
-                    {{ macros_buttons_list_items.render_update_item_button(
+                {{ macros_buttons_list_items.render_update_item_button(
                 url_for("projects:get_update_form", project_id=project.id),
                 _("edit project")
             ) }}
@@ -71,6 +77,17 @@
                 _("add new survey mission"),
                 icon_name=icons.survey_missions
             ) }}
+            {% endif %}
+            {% if permissions.can_publish and project.status == ProjectStatus.DRAFT and project.validation_result.is_valid %}
+                {{ macros_buttons_list_items.render_publish_item_button(
+                    publishing_url="#",
+                    signal_name="publishing",
+                        idle_message="publish project",
+                        running_message="publishing project...",
+                        generated_csrf_token=csrf_token(request),
+                        modal_dialog_title=_("publish project"),
+                        modal_dialog_confirmation_text=_("are you sure you want to publish this project?")
+                ) }}
             {% endif %}
             {% if permissions.can_delete %}
                 {{ macros_buttons_list_items.render_delete_item_button(
@@ -84,24 +101,39 @@
             ) }}
             {% endif %}
         </div>
-        <h5>{{ _("links") | capitalize }}</h5>
-        <div class="list-group list-group-flush mb-3">
-            {% for link in project.links %}
-                <a
-                        class="list-group-item"
-                        href="{{ link.url }}"
-                        rel="{{ link.relation }}"
-                        target="_blank"
-                        type="{{ link.media_type }}"
+        {% set is_valid = project.validation_result.is_valid %}
+        {% set validation_details = project.validation_result.errors or [] %}
+        <h5>{{ _("info") | capitalize }}</h5>
+        <ul class="list-group">
+            {% if project.status != ProjectStatus.PUBLISHED %}
+                <li class="list-group-item" aria-label="status"><span
+                        class="material-icons-outlined me-1">{{ project.status | get_status_icon_name }}</span>{{ project.status.value | upper }}
+                </li>
+                <li class="list-group-item {% if is_valid %}list-group-item-success{% else %}list-group-item-warning{% endif %}"
+                    aria-label="validation-result"
                 >
-                    <h6><span class="material-icons-outlined me-1">{{ icons.open_link }}</span>{{ link.url }}</h6>
-                    <small class="ps-4">{{ link.media_type }}</small>
-                    <small>{{ link.link_description | translate_localizable_string }}</small>
-                </a>
-            {% else %}
-                <p class="list-group-item">{{ _("no links found") | capitalize }}</p>
-            {% endfor %}
-        </div>
+                    {% if is_valid %}
+                        <h6>
+                            <span class="material-icons-outlined me-1">{{ icons.valid_item }}</span>
+                            {{ _("project is valid") | capitalize }}
+                        </h6>
+                    {% else %}
+                        <h6>
+                            <span class="material-icons-outlined me-1">{{ icons.invalid_item }}</span>
+                            {{ _("project is invalid") | capitalize }}
+                        </h6>
+                    {% endif %}
+                    {% if validation_details %}
+                        <p class="mb-1" aria-label="validation-result-details">{{ validation_details }}</p>
+                    {% endif %}
+                </li>
+            {% endif %}
+            <li class="list-group-item">
+                <p>{{ _("Projects with a status of DRAFT are only visible to their owners") }}</p>
+                <p>{{ _("In order to become viewable by all users, a project must be published. Publication is only possible once the project is considered valid.") }}</p>
+                <p>{{ _("Valid projects can be published. When published, a project becomes visible for all users") }}</p>
+            </li>
+        </ul>
     </div>
 </div>
 <div class="row m-5">

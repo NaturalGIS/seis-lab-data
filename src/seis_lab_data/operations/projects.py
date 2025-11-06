@@ -95,10 +95,6 @@ async def validate_project(
         raise errors.SeisLabDataError("User is not allowed to validate project.")
     if (project := await queries.get_project(session, project_id)) is None:
         raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
-    if project.status != ProjectStatus.DRAFT:
-        raise errors.SeisLabDataError(
-            f"Project is currently busy with status {project.status} - retry later"
-        )
 
     old_validation_result = project.validation_result or {
         "is_valid": False,

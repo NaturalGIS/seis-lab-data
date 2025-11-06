@@ -708,7 +708,6 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         form_instance = await forms.ProjectUpdateForm.get_validated_form_instance(
             request, disregard_id=project_id
         )
-        logger.debug(f"{form_instance.has_validation_errors()=}")
 
         if form_instance.has_validation_errors():
             logger.debug("form did not validate")
@@ -780,12 +779,18 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 message=f"{final_message.message}",
             )
 
-            # let's now also validate the project
-            tasks.validate_project.send(
+            logger.info("project update has been successful")
+            logger.info("requesting project validation...")
+
+            # submit background task but don't bother subscribing for its
+            # messages - we are going to redirect the user anyway so no point in
+            # subscribing
+            enqueued_validation_request_message: Message = tasks.validate_project.send(
                 raw_request_id=str(request_id),
                 raw_project_id=str(project_id),
                 raw_initiator=json.dumps(dataclasses.asdict(user)),
             )
+            logger.debug(f"{enqueued_validation_request_message=}")
 
             yield ServerSentEventGenerator.patch_elements(
                 rendered_message,

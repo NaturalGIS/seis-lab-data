@@ -86,6 +86,7 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
                 "new_item": "add_circle_outline",
                 "open_link": "open_in_new",
                 "projects": "view_timeline",
+                "publish_item": "publish",
                 "status_draft": "design_services",
                 "status_published": "public",
                 "status_under_validation": "cycle",

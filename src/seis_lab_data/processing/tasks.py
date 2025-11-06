@@ -19,6 +19,7 @@ from ..constants import (
     PROGRESS_TOPIC_NAME_TEMPLATE,
     PROJECT_UPDATED_TOPIC,
     PROJECT_STATUS_CHANGED_TOPIC,
+    PROJECT_VALIDITY_CHANGED_TOPIC,
 )
 
 from ..events import get_event_emitter
@@ -46,9 +47,11 @@ async def validate_project(
     redis_client: Redis,
     session_maker: Callable,
 ):
-    request_id = schemas.RequestId(uuid.UUID(raw_request_id))
-    topic_name = PROJECT_STATUS_CHANGED_TOPIC.format(request_id=request_id)
     project_id = schemas.ProjectId(uuid.UUID(raw_project_id))
+    validity_topic = PROJECT_VALIDITY_CHANGED_TOPIC.format(project_id=project_id)
+    status_topic = PROJECT_STATUS_CHANGED_TOPIC.format(project_id=project_id)
+    logger.debug(f"validation updates will be published to topic {validity_topic=} ")
+    logger.debug(f"status updates will be published to topic {status_topic=} ")
     initiator = schemas.User(**json.loads(raw_initiator))
     event_emitter = get_event_emitter(settings)
     async with session_maker() as session:
@@ -62,21 +65,23 @@ async def validate_project(
                 event_emitter,
             )
             await redis_client.publish(
-                topic_name,
+                status_topic,
                 schemas.ProjectEvent(
                     project_id=project_id,
                     event=schemas.EventType.PROJECT_STATUS_CHANGED,
                 ).model_dump_json(),
             )
+            await asyncio.sleep(3)
             await operations.validate_project(
                 project_id, initiator, session, settings, event_emitter
             )
             await redis_client.publish(
-                topic_name,
+                validity_topic,
                 schemas.ProjectEvent(
                     project_id=project_id, event=schemas.EventType.PROJECT_VALIDATED
                 ).model_dump_json(),
             )
+            await asyncio.sleep(3)
             await operations.change_project_status(
                 ProjectStatus.DRAFT,
                 project_id,
@@ -86,12 +91,13 @@ async def validate_project(
                 event_emitter,
             )
             await redis_client.publish(
-                topic_name,
+                status_topic,
                 schemas.ProjectEvent(
                     project_id=project_id,
                     event=schemas.EventType.PROJECT_STATUS_CHANGED,
                 ).model_dump_json(),
             )
+            await asyncio.sleep(3)
         except Exception:
             logger.exception("Task failed")
 

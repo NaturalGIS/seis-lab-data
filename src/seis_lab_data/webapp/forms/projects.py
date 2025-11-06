@@ -86,7 +86,6 @@ class _ProjectForm(StarletteForm):
         all_form_validation_errors = {**self.errors}
         for link in self.links.entries:
             all_form_validation_errors.update(**link.errors)
-        logger.debug(f"{all_form_validation_errors=}")
         return bool(all_form_validation_errors)
 
     def validate_with_schema(self) -> None:
@@ -108,19 +107,15 @@ class _ProjectForm(StarletteForm):
         """
 
         form_instance = await cls.from_formdata(request)
-        logger.debug(f"{form_instance.data=}")
         # first validate the form with WTForms' validation logic
         # then validate the form data with our custom pydantic model
         await form_instance.validate_on_submit()
-        logger.debug(f"{form_instance.errors=}")
         form_instance.validate_with_schema()
-        logger.debug(f"after validate with schema {form_instance.errors=}")
         session_maker = request.state.session_maker
         async with session_maker() as session:
             await form_instance.check_if_english_name_is_unique(
                 session, disregard_id=disregard_id
             )
-        logger.debug(f"after check english name {form_instance.errors=}")
         return form_instance
 
 
@@ -158,7 +153,6 @@ class ProjectCreateForm(_ProjectForm):
                 temporal_extent_end=self.temporal_extent_end.data or None,
             )
         except pydantic.ValidationError as exc:
-            logger.error(f"pydantic errors {exc.errors()=}")
             incorporate_schema_validation_errors_into_form(exc.errors(), self)
 
 
@@ -194,5 +188,4 @@ class ProjectUpdateForm(_ProjectForm):
                 ],
             )
         except pydantic.ValidationError as exc:
-            logger.error(f"pydantic errors {exc.errors()=}")
             incorporate_schema_validation_errors_into_form(exc.errors(), self)

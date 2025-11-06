@@ -16,16 +16,6 @@
             data-max-lat="{{ bbox_4326.bounds[3] }}"
             style="display: block; width: 100%; height: 30vh"
     ></bbox-map-readonly>
-    <dl class="row">
-        <dt class="col-sm-3">{{ _("Minimum longitude") | capitalize }}</dt>
-        <dt class="col-sm-9">{{ bbox_4326.bounds[0] }}</dt>
-        <dt class="col-sm-3">{{ _("Minimum latitude" | capitalize) }}</dt>
-        <dt class="col-sm-9">{{ bbox_4326.bounds[1] }}</dt>
-        <dt class="col-sm-3">{{ _("Maximum longitude" | capitalize) }}</dt>
-        <dt class="col-sm-9">{{ bbox_4326.bounds[2] }}</dt>
-        <dt class="col-sm-3">{{ _("Maximum latitude" | capitalize) }}</dt>
-        <dt class="col-sm-9">{{ bbox_4326.bounds[3] }}</dt>
-    </dl>
 {% endmacro %}
 
 
