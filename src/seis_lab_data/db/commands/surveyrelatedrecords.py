@@ -12,6 +12,7 @@ from .. import (
     queries,
 )
 from .common import get_bbox_4326_for_db
+from ...constants import SurveyRelatedRecordStatus
 
 logger = logging.getLogger(__name__)
 
@@ -189,4 +190,42 @@ async def update_survey_related_record(
     await session.refresh(survey_related_record)
     return await queries.get_survey_related_record(
         session, schemas.SurveyRelatedRecordId(survey_related_record.id)
+    )
+
+
+async def update_survey_related_record_validation_result(
+    session: AsyncSession,
+    survey_related_record: models.SurveyRelatedRecord,
+    validation_result: models.ValidationResult,
+) -> models.SurveyRelatedRecord:
+    """Unconditionally sets the survey-related record's validation result."""
+    survey_related_record.validation_result = validation_result
+    session.add(survey_related_record)
+    await session.commit()
+    await session.refresh(survey_related_record)
+    return await queries.get_survey_related_record(
+        session, schemas.SurveyRelatedRecordId(survey_related_record.id)
+    )
+
+
+async def set_survey_related_record_status(
+    session: AsyncSession,
+    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    status: SurveyRelatedRecordStatus,
+) -> models.SurveyRelatedRecord:
+    """Unconditionally sets the survey-related record's status."""
+    if (
+        survey_related_record := (
+            await queries.get_survey_related_record(session, survey_related_record_id)
+        )
+    ) is None:
+        raise errors.SeisLabDataError(
+            f"Survey-related record with id {survey_related_record_id} does not exist."
+        )
+    survey_related_record.status = status
+    session.add(survey_related_record)
+    await session.commit()
+    await session.refresh(survey_related_record)
+    return await queries.get_survey_related_record(
+        session, schemas.SurveyRelatedRecordId(survey_related_record_id)
     )

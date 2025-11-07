@@ -109,3 +109,14 @@ async def can_validate_survey_related_record(
     return await can_update_survey_related_record(
         user, survey_related_record_id, settings=settings
     )
+
+
+async def can_change_survey_related_record_status(
+    user: schemas.User,
+    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    *,
+    settings: config.SeisLabDataSettings,
+) -> bool:
+    return await can_update_survey_related_record(
+        user, survey_related_record_id, settings=settings
+    )

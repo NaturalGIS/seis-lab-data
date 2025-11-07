@@ -7,6 +7,7 @@ from .projects import (
     can_validate_project,
 )
 from .surveymissions import (
+    can_change_survey_mission_status,
     can_create_survey_mission,
     can_delete_survey_mission,
     can_read_survey_mission,
@@ -14,6 +15,7 @@ from .surveymissions import (
     can_validate_survey_mission,
 )
 from .surveyrelatedrecords import (
+    can_change_survey_related_record_status,
     can_create_dataset_category,
     can_create_domain_type,
     can_create_survey_related_record,
@@ -29,6 +31,8 @@ from .surveyrelatedrecords import (
 
 __all__ = [
     can_change_project_status,
+    can_change_survey_mission_status,
+    can_change_survey_related_record_status,
     can_create_dataset_category,
     can_create_domain_type,
     can_create_project,

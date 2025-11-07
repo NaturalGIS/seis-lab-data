@@ -34,6 +34,7 @@ now_ = partial(dt.datetime.now, tz=dt.timezone.utc)
 
 class ValidationError(TypedDict):
     name: str
+    type_: str
     message: str
 
 

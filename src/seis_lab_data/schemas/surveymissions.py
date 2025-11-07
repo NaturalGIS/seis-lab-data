@@ -47,7 +47,8 @@ class SurveyMissionReadEmbedded(pydantic.BaseModel):
     id: SurveyMissionId
     name: LocalizableDraftName
     status: SurveyMissionStatus
-    is_valid: bool
+    # is_valid: bool
+    validation_result: models.ValidationResult | None
     temporal_extent_begin: dt.date | None
     temporal_extent_end: dt.date | None
     project: ProjectReadEmbedded
@@ -67,7 +68,8 @@ class SurveyMissionReadListItem(pydantic.BaseModel):
     name: LocalizableDraftName
     description: LocalizableDraftDescription
     status: SurveyMissionStatus
-    is_valid: bool
+    # is_valid: bool
+    validation_result: models.ValidationResult | None
     project: ProjectReadEmbedded
 
     @classmethod

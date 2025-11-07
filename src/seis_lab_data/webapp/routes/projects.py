@@ -213,14 +213,10 @@ async def get_project_detail_updates(request: Request):
     - project validation results -> client updates just the validation-related display
     - project updates -> ask client to reload project details page
     """
-    if (raw_params := request.query_params.get("datastar", "null")) is None:
-        raise HTTPException(status_code=404, detail="Invalid request query parameters")
     try:
-        params = json.loads(raw_params)
-        project_id = schemas.ProjectId(uuid.UUID(params["projectId"]))
-    except (json.JSONDecodeError, KeyError) as exc:
-        raise HTTPException(status_code=400, detail="Invalid search params") from exc
-
+        project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid project id") from err
     session_maker = request.state.session_maker
     settings: config.SeisLabDataSettings = request.state.settings
     redis_client: Redis = request.state.redis_client
@@ -280,9 +276,10 @@ async def get_project_detail_updates(request: Request):
                 )
                 details_message = ""
                 if not updated_project.validation_result.get("is_valid"):
+                    details_message += "<ul>"
                     for err in updated_project.validation_result.get("errors", []):
                         detail = f"{err['name']}: {err['message']}"
-                        details_message = " - ".join((details_message, detail))
+                        details_message += f"<li>{detail}</li>"
                 yield ServerSentEventGenerator.patch_elements(
                     details_message,
                     selector=schemas.selector_info.validation_result_details_selector,
@@ -777,16 +774,6 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 message=f"{final_message.message}",
             )
 
-            logger.info("project update has been successful")
-            logger.info("requesting project validation...")
-
-            enqueued_validation_request_message: Message = tasks.validate_project.send(
-                raw_request_id=str(request_id),
-                raw_project_id=str(project_id),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
-            )
-            logger.debug(f"{enqueued_validation_request_message=}")
-
             yield ServerSentEventGenerator.patch_elements(
                 rendered_message,
                 selector=schemas.selector_info.feedback_selector,
@@ -826,6 +813,12 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 "",
                 selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.INNER,
+            )
+
+            tasks.validate_project.send(
+                raw_request_id=str(request_id),
+                raw_project_id=str(project_id),
+                raw_initiator=json.dumps(dataclasses.asdict(user)),
             )
 
         async def handle_processing_failure(

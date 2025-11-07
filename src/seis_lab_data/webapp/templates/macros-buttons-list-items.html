@@ -21,8 +21,9 @@
 
 {% macro render_update_item_button(url, text) %}
     <button
-            class="list-group-item list-group-item-action list-group-item-info"
+            data-attr:disabled="$status === 'under_validation'"
             data-on:click="@get('{{ url }}')"
+            class="list-group-item list-group-item-action list-group-item-info"
             aria-label="update-item"
     ><span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ text | capitalize }}
     </button>

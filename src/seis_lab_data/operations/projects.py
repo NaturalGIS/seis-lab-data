@@ -59,7 +59,7 @@ async def change_project_status(
     if initiator is None or not await permissions.can_change_project_status(
         initiator, project_id, settings=settings
     ):
-        raise errors.SeisLabDataError("User is not allowed to chang project status.")
+        raise errors.SeisLabDataError("User is not allowed to change project status.")
     if (project := await queries.get_project(session, project_id)) is None:
         raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
     if (old_status := project.status) == target_status:
@@ -107,8 +107,9 @@ async def validate_project(
         for error in err.errors():
             validation_errors.append(
                 {
-                    "name": " ".join(error["loc"]),
+                    "name": ".".join(str(i) for i in error["loc"]),
                     "message": error["msg"],
+                    "type_": error["type"],
                 }
             )
         await commands.update_project_validation_result(

@@ -22,6 +22,10 @@ from .processing import (
     ProcessingMessage,
     ProjectUpdatedMessage,
     ProjectEvent,
+    SurveyMissionEvent,
+    SurveyMissionUpdatedMessage,
+    SurveyRelatedRecordEvent,
+    SurveyRelatedRecordUpdatedMessage,
 )
 from .projects import (
     ProjectCreate,
@@ -64,6 +68,8 @@ from .webui import (
 )
 from .validation import (
     ValidProject,
+    ValidSurveyMission,
+    ValidSurveyRelatedRecord,
 )
 
 __all__ = [
@@ -100,16 +106,20 @@ __all__ = [
     selector_info,
     SurveyMissionCreate,
     SurveyMissionDetails,
+    SurveyMissionEvent,
     SurveyMissionId,
     SurveyMissionReadDetail,
     SurveyMissionReadListItem,
     SurveyMissionUpdate,
+    SurveyMissionUpdatedMessage,
     SurveyRelatedRecordCreate,
     SurveyRelatedRecordDetails,
+    SurveyRelatedRecordEvent,
     SurveyRelatedRecordId,
     SurveyRelatedRecordReadDetail,
     SurveyRelatedRecordReadListItem,
     SurveyRelatedRecordUpdate,
+    SurveyRelatedRecordUpdatedMessage,
     TemporalExtentFilterValue,
     WorkflowStageCreate,
     WorkflowStageId,
@@ -118,4 +128,6 @@ __all__ = [
     UserId,
     UserPermissionDetails,
     ValidProject,
+    ValidSurveyMission,
+    ValidSurveyRelatedRecord,
 ]

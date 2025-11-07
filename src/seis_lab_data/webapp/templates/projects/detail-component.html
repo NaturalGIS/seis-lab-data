@@ -3,10 +3,9 @@
 {% import "macros-maps.html" as macros_maps %}
 <div
     class="row"
-    data-signals:project-id="'{{ project.id }}'"
+    data-effect="@peek(() => @get('{{ url_for("projects:get_detail_updates", project_id=project.id) }}'))"
     data-signals:is-valid="{{ 'true' if project.validation_result.is_valid else 'false' }}"
     data-signals:status="'{{ project.status | translate_enum }}'"
-    data-effect="@get('{{ url_for("projects:get_detail_updates", project_id=project.id) }}')"
 >
     <div class="col">
         <div class="row mb-5">
@@ -95,7 +94,6 @@
             ) }}
             {% endif %}
         </div>
-        {% set validation_details = project.validation_result.errors or [] %}
         <h5>{{ _("info") | capitalize }}</h5>
         <script>
             window.iconNames = JSON.parse('{{ icons | tojson }}')
@@ -104,7 +102,7 @@
             <li
                     class="list-group-item"
                     aria-label="status"
-                    data-attr:display="$status === 'published' ? 'none' : 'block'"
+                    data-attr:style="$status === 'published' ? 'display:none' : 'display:block'"
             >
                 <span
                     class="material-icons-outlined me-1"
@@ -113,18 +111,31 @@
                 <span data-text="$status"></span>
             </li>
             <li
-                    data-class:list-group-item-success="$isValid"
-                    data-class:list-group-item-danger="!$isValid"
+                    data-class:list-group-item-success="$isValid && $status === 'draft'"
+                    data-class:list-group-item-danger="!$isValid && $status === 'draft'"
                     class="list-group-item"
                 aria-label="validation-result"
             >
-                <h6>
-                    <span class="material-icons-outlined me-1" data-text="$isValid ? '{{ icons.valid_item }}' : '{{ icons.invalid_item }}'"></span>
-                    <span data-text="$isValid ? '{{ _('project is valid') | capitalize }}' : '{{ _('project is invalid') | capitalize  }}'"></span>
-                </h6>
-                {% if validation_details %}
-                    <p class="mb-1" aria-label="validation-result-details">{{ validation_details }}</p>
-                {% endif %}
+                <div class="spinner-border" role="status" data-attr:style="$status === 'under_validation' ? 'display: block' : 'display:none'">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div data-attr:style="$status === 'under_validation' ? 'display: none' : 'display:block'">
+                    <h6>
+                        <span class="material-icons-outlined me-1" data-text="$isValid ? '{{ icons.validation_valid }}' : '{{ icons.validation_invalid }}'"></span>
+                        <span data-text="$isValid ? '{{ _('project is valid') | capitalize }}' : '{{ _('project is invalid') | capitalize  }}'"></span>
+                    </h6>
+                    {% set validation_errors = project.validation_result.errors or [] %}
+                    <div aria-label="validation-result-details">
+                        {% if validation_errors | length > 0 %}
+                            <ul>
+                                {% for validation_error in validation_errors %}
+                                    <li>{{ validation_error.name }}: {{ validation_error.message }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+
+                    </div>
+                </div>
             </li>
             <li class="list-group-item">
                 <p>{{ _("Projects with a status of DRAFT are only visible to their owners") }}</p>
@@ -137,12 +148,13 @@
 <div class="row m-5">
     <div class="col">
         <h2>{{ _("survey missions") | capitalize }}</h2>
-
-        {{ macros.render_search_component(
+        {% if items | length > 0 %}
+            {{ macros.render_search_component(
                url_for("survey_missions:get_list_component"),
                _("search project survey-missions"),
                initial_value=search_initial_value
-        ) }}
+            ) }}
+        {% endif %}
 
         <div class="row" aria-label="items">
             <div class="col">

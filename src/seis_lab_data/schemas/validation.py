@@ -22,6 +22,11 @@ def ensure_root_path_exists(value: str) -> str:
     return value
 
 
+def ensure_relative_path_exists(value: str) -> str:
+    # TODO: this validation needs access to the parent project's root_path
+    return value
+
+
 class LocalizableValidName(pydantic.BaseModel):
     en: Annotated[
         str,
@@ -91,11 +96,51 @@ def parse_possibly_empty_wkbelement_polygon_into_valid_geometry(
 class ValidProject(pydantic.BaseModel):
     id: common.ProjectId
     name: LocalizableValidName
+    description: LocalizableValidDescription
     status: constants.ProjectStatus
     temporal_extent_begin: dt.date | None
     temporal_extent_end: dt.date | None
     owner: common.UserId
     root_path: Annotated[str, pydantic.PlainValidator(ensure_root_path_exists)]
+    links: list[ValidLinkSchema] = []
+    bbox_4326: Annotated[
+        shapely.Polygon,
+        pydantic.PlainValidator(
+            parse_possibly_empty_wkbelement_polygon_into_valid_geometry
+        ),
+    ]
+
+
+class ValidSurveyMission(pydantic.BaseModel):
+    id: common.SurveyMissionId
+    name: LocalizableValidName
+    description: LocalizableValidDescription
+    status: constants.SurveyMissionStatus
+    temporal_extent_begin: dt.date | None
+    temporal_extent_end: dt.date | None
+    owner: common.UserId
+    relative_path: Annotated[str, pydantic.PlainValidator(ensure_relative_path_exists)]
+    links: list[ValidLinkSchema] = []
+    bbox_4326: Annotated[
+        shapely.Polygon,
+        pydantic.PlainValidator(
+            parse_possibly_empty_wkbelement_polygon_into_valid_geometry
+        ),
+    ]
+
+
+class ValidSurveyRelatedRecord(pydantic.BaseModel):
+    id: common.SurveyRelatedRecordId
+    name: LocalizableValidName
+    dataset_category_id: common.DatasetCategoryId
+    domain_type_id: common.DomainTypeId
+    workflow_stage_id: common.WorkflowStageId
+    description: LocalizableValidDescription
+    status: constants.SurveyMissionStatus
+    temporal_extent_begin: dt.date | None
+    temporal_extent_end: dt.date | None
+    owner: common.UserId
+    relative_path: Annotated[str, pydantic.PlainValidator(ensure_relative_path_exists)]
     links: list[ValidLinkSchema] = []
     bbox_4326: Annotated[
         shapely.Polygon,

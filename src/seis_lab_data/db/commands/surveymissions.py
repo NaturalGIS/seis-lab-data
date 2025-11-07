@@ -11,6 +11,7 @@ from .. import (
     queries,
 )
 from .common import get_bbox_4326_for_db
+from ...constants import SurveyMissionStatus
 
 logger = logging.getLogger(__name__)
 
@@ -75,3 +76,39 @@ async def update_survey_mission(
     await session.commit()
     await session.refresh(survey_mission)
     return survey_mission
+
+
+async def update_survey_mission_validation_result(
+    session: AsyncSession,
+    survey_mission: models.SurveyMission,
+    validation_result: models.ValidationResult,
+) -> models.SurveyMission:
+    """Unconditionally sets the survey mission's validation result."""
+    survey_mission.validation_result = validation_result
+    session.add(survey_mission)
+    await session.commit()
+    await session.refresh(survey_mission)
+    return await queries.get_survey_mission(
+        session, schemas.SurveyMissionId(survey_mission.id)
+    )
+
+
+async def set_survey_mission_status(
+    session: AsyncSession,
+    survey_mission_id: schemas.SurveyMissionId,
+    status: SurveyMissionStatus,
+) -> models.SurveyMission:
+    """Unconditionally sets the survey mission's status."""
+    if (
+        survey_mission := (await queries.get_survey_mission(session, survey_mission_id))
+    ) is None:
+        raise errors.SeisLabDataError(
+            f"Survey mission with id {survey_mission_id} does not exist."
+        )
+    survey_mission.status = status
+    session.add(survey_mission)
+    await session.commit()
+    await session.refresh(survey_mission)
+    return await queries.get_survey_mission(
+        session, schemas.SurveyMissionId(survey_mission_id)
+    )

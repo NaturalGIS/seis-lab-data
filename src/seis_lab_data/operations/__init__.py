@@ -8,13 +8,16 @@ from .projects import (
     validate_project,
 )
 from .surveymissions import (
+    change_survey_mission_status,
     create_survey_mission,
     delete_survey_mission,
     get_survey_mission,
     list_survey_missions,
     update_survey_mission,
+    validate_survey_mission,
 )
 from .surveyrelatedrecords import (
+    change_survey_related_record_status,
     create_dataset_category,
     create_domain_type,
     create_survey_related_record,
@@ -29,10 +32,13 @@ from .surveyrelatedrecords import (
     list_survey_related_records,
     list_workflow_stages,
     update_survey_related_record,
+    validate_survey_related_record,
 )
 
 __all__ = [
     change_project_status,
+    change_survey_mission_status,
+    change_survey_related_record_status,
     create_dataset_category,
     create_domain_type,
     create_project,
@@ -58,4 +64,6 @@ __all__ = [
     update_survey_mission,
     update_survey_related_record,
     validate_project,
+    validate_survey_mission,
+    validate_survey_related_record,
 ]

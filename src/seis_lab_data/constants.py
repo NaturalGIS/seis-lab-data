@@ -16,10 +16,38 @@ SURVEY_RELATED_RECORD_MAX_ASSETS: typing.Final[int] = 20
 
 PROGRESS_TOPIC_NAME_TEMPLATE: typing.Final[str] = "progress:{request_id}"
 
-PROJECT_UPDATED_TOPIC: typing.Final[str] = "updated:{project_id}"
-PROJECT_STATUS_CHANGED_TOPIC: typing.Final[str] = "status-changed:{project_id}"
-PROJECT_VALIDITY_CHANGED_TOPIC: typing.Final[str] = "validity-changed:{project_id}"
-PROJECT_DELETED_TOPIC: typing.Final[str] = "deleted:{project_id}"
+PROJECT_UPDATED_TOPIC: typing.Final[str] = "project-updated:{project_id}"
+PROJECT_STATUS_CHANGED_TOPIC: typing.Final[str] = "project-status-changed:{project_id}"
+PROJECT_VALIDITY_CHANGED_TOPIC: typing.Final[str] = (
+    "project-validity-changed:{project_id}"
+)
+PROJECT_DELETED_TOPIC: typing.Final[str] = "project-deleted:{project_id}"
+
+SURVEY_MISSION_UPDATED_TOPIC: typing.Final[str] = (
+    "survey-mission-updated:{survey_mission_id}"
+)
+SURVEY_MISSION_STATUS_CHANGED_TOPIC: typing.Final[str] = (
+    "survey-mission-status-changed:{survey_mission_id}"
+)
+SURVEY_MISSION_VALIDITY_CHANGED_TOPIC: typing.Final[str] = (
+    "survey-mission-validity-changed:{survey_mission_id}"
+)
+SURVEY_MISSION_DELETED_TOPIC: typing.Final[str] = (
+    "survey-mission-deleted:{survey_mission_id}"
+)
+
+SURVEY_RELATED_RECORD_UPDATED_TOPIC: typing.Final[str] = (
+    "survey-related-record-updated:{survey_mission_id}"
+)
+SURVEY_RELATED_RECORD_STATUS_CHANGED_TOPIC: typing.Final[str] = (
+    "survey-related-record-status-changed:{survey_mission_id}"
+)
+SURVEY_RELATED_RECORD_VALIDITY_CHANGED_TOPIC: typing.Final[str] = (
+    "survey-related-record-validity-changed:{survey_mission_id}"
+)
+SURVEY_RELATED_RECORD_DELETED_TOPIC: typing.Final[str] = (
+    "survey-related-record-deleted:{survey_mission_id}"
+)
 
 
 class TranslatableEnumProtocol(typing.Protocol):

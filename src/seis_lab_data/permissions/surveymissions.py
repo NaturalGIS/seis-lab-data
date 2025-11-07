@@ -53,3 +53,12 @@ async def can_validate_survey_mission(
     settings: config.SeisLabDataSettings,
 ) -> bool:
     return await can_update_survey_mission(user, survey_mission_id, settings=settings)
+
+
+async def can_change_survey_mission_status(
+    user: schemas.User,
+    survey_mission_id: schemas.SurveyMissionId,
+    *,
+    settings: config.SeisLabDataSettings,
+) -> bool:
+    return await can_update_survey_mission(user, survey_mission_id, settings=settings)
