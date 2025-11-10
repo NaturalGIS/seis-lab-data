@@ -6,7 +6,8 @@
         class="row"
         data-effect="@peek(() => @get('{{ url_for("survey_missions:get_detail_updates", survey_mission_id=survey_mission.id) }}'))"
         data-signals:is-valid="{{ survey_mission.validation_result.is_valid | default(False, True) | tojson }}"
-        data-signals:status="'{{ survey_mission.status | translate_enum }}'"
+        data-signals:status="'{{ survey_mission.status.value }}'"
+        data-signals:deleting="false"
 >
     <div class="col">
         <div class="row mb-5">
@@ -75,7 +76,7 @@
 
     <div class="col-3">
         <h5>{{ _("actions") | capitalize }}</h5>
-        <div class="list-group mb-3" data-signals:deleting="false">
+        <div class="list-group mb-3">
             {% if permissions.can_update %}
                 <div class="col">
                     {{ macros_buttons_list_items.render_update_item_button(

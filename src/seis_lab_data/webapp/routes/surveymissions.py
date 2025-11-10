@@ -658,6 +658,12 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 mode=ElementPatchMode.INNER,
             )
 
+            tasks.validate_survey_mission.send(
+                raw_request_id=str(request_id),
+                raw_survey_mission_id=str(survey_mission_id),
+                raw_initiator=json.dumps(dataclasses.asdict(user)),
+            )
+
         async def handle_processing_failure(
             final_message: schemas.ProcessingMessage, message_template: Template
         ) -> AsyncGenerator[DatastarEvent, None]:

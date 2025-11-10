@@ -1,11 +1,12 @@
 {% import "macros.html" as macros %}
+{% import "macros-maps.html" as macros_maps %}
 <form>
     {{ macros.render_localizable_field(form.name) }}
     {{ macros.render_localizable_field(form.description) }}
 
     {{ macros.render_form_field(form.relative_path) }}
 
-    {{ macros.render_bbox_update_component(
+    {{ macros_maps.render_bbox_update_component(
         settings.webmap_base_tile_layer_url,
         settings.webmap_default_zoom_level,
         form.bounding_box

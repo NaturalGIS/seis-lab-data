@@ -37,16 +37,16 @@ SURVEY_MISSION_DELETED_TOPIC: typing.Final[str] = (
 )
 
 SURVEY_RELATED_RECORD_UPDATED_TOPIC: typing.Final[str] = (
-    "survey-related-record-updated:{survey_mission_id}"
+    "survey-related-record-updated:{survey_related_record_id}"
 )
 SURVEY_RELATED_RECORD_STATUS_CHANGED_TOPIC: typing.Final[str] = (
-    "survey-related-record-status-changed:{survey_mission_id}"
+    "survey-related-record-status-changed:{survey_related_record_id}"
 )
 SURVEY_RELATED_RECORD_VALIDITY_CHANGED_TOPIC: typing.Final[str] = (
-    "survey-related-record-validity-changed:{survey_mission_id}"
+    "survey-related-record-validity-changed:{survey_related_record_id}"
 )
 SURVEY_RELATED_RECORD_DELETED_TOPIC: typing.Final[str] = (
-    "survey-related-record-deleted:{survey_mission_id}"
+    "survey-related-record-deleted:{survey_related_record_id}"
 )
 
 

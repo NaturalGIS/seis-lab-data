@@ -5,7 +5,7 @@
     class="row"
     data-effect="@peek(() => @get('{{ url_for("projects:get_detail_updates", project_id=project.id) }}'))"
     data-signals:is-valid="{{ 'true' if project.validation_result.is_valid else 'false' }}"
-    data-signals:status="'{{ project.status | translate_enum }}'"
+    data-signals:status="'{{ project.status.value }}'"
 >
     <div class="col">
         <div class="row mb-5">

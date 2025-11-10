@@ -90,7 +90,7 @@ class SurveyRelatedRecordReadEmbedded(pydantic.BaseModel):
     id: SurveyRelatedRecordId
     name: LocalizableDraftName
     status: SurveyRelatedRecordStatus
-    is_valid: bool
+    validation_result: models.ValidationResult | None
     temporal_extent_begin: dt.date | None
     temporal_extent_end: dt.date | None
     survey_mission: SurveyMissionReadEmbedded
@@ -180,7 +180,7 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
     name: LocalizableDraftName
     description: LocalizableDraftDescription
     status: SurveyRelatedRecordStatus
-    is_valid: bool
+    validation_result: models.ValidationResult | None
     survey_mission: SurveyMissionReadEmbedded
     temporal_extent_begin: dt.date | None
     temporal_extent_end: dt.date | None

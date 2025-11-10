@@ -1,92 +1,164 @@
 {% import "macros.html" as macros %}
-<div class="row mb-3">
-        {% if permissions.can_update %}
+{% import "macros-buttons.html" as macros_buttons %}
+{% import "macros-buttons-list-items.html" as macros_buttons_list_items %}
+{% import "macros-maps.html" as macros_maps %}
+<div class="row"
+     data-effect="@peek(() => @get('{{ url_for("survey_related_records:get_detail_updates", survey_related_record_id=survey_related_record.id) }}'))"
+     data-signals:is-valid="{{ survey_related_record.validation_result.is_valid | default(False, True) | tojson }}"
+     data-signals:status="'{{ survey_related_record.status.value }}'"
+     data-signals:deleting="false"
+>
+    <div class="col">
+        <div class="row mb-5">
             <div class="col">
-                <button
-                        class="btn btn-outline-primary"
-                        data-on:click="@get('{{ url_for("survey_related_records:get_update_form", survey_related_record_id=survey_related_record.id) }}')"
-                        aria-label="update-record"
-                >{{ _("edit survey-related record") | capitalize }}
-                </button>
-                <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
-                     data-attr:hidden="!$deleting">
-                    <span class="visually-hidden">{{ _("Loading...") }}</span>
+                <div class="card">
+                    {% if survey_related_record.bbox_4326 is not none %}
+                        {{ macros_maps.render_bbox_display_component(
+                            settings.webmap_base_tile_layer_url,
+                            settings.webmap_default_zoom_level,
+                            survey_related_record.bbox_4326
+                        ) }}
+                    {% endif %}
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col">
+                                <p>{{ survey_related_record.description | translate_localizable_string }}</p>
+                                <dl class="row">
+                                    <dt class="col-sm-3">{{ _("dataset category") | capitalize }}</dt>
+                                    <dd class="col-sm-9">{{ survey_related_record.dataset_category.name|translate_localizable_string }}</dd>
+                                    <dt class="col-sm-3">{{ _("domain type") | capitalize }}</dt>
+                                    <dd class="col-sm-9">{{ survey_related_record.domain_type.name|translate_localizable_string }}</dd>
+                                    <dt class="col-sm-3">{{ _("workflow stage") | capitalize }}</dt>
+                                    <dd class="col-sm-9">{{ survey_related_record.workflow_stage.name|translate_localizable_string }}</dd>
+                                    <dt class="col-sm-3">{{ _("survey mission") | capitalize }}</dt>
+                                    <dd class="col-sm-9">
+                                        <a
+                                                href="{{ url_for('survey_missions:detail', survey_mission_id=survey_related_record.survey_mission.id) }}"
+                                        >{{ survey_related_record.survey_mission.name|translate_localizable_string }}</a>
+                                    </dd>
+                                    <dt class="col-sm-3">{{ _("project") | capitalize }}</dt>
+                                    <dd class="col-sm-9">
+                                        <a
+                                                href="{{ url_for('projects:detail', project_id=survey_related_record.survey_mission.project.id) }}"
+                                        >{{ survey_related_record.survey_mission.project.name|translate_localizable_string }}</a>
+                                    </dd>
+                                    <dt class="col-sm-3">{{ _("relative path") | capitalize }}</dt>
+                                    <dd class="col-sm-9">{{ survey_related_record.relative_path }}</dd>
+                                    <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
+                                    <dd class="col-sm-9">{{ survey_related_record.temporal_extent_begin|default(_(".."), True) }}/{{ survey_related_record.temporal_extent_end|default(_(".."), True) }}</dd>
+                                </dl>
+                            </div>
+                            <div class="col-3">
+                                <h5>{{ _("links") | capitalize }}</h5>
+                                <div class="list-group list-group-flush">
+                                    {% for link in survey_related_record.links %}
+                                        <a
+                                                class="list-group-item list-group-item-action"
+                                                href="{{ link.url }}"
+                                                rel="{{ link.relation }}"
+                                                target="_blank"
+                                                type="{{ link.media_type }}"
+                                        >
+                                            <h6>
+                                    <span
+                                            class="material-icons-outlined me-1"
+                                    >
+                                        {{ icons.open_link }}
+                                    </span>
+                                                {{ link.url }}
+                                                <span class="badge rounded-pill bg-light">{{ link.media_type }}</span>
+                                                <span class="badge rounded-pill bg-light">{{ link.relation }}</span>
+                                            </h6>
+                                            <small>{{ link.link_description | translate_localizable_string }}</small>
+                                        </a>
+                                    {% else %}
+                                        <p class="list-group-item">{{ _("no links found") | capitalize }}</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
                 </div>
             </div>
-        {% endif %}
-    <div class="col" data-signals:deleting="false">
-        {% if permissions.can_delete %}
-            {{ macros.render_delete_item_button(
-            deletion_url=url_for("survey_related_records:detail", survey_related_record_id=survey_related_record.id),
-            signal_name="deleting",
-            idle_message="delete survey-related record",
-            running_message="deleting survey-related record...",
-            generated_csrf_token=csrf_token(request),
-            modal_dialog_title=_("delete survey-related record"),
-            modal_dialog_confirmation_text=_("are you sure you want to delete this survey-related record?")
-            ) }}
-        {% endif %}
+        </div>
     </div>
-</div>
-{% if survey_related_record.bbox_4326 is not none %}
-    {{ macros.render_bbox_display_component(
-        settings.webmap_base_tile_layer_url,
-        settings.webmap_default_zoom_level,
-        survey_related_record.bbox_4326
-    ) }}
-{% endif %}
 
-<div class="row">
-    <div class="col">
-        <h2>{{ _("properties") | capitalize }}</h2>
-        <dl class="row">
-            <dt class="col-sm-3">{{ _("name") | capitalize }}</dt>
-            <dd class="col-sm-9">{{ survey_related_record.name|translate_localizable_string }}</dd>
-            <dt class="col-sm-3">{{ _("description") | capitalize }}</dt>
-            <dd class="col-sm-9">{{ survey_related_record.description|translate_localizable_string }}</dd>
-            <dt class="col-sm-3">{{ _("dataset category") | capitalize }}</dt>
-            <dd class="col-sm-9">{{ survey_related_record.dataset_category.name|translate_localizable_string }}</dd>
-            <dt class="col-sm-3">{{ _("domain type") | capitalize }}</dt>
-            <dd class="col-sm-9">{{ survey_related_record.domain_type.name|translate_localizable_string }}</dd>
-            <dt class="col-sm-3">{{ _("workflow stage") | capitalize }}</dt>
-            <dd class="col-sm-9">{{ survey_related_record.workflow_stage.name|translate_localizable_string }}</dd>
-            <dt class="col-sm-3">{{ _("status") | capitalize }}</dt>
-            <dd class="col-sm-9">{{ survey_related_record.status|translate_enum }}</dd>
-            <dt class="col-sm-3">{{ _("is valid") | capitalize }}</dt>
-            <dd class="col-sm-9">{{ survey_related_record.is_valid }}</dd>
-            <dt class="col-sm-3">{{ _("survey mission") | capitalize }}</dt>
-            <dd class="col-sm-9"><a
-                    href="{{ url_for('survey_missions:detail', survey_mission_id=survey_related_record.survey_mission.id) }}">{{ survey_related_record.survey_mission.name|translate_localizable_string }}</a>
-            </dd>
-            <dt class="col-sm-3">{{ _("project") | capitalize }}</dt>
-            <dd class="col-sm-9"><a
-                    href="{{ url_for('projects:detail', project_id=survey_related_record.survey_mission.project.id) }}">{{ survey_related_record.survey_mission.project.name|translate_localizable_string }}</a>
-            </dd>
-            <dt class="col-sm-3">{{ _("relative path") | capitalize }}</dt>
-            <dd class="col-sm-9">{{ survey_related_record.relative_path }}</dd>
-            <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
-            <dd class="col-sm-9">{{ survey_related_record.temporal_extent_begin|default(_(".."), True) }}/{{ survey_related_record.temporal_extent_end|default(_(".."), True) }}</dd>
-        </dl>
-    </div>
-</div>
+    <div class="col-3">
+        <h5>{{ _("actions") | capitalize }}</h5>
+        <div class="list-group mb-3">
+            {% if permissions.can_update %}
+                <div class="col">
+                    {{ macros_buttons_list_items.render_update_item_button(
+                        url_for("survey_related_records:get_update_form", survey_related_record_id=survey_related_record.id),
+                        _("edit survey-related record")
+                    ) }}
+                </div>
+            {% endif %}
+            {% if permissions.can_delete %}
+                {{ macros_buttons_list_items.render_delete_item_button(
+                    deletion_url=url_for("survey_related_records:detail", survey_related_record_id=survey_related_record.id),
+                    signal_name="deleting",
+                    idle_message="delete survey-related record",
+                    running_message="deleting survey-related record...",
+                    generated_csrf_token=csrf_token(request),
+                    modal_dialog_title=_("delete survey-related record"),
+                    modal_dialog_confirmation_text=_("are you sure you want to delete this survey-related record?")
+                ) }}
+            {% endif %}
+        </div>
+        <h5>{{ _("info") | capitalize }}</h5>
+        <script>
+            window.iconNames = JSON.parse('{{ icons | tojson }}')
+        </script>
+        <ul class="list-group">
+            <li
+                    class="list-group-item"
+                    aria-label="status"
+                    data-attr:style="$status === 'published' ? 'display:none' : 'display:block'"
+            >
+                <span
+                        class="material-icons-outlined me-1"
+                        data-text="iconNames['status_' + $status]"
+                ></span>
+                <span data-text="$status"></span>
+            </li>
+            <li
+                    data-class:list-group-item-success="$isValid && $status === 'draft'"
+                    data-class:list-group-item-danger="!$isValid && $status === 'draft'"
+                    class="list-group-item"
+                    aria-label="validation-result"
+            >
+                <div class="spinner-border" role="status" data-attr:style="$status === 'under_validation' ? 'display: block' : 'display:none'">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div data-attr:style="$status === 'under_validation' ? 'display: none' : 'display:block'">
+                    <h6>
+                        <span class="material-icons-outlined me-1" data-text="$isValid ? '{{ icons.validation_valid }}' : '{{ icons.validation_invalid }}'"></span>
+                        <span data-text="$isValid ? '{{ _('survey-related record is valid') | capitalize }}' : '{{ _('survey-related record is invalid') | capitalize  }}'"></span>
+                    </h6>
+                    {% set validation_errors = survey_related_record.validation_result.errors or [] %}
+                    <div aria-label="validation-result-details">
+                        {% if validation_errors | length > 0 %}
+                            <ul>
+                                {% for validation_error in validation_errors %}
+                                    <li>{{ validation_error.name }}: {{ validation_error.message }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
 
-<div class="row">
-    <div class="col">
-        <h2>{{ _("links") | capitalize }}</h2>
-        {% for link in survey_related_record.links %}
-            <dl class="row">
-                <dt class="col-sm-3">{{ _("url") | capitalize }}</dt>
-                <dd class="col-sm-9"><a href="{{ link.url }}" rel="{{ link.relation }}" target="_blank"
-                                        type="{{ link.media_type }}">{{ link.url }}</a></dd>
-                <dt class="col-sm-3">{{ _("description") | capitalize }}</dt>
-                <dd class="col-sm-9">{{ link.link_description |translate_localizable_string }}</dd>
-                <dt class="col-sm-3">{{ _("media type") | capitalize }}</dt>
-                <dd class="col-sm-9">{{ link.media_type }}</dd>
-            </dl>
-        {% else %}
-            {{ _("no links found") | capitalize }}
-        {% endfor %}
+                    </div>
+                </div>
+            </li>
+            <li class="list-group-item">
+                <p>{{ _("Survey-related records with a status of DRAFT are only visible to their owners") }}</p>
+                <p>{{ _("In order to become viewable by all users, a survey-related record must be published. Publication is only possible once the record is considered valid.") }}</p>
+                <p>{{ _("Valid survey-related records can be published. When published, a survey-related record becomes visible for all users") }}</p>
+            </li>
+        </ul>
+
     </div>
+
 </div>
 
 <div class="row">

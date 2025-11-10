@@ -11,7 +11,7 @@
 {% endblock head %}
 
 {% block page_title %}
-    {{ survey_related_record.name|translate_localizable_string }}
+    <span class="material-icons-outlined me-1">{{ icons.survey_related_records }}</span> {{ survey_related_record.name|translate_localizable_string }}
 {% endblock page_title %}
 
 {% block details %}
