@@ -1,6 +1,7 @@
 import logging
 import uuid
 
+import pydantic
 import shapely
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -11,6 +12,7 @@ from .. import (
     permissions,
     schemas,
 )
+from ..constants import SurveyRelatedRecordStatus
 from ..db import (
     commands,
     queries,
@@ -240,6 +242,127 @@ async def create_survey_related_record(
         )
     )
     return survey_record
+
+
+async def change_survey_related_record_status(
+    target_status: SurveyRelatedRecordStatus,
+    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    initiator: schemas.User | None,
+    session: AsyncSession,
+    settings: config.SeisLabDataSettings,
+    event_emitter: events.EventEmitterProtocol,
+) -> models.SurveyRelatedRecord:
+    if (
+        initiator is None
+        or not await permissions.can_change_survey_related_record_status(
+            initiator, survey_related_record_id, settings=settings
+        )
+    ):
+        raise errors.SeisLabDataError(
+            "User is not allowed to change survey-related record's status."
+        )
+    if (
+        survey_related_record := await queries.get_survey_related_record(
+            session, survey_related_record_id
+        )
+    ) is None:
+        raise errors.SeisLabDataError(
+            f"Survey-related record with id {survey_related_record_id} does not exist."
+        )
+    if (old_status := survey_related_record.status) == target_status:
+        logger.info(
+            f"Survey-related record status is already "
+            f"set to {target_status} - nothing to do"
+        )
+        return survey_related_record
+    else:
+        updated_survey_related_record = await commands.set_survey_related_record_status(
+            session,
+            schemas.SurveyRelatedRecordId(survey_related_record.id),
+            target_status,
+        )
+        event_emitter(
+            schemas.SeisLabDataEvent(
+                type_=schemas.EventType.SURVEY_RELATED_RECORD_STATUS_CHANGED,
+                initiator=initiator.id,
+                payload=schemas.EventPayload(
+                    before={"status": old_status.value},
+                    after={"status": updated_survey_related_record.status.value},
+                ),
+            )
+        )
+        return updated_survey_related_record
+
+
+async def validate_survey_related_record(
+    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    initiator: schemas.User | None,
+    session: AsyncSession,
+    settings: config.SeisLabDataSettings,
+    event_emitter: events.EventEmitterProtocol,
+) -> models.SurveyRelatedRecord:
+    if initiator is None or not await permissions.can_validate_survey_related_record(
+        initiator, survey_related_record_id, settings=settings
+    ):
+        raise errors.SeisLabDataError(
+            "User is not allowed to validate survey-related record."
+        )
+    if (
+        survey_related_record := await queries.get_survey_related_record(
+            session, survey_related_record_id
+        )
+    ) is None:
+        raise errors.SeisLabDataError(
+            f"Survey-related record with id {survey_related_record_id} does not exist."
+        )
+
+    old_validation_result = survey_related_record.validation_result or {
+        "is_valid": False,
+        "errors": None,
+    }
+    validation_errors = []
+    try:
+        schemas.ValidSurveyRelatedRecord(**survey_related_record.model_dump())
+    except pydantic.ValidationError as err:
+        for error in err.errors():
+            validation_errors.append(
+                {
+                    "name": ".".join(str(i) for i in error["loc"]),
+                    "message": error["msg"],
+                    "type_": error["type"],
+                }
+            )
+        await commands.update_survey_related_record_validation_result(
+            session,
+            survey_related_record,
+            validation_result={
+                "is_valid": False,
+                "errors": validation_errors,
+            },
+        )
+    else:
+        await commands.update_survey_related_record_validation_result(
+            session,
+            survey_related_record,
+            validation_result={"is_valid": True, "errors": None},
+        )
+    event_emitter(
+        schemas.SeisLabDataEvent(
+            type_=schemas.EventType.SURVEY_RELATED_RECORD_VALIDATED,
+            initiator=initiator.id,
+            payload=schemas.EventPayload(
+                before={
+                    "survey_related_record_id": survey_related_record.id,
+                    "validation_result": {**old_validation_result},
+                },
+                after={
+                    "survey_related_record_id": survey_related_record.id,
+                    "validation_result": {**survey_related_record.validation_result},
+                },
+            ),
+        )
+    )
+    return survey_related_record
 
 
 async def delete_survey_related_record(

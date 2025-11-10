@@ -1,5 +1,6 @@
 import logging
 
+import pydantic
 import shapely
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -8,6 +9,7 @@ from .. import (
     errors,
     events,
 )
+from ..constants import ProjectStatus
 from ..db import (
     commands,
     queries,
@@ -40,6 +42,101 @@ async def create_project(
             initiator=initiator.id,
             payload=schemas.EventPayload(
                 after=schemas.ProjectReadDetail(**project.model_dump()).model_dump()
+            ),
+        )
+    )
+    return project
+
+
+async def change_project_status(
+    target_status: ProjectStatus,
+    project_id: schemas.ProjectId,
+    initiator: schemas.User | None,
+    session: AsyncSession,
+    settings: config.SeisLabDataSettings,
+    event_emitter: events.EventEmitterProtocol,
+) -> models.Project:
+    if initiator is None or not await permissions.can_change_project_status(
+        initiator, project_id, settings=settings
+    ):
+        raise errors.SeisLabDataError("User is not allowed to change project status.")
+    if (project := await queries.get_project(session, project_id)) is None:
+        raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
+    if (old_status := project.status) == target_status:
+        logger.info(f"Project status is already set to {target_status} - nothing to do")
+        return project
+    else:
+        updated_project = await commands.set_project_status(
+            session, schemas.ProjectId(project.id), target_status
+        )
+        event_emitter(
+            schemas.SeisLabDataEvent(
+                type_=schemas.EventType.PROJECT_STATUS_CHANGED,
+                initiator=initiator.id,
+                payload=schemas.EventPayload(
+                    before={"status": old_status.value},
+                    after={"status": updated_project.status.value},
+                ),
+            )
+        )
+        return updated_project
+
+
+async def validate_project(
+    project_id: schemas.ProjectId,
+    initiator: schemas.User | None,
+    session: AsyncSession,
+    settings: config.SeisLabDataSettings,
+    event_emitter: events.EventEmitterProtocol,
+) -> models.Project:
+    if initiator is None or not await permissions.can_validate_project(
+        initiator, project_id, settings=settings
+    ):
+        raise errors.SeisLabDataError("User is not allowed to validate project.")
+    if (project := await queries.get_project(session, project_id)) is None:
+        raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
+
+    old_validation_result = project.validation_result or {
+        "is_valid": False,
+        "errors": None,
+    }
+    validation_errors = []
+    try:
+        schemas.ValidProject(**project.model_dump())
+    except pydantic.ValidationError as err:
+        for error in err.errors():
+            validation_errors.append(
+                {
+                    "name": ".".join(str(i) for i in error["loc"]),
+                    "message": error["msg"],
+                    "type_": error["type"],
+                }
+            )
+        await commands.update_project_validation_result(
+            session,
+            project,
+            validation_result={
+                "is_valid": False,
+                "errors": validation_errors,
+            },
+        )
+    else:
+        await commands.update_project_validation_result(
+            session, project, validation_result={"is_valid": True, "errors": None}
+        )
+    event_emitter(
+        schemas.SeisLabDataEvent(
+            type_=schemas.EventType.PROJECT_VALIDATED,
+            initiator=initiator.id,
+            payload=schemas.EventPayload(
+                before={
+                    "project_id": project.id,
+                    "validation_result": {**old_validation_result},
+                },
+                after={
+                    "project_id": project.id,
+                    "validation_result": {**project.validation_result},
+                },
             ),
         )
     )

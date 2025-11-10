@@ -17,11 +17,13 @@ class EventType(enum.Enum):
     PROJECT_UPDATED = "project_updated"
     PROJECT_VALIDATED = "project_validated"
     PROJECT_VALIDATION_PROGRESS = "project_validation_progress"
+    PROJECT_STATUS_CHANGED = "project_status_changed"
     SURVEY_MISSION_CREATED = "survey_mission_created"
     SURVEY_MISSION_DELETED = "survey_mission_deleted"
     SURVEY_MISSION_UPDATED = "survey_mission_updated"
     SURVEY_MISSION_VALIDATED = "survey_mission_validated"
     SURVEY_MISSION_VALIDATION_PROGRESS = "survey_mission_validation_progress"
+    SURVEY_MISSION_STATUS_CHANGED = "survey_mission_status_changed"
     SURVEY_RELATED_RECORD_CREATED = "survey_related_record_created"
     SURVEY_RELATED_RECORD_DELETED = "survey_related_record_deleted"
     SURVEY_RELATED_RECORD_UPDATED = "survey_related_record_updated"
@@ -29,6 +31,7 @@ class EventType(enum.Enum):
     SURVEY_RELATED_RECORD_VALIDATION_PROGRESS = (
         "survey_related_record_validation_progress"
     )
+    SURVEY_RELATED_RECORD_STATUS_CHANGED = "survey_related_record_status_changed"
     WORKFLOW_STAGE_CREATED = "workflow_stage_created"
     WORKFLOW_STAGE_DELETED = "workflow_stage_deleted"
 

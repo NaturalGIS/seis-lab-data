@@ -42,7 +42,8 @@ class ProjectReadEmbedded(pydantic.BaseModel):
     id: ProjectId
     name: LocalizableDraftName
     status: ProjectStatus
-    is_valid: bool
+    # is_valid: bool
+    validation_result: models.ValidationResult | None
     temporal_extent_begin: dt.date | None
     temporal_extent_end: dt.date | None
 

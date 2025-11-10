@@ -28,6 +28,13 @@ from ... import (
     permissions,
     schemas,
 )
+from ...constants import (
+    PROGRESS_TOPIC_NAME_TEMPLATE,
+    PROJECT_DELETED_TOPIC,
+    PROJECT_STATUS_CHANGED_TOPIC,
+    PROJECT_UPDATED_TOPIC,
+    PROJECT_VALIDITY_CHANGED_TOPIC,
+)
 from ...processing import tasks
 from .. import (
     filters,
@@ -42,6 +49,7 @@ from .common import (
     get_page_from_request_params,
     get_pagination_info,
     produce_event_stream_for_topic,
+    produce_event_stream_for_item_updates,
 )
 
 logger = logging.getLogger(__name__)
@@ -189,6 +197,132 @@ async def get_project_details_component(request: Request):
             selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
+
+    return DatastarResponse(event_streamer())
+
+
+@fancy_requires_auth
+async def get_project_detail_updates(request: Request):
+    """Informs client about modifications to project details.
+
+    This endpoint uses an SSE connection to the client and reports back on
+    modifications that may happen to the project. These consist of:
+
+    - project deletion -> ask client to redirect back to the projects page
+    - project status changes -> client updates just the status-related display
+    - project validation results -> client updates just the validation-related display
+    - project updates -> ask client to reload project details page
+    """
+    try:
+        project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid project id") from err
+    session_maker = request.state.session_maker
+    settings: config.SeisLabDataSettings = request.state.settings
+    redis_client: Redis = request.state.redis_client
+    user = get_user(request.session.get("user", {}))
+
+    async def on_project_deleted_message(
+        raw_message: str,
+    ) -> AsyncGenerator[DatastarEvent, None]:
+        message = schemas.ProjectEvent(**json.loads(raw_message))
+        deleted_project_id = message.project_id
+        if deleted_project_id == project_id:
+            logger.debug(
+                "Received message about recent project deletion, "
+                "redirecting frontend..."
+            )
+            yield ServerSentEventGenerator.patch_elements(
+                "Project has been deleted",
+                selector=schemas.selector_info.feedback_selector,
+                mode=ElementPatchMode.INNER,
+            )
+            await asyncio.sleep(1)
+            yield ServerSentEventGenerator.redirect(
+                str(request.url_for("projects:list"))
+            )
+
+    async def on_status_update_message(
+        raw_message: str,
+    ) -> AsyncGenerator[DatastarEvent, None]:
+        message = schemas.ProjectEvent(**json.loads(raw_message))
+        if message.project_id == project_id:
+            logger.debug(
+                "Received message about recent project status update, "
+                "patching frontend..."
+            )
+            async with session_maker() as session:
+                updated_project = await operations.get_project(
+                    project_id, user or None, session, settings
+                )
+                yield ServerSentEventGenerator.patch_signals(
+                    {
+                        "status": updated_project.status.value,
+                    },
+                )
+
+    async def on_validation_update_message(
+        raw_message: str,
+    ) -> AsyncGenerator[DatastarEvent, None]:
+        message = schemas.ProjectEvent(**json.loads(raw_message))
+        if message.project_id == project_id:
+            logger.debug(
+                "Received message about recent project validation update, "
+                "patching frontend..."
+            )
+            async with session_maker() as session:
+                updated_project = await operations.get_project(
+                    project_id, user or None, session, settings
+                )
+                details_message = ""
+                if not updated_project.validation_result.get("is_valid"):
+                    details_message += "<ul>"
+                    for err in updated_project.validation_result.get("errors", []):
+                        detail = f"{err['name']}: {err['message']}"
+                        details_message += f"<li>{detail}</li>"
+                yield ServerSentEventGenerator.patch_elements(
+                    details_message,
+                    selector=schemas.selector_info.validation_result_details_selector,
+                    mode=ElementPatchMode.INNER,
+                )
+                yield ServerSentEventGenerator.patch_signals(
+                    {
+                        "isValid": updated_project.validation_result["is_valid"],
+                    },
+                )
+
+    async def on_project_update_message(
+        raw_message: str,
+    ) -> AsyncGenerator[DatastarEvent, None]:
+        message = schemas.ProjectEvent(**json.loads(raw_message))
+        if message.project_id == project_id:
+            logger.debug("Received message about recent project update")
+            yield ServerSentEventGenerator.patch_elements(
+                "Project has been updated - refreshing the page shortly",
+                selector=schemas.selector_info.feedback_selector,
+                mode=ElementPatchMode.INNER,
+            )
+            await asyncio.sleep(1)
+            yield ServerSentEventGenerator.redirect(
+                str(request.url_for("projects:detail", project_id=project_id)),
+            )
+
+    topic_handlers = {
+        PROJECT_DELETED_TOPIC.format(project_id=project_id): on_project_deleted_message,
+        PROJECT_VALIDITY_CHANGED_TOPIC.format(
+            project_id=project_id
+        ): on_validation_update_message,
+        PROJECT_STATUS_CHANGED_TOPIC.format(
+            project_id=project_id
+        ): on_status_update_message,
+        PROJECT_UPDATED_TOPIC.format(project_id=project_id): on_project_update_message,
+    }
+
+    async def event_streamer():
+        async for sse_event in produce_event_stream_for_item_updates(
+            redis_client, request, timeout_seconds=30, **topic_handlers
+        ):
+            yield sse_event
 
     return DatastarResponse(event_streamer())
 
@@ -515,7 +649,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             event_stream_generator = produce_event_stream_for_topic(
                 redis_client,
                 request,
-                topic_name=f"progress:{request_id}",
+                topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
                 patch_elements_selector=schemas.selector_info.feedback_selector,
@@ -537,6 +671,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
 
         details = await _get_project_details(request)
         template_processor = request.state.templates
+
         return template_processor.TemplateResponse(
             request,
             "projects/detail.html",
@@ -568,7 +703,6 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         form_instance = await forms.ProjectUpdateForm.get_validated_form_instance(
             request, disregard_id=project_id
         )
-        logger.debug(f"{form_instance.has_validation_errors()=}")
 
         if form_instance.has_validation_errors():
             logger.debug("form did not validate")
@@ -639,6 +773,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 status=final_message.status.value,
                 message=f"{final_message.message}",
             )
+
             yield ServerSentEventGenerator.patch_elements(
                 rendered_message,
                 selector=schemas.selector_info.feedback_selector,
@@ -680,6 +815,12 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 mode=ElementPatchMode.INNER,
             )
 
+            tasks.validate_project.send(
+                raw_request_id=str(request_id),
+                raw_project_id=str(project_id),
+                raw_initiator=json.dumps(dataclasses.asdict(user)),
+            )
+
         async def handle_processing_failure(
             final_message: schemas.ProcessingMessage, message_template: Template
         ) -> AsyncGenerator[DatastarEvent, None]:
@@ -711,7 +852,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             event_stream_generator = produce_event_stream_for_topic(
                 redis_client,
                 request,
-                topic_name=f"progress:{request_id}",
+                topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
                 patch_elements_selector=schemas.selector_info.feedback_selector,
@@ -792,7 +933,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             event_stream_generator = produce_event_stream_for_topic(
                 redis_client,
                 request,
-                topic_name=f"progress:{request_id}",
+                topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
                 patch_elements_selector=schemas.selector_info.feedback_selector,
@@ -942,7 +1083,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             event_stream_generator = produce_event_stream_for_topic(
                 redis_client,
                 request,
-                topic_name=f"progress:{request_id}",
+                topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
                 on_success=handle_processing_success,
                 on_failure=handle_processing_failure,
                 patch_elements_selector=schemas.selector_info.feedback_selector,
@@ -1092,6 +1233,12 @@ routes = [
         get_project_details_component,
         methods=["GET"],
         name="get_details_component",
+    ),
+    Route(
+        "/{project_id}/detail-updates",
+        get_project_detail_updates,
+        methods=["GET"],
+        name="get_detail_updates",
     ),
     Route(
         "/{project_id}",

@@ -20,6 +20,12 @@ from .events import (
 from .filters import TemporalExtentFilterValue
 from .processing import (
     ProcessingMessage,
+    ProjectUpdatedMessage,
+    ProjectEvent,
+    SurveyMissionEvent,
+    SurveyMissionUpdatedMessage,
+    SurveyRelatedRecordEvent,
+    SurveyRelatedRecordUpdatedMessage,
 )
 from .projects import (
     ProjectCreate,
@@ -60,6 +66,11 @@ from .webui import (
     UserPermissionDetails,
     SurveyRelatedRecordDetails,
 )
+from .validation import (
+    ValidProject,
+    ValidSurveyMission,
+    ValidSurveyRelatedRecord,
+)
 
 __all__ = [
     BreadcrumbItem,
@@ -78,10 +89,12 @@ __all__ = [
     PaginationInfo,
     ProjectCreate,
     ProjectDetails,
+    ProjectEvent,
     ProjectId,
     ProjectReadDetail,
     ProjectReadListItem,
     ProjectUpdate,
+    ProjectUpdatedMessage,
     ProcessingMessage,
     RecordAssetCreate,
     RecordAssetId,
@@ -93,16 +106,20 @@ __all__ = [
     selector_info,
     SurveyMissionCreate,
     SurveyMissionDetails,
+    SurveyMissionEvent,
     SurveyMissionId,
     SurveyMissionReadDetail,
     SurveyMissionReadListItem,
     SurveyMissionUpdate,
+    SurveyMissionUpdatedMessage,
     SurveyRelatedRecordCreate,
     SurveyRelatedRecordDetails,
+    SurveyRelatedRecordEvent,
     SurveyRelatedRecordId,
     SurveyRelatedRecordReadDetail,
     SurveyRelatedRecordReadListItem,
     SurveyRelatedRecordUpdate,
+    SurveyRelatedRecordUpdatedMessage,
     TemporalExtentFilterValue,
     WorkflowStageCreate,
     WorkflowStageId,
@@ -110,4 +127,7 @@ __all__ = [
     User,
     UserId,
     UserPermissionDetails,
+    ValidProject,
+    ValidSurveyMission,
+    ValidSurveyRelatedRecord,
 ]

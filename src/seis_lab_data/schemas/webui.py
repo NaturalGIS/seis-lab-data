@@ -30,6 +30,9 @@ class NewItemSelectorInfo:
     main_content_selector: str = "[aria-label='content']"
     items_selector: str = "[aria-label='items']"
     feedback_selector: str = "output"
+    validation_result_selector: str = "[aria-label='validation-result']"
+    validation_result_details_selector: str = "[aria-label='validation-result-details']"
+    status_selector: str = "[aria-label='status']"
 
 
 selector_info = NewItemSelectorInfo()

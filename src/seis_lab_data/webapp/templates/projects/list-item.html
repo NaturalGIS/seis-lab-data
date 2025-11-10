@@ -1,8 +1,9 @@
-{% import "macros.html" as macros %}
+{% import "macros-buttons.html" as macros_buttons %}
 <div class="col">
     <div
             class="card mb-3"
             data-signals:hovering-{{ item.id }}="false"
+            data-signals:is-valid{{ loop_index }}="{{ 'true' if item.validation_result.is_valid else 'false'  }}"
             data-on:mouseenter="$hovering-{{ item.id }}=true"
             data-on:mouseleave="$hovering-{{ item.id }}=false"
             data-class:shadow-lg="$hovering-{{ item.id }}"
@@ -15,13 +16,29 @@
             <div class="col-md-8">
                 <div class="card-body">
                     <h5 class="card-title">{{ item.name|translate_localizable_string|default(_("name not available"), True) }}</h5>
-                    <p class="card-text"><small class="text-body-secondary">
-                        {{ item.temporal_extent_begin | default(_(".."), True) }}/{{ item.temporal_extent_end | default(_(".."), True) }}
-                    </small></p>
+                    <p class="card-text">
+                        <small class="text-body-secondary">
+                            {{ item.temporal_extent_begin | default(_(".."), True) }}/{{ item.temporal_extent_end | default(_(".."), True) }}
+                        </small>
+                    </p>
                     <p class="card-text"><small class="text-body-secondary">{{ item.status.value }}</small></p>
-                    <p class="card-text"><small class="text-body-secondary">{{ item.is_valid }}</small></p>
+                    <p class="card-text">
+                        <small class="text-body-secondary">
+                            <span
+                                    class="material-icons-outlined me-1"
+                                    data-text="$isValid{{ loop_index }} ? window.iconNames['validation_valid'] : window.iconNames['validation_invalid']"
+                                    data-class:text-success="$isValid{{ loop_index }}"
+                                    data-class:text-danger="!$isValid{{ loop_index }}"
+                            ></span>
+                            <span
+                                    data-text="$isValid{{ loop.index }} ? 'Valid' : 'Invalid' "
+                                    data-class:text-success="$isValid{{ loop_index }}"
+                                    data-class:text-danger="!$isValid{{ loop_index }}"
+                            ></span>
+                        </small>
+                    </p>
                     <p class="card-text">{{ item.description|translate_localizable_string|default(_("description not available"), True) }}</p>
-                    {{ macros.render_view_details_button(url_for('projects:detail', project_id=item.id)) }}
+                    {{ macros_buttons.render_view_details_button(url_for('projects:detail', project_id=item.id)) }}
                 </div>
             </div>
         </div>

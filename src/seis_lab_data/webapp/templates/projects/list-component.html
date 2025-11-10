@@ -10,7 +10,9 @@
             {% if items | length > 0 %}
                 <div class="row row-cols-2 g-4">
                     {% for item in items %}
+                        {% with loop_index = loop.index0 %}
                         {% include "projects/list-item.html" %}
+                        {% endwith %}
                     {% endfor %}
                 </div>
                 <ul class="list-inline text-center">

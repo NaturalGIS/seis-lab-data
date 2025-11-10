@@ -41,8 +41,10 @@ from ..db.engine import (
     get_engine,
     get_session_maker,
 )
+from ..constants import ProjectStatus
 from ..processing.broker import setup_broker
 
+from . import jinjafilters
 from .routes import (
     auth,
     base,
@@ -50,10 +52,6 @@ from .routes import (
 from .routes.projects import routes as projects_routes
 from .routes.surveymissions import routes as missions_routes
 from .routes.surveyrelatedrecords import routes as records_routes
-from .jinjafilters import (
-    translate_enum,
-    translate_localizable_string,
-)
 
 
 class State(TypedDict):
@@ -85,12 +83,20 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
                 "delete_item": "delete",
                 "edit_item": "edit",
                 "new_item": "add_circle_outline",
+                "open_link": "open_in_new",
                 "projects": "view_timeline",
+                "publish_item": "publish",
+                "status_draft": "design_services",
+                "status_published": "public",
+                "status_under_validation": "sync",
                 "survey_missions": "directions_boat",
                 "survey_related_records": "source",
                 "view_details": "info",
+                "validation_valid": "check_circle",
+                "validation_invalid": "dangerous",
             },
             "settings": settings,
+            "ProjectStatus": ProjectStatus,
             "default_webmap_bounds": {
                 "min_lon": min_lon,
                 "max_lon": max_lon,
@@ -99,8 +105,11 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
             },
         }
     )
-    jinja_env.filters["translate_localizable_string"] = translate_localizable_string
-    jinja_env.filters["translate_enum"] = translate_enum
+    jinja_env.filters["translate_localizable_string"] = (
+        jinjafilters.translate_localizable_string
+    )
+    jinja_env.filters["translate_enum"] = jinjafilters.translate_enum
+    jinja_env.filters["get_status_icon_name"] = jinjafilters.get_status_icon_name
     configure_jinja_env(jinja_env)
     templates = Jinja2Templates(env=jinja_env)
     engine = get_engine(settings.database_dsn.unicode_string(), settings.debug)

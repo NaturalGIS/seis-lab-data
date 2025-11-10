@@ -24,6 +24,9 @@ This template is loaded as a GET response to the /projects/ endpoint. It is used
 {% endblock page_title %}
 
 {% block details %}
+    <script>
+        window.iconNames = JSON.parse('{{ icons | tojson }}')
+    </script>
     <div class="row">
         <div class="col">
             {% if user_can_create %}

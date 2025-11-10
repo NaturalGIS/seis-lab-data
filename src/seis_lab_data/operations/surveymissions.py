@@ -1,5 +1,6 @@
 import logging
 
+import pydantic
 import shapely
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -8,6 +9,7 @@ from .. import (
     errors,
     events,
 )
+from ..constants import SurveyMissionStatus
 from ..db import (
     commands,
     queries,
@@ -41,6 +43,115 @@ async def create_survey_mission(
                 after=schemas.SurveyMissionReadDetail.from_db_instance(
                     survey_mission
                 ).model_dump()
+            ),
+        )
+    )
+    return survey_mission
+
+
+async def change_survey_mission_status(
+    target_status: SurveyMissionStatus,
+    survey_mission_id: schemas.SurveyMissionId,
+    initiator: schemas.User | None,
+    session: AsyncSession,
+    settings: config.SeisLabDataSettings,
+    event_emitter: events.EventEmitterProtocol,
+) -> models.SurveyMission:
+    if initiator is None or not await permissions.can_change_survey_mission_status(
+        initiator, survey_mission_id, settings=settings
+    ):
+        raise errors.SeisLabDataError(
+            "User is not allowed to change survey mission status."
+        )
+    if (
+        survey_mission := await queries.get_survey_mission(session, survey_mission_id)
+    ) is None:
+        raise errors.SeisLabDataError(
+            f"Survey mission with id {survey_mission_id} does not exist."
+        )
+    if (old_status := survey_mission.status) == target_status:
+        logger.info(
+            f"Survey mission status is already set to {target_status} - nothing to do"
+        )
+        return survey_mission
+    else:
+        updated_survey_mission = await commands.set_survey_mission_status(
+            session, schemas.SurveyMissionId(survey_mission.id), target_status
+        )
+        event_emitter(
+            schemas.SeisLabDataEvent(
+                type_=schemas.EventType.SURVEY_MISSION_STATUS_CHANGED,
+                initiator=initiator.id,
+                payload=schemas.EventPayload(
+                    before={"status": old_status.value},
+                    after={"status": updated_survey_mission.status.value},
+                ),
+            )
+        )
+        return updated_survey_mission
+
+
+async def validate_survey_mission(
+    survey_mission_id: schemas.SurveyMissionId,
+    initiator: schemas.User | None,
+    session: AsyncSession,
+    settings: config.SeisLabDataSettings,
+    event_emitter: events.EventEmitterProtocol,
+) -> models.SurveyMission:
+    if initiator is None or not await permissions.can_validate_survey_mission(
+        initiator, survey_mission_id, settings=settings
+    ):
+        raise errors.SeisLabDataError("User is not allowed to validate survey mission.")
+    if (
+        survey_mission := await queries.get_survey_mission(session, survey_mission_id)
+    ) is None:
+        raise errors.SeisLabDataError(
+            f"Survey mission with id {survey_mission_id} does not exist."
+        )
+
+    old_validation_result = survey_mission.validation_result or {
+        "is_valid": False,
+        "errors": None,
+    }
+    validation_errors = []
+    try:
+        schemas.ValidSurveyMission(**survey_mission.model_dump())
+    except pydantic.ValidationError as err:
+        for error in err.errors():
+            validation_errors.append(
+                {
+                    "name": ".".join(str(i) for i in error["loc"]),
+                    "message": error["msg"],
+                    "type_": error["type"],
+                }
+            )
+        await commands.update_survey_mission_validation_result(
+            session,
+            survey_mission,
+            validation_result={
+                "is_valid": False,
+                "errors": validation_errors,
+            },
+        )
+    else:
+        await commands.update_survey_mission_validation_result(
+            session,
+            survey_mission,
+            validation_result={"is_valid": True, "errors": None},
+        )
+    event_emitter(
+        schemas.SeisLabDataEvent(
+            type_=schemas.EventType.SURVEY_MISSION_VALIDATED,
+            initiator=initiator.id,
+            payload=schemas.EventPayload(
+                before={
+                    "survey_mission_id": survey_mission.id,
+                    "validation_result": {**old_validation_result},
+                },
+                after={
+                    "survey_mission_id": survey_mission.id,
+                    "validation_result": {**survey_mission.validation_result},
+                },
             ),
         )
     )
