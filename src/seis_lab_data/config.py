@@ -1,5 +1,6 @@
 import logging
 import logging.config
+import warnings
 from pathlib import Path
 from typing import Optional
 
@@ -19,6 +20,10 @@ from pydantic_settings import (
 )
 from rich.console import Console
 from rich.logging import RichHandler
+
+warnings.filterwarnings(
+    "ignore", r".*directory.*does not exist.*", UserWarning, module="pydantic_settings"
+)
 
 
 class SeisLabDataSettings(BaseSettings):

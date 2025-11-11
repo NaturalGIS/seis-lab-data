@@ -9,6 +9,7 @@
     <script type="module" src="{{ url_for('static', path='/js/terra-draw-maplibre-gl-adapter-v1.0.0.umd.js') }}"></script>
     <script type="module" src="{{ url_for('static', path='/js/bbox-map.js') }}"></script>
     <script type="module" src="{{ url_for('static', path='/js/map-with-layer.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='/js/basemap.js') }}"></script>
 {% endblock head %}
 
 {% block page_title %}
@@ -16,37 +17,116 @@
 {% endblock page_title %}
 
 {% block details %}
+    <script>
+        window.iconNames = JSON.parse('{{ icons | tojson }}')
+    </script>
 
     <div class="row">
+    <div class="col">
         <div
-                class="col"
-                data-signals:current-bbox="null"
-                data-computed:min-lon="$currentBbox?.[0]?.[0]"
-                data-computed:min-lat="$currentBbox?.[0]?.[1]"
-                data-computed:max-lon="$currentBbox?.[1]?.[0]"
-                data-computed:max-lat="$currentBbox?.[1]?.[1]"
+                class="row justify-content-center m-5"
+                data-signals:search='{{ search_initial_value }}'
+                data-signals:advanced-search-panel-open="false"
+                data-signals:searching="false"
         >
-            <map-with-polygon-layer
-                    data-base-map-tile-url="{{ settings.webmap_base_tile_layer_url }}"
-                    data-polygon-layer-tile-url="http://localhost:8888/tiles/survey_related_records"
-                    data-polygon-layer-name="survey_related_records"
-                    data-polygon-fill-color="{{ settings.webmap_default_polygon_fill_color }}"
-                    data-polygon-fill-opacity="{{ settings.webmap_default_polygon_fill_opacity }}"
-                    data-polygon-outline-color="{{ settings.webmap_default_polygon_outline_color }}"
-                    data-polygon-outline-opacity="{{ settings.webmap_default_polygon_outline_opacity }}"
-                    data-polygon-outline-width="{{ settings.webmap_default_polygon_outline_width }}"
-                    data-item-detail-base-url="{{ map_popup_detail_base_url | default('') }}"
-                    data-initial-min-lon="{{ map_bounds.min_lon }}"
-                    data-initial-min-lat="{{ map_bounds.min_lat }}"
-                    data-initial-max-lon="{{ map_bounds.max_lon }}"
-                    data-initial-max-lat="{{ map_bounds.max_lat }}"
-                    style="display: block; width: 100%; height: 30vh"
-                    data-on:map-moveend="$currentBbox=evt.detail.map.getBounds().toArray(); @get('{{ url_for('survey_related_records:get_list_component') }}')"
-            ></map-with-polygon-layer>
+            <div class="col-8">
+                <search class="form-floating">
+                    <input
+                            class="form-control form-control-lg"
+                            type="search"
+                            id="search"
+                            placeholder="Search"
+                            data-bind:search
+                            data-on:input__debounce.200ms="@get('{{ url_for("survey_related_records:get_list_component") }}')"
+                            data-indicator:searching
+                    />
+                    <label class="form-label" for="search">
+                        <span class="material-icons-outlined">{{ icons.search }}</span>
+                        {{ _("search survey-related records") | capitalize }}
+                    </label>
+                </search>
+                <div
+                        data-attr:hidden="!$searching"
+                        class="spinner-border spinner-border-sm ms-3"
+                        role="status"
+                        aria-hidden="true"
+                >
+                    <span class="visually-hidden">{{ _("searching...") | capitalize }}</span>
+                </div>
+                <button
+                        class="btn btn-light btn-sm mt-1"
+                        type="button"
+                        data-on:click="$advancedSearchPanelOpen=!$advancedSearchPanelOpen"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#advanced-search-controls"
+                        aria-expanded="false"
+                        aria-controls="advanced-search-controls"
+                >
+                        <span
+                                class="material-icons-outlined me-1"
+                                data-attr:style="$advancedSearchPanelOpen ? 'transform: rotate(0deg); transition: transform 0.3s ease;' : 'transform: rotate(-90deg); transition: transform 0.3s ease;'"
+                        >
+                            {{ icons.expand_more }}
+                        </span>
+                    {{ _("toggle advanced search controls") | capitalize }}
+                </button>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col mt-1 mb-5">
+                <div class="collapse" id="advanced-search-controls">
+                    <div
+                            class="col"
+                            data-signals:current-bbox="null"
+                            data-computed:min-lon="$currentBbox?.[0]?.[0]"
+                            data-computed:min-lat="$currentBbox?.[0]?.[1]"
+                            data-computed:max-lon="$currentBbox?.[1]?.[0]"
+                            data-computed:max-lat="$currentBbox?.[1]?.[1]"
+                    >
+                        <base-map
+                                data-base-map-tile-url="{{ settings.webmap_base_tile_layer_url }}"
+                                data-polygon-features="{{ geojson_features }}"
+                                data-polygon-fill-color="{{ settings.webmap_default_polygon_fill_color }}"
+                                data-polygon-fill-opacity="{{ settings.webmap_default_polygon_fill_opacity }}"
+                                data-polygon-outline-color="{{ settings.webmap_default_polygon_outline_color }}"
+                                data-polygon-outline-opacity="{{ settings.webmap_default_polygon_outline_opacity }}"
+                                data-polygon-outline-width="{{ settings.webmap_default_polygon_outline_width }}"
+                                data-item-detail-base-url="{{ map_popup_detail_base_url | default('') }}"
+                                data-initial-min-lon="{{ map_bounds.min_lon }}"
+                                data-initial-min-lat="{{ map_bounds.min_lat }}"
+                                data-initial-max-lon="{{ map_bounds.max_lon }}"
+                                data-initial-max-lat="{{ map_bounds.max_lat }}"
+                                style="display: block; width: 100%; height: 30vh"
+                                data-on:map-moveend="document.querySelector('base-map').checkVisibility() ? $currentBbox=evt.detail.map.getBounds().toArray() : $currentBbox=[[-180, -90],[180, 90]]; @get('{{ url_for('survey_related_records:get_list_component') }}')"
+                        ></base-map>
+                        <div class="col">
+                            {{ macros.render_temporal_extent_search_component(
+                                        url_for("survey_related_records:get_list_component"),
+                                        _("Temporal extent begin"),
+                                        _("Temporal extent end"),
+                                        "{{ current_temporal_extent.begin }}",
+                                        "{{ current_temporal_extent.end }}"
+                                    ) }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col">
+            {% include "survey-related-records/list-component.html" %}
+        </div>
+        <div class="col-3">
+            <h5>{{ _("info") | capitalize }}</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <p>{{ _("Projects with a status of DRAFT are only visible to their owners") }}</p>
+                    <p>{{ _("In order to become viewable by all users, a project must be published. Publication is only possible once the project is considered valid.") }}</p>
+                    <p>{{ _("Valid projects can be published. When published, a project becomes visible for all users") }}</p>
+                </li>
+            </ul>
         </div>
     </div>
 
-    {{ macros.render_search_component(url_for("survey_related_records:get_list_component"), _("search survey-related records")) }}
-
-    {% include "survey-related-records/list-component.html" %}
 {% endblock details %}

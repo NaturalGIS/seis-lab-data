@@ -1,5 +1,9 @@
 {% import "macros-buttons.html" as macros_buttons %}
-<div class="col">
+{% set id_ = item.id | string | replace('-', '') %}
+<div
+        class="col"
+        data-signals:is-valid-id{{ id_ }}="{{ 'true' if item.validation_result.is_valid else 'false' }}"
+>
     <div class="card mb-3">
         <div class="row g-0">
             <div class="col-md-4">
@@ -7,15 +11,51 @@
             </div>
             <div class="col-md-8">
                 <div class="card-body">
-                    <h5 class="card-title">{{ item.name|translate_localizable_string }}</h5>
-                    <p class="card-text"><small class="text-body-secondary">
-                        {{ item.temporal_extent_begin|default(_(".."), True) }}/{{ item.temporal_extent_end|default(_(".."), True) }}
-                    </small></p>
-                    <p><small class="card-text"><a href="{{ url_for('projects:detail', project_id=item.survey_mission.project.id) }}">{{ item.survey_mission.project.name|translate_localizable_string }}</a></small></p>
-                    <p><small class="card-text"><a href="{{ url_for('survey_missions:detail', survey_mission_id=item.survey_mission.id) }}">{{ item.survey_mission.name|translate_localizable_string }}</a></small></p>
-                    <p class="card-text"><small class="text-body-secondary">{{ item.status|translate_enum }}</small></p>
-                    <p class="card-text"><small class="text-body-secondary">{{ item.is_valid }}</small></p>
-                    <p class="card-text">{{ item.description|translate_localizable_string }}</p>
+                    <div class="row justify-content-between">
+                        <div class="col-4">
+                            <h5 class="card-title">{{ item.name|translate_localizable_string|default(_("name not available"), True) }}</h5>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-body-secondary"><span
+                                    class="material-icons-outlined me-1">{{ icons['status_' + item.status.value] }}</span> {{ item.status.value }}
+                            </small>
+                            <span
+                                    class="material-icons-outlined me-1"
+                                    data-text="$isValidId{{ id_ }} ? window.iconNames['validation_valid'] : window.iconNames['validation_invalid']"
+                                    data-class:text-success="$isValidId{{ id_ }}"
+                                    data-class:text-danger="!$isValidId{{ id_ }}"
+                            ></span>
+                            <span
+                                    data-text="$isValidId{{ id_ }} ? 'Valid' : 'Invalid' "
+                                    data-class:text-success="$isValidId{{ id_ }}"
+                                    data-class:text-danger="!$isValidId{{ id_ }}"
+                            ></span>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <ul class="list-unstyled">
+                                <li class="card-text">
+                                    <small class="text-body-secondary">
+                                        {{ item.temporal_extent_begin | default(_(".."), True) }}/{{ item.temporal_extent_end | default(_(".."), True) }}
+                                    </small>
+                                </li>
+                                <li class="card-text text-truncate">
+                                    {{ item.description|translate_localizable_string|default(_("description not available"), True) }}
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col">
+                            {% if not item.bbox_4326 %}
+                                <div class="row mb-3">
+                                    <div class="col">
+                                        <span class="material-icons-outlined me-1">{{ icons.validation_invalid }}</span>
+                                        {{ _("unknown spatial extent") }}
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
                     {{ macros_buttons.render_view_details_button(url_for('survey_related_records:detail', survey_related_record_id=item.id)) }}
                 </div>
             </div>

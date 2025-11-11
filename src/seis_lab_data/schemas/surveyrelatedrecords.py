@@ -1,7 +1,7 @@
 import datetime as dt
+from typing import Annotated
 
 import pydantic
-from typing import Annotated
 
 from ..db import models
 from ..constants import SurveyRelatedRecordStatus
@@ -14,6 +14,8 @@ from .common import (
     PolygonOut,
     PossiblyInvalidPolygon,
     RecordAssetId,
+    serialize_id,
+    serialize_possibly_empty_date,
     SurveyMissionId,
     SurveyRelatedRecordId,
     UserId,
@@ -69,7 +71,7 @@ class RecordAssetUpdate(pydantic.BaseModel):
 
 
 class RecordAssetReadListItem(pydantic.BaseModel):
-    id: RecordAssetId
+    id: Annotated[RecordAssetId, pydantic.PlainSerializer(serialize_id)]
     name: LocalizableDraftName
     is_valid: bool
 
@@ -87,12 +89,17 @@ class RecordAssetReadDetailEmbedded(RecordAssetReadListItem):
 
 
 class SurveyRelatedRecordReadEmbedded(pydantic.BaseModel):
-    id: SurveyRelatedRecordId
+    id: Annotated[SurveyRelatedRecordId, pydantic.PlainSerializer(serialize_id)]
     name: LocalizableDraftName
     status: SurveyRelatedRecordStatus
     validation_result: models.ValidationResult | None
-    temporal_extent_begin: dt.date | None
-    temporal_extent_end: dt.date | None
+    bbox_4326: PolygonOut | None
+    temporal_extent_begin: Annotated[
+        dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
+    ]
+    temporal_extent_end: Annotated[
+        dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
+    ]
     survey_mission: SurveyMissionReadEmbedded
 
     @classmethod
@@ -176,14 +183,19 @@ class SurveyRelatedRecordUpdate(pydantic.BaseModel):
 
 
 class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
-    id: SurveyRelatedRecordId
+    id: Annotated[SurveyRelatedRecordId, pydantic.PlainSerializer(serialize_id)]
     name: LocalizableDraftName
     description: LocalizableDraftDescription
     status: SurveyRelatedRecordStatus
     validation_result: models.ValidationResult | None
     survey_mission: SurveyMissionReadEmbedded
-    temporal_extent_begin: dt.date | None
-    temporal_extent_end: dt.date | None
+    bbox_4326: PolygonOut | None
+    temporal_extent_begin: Annotated[
+        dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
+    ]
+    temporal_extent_end: Annotated[
+        dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
+    ]
 
     @classmethod
     def from_db_instance(
@@ -200,7 +212,6 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
 class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
     owner: UserId
     relative_path: str
-    bbox_4326: PolygonOut | None
     links: list[LinkSchema] = []
     survey_mission: SurveyMissionReadEmbedded
     dataset_category: DatasetCategoryRead

@@ -1,4 +1,5 @@
 import datetime as dt
+from typing import Annotated
 
 import pydantic
 
@@ -11,6 +12,8 @@ from .common import (
     PolygonOut,
     PossiblyInvalidPolygon,
     ProjectId,
+    serialize_id,
+    serialize_possibly_empty_date,
     UserId,
 )
 
@@ -39,13 +42,19 @@ class ProjectUpdate(pydantic.BaseModel):
 
 
 class ProjectReadEmbedded(pydantic.BaseModel):
-    id: ProjectId
+    id: Annotated[ProjectId, pydantic.PlainSerializer(serialize_id)]
     name: LocalizableDraftName
     status: ProjectStatus
-    # is_valid: bool
     validation_result: models.ValidationResult | None
-    temporal_extent_begin: dt.date | None
-    temporal_extent_end: dt.date | None
+    bbox_4326: PolygonOut | None
+    temporal_extent_begin: Annotated[
+        dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
+    ]
+    temporal_extent_end: Annotated[
+        dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
+    ]
+    num_survey_missions: int
+    num_survey_related_records: int
 
     @classmethod
     def from_db_instance(cls, instance: models.Project) -> "ProjectReadEmbedded":

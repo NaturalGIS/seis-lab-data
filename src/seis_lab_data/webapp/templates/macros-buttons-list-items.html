@@ -8,9 +8,9 @@
 {% endmacro %}
 
 
-{% macro render_new_item_button(url, text, icon_name=icons.new_item) %}
+{% macro render_new_item_button(url, text, icon_name=icons.new_item, colorize_with="light") %}
     <button
-            class="list-group-item list-group-item-action list-group-item-light"
+            class="list-group-item list-group-item-action list-group-item-{{ colorize_with }}"
             data-on:click="@get('{{ url }}')"
             aria-label="new-item"
     >

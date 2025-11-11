@@ -27,6 +27,7 @@ from starlette_wtf import csrf_protect
 from ... import (
     config,
     errors,
+    geojson,
     operations,
     permissions,
     schemas,
@@ -57,6 +58,7 @@ from .common import (
     get_pagination_info,
     produce_event_stream_for_item_updates,
     produce_event_stream_for_topic,
+    UPDATE_BASEMAP_JS_SCRIPT,
 )
 
 logger = logging.getLogger(__name__)
@@ -881,16 +883,16 @@ async def get_list_component(request: Request):
         num_unfiltered_total,
         collection_url=str(request.url_for("survey_related_records:list")),
     )
+    serialized_items = [
+        schemas.SurveyRelatedRecordReadListItem.from_db_instance(item) for item in items
+    ]
     template_processor = request.state.templates
     template = template_processor.get_template(
         "survey-related-records/list-component.html"
     )
     rendered = template.render(
         request=request,
-        items=[
-            schemas.SurveyRelatedRecordReadListItem.from_db_instance(item)
-            for item in items
-        ],
+        items=serialized_items,
         update_current_url_with=filter_query_string,
         pagination=pagination_info,
     )
@@ -900,6 +902,13 @@ async def get_list_component(request: Request):
             rendered,
             selector=schemas.selector_info.items_selector,
             mode=ElementPatchMode.REPLACE,
+        )
+        yield ServerSentEventGenerator.execute_script(
+            UPDATE_BASEMAP_JS_SCRIPT.format(
+                dumped_features=json.dumps(
+                    geojson.to_feature_collection(serialized_items)
+                )
+            )
         )
 
     return DatastarResponse(event_streamer())
@@ -943,14 +952,17 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
         else:
             default_bbox = shapely.from_wkt(settings.webmap_default_bbox_wkt)
             min_lon, min_lat, max_lon, max_lat = default_bbox.bounds
+        serialized_items = [
+            schemas.SurveyRelatedRecordReadListItem.from_db_instance(item)
+            for item in items
+        ]
+        geojson_features = geojson.to_feature_collection(serialized_items)
         return template_processor.TemplateResponse(
             request,
             "survey-related-records/list.html",
             context={
-                "items": [
-                    schemas.SurveyRelatedRecordReadListItem.from_db_instance(item)
-                    for item in items
-                ],
+                "items": serialized_items,
+                "geojson_features": json.dumps(geojson_features),
                 "pagination": pagination_info,
                 "map_bounds": {
                     "min_lon": min_lon,

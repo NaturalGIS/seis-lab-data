@@ -1,5 +1,6 @@
 import datetime as dt
 import uuid
+from typing import Annotated
 
 import pydantic
 
@@ -12,6 +13,8 @@ from .common import (
     PolygonOut,
     PossiblyInvalidPolygon,
     ProjectId,
+    serialize_id,
+    serialize_possibly_empty_date,
     SurveyMissionId,
     UserId,
 )
@@ -44,13 +47,19 @@ class SurveyMissionUpdate(pydantic.BaseModel):
 
 
 class SurveyMissionReadEmbedded(pydantic.BaseModel):
-    id: SurveyMissionId
+    id: Annotated[SurveyMissionId, pydantic.PlainSerializer(serialize_id)]
     name: LocalizableDraftName
     status: SurveyMissionStatus
     validation_result: models.ValidationResult | None
-    temporal_extent_begin: dt.date | None
-    temporal_extent_end: dt.date | None
+    temporal_extent_begin: Annotated[
+        dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
+    ]
+    temporal_extent_end: Annotated[
+        dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
+    ]
     project: ProjectReadEmbedded
+    bbox_4326: PolygonOut | None
+    num_survey_related_records: int
 
     @classmethod
     def from_db_instance(
@@ -63,12 +72,20 @@ class SurveyMissionReadEmbedded(pydantic.BaseModel):
 
 
 class SurveyMissionReadListItem(pydantic.BaseModel):
-    id: SurveyMissionId
+    id: Annotated[SurveyMissionId, pydantic.PlainSerializer(serialize_id)]
     name: LocalizableDraftName
     description: LocalizableDraftDescription
     status: SurveyMissionStatus
     validation_result: models.ValidationResult | None
     project: ProjectReadEmbedded
+    temporal_extent_begin: Annotated[
+        dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
+    ]
+    temporal_extent_end: Annotated[
+        dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
+    ]
+    bbox_4326: PolygonOut | None
+    num_survey_related_records: int
 
     @classmethod
     def from_db_instance(
@@ -84,7 +101,6 @@ class SurveyMissionReadDetail(SurveyMissionReadListItem):
     owner: UserId
     relative_path: str
     links: list[LinkSchema] = []
-    bbox_4326: PolygonOut | None
 
     @classmethod
     def from_db_instance(

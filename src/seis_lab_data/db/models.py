@@ -1,9 +1,11 @@
 import datetime as dt
 import json
 import uuid
+import warnings
 from functools import partial
 from typing import (
     Annotated,
+    Optional,
     TypedDict,
 )
 
@@ -15,8 +17,15 @@ from geoalchemy2 import (
 from pydantic import (
     ConfigDict,
     PlainSerializer,
+    computed_field,
 )
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.exc import SAWarning
+from sqlalchemy import select
+from sqlalchemy.orm import (
+    column_property,
+    declared_attr,
+)
 from sqlmodel import (
     Column,
     Date,
@@ -28,6 +37,12 @@ from sqlmodel import (
 )
 
 from .. import constants
+
+warnings.filterwarnings(
+    "ignore",
+    r".*Unmanaged access of declarative attribute.*",
+    SAWarning,
+)
 
 now_ = partial(dt.datetime.now, tz=dt.timezone.utc)
 
@@ -101,6 +116,134 @@ class WorkflowStage(SQLModel, table=True):
     )
 
 
+class SurveyRelatedRecord(SQLModel, table=True):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    owner: str = Field(max_length=100, index=True)
+    name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
+        Field(sa_column=Column(JSONB))
+    )
+    description: Annotated[
+        LocalizableString, PlainSerializer(serialize_localizable_field)
+    ] = Field(sa_column=Column(JSONB))
+    status: constants.SurveyRelatedRecordStatus = (
+        constants.SurveyRelatedRecordStatus.DRAFT
+    )
+    is_valid: bool = False
+    validation_result: ValidationResult = Field(sa_column=Column(JSONB))
+    survey_mission_id: uuid.UUID = Field(
+        foreign_key="surveymission.id", ondelete="CASCADE"
+    )
+    dataset_category_id: uuid.UUID | None = Field(
+        foreign_key="datasetcategory.id", default=None, ondelete="SET NULL"
+    )
+    domain_type_id: uuid.UUID | None = Field(
+        foreign_key="domaintype.id", default=None, ondelete="SET NULL"
+    )
+    workflow_stage_id: uuid.UUID | None = Field(
+        foreign_key="workflowstage.id", default=None, ondelete="SET NULL"
+    )
+    links: Annotated[list[Link], PlainSerializer(serialize_localizable_field)] = Field(
+        sa_column=Column(JSONB), default_factory=list
+    )
+    relative_path: str = ""
+    survey_mission: "SurveyMission" = Relationship(
+        back_populates="survey_related_records"
+    )
+    dataset_category: DatasetCategory = Relationship(
+        back_populates="survey_related_records"
+    )
+    domain_type: DomainType = Relationship(back_populates="survey_related_records")
+    workflow_stage: WorkflowStage = Relationship(
+        back_populates="survey_related_records"
+    )
+    bbox_4326: Annotated[
+        WKBElement,
+        PlainSerializer(serialize_wkbelement, return_type=dict, when_used="json"),
+    ] = Field(
+        sa_column=Column(
+            Geometry(
+                srid=4326,
+                geometry_type="POLYGON",
+                spatial_index=True,
+            ),
+        )
+    )
+    created_at: dt.datetime | None = Field(default_factory=now_)
+    updated_at: dt.datetime | None = Field(
+        sa_column=Column(DateTime(), onupdate=func.now())
+    )
+    temporal_extent_begin: dt.date | None = Field(sa_column=Column(Date()))
+    temporal_extent_end: dt.date | None = Field(sa_column=Column(Date()))
+    assets: list["RecordAsset"] = Relationship(
+        back_populates="survey_related_record",
+        sa_relationship_kwargs={
+            # "cascade": "all, delete-orphan",
+            "cascade": "save-update, merge, expunge, delete, delete-orphan",
+            "passive_deletes": True,
+        },
+    )
+
+
+class SurveyMission(SQLModel, table=True):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    owner: str = Field(max_length=100, index=True)
+    name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
+        Field(sa_column=Column(JSONB))
+    )
+    description: Annotated[
+        LocalizableString, PlainSerializer(serialize_localizable_field)
+    ] = Field(sa_column=Column(JSONB))
+    project_id: uuid.UUID = Field(foreign_key="project.id", ondelete="CASCADE")
+    links: Annotated[list[Link], PlainSerializer(serialize_localizable_field)] = Field(
+        sa_column=Column(JSONB), default_factory=list
+    )
+    relative_path: str = ""
+    status: constants.SurveyMissionStatus = constants.SurveyMissionStatus.DRAFT
+    is_valid: bool = False
+    validation_result: ValidationResult = Field(sa_column=Column(JSONB))
+    bbox_4326: Annotated[
+        WKBElement,
+        PlainSerializer(serialize_wkbelement, return_type=dict, when_used="json"),
+    ] = Field(
+        sa_column=Column(
+            Geometry(
+                srid=4326,
+                geometry_type="POLYGON",
+                spatial_index=True,
+            ),
+        )
+    )
+    created_at: dt.datetime | None = Field(default_factory=now_)
+    updated_at: dt.datetime | None = Field(
+        sa_column=Column(DateTime(), onupdate=func.now())
+    )
+    temporal_extent_begin: dt.date | None = Field(sa_column=Column(Date()))
+    temporal_extent_end: dt.date | None = Field(sa_column=Column(Date()))
+
+    project: "Project" = Relationship(back_populates="survey_missions")
+    survey_related_records: list["SurveyRelatedRecord"] = Relationship(
+        back_populates="survey_mission",
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan",
+            "passive_deletes": True,
+        },
+    )
+
+    @computed_field(return_type=Optional[int])
+    @declared_attr
+    def num_survey_related_records(self):
+        return column_property(
+            select(func.count(SurveyRelatedRecord.id))
+            .where(SurveyRelatedRecord.survey_mission_id == self.id)
+            .correlate_except(SurveyRelatedRecord)
+            .scalar_subquery()
+        )
+
+
 class Project(SQLModel, table=True):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -146,123 +289,26 @@ class Project(SQLModel, table=True):
         },
     )
 
-
-class SurveyMission(SQLModel, table=True):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    owner: str = Field(max_length=100, index=True)
-    name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
-        Field(sa_column=Column(JSONB))
-    )
-    description: Annotated[
-        LocalizableString, PlainSerializer(serialize_localizable_field)
-    ] = Field(sa_column=Column(JSONB))
-    project_id: uuid.UUID = Field(foreign_key="project.id", ondelete="CASCADE")
-    links: Annotated[list[Link], PlainSerializer(serialize_localizable_field)] = Field(
-        sa_column=Column(JSONB), default_factory=list
-    )
-    relative_path: str = ""
-    status: constants.SurveyMissionStatus = constants.SurveyMissionStatus.DRAFT
-    is_valid: bool = False
-    validation_result: ValidationResult = Field(sa_column=Column(JSONB))
-    bbox_4326: Annotated[
-        WKBElement,
-        PlainSerializer(serialize_wkbelement, return_type=dict, when_used="json"),
-    ] = Field(
-        sa_column=Column(
-            Geometry(
-                srid=4326,
-                geometry_type="POLYGON",
-                spatial_index=True,
-            ),
+    @computed_field(return_type=Optional[int])
+    @declared_attr
+    def num_survey_missions(self):
+        return column_property(
+            select(func.count(SurveyMission.id))
+            .where(SurveyMission.project_id == self.id)
+            .correlate_except(SurveyMission)
+            .scalar_subquery()
         )
-    )
-    created_at: dt.datetime | None = Field(default_factory=now_)
-    updated_at: dt.datetime | None = Field(
-        sa_column=Column(DateTime(), onupdate=func.now())
-    )
-    temporal_extent_begin: dt.date | None = Field(sa_column=Column(Date()))
-    temporal_extent_end: dt.date | None = Field(sa_column=Column(Date()))
 
-    project: Project = Relationship(back_populates="survey_missions")
-    survey_related_records: list["SurveyRelatedRecord"] = Relationship(
-        back_populates="survey_mission",
-        sa_relationship_kwargs={
-            "cascade": "all, delete-orphan",
-            "passive_deletes": True,
-        },
-    )
-
-
-class SurveyRelatedRecord(SQLModel, table=True):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    owner: str = Field(max_length=100, index=True)
-    name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
-        Field(sa_column=Column(JSONB))
-    )
-    description: Annotated[
-        LocalizableString, PlainSerializer(serialize_localizable_field)
-    ] = Field(sa_column=Column(JSONB))
-    status: constants.SurveyRelatedRecordStatus = (
-        constants.SurveyRelatedRecordStatus.DRAFT
-    )
-    is_valid: bool = False
-    validation_result: ValidationResult = Field(sa_column=Column(JSONB))
-    survey_mission_id: uuid.UUID = Field(
-        foreign_key="surveymission.id", ondelete="CASCADE"
-    )
-    dataset_category_id: uuid.UUID | None = Field(
-        foreign_key="datasetcategory.id", default=None, ondelete="SET NULL"
-    )
-    domain_type_id: uuid.UUID | None = Field(
-        foreign_key="domaintype.id", default=None, ondelete="SET NULL"
-    )
-    workflow_stage_id: uuid.UUID | None = Field(
-        foreign_key="workflowstage.id", default=None, ondelete="SET NULL"
-    )
-    links: Annotated[list[Link], PlainSerializer(serialize_localizable_field)] = Field(
-        sa_column=Column(JSONB), default_factory=list
-    )
-    relative_path: str = ""
-    survey_mission: SurveyMission = Relationship(
-        back_populates="survey_related_records"
-    )
-    dataset_category: DatasetCategory = Relationship(
-        back_populates="survey_related_records"
-    )
-    domain_type: DomainType = Relationship(back_populates="survey_related_records")
-    workflow_stage: WorkflowStage = Relationship(
-        back_populates="survey_related_records"
-    )
-    bbox_4326: Annotated[
-        WKBElement,
-        PlainSerializer(serialize_wkbelement, return_type=dict, when_used="json"),
-    ] = Field(
-        sa_column=Column(
-            Geometry(
-                srid=4326,
-                geometry_type="POLYGON",
-                spatial_index=True,
-            ),
+    @computed_field(return_type=Optional[int])
+    @declared_attr
+    def num_survey_related_records(self):
+        return column_property(
+            select(func.count(SurveyRelatedRecord.id))
+            .join(SurveyMission)
+            .where(SurveyMission.project_id == self.id)
+            .correlate_except(SurveyRelatedRecord)
+            .scalar_subquery()
         )
-    )
-    created_at: dt.datetime | None = Field(default_factory=now_)
-    updated_at: dt.datetime | None = Field(
-        sa_column=Column(DateTime(), onupdate=func.now())
-    )
-    temporal_extent_begin: dt.date | None = Field(sa_column=Column(Date()))
-    temporal_extent_end: dt.date | None = Field(sa_column=Column(Date()))
-    assets: list["RecordAsset"] = Relationship(
-        back_populates="survey_related_record",
-        sa_relationship_kwargs={
-            # "cascade": "all, delete-orphan",
-            "cascade": "save-update, merge, expunge, delete, delete-orphan",
-            "passive_deletes": True,
-        },
-    )
 
 
 class RecordAsset(SQLModel, table=True):

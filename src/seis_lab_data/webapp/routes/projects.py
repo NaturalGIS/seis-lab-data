@@ -24,6 +24,7 @@ from starlette_wtf import csrf_protect
 from ... import (
     config,
     errors,
+    geojson,
     operations,
     permissions,
     schemas,
@@ -50,6 +51,7 @@ from .common import (
     get_pagination_info,
     produce_event_stream_for_topic,
     produce_event_stream_for_item_updates,
+    UPDATE_BASEMAP_JS_SCRIPT,
 )
 
 logger = logging.getLogger(__name__)
@@ -443,11 +445,12 @@ async def get_list_component(request: Request):
         num_unfiltered_total,
         collection_url=str(request.url_for("projects:list")),
     )
+    serialized_items = [schemas.ProjectReadListItem.from_db_instance(i) for i in items]
     template_processor = request.state.templates
     template = template_processor.get_template("projects/list-component.html")
     rendered = template.render(
         request=request,
-        items=[schemas.ProjectReadListItem.from_db_instance(i) for i in items],
+        items=serialized_items,
         update_current_url_with=filter_query_string,
         pagination=pagination_info,
     )
@@ -457,6 +460,13 @@ async def get_list_component(request: Request):
             rendered,
             selector=schemas.selector_info.items_selector,
             mode=ElementPatchMode.REPLACE,
+        )
+        yield ServerSentEventGenerator.execute_script(
+            UPDATE_BASEMAP_JS_SCRIPT.format(
+                dumped_features=json.dumps(
+                    geojson.to_feature_collection(serialized_items)
+                )
+            )
         )
 
     return DatastarResponse(event_streamer())
@@ -503,13 +513,17 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             default_bbox = shapely.from_wkt(settings.webmap_default_bbox_wkt)
             min_lon, min_lat, max_lon, max_lat = default_bbox.bounds
 
+        serialized_items = [
+            schemas.ProjectReadListItem.from_db_instance(i) for i in items
+        ]
+        geojson_features = geojson.to_feature_collection(serialized_items)
+
         return template_processor.TemplateResponse(
             request,
             "projects/list.html",
             context={
-                "items": [
-                    schemas.ProjectReadListItem.from_db_instance(i) for i in items
-                ],
+                "items": serialized_items,
+                "geojson_features": json.dumps(geojson_features),
                 "pagination": pagination_info,
                 "map_bounds": {
                     "min_lon": min_lon,
@@ -615,6 +629,13 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 mode=ElementPatchMode.APPEND,
             )
             await asyncio.sleep(1)
+
+            tasks.validate_project.send(
+                raw_request_id=str(request_id),
+                raw_project_id=str(to_create.id),
+                raw_initiator=json.dumps(dataclasses.asdict(user)),
+            )
+
             yield ServerSentEventGenerator.redirect(
                 str(request.url_for("projects:detail", project_id=to_create.id)),
             )
@@ -786,6 +807,13 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             # - page title (project name may have changed)
             # - clear the feedback section
             breadcrumbs_template = template_processor.get_template("breadcrumbs.html")
+
+            tasks.validate_project.send(
+                raw_request_id=str(request_id),
+                raw_project_id=str(project_id),
+                raw_initiator=json.dumps(dataclasses.asdict(user)),
+            )
+
             yield ServerSentEventGenerator.patch_elements(
                 breadcrumbs_template.render(
                     request=request, breadcrumbs=project_details.breadcrumbs
@@ -813,12 +841,6 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 "",
                 selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.INNER,
-            )
-
-            tasks.validate_project.send(
-                raw_request_id=str(request_id),
-                raw_project_id=str(project_id),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
             )
 
         async def handle_processing_failure(
@@ -1044,6 +1066,13 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 mode=ElementPatchMode.APPEND,
             )
             await asyncio.sleep(1)
+
+            tasks.validate_survey_mission.send(
+                raw_request_id=str(request_id),
+                raw_survey_mission_id=str(to_create.id),
+                raw_initiator=json.dumps(dataclasses.asdict(user)),
+            )
+
             yield ServerSentEventGenerator.redirect(
                 str(
                     request.url_for(

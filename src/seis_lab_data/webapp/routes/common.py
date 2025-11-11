@@ -6,6 +6,7 @@ import uuid
 from typing import (
     AsyncGenerator,
     Callable,
+    Final,
     Type,
     TypeVar,
 )
@@ -24,6 +25,11 @@ from ... import schemas
 from ...constants import ProcessingStatus
 
 logger = logging.getLogger(__name__)
+
+UPDATE_BASEMAP_JS_SCRIPT: Final[str] = (
+    "window.featureCollection = JSON.parse('{dumped_features}');"
+    "document.querySelector('base-map').map.getSource('polygons').setData(featureCollection);"
+)
 
 
 @dataclasses.dataclass

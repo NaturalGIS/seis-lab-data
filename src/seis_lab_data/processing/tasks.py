@@ -28,6 +28,7 @@ from ..constants import (
     SURVEY_RELATED_RECORD_UPDATED_TOPIC,
     SURVEY_RELATED_RECORD_STATUS_CHANGED_TOPIC,
     SURVEY_RELATED_RECORD_VALIDITY_CHANGED_TOPIC,
+    PROJECT_DELETED_TOPIC,
 )
 
 from ..events import get_event_emitter
@@ -419,6 +420,7 @@ async def delete_project(
 ):
     logger.debug("Hi from the delete_project task")
     request_id = schemas.RequestId(uuid.UUID(raw_request_id))
+    project_id = schemas.ProjectId(uuid.UUID(raw_project_id))
     topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     initiator = schemas.User(**json.loads(raw_initiator))
     try:
@@ -432,7 +434,7 @@ async def delete_project(
         )
         async with session_maker() as session:
             await operations.delete_project(
-                project_id=schemas.ProjectId(uuid.UUID(raw_project_id)),
+                project_id=project_id,
                 initiator=initiator,
                 session=session,
                 settings=settings,
@@ -444,6 +446,14 @@ async def delete_project(
                 request_id=request_id,
                 status=ProcessingStatus.SUCCESS,
                 message="Project successfully deleted",
+            ).model_dump_json(),
+        )
+        # on success, publish also to the project deletions topic
+        await redis_client.publish(
+            PROJECT_DELETED_TOPIC.format(project_id=project_id),
+            schemas.ProjectEvent(
+                project_id=project_id,
+                event=schemas.EventType.PROJECT_DELETED,
             ).model_dump_json(),
         )
     except Exception as err:
