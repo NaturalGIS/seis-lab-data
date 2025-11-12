@@ -134,7 +134,7 @@ async def produce_event_stream_for_item_updates(
                     raise
                 try:
                     if message := await pubsub.get_message(
-                        ignore_subscribe_messages=True
+                        ignore_subscribe_messages=True, timeout=None
                     ):
                         logger.debug(f"received message: {message=}")
                         from_channel = message["channel"].decode("utf-8")
