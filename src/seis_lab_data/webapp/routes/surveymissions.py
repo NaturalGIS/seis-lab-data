@@ -174,7 +174,6 @@ async def get_survey_mission_details_component(request: Request):
     return DatastarResponse(event_streamer())
 
 
-@fancy_requires_auth
 async def get_survey_mission_detail_updates(request: Request):
     try:
         survey_mission_id = schemas.SurveyMissionId(

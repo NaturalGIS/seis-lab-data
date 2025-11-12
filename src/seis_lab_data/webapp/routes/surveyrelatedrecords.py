@@ -159,7 +159,6 @@ async def get_details_component(request: Request):
     return DatastarResponse(event_streamer())
 
 
-@fancy_requires_auth
 async def get_detail_updates(request: Request):
     try:
         survey_related_record_id = schemas.SurveyRelatedRecordId(

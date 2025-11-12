@@ -203,7 +203,6 @@ async def get_project_details_component(request: Request):
     return DatastarResponse(event_streamer())
 
 
-@fancy_requires_auth
 async def get_project_detail_updates(request: Request):
     """Informs client about modifications to project details.
 
