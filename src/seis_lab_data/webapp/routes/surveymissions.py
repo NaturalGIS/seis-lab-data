@@ -42,7 +42,7 @@ from .. import (
     forms,
 )
 from .auth import (
-    fancy_requires_auth,
+    requires_auth,
     get_user,
 )
 from .common import (
@@ -151,7 +151,7 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
     )
 
 
-@fancy_requires_auth
+@requires_auth
 async def get_survey_mission_details_component(request: Request):
     details = await _get_survey_mission_details(request)
     template_processor = request.state.templates
@@ -304,7 +304,7 @@ async def get_survey_mission_detail_updates(request: Request):
 
 
 @csrf_protect
-@fancy_requires_auth
+@requires_auth
 async def get_survey_mission_creation_form(request: Request):
     user = get_user(request.session.get("user", {}))
     project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
@@ -533,7 +533,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         )
 
     @csrf_protect
-    @fancy_requires_auth
+    @requires_auth
     async def put(self, request: Request):
         """Update an existing survey mission."""
         template_processor: Jinja2Templates = request.state.templates
@@ -721,7 +721,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         return DatastarResponse(event_streamer(), status_code=202)
 
     @csrf_protect
-    @fancy_requires_auth
+    @requires_auth
     async def post(self, request: Request):
         """Create a new record in the survey mission's collection."""
         user = get_user(request.session.get("user", {}))
@@ -896,7 +896,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         return DatastarResponse(stream_events(), status_code=202)
 
     @csrf_protect
-    @fancy_requires_auth
+    @requires_auth
     async def delete(self, request: Request):
         survey_mission_id = get_id_from_request_path(
             request, "survey_mission_id", schemas.SurveyMissionId
@@ -1112,7 +1112,7 @@ async def remove_update_survey_mission_form_link(request: Request):
 
 
 @csrf_protect
-@fancy_requires_auth
+@requires_auth
 async def get_survey_mission_update_form(request: Request):
     """Return a form suitable for updating an existing survey mission."""
     user = get_user(request.session.get("user", {}))

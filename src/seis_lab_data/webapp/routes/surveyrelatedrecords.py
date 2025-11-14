@@ -50,7 +50,7 @@ from .. import (
 )
 from .auth import (
     get_user,
-    fancy_requires_auth,
+    requires_auth,
 )
 from .common import (
     get_id_from_request_path,
@@ -136,7 +136,7 @@ async def _get_survey_related_record_details(
     )
 
 
-@fancy_requires_auth
+@requires_auth
 async def get_details_component(request: Request):
     details = await _get_survey_related_record_details(request)
     template_processor = request.state.templates
@@ -342,7 +342,7 @@ async def get_record_parent_survey_mission_from_request(
 
 
 @csrf_protect
-@fancy_requires_auth
+@requires_auth
 async def get_creation_form(request: Request):
     """Show an HTML form for the client to prepare a record creation operation."""
     parent_survey_mission = await get_record_parent_survey_mission_from_request(request)
@@ -578,7 +578,7 @@ async def remove_creation_form_asset_link(request: Request):
 
 
 @csrf_protect
-@fancy_requires_auth
+@requires_auth
 async def get_update_form(request: Request):
     """Show an HTML form for the client to prepare a record update operation."""
     details = await _get_survey_related_record_details(request)
@@ -1005,7 +1005,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         )
 
     @csrf_protect
-    @fancy_requires_auth
+    @requires_auth
     async def delete(self, request: Request):
         survey_related_record_id = get_id_from_request_path(
             request, "survey_related_record_id", schemas.SurveyRelatedRecordId
@@ -1089,7 +1089,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         return DatastarResponse(stream_events())
 
     @csrf_protect
-    @fancy_requires_auth
+    @requires_auth
     async def put(self, request: Request):
         """Update an existing survey-related record."""
         template_processor: Jinja2Templates = request.state.templates

@@ -43,7 +43,7 @@ from .. import (
 )
 from .auth import (
     get_user,
-    fancy_requires_auth,
+    requires_auth,
 )
 from .common import (
     get_id_from_request_path,
@@ -58,7 +58,7 @@ logger = logging.getLogger(__name__)
 
 
 @csrf_protect
-@fancy_requires_auth
+@requires_auth
 async def get_project_creation_form(request: Request):
     """Return a form suitable for creating a new project."""
     form_instance = await forms.ProjectCreateForm.from_formdata(request)
@@ -101,7 +101,7 @@ async def get_project_creation_form(request: Request):
 
 
 @csrf_protect
-@fancy_requires_auth
+@requires_auth
 async def get_project_update_form(request: Request):
     """Return a form suitable for updating an existing project."""
     user = get_user(request.session.get("user", {}))
@@ -180,7 +180,7 @@ async def get_project_update_form(request: Request):
     return DatastarResponse(event_streamer())
 
 
-@fancy_requires_auth
+@requires_auth
 async def get_project_details_component(request: Request):
     details = await _get_project_details(request)
     template_processor = request.state.templates
@@ -551,7 +551,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         )
 
     @csrf_protect
-    @fancy_requires_auth
+    @requires_auth
     async def post(self, request: Request):
         """Create a new project."""
         template_processor: Jinja2Templates = request.state.templates
@@ -706,7 +706,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         )
 
     @csrf_protect
-    @fancy_requires_auth
+    @requires_auth
     async def put(self, request: Request):
         """Update an existing project."""
         template_processor: Jinja2Templates = request.state.templates
@@ -885,7 +885,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         return DatastarResponse(event_streamer(), status_code=202)
 
     @csrf_protect
-    @fancy_requires_auth
+    @requires_auth
     async def delete(self, request: Request):
         """Delete a project."""
         user = get_user(request.session.get("user", {}))
@@ -966,7 +966,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         return DatastarResponse(stream_events())
 
     @csrf_protect
-    @fancy_requires_auth
+    @requires_auth
     async def post(self, request: Request):
         """Create a new survey mission belonging to the project."""
         user = get_user(request.session.get("user", {}))
