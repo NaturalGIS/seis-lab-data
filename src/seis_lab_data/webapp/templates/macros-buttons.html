@@ -8,11 +8,11 @@
 {% endmacro %}
 
 
-{% macro render_new_item_button(url, text) %}
+{% macro render_new_item_button(url, text, aria_label="new-item") %}
     <button
             class="btn btn-primary"
             data-on:click="@get('{{ url }}')"
-            aria-label="new-item"
+            aria-label="{{ aria_label }}"
     >
         <span class="material-icons-outlined me-1">{{ icons.new_item }}</span>{{ text | capitalize }}
     </button>

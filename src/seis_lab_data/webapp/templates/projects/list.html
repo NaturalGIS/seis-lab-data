@@ -134,7 +134,7 @@ This template is loaded as a GET response to the /projects/ endpoint. It is used
             <div class="list-group mb-3">
                 {% if user_can_create %}
                     {{ macros_buttons_list_items.render_new_item_button(
-                        url_for("projects:get_creation_form"), _("Add new project"), colorize_with="info"
+                        url_for("projects:get_creation_form"), _("Add new project"), colorize_with="info", aria_label="new-project"
                     ) }}
                 {% endif %}
             </div>
