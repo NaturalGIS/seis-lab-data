@@ -27,6 +27,7 @@ from starlette_wtf import csrf_protect
 from ... import (
     config,
     errors,
+    geojson,
     operations,
     permissions,
     schemas,
@@ -49,7 +50,7 @@ from .. import (
 )
 from .auth import (
     get_user,
-    fancy_requires_auth,
+    requires_auth,
 )
 from .common import (
     get_id_from_request_path,
@@ -57,6 +58,7 @@ from .common import (
     get_pagination_info,
     produce_event_stream_for_item_updates,
     produce_event_stream_for_topic,
+    UPDATE_BASEMAP_JS_SCRIPT,
 )
 
 logger = logging.getLogger(__name__)
@@ -134,7 +136,7 @@ async def _get_survey_related_record_details(
     )
 
 
-@fancy_requires_auth
+@requires_auth
 async def get_details_component(request: Request):
     details = await _get_survey_related_record_details(request)
     template_processor = request.state.templates
@@ -157,7 +159,6 @@ async def get_details_component(request: Request):
     return DatastarResponse(event_streamer())
 
 
-@fancy_requires_auth
 async def get_detail_updates(request: Request):
     try:
         survey_related_record_id = schemas.SurveyRelatedRecordId(
@@ -341,7 +342,7 @@ async def get_record_parent_survey_mission_from_request(
 
 
 @csrf_protect
-@fancy_requires_auth
+@requires_auth
 async def get_creation_form(request: Request):
     """Show an HTML form for the client to prepare a record creation operation."""
     parent_survey_mission = await get_record_parent_survey_mission_from_request(request)
@@ -577,7 +578,7 @@ async def remove_creation_form_asset_link(request: Request):
 
 
 @csrf_protect
-@fancy_requires_auth
+@requires_auth
 async def get_update_form(request: Request):
     """Show an HTML form for the client to prepare a record update operation."""
     details = await _get_survey_related_record_details(request)
@@ -881,16 +882,16 @@ async def get_list_component(request: Request):
         num_unfiltered_total,
         collection_url=str(request.url_for("survey_related_records:list")),
     )
+    serialized_items = [
+        schemas.SurveyRelatedRecordReadListItem.from_db_instance(item) for item in items
+    ]
     template_processor = request.state.templates
     template = template_processor.get_template(
         "survey-related-records/list-component.html"
     )
     rendered = template.render(
         request=request,
-        items=[
-            schemas.SurveyRelatedRecordReadListItem.from_db_instance(item)
-            for item in items
-        ],
+        items=serialized_items,
         update_current_url_with=filter_query_string,
         pagination=pagination_info,
     )
@@ -900,6 +901,13 @@ async def get_list_component(request: Request):
             rendered,
             selector=schemas.selector_info.items_selector,
             mode=ElementPatchMode.REPLACE,
+        )
+        yield ServerSentEventGenerator.execute_script(
+            UPDATE_BASEMAP_JS_SCRIPT.format(
+                dumped_features=json.dumps(
+                    geojson.to_feature_collection(serialized_items)
+                )
+            )
         )
 
     return DatastarResponse(event_streamer())
@@ -943,14 +951,17 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
         else:
             default_bbox = shapely.from_wkt(settings.webmap_default_bbox_wkt)
             min_lon, min_lat, max_lon, max_lat = default_bbox.bounds
+        serialized_items = [
+            schemas.SurveyRelatedRecordReadListItem.from_db_instance(item)
+            for item in items
+        ]
+        geojson_features = geojson.to_feature_collection(serialized_items)
         return template_processor.TemplateResponse(
             request,
             "survey-related-records/list.html",
             context={
-                "items": [
-                    schemas.SurveyRelatedRecordReadListItem.from_db_instance(item)
-                    for item in items
-                ],
+                "items": serialized_items,
+                "geojson_features": json.dumps(geojson_features),
                 "pagination": pagination_info,
                 "map_bounds": {
                     "min_lon": min_lon,
@@ -994,7 +1005,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         )
 
     @csrf_protect
-    @fancy_requires_auth
+    @requires_auth
     async def delete(self, request: Request):
         survey_related_record_id = get_id_from_request_path(
             request, "survey_related_record_id", schemas.SurveyRelatedRecordId
@@ -1078,7 +1089,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         return DatastarResponse(stream_events())
 
     @csrf_protect
-    @fancy_requires_auth
+    @requires_auth
     async def put(self, request: Request):
         """Update an existing survey-related record."""
         template_processor: Jinja2Templates = request.state.templates

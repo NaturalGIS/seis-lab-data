@@ -160,7 +160,7 @@
     begin_initial_value="",
     end_initial_value=""
 ) %}
-    <div class="row mb-3">
+    <div class="mb-3">
         <label for="search-temporal-extent-begin">{{ begin_label_text }}</label>
         <input
                 id="search-temporal-extent-begin"
@@ -170,7 +170,7 @@
                 value="{{ begin_initial_value }}"
         >
     </div>
-    <div class="row mb-3">
+    <div class="mb-3">
         <label for="search-temporal-extent-end">{{ end_label_text }}</label>
         <input
                 id="search-temporal-extent-end"
@@ -184,24 +184,35 @@
 {% endmacro %}
 
 {% macro render_search_component(search_url, label_text, initial_value="", set_autofocus=False) %}
-    <div class="row mb-3" data-signals:search="'{{ initial_value }}'">
-        <div class="col">
-            <search data-signals:searching="false">
-                <label class="form-label" for="search">{{ label_text | capitalize }}</label>
-                <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
-                     data-attr:hidden="!$searching">
-                    <span class="visually-hidden">{{ _("searching...") | capitalize }}</span>
-                </div>
+    <div class="row m-lg-5 justify-content-center" data-signals:search="'{{ initial_value }}'">
+        <div class="col-6">
+            <search
+                    data-signals:searching="false"
+                    class="form-floating"
+            >
                 <input
-                        class="form-control"
+                        class="form-control form-control-lg"
                         type="search"
                         id="search"
+                        placeholder="search"
                         data-bind:search
                         data-on:input__debounce.200ms="@get('{{ search_url }}')"
                         data-indicator:searching
                         {% if set_autofocus %}autofocus{% endif %}
                 />
+                <label class="form-label" for="search">
+                    <span class="material-icons-outlined me-1">{{ icons.search }}</span>
+                    {{ label_text | capitalize }}
+                </label>
             </search>
+            <div
+                    data-attr:hidden="!$searching"
+                    class="spinner-border spinner-border-sm ms-3"
+                    role="status"
+                    aria-hidden="true"
+            >
+                <span class="visually-hidden">{{ _("searching...") | capitalize }}</span>
+            </div>
         </div>
     </div>
 {% endmacro %}

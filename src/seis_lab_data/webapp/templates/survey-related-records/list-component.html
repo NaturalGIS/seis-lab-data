@@ -4,15 +4,10 @@
     <div
             class="row"
             aria-label="items"
-            data-effect="window.history.replaceState({}, '', `${window.location.href.split('?')[0]}{{ update_current_url_with }}`)"
+            {% if update_current_url_with is defined %}data-effect="window.history.replaceState({}, '', `${window.location.href.split('?')[0]}{{ update_current_url_with }}`)"{% endif %}
     >
         <div class="col">
             {% if items | length > 0 %}
-                <div class="row row-cols-2 g-4">
-                    {% for item in items %}
-                        {% include "survey-related-records/list-item.html" %}
-                    {% endfor %}
-                </div>
                 <ul class="list-inline text-center">
                     <li class="list-inline-item">
                         <small>{{ _("Total pages: %(total_pages)d") | format(total_pages=pagination.total_filtered_pages) }}</small>
@@ -25,6 +20,11 @@
                     </li>
                 </ul>
                 {{ macros.render_pagination(pagination) }}
+                <div class="row row-cols-2 g-4">
+                    {% for item in items %}
+                        {% include "survey-related-records/list-item.html" %}
+                    {% endfor %}
+                </div>
             {% else %}
                 <p>{{ _("No survey-related records found") }}</p>
             {% endif %}

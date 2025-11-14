@@ -3,6 +3,8 @@ import logging
 from functools import wraps
 from typing import Callable
 
+from datastar_py import ServerSentEventGenerator
+from datastar_py.starlette import DatastarResponse
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
@@ -13,6 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 async def login(request: Request):
+    logger.debug(
+        f"Session ID at login start: {request.session.get('_id', 'No session ID')}"
+    )
+    logger.debug(f"Session contents: {dict(request.session)=}")
     oauth_manager = request.state.oauth_manager
     oauth_client = oauth_manager.create_client(AUTH_CLIENT_NAME)
     logger.debug(f"{oauth_client=}")
@@ -20,10 +26,16 @@ async def login(request: Request):
     logger.debug(f"{redirect_uri=}")
     logger.debug(f"{oauth_client.server_metadata=}")
     logger.debug("about to call oauth_client.authorize_redirect...")
-    return await oauth_client.authorize_redirect(request, redirect_uri)
+    response = await oauth_client.authorize_redirect(request, redirect_uri)
+    logger.debug(f"Session contents after authorize_redirect: {dict(request.session)=}")
+    return response
 
 
 async def auth_callback(request: Request):
+    logger.debug(
+        f"Session ID at auth_callback: {request.session.get('_id', 'No session ID')}"
+    )
+    logger.debug(f"Session contents at auth_callback: {dict(request.session)=}")
     try:
         oauth_manager = request.state.oauth_manager
         oauth_client = oauth_manager.create_client(AUTH_CLIENT_NAME)
@@ -63,16 +75,6 @@ def get_user(
 
 
 def requires_auth(route_function: Callable):
-    @wraps(route_function)
-    async def wrapper(request: Request, *args, **kwargs):
-        if not (user := get_user(request.session.get("user", {}))):
-            return RedirectResponse(url=request.url_for("login"), status_code=302)
-        return await route_function(request, user, *args, **kwargs)
-
-    return wrapper
-
-
-def fancy_requires_auth(route_function: Callable):
     sig = inspect.signature(route_function)
 
     @wraps(route_function)
@@ -88,7 +90,17 @@ def fancy_requires_auth(route_function: Callable):
             raise ValueError("No Request parameter found in route function.")
 
         if not get_user(request.session.get("user", {})):
-            return RedirectResponse(url=request.url_for("login"), status_code=302)
+            if request.headers.get("Datastar-Request") == "true":
+
+                async def event_streamer():
+                    yield ServerSentEventGenerator.redirect(
+                        str(request.url_for("login"))
+                    )
+
+                return DatastarResponse(event_streamer(), status_code=302)
+            else:
+                return RedirectResponse(url=request.url_for("login"), status_code=302)
+
         return await route_function(*args, **kwargs)
 
     return wrapper

@@ -24,6 +24,7 @@ from starlette_wtf import csrf_protect
 from ... import (
     config,
     errors,
+    geojson,
     operations,
     permissions,
     schemas,
@@ -41,7 +42,7 @@ from .. import (
     forms,
 )
 from .auth import (
-    fancy_requires_auth,
+    requires_auth,
     get_user,
 )
 from .common import (
@@ -50,6 +51,7 @@ from .common import (
     get_pagination_info,
     produce_event_stream_for_item_updates,
     produce_event_stream_for_topic,
+    UPDATE_BASEMAP_JS_SCRIPT,
 )
 
 logger = logging.getLogger(__name__)
@@ -149,7 +151,7 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
     )
 
 
-@fancy_requires_auth
+@requires_auth
 async def get_survey_mission_details_component(request: Request):
     details = await _get_survey_mission_details(request)
     template_processor = request.state.templates
@@ -172,7 +174,6 @@ async def get_survey_mission_details_component(request: Request):
     return DatastarResponse(event_streamer())
 
 
-@fancy_requires_auth
 async def get_survey_mission_detail_updates(request: Request):
     try:
         survey_mission_id = schemas.SurveyMissionId(
@@ -303,7 +304,7 @@ async def get_survey_mission_detail_updates(request: Request):
 
 
 @csrf_protect
-@fancy_requires_auth
+@requires_auth
 async def get_survey_mission_creation_form(request: Request):
     user = get_user(request.session.get("user", {}))
     project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
@@ -408,11 +409,14 @@ async def get_list_component(request: Request):
         num_unfiltered_total,
         collection_url=str(request.url_for("survey_missions:list")),
     )
+    serialized_items = [
+        schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items
+    ]
     template_processor = request.state.templates
     template = template_processor.get_template("survey-missions/list-component.html")
     rendered = template.render(
         request=request,
-        items=[schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items],
+        items=serialized_items,
         update_current_url_with=filter_query_string,
         pagination=pagination_info,
     )
@@ -422,6 +426,13 @@ async def get_list_component(request: Request):
             rendered,
             selector=schemas.selector_info.items_selector,
             mode=ElementPatchMode.REPLACE,
+        )
+        yield ServerSentEventGenerator.execute_script(
+            UPDATE_BASEMAP_JS_SCRIPT.format(
+                dumped_features=json.dumps(
+                    geojson.to_feature_collection(serialized_items)
+                )
+            )
         )
 
     return DatastarResponse(event_streamer())
@@ -467,13 +478,16 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
         else:
             default_bbox = shapely.from_wkt(settings.webmap_default_bbox_wkt)
             min_lon, min_lat, max_lon, max_lat = default_bbox.bounds
+        serialized_items = [
+            schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items
+        ]
+        geojson_features = geojson.to_feature_collection(serialized_items)
         return template_processor.TemplateResponse(
             request,
             "survey-missions/list.html",
             context={
-                "items": [
-                    schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items
-                ],
+                "items": serialized_items,
+                "geojson_features": json.dumps(geojson_features),
                 "pagination": pagination_info,
                 "map_bounds": {
                     "min_lon": min_lon,
@@ -519,7 +533,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         )
 
     @csrf_protect
-    @fancy_requires_auth
+    @requires_auth
     async def put(self, request: Request):
         """Update an existing survey mission."""
         template_processor: Jinja2Templates = request.state.templates
@@ -707,7 +721,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         return DatastarResponse(event_streamer(), status_code=202)
 
     @csrf_protect
-    @fancy_requires_auth
+    @requires_auth
     async def post(self, request: Request):
         """Create a new record in the survey mission's collection."""
         user = get_user(request.session.get("user", {}))
@@ -826,6 +840,12 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 mode=ElementPatchMode.APPEND,
             )
             await asyncio.sleep(1)
+
+            tasks.validate_survey_related_record.send(
+                raw_request_id=str(request_id),
+                raw_survey_related_record_id=str(to_create.id),
+                raw_initiator=json.dumps(dataclasses.asdict(user)),
+            )
             yield ServerSentEventGenerator.redirect(
                 str(
                     request.url_for(
@@ -876,7 +896,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         return DatastarResponse(stream_events(), status_code=202)
 
     @csrf_protect
-    @fancy_requires_auth
+    @requires_auth
     async def delete(self, request: Request):
         survey_mission_id = get_id_from_request_path(
             request, "survey_mission_id", schemas.SurveyMissionId
@@ -1092,7 +1112,7 @@ async def remove_update_survey_mission_form_link(request: Request):
 
 
 @csrf_protect
-@fancy_requires_auth
+@requires_auth
 async def get_survey_mission_update_form(request: Request):
     """Return a form suitable for updating an existing survey mission."""
     user = get_user(request.session.get("user", {}))

@@ -1,30 +1,31 @@
-{% macro render_view_details_button(details_url) %}
+{% macro render_view_details_button(details_url, aria_label="view-details") %}
     <a
             href="{{ details_url }}"
             class="list-group-item list-group-item-action"
+            aria-label="{{ aria_label }}"
     >
         <span class="material-icons-outlined me-1">{{ icons.view_details }}</span>{{ _("View") }}
     </a>
 {% endmacro %}
 
 
-{% macro render_new_item_button(url, text, icon_name=icons.new_item) %}
+{% macro render_new_item_button(url, text, icon_name=icons.new_item, colorize_with="light", aria_label="new-item") %}
     <button
-            class="list-group-item list-group-item-action list-group-item-light"
+            class="list-group-item list-group-item-action list-group-item-{{ colorize_with }}"
             data-on:click="@get('{{ url }}')"
-            aria-label="new-item"
+            aria-label="{{ aria_label }}"
     >
         <span class="material-icons-outlined me-1">{{ icon_name }}</span>{{ text | capitalize }}
     </button>
 {% endmacro %}
 
 
-{% macro render_update_item_button(url, text) %}
+{% macro render_update_item_button(url, text, aria_label="update-item") %}
     <button
             data-attr:disabled="$status === 'under_validation'"
             data-on:click="@get('{{ url }}')"
             class="list-group-item list-group-item-action list-group-item-info"
-            aria-label="update-item"
+            aria-label="{{ aria_label }}"
     ><span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ text | capitalize }}
     </button>
 {% endmacro %}

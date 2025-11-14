@@ -24,6 +24,7 @@ from starlette_wtf import csrf_protect
 from ... import (
     config,
     errors,
+    geojson,
     operations,
     permissions,
     schemas,
@@ -42,7 +43,7 @@ from .. import (
 )
 from .auth import (
     get_user,
-    fancy_requires_auth,
+    requires_auth,
 )
 from .common import (
     get_id_from_request_path,
@@ -50,13 +51,14 @@ from .common import (
     get_pagination_info,
     produce_event_stream_for_topic,
     produce_event_stream_for_item_updates,
+    UPDATE_BASEMAP_JS_SCRIPT,
 )
 
 logger = logging.getLogger(__name__)
 
 
 @csrf_protect
-@fancy_requires_auth
+@requires_auth
 async def get_project_creation_form(request: Request):
     """Return a form suitable for creating a new project."""
     form_instance = await forms.ProjectCreateForm.from_formdata(request)
@@ -99,7 +101,7 @@ async def get_project_creation_form(request: Request):
 
 
 @csrf_protect
-@fancy_requires_auth
+@requires_auth
 async def get_project_update_form(request: Request):
     """Return a form suitable for updating an existing project."""
     user = get_user(request.session.get("user", {}))
@@ -178,7 +180,7 @@ async def get_project_update_form(request: Request):
     return DatastarResponse(event_streamer())
 
 
-@fancy_requires_auth
+@requires_auth
 async def get_project_details_component(request: Request):
     details = await _get_project_details(request)
     template_processor = request.state.templates
@@ -201,7 +203,6 @@ async def get_project_details_component(request: Request):
     return DatastarResponse(event_streamer())
 
 
-@fancy_requires_auth
 async def get_project_detail_updates(request: Request):
     """Informs client about modifications to project details.
 
@@ -443,11 +444,12 @@ async def get_list_component(request: Request):
         num_unfiltered_total,
         collection_url=str(request.url_for("projects:list")),
     )
+    serialized_items = [schemas.ProjectReadListItem.from_db_instance(i) for i in items]
     template_processor = request.state.templates
     template = template_processor.get_template("projects/list-component.html")
     rendered = template.render(
         request=request,
-        items=[schemas.ProjectReadListItem.from_db_instance(i) for i in items],
+        items=serialized_items,
         update_current_url_with=filter_query_string,
         pagination=pagination_info,
     )
@@ -457,6 +459,13 @@ async def get_list_component(request: Request):
             rendered,
             selector=schemas.selector_info.items_selector,
             mode=ElementPatchMode.REPLACE,
+        )
+        yield ServerSentEventGenerator.execute_script(
+            UPDATE_BASEMAP_JS_SCRIPT.format(
+                dumped_features=json.dumps(
+                    geojson.to_feature_collection(serialized_items)
+                )
+            )
         )
 
     return DatastarResponse(event_streamer())
@@ -503,13 +512,17 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             default_bbox = shapely.from_wkt(settings.webmap_default_bbox_wkt)
             min_lon, min_lat, max_lon, max_lat = default_bbox.bounds
 
+        serialized_items = [
+            schemas.ProjectReadListItem.from_db_instance(i) for i in items
+        ]
+        geojson_features = geojson.to_feature_collection(serialized_items)
+
         return template_processor.TemplateResponse(
             request,
             "projects/list.html",
             context={
-                "items": [
-                    schemas.ProjectReadListItem.from_db_instance(i) for i in items
-                ],
+                "items": serialized_items,
+                "geojson_features": json.dumps(geojson_features),
                 "pagination": pagination_info,
                 "map_bounds": {
                     "min_lon": min_lon,
@@ -538,7 +551,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         )
 
     @csrf_protect
-    @fancy_requires_auth
+    @requires_auth
     async def post(self, request: Request):
         """Create a new project."""
         template_processor: Jinja2Templates = request.state.templates
@@ -615,6 +628,13 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 mode=ElementPatchMode.APPEND,
             )
             await asyncio.sleep(1)
+
+            tasks.validate_project.send(
+                raw_request_id=str(request_id),
+                raw_project_id=str(to_create.id),
+                raw_initiator=json.dumps(dataclasses.asdict(user)),
+            )
+
             yield ServerSentEventGenerator.redirect(
                 str(request.url_for("projects:detail", project_id=to_create.id)),
             )
@@ -686,7 +706,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         )
 
     @csrf_protect
-    @fancy_requires_auth
+    @requires_auth
     async def put(self, request: Request):
         """Update an existing project."""
         template_processor: Jinja2Templates = request.state.templates
@@ -786,6 +806,13 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             # - page title (project name may have changed)
             # - clear the feedback section
             breadcrumbs_template = template_processor.get_template("breadcrumbs.html")
+
+            tasks.validate_project.send(
+                raw_request_id=str(request_id),
+                raw_project_id=str(project_id),
+                raw_initiator=json.dumps(dataclasses.asdict(user)),
+            )
+
             yield ServerSentEventGenerator.patch_elements(
                 breadcrumbs_template.render(
                     request=request, breadcrumbs=project_details.breadcrumbs
@@ -813,12 +840,6 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 "",
                 selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.INNER,
-            )
-
-            tasks.validate_project.send(
-                raw_request_id=str(request_id),
-                raw_project_id=str(project_id),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
             )
 
         async def handle_processing_failure(
@@ -864,7 +885,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         return DatastarResponse(event_streamer(), status_code=202)
 
     @csrf_protect
-    @fancy_requires_auth
+    @requires_auth
     async def delete(self, request: Request):
         """Delete a project."""
         user = get_user(request.session.get("user", {}))
@@ -945,7 +966,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         return DatastarResponse(stream_events())
 
     @csrf_protect
-    @fancy_requires_auth
+    @requires_auth
     async def post(self, request: Request):
         """Create a new survey mission belonging to the project."""
         user = get_user(request.session.get("user", {}))
@@ -1044,6 +1065,13 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 mode=ElementPatchMode.APPEND,
             )
             await asyncio.sleep(1)
+
+            tasks.validate_survey_mission.send(
+                raw_request_id=str(request_id),
+                raw_survey_mission_id=str(to_create.id),
+                raw_initiator=json.dumps(dataclasses.asdict(user)),
+            )
+
             yield ServerSentEventGenerator.redirect(
                 str(
                     request.url_for(

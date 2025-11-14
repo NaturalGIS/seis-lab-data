@@ -1,10 +1,11 @@
+import datetime as dt
+import uuid
 from typing import (
     Annotated,
     cast,
     NewType,
     Protocol,
 )
-import uuid
 
 import pydantic
 import shapely
@@ -116,6 +117,14 @@ def serialize_polygon_to_bounds(
     value: shapely.Polygon,
 ) -> tuple[float, float, float, float]:
     return value.bounds
+
+
+def serialize_possibly_empty_date(value: dt.date | None) -> str:
+    return value.isoformat() if value else ""
+
+
+def serialize_id(value: uuid.UUID) -> str:
+    return str(value)
 
 
 # suitable for putting values into the DB
