@@ -73,8 +73,8 @@ This template is loaded as a GET response to the /projects/ endpoint. It is used
                             aria-controls="advanced-search-controls"
                     >
                         <span
-                            class="material-icons-outlined me-1"
-                            data-attr:style="$advancedSearchPanelOpen ? 'transform: rotate(0deg); transition: transform 0.3s ease;' : 'transform: rotate(-90deg); transition: transform 0.3s ease;'"
+                                class="material-icons-outlined me-1"
+                                data-attr:style="$advancedSearchPanelOpen ? 'transform: rotate(0deg); transition: transform 0.3s ease;' : 'transform: rotate(-90deg); transition: transform 0.3s ease;'"
                         >
                             {{ icons.expand_more }}
                         </span>
@@ -84,7 +84,16 @@ This template is loaded as a GET response to the /projects/ endpoint. It is used
             </div>
             <div class="row">
                 <div class="col mt-1 mb-5">
-                    <div class="collapse" id="advanced-search-controls">
+                    <div class="row collapse" id="advanced-search-controls">
+                        <div class="col-4">
+                            {{ macros.render_temporal_extent_search_component(
+                                url_for("projects:get_list_component"),
+                                _("Temporal extent begin"),
+                                _("Temporal extent end"),
+                                "{{ current_temporal_extent.begin }}",
+                                "{{ current_temporal_extent.end }}"
+                            ) }}
+                        </div>
                         <div
                                 class="col"
                                 data-signals:current-bbox="null"
@@ -110,15 +119,6 @@ This template is loaded as a GET response to the /projects/ endpoint. It is used
                                     data-on:map-moveend="document.querySelector('base-map').checkVisibility() ? $currentBbox=evt.detail.map.getBounds().toArray() : $currentBbox=[[-180, -90],[180, 90]]; @get('{{ url_for('projects:get_list_component') }}')"
 
                             ></base-map>
-                            <div class="col">
-                                {{ macros.render_temporal_extent_search_component(
-                                        url_for("projects:get_list_component"),
-                                        _("Temporal extent begin"),
-                                        _("Temporal extent end"),
-                                        "{{ current_temporal_extent.begin }}",
-                                        "{{ current_temporal_extent.end }}"
-                                    ) }}
-                            </div>
                         </div>
                     </div>
                 </div>

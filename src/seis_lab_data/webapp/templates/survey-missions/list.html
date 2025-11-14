@@ -4,9 +4,10 @@
 {% block head %}
     {{ super() }}
     <script type="module" src="{{ url_for('static', path='/js/maplibre-gl-v5.9.0.js') }}"></script>
-    <link href="{{ url_for('static', path='/css/maplibre-gl-v5.9.0.css') }}" rel='stylesheet' />
+    <link href="{{ url_for('static', path='/css/maplibre-gl-v5.9.0.css') }}" rel='stylesheet'/>
     <script type="module" src="{{ url_for('static', path='/js/terra-draw-v1.0.0.umd.js') }}"></script>
-    <script type="module" src="{{ url_for('static', path='/js/terra-draw-maplibre-gl-adapter-v1.0.0.umd.js') }}"></script>
+    <script type="module"
+            src="{{ url_for('static', path='/js/terra-draw-maplibre-gl-adapter-v1.0.0.umd.js') }}"></script>
     <script type="module" src="{{ url_for('static', path='/js/bbox-map.js') }}"></script>
     <script type="module" src="{{ url_for('static', path='/js/map-with-layer.js') }}"></script>
     <script type="module" src="{{ url_for('static', path='/js/basemap.js') }}"></script>
@@ -74,7 +75,16 @@
             </div>
             <div class="row">
                 <div class="col mt-1 mb-5">
-                    <div class="collapse" id="advanced-search-controls">
+                    <div class="row collapse" id="advanced-search-controls">
+                        <div class="col-4">
+                            {{ macros.render_temporal_extent_search_component(
+                                        url_for("survey_missions:get_list_component"),
+                                        _("Temporal extent begin"),
+                                        _("Temporal extent end"),
+                                        "{{ current_temporal_extent.begin }}",
+                                        "{{ current_temporal_extent.end }}"
+                                    ) }}
+                        </div>
                         <div
                                 class="col"
                                 data-signals:current-bbox="null"
@@ -100,16 +110,8 @@
                                     data-on:map-moveend="document.querySelector('base-map').checkVisibility() ? $currentBbox=evt.detail.map.getBounds().toArray() : $currentBbox=[[-180, -90],[180, 90]]; @get('{{ url_for('survey_missions:get_list_component') }}')"
 
                             ></base-map>
-                            <div class="col">
-                                {{ macros.render_temporal_extent_search_component(
-                                        url_for("survey_missions:get_list_component"),
-                                        _("Temporal extent begin"),
-                                        _("Temporal extent end"),
-                                        "{{ current_temporal_extent.begin }}",
-                                        "{{ current_temporal_extent.end }}"
-                                    ) }}
-                            </div>
                         </div>
+
                     </div>
                 </div>
             </div>

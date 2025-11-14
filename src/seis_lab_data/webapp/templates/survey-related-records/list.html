@@ -74,7 +74,16 @@
         </div>
         <div class="row">
             <div class="col mt-1 mb-5">
-                <div class="collapse" id="advanced-search-controls">
+                <div class="row collapse" id="advanced-search-controls">
+                    <div class="col-4">
+                        {{ macros.render_temporal_extent_search_component(
+                                        url_for("survey_related_records:get_list_component"),
+                                        _("Temporal extent begin"),
+                                        _("Temporal extent end"),
+                                        "{{ current_temporal_extent.begin }}",
+                                        "{{ current_temporal_extent.end }}"
+                                    ) }}
+                    </div>
                     <div
                             class="col"
                             data-signals:current-bbox="null"
@@ -99,15 +108,6 @@
                                 style="display: block; width: 100%; height: 30vh"
                                 data-on:map-moveend="document.querySelector('base-map').checkVisibility() ? $currentBbox=evt.detail.map.getBounds().toArray() : $currentBbox=[[-180, -90],[180, 90]]; @get('{{ url_for('survey_related_records:get_list_component') }}')"
                         ></base-map>
-                        <div class="col">
-                            {{ macros.render_temporal_extent_search_component(
-                                        url_for("survey_related_records:get_list_component"),
-                                        _("Temporal extent begin"),
-                                        _("Temporal extent end"),
-                                        "{{ current_temporal_extent.begin }}",
-                                        "{{ current_temporal_extent.end }}"
-                                    ) }}
-                        </div>
                     </div>
                 </div>
             </div>
