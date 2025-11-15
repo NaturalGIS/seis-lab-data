@@ -4,8 +4,8 @@ metadata:
   labels:
     blueprints.goauthentik.io/instantiate: "true"
 context:
-  client_id: !File /run/secrets/auth_client_id
-  client_secret: !File /run/secrets/auth_client_secret
+  client_id: !File /run/secrets/auth-client-id
+  client_secret: !File /run/secrets/auth-client-secret
   redirect_uri: !Env SEIS_LAB_DATA_REDIRECT_URI
 
 entries:

@@ -19,6 +19,10 @@ x-common-secrets: &common-secrets
   secrets:
     - source: sld-database-dsn
       target: SEIS_LAB_DATA__database_dsn
+    - source: auth-client-id
+      target: SEIS_LAB_DATA__auth_client_id
+    - source: auth-client-secret
+      target: SEIS_LAB_DATA__auth_client_secret
 
 x-common-auth-env: &common-auth-env
   AUTHENTIK_EMAIL__HOST: smtp.postmarkapp.com
@@ -29,8 +33,8 @@ x-common-auth-env: &common-auth-env
   AUTHENTIK_EMAIL__TIMEOUT: 10
   AUTHENTIK_EMAIL__FROM: auth@seis-lab-data.naturalgis.pt
   AUTHENTIK_LOG_LEVEL: warning
-  AUTHENTIK_REDIS__HOST: message-broker
   AUTHENTIK_SECRET_KEY: file:///run/secrets/auth-secret-key
+  AUTHENTIK_REDIS__HOST: message-broker
   AUTHENTIK_POSTGRESQL__HOST: auth-db
   AUTHENTIK_POSTGRESQL__USER: sld_auth_user
   AUTHENTIK_POSTGRESQL__NAME: authentik
@@ -66,7 +70,7 @@ services:
     labels:
       - exposed.outside=true
       - traefik.enable=true
-      - "traefik.http.routers.auth-router.rule=Host(`seis-lab-data.naturalgis.pt`) && PathPrefix(`/auth`)"
+      - "traefik.http.routers.auth-router.rule=Host(`seis-lab-data.naturalgis.pt`) && PathPrefix(`^/auth/`)"
       - traefik.http.routers.auth-router.entrypoints=web
       - traefik.http.routers.auth-router.priority=100
       - traefik.http.services.auth-service.loadbalancer.server.port=9000
@@ -110,6 +114,8 @@ services:
       - auth-bootstrap-password
       - auth-bootstrap-token
       - auth-bootstrap-email
+      - auth-client-id
+      - auth-client-secret
 
   message-broker:
     image: redis:8
