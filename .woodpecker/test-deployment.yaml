@@ -54,21 +54,22 @@ steps:
 
       echo "Target directory ownership: UID=$TARGET_UID, GID=$TARGET_GID"
 
-      COMPOSE_FILE_NAME="compose.test-env.yaml"
-      LOG_FILE_NAME="dev-log-config.yml"
-      ENV_FILE_NAME="compose-deployment.env"
       DEPLOYMENT_DIR="/opt/seis-lab-data"
+
+      # Files to copy from the cloned repo
+      COMPOSE_FILE_NAME="compose.test-env.yaml"
       AUTHENTIK_BLUEPRINT_FILE_NAME="sld-auth-blueprint-test-env.yaml"
 
       echo "Copying files to host"
       cp docker/$${COMPOSE_FILE_NAME} $${DEPLOYMENT_DIR}
       chown $${TARGET_UID}:$${TARGET_GID} $${DEPLOYMENT_DIR}/$${COMPOSE_FILE_NAME}
-      cp $${LOG_FILE_NAME} $${DEPLOYMENT_DIR}
-      chown $${TARGET_UID}:$${TARGET_GID} $${DEPLOYMENT_DIR}/$${LOG_FILE_NAME}
       mkdir -p $${DEPLOYMENT_DIR}/authentik
       chown $${TARGET_UID}:$${TARGET_GID} $${DEPLOYMENT_DIR}/authentik
       cp docker/authentik/$${AUTHENTIK_BLUEPRINT_FILE_NAME} $${DEPLOYMENT_DIR}/authentik
       chown $${TARGET_UID}:$${TARGET_GID} $${DEPLOYMENT_DIR}/authentik/$${AUTHENTIK_BLUEPRINT_FILE_NAME}
+
+
+      ENV_FILE_NAME="compose-deployment.env"
 
       if [ ! -f $${DEPLOYMENT_DIR}/$${ENV_FILE_NAME} ]; then
         echo "ERROR: env file not found at $${DEPLOYMENT_DIR}/$${ENV_FILE_NAME}"

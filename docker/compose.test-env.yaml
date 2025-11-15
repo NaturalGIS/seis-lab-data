@@ -11,8 +11,8 @@ x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.6.4"
 x-auth-redirect-url: &auth-redirect-url "http://localhost:8888/oauth2/callback"
 
 x-common-env: &common-env
-  SEIS_LAB_DATA__DEBUG: ${DEBUG}
-  SEIS_LAB_DATA__LOG_CONFIG_FILE: ${LOG_CONFIG_FILE}
+  SEIS_LAB_DATA__DEBUG: ${DEBUG:-false}
+  SEIS_LAB_DATA__LOG_CONFIG_FILE: ${LOG_CONFIG_FILE:-/home/ubuntu/app/dev-log-config.yml}
   SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
 
 x-common-secrets: &common-secrets
@@ -75,6 +75,9 @@ services:
         condition: service_healthy
       message-broker:
         condition: service_healthy
+    networks:
+      - traefik-network
+      - default
     secrets:
       - auth-db-password
       - auth-secret-key
@@ -174,6 +177,7 @@ services:
       - "/tiles"
     networks:
       - traefik-network
+      - default
     labels:
       - exposed.outside=true
       - traefik.enable=true
