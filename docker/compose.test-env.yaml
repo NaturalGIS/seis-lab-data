@@ -70,7 +70,7 @@ services:
     labels:
       - exposed.outside=true
       - traefik.enable=true
-      - "traefik.http.routers.auth-router.rule=Host(`seis-lab-data.naturalgis.pt`) && PathPrefix(`^/auth/`)"
+      - "traefik.http.routers.auth-router.rule=Host(`seis-lab-data.naturalgis.pt`) && PathRegexp(`^/auth/`)"
       - traefik.http.routers.auth-router.entrypoints=web
       - traefik.http.routers.auth-router.priority=100
       - traefik.http.services.auth-service.loadbalancer.server.port=9000
