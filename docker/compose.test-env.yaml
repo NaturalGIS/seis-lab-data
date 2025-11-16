@@ -7,7 +7,7 @@ name: seis-lab-data
 
 x-common-image: &common-image "${IMAGE_URL}"
 
-x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.6.4"
+x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.8.0-rc6"
 x-auth-redirect-url: &auth-redirect-url "http://localhost:8888/oauth2/callback"
 
 x-common-env: &common-env
