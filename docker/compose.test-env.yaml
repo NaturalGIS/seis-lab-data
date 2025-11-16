@@ -172,15 +172,6 @@ services:
   martin-tile-server:
     image: ghcr.io/maplibre/martin:martin-v0.19.3
     command: ["--config", "/run/secrets/martin-config"]
-    environment:
-      SLD_DATABASE_URL: postgres://sld:sldpass@db/seis_lab_data
-    configs:
-      - martin-conf
-    volumes:
-      - type: bind
-        source: ../sample-data/pmtiles
-        target: /pmtiles
-        read_only: true
     depends_on:
       db:
         condition: service_healthy
