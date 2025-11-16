@@ -42,6 +42,11 @@ x-common-auth-env: &common-auth-env
   AUTHENTIK_WEB__PATH: /auth/
   SEIS_LAB_DATA_REDIRECT_URI: *auth-redirect-url
 
+x-common-volumes: &common-volumes
+  - type: bind
+    source: /opt/data
+    target: /data
+
 
 services:
 
@@ -147,6 +152,8 @@ services:
       SEIS_LAB_DATA__BIND_HOST: 0.0.0.0
       SEIS_LAB_DATA__BIND_PORT: 5000
       SEIS_LAB_DATA__PUBLIC_URL: ${WEBAPP_PUBLIC_URL}
+    volumes:
+      *common-volumes
     labels:
       - exposed.outside=true
       - traefik.enable=true
@@ -164,6 +171,8 @@ services:
     image: *common-image
     command:
       - "run-processing-worker"
+    volumes:
+      *common-volumes
     environment:
       <<: *common-env
     <<: *common-secrets
@@ -180,6 +189,11 @@ services:
     networks:
       - traefik-network
       - default
+    volumes:
+      - type: bind
+        source: /opt/data/pmtiles
+        target: /pmtiles
+        read_only: true
     labels:
       - exposed.outside=true
       - traefik.enable=true
