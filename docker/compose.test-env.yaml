@@ -169,30 +169,35 @@ services:
     <<: *common-secrets
     restart: unless-stopped
 
-  static-tile-server:
-    image: protomaps/go-pmtiles:v1.28.1
+  martin-tile-server:
+    image: ghcr.io/maplibre/martin:martin-v0.19.3
+    command: ["--config", "/run/secrets/martin-config"]
+    environment:
+      SLD_DATABASE_URL: postgres://sld:sldpass@db/seis_lab_data
+    configs:
+      - martin-conf
     volumes:
       - type: bind
-        source: /opt/data/pmtiles
-        target: /tiles
+        source: ../sample-data/pmtiles
+        target: /pmtiles
         read_only: true
-    command:
-      - "serve"
-      - "--public-url=http://localhost:8888"
-      - "--cors=*"
-      - "/tiles"
+    depends_on:
+      db:
+        condition: service_healthy
+    secrets:
+      - martin-config
     networks:
       - traefik-network
       - default
     labels:
       - exposed.outside=true
       - traefik.enable=true
-      - traefik.http.middlewares.pm-tiles-stripprefix.stripprefix.prefixes=/tiles
-      - traefik.http.routers.pm-tiles.rule=PathPrefix(`/tiles`)
-      - traefik.http.routers.pm-tiles.entrypoints=web
-      - traefik.http.routers.pm-tiles.priority=90
-      - traefik.http.routers.pm-tiles.middlewares=pm-tiles-stripprefix
-      - traefik.http.services.pm-tiles.loadbalancer.server.port=8080
+      - "traefik.http.middlewares.martin-stripprefix.stripprefix.prefixes=/tiles"
+      - traefik.http.routers.martin-router.entrypoints=web
+      - "traefik.http.routers.martin-router.rule=Host(`seis-lab-data.naturalgis.pt`) && PathPrefix(`/tiles`)"
+      - traefik.http.routers.martin-router.priority=90
+      - traefik.http.routers.martin-router.middlewares=martin-stripprefix
+      - traefik.http.services.martin.loadbalancer.server.port=3000
 
 networks:
   traefik-network:
@@ -224,5 +229,7 @@ secrets:
     file: /opt/seis-lab-data/secrets/auth-secret-key.txt
   db-password:
     file: /opt/seis-lab-data/secrets/db-password.txt
+  martin-config:
+    file: /opt/seis-lab-data/secrets/martin-config.yaml
   sld-database-dsn:
     file: /opt/seis-lab-data/secrets/sld-db-dsn.txt
