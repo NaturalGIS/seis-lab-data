@@ -135,6 +135,7 @@ def generate_sample_projects(
     dataset_categories: Sequence[schemas.DatasetCategoryId],
     domain_types: Sequence[schemas.DomainTypeId],
     workflow_stages: Sequence[schemas.WorkflowStageId],
+    num_projects: int = 100,
 ) -> Generator[
     tuple[
         schemas.ProjectCreate,
@@ -145,7 +146,11 @@ def generate_sample_projects(
     None,
     None,
 ]:
-    for index in count():
+    """Generate large numbers of sample projects, for development and testingpurposes.
+
+    All projects will be generated with a `_sample` suffix in their english name.
+    """
+    for index in range(num_projects):
         project = schemas.ProjectCreate(
             id=schemas.ProjectId(uuid.uuid4()),
             owner=random.choice(owners),
@@ -158,6 +163,9 @@ def generate_sample_projects(
             ),
             root_path="/project-path-{index}",
             links=[],
+            bbox_4326=None,
+            temporal_extent_begin=None,
+            temporal_extent_end=None,
         )
         mission_generator = generate_sample_survey_missions(
             owners, project.id, dataset_categories, domain_types, workflow_stages
