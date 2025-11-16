@@ -395,6 +395,18 @@ wheels = [
 ]
 
 [[package]]
+name = "faker"
+version = "38.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tzdata" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/04/05/206c151fe8ca9c8e46963d6c8b6e2e281f272009dad30fe3792005393a5e/faker-38.0.0.tar.gz", hash = "sha256:797aa03fa86982dfb6206918acc10ebf3655bdaa89ddfd3e668d7cc69537331a", size = 1935705, upload-time = "2025-11-12T01:47:39.586Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4d/1e/e6d1940d2c2617d7e6a0a3fdd90e506ff141715cdc4c3ecd7217d937e656/faker-38.0.0-py3-none-any.whl", hash = "sha256:ad4ea6fbfaac2a75d92943e6a79c81f38ecff92378f6541dea9a677ec789a5b2", size = 1975561, upload-time = "2025-11-12T01:47:36.672Z" },
+]
+
+[[package]]
 name = "fastjsonschema"
 version = "2.21.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1652,6 +1664,7 @@ dependencies = [
     { name = "authlib" },
     { name = "datastar-py" },
     { name = "dramatiq", extra = ["redis", "watch"] },
+    { name = "faker" },
     { name = "geoalchemy2" },
     { name = "httpx" },
     { name = "itsdangerous" },
@@ -1696,6 +1709,7 @@ requires-dist = [
     { name = "authlib", specifier = ">=1.6.1" },
     { name = "datastar-py", specifier = ">=0.6.5" },
     { name = "dramatiq", extras = ["redis", "watch"], specifier = ">=1.18.0" },
+    { name = "faker", specifier = ">=38.0.0" },
     { name = "geoalchemy2", specifier = ">=0.18.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "itsdangerous", specifier = ">=2.2.0" },

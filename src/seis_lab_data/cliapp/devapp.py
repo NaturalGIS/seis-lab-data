@@ -1,13 +1,15 @@
+import datetime as dt
 import random
 import uuid
 from itertools import count
-
 from typing import (
     Generator,
     Sequence,
 )
 
+import shapely
 import typer
+from faker import Faker
 from sqlalchemy.exc import IntegrityError
 
 from .. import (
@@ -130,12 +132,30 @@ async def load_sample_survey_related_records(ctx: typer.Context):
         ctx.obj["main"].status_console.print(to_show)
 
 
+def _generate_sample_bbox(x: float, y: float) -> shapely.Polygon:
+    width = random.random() * 0.4  # 0 - .4 degrees
+    height = random.random() * 0.4  # 0 - .4 degrees
+    other_x = (x + width + 180) % 360 - 180
+    other_y = (y + height + 90) % 180 - 90
+    x_min = min(x, other_x)
+    x_max = max(x, other_x)
+    y_min = min(y, other_y)
+    y_max = max(y, other_y)
+    return shapely.box(x_min, y_min, x_max, y_max)
+
+
+def _generate_sample_temporal_extent() -> tuple[dt.date | None, dt.date | None]:
+    fake = Faker()
+    end = fake.date_object()
+    start = fake.date_object(end_datetime=dt.datetime(end.year, end.month, end.day))
+    return random.choice([start, None]), random.choice([end, None])
+
+
 def generate_sample_projects(
     owners: Sequence[schemas.UserId],
     dataset_categories: Sequence[schemas.DatasetCategoryId],
     domain_types: Sequence[schemas.DomainTypeId],
     workflow_stages: Sequence[schemas.WorkflowStageId],
-    num_projects: int = 100,
 ) -> Generator[
     tuple[
         schemas.ProjectCreate,
@@ -150,7 +170,7 @@ def generate_sample_projects(
 
     All projects will be generated with a `_sample` suffix in their english name.
     """
-    for index in range(num_projects):
+    for index in count():
         project = schemas.ProjectCreate(
             id=schemas.ProjectId(uuid.uuid4()),
             owner=random.choice(owners),
