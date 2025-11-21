@@ -1,9 +1,21 @@
+import datetime as dt
+import random
 import uuid
+from itertools import count
+from typing import (
+    Iterator,
+    Sequence,
+)
 
 import pydantic
+import shapely
+from faker import Faker
 
 from .. import schemas
 from ..db import models
+
+_FAKE_EN = Faker("en_US")
+_FAKE_PT = Faker("pt_PT")
 
 _owner_id = schemas.UserId("fake-owner1")
 _my_first_project_id = schemas.ProjectId(
@@ -366,3 +378,359 @@ def get_survey_related_records_to_create(
             ],
         ),
     ]
+
+
+def generate_sample_projects(
+    owners: Sequence[schemas.UserId],
+    dataset_categories: Sequence[schemas.DatasetCategoryId],
+    domain_types: Sequence[schemas.DomainTypeId],
+    workflow_stages: Sequence[schemas.WorkflowStageId],
+    root_path: str = "/archive",
+) -> Iterator[
+    tuple[
+        schemas.ProjectCreate,
+        list[
+            tuple[schemas.SurveyMissionCreate, list[schemas.SurveyRelatedRecordCreate]]
+        ],
+    ],
+]:
+    """Generate large numbers of sample projects, for development and testingpurposes.
+
+    All projects will be generated with a `_sample` suffix in their english name.
+    """
+    for _ in count():
+        links = (
+            [next(generate_sample_link()) for _ in range(_FAKE_EN.random_int(0, 15))]
+            if _FAKE_EN.random_digit() < 5
+            else []
+        )
+        temporal_extent = _generate_sample_temporal_extent()
+        project = schemas.ProjectCreate(
+            id=schemas.ProjectId(uuid.uuid4()),
+            owner=random.choice(owners),
+            name=schemas.LocalizableDraftName(
+                en=f"sample_{_FAKE_EN.sentence()}",
+                pt=f"amostra_{_FAKE_PT.sentence()}",
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en=_FAKE_EN.paragraph(nb_sentences=4),
+                pt=_FAKE_PT.paragraph(nb_sentences=4),
+            ),
+            root_path=f"/{root_path}/{_FAKE_EN.file_path(depth=_FAKE_EN.random_int(0, 3), absolute=False)}",
+            bbox_4326=(
+                _generate_sample_bbox(
+                    float(_FAKE_EN.longitude()), float(_FAKE_EN.latitude())
+                )
+                if _FAKE_EN.random_digit() >= 1
+                else None
+            ),
+            temporal_extent_begin=temporal_extent[0],
+            temporal_extent_end=temporal_extent[1],
+            links=links,
+        )
+        mission_generator = generate_sample_survey_missions(
+            owners, project.id, dataset_categories, domain_types, workflow_stages
+        )
+        missions = [next(mission_generator) for _ in range(_FAKE_EN.random_int(1, 10))]
+        yield project, missions
+
+
+def generate_sample_survey_missions(
+    owners: Sequence[schemas.UserId],
+    project_id: schemas.ProjectId,
+    dataset_categories: Sequence[schemas.DatasetCategoryId],
+    domain_types: Sequence[schemas.DomainTypeId],
+    workflow_stages: Sequence[schemas.WorkflowStageId],
+) -> Iterator[
+    tuple[schemas.SurveyMissionCreate, list[schemas.SurveyRelatedRecordCreate]],
+]:
+    for _ in count():
+        links = (
+            [next(generate_sample_link()) for _ in range(_FAKE_EN.random_int(0, 15))]
+            if _FAKE_EN.random_digit() < 5
+            else []
+        )
+        temporal_extent = _generate_sample_temporal_extent()
+        mission = schemas.SurveyMissionCreate(
+            id=schemas.SurveyMissionId(uuid.uuid4()),
+            project_id=project_id,
+            owner=random.choice(owners),
+            name=schemas.LocalizableDraftName(
+                en=f"sample_{_FAKE_EN.sentence()}",
+                pt=f"amostra_{_FAKE_PT.sentence()}",
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en=_FAKE_EN.paragraph(nb_sentences=4),
+                pt=_FAKE_PT.paragraph(nb_sentences=4),
+            ),
+            relative_path=_FAKE_EN.file_path(
+                depth=_FAKE_EN.random_int(1, 8), absolute=False
+            ),
+            bbox_4326=(
+                _generate_sample_bbox(
+                    float(_FAKE_EN.longitude()), float(_FAKE_EN.latitude())
+                )
+                if _FAKE_EN.random_digit() >= 1
+                else None
+            ),
+            temporal_extent_begin=temporal_extent[0],
+            temporal_extent_end=temporal_extent[1],
+            links=links,
+        )
+        record_generator = generate_sample_survey_related_records(
+            owners, mission.id, dataset_categories, domain_types, workflow_stages
+        )
+        records = [next(record_generator) for _ in range(_FAKE_EN.random_int(1, 100))]
+        yield mission, records
+
+
+def generate_sample_survey_related_records(
+    owners: Sequence[schemas.UserId],
+    survey_mission_id: schemas.SurveyMissionId,
+    dataset_categories: Sequence[schemas.DatasetCategoryId],
+    domain_types: Sequence[schemas.DomainTypeId],
+    workflow_stages: Sequence[schemas.WorkflowStageId],
+) -> Iterator[schemas.SurveyRelatedRecordCreate]:
+    temporal_extent = _generate_sample_temporal_extent()
+    for _ in count():
+        links = (
+            [next(generate_sample_link()) for _ in range(_FAKE_EN.random_int(0, 15))]
+            if _FAKE_EN.random_digit() < 5
+            else []
+        )
+        assets = (
+            [next(generate_sample_asset()) for _ in range(_FAKE_EN.random_int(0, 12))]
+            if _FAKE_EN.random_digit() < 5
+            else []
+        )
+        yield schemas.SurveyRelatedRecordCreate(
+            id=schemas.SurveyRelatedRecordId(uuid.uuid4()),
+            owner=random.choice(owners),
+            name=schemas.LocalizableDraftName(
+                en=f"sample_{_FAKE_EN.sentence()}",
+                pt=f"amostra_{_FAKE_PT.sentence()}",
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en=_FAKE_EN.paragraph(nb_sentences=4),
+                pt=_FAKE_PT.paragraph(nb_sentences=4),
+            ),
+            survey_mission_id=survey_mission_id,
+            dataset_category_id=random.choice(dataset_categories),
+            domain_type_id=random.choice(domain_types),
+            workflow_stage_id=random.choice(workflow_stages),
+            relative_path=_FAKE_EN.file_path(
+                depth=_FAKE_EN.random_int(1, 8), absolute=False
+            ),
+            bbox_4326=(
+                _generate_sample_bbox(
+                    float(_FAKE_EN.longitude()), float(_FAKE_EN.latitude())
+                )
+                if _FAKE_EN.random_digit() >= 1
+                else None
+            ),
+            temporal_extent_begin=temporal_extent[0],
+            temporal_extent_end=temporal_extent[1],
+            links=links,
+            assets=assets,
+        )
+
+
+def generate_sample_asset() -> Iterator[schemas.RecordAssetCreate]:
+    for _ in count():
+        links = (
+            [next(generate_sample_link()) for _ in range(_FAKE_EN.random_int(0, 15))]
+            if _FAKE_EN.random_digit() < 5
+            else []
+        )
+        yield schemas.RecordAssetCreate(
+            id=schemas.RecordAssetId(uuid.uuid4()),
+            name=schemas.LocalizableDraftName(
+                en=f"sample_{_FAKE_EN.sentence()}",
+                pt=f"amostra_{_FAKE_PT.sentence()}",
+            ),
+            description=schemas.LocalizableDraftDescription(
+                en=_FAKE_EN.paragraph(nb_sentences=4),
+                pt=_FAKE_PT.paragraph(nb_sentences=4),
+            ),
+            relative_path=_FAKE_EN.file_path(
+                depth=_FAKE_EN.random_int(1, 4), absolute=False
+            ),
+            links=links,
+        )
+
+
+def generate_sample_link() -> Iterator[schemas.LinkSchema]:
+    for _ in count():
+        yield schemas.LinkSchema(
+            url=_FAKE_EN.url(),
+            media_type=_FAKE_EN.random_element(
+                (
+                    "application/json",
+                    "application/pdf",
+                    "application/xml",
+                    "text/html",
+                    "text/plain",
+                )
+            ),
+            relation=_FAKE_EN.random_element(
+                # this is a list of IANA link relations, as gotten from:
+                # https://www.iana.org/assignments/link-relations/link-relations.xhtml
+                (
+                    "about",
+                    "acl",
+                    "alternate",
+                    "amphtml",
+                    "api-catalog",
+                    "appendix",
+                    "apple-touch-icon",
+                    "apple-touch-startup-image",
+                    "archives",
+                    "author",
+                    "blocked-by",
+                    "bookmark",
+                    "c2pa-manifest",
+                    "canonical",
+                    "chapter",
+                    "cite-as",
+                    "collection",
+                    "compression-dictionary",
+                    "contents",
+                    "convertedfrom",
+                    "copyright",
+                    "create-form",
+                    "current",
+                    "deprecation",
+                    "describedby",
+                    "describes",
+                    "disclosure",
+                    "dns-prefetch",
+                    "duplicate",
+                    "edit",
+                    "edit-form",
+                    "edit-media",
+                    "enclosure",
+                    "external",
+                    "first",
+                    "geofeed",
+                    "glossary",
+                    "help",
+                    "hosts",
+                    "hub",
+                    "ice-server",
+                    "icon",
+                    "index",
+                    "intervalafter",
+                    "intervalbefore",
+                    "intervalcontains",
+                    "intervaldisjoint",
+                    "intervalduring",
+                    "intervalequals",
+                    "intervalfinishedby",
+                    "intervalfinishes",
+                    "intervalin",
+                    "intervalmeets",
+                    "intervalmetby",
+                    "intervaloverlappedby",
+                    "intervaloverlaps",
+                    "intervalstartedby",
+                    "intervalstarts",
+                    "item",
+                    "last",
+                    "latest-version",
+                    "license",
+                    "linkset",
+                    "lrdd",
+                    "manifest",
+                    "mask-icon",
+                    "me",
+                    "media-feed",
+                    "memento",
+                    "micropub",
+                    "modulepreload",
+                    "monitor",
+                    "monitor-group",
+                    "next",
+                    "next-archive",
+                    "nofollow",
+                    "noopener",
+                    "noreferrer",
+                    "opener",
+                    "openid2.local_id",
+                    "openid2.provider",
+                    "original",
+                    "p3pv1",
+                    "payment",
+                    "pingback",
+                    "preconnect",
+                    "predecessor-version",
+                    "prefetch",
+                    "preload",
+                    "prerender",
+                    "prev",
+                    "preview",
+                    "previous",
+                    "prev-archive",
+                    "privacy-policy",
+                    "profile",
+                    "publication",
+                    "rdap-active",
+                    "rdap-bottom",
+                    "rdap-down",
+                    "rdap-top",
+                    "rdap-up",
+                    "related",
+                    "restconf",
+                    "replies",
+                    "ruleinput",
+                    "search",
+                    "section",
+                    "self",
+                    "service",
+                    "service-desc",
+                    "service-doc",
+                    "service-meta",
+                    "sip-trunking-capability",
+                    "sponsored",
+                    "start",
+                    "status",
+                    "stylesheet",
+                    "subsection",
+                    "successor-version",
+                    "sunset",
+                    "tag",
+                    "terms-of-service",
+                    "timegate",
+                    "timemap",
+                    "type",
+                    "ugc",
+                    "up",
+                    "version-history",
+                    "via",
+                    "webmention",
+                    "working-copy",
+                    "working-copy-of",
+                )
+            ),
+            link_description=schemas.LocalizableDraftDescription(
+                en=_FAKE_EN.paragraph(nb_sentences=3),
+                pt=_FAKE_PT.paragraph(nb_sentences=3),
+            ),
+        )
+
+
+def _generate_sample_bbox(x: float, y: float) -> str:
+    width = random.random() * 0.4  # 0 - .4 degrees
+    height = random.random() * 0.4  # 0 - .4 degrees
+    other_x = (x + width + 180) % 360 - 180
+    other_y = (y + height + 90) % 180 - 90
+    x_min = min(x, other_x)
+    x_max = max(x, other_x)
+    y_min = min(y, other_y)
+    y_max = max(y, other_y)
+    return shapely.box(x_min, y_min, x_max, y_max).wkt
+
+
+def _generate_sample_temporal_extent() -> tuple[dt.date | None, dt.date | None]:
+    end = _FAKE_EN.date_object()
+    start = _FAKE_EN.date_object(end_datetime=dt.datetime(end.year, end.month, end.day))
+    return random.choice([start, None]), random.choice([end, None])

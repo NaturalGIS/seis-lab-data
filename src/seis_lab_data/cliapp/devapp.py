@@ -1,15 +1,6 @@
-import datetime as dt
-import random
-import uuid
-from itertools import count
-from typing import (
-    Generator,
-    Sequence,
-)
+from typing import Annotated
 
-import shapely
 import typer
-from faker import Faker
 from sqlalchemy.exc import IntegrityError
 
 from .. import (
@@ -27,6 +18,80 @@ app = AsyncTyper()
 @app.callback()
 def dev_app_callback(ctx: typer.Context):
     """Dev-related commands"""
+
+
+@app.async_command()
+async def generate_many_projects(
+    ctx: typer.Context,
+    num_projects: Annotated[
+        int,
+        typer.Option(
+            help=(
+                "Number of projects to generate. Beware - the bigger this number, the longer this command "
+                "will take to run"
+            ),
+            min=1,
+            max=100,
+        ),
+    ] = 10,
+):
+    """Generate synthetic data"""
+    session_maker = ctx.obj["session_maker"]
+    created = []
+    settings = ctx.obj["main"].settings
+    emitter = events.get_event_emitter(settings)
+    async with session_maker() as session:
+        dataset_categories = await queries.collect_all_dataset_categories(session)
+        workflow_stages = await queries.collect_all_workflow_stages(session)
+        domain_types = await queries.collect_all_domain_types(session)
+        project_generator = sampledata.generate_sample_projects(
+            owners=[schemas.UserId("fake_user")],
+            dataset_categories=[
+                schemas.DatasetCategoryId(dc.id) for dc in dataset_categories
+            ],
+            domain_types=[schemas.DomainTypeId(dt.id) for dt in domain_types],
+            workflow_stages=[schemas.WorkflowStageId(ws.id) for ws in workflow_stages],
+        )
+        for i in range(num_projects):
+            ctx.obj["main"].status_console.print(
+                f"Creating project {i + 1}/{num_projects}..."
+            )
+            project_to_create, missions_info = next(project_generator)
+            created.append(
+                await operations.create_project(
+                    project_to_create,
+                    initiator=ctx.obj["admin_user"],
+                    session=session,
+                    settings=settings,
+                    event_emitter=emitter,
+                )
+            )
+            for mission_index, (mission_to_create, records_to_create) in enumerate(
+                missions_info
+            ):
+                ctx.obj["main"].status_console.print(
+                    f"\tCreating mission ({mission_index + 1}/{len(missions_info)}) for project..."
+                )
+                await operations.create_survey_mission(
+                    mission_to_create,
+                    initiator=ctx.obj["admin_user"],
+                    session=session,
+                    settings=settings,
+                    event_emitter=emitter,
+                )
+                for record_index, record_to_create in enumerate(records_to_create):
+                    ctx.obj["main"].status_console.print(
+                        f"\t\tCreating record ({record_index + 1}/{len(records_to_create)}) for mission..."
+                    )
+                    await operations.create_survey_related_record(
+                        record_to_create,
+                        initiator=ctx.obj["admin_user"],
+                        session=session,
+                        settings=settings,
+                        event_emitter=emitter,
+                    )
+            ctx.obj["main"].status_console.print("--------")
+        ctx.obj["main"].status_console.print("Done!")
 
 
 @app.async_command()
@@ -60,8 +125,8 @@ async def load_sample_projects(ctx: typer.Context):
                     f"Project {to_create.id!r} already exists, skipping..."
                 )
                 await session.rollback()
-    for created_campaign in created:
-        to_show = schemas.ProjectReadListItem(**created_campaign.model_dump())
+    for created_project in created:
+        to_show = schemas.ProjectReadListItem(**created_project.model_dump())
         ctx.obj["main"].status_console.print(to_show)
 
 
@@ -130,144 +195,3 @@ async def load_sample_survey_related_records(ctx: typer.Context):
             **created_survey_record.model_dump()
         )
         ctx.obj["main"].status_console.print(to_show)
-
-
-def _generate_sample_bbox(x: float, y: float) -> shapely.Polygon:
-    width = random.random() * 0.4  # 0 - .4 degrees
-    height = random.random() * 0.4  # 0 - .4 degrees
-    other_x = (x + width + 180) % 360 - 180
-    other_y = (y + height + 90) % 180 - 90
-    x_min = min(x, other_x)
-    x_max = max(x, other_x)
-    y_min = min(y, other_y)
-    y_max = max(y, other_y)
-    return shapely.box(x_min, y_min, x_max, y_max)
-
-
-def _generate_sample_temporal_extent() -> tuple[dt.date | None, dt.date | None]:
-    fake = Faker()
-    end = fake.date_object()
-    start = fake.date_object(end_datetime=dt.datetime(end.year, end.month, end.day))
-    return random.choice([start, None]), random.choice([end, None])
-
-
-def generate_sample_projects(
-    owners: Sequence[schemas.UserId],
-    dataset_categories: Sequence[schemas.DatasetCategoryId],
-    domain_types: Sequence[schemas.DomainTypeId],
-    workflow_stages: Sequence[schemas.WorkflowStageId],
-) -> Generator[
-    tuple[
-        schemas.ProjectCreate,
-        list[
-            tuple[schemas.SurveyMissionCreate, list[schemas.SurveyRelatedRecordCreate]]
-        ],
-    ],
-    None,
-    None,
-]:
-    """Generate large numbers of sample projects, for development and testingpurposes.
-
-    All projects will be generated with a `_sample` suffix in their english name.
-    """
-    for index in count():
-        project = schemas.ProjectCreate(
-            id=schemas.ProjectId(uuid.uuid4()),
-            owner=random.choice(owners),
-            name=schemas.LocalizableDraftName(
-                en=f"Sample Project {index}", pt=f"Projeto de amostra {index}"
-            ),
-            description=schemas.LocalizableDraftDescription(
-                en="This is a sample project created for testing purposes.",
-                pt="Este é um projeto de amostra criado para fins de teste.",
-            ),
-            root_path="/project-path-{index}",
-            links=[],
-            bbox_4326=None,
-            temporal_extent_begin=None,
-            temporal_extent_end=None,
-        )
-        mission_generator = generate_sample_survey_missions(
-            owners, project.id, dataset_categories, domain_types, workflow_stages
-        )
-        missions = [next(mission_generator) for _ in range(random.randint(1, 10))]
-        yield project, missions
-
-
-def generate_sample_survey_missions(
-    owners: Sequence[schemas.UserId],
-    project_id: schemas.ProjectId,
-    dataset_categories: Sequence[schemas.DatasetCategoryId],
-    domain_types: Sequence[schemas.DomainTypeId],
-    workflow_stages: Sequence[schemas.WorkflowStageId],
-) -> Generator[
-    tuple[schemas.SurveyMissionCreate, list[schemas.SurveyRelatedRecordCreate]],
-    None,
-    None,
-]:
-    for index in count():
-        mission = schemas.SurveyMissionCreate(
-            id=schemas.SurveyMissionId(uuid.uuid4()),
-            project_id=project_id,
-            owner=random.choice(owners),
-            name=schemas.LocalizableDraftName(
-                en=f"Sample Survey Mission {index}", pt=f"Missão de amostra {index}"
-            ),
-            description=schemas.LocalizableDraftDescription(
-                en="This is a sample survey mission created for testing purposes.",
-                pt="Esta é uma missão de amostra criada para fins de teste.",
-            ),
-            relative_path="mission-path-{index}",
-            links=[],
-        )
-        record_generator = generate_sample_survey_related_records(
-            owners, mission.id, dataset_categories, domain_types, workflow_stages
-        )
-        records = [next(record_generator) for _ in range(random.randint(1, 100))]
-        yield mission, records
-
-
-def generate_sample_survey_related_records(
-    owners: Sequence[schemas.UserId],
-    survey_mission_id: schemas.SurveyMissionId,
-    dataset_categories: Sequence[schemas.DatasetCategoryId],
-    domain_types: Sequence[schemas.DomainTypeId],
-    workflow_stages: Sequence[schemas.WorkflowStageId],
-) -> Generator[schemas.SurveyRelatedRecordCreate, None, None]:
-    for index in count():
-        asset_generator = generate_sample_assets()
-        yield schemas.SurveyRelatedRecordCreate(
-            id=schemas.SurveyRelatedRecordId(uuid.uuid4()),
-            owner=random.choice(owners),
-            name=schemas.LocalizableDraftName(
-                en=f"Sample Survey Related Record {index}",
-                pt=f"Registo de amostra {index}",
-            ),
-            description=schemas.LocalizableDraftDescription(
-                en="This is a sample survey-related record created for testing purposes.",
-                pt="Este é um registo de amostra criado para fins de teste.",
-            ),
-            survey_mission_id=survey_mission_id,
-            dataset_category_id=random.choice(dataset_categories),
-            domain_type_id=random.choice(domain_types),
-            workflow_stage_id=random.choice(workflow_stages),
-            relative_path="some-path-{index}",
-            links=[],
-            assets=[next(asset_generator) for _ in range(random.randint(1, 12))],
-        )
-
-
-def generate_sample_assets() -> Generator[schemas.RecordAssetCreate, None, None]:
-    for index in count():
-        yield schemas.RecordAssetCreate(
-            id=schemas.RecordAssetId(uuid.uuid4()),
-            name=schemas.LocalizableDraftName(
-                en=f"Sample Asset {index}", pt=f"Recurso de amostra {index}"
-            ),
-            description=schemas.LocalizableDraftDescription(
-                en="This is a sample asset created for testing purposes.",
-                pt="Este é um recurso de amostra criado para fins de teste.",
-            ),
-            relative_path=f"some-path-{index}",
-            links=[],
-        )
