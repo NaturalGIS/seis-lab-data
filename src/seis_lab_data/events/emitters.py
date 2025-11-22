@@ -19,8 +19,13 @@ def get_event_emitter(settings: config.SeisLabDataSettings) -> EventEmitterProto
 
 
 def no_op_emit_event(event: schemas.SeisLabDataEvent):
-    """An event emitter that does nothing."""
+    """An event emitter that just logs the event."""
     logger.debug(f"no-op emit event called with {event=}")
+
+
+def null_emitter(event: schemas.SeisLabDataEvent):
+    """An event emitter that does nothing."""
+    ...
 
 
 def emit_event(event: schemas.SeisLabDataEvent): ...

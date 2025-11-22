@@ -9,6 +9,7 @@ from .. import (
     schemas,
 )
 from ..db import queries
+from ..events.emitters import null_emitter
 from . import sampledata
 from .asynctyper import AsyncTyper
 
@@ -34,12 +35,15 @@ async def generate_many_projects(
             max=100,
         ),
     ] = 10,
+    enable_event_emitter: bool = False,
 ):
     """Generate synthetic data"""
     session_maker = ctx.obj["session_maker"]
     created = []
     settings = ctx.obj["main"].settings
-    emitter = events.get_event_emitter(settings)
+    emitter = (
+        events.get_event_emitter(settings) if enable_event_emitter else null_emitter
+    )
     async with session_maker() as session:
         dataset_categories = await queries.collect_all_dataset_categories(session)
         workflow_stages = await queries.collect_all_workflow_stages(session)
