@@ -10,7 +10,7 @@
 name: seis-lab-data
 
 x-common-image: &common-image "ghcr.io/naturalgis/seis-lab-data/seis-lab-data:${CURRENT_GIT_BRANCH:-latest}"
-x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.8.0-rc6"
+x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.8"
 x-auth-admin-token: &auth-admin-token "admin123"
 x-db-image: &db-image "postgis/postgis:17-3.5-alpine"
 x-auth-client-id: &auth-client-id "sld-client-id"
@@ -33,7 +33,6 @@ x-common-auth-env: &common-auth-env
   AUTHENTIK_POSTGRESQL__USER: authentik
   AUTHENTIK_POSTGRESQL__NAME: authentik
   AUTHENTIK_POSTGRESQL__PASSWORD: authentik_pass
-  AUTHENTIK_WEB__PATH: /auth/
   SEIS_LAB_DATA_CLIENT_ID: *auth-client-id
   SEIS_LAB_DATA_CLIENT_SECRET: *auth-client-secret
   SEIS_LAB_DATA_REDIRECT_URI: *auth-redirect-url
@@ -96,7 +95,7 @@ services:
       <<: *common-auth-env
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.auth-router.rule=PathRegexp(`^/auth/`)"
+      - "traefik.http.routers.auth-router.rule=Host(`auth.localhost`)"
       - "traefik.http.routers.auth-router.entrypoints=web"
       - "traefik.http.routers.auth-router.priority=100"
       - "traefik.http.services.auth-service.loadbalancer.server.port=9000"
@@ -106,7 +105,7 @@ services:
       message-broker:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python -c 'import requests; requests.get(\"http://localhost:9000/auth/-/health/ready/\").raise_for_status()'"]
+      test: ["CMD-SHELL", "python -c 'import requests; requests.get(\"http://localhost:9000/-/health/ready/\").raise_for_status()'"]
       start_period: 30s
       interval: 10s
       retries: 10
@@ -120,6 +119,7 @@ services:
       AUTHENTIK_BOOTSTRAP_PASSWORD: admin123
       AUTHENTIK_BOOTSTRAP_TOKEN: *auth-admin-token
       AUTHENTIK_BOOTSTRAP_EMAIL: akadmin@email.com
+      ARCHIVE_BASE_URL: http://sld-archive.localhost:8888
     volumes:
       - type: bind
         source: ./authentik/sld-auth-blueprint-dev.yaml
@@ -140,7 +140,7 @@ services:
             client_id = os.getenv("SEIS_LAB_DATA_CLIENT_ID")
             token = os.getenv("AUTHENTIK_BOOTSTRAP_TOKEN")
             response = requests.get(
-                "http://auth-webapp:9000/auth/api/v3/providers/oauth2/",
+                "http://auth-webapp:9000/api/v3/providers/oauth2/",
                 headers={"Authorization": f"Bearer {token}"},
                 timeout=5
             )
@@ -192,8 +192,8 @@ services:
       SEIS_LAB_DATA__BIND_HOST: 0.0.0.0
       SEIS_LAB_DATA__BIND_PORT: 5000
       SEIS_LAB_DATA__PUBLIC_URL: http://localhost:8888
-      SEIS_LAB_DATA__AUTH_EXTERNAL_BASE_URL: http://localhost:8888/auth
-      SEIS_LAB_DATA__AUTH_INTERNAL_BASE_URL: http://auth-webapp:9000/auth
+      SEIS_LAB_DATA__AUTH_EXTERNAL_BASE_URL: http://auth.localhost:8888
+      SEIS_LAB_DATA__AUTH_INTERNAL_BASE_URL: http://auth-webapp:9000
       SEIS_LAB_DATA__AUTH_CLIENT_ID: *auth-client-id
       SEIS_LAB_DATA__AUTH_CLIENT_SECRET: *auth-client-secret
       SEIS_LAB_DATA__WEBMAP_BASE_TILE_LAYER_URL: http://localhost:8888/tiles/emodnet-bathymetry/{z}/{x}/{y}
@@ -248,6 +248,27 @@ services:
       - "traefik.http.routers.martin-router.priority=90"
       - "traefik.http.routers.martin-router.middlewares=martin-stripprefix"
       - "traefik.http.services.martin.loadbalancer.server.port=3000"
+
+  caddy-file-server:
+    image: caddy:2
+    volumes:
+      - type: bind
+        source: ./caddy
+        target: /etc/caddy
+        read_only: true
+      - type: bind
+        source: ../sample-data
+        target: /srv/archive
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.authentik-auth.forwardauth.address=http://auth-webapp:9000/outpost.goauthentik.io/auth/traefik"
+      - "traefik.http.middlewares.authentik-auth.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.authentik-auth.forwardauth.authResponseHeaders=X-authentik-username,X-authentik-groups,X-authentik-email,X-authentik-name,X-authentik-uid"
+      - "traefik.http.middlewares.authentik-auth.forwardauth.maxBodySize=1048576"
+      - "traefik.http.routers.caddy-router.rule=Host(`sld-archive.localhost`)"
+      - "traefik.http.routers.caddy-router.entrypoints=web"
+      - "traefik.http.routers.caddy-router.middlewares=authentik-auth"
+      - "traefik.http.services.caddy-service.loadbalancer.server.port=8000"
 
   jupyter:
     image: *common-image
