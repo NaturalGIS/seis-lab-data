@@ -7,6 +7,7 @@ context:
   client_id: !Env SEIS_LAB_DATA_CLIENT_ID
   client_secret: !Env SEIS_LAB_DATA_CLIENT_SECRET
   redirect_uri: !Env SEIS_LAB_DATA_REDIRECT_URI
+  file_server_url: !Env ARCHIVE_BASE_URL
 entries:
   # create the groups we need
   - model: authentik_core.group
@@ -317,3 +318,40 @@ entries:
       meta_description: "SeisLabData Application"
       meta_publisher: "NaturalGIS"
       policy_engine_mode: any
+
+  # Create a proxy provider for forward auth
+  - model: authentik_providers_proxy.proxyprovider
+    id: sld-archive-proxy-provider
+    identifiers:
+      name: sld-archive-proxy-provider
+    attrs:
+      name: sld-archive-proxy-provider
+      authorization_flow: !Find [authentik_flows.flow, [slug, "default-provider-authorization-implicit-consent"]]
+      authentication_flow: !Find [authentik_flows.flow, [slug, "sld-authentication-flow"]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, "default-invalidation-flow"]]
+      mode: forward_single
+      external_host: !Context file_server_url
+
+  # Create an application for the archive
+  - model: authentik_core.application
+    id: sld-archive-app
+    identifiers:
+      slug: sld-archive
+    attrs:
+      name: SLD Archive
+      slug: sld-archive
+      provider: !KeyOf sld-archive-proxy-provider
+      meta_description: "SeisLabData Archive File Browser"
+      policy_engine_mode: any
+
+  # Update the embedded outpost to include our proxy provider
+  - model: authentik_outposts.outpost
+    state: present
+    identifiers:
+      managed: goauthentik.io/outposts/embedded
+    attrs:
+      providers:
+        - !KeyOf sld-archive-proxy-provider
+      config:
+        authentik_host: http://auth.localhost:8888/
+        authentik_host_browser: http://auth.localhost:8888/

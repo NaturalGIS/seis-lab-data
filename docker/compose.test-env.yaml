@@ -7,8 +7,8 @@ name: seis-lab-data
 
 x-common-image: &common-image "${IMAGE_URL}"
 
-x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.8.0-rc6"
-x-auth-redirect-url: &auth-redirect-url "http://localhost:8888/oauth2/callback"
+x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.8"
+x-auth-redirect-url: &auth-redirect-url "https://seis-lab-data.naturalgis.pt/oauth2/callback"
 
 x-common-env: &common-env
   SEIS_LAB_DATA__DEBUG: ${DEBUG:-false}
@@ -39,7 +39,6 @@ x-common-auth-env: &common-auth-env
   AUTHENTIK_POSTGRESQL__USER: sld_auth_user
   AUTHENTIK_POSTGRESQL__NAME: authentik
   AUTHENTIK_POSTGRESQL__PASSWORD: file:///run/secrets/auth-db-password
-  AUTHENTIK_WEB__PATH: /auth/
   SEIS_LAB_DATA_REDIRECT_URI: *auth-redirect-url
 
 x-common-volumes: &common-volumes
@@ -56,6 +55,7 @@ services:
       POSTGRES_DB: authentik
       POSTGRES_USER: sld_auth_user
       POSTGRES_PASSWORD_FILE: /run/secrets/auth-db-password
+    restart: unless-stopped
     healthcheck:
       test: "pg_isready -d authentik"
       start_period: 20s
@@ -75,10 +75,11 @@ services:
     labels:
       - exposed.outside=true
       - traefik.enable=true
-      - "traefik.http.routers.auth-router.rule=Host(`seis-lab-data.naturalgis.pt`) && PathRegexp(`^/auth/`)"
+      - "traefik.http.routers.auth-router.rule=Host(`auth.seis-lab-data.naturalgis.pt`)"
       - traefik.http.routers.auth-router.entrypoints=web
       - traefik.http.routers.auth-router.priority=100
       - traefik.http.services.auth-service.loadbalancer.server.port=9000
+    restart: unless-stopped
     depends_on:
       auth-db:
         condition: service_healthy
@@ -92,6 +93,12 @@ services:
       - auth-secret-key
       - auth-email-username
       - auth-email-password
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import requests; requests.get(\"http://localhost:9000/-/health/ready/\").raise_for_status()'"]
+      start_period: 30s
+      interval: 10s
+      retries: 10
+      timeout: 5s
 
   auth-worker:
     image: *auth-image
@@ -101,11 +108,13 @@ services:
       AUTHENTIK_BOOTSTRAP_PASSWORD: file:///run/secrets/auth-bootstrap-password
       AUTHENTIK_BOOTSTRAP_TOKEN: file:///run/secrets/auth-bootstrap-token
       AUTHENTIK_BOOTSTRAP_EMAIL: file:///run/secrets/auth-bootstrap-email
+      ARCHIVE_BASE_URL: https://sld-archive.seis-lab-data.naturalgis.pt
     volumes:
       - type: bind
         source: ./authentik/sld-auth-blueprint-test-env.yaml
         target: /blueprints/custom/sld-auth-blueprint-test-env.yaml
         read_only: true
+    restart: unless-stopped
     depends_on:
       auth-db:
         condition: service_healthy
@@ -121,6 +130,35 @@ services:
       - auth-bootstrap-email
       - auth-client-id
       - auth-client-secret
+    healthcheck:
+      test: |
+        python -c '
+        import os
+        import requests
+        import sys
+        from pathlib import Path
+        try:
+            client_id = Path("/run/secrets/auth-client-id").read_text()
+            token = Path("/run/secrets/auth-bootstrap-token").read_text()
+            response = requests.get(
+                "http://auth-webapp:9000/api/v3/providers/oauth2/",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=5
+            )
+            response.raise_for_status()
+            providers = response.json().get("results", [])
+            if not any(p.get("client_id") == client_id for p in providers):
+                print("OAuth provider does not exist yet")
+                raise SystemExit(1)
+            print("Oauth provider found - sld-related blueprint has already been applied")
+        except Exception as err:
+            print(f"error checking availability of oauth provider: {err}")
+            sys.exit(1)
+        '
+      start_period: 45s
+      interval: 10s
+      retries: 20
+      timeout: 10s
 
   message-broker:
     image: redis:8
@@ -134,6 +172,7 @@ services:
       POSTGRES_DB: seis_lab_data
       POSTGRES_USER: sld
       POSTGRES_PASSWORD_FILE: /run/secrets/db-password
+    restart: unless-stopped
     healthcheck:
       test: "pg_isready -d seis_lab_data -U sld"
       start_period: 20s
@@ -151,7 +190,10 @@ services:
       <<: *common-env
       SEIS_LAB_DATA__BIND_HOST: 0.0.0.0
       SEIS_LAB_DATA__BIND_PORT: 5000
-      SEIS_LAB_DATA__PUBLIC_URL: ${WEBAPP_PUBLIC_URL}
+      SEIS_LAB_DATA__PUBLIC_URL: https://seis-lab-data.naturalgis.pt
+      SEIS_LAB_DATA__AUTH_EXTERNAL_BASE_URL: https://auth.seis-lab-data.naturalgis.pt
+      SEIS_LAB_DATA__AUTH_INTERNAL_BASE_URL: http://auth-webapp:9000
+      SEIS_LAB_DATA__WEBMAP_BASE_TILE_LAYER_URL: https://seis-lab-data.naturalgis.pt/tiles/emodnet-bathymetry/{z}/{x}/{y}
     volumes:
       *common-volumes
     labels:
@@ -194,6 +236,7 @@ services:
         source: /opt/data/pmtiles
         target: /pmtiles
         read_only: true
+    restart: unless-stopped
     labels:
       - exposed.outside=true
       - traefik.enable=true
@@ -203,6 +246,29 @@ services:
       - traefik.http.routers.martin-router.priority=90
       - traefik.http.routers.martin-router.middlewares=martin-stripprefix
       - traefik.http.services.martin.loadbalancer.server.port=3000
+
+  caddy-file-server:
+    image: caddy:2
+    volumes:
+      - type: bind
+        source: ./caddy
+        target: /etc/caddy
+        read_only: true
+      - type: bind
+        source: /opt/data
+        target: /srv/archive
+    restart: unless-stopped
+    labels:
+      - exposed.outside=true
+      - traefik.enable=true
+      - "traefik.http.middlewares.authentik-auth.forwardauth.address=http://auth-webapp:9000/outpost.goauthentik.io/auth/traefik"
+      - "traefik.http.middlewares.authentik-auth.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.authentik-auth.forwardauth.authResponseHeaders=X-authentik-username,X-authentik-groups,X-authentik-email,X-authentik-name,X-authentik-uid"
+      - "traefik.http.middlewares.authentik-auth.forwardauth.maxBodySize=1048576"
+      - "traefik.http.routers.caddy-router.rule=Host(`sld-archive.seis-lab-data.naturalgis.pt`)"
+      - "traefik.http.routers.caddy-router.entrypoints=web"
+      - "traefik.http.routers.caddy-router.middlewares=authentik-auth"
+      - "traefik.http.services.caddy-service.loadbalancer.server.port=8000"
 
 networks:
   traefik-network:
