@@ -127,6 +127,9 @@ async def get_survey_related_record(
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
         # adding all assets too, since they will always be a small list
         .options(selectinload(models.SurveyRelatedRecord.assets))
+        # also adding relationships with other records - only first order relationships are loaded, not the full tree
+        .options(selectinload(models.SurveyRelatedRecord.related_to_links))
+        .options(selectinload(models.SurveyRelatedRecord.subject_links))
     )
     return (await session.exec(statement)).first()
 
@@ -150,8 +153,85 @@ async def get_survey_related_record_by_english_name(
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
         # adding all assets too, since they will always be a small list
         .options(selectinload(models.SurveyRelatedRecord.assets))
+        # also adding relationships with other records - only first order relationships are loaded, not the full tree
+        .options(selectinload(models.SurveyRelatedRecord.related_to_links))
+        .options(selectinload(models.SurveyRelatedRecord.subject_links))
     )
     return (await session.exec(statement)).first()
+
+
+async def list_survey_related_record_related_to_records(
+    session: AsyncSession,
+    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    limit: int = 20,
+    offset: int = 0,
+) -> dict[str, models.SurveyRelatedRecord]:
+    """Return records in which the input id is a subject of a relation.
+
+    Returned records are those which are related to the input id.
+    """
+    statement = (
+        select(models.SurveyRelatedRecord, models.SurveyRelatedRecordSelfLink.relation)
+        .join(
+            models.SurveyRelatedRecordSelfLink,
+            models.SurveyRelatedRecordSelfLink.related_to_id
+            == models.SurveyRelatedRecord.id,
+        )
+        .where(
+            models.SurveyRelatedRecordSelfLink.subject_id == survey_related_record_id
+        )
+        .options(selectinload(models.SurveyRelatedRecord.dataset_category))
+        .options(selectinload(models.SurveyRelatedRecord.domain_type))
+        .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
+        # adding all assets too, since they will always be a small list
+        .options(selectinload(models.SurveyRelatedRecord.assets))
+        # also adding relationships with other records - only first order relationships are loaded, not the full tree
+        .options(selectinload(models.SurveyRelatedRecord.related_to_links))
+        .options(selectinload(models.SurveyRelatedRecord.subject_links))
+    )
+    items = (await session.exec(statement.offset(offset).limit(limit))).all()
+    result = {}
+    for record, relation_name in items:
+        relation_entry = result.setdefault(relation_name, [])
+        relation_entry.append(record)
+    return result
+
+
+async def list_survey_related_record_subject_records(
+    session: AsyncSession,
+    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    limit: int = 20,
+    offset: int = 0,
+) -> dict[str, models.SurveyRelatedRecord]:
+    """Return records which are subjects in a relation with the input id.
+
+    Returned records are those which are subjects in a relation where the input id is involved
+    """
+    statement = (
+        select(models.SurveyRelatedRecord, models.SurveyRelatedRecordSelfLink.relation)
+        .join(
+            models.SurveyRelatedRecordSelfLink,
+            models.SurveyRelatedRecordSelfLink.subject_id
+            == models.SurveyRelatedRecord.id,
+        )
+        .where(
+            models.SurveyRelatedRecordSelfLink.related_to_id == survey_related_record_id
+        )
+        .options(selectinload(models.SurveyRelatedRecord.dataset_category))
+        .options(selectinload(models.SurveyRelatedRecord.domain_type))
+        .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
+        # adding all assets too, since they will always be a small list
+        .options(selectinload(models.SurveyRelatedRecord.assets))
+        # also adding relationships with other records - only first order relationships are loaded, not the full tree
+        .options(selectinload(models.SurveyRelatedRecord.related_to_links))
+        .options(selectinload(models.SurveyRelatedRecord.subject_links))
+    )
+    items = (await session.exec(statement.offset(offset).limit(limit))).all()
+    result = {}
+    for record, relation_name in items:
+        relation_entry = result.setdefault(relation_name, [])
+        relation_entry.append(record)
+    return result
 
 
 async def list_dataset_categories(

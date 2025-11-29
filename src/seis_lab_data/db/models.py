@@ -176,12 +176,49 @@ class SurveyRelatedRecord(SQLModel, table=True):
     )
     temporal_extent_begin: dt.date | None = Field(sa_column=Column(Date()))
     temporal_extent_end: dt.date | None = Field(sa_column=Column(Date()))
+
+    related_to_links: list["SurveyRelatedRecordSelfLink"] = Relationship(
+        back_populates="subject",
+        sa_relationship_kwargs={
+            "primaryjoin": "SurveyRelatedRecordSelfLink.subject_id == SurveyRelatedRecord.id",
+        },
+    )
+    subject_links: list["SurveyRelatedRecordSelfLink"] = Relationship(
+        back_populates="related_to",
+        sa_relationship_kwargs={
+            "primaryjoin": "SurveyRelatedRecordSelfLink.related_to_id == SurveyRelatedRecord.id",
+        },
+    )
+
     assets: list["RecordAsset"] = Relationship(
         back_populates="survey_related_record",
         sa_relationship_kwargs={
             # "cascade": "all, delete-orphan",
             "cascade": "save-update, merge, expunge, delete, delete-orphan",
             "passive_deletes": True,
+        },
+    )
+
+
+class SurveyRelatedRecordSelfLink(SQLModel, table=True):
+    subject_id: uuid.UUID | None = Field(
+        default=None, foreign_key="surveyrelatedrecord.id", primary_key=True
+    )
+    related_to_id: uuid.UUID | None = Field(
+        default=None, foreign_key="surveyrelatedrecord.id", primary_key=True
+    )
+    relation: str = Field(max_length=100)
+
+    subject: SurveyRelatedRecord = Relationship(
+        back_populates="related_to_links",
+        sa_relationship_kwargs={
+            "primaryjoin": "SurveyRelatedRecordSelfLink.subject_id == SurveyRelatedRecord.id",
+        },
+    )
+    related_to: SurveyRelatedRecord = Relationship(
+        back_populates="subject_links",
+        sa_relationship_kwargs={
+            "primaryjoin": "SurveyRelatedRecordSelfLink.related_to_id == SurveyRelatedRecord.id",
         },
     )
 
