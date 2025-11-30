@@ -51,6 +51,7 @@ class SurveyMissionReadEmbedded(pydantic.BaseModel):
     name: LocalizableDraftName
     status: SurveyMissionStatus
     validation_result: models.ValidationResult | None
+    relative_path: str
     temporal_extent_begin: Annotated[
         dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
     ]
