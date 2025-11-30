@@ -13,6 +13,7 @@ DESCRIPTION_MIN_LENGTH: typing.Final[int] = 5
 PROJECT_MAX_LINKS: typing.Final[int] = 5
 SURVEY_MISSION_MAX_LINKS: typing.Final[int] = 5
 SURVEY_RELATED_RECORD_MAX_ASSETS: typing.Final[int] = 20
+SURVEY_RELATED_RECORD_MAX_RELATED: typing.Final[int] = 5
 
 PROGRESS_TOPIC_NAME_TEMPLATE: typing.Final[str] = "progress:{request_id}"
 

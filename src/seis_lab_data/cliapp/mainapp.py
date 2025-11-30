@@ -116,31 +116,31 @@ async def create_survey_related_record(
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
         )
-        ctx.obj["main"].status_console.print(
-            schemas.SurveyRelatedRecordReadDetail(**created.model_dump())
-        )
+        print(schemas.SurveyRelatedRecordReadDetail(**created.model_dump()))
 
 
 @survey_related_records_app.async_command(name="list")
 async def list_survey_related_records(
     ctx: typer.Context,
-    limit: int = 20,
-    offset: int = 0,
+    page: int = 1,
+    page_size: int | None = None,
 ):
     """List survey-related records."""
+    _page_size = page_size or ctx.obj["main"].settings.pagination_page_size
     async with ctx.obj["session_maker"]() as session:
         items, num_total = await operations.list_survey_related_records(
             session,
             initiator=ctx.obj["admin_user"],
-            limit=limit,
-            offset=offset,
+            page=page,
+            page_size=_page_size,
             include_total=True,
         )
     ctx.obj["main"].status_console.print(f"Total records: {num_total}")
     for item in items:
-        ctx.obj["main"].status_console.print_json(
-            schemas.SurveyRelatedRecordReadListItem(
-                **item.model_dump()
+        # ctx.obj["main"].status_console.print_json(item.model_dump_json())
+        print(
+            schemas.SurveyRelatedRecordReadListItem.from_db_instance(
+                item
             ).model_dump_json()
         )
 
@@ -151,20 +151,20 @@ async def get_survey_related_record(
 ):
     """Get details about a survey-related record."""
     async with ctx.obj["session_maker"]() as session:
-        survey_record = await operations.get_survey_related_record(
+        record_details = await operations.get_survey_related_record(
             schemas.SurveyRelatedRecordId(survey_related_record_id),
             ctx.obj["admin_user"].id,
             session,
             ctx.obj["main"].settings,
         )
-        if survey_record is None:
+        if record_details is None:
             ctx.obj["main"].status_console.print(
                 f"Survey-related record {survey_related_record_id!r} not found"
             )
         else:
-            ctx.obj["main"].status_console.print_json(
+            print(
                 schemas.SurveyRelatedRecordReadDetail.from_db_instance(
-                    survey_record
+                    *record_details
                 ).model_dump_json()
             )
 
@@ -235,9 +235,7 @@ async def create_survey_mission(
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
         )
-        ctx.obj["main"].status_console.print(
-            schemas.SurveyMissionReadDetail(**created.model_dump())
-        )
+        print(schemas.SurveyMissionReadDetail(**created.model_dump()))
 
 
 @survey_missions_app.async_command(name="list")
@@ -247,7 +245,6 @@ async def list_survey_missions(
     offset: int = 0,
 ):
     """List survey missions."""
-    printer = ctx.obj["main"].status_console.print
     async with ctx.obj["session_maker"]() as session:
         items, num_total = await operations.list_survey_missions(
             session,
@@ -256,9 +253,9 @@ async def list_survey_missions(
             offset=offset,
             include_total=True,
         )
-    printer(f"Total records: {num_total}")
+    print(f"Total records: {num_total}")
     for item in items:
-        printer(schemas.SurveyMissionReadListItem(**item.model_dump()))
+        print(schemas.SurveyMissionReadListItem(**item.model_dump()))
 
 
 @survey_missions_app.async_command(name="get")
@@ -272,11 +269,9 @@ async def get_survey_mission(ctx: typer.Context, survey_mission_id: uuid.UUID):
             ctx.obj["main"].settings,
         )
         if survey_mission is None:
-            ctx.obj["main"].status_console.print(
-                f"Survey mission {survey_mission_id!r} not found"
-            )
+            print(f"Survey mission {survey_mission_id!r} not found")
         else:
-            ctx.obj["main"].status_console.print_json(
+            print(
                 schemas.SurveyMissionReadDetail.from_db_instance(
                     survey_mission
                 ).model_dump_json()
@@ -289,7 +284,6 @@ async def delete_survey_mission(
     survey_mission_id: uuid.UUID,
 ):
     """Delete a survey mission."""
-    printer = ctx.obj["main"].status_console.print
     async with ctx.obj["session_maker"]() as session:
         await operations.delete_survey_mission(
             schemas.SurveyMissionId(survey_mission_id),
@@ -298,7 +292,7 @@ async def delete_survey_mission(
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
         )
-    printer(f"Deleted survey mission with id {survey_mission_id!r}")
+    print(f"Deleted survey mission with id {survey_mission_id!r}")
 
 
 @projects_app.callback()
@@ -365,9 +359,7 @@ async def create_project(
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
         )
-        ctx.obj["main"].status_console.print(
-            schemas.ProjectReadDetail(**created.model_dump())
-        )
+        print(schemas.ProjectReadDetail(**created.model_dump()))
 
 
 @projects_app.async_command(name="get")
@@ -381,11 +373,9 @@ async def get_project(ctx: typer.Context, project_id: uuid.UUID):
             ctx.obj["main"].settings,
         )
         if project is None:
-            ctx.obj["main"].status_console.print(f"Project {project_id!r} not found")
+            print(f"Project {project_id!r} not found")
         else:
-            ctx.obj["main"].status_console.print_json(
-                schemas.ProjectReadDetail.from_db_instance(project).model_dump_json()
-            )
+            print(schemas.ProjectReadDetail.from_db_instance(project).model_dump_json())
 
 
 @projects_app.async_command(name="list")
@@ -395,7 +385,6 @@ async def list_projects(
     page_size: int = 20,
 ):
     """List projects."""
-    printer = ctx.obj["main"].status_console.print
     async with ctx.obj["session_maker"]() as session:
         items, num_total = await operations.list_projects(
             session,
@@ -404,9 +393,9 @@ async def list_projects(
             page_size=page_size,
             include_total=True,
         )
-    printer(f"Total records: {num_total}")
+    print(f"Total records: {num_total}")
     for item in items:
-        printer(schemas.ProjectReadListItem(**item.model_dump()))
+        print(schemas.ProjectReadListItem(**item.model_dump()))
 
 
 @projects_app.async_command(name="delete")
@@ -415,7 +404,6 @@ async def delete_project(
     project_id: uuid.UUID,
 ):
     """Delete a project."""
-    printer = ctx.obj["main"].status_console.print
     async with ctx.obj["session_maker"]() as session:
         await operations.delete_project(
             schemas.ProjectId(project_id),
@@ -424,7 +412,7 @@ async def delete_project(
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
         )
-    printer(f"Deleted project with id {project_id!r}")
+    print(f"Deleted project with id {project_id!r}")
 
 
 @dataset_categories_app.callback()
@@ -450,9 +438,7 @@ async def create_dataset_category(
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
         )
-        ctx.obj["main"].status_console.print(
-            schemas.DatasetCategoryRead(**created.model_dump())
-        )
+        print(schemas.DatasetCategoryRead(**created.model_dump()))
 
 
 @dataset_categories_app.async_command(name="list")
@@ -462,14 +448,13 @@ async def list_dataset_categories(
     offset: int = 0,
 ):
     """List dataset categories."""
-    printer = ctx.obj["main"].status_console.print
     async with ctx.obj["session_maker"]() as session:
         items, num_total = await operations.list_dataset_categories(
             session, limit=limit, offset=offset, include_total=True
         )
-    printer(f"Total records: {num_total}")
+    print(f"Total records: {num_total}")
     for item in items:
-        printer(schemas.DatasetCategoryRead(**item.model_dump()))
+        print(schemas.DatasetCategoryRead(**item.model_dump()))
 
 
 @dataset_categories_app.async_command(name="delete")
@@ -478,7 +463,6 @@ async def delete_dataset_category(
     dataset_category_id: uuid.UUID,
 ):
     """Delete a dataset category."""
-    printer = ctx.obj["main"].status_console.print
     async with ctx.obj["session_maker"]() as session:
         await operations.delete_dataset_category(
             dataset_category_id,
@@ -487,7 +471,7 @@ async def delete_dataset_category(
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
         )
-    printer(f"Deleted dataset category with id {dataset_category_id!r}")
+    print(f"Deleted dataset category with id {dataset_category_id!r}")
 
 
 @domain_types_app.callback()
@@ -513,9 +497,7 @@ async def create_domain_type(
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
         )
-        ctx.obj["main"].status_console.print(
-            schemas.DomainTypeRead(**created.model_dump())
-        )
+        print(schemas.DomainTypeRead(**created.model_dump()))
 
 
 @domain_types_app.async_command(name="list")
@@ -525,14 +507,13 @@ async def list_domain_types(
     offset: int = 0,
 ):
     """List domain types."""
-    printer = ctx.obj["main"].status_console.print
     async with ctx.obj["session_maker"]() as session:
         items, num_total = await operations.list_domain_types(
             session, limit=limit, offset=offset, include_total=True
         )
-    printer(f"Total records: {num_total}")
+    print(f"Total records: {num_total}")
     for item in items:
-        printer(schemas.DomainTypeRead(**item.model_dump()))
+        print(schemas.DomainTypeRead(**item.model_dump()))
 
 
 @domain_types_app.async_command(name="delete")
@@ -541,7 +522,6 @@ async def delete_domain_type(
     domain_type_id: uuid.UUID,
 ):
     """Delete a domain type."""
-    printer = ctx.obj["main"].status_console.print
     async with ctx.obj["session_maker"]() as session:
         await operations.delete_domain_type(
             domain_type_id,
@@ -550,7 +530,7 @@ async def delete_domain_type(
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
         )
-    printer(f"Deleted domain type with id {domain_type_id!r}")
+    print(f"Deleted domain type with id {domain_type_id!r}")
 
 
 @workflow_stages_app.callback()
@@ -576,9 +556,7 @@ async def create_workflow_stage(
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
         )
-        ctx.obj["main"].status_console.print(
-            schemas.WorkflowStageRead(**created.model_dump())
-        )
+        print(schemas.WorkflowStageRead(**created.model_dump()))
 
 
 @workflow_stages_app.async_command(name="list")
@@ -588,14 +566,13 @@ async def list_workflow_stages(
     offset: int = 0,
 ):
     """List workflow stages."""
-    printer = ctx.obj["main"].status_console.print
     async with ctx.obj["session_maker"]() as session:
         items, num_total = await operations.list_workflow_stages(
             session, limit=limit, offset=offset, include_total=True
         )
-    printer(f"Total records: {num_total}")
+    print(f"Total records: {num_total}")
     for item in items:
-        printer(schemas.WorkflowStageRead(**item.model_dump()))
+        print(schemas.WorkflowStageRead(**item.model_dump()))
 
 
 @workflow_stages_app.async_command(name="delete")
@@ -604,7 +581,6 @@ async def delete_workflow_stage(
     workflow_stage_id: uuid.UUID,
 ):
     """Delete a workflow stage."""
-    printer = ctx.obj["main"].status_console.print
     async with ctx.obj["session_maker"]() as session:
         await operations.delete_workflow_stage(
             workflow_stage_id,
@@ -613,4 +589,4 @@ async def delete_workflow_stage(
             settings=ctx.obj["main"].settings,
             event_emitter=events.get_event_emitter(ctx.obj["main"].settings),
         )
-    printer(f"Deleted workflow stage with id {workflow_stage_id!r}")
+    print(f"Deleted workflow stage with id {workflow_stage_id!r}")

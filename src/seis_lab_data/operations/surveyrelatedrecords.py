@@ -430,15 +430,35 @@ async def get_survey_related_record(
     initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
-) -> models.SurveyRelatedRecord | None:
-    if not permissions.can_read_survey_related_record(
+) -> (
+    tuple[
+        models.SurveyRelatedRecord,
+        list[tuple[str, models.SurveyRelatedRecord]],
+        list[tuple[str, models.SurveyRelatedRecord]],
+    ]
+    | None
+):
+    if not await permissions.can_read_survey_related_record(
         initiator, survey_related_record_id, settings=settings
     ):
         raise errors.SeisLabDataError(
             f"User is not allowed to read survey-related "
             f"record {survey_related_record_id!r}."
         )
-    return await queries.get_survey_related_record(session, survey_related_record_id)
+    record = await queries.get_survey_related_record(session, survey_related_record_id)
+    if record:
+        record_id: schemas.SurveyRelatedRecordId = record.id
+        records_related_to = (
+            await queries.list_survey_related_record_related_to_records(
+                session, record_id
+            )
+        )
+        records_subject_for = await queries.list_survey_related_record_subject_records(
+            session, record_id
+        )
+        return record, records_related_to, records_subject_for
+    else:
+        return None
 
 
 async def update_survey_related_record(

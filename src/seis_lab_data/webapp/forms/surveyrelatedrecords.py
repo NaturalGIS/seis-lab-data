@@ -45,7 +45,7 @@ class AssetCreateForm(Form):
     asset_name = FormField(NameForm, name="name")
     asset_description = FormField(DescriptionForm, name="description")
     relative_path = StringField(
-        _("Relative path"),
+        _("relative path"),
         description=_(
             "Path for the asset in the archive file system, "
             "relative to its parent survey-related record root path"
@@ -58,6 +58,11 @@ class AssetCreateForm(Form):
         min_entries=0,
         max_entries=constants.ASSET_MAX_LINKS,
     )
+
+
+class RelatedRecordForm(Form):
+    related_record = StringField(_("related record"))
+    relationship = StringField(_("relationship"))
 
 
 class _SurveyRelatedRecordForm(StarletteForm):
@@ -95,9 +100,15 @@ class _SurveyRelatedRecordForm(StarletteForm):
     temporal_extent_end = OptionalDateField()
     assets = FieldList(
         FormField(AssetCreateForm),
-        label=_("Assets"),
+        label=_("assets"),
         min_entries=1,
         max_entries=constants.SURVEY_RELATED_RECORD_MAX_ASSETS,
+    )
+    related_records = FieldList(
+        FormField(RelatedRecordForm),
+        label=_("related records"),
+        min_entries=0,
+        max_entries=constants.SURVEY_RELATED_RECORD_MAX_RELATED,
     )
 
     async def check_if_english_name_is_unique_for_survey_mission(

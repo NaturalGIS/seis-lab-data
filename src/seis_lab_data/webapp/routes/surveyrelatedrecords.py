@@ -76,7 +76,7 @@ async def _get_survey_related_record_details(
     )
     async with session_maker() as session:
         try:
-            survey_related_record = await operations.get_survey_related_record(
+            survey_related_record_info = await operations.get_survey_related_record(
                 survey_related_record_id,
                 user.id if user else None,
                 session,
@@ -84,15 +84,16 @@ async def _get_survey_related_record_details(
             )
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
-        if survey_related_record is None:
+        if survey_related_record_info is None:
             raise HTTPException(
                 status_code=404,
                 detail=_(
                     f"Survey-related record {survey_related_record_id!r} not found."
                 ),
             )
+    survey_related_record, related_to, subject_for = survey_related_record_info
     serialized = schemas.SurveyRelatedRecordReadDetail.from_db_instance(
-        survey_related_record
+        survey_related_record, related_to, subject_for
     )
     can_update = await permissions.can_update_survey_related_record(
         user, survey_related_record_id, settings=settings
@@ -202,9 +203,10 @@ async def get_detail_updates(request: Request):
                 "patching frontend..."
             )
             async with session_maker() as session:
-                updated = await operations.get_survey_related_record(
+                updated_details = await operations.get_survey_related_record(
                     survey_related_record_id, user or None, session, settings
                 )
+                updated = updated_details[0]
                 yield ServerSentEventGenerator.patch_signals(
                     {
                         "status": updated.status.value,
@@ -221,9 +223,10 @@ async def get_detail_updates(request: Request):
                 "patching frontend..."
             )
             async with session_maker() as session:
-                updated = await operations.get_survey_related_record(
+                updated_details = await operations.get_survey_related_record(
                     survey_related_record_id, user or None, session, settings
                 )
+                updated = updated_details[0]
                 details_message = ""
                 if not updated.validation_result.get("is_valid"):
                     details_message += "<ul>"
@@ -842,6 +845,32 @@ async def remove_update_form_asset_link(request: Request):
     return DatastarResponse(event_streamer())
 
 
+async def get_survey_related_record_filter_options(request: Request):
+    if (raw_search_params := request.query_params.get("datastar")) is not None:
+        try:
+            record_name_filter = filters.SearchNameFilter.from_params(
+                json.loads(raw_search_params), request.state.language
+            )
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid search params")
+        else:
+            internal_filter_kwargs = record_name_filter.as_kwargs()
+    else:
+        internal_filter_kwargs = {}
+    logger.debug(f"{internal_filter_kwargs=}")
+    session_maker = request.state.session_maker
+    user = get_user(request.session.get("user", {}))
+    async with session_maker() as session:
+        items, _ = await operations.list_survey_related_records(
+            session,
+            initiator=user.id if user else None,
+            **internal_filter_kwargs,
+        )
+    serialized_items = [  # noqa
+        schemas.SurveyRelatedRecordReadListItem.from_db_instance(item) for item in items
+    ]
+
+
 async def get_list_component(request: Request):
     if (raw_search_params := request.query_params.get("datastar")) is not None:
         try:
@@ -1013,7 +1042,8 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         user = get_user(request.session.get("user", {}))
         async with request.state.session_maker() as session:
             if (
-                survey_related_record := await operations.get_survey_related_record(
+                survey_related_record_details
+                := await operations.get_survey_related_record(
                     survey_related_record_id,
                     user.id if user else None,
                     session,
@@ -1027,6 +1057,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                     ),
                 )
 
+        survey_related_record = survey_related_record_details[0]
         request_id = schemas.RequestId(uuid.uuid4())
         logger.debug(f"{survey_related_record=}")
 
@@ -1100,7 +1131,8 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         )
         async with session_maker() as session:
             if (
-                survey_related_record := await operations.get_survey_related_record(
+                survey_related_record_details
+                := await operations.get_survey_related_record(
                     survey_related_record_id, user, session, request.state.settings
                 )
             ) is None:
@@ -1109,6 +1141,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                     f"Survey-related record {survey_related_record_id!r} not found.",
                 )
 
+        survey_related_record, related_to, subject_for = survey_related_record_details
         parent_survey_mission_id = schemas.SurveyMissionId(
             survey_related_record.survey_mission_id
         )
