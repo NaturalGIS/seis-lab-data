@@ -21,7 +21,10 @@ from pydantic import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import SAWarning
-from sqlalchemy import select
+from sqlalchemy import (
+    Index,
+    select,
+)
 from sqlalchemy.orm import (
     column_property,
     declared_attr,
@@ -117,6 +120,9 @@ class WorkflowStage(SQLModel, table=True):
 
 
 class SurveyRelatedRecord(SQLModel, table=True):
+    __table_args__ = (
+        Index("idx_surveyrelatedrecord_name_gin", "name", postgresql_using="gin"),
+    )
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -133,7 +139,9 @@ class SurveyRelatedRecord(SQLModel, table=True):
     is_valid: bool = False
     validation_result: ValidationResult = Field(sa_column=Column(JSONB))
     survey_mission_id: uuid.UUID = Field(
-        foreign_key="surveymission.id", ondelete="CASCADE"
+        foreign_key="surveymission.id",
+        ondelete="CASCADE",
+        index=True,
     )
     dataset_category_id: uuid.UUID | None = Field(
         foreign_key="datasetcategory.id", default=None, ondelete="SET NULL"
@@ -202,10 +210,16 @@ class SurveyRelatedRecord(SQLModel, table=True):
 
 class SurveyRelatedRecordSelfLink(SQLModel, table=True):
     subject_id: uuid.UUID | None = Field(
-        default=None, foreign_key="surveyrelatedrecord.id", primary_key=True
+        default=None,
+        foreign_key="surveyrelatedrecord.id",
+        primary_key=True,
+        ondelete="CASCADE",
     )
     related_to_id: uuid.UUID | None = Field(
-        default=None, foreign_key="surveyrelatedrecord.id", primary_key=True
+        default=None,
+        foreign_key="surveyrelatedrecord.id",
+        primary_key=True,
+        ondelete="CASCADE",
     )
     relation: str = Field(max_length=100)
 
@@ -224,6 +238,9 @@ class SurveyRelatedRecordSelfLink(SQLModel, table=True):
 
 
 class SurveyMission(SQLModel, table=True):
+    __table_args__ = (
+        Index("idx_surveymission_name_gin", "name", postgresql_using="gin"),
+    )
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -234,7 +251,11 @@ class SurveyMission(SQLModel, table=True):
     description: Annotated[
         LocalizableString, PlainSerializer(serialize_localizable_field)
     ] = Field(sa_column=Column(JSONB))
-    project_id: uuid.UUID = Field(foreign_key="project.id", ondelete="CASCADE")
+    project_id: uuid.UUID = Field(
+        foreign_key="project.id",
+        ondelete="CASCADE",
+        index=True,
+    )
     links: Annotated[list[Link], PlainSerializer(serialize_localizable_field)] = Field(
         sa_column=Column(JSONB), default_factory=list
     )
@@ -282,6 +303,7 @@ class SurveyMission(SQLModel, table=True):
 
 
 class Project(SQLModel, table=True):
+    __table_args__ = (Index("idx_project_name_gin", "name", postgresql_using="gin"),)
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -349,6 +371,9 @@ class Project(SQLModel, table=True):
 
 
 class RecordAsset(SQLModel, table=True):
+    __table_args__ = (
+        Index("idx_recordasset_name_gin", "name", postgresql_using="gin"),
+    )
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
         Field(sa_column=Column(JSONB))
@@ -358,7 +383,7 @@ class RecordAsset(SQLModel, table=True):
     ] = Field(sa_column=Column(JSONB))
     is_valid: bool = False
     survey_related_record_id: uuid.UUID = Field(
-        foreign_key="surveyrelatedrecord.id", ondelete="CASCADE"
+        foreign_key="surveyrelatedrecord.id", ondelete="CASCADE", index=True
     )
     relative_path: str = ""
     links: Annotated[list[Link], PlainSerializer(serialize_localizable_field)] = Field(
