@@ -93,7 +93,7 @@ class _SurveyRelatedRecordForm(StarletteForm):
         FormField(LinkForm),
         label=_("Links"),
         min_entries=0,
-        max_entries=constants.SURVEY_MISSION_MAX_LINKS,
+        max_entries=constants.SURVEY_RELATED_RECORD_MAX_LINKS,
     )
     bounding_box = FormField(BoundingBoxForm)
     temporal_extent_begin = OptionalDateField()

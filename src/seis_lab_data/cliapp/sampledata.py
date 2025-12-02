@@ -11,7 +11,10 @@ import pydantic
 import shapely
 from faker import Faker
 
-from .. import schemas
+from .. import (
+    constants,
+    schemas,
+)
 from ..db import models
 
 _FAKE_EN = Faker("en_US")
@@ -400,7 +403,10 @@ def generate_sample_projects(
     """
     for _ in count():
         links = (
-            [next(generate_sample_link()) for _ in range(_FAKE_EN.random_int(0, 15))]
+            [
+                next(generate_sample_link())
+                for _ in range(_FAKE_EN.random_int(0, constants.PROJECT_MAX_LINKS))
+            ]
             if _FAKE_EN.random_digit() < 5
             else []
         )
@@ -446,7 +452,12 @@ def generate_sample_survey_missions(
 ]:
     for _ in count():
         links = (
-            [next(generate_sample_link()) for _ in range(_FAKE_EN.random_int(0, 15))]
+            [
+                next(generate_sample_link())
+                for _ in range(
+                    _FAKE_EN.random_int(0, constants.SURVEY_MISSION_MAX_LINKS)
+                )
+            ]
             if _FAKE_EN.random_digit() < 5
             else []
         )
@@ -494,12 +505,22 @@ def generate_sample_survey_related_records(
     temporal_extent = _generate_sample_temporal_extent()
     for _ in count():
         links = (
-            [next(generate_sample_link()) for _ in range(_FAKE_EN.random_int(0, 15))]
+            [
+                next(generate_sample_link())
+                for _ in range(
+                    _FAKE_EN.random_int(0, constants.SURVEY_RELATED_RECORD_MAX_LINKS)
+                )
+            ]
             if _FAKE_EN.random_digit() < 5
             else []
         )
         assets = (
-            [next(generate_sample_asset()) for _ in range(_FAKE_EN.random_int(0, 12))]
+            [
+                next(generate_sample_asset())
+                for _ in range(
+                    _FAKE_EN.random_int(0, constants.SURVEY_RELATED_RECORD_MAX_ASSETS)
+                )
+            ]
             if _FAKE_EN.random_digit() < 5
             else []
         )
@@ -538,7 +559,10 @@ def generate_sample_survey_related_records(
 def generate_sample_asset() -> Iterator[schemas.RecordAssetCreate]:
     for _ in count():
         links = (
-            [next(generate_sample_link()) for _ in range(_FAKE_EN.random_int(0, 15))]
+            [
+                next(generate_sample_link())
+                for _ in range(_FAKE_EN.random_int(0, constants.ASSET_MAX_LINKS))
+            ]
             if _FAKE_EN.random_digit() < 5
             else []
         )
