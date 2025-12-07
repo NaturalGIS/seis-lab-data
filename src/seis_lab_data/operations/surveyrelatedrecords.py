@@ -230,13 +230,21 @@ async def create_survey_related_record(
             "User is not allowed to create a survey-related record."
         )
     survey_record = await commands.create_survey_related_record(session, to_create)
+    related_to = await queries.list_survey_related_record_related_to_records(
+        session, schemas.SurveyRelatedRecordId(survey_record.id)
+    )
+    subject_for = await queries.list_survey_related_record_subject_records(
+        session, schemas.SurveyRelatedRecordId(survey_record.id)
+    )
     event_emitter(
         schemas.SeisLabDataEvent(
             type_=schemas.EventType.SURVEY_RELATED_RECORD_CREATED,
             initiator=initiator.id,
             payload=schemas.EventPayload(
                 after=schemas.SurveyRelatedRecordReadDetail.from_db_instance(
-                    survey_record
+                    survey_record,
+                    records_related_to=related_to,
+                    records_subject_for=subject_for,
                 ).model_dump()
             ),
         )

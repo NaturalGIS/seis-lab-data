@@ -35,7 +35,6 @@ async def create_project(
     ):
         raise errors.SeisLabDataError("User is not allowed to create a project.")
     project = await commands.create_project(session, to_create)
-    logger.debug(f"newly created {project=}")
     event_emitter(
         schemas.SeisLabDataEvent(
             type_=schemas.EventType.PROJECT_CREATED,
