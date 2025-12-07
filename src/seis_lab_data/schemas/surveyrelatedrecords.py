@@ -240,8 +240,8 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
     def from_db_instance(
         cls,
         instance: models.SurveyRelatedRecord,
-        records_related_to: list[models.SurveyRelatedRecord],
-        records_subject_for: list[models.SurveyRelatedRecord],
+        records_related_to: list[tuple[str, models.SurveyRelatedRecord]],
+        records_subject_for: list[tuple[str, models.SurveyRelatedRecord]],
     ) -> "SurveyRelatedRecordReadDetail":
         return cls(
             **instance.model_dump(),

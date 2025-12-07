@@ -68,6 +68,32 @@
             </div>
         </div>
     </div>
+    <h3>{{ _("related records") | capitalize }}</h3>
+    <div class="row border p-4 mb-3">
+        <div id="form-related-records-container" class="col">
+            {% for related_to in form.related_records %}
+                <h4>{{ _("record") | capitalize }} {{ loop.index0 + 1 }}</h4>
+                {{ macros.render_form_field(related_to.related_record, "related_to-") }}
+                {{ macros.render_localizable_field(related_to.relationship, "related_to-") }}
+
+                <button
+                        type="submit"
+                        class="btn btn-outline-danger"
+                >{{ _("remove relationship to record") | capitalize }}</button>
+            {% endfor %}
+        </div>
+        <div class="row">
+            <div class="col">
+                <button
+                        type="button"
+                        class="btn btn-outline-secondary"
+                        aria-label="add-another-related-record"
+                >
+                    {{ _("add another relationship") | capitalize }}
+                </button>
+            </div>
+        </div>
+    </div>
 
     <div class="row mb-3">
         <div class="col-sm-10 offset-sm-2">
