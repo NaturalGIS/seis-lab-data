@@ -15,6 +15,7 @@ from datastar_py.sse import DatastarEvent
 from datastar_py.starlette import DatastarResponse
 from dramatiq import Message
 from jinja2 import Template
+from jinja2.filters import do_truncate
 from redis.asyncio import Redis
 from starlette_babel import gettext_lazy as _
 from starlette.endpoints import HTTPEndpoint
@@ -44,6 +45,7 @@ from ...db import (
     models,
     queries,
 )
+from ...localization import translate_localizable
 from ...processing import tasks
 from .. import (
     filters,
@@ -656,10 +658,21 @@ async def get_update_form(request: Request):
     template = template_processor.get_template(
         "survey-related-records/update-form.html"
     )
+    user = get_user(request.session.get("user", {}))
+    session_maker = request.state.session_maker
+    async with session_maker() as session:
+        initial_related_records_list, _ = await operations.list_survey_related_records(
+            session,
+            initiator=user.id if user else None,
+        )
+    initial_related_records = [
+        (i.id, i.name["en"]) for i in initial_related_records_list
+    ]
     rendered = template.render(
         request=request,
         survey_related_record=details.item,
         form=form_instance,
+        initial_related_records=initial_related_records,
     )
 
     async def event_streamer():
@@ -739,10 +752,22 @@ async def add_update_form_related_to_record(request: Request):
     template = template_processor.get_template(
         "survey-related-records/update-form.html"
     )
+
+    user = get_user(request.session.get("user", {}))
+    session_maker = request.state.session_maker
+    async with session_maker() as session:
+        initial_related_records_list, _ = await operations.list_survey_related_records(
+            session,
+            initiator=user.id if user else None,
+        )
+    initial_related_records = [
+        (i.id, i.name["en"]) for i in initial_related_records_list
+    ]
     rendered = template.render(
         form=form_instance,
         request=request,
         survey_related_record=details.item,
+        initial_related_records=initial_related_records,
     )
 
     async def event_streamer():
@@ -903,18 +928,27 @@ async def remove_update_form_asset_link(request: Request):
     return DatastarResponse(event_streamer())
 
 
-async def get_survey_related_record_filter_options(request: Request):
-    if (raw_search_params := request.query_params.get("datastar")) is not None:
-        try:
-            record_name_filter = filters.SearchNameFilter.from_params(
-                json.loads(raw_search_params), request.state.language
-            )
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid search params")
-        else:
-            internal_filter_kwargs = record_name_filter.as_kwargs()
-    else:
-        internal_filter_kwargs = {}
+async def list_by_name(request: Request):
+    """Specialized endpoint that provides record names for building datalists."""
+    current_language = request.state.language
+    if (target_datalist_id := request.query_params.get("target")) is None:
+        raise HTTPException(status_code=400, detail="target is required")
+    if (search_param_name := request.query_params.get("searchParam")) is None:
+        raise HTTPException(status_code=400, detail="searchParam is required")
+
+    try:
+        if (raw_search_params := request.query_params.get("datastar")) is None:
+            raise HTTPException(status_code=400, detail="datastar is required")
+        search_value = json.loads(raw_search_params).get(search_param_name)
+    except json.decoder.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid search params")
+
+    record_name_filter = filters.SearchNameFilter(
+        internal_name=f"{current_language}_name_filter",
+        public_name=f"{current_language}_name",
+        value=search_value,
+    )
+    internal_filter_kwargs = record_name_filter.as_kwargs()
     logger.debug(f"{internal_filter_kwargs=}")
     session_maker = request.state.session_maker
     user = get_user(request.session.get("user", {}))
@@ -927,6 +961,35 @@ async def get_survey_related_record_filter_options(request: Request):
     serialized_items = [  # noqa
         schemas.SurveyRelatedRecordReadListItem.from_db_instance(item) for item in items
     ]
+
+    rendered_items = []
+    for item in serialized_items:
+        current_name = translate_localizable(item.name, current_language)
+        current_mission_name = do_truncate(
+            request.state.templates.env,
+            translate_localizable(item.survey_mission.name, current_language),
+            length=15,
+            killwords=True,
+            leeway=0,
+        )
+        current_project_name = do_truncate(
+            request.state.templates.env,
+            translate_localizable(item.survey_mission.project.name, current_language),
+            length=15,
+            killwords=True,
+            leeway=0,
+        )
+        compound_name = (
+            f"{current_name} ({current_mission_name} - {current_project_name})"
+        )
+        rendered_items.append(f'<option value="{compound_name}"></option>')
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            f'<datalist id="{target_datalist_id}">{"".join(rendered_items)}</datalist>',
+        )
+
+    return DatastarResponse(event_streamer())
 
 
 async def get_list_component(request: Request):
@@ -1458,6 +1521,12 @@ routes = [
         get_list_component,
         methods=["GET"],
         name="get_list_component",
+    ),
+    Route(
+        "/filter-by-name",
+        list_by_name,
+        methods=["GET"],
+        name="list_by_name",
     ),
     Route(
         "/{survey_related_record_id}",

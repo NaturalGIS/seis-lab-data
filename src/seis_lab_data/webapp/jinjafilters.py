@@ -11,6 +11,7 @@ from ..constants import (
     TranslatableEnumProtocol,
 )
 from ..schemas.common import Localizable
+from ..localization import translate_localizable
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +20,7 @@ logger = logging.getLogger(__name__)
 def translate_localizable_string(
     context: dict[str, typing.Any], value: Localizable
 ) -> str:
-    current_lang = context["request"].state.language
-    return getattr(value, current_lang, value.en) or ""
+    return translate_localizable(value, context["request"].state.language)
 
 
 @pass_context
