@@ -221,7 +221,10 @@ class SurveyRelatedRecordSelfLink(SQLModel, table=True):
         primary_key=True,
         ondelete="CASCADE",
     )
-    relation: str = Field(max_length=100)
+    # relation: str = Field(max_length=100)
+    relation: Annotated[
+        LocalizableString, PlainSerializer(serialize_localizable_field)
+    ] = Field(sa_column=Column(JSONB))
 
     subject: SurveyRelatedRecord = Relationship(
         back_populates="related_to_links",
