@@ -35,6 +35,7 @@ from ... import (
 from ...constants import (
     PROGRESS_TOPIC_NAME_TEMPLATE,
     SURVEY_RELATED_RECORD_DELETED_TOPIC,
+    SURVEY_RELATED_RECORD_MAX_RELATED,
     SURVEY_RELATED_RECORD_STATUS_CHANGED_TOPIC,
     SURVEY_RELATED_RECORD_UPDATED_TOPIC,
     SURVEY_RELATED_RECORD_VALIDITY_CHANGED_TOPIC,
@@ -725,6 +726,63 @@ async def remove_update_form_link(request: Request):
 
 
 @csrf_protect
+async def add_update_form_related_to_record(request: Request):
+    details = await _get_survey_related_record_details(request)
+    form_instance = await forms.SurveyRelatedRecordUpdateForm.from_request(request)
+    # TODO: implement some logic to limit the number of related_to relationships that can be added
+    logger.debug(f"{len(form_instance.related_records.entries)=}")
+    if len(form_instance.related_records.entries) > SURVEY_RELATED_RECORD_MAX_RELATED:
+        # cannot add more
+        ...
+    form_instance.related_records.append_entry()
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/update-form.html"
+    )
+    rendered = template.render(
+        form=form_instance,
+        request=request,
+        survey_related_record=details.item,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=schemas.selector_info.main_content_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def remove_update_form_related_to_record(request: Request):
+    details = await _get_survey_related_record_details(request)
+    form_instance = await forms.SurveyRelatedRecordUpdateForm.from_request(request)
+    # TODO: Check we are not trying to remove an index that is invalid
+    index = int(request.query_params.get("index", 0))
+    form_instance.related_records.entries.pop(index)
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/update-form.html"
+    )
+    rendered = template.render(
+        form=form_instance,
+        request=request,
+        survey_related_record=details.item,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=schemas.selector_info.main_content_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
 async def add_update_form_asset(request: Request):
     details = await _get_survey_related_record_details(request)
     form_instance = await forms.SurveyRelatedRecordUpdateForm.from_request(request)
@@ -755,8 +813,8 @@ async def remove_update_form_asset(request: Request):
     details = await _get_survey_related_record_details(request)
     form_instance = await forms.SurveyRelatedRecordUpdateForm.from_request(request)
     # TODO: Check we are not trying to remove an index that is invalid
-    link_index = int(request.query_params.get("link_index", 0))
-    form_instance.asset.entries.pop(link_index)
+    index = int(request.query_params.get("index", 0))
+    form_instance.asset.entries.pop(index)
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template(
         "survey-related-records/update-form.html"
@@ -1459,5 +1517,17 @@ routes = [
         remove_update_form_asset_link,
         methods=["POST"],
         name="remove_update_form_asset_link",
+    ),
+    Route(
+        "/{survey_related_record_id}/update/add-related-record-form",
+        add_update_form_related_to_record,
+        methods=["POST"],
+        name="add_update_form_related_to_record",
+    ),
+    Route(
+        "/{survey_related_record_id}/update/remove-related-record-form",
+        remove_update_form_related_to_record,
+        methods=["POST"],
+        name="remove_update_form_related_to_record",
     ),
 ]

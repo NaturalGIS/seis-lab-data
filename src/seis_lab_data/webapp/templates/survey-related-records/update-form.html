@@ -28,7 +28,17 @@
     <div class="row border p-4 mb-3">
         <div id="form-assets-container" class="col">
             {% for asset in form.assets %}
-                <h4>{{ _("asset") | capitalize }} {{ loop.index0 + 1 }}</h4>
+                <div class="d-flex justify-content-between mb-3">
+                    <h4>{{ _("asset") | capitalize }} {{ loop.index0 + 1 }}</h4>
+                    <button
+                            type="submit"
+                            class="btn btn-outline-danger"
+                            data-on:click="@post('{{ url_for("survey_related_records:remove_update_form_asset", survey_related_record_id=survey_related_record.id) }}?index={{ loop.index0 }}', {
+                  contentType: 'form',
+                  headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'},
+                })"
+                    >{{ _("remove asset") | capitalize }}</button>
+                </div>
                 {{ macros.render_form_field(asset.asset_id, "asset-") }}
                 {{ macros.render_localizable_field(asset.asset_name, "asset-") }}
                 {{ macros.render_localizable_field(asset.asset_description, "asset-") }}
@@ -42,14 +52,6 @@
                     "asset-" ~ loop.index0 ~ "-"
                 ) }}
 
-                <button
-                        type="submit"
-                        class="btn btn-outline-danger"
-                        data-on:click="@post('{{ url_for("survey_related_records:remove_update_form_asset", survey_related_record_id=survey_related_record.id) }}?asset_index={{ loop.index0 }}', {
-                  contentType: 'form',
-                  headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'},
-                })"
-                >{{ _("remove asset") | capitalize }}</button>
             {% endfor %}
         </div>
         <div class="row">
@@ -72,14 +74,17 @@
     <div class="row border p-4 mb-3">
         <div id="form-related-records-container" class="col">
             {% for related_to in form.related_records %}
-                <h4>{{ _("record") | capitalize }} {{ loop.index0 + 1 }}</h4>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4>{{ _("record") | capitalize }} {{ loop.index0 + 1 }}</h4>
+                    <button
+                            type="submit"
+                            class="btn btn-outline-danger"
+                            data-on:click="@post('{{ url_for("survey_related_records:remove_update_form_related_to_record", survey_related_record_id=survey_related_record.id) }}?index={{ loop.index0 }}', {contentType: 'form', headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}})"
+                    >{{ _("remove relationship to record") | capitalize }}</button>
+                </div>
                 {{ macros.render_form_field(related_to.related_record, "related_to-") }}
                 {{ macros.render_localizable_field(related_to.relationship, "related_to-") }}
 
-                <button
-                        type="submit"
-                        class="btn btn-outline-danger"
-                >{{ _("remove relationship to record") | capitalize }}</button>
             {% endfor %}
         </div>
         <div class="row">
@@ -88,9 +93,14 @@
                         type="button"
                         class="btn btn-outline-secondary"
                         aria-label="add-another-related-record"
+                        data-on:click="@post('{{ url_for("survey_related_records:add_update_form_related_to_record", survey_related_record_id=survey_related_record.id) }}', {contentType: 'form', headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}})"
+                        data-attr:disabled="{{ form.related_records | length }} >= {{ item_limits.SURVEY_RELATED_RECORD_MAX_RELATED }} "
                 >
                     {{ _("add another relationship") | capitalize }}
                 </button>
+                {% if form.related_records | length >= item_limits.SURVEY_RELATED_RECORD_MAX_RELATED %}
+                    <span class="ms-3 text-secondary">{{ _("maximum limit reached") | capitalize }}</span>
+                {% endif %}
             </div>
         </div>
     </div>

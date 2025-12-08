@@ -13,6 +13,7 @@ from wtforms import (
     HiddenField,
     SelectField,
     StringField,
+    validators,
 )
 
 from ... import (
@@ -60,9 +61,35 @@ class AssetCreateForm(Form):
     )
 
 
+class RelationshipForm(Form):
+    en = StringField(
+        _("English relationship name"),
+        description=_("Name of the relationship in english"),
+        validators=[
+            validators.Length(
+                max=constants.NAME_MAX_LENGTH,
+            ),
+        ],
+    )
+    pt = StringField(
+        _("Portuguese relationship name"),
+        description=_("Name of the relationship in portuguese"),
+        validators=[
+            validators.Length(
+                max=constants.NAME_MAX_LENGTH,
+            ),
+        ],
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make 'en' field required
+        self.en.flags.backend_required = True
+
+
 class RelatedRecordForm(Form):
     related_record = StringField(_("related record"))
-    relationship = StringField(_("relationship"))
+    relationship = FormField(RelationshipForm, name="relationship")
 
 
 class _SurveyRelatedRecordForm(StarletteForm):
