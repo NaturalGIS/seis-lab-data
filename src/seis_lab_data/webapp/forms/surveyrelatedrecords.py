@@ -128,7 +128,7 @@ class _SurveyRelatedRecordForm(StarletteForm):
     assets = FieldList(
         FormField(AssetCreateForm),
         label=_("assets"),
-        min_entries=1,
+        min_entries=0,
         max_entries=constants.SURVEY_RELATED_RECORD_MAX_ASSETS,
     )
     related_records = FieldList(
@@ -161,6 +161,23 @@ class _SurveyRelatedRecordForm(StarletteForm):
                     self.name.en.errors.append(error_message)
             else:
                 self.name.en.errors.append(error_message)
+
+    def _get_related_records(
+        self,
+    ) -> list[tuple[dict, schemas.SurveyRelatedRecordId]]:
+        result = []
+        for relationship_sub_form in self.related_records.entries:
+            compound_name = relationship_sub_form.related_record.data
+            raw_record_id = compound_name.rpartition(" - ")[-1]
+            try:
+                record_id = schemas.SurveyRelatedRecordId(uuid.UUID(raw_record_id))
+            except ValueError:
+                logger.exception(
+                    "Could not extract survey-related record id from compound name"
+                )
+                continue
+            result.append((relationship_sub_form.relationship.data, record_id))
+        return result
 
     def has_validation_errors(self) -> bool:
         # For some unknown reason, wtforms does not report validation errors for
@@ -356,6 +373,7 @@ class SurveyRelatedRecordUpdateForm(_SurveyRelatedRecordForm):
                     }
                     for ass in self.assets.entries
                 ],
+                related_records=self._get_related_records(),
             )
         except pydantic.ValidationError as exc:
             logger.error(f"pydantic errors {exc.errors()=}")

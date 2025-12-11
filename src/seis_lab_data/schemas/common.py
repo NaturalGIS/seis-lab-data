@@ -49,6 +49,11 @@ class LocalizableDraftDescription(pydantic.BaseModel):
     ) = None
 
 
+class LocalizableDraftRelationship(pydantic.BaseModel):
+    en: Annotated[str, pydantic.Field(min_length=1, max_length=50)]
+    pt: Annotated[str, pydantic.Field(max_length=50)] | None = None
+
+
 class LinkSchema(pydantic.BaseModel):
     url: pydantic.AnyHttpUrl
     media_type: str

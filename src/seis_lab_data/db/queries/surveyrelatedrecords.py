@@ -165,7 +165,7 @@ async def list_survey_related_record_related_to_records(
     survey_related_record_id: schemas.SurveyRelatedRecordId,
     limit: int = 20,
     offset: int = 0,
-) -> list[tuple[str, models.SurveyRelatedRecord]]:
+) -> list[tuple[dict, models.SurveyRelatedRecord]]:
     """Return records in which the input id is a subject of a relation.
 
     Returned records are those which are related to the input id.
@@ -200,7 +200,7 @@ async def list_survey_related_record_subject_records(
     survey_related_record_id: schemas.SurveyRelatedRecordId,
     limit: int = 20,
     offset: int = 0,
-) -> list[tuple[str, models.SurveyRelatedRecord]]:
+) -> list[tuple[dict, models.SurveyRelatedRecord]]:
     """Return records which are subjects in a relation with the input id.
 
     Returned records are those which are subjects in a relation where the input id is involved

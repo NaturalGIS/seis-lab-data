@@ -12,6 +12,7 @@ from .common import (
     LinkSchema,
     LocalizableDraftDescription,
     LocalizableDraftName,
+    LocalizableDraftRelationship,
     PolygonOut,
     PossiblyInvalidPolygon,
     RecordAssetId,
@@ -184,7 +185,9 @@ class SurveyRelatedRecordUpdate(pydantic.BaseModel):
         list[RecordAssetUpdate],
         pydantic.AfterValidator(check_asset_english_names_for_uniqueness),
     ] = []
-    related_records: list[tuple[str, SurveyRelatedRecordId]] = []
+    related_records: list[
+        tuple[LocalizableDraftRelationship, SurveyRelatedRecordId]
+    ] = []
 
 
 class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
@@ -223,8 +226,12 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
     domain_type: DomainTypeRead
     workflow_stage: WorkflowStageRead
     record_assets: list[RecordAssetReadDetailEmbedded]
-    related_to_records: list[tuple[str, SurveyRelatedRecordReadEmbedded]]
-    subject_for_records: list[tuple[str, SurveyRelatedRecordReadEmbedded]]
+    related_to_records: list[
+        tuple[LocalizableDraftDescription, SurveyRelatedRecordReadEmbedded]
+    ]
+    subject_for_records: list[
+        tuple[LocalizableDraftDescription, SurveyRelatedRecordReadEmbedded]
+    ]
 
     @pydantic.computed_field()
     def archive_url(self) -> str:
@@ -240,8 +247,8 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
     def from_db_instance(
         cls,
         instance: models.SurveyRelatedRecord,
-        records_related_to: list[tuple[str, models.SurveyRelatedRecord]],
-        records_subject_for: list[tuple[str, models.SurveyRelatedRecord]],
+        records_related_to: list[tuple[dict, models.SurveyRelatedRecord]],
+        records_subject_for: list[tuple[dict, models.SurveyRelatedRecord]],
     ) -> "SurveyRelatedRecordReadDetail":
         return cls(
             **instance.model_dump(),
