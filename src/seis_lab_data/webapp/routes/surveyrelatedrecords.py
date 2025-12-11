@@ -979,9 +979,7 @@ async def list_by_name(request: Request):
             killwords=True,
             leeway=0,
         )
-        compound_name = (
-            f"{current_name} ({current_mission_name} - {current_project_name})"
-        )
+        compound_name = f"{current_name} ({current_mission_name} - {current_project_name}) - {item.id}"
         rendered_items.append(f'<option value="{compound_name}"></option>')
 
     async def event_streamer():

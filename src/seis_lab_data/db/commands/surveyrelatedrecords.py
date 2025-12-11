@@ -153,7 +153,7 @@ async def update_survey_related_record(
     """
     logger.debug(f"{to_update=}")
     for key, value in to_update.model_dump(
-        exclude={"bbox_4326", "assets"}, exclude_unset=True
+        exclude={"bbox_4326", "assets", "related_records"}, exclude_unset=True
     ).items():
         setattr(survey_related_record, key, value)
     updated_bbox_4326 = (
@@ -186,6 +186,15 @@ async def update_survey_related_record(
     for existing_asset in survey_related_record.assets:
         if schemas.RecordAssetId(existing_asset.id) not in proposed_asset_ids:
             await session.delete(existing_asset)
+
+    # TODO: finish this
+    # for proposed_related in to_update.related_records:
+    #     # did a relationship to this record already exist?
+    #     try:
+    #         existing_relationship = [
+    #             r for r in survey_related_record.related_to_links if r.related_to_id
+    #         ]
+
     await session.commit()
     await session.refresh(survey_related_record)
     return await queries.get_survey_related_record(
