@@ -491,10 +491,10 @@ async def update_survey_related_record(
         raise errors.SeisLabDataError(
             f"Survey-related record with id {survey_related_record_id} does not exist."
         )
-    related_to = queries.list_survey_related_record_related_to_records(
+    related_to = await queries.list_survey_related_record_related_to_records(
         session, survey_related_record_id
     )
-    subject_for = queries.list_survey_related_record_subject_records(
+    subject_for = await queries.list_survey_related_record_subject_records(
         session, survey_related_record_id
     )
     serialized_before = schemas.SurveyRelatedRecordReadDetail.from_db_instance(

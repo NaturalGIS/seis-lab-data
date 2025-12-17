@@ -15,7 +15,6 @@ from datastar_py.sse import DatastarEvent
 from datastar_py.starlette import DatastarResponse
 from dramatiq import Message
 from jinja2 import Template
-from jinja2.filters import do_truncate
 from redis.asyncio import Redis
 from starlette_babel import gettext_lazy as _
 from starlette.endpoints import HTTPEndpoint
@@ -45,7 +44,6 @@ from ...db import (
     models,
     queries,
 )
-from ...localization import translate_localizable
 from ...processing import tasks
 from .. import (
     filters,
@@ -56,6 +54,7 @@ from .auth import (
     requires_auth,
 )
 from .common import (
+    build_related_record_compound_name,
     get_id_from_request_path,
     get_page_from_request_params,
     get_pagination_info,
@@ -652,6 +651,16 @@ async def get_update_form(request: Request):
                 }
                 for ass in details.item.record_assets
             ],
+            "related_records": [
+                {
+                    "related_record": build_related_record_compound_name(request, r[1]),
+                    "relationship": {
+                        "en": r[0].en,
+                        "pt": r[0].pt,
+                    },
+                }
+                for r in details.item.related_to_records
+            ],
         },
     )
     template_processor: Jinja2Templates = request.state.templates
@@ -964,22 +973,7 @@ async def list_by_name(request: Request):
 
     rendered_items = []
     for item in serialized_items:
-        current_name = translate_localizable(item.name, current_language)
-        current_mission_name = do_truncate(
-            request.state.templates.env,
-            translate_localizable(item.survey_mission.name, current_language),
-            length=15,
-            killwords=True,
-            leeway=0,
-        )
-        current_project_name = do_truncate(
-            request.state.templates.env,
-            translate_localizable(item.survey_mission.project.name, current_language),
-            length=15,
-            killwords=True,
-            leeway=0,
-        )
-        compound_name = f"{current_name} ({current_mission_name} - {current_project_name}) - {item.id}"
+        compound_name = build_related_record_compound_name(request, item)
         rendered_items.append(f'<option value="{compound_name}"></option>')
 
     async def event_streamer():
@@ -1360,6 +1354,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 )
                 for af in form_instance.assets.entries
             ],
+            related_records=form_instance.get_related_records(),
         )
 
         async def handle_processing_success(

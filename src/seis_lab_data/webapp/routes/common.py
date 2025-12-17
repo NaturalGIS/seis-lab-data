@@ -16,6 +16,7 @@ from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
 from datastar_py.sse import DatastarEvent
 from jinja2 import Template
+from jinja2.filters import do_truncate
 from redis.asyncio import Redis
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
@@ -23,6 +24,7 @@ from starlette.templating import Jinja2Templates
 
 from ... import schemas
 from ...constants import ProcessingStatus
+from ...localization import translate_localizable
 
 logger = logging.getLogger(__name__)
 
@@ -227,3 +229,31 @@ async def produce_event_stream_for_topic(
                     raise
         finally:
             await pubsub.unsubscribe(topic_name)
+
+
+def build_related_record_compound_name(
+    request: Request,
+    survey_related_record: schemas.SurveyRelatedRecordReadEmbedded
+    | schemas.SurveyRelatedRecordReadListItem,
+) -> str:
+    current_language = request.state.language
+    current_name = translate_localizable(survey_related_record.name, current_language)
+    current_mission_name = do_truncate(
+        request.state.templates.env,
+        translate_localizable(
+            survey_related_record.survey_mission.name, current_language
+        ),
+        length=15,
+        killwords=True,
+        leeway=0,
+    )
+    current_project_name = do_truncate(
+        request.state.templates.env,
+        translate_localizable(
+            survey_related_record.survey_mission.project.name, current_language
+        ),
+        length=15,
+        killwords=True,
+        leeway=0,
+    )
+    return f"{current_name} ({current_mission_name} - {current_project_name}) - {survey_related_record.id}"
