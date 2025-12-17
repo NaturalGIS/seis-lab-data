@@ -162,21 +162,24 @@ class _SurveyRelatedRecordForm(StarletteForm):
             else:
                 self.name.en.errors.append(error_message)
 
-    def _get_related_records(
+    def get_related_records(
         self,
-    ) -> list[tuple[dict, schemas.SurveyRelatedRecordId]]:
+    ) -> list[tuple[dict[str, str], schemas.SurveyRelatedRecordId]]:
         result = []
         for relationship_sub_form in self.related_records.entries:
-            compound_name = relationship_sub_form.related_record.data
-            raw_record_id = compound_name.rpartition(" - ")[-1]
             try:
-                record_id = schemas.SurveyRelatedRecordId(uuid.UUID(raw_record_id))
+                record_id = self.parse_related_record_compound_name(
+                    relationship_sub_form.related_record.data
+                )
             except ValueError:
                 logger.exception(
                     "Could not extract survey-related record id from compound name"
                 )
                 continue
-            result.append((relationship_sub_form.relationship.data, record_id))
+            localized_relationship_names = {
+                k: v for k, v in relationship_sub_form.relationship.data.items() if v
+            }
+            result.append((localized_relationship_names, record_id))
         return result
 
     def has_validation_errors(self) -> bool:
@@ -264,6 +267,10 @@ class _SurveyRelatedRecordForm(StarletteForm):
                 session, survey_mission_id=survey_mission_id, disregard_id=disregard_id
             )
         return form_instance
+
+    @staticmethod
+    def parse_related_record_compound_name(name: str) -> schemas.SurveyRelatedRecordId:
+        return schemas.SurveyRelatedRecordId(uuid.UUID(name.rpartition(" - ")[-1]))
 
 
 class SurveyRelatedRecordCreateForm(_SurveyRelatedRecordForm):
@@ -373,7 +380,7 @@ class SurveyRelatedRecordUpdateForm(_SurveyRelatedRecordForm):
                     }
                     for ass in self.assets.entries
                 ],
-                related_records=self._get_related_records(),
+                related_records=self.get_related_records(),
             )
         except pydantic.ValidationError as exc:
             logger.error(f"pydantic errors {exc.errors()=}")

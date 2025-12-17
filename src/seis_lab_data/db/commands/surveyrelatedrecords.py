@@ -187,13 +187,36 @@ async def update_survey_related_record(
         if schemas.RecordAssetId(existing_asset.id) not in proposed_asset_ids:
             await session.delete(existing_asset)
 
-    # TODO: finish this
-    # for proposed_related in to_update.related_records:
-    #     # did a relationship to this record already exist?
-    #     try:
-    #         existing_relationship = [
-    #             r for r in survey_related_record.related_to_links if r.related_to_id
-    #         ]
+    already_related_to = await queries.list_survey_related_record_related_to_records(
+        session, schemas.SurveyRelatedRecordId(survey_related_record.id)
+    )
+    logger.debug(f"{already_related_to=}")
+    for proposed_names, proposed_id in to_update.related_records:
+        # did a relationship to this record already exist?
+        try:
+            existing_relationship = [
+                r
+                for r in survey_related_record.related_to_links
+                if r.related_to_id == proposed_id
+            ][0]
+        except IndexError:  # this is a new relationship that must be created
+            db_relationship = models.SurveyRelatedRecordSelfLink(
+                subject_id=survey_related_record.id,
+                related_to_id=proposed_id,
+                relation=proposed_names,
+            )
+            session.add(db_relationship)
+        else:  # this is an existing relationship that needs to be updated
+            existing_relationship.relation = proposed_names
+            session.add(existing_relationship)
+
+    proposed_related_to_ids = [r[1] for r in to_update.related_records]
+    for existing_related in survey_related_record.related_to_links:
+        if (
+            schemas.SurveyRelatedRecordId(existing_related.related_to_id)
+            not in proposed_related_to_ids
+        ):
+            await session.delete(existing_related)
 
     await session.commit()
     await session.refresh(survey_related_record)
