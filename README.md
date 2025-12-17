@@ -136,69 +136,115 @@ docker logs -f --since 10m seis-lab-data-webapp-1
 
 ## Development
 
-- Clone this repo
-- Make a symlink to the directory where you have your sample data into a `sample-data` directory under the root of the
-  project - For example:
+This project is composed of a set of multiple services which are deployed with `docker compose`. The
+`docker/compose.dev.yaml` file is a compose file suitable for development
 
-   ```shell
-   # assuming your sample-data directory lives at `~/my-seis-lab-data-sample-data`
-   ln -s ~/my-seis-lab-data-sample-data sample-data
-   ```
+The more relevant services are:
 
-- Ensure you have installed [docker] and [uv] on your machine
-- Create a Python virtualenv and install the project dependencies into it with:
+- `webapp` - the main web application, which is implemented with [starlette], [sqlmodel], [jinja] and [datastar]
+- `processing-worker` - the background worker that does most processing and
+  state-changing DB modifications. It is a [dramatiq] worker
+- `message-broker` - a [redis] instance that passes messages between the webapp and the processing worker
+- `web-gateway` - a [traefik] instance that acts as a reverse proxy for the system
+- `auth-webapp` - an [authentik] instance that takes care of user authentication
+- `caddy-file-server` - a [caddy] instance that serves local datasets via HTTP
 
-    ```shell
-    cd seis-lab-data
-    uv sync --group dev --locked
-    ```
+[authentik]: https://goauthentik.io/
+[caddy]: https://caddyserver.com/
+[datastar]: https://data-star.dev/
+[dramatiq]: https://dramatiq.io/
+[jinja]: https://jinja.palletsprojects.com/en/stable/
+[redis]: https://redis.io/
+[starlette]: https://starlette.dev/
+[sqlmodel]: https://sqlmodel.tiangolo.com/
+[traefik]: https://traefik.io/
 
-- Install the included [pre-commit] hooks:
+Setting up a development environment involves the following steps:
 
-    ```shell
-    uv run pre-commit install
-    ```
+Start by cloning this repo locally
 
-- Setup your favorite IDE for working on the project
-- Launch the services with docker compose:
+```shell
+git clone https://github.com/NaturalGIS/seis-lab-data.git
+cd seis-lab-data
+```
 
-    ```shell
-    docker compose -f docker/compose.dev.yaml up -d
-    ```
+In order to simplify working with data, the project assumes there is a `sample-data` directory under
+the root of the repo. As such, make a symlink pointing to wherever you want to keep the actual data on your machine.
+For example:
 
-- Ensure the database is up to date by running:
+ ```shell
+ # assuming your sample-data directory lives at `~/my-seis-lab-data-sample-data`
+ ln -s ~/my-seis-lab-data-sample-data sample-data
+ ```
 
-    ```shell
-    docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data db upgrade
-    ```
+Ensure you have installed [docker] and [uv] on your machine
 
-- Add default data:
+Use `uv` to get the project installed locally.
 
-    ```shell
-    docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data bootstrap all
-    ```
+```shell
+uv sync --group dev --locked
+```
 
-- Optionally, load sample records into the DB:
+Install the included [pre-commit] hooks:
 
-    ```shell
-    docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data dev load-all-samples
-    ```
+```shell
+uv run pre-commit install
+```
 
-- You should now be able to access the webapp at
+Pull the project docker images from their respective registries. You will likely need to log in
+to the `ghcr.io` registry.
+
+```shell
+docker compose -f docker/compose.dev.yaml pull
+```
+
+Then launch the stack:
+
+```shell
+docker compose -f docker/compose.dev.yaml up -d
+```
+
+The `webapp` service contains a CLI named `seis-lab-data` which can be used to run many
+dev-oriented commands. Access it like this:
+
+```shell
+docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data --help
+```
+
+Initialize the database schema by running:
+
+```shell
+docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data db upgrade
+```
+
+Add default data:
+
+```shell
+docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data bootstrap all
+```
+
+Optionally, load sample records into the DB:
+
+```shell
+docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data dev load-all-samples
+```
+
+You can also generate many synthetic sample data (this one runs a bit slowly):
+
+```shell
+docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data dev generate-many-projects --num-projects=50
+```
+
+You should now be able to access the webapp at
 
     http://localhost:8888
-
-- Additional relevant URLs:
-
-  - http://localhost:8887 - the traefik dashboard
-  - http://localhost:8887/auth/ - the authentik landing page
 
 
 > [!NOTE]
 > ### Building the docker image locally
 >
 > Most of the time you will be using a prebuilt docker image. However, there is a special case where you will need
-> to build it locally. This case is when you add a new python dependency to the project. In this case, build the
+> to build it locally. This case is when you add a new Python dependency to the project. In this case, build the
 > image with:
 >
 > ```shell
@@ -223,6 +269,8 @@ docker logs -f --since 10m seis-lab-data-webapp-1
 
 
 ### Data
+
+TBD
 
 
 ## Running tests
