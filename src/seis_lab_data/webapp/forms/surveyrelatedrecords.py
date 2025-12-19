@@ -324,6 +324,7 @@ class SurveyRelatedRecordCreateForm(_SurveyRelatedRecordForm):
                     }
                     for ass in self.assets.entries
                 ],
+                related_records=self.get_related_records(),
             )
         except pydantic.ValidationError as exc:
             logger.error(f"pydantic errors {exc.errors()=}")
