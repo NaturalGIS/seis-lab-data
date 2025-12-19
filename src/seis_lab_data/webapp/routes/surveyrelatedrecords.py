@@ -500,8 +500,8 @@ async def remove_creation_form_asset(request: Request):
         request, "survey_mission_id", schemas.SurveyMissionId
     )
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
-    asset_index = int(request.query_params.get("asset_index", 0))
-    form_instance.assets.entries.pop(asset_index)
+    index = int(request.query_params.get("asset_index", 0))
+    form_instance.assets.entries.pop(index)
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template(
         "survey-related-records/create-form.html"
@@ -570,6 +570,61 @@ async def remove_creation_form_asset_link(request: Request):
         form=form_instance,
         request=request,
         survey_mission_id=survey_mission_id,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=schemas.selector_info.main_content_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def add_creation_form_related_record(request: Request):
+    parent_survey_mission_id = get_id_from_request_path(
+        request, "survey_mission_id", schemas.SurveyMissionId
+    )
+    form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
+    form_instance.related_records.append_entry()
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/create-form.html"
+    )
+    rendered = template.render(
+        form=form_instance,
+        request=request,
+        survey_mission_id=parent_survey_mission_id,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=schemas.selector_info.main_content_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def remove_creation_form_related_record(request: Request):
+    parent_survey_mission_id = get_id_from_request_path(
+        request, "survey_mission_id", schemas.SurveyMissionId
+    )
+    form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
+    index = int(request.query_params.get("index", 0))
+    form_instance.related_records.entries.pop(index)
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/create-form.html"
+    )
+    rendered = template.render(
+        form=form_instance,
+        request=request,
+        survey_mission_id=parent_survey_mission_id,
     )
 
     async def event_streamer():
@@ -1502,6 +1557,18 @@ routes = [
         remove_creation_form_asset_link,
         methods=["POST"],
         name="remove_asset_link_form",
+    ),
+    Route(
+        "/{survey_mission_id}/new/add-related-record-form",
+        add_creation_form_related_record,
+        methods=["POST"],
+        name="add_related_record_form",
+    ),
+    Route(
+        "/{survey_mission_id}/new/remove-related-record-form",
+        remove_creation_form_related_record,
+        methods=["POST"],
+        name="remove_related_record_form",
     ),
     Route(
         "/",
