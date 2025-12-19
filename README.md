@@ -330,6 +330,30 @@ In the test env node, relevant deployment artifacts are located at `/opt/seis-la
 There are other deployment-related files under `/opt/seis-lab-data`, which should not be modified.
 
 
+> [!note]
+>
+> Whenever there is a need to manually connect to the test environment, prefer to use a terminal session manager
+> as it will keep your session running in case some unexpected break of connection. [byobu] is a nice way to handle
+> this:
+>
+> ```shell
+> # check if there are any sessions already created:
+> byobu ls
+>
+> # create a new session (name it after yourself)
+> byobu new -s ricardo-silva
+>
+> # detach from the session by pressing the <F6> key
+>
+> # reattach to a named session (you can attach to someone else's session, if needed)
+> byobu attach -t ricardo-silva
+>
+> # the session can be closed by simply closing the connection, i.e. press <ctrl+d> or type `quit`
+> ```
+
+[byobu]: https://www.byobu.org/documentation
+
+
 ### Checking logs
 
 Access both deployment-related and operation logs can be done using normal docker facilities.
