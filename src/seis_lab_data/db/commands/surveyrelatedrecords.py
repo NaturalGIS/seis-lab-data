@@ -99,7 +99,7 @@ async def create_survey_related_record(
     to_create: schemas.SurveyRelatedRecordCreate,
 ) -> models.SurveyRelatedRecord:
     survey_record = models.SurveyRelatedRecord(
-        **to_create.model_dump(exclude={"assets", "bbox_4326"}),
+        **to_create.model_dump(exclude={"assets", "bbox_4326", "related_records"}),
         bbox_4326=(
             get_bbox_4326_for_db(bbox)
             if (bbox := to_create.bbox_4326) is not None
@@ -121,6 +121,13 @@ async def create_survey_related_record(
             survey_related_record_id=survey_record.id,
         )
         session.add(db_asset)
+    for related in to_create.related_records:
+        db_related = models.SurveyRelatedRecordSelfLink(
+            subject_id=survey_record.id,
+            related_to_id=related.related_record_id,
+            relation=related.relationship,
+        )
+        session.add(db_related)
     await session.commit()
     await session.refresh(survey_record)
     return await queries.get_survey_related_record(session, to_create.id)
@@ -191,23 +198,23 @@ async def update_survey_related_record(
         session, schemas.SurveyRelatedRecordId(survey_related_record.id)
     )
     logger.debug(f"{already_related_to=}")
-    for proposed_names, proposed_id in to_update.related_records:
+    for proposed_related_to in to_update.related_records:
         # did a relationship to this record already exist?
         try:
             existing_relationship = [
                 r
                 for r in survey_related_record.related_to_links
-                if r.related_to_id == proposed_id
+                if r.related_to_id == proposed_related_to.related_record_id
             ][0]
         except IndexError:  # this is a new relationship that must be created
             db_relationship = models.SurveyRelatedRecordSelfLink(
                 subject_id=survey_related_record.id,
-                related_to_id=proposed_id,
-                relation=proposed_names,
+                related_to_id=proposed_related_to.related_record_id,
+                relation=proposed_related_to.relationship,
             )
             session.add(db_relationship)
         else:  # this is an existing relationship that needs to be updated
-            existing_relationship.relation = proposed_names
+            existing_relationship.relation = proposed_related_to.relationship
             session.add(existing_relationship)
 
     proposed_related_to_ids = [r[1] for r in to_update.related_records]

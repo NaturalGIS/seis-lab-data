@@ -145,6 +145,11 @@ def check_asset_english_names_for_uniqueness(
     return assets
 
 
+class RelatedRecordCreate(pydantic.BaseModel):
+    related_record_id: SurveyRelatedRecordId
+    relationship: LocalizableDraftRelationship
+
+
 class SurveyRelatedRecordCreate(pydantic.BaseModel):
     id: SurveyRelatedRecordId
     owner: UserId
@@ -164,7 +169,7 @@ class SurveyRelatedRecordCreate(pydantic.BaseModel):
         list[RecordAssetCreate],
         pydantic.AfterValidator(check_asset_english_names_for_uniqueness),
     ] = []
-    related_records: list[tuple[str, SurveyRelatedRecordId]] = []
+    related_records: list[RelatedRecordCreate] = []
 
 
 class SurveyRelatedRecordUpdate(pydantic.BaseModel):
@@ -185,9 +190,7 @@ class SurveyRelatedRecordUpdate(pydantic.BaseModel):
         list[RecordAssetUpdate],
         pydantic.AfterValidator(check_asset_english_names_for_uniqueness),
     ] = []
-    related_records: list[
-        tuple[LocalizableDraftRelationship, SurveyRelatedRecordId]
-    ] = []
+    related_records: list[RelatedRecordCreate] = []
 
 
 class SurveyRelatedRecordReadListItem(pydantic.BaseModel):

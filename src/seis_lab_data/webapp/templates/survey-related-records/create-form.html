@@ -147,6 +147,13 @@
     <div class="row mb-3">
         <div class="col-sm-10 offset-sm-2">
             <button
+                    type="reset"
+                    class="btn btn-outline-secondary"
+                    data-on:click="@get('{{ url_for("survey_missions:get_details_component", survey_mission_id=survey_mission_id) }}')"
+                    aria-label="cancel-update"
+            >{{ _('cancel') | capitalize }}
+            </button>
+            <button
                     type="submit"
                     aria-label="submit-create-form"
                     class="btn btn-primary"

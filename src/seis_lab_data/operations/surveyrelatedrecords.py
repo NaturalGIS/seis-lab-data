@@ -394,8 +394,15 @@ async def delete_survey_related_record(
         raise errors.SeisLabDataError(
             f"Survey-related record with id {survey_related_record_id!r} does not exist."
         )
+
+    related_to = await queries.list_survey_related_record_related_to_records(
+        session, schemas.SurveyRelatedRecordId(survey_record.id)
+    )
+    subject_for = await queries.list_survey_related_record_subject_records(
+        session, schemas.SurveyRelatedRecordId(survey_record.id)
+    )
     serialized_survey_record = schemas.SurveyRelatedRecordReadDetail.from_db_instance(
-        survey_record
+        survey_record, records_related_to=related_to, records_subject_for=subject_for
     ).model_dump()
     await commands.delete_survey_related_record(session, survey_related_record_id)
     event_emitter(
