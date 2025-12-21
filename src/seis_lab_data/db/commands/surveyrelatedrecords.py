@@ -125,7 +125,7 @@ async def create_survey_related_record(
         db_related = models.SurveyRelatedRecordSelfLink(
             subject_id=survey_record.id,
             related_to_id=related.related_record_id,
-            relation=related.relationship,
+            relation=related.relationship.model_dump(),
         )
         session.add(db_related)
     await session.commit()
@@ -210,14 +210,16 @@ async def update_survey_related_record(
             db_relationship = models.SurveyRelatedRecordSelfLink(
                 subject_id=survey_related_record.id,
                 related_to_id=proposed_related_to.related_record_id,
-                relation=proposed_related_to.relationship,
+                relation=proposed_related_to.relationship.model_dump(),
             )
             session.add(db_relationship)
         else:  # this is an existing relationship that needs to be updated
-            existing_relationship.relation = proposed_related_to.relationship
+            existing_relationship.relation = (
+                proposed_related_to.relationship.model_dump()
+            )
             session.add(existing_relationship)
 
-    proposed_related_to_ids = [r[1] for r in to_update.related_records]
+    proposed_related_to_ids = [r.related_record_id for r in to_update.related_records]
     for existing_related in survey_related_record.related_to_links:
         if (
             schemas.SurveyRelatedRecordId(existing_related.related_to_id)

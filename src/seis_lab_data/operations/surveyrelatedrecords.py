@@ -498,19 +498,25 @@ async def update_survey_related_record(
         raise errors.SeisLabDataError(
             f"Survey-related record with id {survey_related_record_id} does not exist."
         )
-    related_to = await queries.list_survey_related_record_related_to_records(
+    before_related_to = await queries.list_survey_related_record_related_to_records(
         session, survey_related_record_id
     )
-    subject_for = await queries.list_survey_related_record_subject_records(
+    before_subject_for = await queries.list_survey_related_record_subject_records(
         session, survey_related_record_id
     )
     serialized_before = schemas.SurveyRelatedRecordReadDetail.from_db_instance(
         survey_related_record,
-        related_to,
-        subject_for,
+        before_related_to,
+        before_subject_for,
     ).model_dump()
     updated_survey_related_record = await commands.update_survey_related_record(
         session, survey_related_record, to_update
+    )
+    after_related_to = await queries.list_survey_related_record_related_to_records(
+        session, survey_related_record_id
+    )
+    after_subject_for = await queries.list_survey_related_record_subject_records(
+        session, survey_related_record_id
     )
     event_emitter(
         schemas.SeisLabDataEvent(
@@ -519,7 +525,7 @@ async def update_survey_related_record(
             payload=schemas.EventPayload(
                 before=serialized_before,
                 after=schemas.SurveyRelatedRecordReadDetail.from_db_instance(
-                    updated_survey_related_record
+                    updated_survey_related_record, after_related_to, after_subject_for
                 ).model_dump(),
             ),
         )

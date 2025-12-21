@@ -88,7 +88,7 @@
             {% if permissions.can_create_children %}
                 {{ macros_buttons_list_items.render_new_item_button(
                     url_for("survey_related_records:get_creation_form", survey_mission_id=survey_mission.id),
-                    _("new survey-related record")
+                    _("add new survey-related record")
                 ) }}
             {% endif %}
             {% if permissions.can_delete %}

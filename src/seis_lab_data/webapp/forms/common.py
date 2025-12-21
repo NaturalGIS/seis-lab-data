@@ -96,16 +96,9 @@ def retrieve_form_field_by_pydantic_loc(
             field = parent.entries[part]
         else:
             for f in parent:
-                field_name = getattr(f, "pydantic_field_name", None)
-                if field_name:
-                    if field_name == part:
-                        field = f
-                        break
-                else:
-                    logger.debug(f"{f=} {f.short_name=}")
-                    if f.short_name == part:
-                        field = f
-                        break
+                if (getattr(f, "pydantic_field_name", None) or f.short_name) == part:
+                    field = f
+                    break
             else:
                 field = None
         if field is None:
