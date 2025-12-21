@@ -210,6 +210,7 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
         "textbox", name="field-link-links-1-link_description-pt"
     ).fill("uma descrição do segundo link")
 
+    authenticated_page.get_by_role("button", name="add-another-asset", exact=True)
     authenticated_page.get_by_role("textbox", name="field-asset-assets-0-name-en").fill(
         "Sample e2e asset"
     )
