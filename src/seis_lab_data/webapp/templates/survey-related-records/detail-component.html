@@ -75,6 +75,42 @@
                                         <p class="list-group-item">{{ _("no links found") | capitalize }}</p>
                                     {% endfor %}
                                 </div>
+                                {% if survey_related_record.related_to_records | length > 0 %}
+                                    <h5>{{ _('related to') | capitalize }}</h5>
+                                    <div class="list-group list-group-flush">
+                                        {% for relation, other_record in survey_related_record.related_to_records %}
+                                            <a
+                                                    class="list-group-item list-group-item-action"
+                                                    href="{{ url_for('survey_related_records:detail', survey_related_record_id=other_record.id) }}"
+                                                    rel="{{ relation }}"
+                                            >
+                                                <h6>
+                                                    <span class="material-icons-outlined me-1">{{ icons.survey_related_records }}</span>
+                                                    <span class="badge rounded-pill bg-light">{{ relation }}</span>
+                                                    {{ other_record.name.en }}
+                                                </h6>
+                                            </a>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                {% if survey_related_record.subject_for_records | length > 0 %}
+                                    <h5>{{ _('subject to') | capitalize }}</h5>
+                                    <div class="list-group list-group-flush">
+                                        {% for relation, other_record in survey_related_record.subject_for_records %}
+                                            <a
+                                                    class="list-group-item list-group-item-action"
+                                                    href="{{ url_for('survey_related_records:detail', survey_related_record_id=other_record.id) }}"
+                                                    rel="{{ relation }}"
+                                            >
+                                                <h6>
+                                                    <span class="material-icons-outlined me-1">{{ icons.survey_related_records }}</span>
+                                                    <span class="badge rounded-pill bg-light">{{ relation }}</span>
+                                                    {{ other_record.name.en }}
+                                                </h6>
+                                            </a>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
                             </div>
 
                         </div>

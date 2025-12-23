@@ -46,6 +46,7 @@ class ProjectReadEmbedded(pydantic.BaseModel):
     name: LocalizableDraftName
     status: ProjectStatus
     validation_result: models.ValidationResult | None
+    root_path: str
     bbox_4326: PolygonOut | None
     temporal_extent_begin: Annotated[
         dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
@@ -71,7 +72,6 @@ class ProjectReadListItem(ProjectReadEmbedded):
 
 class ProjectReadDetail(ProjectReadListItem):
     owner: UserId
-    root_path: str
     links: list[LinkSchema] = []
     bbox_4326: PolygonOut | None
 

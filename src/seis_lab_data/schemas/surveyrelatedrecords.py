@@ -1,3 +1,4 @@
+import logging
 import datetime as dt
 from typing import Annotated
 
@@ -11,6 +12,7 @@ from .common import (
     LinkSchema,
     LocalizableDraftDescription,
     LocalizableDraftName,
+    LocalizableDraftRelationship,
     PolygonOut,
     PossiblyInvalidPolygon,
     RecordAssetId,
@@ -22,6 +24,8 @@ from .common import (
     WorkflowStageId,
 )
 from .surveymissions import SurveyMissionReadEmbedded
+
+logger = logging.getLogger(__name__)
 
 
 class DatasetCategoryCreate(pydantic.BaseModel):
@@ -141,6 +145,11 @@ def check_asset_english_names_for_uniqueness(
     return assets
 
 
+class RelatedRecordCreate(pydantic.BaseModel):
+    related_record_id: SurveyRelatedRecordId
+    relationship: LocalizableDraftRelationship
+
+
 class SurveyRelatedRecordCreate(pydantic.BaseModel):
     id: SurveyRelatedRecordId
     owner: UserId
@@ -160,6 +169,7 @@ class SurveyRelatedRecordCreate(pydantic.BaseModel):
         list[RecordAssetCreate],
         pydantic.AfterValidator(check_asset_english_names_for_uniqueness),
     ] = []
+    related_records: list[RelatedRecordCreate] = []
 
 
 class SurveyRelatedRecordUpdate(pydantic.BaseModel):
@@ -180,6 +190,7 @@ class SurveyRelatedRecordUpdate(pydantic.BaseModel):
         list[RecordAssetUpdate],
         pydantic.AfterValidator(check_asset_english_names_for_uniqueness),
     ] = []
+    related_records: list[RelatedRecordCreate] = []
 
 
 class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
@@ -218,10 +229,29 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
     domain_type: DomainTypeRead
     workflow_stage: WorkflowStageRead
     record_assets: list[RecordAssetReadDetailEmbedded]
+    related_to_records: list[
+        tuple[LocalizableDraftDescription, SurveyRelatedRecordReadEmbedded]
+    ]
+    subject_for_records: list[
+        tuple[LocalizableDraftDescription, SurveyRelatedRecordReadEmbedded]
+    ]
+
+    @pydantic.computed_field()
+    def archive_url(self) -> str:
+        return "/".join(
+            (
+                self.survey_mission.project.root_path,
+                self.survey_mission.relative_path,
+                self.relative_path,
+            )
+        )
 
     @classmethod
     def from_db_instance(
-        cls, instance: models.SurveyRelatedRecord
+        cls,
+        instance: models.SurveyRelatedRecord,
+        records_related_to: list[tuple[dict, models.SurveyRelatedRecord]],
+        records_subject_for: list[tuple[dict, models.SurveyRelatedRecord]],
     ) -> "SurveyRelatedRecordReadDetail":
         return cls(
             **instance.model_dump(),
@@ -235,5 +265,13 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
             workflow_stage=WorkflowStageRead(**instance.workflow_stage.model_dump()),
             record_assets=[
                 RecordAssetReadDetailEmbedded(**a.model_dump()) for a in instance.assets
+            ],
+            related_to_records=[
+                (relation, SurveyRelatedRecordReadEmbedded.from_db_instance(record))
+                for relation, record in records_related_to
+            ],
+            subject_for_records=[
+                (relation, SurveyRelatedRecordReadEmbedded.from_db_instance(record))
+                for relation, record in records_subject_for
             ],
         )

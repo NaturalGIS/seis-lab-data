@@ -74,7 +74,7 @@ async def generate_many_projects(
                 missions_info
             ):
                 ctx.obj["main"].status_console.print(
-                    f"\tCreating mission ({mission_index + 1}/{len(missions_info)}) for project..."
+                    f"\tCreating mission ({mission_index + 1}/{len(missions_info)}) for project with {len(records_to_create)} records..."
                 )
                 await operations.create_survey_mission(
                     mission_to_create,
@@ -84,9 +84,9 @@ async def generate_many_projects(
                     event_emitter=emitter,
                 )
                 for record_index, record_to_create in enumerate(records_to_create):
-                    ctx.obj["main"].status_console.print(
-                        f"\t\tCreating record ({record_index + 1}/{len(records_to_create)}) for mission..."
-                    )
+                    # ctx.obj["main"].status_console.print(
+                    #     f"\t\tCreating record ({record_index + 1}/{len(records_to_create)}) for mission..."
+                    # )
                     await operations.create_survey_related_record(
                         record_to_create,
                         initiator=ctx.obj["admin_user"],

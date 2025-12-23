@@ -31,6 +31,7 @@ from starlette_wtf import (
 
 from .. import (
     config,
+    constants,
     events,
 )
 from ..auth import (
@@ -41,7 +42,6 @@ from ..db.engine import (
     get_engine,
     get_session_maker,
 )
-from ..constants import ProjectStatus
 from ..processing.broker import setup_broker
 
 from . import jinjafilters
@@ -98,8 +98,16 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
                 "validation_valid": "check_circle",
                 "validation_invalid": "dangerous",
             },
+            "item_limits": {
+                "ASSET_MAX_LINKS": constants.ASSET_MAX_LINKS,
+                "PROJECT_MAX_LINKS": constants.PROJECT_MAX_LINKS,
+                "SURVEY_MISSION_MAX_LINKS": constants.SURVEY_MISSION_MAX_LINKS,
+                "SURVEY_RELATED_RECORD_MAX_LINKS": constants.SURVEY_RELATED_RECORD_MAX_LINKS,
+                "SURVEY_RELATED_RECORD_MAX_ASSETS": constants.SURVEY_RELATED_RECORD_MAX_ASSETS,
+                "SURVEY_RELATED_RECORD_MAX_RELATED": constants.SURVEY_RELATED_RECORD_MAX_RELATED,
+            },
             "settings": settings,
-            "ProjectStatus": ProjectStatus,
+            "ProjectStatus": constants.ProjectStatus,
             "default_webmap_bounds": {
                 "min_lon": min_lon,
                 "max_lon": max_lon,

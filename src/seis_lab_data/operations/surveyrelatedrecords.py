@@ -12,7 +12,11 @@ from .. import (
     permissions,
     schemas,
 )
-from ..constants import SurveyRelatedRecordStatus
+from ..constants import (
+    ProjectStatus,
+    SurveyMissionStatus,
+    SurveyRelatedRecordStatus,
+)
 from ..db import (
     commands,
     queries,
@@ -229,14 +233,41 @@ async def create_survey_related_record(
         raise errors.SeisLabDataError(
             "User is not allowed to create a survey-related record."
         )
+    if not (
+        survey_mission := await queries.get_survey_mission(
+            session, to_create.survey_mission_id
+        )
+    ):
+        raise errors.SeisLabDataError(
+            f"Survey mission with id {to_create.survey_mission_id} does not exist"
+        )
+    if (mission_status := survey_mission.status) != SurveyMissionStatus.DRAFT:
+        raise errors.SeisLabDataError(
+            f"Cannot create survey-related record because parent survey "
+            f"mission's status is {mission_status}"
+        )
+    if (project_status := survey_mission.project.status) != ProjectStatus.DRAFT:
+        raise errors.SeisLabDataError(
+            f"Cannot create survey-related record because parent project's "
+            f"status is {project_status}"
+        )
+
     survey_record = await commands.create_survey_related_record(session, to_create)
+    related_to = await queries.list_survey_related_record_related_to_records(
+        session, schemas.SurveyRelatedRecordId(survey_record.id)
+    )
+    subject_for = await queries.list_survey_related_record_subject_records(
+        session, schemas.SurveyRelatedRecordId(survey_record.id)
+    )
     event_emitter(
         schemas.SeisLabDataEvent(
             type_=schemas.EventType.SURVEY_RELATED_RECORD_CREATED,
             initiator=initiator.id,
             payload=schemas.EventPayload(
                 after=schemas.SurveyRelatedRecordReadDetail.from_db_instance(
-                    survey_record
+                    survey_record,
+                    records_related_to=related_to,
+                    records_subject_for=subject_for,
                 ).model_dump()
             ),
         )
@@ -372,12 +403,6 @@ async def delete_survey_related_record(
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
-    if initiator is None or not await permissions.can_delete_survey_related_record(
-        initiator, survey_related_record_id, settings=settings
-    ):
-        raise errors.SeisLabDataError(
-            "User is not allowed to delete survey-related record."
-        )
     if (
         survey_record := await queries.get_survey_related_record(
             session, survey_related_record_id
@@ -386,8 +411,35 @@ async def delete_survey_related_record(
         raise errors.SeisLabDataError(
             f"Survey-related record with id {survey_related_record_id!r} does not exist."
         )
+    if initiator is None or not await permissions.can_delete_survey_related_record(
+        initiator, survey_related_record_id, settings=settings
+    ):
+        raise errors.SeisLabDataError(
+            "User is not allowed to delete survey-related record."
+        )
+    if (
+        mission_status := survey_record.survey_mission.status
+    ) != SurveyMissionStatus.DRAFT:
+        raise errors.SeisLabDataError(
+            f"Cannot update survey-related record because parent survey "
+            f"mission's status is {mission_status}"
+        )
+    if (
+        project_status := survey_record.survey_mission.project.status
+    ) != ProjectStatus.DRAFT:
+        raise errors.SeisLabDataError(
+            f"Cannot update survey-related record because parent project's "
+            f"status is {project_status}"
+        )
+
+    related_to = await queries.list_survey_related_record_related_to_records(
+        session, schemas.SurveyRelatedRecordId(survey_record.id)
+    )
+    subject_for = await queries.list_survey_related_record_subject_records(
+        session, schemas.SurveyRelatedRecordId(survey_record.id)
+    )
     serialized_survey_record = schemas.SurveyRelatedRecordReadDetail.from_db_instance(
-        survey_record
+        survey_record, records_related_to=related_to, records_subject_for=subject_for
     ).model_dump()
     await commands.delete_survey_related_record(session, survey_related_record_id)
     event_emitter(
@@ -430,15 +482,35 @@ async def get_survey_related_record(
     initiator: schemas.User | None,
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
-) -> models.SurveyRelatedRecord | None:
-    if not permissions.can_read_survey_related_record(
+) -> (
+    tuple[
+        models.SurveyRelatedRecord,
+        list[tuple[str, models.SurveyRelatedRecord]],
+        list[tuple[str, models.SurveyRelatedRecord]],
+    ]
+    | None
+):
+    if not await permissions.can_read_survey_related_record(
         initiator, survey_related_record_id, settings=settings
     ):
         raise errors.SeisLabDataError(
             f"User is not allowed to read survey-related "
             f"record {survey_related_record_id!r}."
         )
-    return await queries.get_survey_related_record(session, survey_related_record_id)
+    record = await queries.get_survey_related_record(session, survey_related_record_id)
+    if record:
+        record_id: schemas.SurveyRelatedRecordId = record.id
+        records_related_to = (
+            await queries.list_survey_related_record_related_to_records(
+                session, record_id
+            )
+        )
+        records_subject_for = await queries.list_survey_related_record_subject_records(
+            session, record_id
+        )
+        return record, records_related_to, records_subject_for
+    else:
+        return None
 
 
 async def update_survey_related_record(
@@ -449,12 +521,6 @@ async def update_survey_related_record(
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.SurveyRelatedRecord:
-    if initiator is None or not await permissions.can_update_survey_related_record(
-        initiator, survey_related_record_id, settings=settings
-    ):
-        raise errors.SeisLabDataError(
-            "User is not allowed to update survey-related record."
-        )
     if (
         survey_related_record := await queries.get_survey_related_record(
             session, survey_related_record_id
@@ -463,11 +529,45 @@ async def update_survey_related_record(
         raise errors.SeisLabDataError(
             f"Survey-related record with id {survey_related_record_id} does not exist."
         )
+    if initiator is None or not await permissions.can_update_survey_related_record(
+        initiator, survey_related_record_id, settings=settings
+    ):
+        raise errors.SeisLabDataError(
+            "User is not allowed to update survey-related record."
+        )
+    if (
+        mission_status := survey_related_record.survey_mission.status
+    ) != SurveyMissionStatus.DRAFT:
+        raise errors.SeisLabDataError(
+            f"Cannot update survey-related record because parent survey "
+            f"mission's status is {mission_status}"
+        )
+    if (
+        project_status := survey_related_record.survey_mission.project.status
+    ) != ProjectStatus.DRAFT:
+        raise errors.SeisLabDataError(
+            f"Cannot update survey-related record because parent project's "
+            f"status is {project_status}"
+        )
+    before_related_to = await queries.list_survey_related_record_related_to_records(
+        session, survey_related_record_id
+    )
+    before_subject_for = await queries.list_survey_related_record_subject_records(
+        session, survey_related_record_id
+    )
     serialized_before = schemas.SurveyRelatedRecordReadDetail.from_db_instance(
-        survey_related_record
+        survey_related_record,
+        before_related_to,
+        before_subject_for,
     ).model_dump()
     updated_survey_related_record = await commands.update_survey_related_record(
         session, survey_related_record, to_update
+    )
+    after_related_to = await queries.list_survey_related_record_related_to_records(
+        session, survey_related_record_id
+    )
+    after_subject_for = await queries.list_survey_related_record_subject_records(
+        session, survey_related_record_id
     )
     event_emitter(
         schemas.SeisLabDataEvent(
@@ -476,7 +576,7 @@ async def update_survey_related_record(
             payload=schemas.EventPayload(
                 before=serialized_before,
                 after=schemas.SurveyRelatedRecordReadDetail.from_db_instance(
-                    updated_survey_related_record
+                    updated_survey_related_record, after_related_to, after_subject_for
                 ).model_dump(),
             ),
         )

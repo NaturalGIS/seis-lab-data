@@ -35,6 +35,7 @@ from ... import (
 from ...constants import (
     PROGRESS_TOPIC_NAME_TEMPLATE,
     SURVEY_RELATED_RECORD_DELETED_TOPIC,
+    SURVEY_RELATED_RECORD_MAX_RELATED,
     SURVEY_RELATED_RECORD_STATUS_CHANGED_TOPIC,
     SURVEY_RELATED_RECORD_UPDATED_TOPIC,
     SURVEY_RELATED_RECORD_VALIDITY_CHANGED_TOPIC,
@@ -53,6 +54,7 @@ from .auth import (
     requires_auth,
 )
 from .common import (
+    build_related_record_compound_name,
     get_id_from_request_path,
     get_page_from_request_params,
     get_pagination_info,
@@ -76,7 +78,7 @@ async def _get_survey_related_record_details(
     )
     async with session_maker() as session:
         try:
-            survey_related_record = await operations.get_survey_related_record(
+            survey_related_record_info = await operations.get_survey_related_record(
                 survey_related_record_id,
                 user.id if user else None,
                 session,
@@ -84,15 +86,16 @@ async def _get_survey_related_record_details(
             )
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
-        if survey_related_record is None:
+        if survey_related_record_info is None:
             raise HTTPException(
                 status_code=404,
                 detail=_(
                     f"Survey-related record {survey_related_record_id!r} not found."
                 ),
             )
+    survey_related_record, related_to, subject_for = survey_related_record_info
     serialized = schemas.SurveyRelatedRecordReadDetail.from_db_instance(
-        survey_related_record
+        survey_related_record, related_to, subject_for
     )
     can_update = await permissions.can_update_survey_related_record(
         user, survey_related_record_id, settings=settings
@@ -202,9 +205,10 @@ async def get_detail_updates(request: Request):
                 "patching frontend..."
             )
             async with session_maker() as session:
-                updated = await operations.get_survey_related_record(
+                updated_details = await operations.get_survey_related_record(
                     survey_related_record_id, user or None, session, settings
                 )
+                updated = updated_details[0]
                 yield ServerSentEventGenerator.patch_signals(
                     {
                         "status": updated.status.value,
@@ -221,9 +225,10 @@ async def get_detail_updates(request: Request):
                 "patching frontend..."
             )
             async with session_maker() as session:
-                updated = await operations.get_survey_related_record(
+                updated_details = await operations.get_survey_related_record(
                     survey_related_record_id, user or None, session, settings
                 )
+                updated = updated_details[0]
                 details_message = ""
                 if not updated.validation_result.get("is_valid"):
                     details_message += "<ul>"
@@ -495,8 +500,8 @@ async def remove_creation_form_asset(request: Request):
         request, "survey_mission_id", schemas.SurveyMissionId
     )
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
-    asset_index = int(request.query_params.get("asset_index", 0))
-    form_instance.assets.entries.pop(asset_index)
+    index = int(request.query_params.get("asset_index", 0))
+    form_instance.assets.entries.pop(index)
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template(
         "survey-related-records/create-form.html"
@@ -578,6 +583,61 @@ async def remove_creation_form_asset_link(request: Request):
 
 
 @csrf_protect
+async def add_creation_form_related_record(request: Request):
+    parent_survey_mission_id = get_id_from_request_path(
+        request, "survey_mission_id", schemas.SurveyMissionId
+    )
+    form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
+    form_instance.related_records.append_entry()
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/create-form.html"
+    )
+    rendered = template.render(
+        form=form_instance,
+        request=request,
+        survey_mission_id=parent_survey_mission_id,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=schemas.selector_info.main_content_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def remove_creation_form_related_record(request: Request):
+    parent_survey_mission_id = get_id_from_request_path(
+        request, "survey_mission_id", schemas.SurveyMissionId
+    )
+    form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
+    index = int(request.query_params.get("index", 0))
+    form_instance.related_records.entries.pop(index)
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/create-form.html"
+    )
+    rendered = template.render(
+        form=form_instance,
+        request=request,
+        survey_mission_id=parent_survey_mission_id,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=schemas.selector_info.main_content_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
 @requires_auth
 async def get_update_form(request: Request):
     """Show an HTML form for the client to prepare a record update operation."""
@@ -646,16 +706,37 @@ async def get_update_form(request: Request):
                 }
                 for ass in details.item.record_assets
             ],
+            "related_records": [
+                {
+                    "related_record": build_related_record_compound_name(request, r[1]),
+                    "relationship": {
+                        "en": r[0].en,
+                        "pt": r[0].pt,
+                    },
+                }
+                for r in details.item.related_to_records
+            ],
         },
     )
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template(
         "survey-related-records/update-form.html"
     )
+    user = get_user(request.session.get("user", {}))
+    session_maker = request.state.session_maker
+    async with session_maker() as session:
+        initial_related_records_list, _ = await operations.list_survey_related_records(
+            session,
+            initiator=user.id if user else None,
+        )
+    initial_related_records = [
+        (i.id, i.name["en"]) for i in initial_related_records_list
+    ]
     rendered = template.render(
         request=request,
         survey_related_record=details.item,
         form=form_instance,
+        initial_related_records=initial_related_records,
     )
 
     async def event_streamer():
@@ -722,6 +803,75 @@ async def remove_update_form_link(request: Request):
 
 
 @csrf_protect
+async def add_update_form_related_to_record(request: Request):
+    details = await _get_survey_related_record_details(request)
+    form_instance = await forms.SurveyRelatedRecordUpdateForm.from_request(request)
+    # TODO: implement some logic to limit the number of related_to relationships that can be added
+    logger.debug(f"{len(form_instance.related_records.entries)=}")
+    if len(form_instance.related_records.entries) > SURVEY_RELATED_RECORD_MAX_RELATED:
+        # cannot add more
+        ...
+    form_instance.related_records.append_entry()
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/update-form.html"
+    )
+
+    user = get_user(request.session.get("user", {}))
+    session_maker = request.state.session_maker
+    async with session_maker() as session:
+        initial_related_records_list, _ = await operations.list_survey_related_records(
+            session,
+            initiator=user.id if user else None,
+        )
+    initial_related_records = [
+        (i.id, i.name["en"]) for i in initial_related_records_list
+    ]
+    rendered = template.render(
+        form=form_instance,
+        request=request,
+        survey_related_record=details.item,
+        initial_related_records=initial_related_records,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=schemas.selector_info.main_content_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def remove_update_form_related_to_record(request: Request):
+    details = await _get_survey_related_record_details(request)
+    form_instance = await forms.SurveyRelatedRecordUpdateForm.from_request(request)
+    # TODO: Check we are not trying to remove an index that is invalid
+    index = int(request.query_params.get("index", 0))
+    form_instance.related_records.entries.pop(index)
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/update-form.html"
+    )
+    rendered = template.render(
+        form=form_instance,
+        request=request,
+        survey_related_record=details.item,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=schemas.selector_info.main_content_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
 async def add_update_form_asset(request: Request):
     details = await _get_survey_related_record_details(request)
     form_instance = await forms.SurveyRelatedRecordUpdateForm.from_request(request)
@@ -752,8 +902,8 @@ async def remove_update_form_asset(request: Request):
     details = await _get_survey_related_record_details(request)
     form_instance = await forms.SurveyRelatedRecordUpdateForm.from_request(request)
     # TODO: Check we are not trying to remove an index that is invalid
-    link_index = int(request.query_params.get("link_index", 0))
-    form_instance.asset.entries.pop(link_index)
+    index = int(request.query_params.get("index", 0))
+    form_instance.asset.entries.pop(index)
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template(
         "survey-related-records/update-form.html"
@@ -837,6 +987,53 @@ async def remove_update_form_asset_link(request: Request):
             rendered,
             selector=schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+async def list_by_name(request: Request):
+    """Specialized endpoint that provides record names for building datalists."""
+    current_language = request.state.language
+    if (target_datalist_id := request.query_params.get("target")) is None:
+        raise HTTPException(status_code=400, detail="target is required")
+    if (search_param_name := request.query_params.get("searchParam")) is None:
+        raise HTTPException(status_code=400, detail="searchParam is required")
+
+    try:
+        if (raw_search_params := request.query_params.get("datastar")) is None:
+            raise HTTPException(status_code=400, detail="datastar is required")
+        search_value = json.loads(raw_search_params).get(search_param_name)
+    except json.decoder.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid search params")
+
+    record_name_filter = filters.SearchNameFilter(
+        internal_name=f"{current_language}_name_filter",
+        public_name=f"{current_language}_name",
+        value=search_value,
+    )
+    internal_filter_kwargs = record_name_filter.as_kwargs()
+    logger.debug(f"{internal_filter_kwargs=}")
+    session_maker = request.state.session_maker
+    user = get_user(request.session.get("user", {}))
+    async with session_maker() as session:
+        items, _ = await operations.list_survey_related_records(
+            session,
+            initiator=user.id if user else None,
+            **internal_filter_kwargs,
+        )
+    serialized_items = [  # noqa
+        schemas.SurveyRelatedRecordReadListItem.from_db_instance(item) for item in items
+    ]
+
+    rendered_items = []
+    for item in serialized_items:
+        compound_name = build_related_record_compound_name(request, item)
+        rendered_items.append(f'<option value="{compound_name}"></option>')
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            f'<datalist id="{target_datalist_id}">{"".join(rendered_items)}</datalist>',
         )
 
     return DatastarResponse(event_streamer())
@@ -1013,7 +1210,8 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         user = get_user(request.session.get("user", {}))
         async with request.state.session_maker() as session:
             if (
-                survey_related_record := await operations.get_survey_related_record(
+                survey_related_record_details
+                := await operations.get_survey_related_record(
                     survey_related_record_id,
                     user.id if user else None,
                     session,
@@ -1027,6 +1225,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                     ),
                 )
 
+        survey_related_record = survey_related_record_details[0]
         request_id = schemas.RequestId(uuid.uuid4())
         logger.debug(f"{survey_related_record=}")
 
@@ -1100,7 +1299,8 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         )
         async with session_maker() as session:
             if (
-                survey_related_record := await operations.get_survey_related_record(
+                survey_related_record_details
+                := await operations.get_survey_related_record(
                     survey_related_record_id, user, session, request.state.settings
                 )
             ) is None:
@@ -1109,6 +1309,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                     f"Survey-related record {survey_related_record_id!r} not found.",
                 )
 
+        survey_related_record, related_to, subject_for = survey_related_record_details
         parent_survey_mission_id = schemas.SurveyMissionId(
             survey_related_record.survey_mission_id
         )
@@ -1143,6 +1344,23 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
             return DatastarResponse(stream_validation_failed_events(), status_code=422)
 
         request_id = schemas.RequestId(uuid.uuid4())
+        related_records = []
+        for related_ in form_instance.related_records.entries:
+            related_records.append(
+                schemas.RelatedRecordCreate(
+                    related_record_id=schemas.SurveyRelatedRecordId(
+                        uuid.UUID(
+                            form_instance.parse_related_record_compound_name(
+                                related_.related_record.data
+                            )
+                        )
+                    ),
+                    relationship=schemas.LocalizableDraftRelationship(
+                        en=related_.relationship.en.data,
+                        pt=related_.relationship.pt.data,
+                    ),
+                )
+            )
         to_update = schemas.SurveyRelatedRecordUpdate(
             owner=user.id,
             survey_mission_id=parent_survey_mission_id,
@@ -1208,6 +1426,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 )
                 for af in form_instance.assets.entries
             ],
+            related_records=related_records,
         )
 
         async def handle_processing_success(
@@ -1357,6 +1576,18 @@ routes = [
         name="remove_asset_link_form",
     ),
     Route(
+        "/{survey_mission_id}/new/add-related-record-form",
+        add_creation_form_related_record,
+        methods=["POST"],
+        name="add_related_record_form",
+    ),
+    Route(
+        "/{survey_mission_id}/new/remove-related-record-form",
+        remove_creation_form_related_record,
+        methods=["POST"],
+        name="remove_related_record_form",
+    ),
+    Route(
         "/",
         SurveyRelatedRecordCollectionEndpoint,
         methods=["GET"],
@@ -1367,6 +1598,12 @@ routes = [
         get_list_component,
         methods=["GET"],
         name="get_list_component",
+    ),
+    Route(
+        "/filter-by-name",
+        list_by_name,
+        methods=["GET"],
+        name="list_by_name",
     ),
     Route(
         "/{survey_related_record_id}",
@@ -1426,5 +1663,17 @@ routes = [
         remove_update_form_asset_link,
         methods=["POST"],
         name="remove_update_form_asset_link",
+    ),
+    Route(
+        "/{survey_related_record_id}/update/add-related-record-form",
+        add_update_form_related_to_record,
+        methods=["POST"],
+        name="add_update_form_related_to_record",
+    ),
+    Route(
+        "/{survey_related_record_id}/update/remove-related-record-form",
+        remove_update_form_related_to_record,
+        methods=["POST"],
+        name="remove_update_form_related_to_record",
     ),
 ]

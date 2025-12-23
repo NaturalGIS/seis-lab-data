@@ -1,5 +1,4 @@
 import datetime as dt
-import uuid
 from typing import Annotated
 
 import pydantic
@@ -24,7 +23,7 @@ from .projects import ProjectReadEmbedded
 class SurveyMissionCreate(pydantic.BaseModel):
     id: SurveyMissionId
     owner: UserId
-    project_id: uuid.UUID
+    project_id: ProjectId
     name: LocalizableDraftName
     description: LocalizableDraftDescription
     relative_path: str
@@ -51,6 +50,7 @@ class SurveyMissionReadEmbedded(pydantic.BaseModel):
     name: LocalizableDraftName
     status: SurveyMissionStatus
     validation_result: models.ValidationResult | None
+    relative_path: str
     temporal_extent_begin: Annotated[
         dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
     ]

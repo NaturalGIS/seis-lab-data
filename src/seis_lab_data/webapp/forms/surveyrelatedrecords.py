@@ -13,6 +13,7 @@ from wtforms import (
     HiddenField,
     SelectField,
     StringField,
+    validators,
 )
 
 from ... import (
@@ -30,6 +31,7 @@ from .common import (
     incorporate_schema_validation_errors_into_form,
     LinkForm,
     NameForm,
+    PydanticMappableStringField,
 )
 from .fields import OptionalDateField
 
@@ -45,7 +47,7 @@ class AssetCreateForm(Form):
     asset_name = FormField(NameForm, name="name")
     asset_description = FormField(DescriptionForm, name="description")
     relative_path = StringField(
-        _("Relative path"),
+        _("relative path"),
         description=_(
             "Path for the asset in the archive file system, "
             "relative to its parent survey-related record root path"
@@ -58,6 +60,43 @@ class AssetCreateForm(Form):
         min_entries=0,
         max_entries=constants.ASSET_MAX_LINKS,
     )
+
+
+class RelationshipForm(Form):
+    en = StringField(
+        _("English relationship name"),
+        description=_("Name of the relationship in english"),
+        validators=[
+            validators.Length(
+                max=constants.NAME_MAX_LENGTH,
+            ),
+        ],
+    )
+    pt = StringField(
+        _("Portuguese relationship name"),
+        description=_("Name of the relationship in portuguese"),
+        validators=[
+            validators.Length(
+                max=constants.NAME_MAX_LENGTH,
+            ),
+        ],
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make 'en' field required
+        self.en.flags.backend_required = True
+
+
+class RelatedRecordForm(Form):
+    related_record = PydanticMappableStringField(
+        _("related record"), pydantic_field_name="related_record_id"
+    )
+    relationship = FormField(RelationshipForm, name="relationship")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.related_record.flags.backend_required = True
 
 
 class _SurveyRelatedRecordForm(StarletteForm):
@@ -88,16 +127,22 @@ class _SurveyRelatedRecordForm(StarletteForm):
         FormField(LinkForm),
         label=_("Links"),
         min_entries=0,
-        max_entries=constants.SURVEY_MISSION_MAX_LINKS,
+        max_entries=constants.SURVEY_RELATED_RECORD_MAX_LINKS,
     )
     bounding_box = FormField(BoundingBoxForm)
     temporal_extent_begin = OptionalDateField()
     temporal_extent_end = OptionalDateField()
     assets = FieldList(
         FormField(AssetCreateForm),
-        label=_("Assets"),
-        min_entries=1,
+        label=_("assets"),
+        min_entries=0,
         max_entries=constants.SURVEY_RELATED_RECORD_MAX_ASSETS,
+    )
+    related_records = FieldList(
+        FormField(RelatedRecordForm),
+        label=_("related records"),
+        min_entries=0,
+        max_entries=constants.SURVEY_RELATED_RECORD_MAX_RELATED,
     )
 
     async def check_if_english_name_is_unique_for_survey_mission(
@@ -137,6 +182,8 @@ class _SurveyRelatedRecordForm(StarletteForm):
             all_form_validation_errors.update(**link.errors)
         for asset in self.assets.entries:
             all_form_validation_errors.update(**asset.errors)
+        for related_record in self.related_records.entries:
+            all_form_validation_errors.update(**related_record.errors)
         logger.debug(f"{all_form_validation_errors=}")
         return bool(all_form_validation_errors)
 
@@ -210,6 +257,10 @@ class _SurveyRelatedRecordForm(StarletteForm):
             )
         return form_instance
 
+    @staticmethod
+    def parse_related_record_compound_name(name: str) -> str:
+        return name.rpartition(" - ")[-1]
+
 
 class SurveyRelatedRecordCreateForm(_SurveyRelatedRecordForm):
     def validate_with_schema(self):
@@ -218,6 +269,21 @@ class SurveyRelatedRecordCreateForm(_SurveyRelatedRecordForm):
         # in order to ensure pydantic validates the full set of data at once and
         # includes full error locations - otherwise it would be harder to match
         # pydantic validation errors with wtforms field errors
+        related_records = []
+        for relationship_sub_form in self.related_records.entries:
+            related_record_id = self.parse_related_record_compound_name(
+                relationship_sub_form.related_record.data
+            )
+            related_records.append(
+                {
+                    "related_record_id": related_record_id,
+                    "relationship": {
+                        k: v
+                        for k, v in relationship_sub_form.relationship.data.items()
+                        if v
+                    },
+                }
+            )
         try:
             schemas.SurveyRelatedRecordCreate(
                 # these are not part of the form, but we must provide something
@@ -262,6 +328,7 @@ class SurveyRelatedRecordCreateForm(_SurveyRelatedRecordForm):
                     }
                     for ass in self.assets.entries
                 ],
+                related_records=related_records,
             )
         except pydantic.ValidationError as exc:
             logger.error(f"pydantic errors {exc.errors()=}")
@@ -275,6 +342,21 @@ class SurveyRelatedRecordUpdateForm(_SurveyRelatedRecordForm):
         # in order to ensure pydantic validates the full set of data at once and
         # includes full error locations - otherwise it would be harder to match
         # pydantic validation errors with wtforms field errors
+        related_records = []
+        for relationship_sub_form in self.related_records.entries:
+            related_record_id = self.parse_related_record_compound_name(
+                relationship_sub_form.related_record.data
+            )
+            related_records.append(
+                {
+                    "related_record_id": related_record_id,
+                    "relationship": {
+                        k: v
+                        for k, v in relationship_sub_form.relationship.data.items()
+                        if v
+                    },
+                }
+            )
         try:
             schemas.SurveyRelatedRecordUpdate(
                 # these are not part of the form, but we must provide something
@@ -318,6 +400,7 @@ class SurveyRelatedRecordUpdateForm(_SurveyRelatedRecordForm):
                     }
                     for ass in self.assets.entries
                 ],
+                related_records=related_records,
             )
         except pydantic.ValidationError as exc:
             logger.error(f"pydantic errors {exc.errors()=}")
