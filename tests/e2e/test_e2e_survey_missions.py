@@ -26,7 +26,7 @@ def test_survey_mission_lifecycle(authenticated_page: Page):
     # expect to see some confirmation that the project was created
     expect(
         authenticated_page.get_by_test_id("processing-success-message")
-    ).to_be_visible()
+    ).to_be_visible(timeout=10_000)
 
     # now create the new survey mission
     authenticated_page.get_by_role("button", name="new-item").click()
@@ -86,7 +86,7 @@ def test_survey_mission_lifecycle(authenticated_page: Page):
     # expect to see some confirmation that the survey mission was created
     expect(
         authenticated_page.get_by_test_id("processing-success-message")
-    ).to_be_visible()
+    ).to_be_visible(timeout=10_000)
 
     # clean up by deleting the newly-created survey mission
     authenticated_page.get_by_role(

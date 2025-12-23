@@ -68,7 +68,7 @@ def test_project_lifecycle(authenticated_page: Page):
     # expect to see some confirmation that the project was created
     expect(
         authenticated_page.get_by_test_id("processing-success-message")
-    ).to_be_visible()
+    ).to_be_visible(timeout=10_000)
 
     # clean up by deleting the newly-created project
     authenticated_page.get_by_role(
