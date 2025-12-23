@@ -1,5 +1,4 @@
 import datetime as dt
-import uuid
 from typing import Annotated
 
 import pydantic
@@ -24,7 +23,7 @@ from .projects import ProjectReadEmbedded
 class SurveyMissionCreate(pydantic.BaseModel):
     id: SurveyMissionId
     owner: UserId
-    project_id: uuid.UUID
+    project_id: ProjectId
     name: LocalizableDraftName
     description: LocalizableDraftDescription
     relative_path: str

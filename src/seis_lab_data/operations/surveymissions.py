@@ -9,7 +9,10 @@ from .. import (
     errors,
     events,
 )
-from ..constants import SurveyMissionStatus
+from ..constants import (
+    ProjectStatus,
+    SurveyMissionStatus,
+)
 from ..db import (
     commands,
     queries,
@@ -30,10 +33,19 @@ async def create_survey_mission(
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ):
+    if not (project := await queries.get_project(session, to_create.project_id)):
+        raise errors.SeisLabDataError(
+            f"Project with id {to_create.project_id} does not exist"
+        )
     if initiator is None or not await permissions.can_create_survey_mission(
         initiator, schemas.ProjectId(to_create.project_id), settings=settings
     ):
         raise errors.SeisLabDataError("User is not allowed to create a survey mission.")
+    if (project_status := project.status) != ProjectStatus.DRAFT:
+        raise errors.SeisLabDataError(
+            f"Cannot create survey mission because parent project's "
+            f"status is {project_status}"
+        )
     survey_mission = await commands.create_survey_mission(session, to_create)
     event_emitter(
         schemas.SeisLabDataEvent(
@@ -176,6 +188,15 @@ async def update_survey_mission(
         raise errors.SeisLabDataError(
             f"Survey mission with id {survey_mission_id} does not exist."
         )
+    if survey_mission.status != SurveyMissionStatus.DRAFT:
+        raise errors.SeisLabDataError(
+            f"Cannot delete survey mission with status {survey_mission.status}"
+        )
+    if survey_mission.project.status != ProjectStatus.DRAFT:
+        raise errors.SeisLabDataError(
+            f"Cannot delete survey mission because parent project's status "
+            f"is {survey_mission.project.status}"
+        )
     serialized_mission_before = schemas.SurveyMissionReadDetail.from_db_instance(
         survey_mission
     ).model_dump()
@@ -214,6 +235,15 @@ async def delete_survey_mission(
     ) is None:
         raise errors.SeisLabDataError(
             f"Survey mission with id {survey_mission_id!r} does not exist."
+        )
+    if survey_mission.status != SurveyMissionStatus.DRAFT:
+        raise errors.SeisLabDataError(
+            f"Cannot delete survey mission with status {survey_mission.status}"
+        )
+    if survey_mission.project.status != ProjectStatus.DRAFT:
+        raise errors.SeisLabDataError(
+            f"Cannot delete survey mission because parent project's status "
+            f"is {survey_mission.project.status}"
         )
     serialized_survey_mission = schemas.SurveyMissionReadDetail.from_db_instance(
         survey_mission

@@ -156,6 +156,10 @@ async def update_project(
         raise errors.SeisLabDataError("User is not allowed to update project.")
     if (project := await queries.get_project(session, project_id)) is None:
         raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
+    if project.status != ProjectStatus.DRAFT:
+        raise errors.SeisLabDataError(
+            f"Cannot update project with status {project.status}."
+        )
     serialized_project_before = schemas.ProjectReadDetail.from_db_instance(
         project
     ).model_dump()
@@ -189,6 +193,10 @@ async def delete_project(
         raise errors.SeisLabDataError("User is not allowed to delete projects.")
     if (project := await queries.get_project(session, project_id)) is None:
         raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
+    if project.status != ProjectStatus.DRAFT:
+        raise errors.SeisLabDataError(
+            f"Cannot delete project with status {project.status}."
+        )
     serialized_project = schemas.ProjectReadDetail(**project.model_dump()).model_dump()
     await commands.delete_project(session, project_id)
     event_emitter(
