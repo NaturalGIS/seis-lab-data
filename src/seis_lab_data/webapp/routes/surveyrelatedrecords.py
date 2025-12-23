@@ -1344,6 +1344,23 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
             return DatastarResponse(stream_validation_failed_events(), status_code=422)
 
         request_id = schemas.RequestId(uuid.uuid4())
+        related_records = []
+        for related_ in form_instance.related_records.entries:
+            related_records.append(
+                schemas.RelatedRecordCreate(
+                    related_record_id=schemas.SurveyRelatedRecordId(
+                        uuid.UUID(
+                            form_instance.parse_related_record_compound_name(
+                                related_.related_record.data
+                            )
+                        )
+                    ),
+                    relationship=schemas.LocalizableDraftRelationship(
+                        en=related_.relationship.en.data,
+                        pt=related_.relationship.pt.data,
+                    ),
+                )
+            )
         to_update = schemas.SurveyRelatedRecordUpdate(
             owner=user.id,
             survey_mission_id=parent_survey_mission_id,
@@ -1409,7 +1426,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 )
                 for af in form_instance.assets.entries
             ],
-            related_records=form_instance.get_related_records(),
+            related_records=related_records,
         )
 
         async def handle_processing_success(

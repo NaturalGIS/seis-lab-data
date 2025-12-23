@@ -152,7 +152,7 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
 
 
 @requires_auth
-async def get_survey_mission_details_component(request: Request):
+async def get_details_component(request: Request):
     details = await _get_survey_mission_details(request)
     template_processor = request.state.templates
     template = template_processor.get_template("survey-missions/detail-component.html")
@@ -756,6 +756,23 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             return DatastarResponse(event_streamer(), status_code=422)
 
         request_id = schemas.RequestId(uuid.uuid4())
+        related_records = []
+        for related_ in form_instance.related_records.entries:
+            related_records.append(
+                schemas.RelatedRecordCreate(
+                    related_record_id=schemas.SurveyRelatedRecordId(
+                        uuid.UUID(
+                            form_instance.parse_related_record_compound_name(
+                                related_.related_record.data
+                            )
+                        )
+                    ),
+                    relationship=schemas.LocalizableDraftRelationship(
+                        en=related_.relationship.en.data,
+                        pt=related_.relationship.pt.data,
+                    ),
+                )
+            )
         to_create = schemas.SurveyRelatedRecordCreate(
             id=schemas.SurveyRelatedRecordId(uuid.uuid4()),
             survey_mission_id=survey_mission_id,
@@ -822,6 +839,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 )
                 for af in form_instance.assets.entries
             ],
+            related_records=related_records,
         )
         logger.info(f"{to_create=}")
 
@@ -1239,7 +1257,7 @@ routes = [
     ),
     Route(
         "/{survey_mission_id}/details",
-        get_survey_mission_details_component,
+        get_details_component,
         methods=["GET"],
         name="get_details_component",
     ),

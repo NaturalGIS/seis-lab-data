@@ -39,6 +39,14 @@ class FormProtocol(typing.Protocol):
         raise NotImplementedError()
 
 
+class PydanticMappableStringField(StringField):
+    pydantic_field_name: str | None = None
+
+    def __init__(self, *args, pydantic_field_name: str | None = None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.pydantic_field_name = pydantic_field_name
+
+
 def get_form_field_by_name(form: Form | FormField, name: str) -> Field | None:
     """Retrieve a field by its name"""
     for field in form:
@@ -58,12 +66,13 @@ def incorporate_schema_validation_errors_into_form(
     to show the validation errors in the form itself.
     """
     for error in schema_validation_errors:
-        if "id" in error["loc"]:
-            # we don't care about validating errors related to missing id fields,
-            # as the forms never have them
-            continue
         loc = error["loc"]
         logger.debug(f"Analyzing error {loc=} {error['msg']=}...")
+        if "id" in loc and loc != "related_record_id":
+            # we only care for errors related to ids if the field is specifically the `related_record_id` field -
+            # otherwise don't care about validating errors related to missing id fields,
+            # as the forms never have them
+            continue
         form_field = retrieve_form_field_by_pydantic_loc(form_, loc)
         logger.debug(f"{form_field=}")
         if form_field is not None:
@@ -82,11 +91,12 @@ def retrieve_form_field_by_pydantic_loc(
     parent = form_instance
     field = None
     for part in loc:
+        logger.debug(f"{part=} {field=}")
         if isinstance(part, int):
             field = parent.entries[part]
         else:
             for f in parent:
-                if f.short_name == part:
+                if (getattr(f, "pydantic_field_name", None) or f.short_name) == part:
                     field = f
                     break
             else:
