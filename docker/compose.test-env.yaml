@@ -5,7 +5,7 @@
 
 name: seis-lab-data
 
-x-common-image: &common-image "${IMAGE_URL}"
+x-common-image: &common-image "${IMAGE_URL:-ghcr.io/naturalgis/seis-lab-data/seis-lab-data:latest}"
 
 x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.8"
 x-auth-redirect-url: &auth-redirect-url "https://seis-lab-data.naturalgis.pt/oauth2/callback"
@@ -103,11 +103,15 @@ services:
   auth-worker:
     image: *auth-image
     command: worker
+    # note: the AUTHENTIK_BOOTSTRAP_ variables are set from the env because
+    # authentik does not support getting them via secret files, as per:
+    #
+    # https://github.com/goauthentik/authentik/issues/11023#issuecomment-3764472857
     environment:
       <<: *common-auth-env
-      AUTHENTIK_BOOTSTRAP_PASSWORD: file:///run/secrets/auth-bootstrap-password
-      AUTHENTIK_BOOTSTRAP_TOKEN: file:///run/secrets/auth-bootstrap-token
-      AUTHENTIK_BOOTSTRAP_EMAIL: file:///run/secrets/auth-bootstrap-email
+      AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTH_AUTHENTIK_BOOTSTRAP_PASSWORD?not_set}
+      AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTH_AUTHENTIK_BOOTSTRAP_TOKEN?not_set}
+      AUTHENTIK_BOOTSTRAP_EMAIL: ${AUTH_AUTHENTIK_BOOTSTRAP_EMAIL?not_set}
       ARCHIVE_BASE_URL: https://sld-archive.seis-lab-data.naturalgis.pt
     volumes:
       - type: bind
@@ -125,9 +129,6 @@ services:
       - auth-secret-key
       - auth-email-username
       - auth-email-password
-      - auth-bootstrap-password
-      - auth-bootstrap-token
-      - auth-bootstrap-email
       - auth-client-id
       - auth-client-secret
     healthcheck:
@@ -139,7 +140,7 @@ services:
         from pathlib import Path
         try:
             client_id = Path("/run/secrets/auth-client-id").read_text()
-            token = Path("/run/secrets/auth-bootstrap-token").read_text()
+            token = os.getenv(AUTHENTIK_BOOTSTRAP_TOKEN)
             response = requests.get(
                 "http://auth-webapp:9000/api/v3/providers/oauth2/",
                 headers={"Authorization": f"Bearer {token}"},
@@ -280,12 +281,6 @@ volumes:
   db:
 
 secrets:
-  auth-bootstrap-email:
-    file: /opt/seis-lab-data/secrets/auth-bootstrap-email.txt
-  auth-bootstrap-password:
-    file: /opt/seis-lab-data/secrets/auth-bootstrap-password.txt
-  auth-bootstrap-token:
-    file: /opt/seis-lab-data/secrets/auth-bootstrap-token.txt
   auth-client-id:
     file: /opt/seis-lab-data/secrets/auth-client-id.txt
   auth-client-secret:

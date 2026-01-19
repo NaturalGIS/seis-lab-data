@@ -359,28 +359,15 @@ There are other deployment-related files under `/opt/seis-lab-data`, which shoul
 Access both deployment-related and operation logs can be done using normal docker facilities.
 
 > [!NOTE]
-> Because our `compose.test-env.yaml` expects to find some environment variables in order to work OK it is not
-> easy to scope docker compose commands to only consider the sld project services
-> (like recommended in the [development](#development) section). This means that instead of
+> Because our `compose.test-env.yaml` expects to find some environment variables in
+> order to work OK, be sure to specify the existing env variables file whenever
+> using docker compose commands, like this:
 >
 > ```shell
-> docker compose -f compose.test-env.yaml <docker-command> <service-name>
+> docker compose -f compose.test-env.yaml --env-file compose-deplyment.env \
+>     <docker-command> <service-name>
 > ```
 >
-> You should use the more general form instead, which relies on knowing the name of running containers, like this:
->
-> ```shell
-> docker <docker-command> <container-name>
-> ```
->
-> You can easily discover the names of running containers with this command:
->
-> ```shell
-> docker ps --format json | jq -r '.Names'
-> ```
->
-> Note that all services related to the seis-lab-data system generate containers whose name is prefixed with
-> `seis-lab-data-`.
 
 Deployment logs can be inspected via the woodpecker's compose stack logs:
 
@@ -389,8 +376,8 @@ Deployment logs can be inspected via the woodpecker's compose stack logs:
 docker logs -f --since 10m woodpecker-woodpecker-server-1
 ```
 
-The running system also uses traefik instance as a reverse proxy. This instance is configured in its own compose file
-and logs can be inspected with:
+The running system also uses traefik instance as a reverse proxy. This instance is
+configured in its own compose file and logs can be inspected with:
 
 ```shell
 docker logs -f --since 10m traefik-traefik-1
@@ -402,8 +389,6 @@ Seis-lab-data service logs can be checked with:
 # example of checking the logs of the 'webapp' service
 docker logs -f --since 10m seis-lab-data-webapp-1
 ```
-
-
 
 
 [docker]: https://www.docker.com/
