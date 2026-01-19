@@ -140,7 +140,7 @@ services:
         from pathlib import Path
         try:
             client_id = Path("/run/secrets/auth-client-id").read_text()
-            token = os.getenv(AUTHENTIK_BOOTSTRAP_TOKEN)
+            token = os.getenv("AUTHENTIK_BOOTSTRAP_TOKEN")
             response = requests.get(
                 "http://auth-webapp:9000/api/v3/providers/oauth2/",
                 headers={"Authorization": f"Bearer {token}"},
