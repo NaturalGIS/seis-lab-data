@@ -1,6 +1,6 @@
 when:
   - event: deployment
-    evaluate: 'CI_COMMIT_AUTHOR == "github-actions[bot]"'
+    evaluate: 'CI_PIPELINE_DEPLOY_TARGET == "naturalgis-test"'
 
 steps:
   - name: extract-deployment-payload
@@ -8,14 +8,12 @@ steps:
     commands: |
       DEPLOYMENT_JSON=$(curl --silent "${CI_PIPELINE_FORGE_URL}")
       IMAGE_URL=$(echo "$${DEPLOYMENT_JSON}" | jq --raw-output '.payload.image_url')
-      ENVIRONMENT=$(echo "$$DEPLOYMENT_JSON" | jq --raw-output '.environment // "not_found"')
       if [ "$${IMAGE_URL}" = "null" ]; then
         echo "Image URL not found in the deployment payload, skipping..."
         echo "SKIP_DEPLOYMENT=true" >> envvars
         exit 0
       fi
       echo "IMAGE_URL=$${IMAGE_URL}" > envvars
-      echo "DEPLOY_ENVIRONMENT=$${ENVIRONMENT}" >> envvars
 
   - name: deploy compose stack
     image: docker:24-cli
@@ -36,25 +34,16 @@ steps:
         echo "Skipping deployment - no image URL in deployment payload"
         exit 0
       fi
-      if [ "$${DEPLOY_ENVIRONMENT}" != "naturalgis-test" ]; then
-        echo "Skipping deployment - DEPLOY_ENVIRONMENT variable does not match expected value"
-        exit 0
-      fi
 
       echo "=== Deploying Application ==="
-      apk add --no-cache git
-      echo "Cloning repository..."
-      git clone https://github.com/NaturalGIS/seis-lab-data.git /tmp/repo
-      cd /tmp/repo
-      git checkout ${CI_COMMIT_SHA}
-
-      # Get target user/group from host directory - assumes directory already owned by correct user
-      TARGET_UID=$(stat -c '%u' /opt/seis-lab-data)
-      TARGET_GID=$(stat -c '%g' /opt/seis-lab-data)
-
-      echo "Target directory ownership: UID=$TARGET_UID, GID=$TARGET_GID"
 
       DEPLOYMENT_DIR="/opt/seis-lab-data"
+
+      # Get target user/group from host directory - assumes directory already owned by correct user
+      TARGET_UID=$(stat -c '%u' $${DEPLOYMENT_DIR})
+      TARGET_GID=$(stat -c '%g' $${DEPLOYMENT_DIR})
+
+      echo "Target directory ownership: UID=$TARGET_UID, GID=$TARGET_GID"
 
       # Files to copy from the cloned repo
       COMPOSE_FILE_NAME="compose.test-env.yaml"
@@ -67,7 +56,6 @@ steps:
       chown $${TARGET_UID}:$${TARGET_GID} $${DEPLOYMENT_DIR}/authentik
       cp docker/authentik/$${AUTHENTIK_BLUEPRINT_FILE_NAME} $${DEPLOYMENT_DIR}/authentik
       chown $${TARGET_UID}:$${TARGET_GID} $${DEPLOYMENT_DIR}/authentik/$${AUTHENTIK_BLUEPRINT_FILE_NAME}
-
 
       ENV_FILE_NAME="compose-deployment.env"
 
@@ -103,7 +91,9 @@ steps:
       docker compose \
         --env-file $${ENV_FILE_NAME} \
         --file $${COMPOSE_FILE_NAME} \
-        exec -ti webapp uv run seis-lab-data db upgrade
+        exec --no-tty webapp uv run seis-lab-data db upgrade
+
+      docker logout ghcr.io
 
   - name: send telegram notification
     image: appleboy/drone-telegram:1.4.0
