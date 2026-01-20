@@ -33,7 +33,7 @@ async def create_dataset_category(
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.DatasetCategory:
-    if initiator is None or not permissions.can_create_dataset_category(
+    if initiator is None or not await permissions.can_create_dataset_category(
         initiator, to_create, settings=settings
     ):
         raise errors.SeisLabDataError(
@@ -101,7 +101,7 @@ async def create_domain_type(
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.DomainType:
-    if initiator is None or not permissions.can_create_domain_type(
+    if initiator is None or not await permissions.can_create_domain_type(
         initiator, to_create, settings=settings
     ):
         raise errors.SeisLabDataError("User is not allowed to create a domain type.")
@@ -163,7 +163,7 @@ async def create_workflow_stage(
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.WorkflowStage:
-    if initiator is None or not permissions.can_create_workflow_stage(
+    if initiator is None or not await permissions.can_create_workflow_stage(
         initiator, to_create, settings=settings
     ):
         raise errors.SeisLabDataError("User is not allowed to create a workflow stage.")

@@ -158,8 +158,8 @@ async def load_sample_survey_missions(ctx: typer.Context):
                 )
                 await session.rollback()
     for created_survey_mission in created:
-        to_show = schemas.SurveyMissionReadListItem(
-            **created_survey_mission.model_dump()
+        to_show = schemas.SurveyMissionReadListItem.from_db_instance(
+            created_survey_mission
         )
         ctx.obj["main"].status_console.print(to_show)
 
@@ -183,7 +183,7 @@ async def load_sample_survey_related_records(ctx: typer.Context):
                 created.append(
                     await operations.create_survey_related_record(
                         to_create,
-                        initiator=to_create.owner,
+                        initiator=ctx.obj["admin_user"],
                         session=session,
                         settings=settings,
                         event_emitter=events.get_event_emitter(settings),
@@ -195,7 +195,7 @@ async def load_sample_survey_related_records(ctx: typer.Context):
                 )
                 await session.rollback()
     for created_survey_record in created:
-        to_show = schemas.SurveyRelatedRecordReadListItem(
-            **created_survey_record.model_dump()
+        to_show = schemas.SurveyRelatedRecordReadListItem.from_db_instance(
+            created_survey_record
         )
         ctx.obj["main"].status_console.print(to_show)
