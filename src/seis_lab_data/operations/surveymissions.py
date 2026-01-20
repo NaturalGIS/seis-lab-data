@@ -32,7 +32,7 @@ async def create_survey_mission(
     session: AsyncSession,
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
-):
+) -> models.SurveyMission:
     if not (project := await queries.get_project(session, to_create.project_id)):
         raise errors.SeisLabDataError(
             f"Project with id {to_create.project_id} does not exist"
