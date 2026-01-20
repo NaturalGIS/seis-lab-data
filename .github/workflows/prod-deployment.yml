@@ -1,0 +1,33 @@
+name: Deploy to production
+
+on:
+  registry_package:
+    types:
+      - published
+      - updated
+
+jobs:
+  initiate-ipma-production-deployment:
+    if: ${{ startsWith(github.event.registry_package.package_version.container_metadata.tag.name, 'v') }}
+    permissions:
+      deployments: write
+    runs-on: ubuntu-24.04
+    environment:
+      name: ipma-production
+      url: https://seis-lab-data.ipma.pt
+    concurrency:
+      group: ipma-production-deployment
+      cancel-in-progress: true
+    steps:
+      - name: Create GitHub deployment
+        id: create-deployment
+        uses: chrnorm/deployment-action@v2
+        with:
+          initial-status: 'pending'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          payload: |
+            {
+              "image_url": "${{ github.event.registry_package.package_version.package_url }}",
+              "tag": "${{ github.event.registry_package.package_version.container_metadata.tag.name }}"
+            }
+          environment: 'ipma-production'
