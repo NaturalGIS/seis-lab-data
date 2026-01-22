@@ -1,0 +1,177 @@
+when:
+  - event: deployment
+    evaluate: 'CI_PIPELINE_DEPLOY_TARGET == "naturalgis-test" || CI_PIPELINE_DEPLOY_TARGET == "ipma-production"'
+
+steps:
+  - name: extract-deployment-payload
+    image: leplusorg/json:sha-0b8b943
+    commands: |
+      DEPLOYMENT_JSON=$(curl --silent "${CI_PIPELINE_FORGE_URL}")
+      IMAGE_URL=$(echo "$${DEPLOYMENT_JSON}" | jq --raw-output '.payload.image_url')
+
+      if [ "$${IMAGE_URL}" = "null" ]; then
+        echo "Image URL not found in the deployment payload, skipping..."
+        echo "SKIP_DEPLOYMENT=true" >> envvars
+        exit 0
+      fi
+
+      echo "IMAGE_URL=$${IMAGE_URL}" > envvars
+
+      if [ "${CI_PIPELINE_DEPLOY_TARGET}" = "ipma-production" ]; then
+          echo "DEPLOY_MODE=ssh" >> envvars
+          echo "REMOTE_HOST=your.prod.server.ip" >> envvars
+          echo "DEPLOYMENT_DIR=/opt/seis-lab-data-prod" >> envvars
+          echo "COMPOSE_FILE=compose.prod-env.yaml" >> envvars
+      else
+          echo "DEPLOY_MODE=local" >> envvars
+          echo "DEPLOYMENT_DIR=/opt/seis-lab-data" >> envvars
+          echo "COMPOSE_FILE=compose.test-env.yaml" >> envvars
+      fi
+
+  - name: deploy-to-test-env
+    when:
+      - evaluate: 'CI_PIPELINE_DEPLOY_TARGET == "naturalgis-test"'
+    image: docker:24-cli
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/seis-lab-data:/opt/seis-lab-data
+    environment:
+      GITHUB_USER: {from_secret: github_user}
+      GITHUB_PAT: {from_secret: github_pat}
+    commands: |
+      . envvars
+
+      if [ "$${SKIP_DEPLOYMENT}" = "true" ]; then
+        echo "Skipping deployment"
+        exit 0
+      fi
+
+      export IMAGE_URL=$${IMAGE_URL}
+      DEPLOYMENT_DIR="/opt/seis-lab-data"
+      # Get target user/group from host directory - assumes directory already owned by correct user
+      TARGET_UID=$(stat -c '%u' $${DEPLOYMENT_DIR})
+      TARGET_GID=$(stat -c '%g' $${DEPLOYMENT_DIR})
+      echo "Target directory ownership: UID=$TARGET_UID, GID=$TARGET_GID"
+
+      # Files to copy from the cloned repo
+      COMPOSE_FILE_NAME="compose.test-env.yaml"
+      AUTHENTIK_BLUEPRINT_FILE_NAME="sld-auth-blueprint-test-env.yaml"
+
+      echo "Copying files to host"
+      cp docker/$${COMPOSE_FILE_NAME} $${DEPLOYMENT_DIR}
+      chown $${TARGET_UID}:$${TARGET_GID} $${DEPLOYMENT_DIR}/$${COMPOSE_FILE_NAME}
+      mkdir -p $${DEPLOYMENT_DIR}/authentik
+      chown $${TARGET_UID}:$${TARGET_GID} $${DEPLOYMENT_DIR}/authentik
+      cp docker/authentik/$${AUTHENTIK_BLUEPRINT_FILE_NAME} $${DEPLOYMENT_DIR}/authentik
+      chown $${TARGET_UID}:$${TARGET_GID} $${DEPLOYMENT_DIR}/authentik/$${AUTHENTIK_BLUEPRINT_FILE_NAME}
+
+      ENV_FILE_NAME="compose-deployment.env"
+
+      if [ ! -f $${DEPLOYMENT_DIR}/$${ENV_FILE_NAME} ]; then
+        echo "ERROR: env file not found at $${DEPLOYMENT_DIR}/$${ENV_FILE_NAME}"
+        echo "Please ensure the environment file is present on the host"
+        exit 1
+      fi
+
+      cd $${DEPLOYMENT_DIR}
+      echo "Files in deployment directory:"
+      ls -la
+
+      echo "Logging in to docker registry"
+      echo $${GITHUB_PAT} | docker login ghcr.io --username $${GITHUB_USER} --password-stdin
+
+      echo "Pulling latest image: $${IMAGE_URL}"
+      docker pull $${IMAGE_URL}
+
+      echo "Stopping existing containers..."
+      docker compose \
+        --env-file $${ENV_FILE_NAME} \
+        --file $${COMPOSE_FILE_NAME} \
+        down || true
+
+      echo "Starting deployment..."
+      docker compose \
+        --env-file $${ENV_FILE_NAME} \
+        --file $${COMPOSE_FILE_NAME} \
+        up --detach
+
+      echo "Applying database migrations..."
+      docker compose \
+        --env-file $${ENV_FILE_NAME} \
+        --file $${COMPOSE_FILE_NAME} \
+        exec -T webapp uv run seis-lab-data db upgrade
+
+      docker logout ghcr.io
+
+  - name: sync-files-to-production-env
+    when:
+      - evaluate: 'CI_PIPELINE_DEPLOY_TARGET == "ipma-production"'
+    image: appleboy/drone-scp:1.6.3
+    settings:
+      host: "193.137.20.17"
+      username: {from_secret: prod_ssh_user}
+      key: {from_secret: prod_ssh_key}
+      target: /opt/seis-lab-data/
+      source:
+        - docker/compose.prod-env.yaml
+        - docker/authentik/sld-auth-blueprint-prod-env.yaml
+      strip_components: 1
+      overwrite: true
+
+  - name: deploy-to-production-env
+    when:
+      - evaluate: 'CI_PIPELINE_DEPLOY_TARGET == "ipma-production"'
+    image: appleboy/drone-ssh:1.2.0
+    environment:
+      GITHUB_USER: {from_secret: github_user}
+      GITHUB_PAT: {from_secret: github_pat}
+    settings:
+      host: "193.137.20.17"
+      username: {from_secret: prod_ssh_user}
+      key: {from_secret: prod_ssh_key}
+      envs:
+        - IMAGE_URL
+        - GITHUB_USER
+        - GITHUB_PAT
+      script: |
+        DEPLOYMENT_DIR="/opt/seis-lab-data"
+        COMPOSE_FILE="compose.prod-env.yaml"
+        ENV_FILE="compose-deployment.env"
+
+        cd "$${DEPLOYMENT_DIR}"
+        echo "$${GITHUB_PAT}" | docker login ghcr.io --username "$${GITHUB_USER}" --password-stdin
+
+        echo "DEBUG: Deploying with Image -> $${IMAGE_URL}"
+        docker pull "$${IMAGE_URL}"
+
+        IMAGE_URL="$${IMAGE_URL}" docker compose \
+          -f "$${COMPOSE_FILE}" \
+          --env-file "$${ENV_FILE}" \
+          up -d --remove-orphans
+
+        echo "Running database migrations..."
+        docker compose -f "$${COMPOSE_FILE}" exec -T webapp uv run seis-lab-data db upgrade
+
+        docker logout ghcr.io
+
+  - name: send telegram notification
+    image: appleboy/drone-telegram:1.4.0
+    environment:
+      PLUGIN_TOKEN: {from_secret: telegram_bot_token}
+      PLUGIN_TO: {from_secret: telegram_chat_id}
+      PLUGIN_MESSAGE: >
+        Target: ${CI_PIPELINE_DEPLOY_TARGET} |
+        Deployment {{ commit.sha }} - {{ build.status }}!
+        View details: {{ build.link }}
+    commands: |
+      . envvars
+
+      if [ "$${SKIP_DEPLOYMENT}" = "true" ]; then
+          echo "Deployment was skipped, not sending notification"
+          exit 0
+      fi
+
+      /bin/drone-telegram
+
+    when:
+      - status: [success, failure]

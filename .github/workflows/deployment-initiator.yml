@@ -1,0 +1,62 @@
+name: Deploy published image
+
+on:
+  workflow_call:
+    inputs:
+      image_digest:
+        required: true
+        type: string
+      tag_name:
+        required: true
+        type: string
+
+jobs:
+  initiate-deployment:
+    runs-on: ubuntu-24.04
+    environment:
+      name: ${{ inputs.tag_name == 'latest' && 'naturalgis-test' || 'ipma-production' }}
+      url: ${{ inputs.tag_name == 'latest' && 'https://seis-lab-data.naturalgis.pt' || 'https://seis-lab-data.ipma.pt' }}
+    if: ${{ github.event.registry_package.package_version.container_metadata.tag.name == 'latest' }}
+    permissions:
+      deployments: write
+    concurrency:
+      group: deploy-${{ inputs.tag_name == 'latest' && 'test-env' || 'production-env '}}
+      cancel-in-progress: true
+    steps:
+      - name: "Login to container registry"
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.CI_MANAGEMENT_USERNAME }}
+          password: ${{ secrets.CI_MANAGEMENT_PAT }}
+
+      - name: "Check if image is already published"
+        shell: python
+        run: |
+          import subprocess
+          import shlex
+          import sys
+          import time
+          image = f"ghcr.io/${{ github.repository }}/${{ github.event.repository.name }}@${{ inputs.image_digest }}"
+          print(f"Waiting for {image}...")
+          command = shlex.split(f"docker manifest inspect {image}")
+          for i in range(20):
+              if subprocess.run(command, capture_output=True).returncode == 0:
+                  print("image is published")
+                  sys.exit(0)
+              print("image not published yet, trying again in 15s...")
+              time.sleep(15)
+          sys.exit(1)
+
+      - name: Create GitHub deployment
+        id: create-deployment
+        uses: chrnorm/deployment-action@v2
+        with:
+          initial-status: 'pending'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          payload: |
+            {
+              "image_url": "ghcr.io/${{ github.repository }}/${{ github.event.repository.name }}@${{ inputs.image_digest }}"
+              "tag": "${{ inputs.tag_name }}
+            }
+          environment: ${{ inputs.tag_name == 'latest' && 'naturalgis-test' || 'ipma-production' }}
