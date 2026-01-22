@@ -6,10 +6,9 @@ on:
 
   pull_request:
 
-
 env:
   COLUMNS: 120
-  PUBLISH_IMAGE: ${{ (github.ref_name == 'main' || github.ref_type == 'tag') && 'TRUE' || 'FALSE'}}
+  PUBLISH_IMAGE: ${{ (github.ref_name == 'main' || github.ref_type == 'tag') && 'TRUE' || 'FALSE' }}
   IMAGE_TAG: ${{ github.ref_name == 'main' && 'latest' || github.ref_name }}
   IMAGE_NAME: ghcr.io/${{ github.repository }}/${{ github.event.repository.name }}
 
@@ -147,7 +146,7 @@ jobs:
   trigger_deployment:
     needs: run_ci
     if: ${{ needs.run_ci.result == 'success' && needs.run_ci.outputs.should_deploy == 'TRUE' }}
-    uses: ./.github/workflows/deployment.yml
+    uses: ./.github/workflows/deployment-initiator.yml
     with:
       image_digest: ${{ needs.run_ci.outputs.image_digest }}
       tag_name: ${{ github.ref_name == 'main' && 'latest' || github.ref_name }}
