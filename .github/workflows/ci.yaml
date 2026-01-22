@@ -144,7 +144,7 @@ jobs:
 
   trigger_deployment:
     needs: run_ci
-    if: ${{ needs.run_ci.result == 'success' && (github.ref_name == 'main' || github.ref_type == 'tag') }}
+    if: ${{ github.ref_name == 'main' || github.ref_type == 'tag' }}
     uses: ./.github/workflows/deployment-initiator.yml
     with:
       image_digest: ${{ needs.run_ci.outputs.image_digest }}
