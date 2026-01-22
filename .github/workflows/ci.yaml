@@ -18,6 +18,13 @@ jobs:
     outputs:
       image_digest: ${{ steps.push_image.outputs.digest }}
     steps:
+      - name: "Debug context"
+      - run: |
+          echo "github.ref_name = ${{ github.ref_name }}"
+          echo "github.ref_type = ${{ github.ref_type }}"
+          echo "github.ref = ${{ github.ref }}"
+          echo "PUBLISH_IMAGE = ${{ env.PUBLISH_IMAGE }}"
+
       - name: "Grab code"
         uses: actions/checkout@v4.2.2
 
