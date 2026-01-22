@@ -19,7 +19,7 @@ jobs:
       image_digest: ${{ steps.push_image.outputs.digest }}
     steps:
       - name: "Debug context"
-      - run: |
+        run: |
           echo "github.ref_name = ${{ github.ref_name }}"
           echo "github.ref_type = ${{ github.ref_type }}"
           echo "github.ref = ${{ github.ref }}"
