@@ -17,7 +17,6 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       image_digest: ${{ steps.push_image.outputs.digest }}
-      should_deploy: ${{ env.PUBLISH_IMAGE }}
     steps:
       - name: "Grab code"
         uses: actions/checkout@v4.2.2
@@ -145,7 +144,7 @@ jobs:
 
   trigger_deployment:
     needs: run_ci
-    if: ${{ needs.run_ci.result == 'success' && needs.run_ci.outputs.should_deploy == 'TRUE' }}
+    if: ${{ needs.run_ci.result == 'success' && env.PUBLISH_IMAGE == 'TRUE' }}
     uses: ./.github/workflows/deployment-initiator.yml
     with:
       image_digest: ${{ needs.run_ci.outputs.image_digest }}
