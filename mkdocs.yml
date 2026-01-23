@@ -1,5 +1,44 @@
 site_name: seis-lab-data docs
 site_url: https://naturalgis.github.io/seis-lab-data
 repo_url: https://github.com/naturalgis/seis-lab-data
+
+nav:
+  - Home: index.md
+  - Admin guide: admin-guide.md
+  - Development: development.md
+
 theme:
   name: material
+  palette:
+    primary: blue grey
+    accent: pink
+  language: en
+  features:
+    - header.autohide
+    - navigation.footer
+    - navigation.path
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - toc.follow
+    - toc.integrate
+
+plugins:
+  - search
+  - i18n:
+      languages:
+        - locale: en
+          name: English
+          default: true
+        - locale: pt
+          name: Português
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format

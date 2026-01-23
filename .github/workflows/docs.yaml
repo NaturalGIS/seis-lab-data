@@ -6,12 +6,14 @@ on:
       - main
     paths:
       - 'docs/**'
+      - 'mkdocs.yml'
 
   pull_request:
     branches:
       - main
     paths:
       - 'docs/**'
+      - 'mkdocs.yml'
 
 jobs:
   build-docs:
