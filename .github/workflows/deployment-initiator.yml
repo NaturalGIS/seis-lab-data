@@ -55,7 +55,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           payload: |
             {
-              "image_url": "ghcr.io/${{ github.repository }}/${{ github.event.repository.name }}@${{ inputs.image_digest }}"
-              "tag": "${{ inputs.tag_name }}
+              "image_url": "ghcr.io/${{ github.repository }}/${{ github.event.repository.name }}@${{ inputs.image_digest }}",
+              "tag": "${{ inputs.tag_name }}"
             }
           environment: ${{ inputs.tag_name == 'latest' && 'naturalgis-test' || 'ipma-production' }}
