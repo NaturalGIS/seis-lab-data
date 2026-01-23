@@ -6,6 +6,7 @@ nav:
   - Home: index.md
   - Admin guide: admin-guide.md
   - Development: development.md
+  - Writing docs: writing-docs.md
 
 theme:
   name: material
