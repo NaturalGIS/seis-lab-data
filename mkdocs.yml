@@ -1,0 +1,5 @@
+site_name: seis-lab-data docs
+site_url: https://naturalgis.github.io/seis-lab-data
+repo_url: https://github.com/naturalgis/seis-lab-data
+theme:
+  name: material
