@@ -39,12 +39,12 @@ jobs:
           image = f"ghcr.io/${{ github.repository }}/${{ github.event.repository.name }}@${{ inputs.image_digest }}"
           print(f"Waiting for {image}...")
           command = shlex.split(f"docker manifest inspect {image}")
-          for i in range(20):
+          for i in range(50):
               if subprocess.run(command, capture_output=True).returncode == 0:
                   print("image is published")
                   sys.exit(0)
               print("image not published yet, trying again in 15s...")
-              time.sleep(15)
+              time.sleep(30)
           sys.exit(1)
 
       - name: Create GitHub deployment
