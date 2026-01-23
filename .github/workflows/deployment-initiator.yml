@@ -36,10 +36,10 @@ jobs:
           import shlex
           import sys
           import time
-          image = f"ghcr.io/${{ github.repository }}/${{ github.event.repository.name }}@${{ inputs.image_digest }}"
+          image = f"ghcr.io/${{ github.repository }}/${{ github.event.repository.name }}@${{ inputs.image_digest }}".lower()
           print(f"Waiting for {image}...")
           command = shlex.split(f"docker manifest inspect {image}")
-          for i in range(50):
+          for i in range(20):
               if subprocess.run(command, capture_output=True).returncode == 0:
                   print("image is published")
                   sys.exit(0)
