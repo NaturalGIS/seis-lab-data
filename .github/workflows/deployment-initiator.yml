@@ -22,6 +22,10 @@ jobs:
       group: deploy-${{ inputs.tag_name == 'latest' && 'test-env' || 'production-env '}}
       cancel-in-progress: true
     steps:
+      - name: "Prepare image URL"
+        id: prepare-image
+        run: echo "image_url=$(echo 'ghcr.io/${{ github.repository }}/${{ github.event.repository.name }}@{{ inputs.image_digest }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: "Login to container registry"
         uses: docker/login-action@v3
         with:
@@ -36,7 +40,7 @@ jobs:
           import shlex
           import sys
           import time
-          image = f"ghcr.io/${{ github.repository }}/${{ github.event.repository.name }}@${{ inputs.image_digest }}".lower()
+          image = "${{ steps.prepare-image.outputs.image_url}}"
           print(f"Waiting for {image}...")
           command = shlex.split(f"docker manifest inspect {image}")
           for i in range(20):
@@ -55,7 +59,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           payload: |
             {
-              "image_url": "ghcr.io/${{ github.repository }}/${{ github.event.repository.name }}@${{ inputs.image_digest }}",
+              "image_url": "${{ steps.prepare-image.outputs.image_url }}",
               "tag": "${{ inputs.tag_name }}"
             }
           environment: ${{ inputs.tag_name == 'latest' && 'naturalgis-test' || 'ipma-production' }}
