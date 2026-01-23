@@ -149,6 +149,10 @@ jobs:
           tags: |
             ${{ steps.docker_metadata.outputs.tags }}
 
+      - name: "Debug outputs"
+        run: |
+          echo "image_digest output = ${{ steps.push_image.outputs.digest }}"
+
   trigger_deployment:
     needs: run_ci
     if: ${{ github.ref_name == 'main' || github.ref_type == 'tag' }}
