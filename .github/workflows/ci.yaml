@@ -18,12 +18,6 @@ jobs:
     outputs:
       image_digest: ${{ steps.push_image.outputs.digest }}
     steps:
-      - name: "Debug context"
-        run: |
-          echo "github.ref_name = ${{ github.ref_name }}"
-          echo "github.ref_type = ${{ github.ref_type }}"
-          echo "github.ref = ${{ github.ref }}"
-          echo "PUBLISH_IMAGE = ${{ env.PUBLISH_IMAGE }}"
 
       - name: "Grab code"
         uses: actions/checkout@v4.2.2
@@ -148,10 +142,6 @@ jobs:
           file: docker/Dockerfile
           tags: |
             ${{ steps.docker_metadata.outputs.tags }}
-
-      - name: "Debug outputs"
-        run: |
-          echo "image_digest output = ${{ steps.push_image.outputs.digest }}"
 
   trigger_deployment:
     needs: run_ci

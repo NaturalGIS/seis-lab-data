@@ -16,7 +16,6 @@ jobs:
     environment:
       name: ${{ inputs.tag_name == 'latest' && 'naturalgis-test' || 'ipma-production' }}
       url: ${{ inputs.tag_name == 'latest' && 'https://seis-lab-data.naturalgis.pt' || 'https://seis-lab-data.ipma.pt' }}
-    if: ${{ github.event.registry_package.package_version.container_metadata.tag.name == 'latest' }}
     permissions:
       deployments: write
     concurrency:
