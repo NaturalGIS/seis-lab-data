@@ -1,0 +1,71 @@
+when:
+  - event: deployment
+    evaluate: 'CI_PIPELINE_DEPLOY_TARGET == "ipma-production"'
+
+steps:
+  - name: extract-payload
+    image: leplusorg/json:sha-0b8b943
+    commands:
+      - DEPLOYMENT_JSON=$(curl --silent "${CI_PIPELINE_FORGE_URL}")
+      - IMAGE_URL=$(echo "$${DEPLOYMENT_JSON}" | jq --raw-output '.payload.image_url')
+      - echo "export IMAGE_URL=$${IMAGE_URL}" > .envvars
+
+  - name: sync-files
+    image: appleboy/drone-scp
+    settings:
+      host: {from_secret: prod_ssh_host}
+      username: {from_secret: prod_ssh_user}
+      key: {from_secret: prod_ssh_key}
+      target: /opt/seis-lab-data
+      source:
+        - docker/compose-production.yaml
+        - docker/authentik/sld-auth-blueprint-production.yaml
+
+  - name: deploy-to-production
+    image: appleboy/drone-ssh
+    environment:
+      GITHUB_USER: {from_secret: github_user}
+      GITHUB_PAT: {from_secret: github_pat}
+    settings:
+      host: {from_secret: prod_ssh_host}
+      username: {from_secret: prod_ssh_user}
+      key: {from_secret: prod_ssh_key}
+      envs:
+        - IMAGE_URL
+        - GITHUB_USER
+        - GITHUB_PAT
+      port: 22
+      script: |
+        DEPLOYMENT_DIR="/opt/seis-lab-data"
+        ENV_FILE_NAME="compose-deployment.env"
+        COMPOSE_FILE="compose.production.yaml"
+
+        cd $${DEPLOYMENT_DIR}
+
+        if [ ! -f $${ENV_FILE_NAME} ]; then
+        echo "ERROR: env file not found at $${DEPLOYMENT_DIR}/$${ENV_FILE_NAME}"
+        echo "Please ensure the environment file is present on the host"
+        exit 1
+        fi
+
+        echo "${{ GITHUB_PAT }}" | docker login ghcr.io -u "${{ GITHUB_USER }}" --password-stdin
+        docker pull $${IMAGE_URL}
+
+        echo "Stopping existing containers..."
+        docker compose \
+            --file $${COMPOSE_FILE} \
+            --env-file $${ENV_FILE_NAME} \
+            down || true
+
+        echo "Starting deployment..."
+        docker compose \
+            --file $${COMPOSE_FILE} \
+            --env-file $${ENV_FILE_NAME} \
+            up --detach --remove-orphans
+
+        docker compose \
+          --file $${COMPOSE_FILE} \
+          --env-file $${ENV_FILE_NAME} \
+          exec --no-tty webapp uv run seis-lab-data db upgrade
+
+        docker logout ghcr.io
