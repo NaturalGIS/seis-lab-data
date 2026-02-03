@@ -140,6 +140,8 @@ venv.bak/
 
 # mkdocs documentation
 /site
+/site-temp-pdf
+/docs/assets/documents/seis-lab-data-development-guide.pdf
 
 # mypy
 .mypy_cache/

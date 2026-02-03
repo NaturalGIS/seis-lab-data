@@ -1,6 +1,10 @@
 site_name: seis-lab-data docs
 site_url: https://naturalgis.github.io/seis-lab-data
 repo_url: https://github.com/naturalgis/seis-lab-data
+site_author: Equipa NaturalGIS
+
+hooks:
+  - mkdocs_hooks.py
 
 nav:
   - Home: index.md
@@ -10,6 +14,7 @@ nav:
 
 theme:
   name: material
+  custom_dir: mkdocs-overrides
   palette:
     primary: blue grey
     accent: pink
@@ -33,9 +38,15 @@ plugins:
           default: true
         - locale: pt
           name: Português
+          nav:
+            - Início: index.md
+            - Guia de operações: admin-guide.md
+            - Guia de desenvolvimento: development.md
+            - Guia de escrita de documentação: writing-docs.md
 
 markdown_extensions:
   - admonition
+  - attr_list
   - pymdownx.highlight
   - pymdownx.inlinehilite
   - pymdownx.superfences:
@@ -43,3 +54,6 @@ markdown_extensions:
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
