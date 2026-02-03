@@ -1,0 +1,40 @@
+@media print {
+  pre,
+  code,
+  var,
+  samp,
+  kbd,
+  tt {
+    font-size: 1em;
+  }
+
+  article h1,
+  article h2,
+  article h3 {
+    color: black !important;
+    font-weight: normal !important;
+    border-color: #a9a9a9 !important;
+  }
+
+  article h4,
+  article h5,
+  article h6 {
+    color: black !important;
+    font-size: 1em !important;
+    font-weight: normal !important;
+  }
+
+  .no-pdf {
+    display: none !important;
+  }
+}
+
+@page {
+  color: black;
+}
+
+@page {
+  @bottom-right {
+    font-size: 8pt;
+  }
+}
