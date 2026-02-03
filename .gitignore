@@ -140,6 +140,7 @@ venv.bak/
 
 # mkdocs documentation
 /site
+/built-docs
 /site-temp-pdf
 /docs/assets/documents/seis-lab-data-development-guide.pdf
 

@@ -34,11 +34,22 @@ jobs:
         with:
           python-version-file: "pyproject.toml"
 
+      - name: "Install system dependencies for weasyprint"
+        run: |
+          sudo apt update
+          sudo apt-get install --yes \
+              fonts-lato \
+              ghostscript \
+              libharfbuzz0b \
+              libpango-1.0-0 \
+              libpangoft2-1.0-0 \
+              libpangocairo-1.0-0
+
       - name: "Install code"
         run: uv sync --group docs --frozen
 
       - name: "Build docs"
-        run: uv run mkdocs build --site-dir built-docs
+        run: BUILD_PDF=1 uv run mkdocs build --site-dir built-docs
 
       - name: "Upload docs as artifacts"
         uses: actions/upload-pages-artifact@v4
