@@ -85,15 +85,16 @@ def on_files(files, config):
     global _DESTINATION_RELATIVE_PATH
 
     for pdf_resource in PDF_RESOURCES:
-        path = "/".join((_DESTINATION_RELATIVE_PATH, pdf_resource.pdf_name))
-        # Only add it if it's not already in the files list
-        if not any(f.src_path == path for f in files):
-            new_file = File(
-                path=path,
-                src_dir=config["docs_dir"],
-                dest_dir=config["site_dir"],
-                use_directory_urls=config["use_directory_urls"],
-            )
-            files.append(new_file)
+        pdf_path = "/".join((_DESTINATION_RELATIVE_PATH, pdf_resource.pdf_name))
+        if (Path(__file__).parent / pdf_path).exists():
+            # Only add it if it's not already in the files list
+            if not any(f.src_path == pdf_path for f in files):
+                new_file = File(
+                    path=pdf_path,
+                    src_dir=config["docs_dir"],
+                    dest_dir=config["site_dir"],
+                    use_directory_urls=config["use_directory_urls"],
+                )
+                files.append(new_file)
 
     return files

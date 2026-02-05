@@ -116,7 +116,7 @@ steps:
         - docker/compose.prod-env.yaml
         - docker/authentik/sld-auth-blueprint-prod-env.yaml
         - docker/caddy/Caddyfile
-        - docker/traefik/prod-config.toml
+        - docker/traefik/traefik-prod-config.toml
       strip_components: 1
       overwrite: true
 

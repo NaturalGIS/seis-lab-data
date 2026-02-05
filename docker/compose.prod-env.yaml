@@ -12,7 +12,7 @@ x-auth-redirect-url: &auth-redirect-url "https://auth.seis-lab-data.ipma.pt/oaut
 
 x-common-env: &common-env
   SEIS_LAB_DATA__DEBUG: ${DEBUG:-false}
-  SEIS_LAB_DATA__LOG_CONFIG_FILE: ${LOG_CONFIG_FILE}
+  SEIS_LAB_DATA__LOG_CONFIG_FILE: ${LOG_CONFIG_FILE:-/home/ubuntu/app/prod-log-config.yml}
   SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
 
 x-common-secrets: &common-secrets
@@ -58,7 +58,7 @@ services:
       - target: 80
         published: 80
     configs:
-      - source: ./prod-config.toml
+      - source: ./traefik-prod-config.toml
         target: /traefik.toml
     command: --configFile /traefik.toml
     restart: unless-stopped
@@ -289,7 +289,7 @@ services:
 
 configs:
   traefik-conf:
-    file: ./traefik/prod-config.toml
+    file: traefik/traefik-prod-config.toml
 
 volumes:
   authentik_db:
