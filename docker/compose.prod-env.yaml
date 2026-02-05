@@ -1,0 +1,316 @@
+# docker compose file to be used in the production environment
+#
+# This relies on the existence of a suitable env file where the variables referenced throughout
+# are defined
+
+name: seis-lab-data
+
+x-common-image: &common-image "${IMAGE_URL}"
+
+x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.8"
+x-auth-redirect-url: &auth-redirect-url "https://auth.seis-lab-data.ipma.pt/oauth2/callback"
+
+x-common-env: &common-env
+  SEIS_LAB_DATA__DEBUG: ${DEBUG:-false}
+  SEIS_LAB_DATA__LOG_CONFIG_FILE: ${LOG_CONFIG_FILE:-/home/ubuntu/app/prod-log-config.yml}
+  SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
+
+x-common-secrets: &common-secrets
+  secrets:
+    - source: sld-database-dsn
+      target: SEIS_LAB_DATA__database_dsn
+    - source: auth-client-id
+      target: SEIS_LAB_DATA__auth_client_id
+    - source: auth-client-secret
+      target: SEIS_LAB_DATA__auth_client_secret
+
+x-common-auth-env: &common-auth-env
+  AUTHENTIK_EMAIL__HOST: smtp.postmarkapp.com
+  AUTHENTIK_EMAIL__PORT: 587
+  AUTHENTIK_EMAIL__USERNAME: file:///run/secrets/auth-email-username
+  AUTHENTIK_EMAIL__PASSWORD: file:///run/secrets/auth-email-password
+  AUTHENTIK_EMAIL__USE_TLS: true
+  AUTHENTIK_EMAIL__TIMEOUT: 10
+  AUTHENTIK_EMAIL__FROM: auth@seis-lab-data.naturalgis.pt
+  AUTHENTIK_LOG_LEVEL: warning
+  AUTHENTIK_SECRET_KEY: file:///run/secrets/auth-secret-key
+  AUTHENTIK_REDIS__HOST: message-broker
+  AUTHENTIK_POSTGRESQL__HOST: auth-db
+  AUTHENTIK_POSTGRESQL__USER: sld_auth_user
+  AUTHENTIK_POSTGRESQL__NAME: authentik
+  AUTHENTIK_POSTGRESQL__PASSWORD: file:///run/secrets/auth-db-password
+  SEIS_LAB_DATA_REDIRECT_URI: *auth-redirect-url
+
+x-common-volumes: &common-volumes
+  - type: bind
+    source: /mnt/seislab_data
+    target: /data/archive
+  - type: bind
+    source: /mnt/seislab_swap
+    target: /data/sld-data
+
+
+services:
+
+  web-gateway:
+    image: traefik:v3
+    ports:
+      - target: 80
+        published: 80
+    configs:
+      - source: ./traefik-prod-config.toml
+        target: /traefik.toml
+    command: --configFile /traefik.toml
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        read_only: true
+
+  auth-db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: authentik
+      POSTGRES_USER: sld_auth_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/auth-db-password
+    restart: unless-stopped
+    healthcheck:
+      test: "pg_isready -d authentik"
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    volumes:
+      - authentik_db:/var/lib/postgresql/data
+    secrets:
+      - auth-db-password
+
+  auth-webapp:
+    image: *auth-image
+    command: server
+    environment:
+      <<: *common-auth-env
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth-router.rule=Host(`auth.seis-lab-data.ipma.pt`)"
+      - "traefik.http.routers.auth-router.entrypoints=web"
+      - "traefik.http.routers.auth-router.priority=100"
+      - "traefik.http.services.auth-service.loadbalancer.server.port=9000"
+    restart: unless-stopped
+    depends_on:
+      auth-db:
+        condition: service_healthy
+      message-broker:
+        condition: service_healthy
+    secrets:
+      - auth-db-password
+      - auth-secret-key
+      - auth-email-username
+      - auth-email-password
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import requests; requests.get(\"http://localhost:9000/-/health/ready/\").raise_for_status()'"]
+      start_period: 30s
+      interval: 10s
+      retries: 10
+      timeout: 5s
+
+  auth-worker:
+    image: *auth-image
+    command: worker
+    # note: the AUTHENTIK_BOOTSTRAP_ variables are set from the env because
+    # authentik does not support getting them via secret files, as per:
+    #
+    # https://github.com/goauthentik/authentik/issues/11023#issuecomment-3764472857
+    environment:
+      <<: *common-auth-env
+      AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTH_AUTHENTIK_BOOTSTRAP_PASSWORD?not_set}
+      AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTH_AUTHENTIK_BOOTSTRAP_TOKEN?not_set}
+      AUTHENTIK_BOOTSTRAP_EMAIL: ${AUTH_AUTHENTIK_BOOTSTRAP_EMAIL?not_set}
+      ARCHIVE_BASE_URL: https://data.seis-lab-data.ipma.pt
+    volumes:
+      - type: bind
+        source: ./sld-auth-blueprint-prod-env.yaml
+        target: /blueprints/custom/sld-auth-blueprint-prod-env.yaml
+        read_only: true
+    restart: unless-stopped
+    depends_on:
+      auth-db:
+        condition: service_healthy
+      message-broker:
+        condition: service_healthy
+    secrets:
+      - auth-db-password
+      - auth-secret-key
+      - auth-email-username
+      - auth-email-password
+      - auth-client-id
+      - auth-client-secret
+    healthcheck:
+      test: |
+        python -c '
+        import os
+        import requests
+        import sys
+        from pathlib import Path
+        try:
+            client_id = Path("/run/secrets/auth-client-id").read_text()
+            token = os.getenv("AUTHENTIK_BOOTSTRAP_TOKEN")
+            response = requests.get(
+                "http://auth-webapp:9000/api/v3/providers/oauth2/",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=5
+            )
+            response.raise_for_status()
+            providers = response.json().get("results", [])
+            if not any(p.get("client_id") == client_id for p in providers):
+                print("OAuth provider does not exist yet")
+                raise SystemExit(1)
+            print("Oauth provider found - sld-related blueprint has already been applied")
+        except Exception as err:
+            print(f"error checking availability of oauth provider: {err}")
+            sys.exit(1)
+        '
+      start_period: 45s
+      interval: 10s
+      retries: 20
+      timeout: 10s
+
+  message-broker:
+    image: redis:8
+    restart: unless-stopped
+    healthcheck:
+      test: "redis-cli PING | grep PONG"
+
+  db:
+    image: postgis/postgis:17-3.5-alpine
+    environment:
+      POSTGRES_DB: seis_lab_data
+      POSTGRES_USER: sld
+      POSTGRES_PASSWORD_FILE: /run/secrets/db-password
+    restart: unless-stopped
+    healthcheck:
+      test: "pg_isready -d seis_lab_data -U sld"
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    secrets:
+      - db-password
+    volumes:
+      - db:/var/lib/postgresql/data
+
+  webapp:
+    image: *common-image
+    environment:
+      <<: *common-env
+      SEIS_LAB_DATA__BIND_HOST: 0.0.0.0
+      SEIS_LAB_DATA__BIND_PORT: 5000
+      SEIS_LAB_DATA__PUBLIC_URL: https://seis-lab-data.naturalgis.pt
+      SEIS_LAB_DATA__AUTH_EXTERNAL_BASE_URL: https://auth.seis-lab-data.naturalgis.pt
+      SEIS_LAB_DATA__AUTH_INTERNAL_BASE_URL: http://auth-webapp:9000
+      SEIS_LAB_DATA__WEBMAP_BASE_TILE_LAYER_URL: https://seis-lab-data.naturalgis.pt/tiles/emodnet-bathymetry/{z}/{x}/{y}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.sld-service.loadbalancer.server.port=5000"
+      - "traefik.http.routers.sld-router.rule=Host(`seis-lab-data.ipma.pt`)"
+      - "traefik.http.routers.sld-router.entrypoints=web"
+      - "traefik.http.routers.sld-router.priority=10"
+      - "traefik.http.routers.sld-router.service=sld-service"
+    volumes:
+      *common-volumes
+    <<: *common-secrets
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      message-broker:
+        condition: service_healthy
+      auth-webapp:
+        condition: service_healthy
+      auth-worker:
+        condition: service_healthy
+
+  processing-worker:
+    image: *common-image
+    command:
+      - "run-processing-worker"
+    environment:
+      <<: *common-env
+    volumes:
+      *common-volumes
+    <<: *common-secrets
+    restart: unless-stopped
+
+  martin-tile-server:
+    image: ghcr.io/maplibre/martin:martin-v0.19.3
+    command: ["--config", "/run/secrets/martin-config"]
+    depends_on:
+      db:
+        condition: service_healthy
+    secrets:
+      - martin-config
+    volumes:
+      - type: bind
+        source: /mnt/seislab_swap/pmtiles
+        target: /pmtiles
+        read_only: true
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.martin-stripprefix.stripprefix.prefixes=/tiles"
+      - "traefik.http.routers.martin-router.entrypoints=web"
+      - "traefik.http.routers.martin-router.rule=Host(`seis-lab-data.ipma.pt`) && PathPrefix(`/tiles`)"
+      - "traefik.http.routers.martin-router.priority=90"
+      - "traefik.http.routers.martin-router.middlewares=martin-stripprefix"
+      - "traefik.http.services.martin.loadbalancer.server.port=3000"
+
+  caddy-file-server:
+    image: caddy:2
+    volumes:
+      - type: bind
+        source: ./Caddyfile
+        target: /etc/caddy/Caddyfile
+        read_only: true
+      - type: bind
+        source: /mnt/seislab_data
+        target: /srv/archive
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.authentik-auth.forwardauth.address=http://auth-webapp:9000/outpost.goauthentik.io/auth/traefik"
+      - "traefik.http.middlewares.authentik-auth.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.authentik-auth.forwardauth.authResponseHeaders=X-authentik-username,X-authentik-groups,X-authentik-email,X-authentik-name,X-authentik-uid"
+      - "traefik.http.middlewares.authentik-auth.forwardauth.maxBodySize=1048576"
+      - "traefik.http.routers.caddy-router.rule=Host(`data.seis-lab-data.ipma.pt`)"
+      - "traefik.http.routers.caddy-router.entrypoints=web"
+      - "traefik.http.routers.caddy-router.middlewares=authentik-auth"
+      - "traefik.http.services.caddy-service.loadbalancer.server.port=8000"
+
+configs:
+  traefik-conf:
+    file: traefik/traefik-prod-config.toml
+
+volumes:
+  authentik_db:
+  db:
+
+secrets:
+  auth-client-id:
+    file: /opt/seis-lab-data/secrets/auth-client-id.txt
+  auth-client-secret:
+    file: /opt/seis-lab-data/secrets/auth-client-secret.txt
+  auth-db-password:
+    file: /opt/seis-lab-data/secrets/auth-db-password.txt
+  auth-email-password:
+    file: /opt/seis-lab-data/secrets/auth-email-password.txt
+  auth-email-username:
+    file: /opt/seis-lab-data/secrets/auth-email-username.txt
+  auth-secret-key:
+    file: /opt/seis-lab-data/secrets/auth-secret-key.txt
+  db-password:
+    file: /opt/seis-lab-data/secrets/db-password.txt
+  martin-config:
+    file: /opt/seis-lab-data/secrets/martin-config.yaml
+  sld-database-dsn:
+    file: /opt/seis-lab-data/secrets/sld-db-dsn.txt

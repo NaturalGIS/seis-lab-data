@@ -1,0 +1,358 @@
+version: 1
+metadata:
+  name: seis-lab-data-oidc-setup
+  labels:
+    blueprints.goauthentik.io/instantiate: "true"
+context:
+  client_id: !File /run/secrets/auth-client-id
+  client_secret: !File /run/secrets/auth-client-secret
+  redirect_uri: !Env SEIS_LAB_DATA_REDIRECT_URI
+  file_server_url: !Env ARCHIVE_BASE_URL
+
+entries:
+  # create the groups we need
+  - model: authentik_core.group
+    state: present
+    identifiers:
+      name: seis-lab-data-editors
+    attrs:
+      is_superuser: false
+  - model: authentik_core.group
+    state: present
+    identifiers:
+      name: seis-lab-data-catalog-admins
+    attrs:
+      is_superuser: false
+
+  # in order to create the enrollment flows, we need to ensure the relevant prompts exist
+
+  # user-settings-flow creates the username, name and email prompts
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
+        path: default/flow-default-user-settings-flow.yaml
+  # flow-password-change.yaml creates the password and password repeat prompts
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
+        path: default/flow-password-change.yaml
+
+  # create a flow for a direct enrollment
+  - identifiers:
+      slug: simple-enrollment-flow
+    model: authentik_flows.flow
+    id: simple-enrollment-flow
+    attrs:
+      name: Simple enrollment Flow
+      title: Welcome to authentik!
+      designation: enrollment
+      authentication: require_unauthenticated
+  - identifiers:
+      name: simple-enrollment-prompt-second
+    id: simple-enrollment-prompt-second
+    model: authentik_stages_prompt.promptstage
+    attrs:
+      fields:
+        - !Find [ authentik_stages_prompt.prompt, [ field_key, "name" ]]
+        - !Find [ authentik_stages_prompt.prompt, [ field_key, "email" ]]
+  - identifiers:
+      name: simple-enrollment-prompt-first
+    id: simple-enrollment-prompt-first
+    model: authentik_stages_prompt.promptstage
+    attrs:
+      fields:
+        - !Find [ authentik_stages_prompt.prompt, [ field_key, "username" ]]
+        - !Find [ authentik_stages_prompt.prompt, [ field_key, "password" ]]
+        - !Find [ authentik_stages_prompt.prompt, [ field_key, "password_repeat" ]]
+  - identifiers:
+      name: simple-enrollment-user-login
+    id: simple-enrollment-user-login
+    model: authentik_stages_user_login.userloginstage
+  - identifiers:
+      name: simple-enrollment-user-write
+    id: simple-enrollment-user-write
+    model: authentik_stages_user_write.userwritestage
+    attrs:
+      user_creation_mode: always_create
+      group: !Find [ authentik_core.group, [ name, "seis-lab-data-editors" ]]
+      path: users
+      user_type: internal
+  - identifiers:
+      target: !KeyOf simple-enrollment-flow
+      stage: !KeyOf simple-enrollment-prompt-first
+      order: 10
+    model: authentik_flows.flowstagebinding
+  - identifiers:
+      target: !KeyOf simple-enrollment-flow
+      stage: !KeyOf simple-enrollment-prompt-second
+      order: 11
+    model: authentik_flows.flowstagebinding
+  - identifiers:
+      target: !KeyOf simple-enrollment-flow
+      stage: !KeyOf simple-enrollment-user-write
+      order: 20
+    model: authentik_flows.flowstagebinding
+  - identifiers:
+      target: !KeyOf simple-enrollment-flow
+      stage: !KeyOf simple-enrollment-user-login
+      order: 100
+    model: authentik_flows.flowstagebinding
+
+  # create another flow for enrollment, this time with email verification
+  - identifiers:
+      slug: email-enrollment-flow
+    id: email-enrollment-flow
+    model: authentik_flows.flow
+    attrs:
+      name: Mail verification enrollment Flow
+      title: Welcome to authentik!
+      designation: enrollment
+      authentication: require_unauthenticated
+  - identifiers:
+      name: email-enrollment-email-verification
+    id: email-enrollment-email-verification
+    model: authentik_stages_email.emailstage
+    attrs:
+      use_global_settings: true
+      template: email/account_confirmation.html
+      activate_user_on_success: true
+  - identifiers:
+      name: email-enrollment-prompt-second
+    id: email-enrollment-prompt-second
+    model: authentik_stages_prompt.promptstage
+    attrs:
+      fields:
+        - !Find [ authentik_stages_prompt.prompt, [ field_key, "name" ]]
+        - !Find [ authentik_stages_prompt.prompt, [ field_key, "email" ]]
+  - identifiers:
+      name: email-enrollment-prompt-first
+    id: email-enrollment-prompt-first
+    model: authentik_stages_prompt.promptstage
+    attrs:
+      fields:
+        - !Find [ authentik_stages_prompt.prompt, [ field_key, "username" ]]
+        - !Find [ authentik_stages_prompt.prompt, [ field_key, "password" ]]
+        - !Find [ authentik_stages_prompt.prompt, [ field_key, "password_repeat" ]]
+  - identifiers:
+      name: email-enrollment-user-login
+    id: email-enrollment-user-login
+    model: authentik_stages_user_login.userloginstage
+  - identifiers:
+      name: email-enrollment-user-write
+    id: email-enrollment-user-write
+    model: authentik_stages_user_write.userwritestage
+    attrs:
+      create_users_as_inactive: true
+      user_creation_mode: always_create
+  - identifiers:
+      target: !KeyOf email-enrollment-flow
+      stage: !KeyOf email-enrollment-prompt-first
+      order: 10
+    model: authentik_flows.flowstagebinding
+  - identifiers:
+      target: !KeyOf email-enrollment-flow
+      stage: !KeyOf email-enrollment-prompt-second
+      order: 11
+    model: authentik_flows.flowstagebinding
+  - identifiers:
+      target: !KeyOf email-enrollment-flow
+      stage: !KeyOf email-enrollment-user-write
+      order: 20
+    model: authentik_flows.flowstagebinding
+  - identifiers:
+      target: !KeyOf email-enrollment-flow
+      stage: !KeyOf email-enrollment-email-verification
+      order: 30
+    model: authentik_flows.flowstagebinding
+  - identifiers:
+      target: !KeyOf email-enrollment-flow
+      stage: !KeyOf email-enrollment-user-login
+      order: 100
+    model: authentik_flows.flowstagebinding
+
+  # ensure the required default flows are present
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
+        path: default/flow-default-authentication-flow.yaml
+
+  # create an authentication flow to be used by the authorization flow, for registering users
+  # this also depends on the default flow-password-change.yaml, which was already applied above
+  - identifiers:
+      slug: sld-authentication-flow
+    model: authentik_flows.flow
+    attrs:
+      authentication: require_unauthenticated
+      denied_action: message_continue
+      designation: authentication
+      layout: stacked
+      name: sld authentication flow
+      policy_engine_mode: any
+      title: SeisLabData authentication
+    conditions: []
+    permissions: []
+    state: present
+  - identifiers:
+      name: sld-identification
+    model: authentik_stages_identification.identificationstage
+    attrs:
+      case_insensitive_matching: true
+      password_stage: !Find [authentik_stages_password.passwordstage, [name, "default-authentication-password"]]
+      pretend_user_exists: true
+      show_matched_user: true
+      user_fields:
+        - email
+    conditions: []
+    permissions: []
+    state: present
+  - identifiers:
+      order: 0
+      # pk: 99bba28f-96b5-434f-b37e-9f64a9d11004
+      stage: !Find [authentik_stages_identification.identificationstage, [name, "sld-identification"]]
+      target: !Find [authentik_flows.flow, [slug, "sld-authentication-flow"]]
+    model: authentik_flows.flowstagebinding
+    attrs:
+      invalid_response_action: retry
+      policy_engine_mode: any
+      re_evaluate_policies: true
+    conditions: []
+    permissions: []
+    state: present
+  - identifiers:
+      order: 10
+      # pk: 4b2515bf-b6ad-4b30-92c4-27ff3f37925e
+      stage: !Find [authentik_stages_authenticator_validate.authenticatorvalidatestage, [name, "default-authentication-mfa-validation"]]
+      target: !Find [authentik_flows.flow, [slug, "sld-authentication-flow"]]
+    model: authentik_flows.flowstagebinding
+    attrs:
+      invalid_response_action: retry
+      policy_engine_mode: any
+      re_evaluate_policies: true
+    conditions: []
+    permissions: []
+    state: present
+  - identifiers:
+      order: 20
+      # pk: 6d142b04-56f0-4f4b-acbe-d1d0494d3425
+      stage: !Find [authentik_stages_user_login.userloginstage, [name, "default-authentication-login"]]
+      target: !Find [authentik_flows.flow, [slug, "sld-authentication-flow"]]
+    model: authentik_flows.flowstagebinding
+    attrs:
+      invalid_response_action: retry
+      policy_engine_mode: any
+      re_evaluate_policies: true
+    conditions: []
+    permissions: []
+    state: present
+
+  # create a scope mapping for exposing a user's groups as roles to our application
+  - model: authentik_providers_oauth2.scopemapping
+    id: seis-lab-data-roles-scope
+    identifiers:
+      name: seis-lab-data-roles
+    attrs:
+      name: seis-lab-data-roles
+      scope_name: roles
+      description: "User roles for SeisLabData"
+      expression: |
+        roles = []
+        user_groups = [group.name for group in request.user.ak_groups.all()]
+
+        if 'sld_catalog_admins' in user_groups:
+            roles.append('catalog_admin')
+        if 'sld_editors' in user_groups:
+            roles.append('editor')
+
+        return roles
+
+  # ensure the required default flows are present
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
+        path: default/flow-default-provider-authorization-implicit-consent.yaml
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
+        path: default/flow-default-invalidation-flow.yaml
+
+  # create an oauth2 provider
+  - model: authentik_providers_oauth2.oauth2provider
+    id: seis-lab-data-provider
+    identifiers:
+      name: seis-lab-data-provider
+    attrs:
+      name: seis-lab-data-provider
+      client_type: confidential
+      client_id: !Context client_id
+      client_secret: !Context client_secret
+      redirect_uris:
+        - url: !Context redirect_uri
+          matching_mode: strict
+      sub_mode: user_uuid
+      include_claims_in_id_token: true
+      issuer_mode: per_provider
+      authorization_flow: !Find [authentik_flows.flow, [slug, "default-provider-authorization-implicit-consent"]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, "default-invalidation-flow"]]
+      authentication_flow: !Find [authentik_flows.flow, [slug, "sld-authentication-flow"]]
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
+
+  - model: authentik_providers_oauth2.oauth2provider
+    id: seis-lab-data-provider-update
+    identifiers:
+      name: seis-lab-data-provider
+    attrs:
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, "openid"]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, "email"]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, "profile"]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, "roles"]]
+
+  # create an application
+  - model: authentik_core.application
+    id: seis-lab-data-app
+    identifiers:
+      slug: seis-lab-data-app
+    attrs:
+      name: seis-lab-data
+      slug: seis-lab-data
+      provider: !KeyOf seis-lab-data-provider
+      meta_description: "SeisLabData Application"
+      meta_publisher: "NaturalGIS"
+      policy_engine_mode: any
+
+  # Create a proxy provider for forward auth
+  - model: authentik_providers_proxy.proxyprovider
+    id: sld-archive-proxy-provider
+    identifiers:
+      name: sld-archive-proxy-provider
+    attrs:
+      name: sld-archive-proxy-provider
+      authorization_flow: !Find [authentik_flows.flow, [slug, "default-provider-authorization-implicit-consent"]]
+      authentication_flow: !Find [authentik_flows.flow, [slug, "sld-authentication-flow"]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, "default-invalidation-flow"]]
+      mode: forward_single
+      external_host: !Context file_server_url
+
+  # Create an application for the archive
+  - model: authentik_core.application
+    id: sld-archive-app
+    identifiers:
+      slug: sld-archive
+    attrs:
+      name: SLD Archive
+      slug: sld-archive
+      provider: !KeyOf sld-archive-proxy-provider
+      meta_description: "SeisLabData Archive File Browser"
+      policy_engine_mode: any
+
+  # Update the embedded outpost to include our proxy provider
+  - model: authentik_outposts.outpost
+    state: present
+    identifiers:
+      managed: goauthentik.io/outposts/embedded
+    attrs:
+      providers:
+        - !KeyOf sld-archive-proxy-provider
+      config:
+        authentik_host: http://auth.localhost:8888/
+        authentik_host_browser: http://auth.localhost:8888/

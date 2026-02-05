@@ -1,0 +1,24 @@
+# Static configuration file for traefik
+#
+# In this file we mostly configure providers, entrypoints and security.
+# Routers, the other major part of a traefik configuration,  form the
+# so-called 'dynamic configuration' and in this case are gotten from
+# the labels associated with the docker provider
+#
+# More info:
+#
+# https://doc.traefik.io/traefik/
+
+[accessLog]
+
+[entryPoints]
+[entryPoints.web]
+address = ":80"
+
+[providers]
+
+[providers.docker]
+exposedByDefault = false
+
+[api]
+insecure = true

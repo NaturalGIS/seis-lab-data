@@ -1,7 +1,7 @@
 site_name: seis-lab-data docs
 
 nav:
-  - Development: development.md
+  - Administration: admin-guide.md
 
 extra_css:
   - stylesheets/styles.css
@@ -34,9 +34,9 @@ plugins:
       author: Equipa NaturalGIS
       cover_title: SeisLabData
       copyright: '&copy 2026 CC BY 4.0'
-      cover_subtitle: Documentação de desenvolvimento
+      cover_subtitle: Guia de administração
       toc_title: Índice
-      output_path: pdf/seis-lab-data-development-guide.pdf
+      output_path: pdf/seis-lab-data-administration-guide.pdf
 
 markdown_extensions:
   - admonition
