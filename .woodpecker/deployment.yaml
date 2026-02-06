@@ -117,7 +117,7 @@ steps:
         - docker/authentik/sld-auth-blueprint-prod-env.yaml
         - docker/caddy/Caddyfile
         - docker/traefik/traefik-prod-config.toml
-      strip_components: 1
+      strip_components: 2
       overwrite: true
 
   - name: deploy-to-production-env
@@ -146,9 +146,13 @@ steps:
         echo "DEBUG: Deploying with Image -> $${IMAGE_URL}"
         docker pull "$${IMAGE_URL}"
 
-        IMAGE_URL="$${IMAGE_URL}" docker compose \
+        echo "DEBUG: Storing image URL in the 'image_url.env' file"
+        echo "IMAGE_URL=$${IMAGE_URL}" > image_url.env
+
+        docker compose \
           -f "$${COMPOSE_FILE}" \
           --env-file "$${ENV_FILE}" \
+          --env-file image_url.env \
           up -d --remove-orphans
 
         echo "Running database migrations..."
