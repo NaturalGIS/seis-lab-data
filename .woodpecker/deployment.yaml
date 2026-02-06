@@ -117,6 +117,7 @@ steps:
         - docker/authentik/sld-auth-blueprint-prod-env.yaml
         - docker/caddy/Caddyfile
         - docker/traefik/traefik-prod-config.toml
+        - envvars
       strip_components: 2
       overwrite: true
 
@@ -132,15 +133,19 @@ steps:
       username: {from_secret: prod_ssh_user}
       key: {from_secret: prod_ssh_key}
       envs:
-        - IMAGE_URL
         - GITHUB_USER
         - GITHUB_PAT
       script: |
         DEPLOYMENT_DIR="/opt/seis-lab-data"
         COMPOSE_FILE="compose.prod-env.yaml"
         ENV_FILE="compose-deployment.env"
-
         cd "$${DEPLOYMENT_DIR}"
+        . envvars
+        if [ "$${SKIP_DEPLOYMENT}" = "true" ]; then
+            echo "Skipping deployment"
+            exit 0
+        fi
+
         echo "$${GITHUB_PAT}" | docker login ghcr.io --username "$${GITHUB_USER}" --password-stdin
 
         echo "DEBUG: Deploying with Image -> $${IMAGE_URL}"
