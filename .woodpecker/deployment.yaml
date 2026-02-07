@@ -143,10 +143,15 @@ steps:
           -f compose.prod-env.yaml \
           --env-file compose-deployment.env \
           --env-file image_url.env \
+          --progress quiet \
           up -d --remove-orphans
 
         echo "Running database migrations..."
-        docker compose -f compose.prod-env.yaml exec -T webapp uv run seis-lab-data db upgrade
+        docker compose \
+          -f compose.prod-env.yaml \
+          --env-file compose-deployment.env \
+          --env-file image_url.env \
+          exec -T webapp uv run seis-lab-data db upgrade
 
         docker logout ghcr.io
       ENDSSH
