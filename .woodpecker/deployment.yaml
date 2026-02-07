@@ -156,7 +156,13 @@ steps:
         docker logout ghcr.io
       ENDSSH
 
-  - name: send telegram notification
+  # NOTE: this below section is for notifications. This implementation is a bit convoluted, having a step for
+  # sending success notification and another for sending failure. This was done like this because woodpecker
+  # does not currently have any env variable that contains the status of a pipeline, as per:
+  #
+  # https://github.com/woodpecker-ci/woodpecker/issues/4337
+  #
+  - name: notify success
     image: appleboy/drone-telegram:1.4.0
     environment:
       PLUGIN_TOKEN: {from_secret: telegram_bot_token}
@@ -169,8 +175,27 @@ steps:
           exit 0
       fi
 
-      export PLUGIN_MESSAGE="Target: $${CI_PIPELINE_DEPLOY_TARGET} | Deployment $${CI_COMMIT_SHA} - $${CI_PIPELINE_STATUS}! View details: $${CI_PIPELINE_URL}"
+      export PLUGIN_MESSAGE="Target: $${CI_PIPELINE_DEPLOY_TARGET} | Deployment $${CI_COMMIT_SHA} - success! View details: $${CI_PIPELINE_URL}"
       /bin/drone-telegram
 
     when:
-      - status: [success, failure]
+      - status: [success]
+
+  - name: notify failure
+    image: appleboy/drone-telegram:1.4.0
+    environment:
+      PLUGIN_TOKEN: {from_secret: telegram_bot_token}
+      PLUGIN_TO: {from_secret: telegram_chat_id}
+    commands: |
+      . envvars
+
+      if [ "$${SKIP_DEPLOYMENT}" = "true" ]; then
+          echo "Deployment was skipped, not sending notification"
+          exit 0
+      fi
+
+      export PLUGIN_MESSAGE="Target: $${CI_PIPELINE_DEPLOY_TARGET} | Deployment $${CI_COMMIT_SHA} - failure! View details: $${CI_PIPELINE_URL}"
+      /bin/drone-telegram
+
+    when:
+      - status: [failure]
