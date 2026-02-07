@@ -175,10 +175,7 @@ steps:
           exit 0
       fi
 
-      ENV_ICON="🚲"
-      if [ "$${CI_PIPELINE_DEPLOY_TARGET}" = "ipma-production" ]; then ENV_ICON="🚛"; fi
-
-      export PLUGIN_MESSAGE="✅ $${ENV_ICON} Deployment successful | Target: $${CI_PIPELINE_DEPLOY_TARGET} | $${CI_COMMIT_SHA} | $${CI_PIPELINE_URL}"
+      export PLUGIN_MESSAGE="✅ $${CI_PIPELINE_DEPLOY_TARGET} | Deployment successful | $${CI_PIPELINE_URL}"
       /bin/drone-telegram
 
     when:
@@ -197,10 +194,7 @@ steps:
           exit 0
       fi
 
-      ENV_ICON="🚲"
-      if [ "$${CI_PIPELINE_DEPLOY_TARGET}" = "ipma-production" ]; then ENV_ICON="🚛"; fi
-
-      export PLUGIN_MESSAGE="❌ $${ENV_ICON} Deployment failed | Target: $${CI_PIPELINE_DEPLOY_TARGET} | $${CI_COMMIT_SHA} | $${CI_PIPELINE_URL}"
+      export PLUGIN_MESSAGE="❌ $${CI_PIPELINE_DEPLOY_TARGET} | Deployment failed | $${CI_PIPELINE_URL}"
       /bin/drone-telegram
 
     when:
