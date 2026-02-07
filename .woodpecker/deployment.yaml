@@ -175,7 +175,7 @@ steps:
           exit 0
       fi
 
-      export PLUGIN_MESSAGE="Target: $${CI_PIPELINE_DEPLOY_TARGET} | Deployment $${CI_COMMIT_SHA} - success! View details: $${CI_PIPELINE_URL}"
+      export PLUGIN_MESSAGE="✅ Deployment successful | Target: $${CI_PIPELINE_DEPLOY_TARGET} | $${CI_COMMIT_SHA} | $${CI_PIPELINE_URL}"
       /bin/drone-telegram
 
     when:
@@ -194,7 +194,7 @@ steps:
           exit 0
       fi
 
-      export PLUGIN_MESSAGE="Target: $${CI_PIPELINE_DEPLOY_TARGET} | Deployment $${CI_COMMIT_SHA} - failure! View details: $${CI_PIPELINE_URL}"
+      export PLUGIN_MESSAGE="❌ Deployment failed | Target: $${CI_PIPELINE_DEPLOY_TARGET} | $${CI_COMMIT_SHA} | $${CI_PIPELINE_URL}"
       /bin/drone-telegram
 
     when:
