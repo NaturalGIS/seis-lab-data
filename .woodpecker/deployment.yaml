@@ -161,10 +161,6 @@ steps:
     environment:
       PLUGIN_TOKEN: {from_secret: telegram_bot_token}
       PLUGIN_TO: {from_secret: telegram_chat_id}
-      PLUGIN_MESSAGE: >
-        Target: ${CI_PIPELINE_DEPLOY_TARGET} |
-        Deployment {{ commit.sha }} - {{ build.status }}!
-        View details: {{ build.link }}
     commands: |
       . envvars
 
@@ -173,6 +169,7 @@ steps:
           exit 0
       fi
 
+      export PLUGIN_MESSAGE="Target: $${CI_PIPELINE_DEPLOY_TARGET} | Deployment $${CI_COMMIT_SHA} - $${CI_PIPELINE_STATUS}! View details: $${CI_PIPELINE_URL}"
       /bin/drone-telegram
 
     when:
