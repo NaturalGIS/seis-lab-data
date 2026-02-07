@@ -82,7 +82,7 @@ steps:
       docker compose \
         --env-file $${ENV_FILE_NAME} \
         --file $${COMPOSE_FILE_NAME} \
-        up --wait --wait-timeout 120
+        up --wait --wait-timeout 300
 
       echo "Applying database migrations..."
       docker compose \
@@ -144,7 +144,7 @@ steps:
           --env-file compose-deployment.env \
           --env-file image_url.env \
           --progress quiet \
-          up --remove-orphans --wait --wait-timeout 120
+          up --remove-orphans --wait --wait-timeout 300
 
         echo "Running database migrations..."
         docker compose \
@@ -175,7 +175,10 @@ steps:
           exit 0
       fi
 
-      export PLUGIN_MESSAGE="✅ Deployment successful | Target: $${CI_PIPELINE_DEPLOY_TARGET} | $${CI_COMMIT_SHA} | $${CI_PIPELINE_URL}"
+      ENV_ICON="🚲"
+      if [ "$${CI_PIPELINE_DEPLOY_TARGET}" = "ipma-production" ]; then ENV_ICON="🚛"; fi
+
+      export PLUGIN_MESSAGE="✅ $${ENV_ICON} Deployment successful | Target: $${CI_PIPELINE_DEPLOY_TARGET} | $${CI_COMMIT_SHA} | $${CI_PIPELINE_URL}"
       /bin/drone-telegram
 
     when:
@@ -194,7 +197,10 @@ steps:
           exit 0
       fi
 
-      export PLUGIN_MESSAGE="❌ Deployment failed | Target: $${CI_PIPELINE_DEPLOY_TARGET} | $${CI_COMMIT_SHA} | $${CI_PIPELINE_URL}"
+      ENV_ICON="🚲"
+      if [ "$${CI_PIPELINE_DEPLOY_TARGET}" = "ipma-production" ]; then ENV_ICON="🚛"; fi
+
+      export PLUGIN_MESSAGE="❌ $${ENV_ICON} Deployment failed | Target: $${CI_PIPELINE_DEPLOY_TARGET} | $${CI_COMMIT_SHA} | $${CI_PIPELINE_URL}"
       /bin/drone-telegram
 
     when:
