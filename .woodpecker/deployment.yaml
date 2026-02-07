@@ -82,7 +82,7 @@ steps:
       docker compose \
         --env-file $${ENV_FILE_NAME} \
         --file $${COMPOSE_FILE_NAME} \
-        up --detach
+        up --wait --wait-timeout 120
 
       echo "Applying database migrations..."
       docker compose \
@@ -127,7 +127,7 @@ steps:
       scp docker/traefik/traefik-prod-config.toml "$${SSH_USER}@$${REMOTE_HOST}:$${REMOTE_DIR}/"
 
       # Run deployment on remote server
-      ssh "$${SSH_USER}@$${REMOTE_HOST}" GITHUB_USER="$${GITHUB_USER}" GITHUB_PAT="$${GITHUB_PAT}" IMAGE_URL="$${IMAGE_URL}" bash -s << 'ENDSSH'
+      ssh "$${SSH_USER}@$${REMOTE_HOST}" GITHUB_USER="$${GITHUB_USER}" GITHUB_PAT="$${GITHUB_PAT}" IMAGE_URL="$${IMAGE_URL}" bash -s << 'ENDSSH' || exit 1
         set -e
         DEPLOYMENT_DIR="/opt/seis-lab-data"
         cd "$DEPLOYMENT_DIR"
@@ -144,7 +144,7 @@ steps:
           --env-file compose-deployment.env \
           --env-file image_url.env \
           --progress quiet \
-          up -d --remove-orphans
+          up --remove-orphans --wait --wait-timeout 120
 
         echo "Running database migrations..."
         docker compose \
