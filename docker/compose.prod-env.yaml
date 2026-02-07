@@ -58,7 +58,7 @@ services:
       - target: 80
         published: 80
     configs:
-      - source: ./traefik-prod-config.toml
+      - source: traefik-conf
         target: /traefik.toml
     command: --configFile /traefik.toml
     restart: unless-stopped
@@ -289,7 +289,7 @@ services:
 
 configs:
   traefik-conf:
-    file: traefik/traefik-prod-config.toml
+    file: traefik-prod-config.toml
 
 volumes:
   authentik_db:
