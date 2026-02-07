@@ -17,17 +17,6 @@ steps:
 
       echo "IMAGE_URL=$${IMAGE_URL}" > envvars
 
-      if [ "${CI_PIPELINE_DEPLOY_TARGET}" = "ipma-production" ]; then
-          echo "DEPLOY_MODE=ssh" >> envvars
-          echo "REMOTE_HOST=your.prod.server.ip" >> envvars
-          echo "DEPLOYMENT_DIR=/opt/seis-lab-data-prod" >> envvars
-          echo "COMPOSE_FILE=compose.prod-env.yaml" >> envvars
-      else
-          echo "DEPLOY_MODE=local" >> envvars
-          echo "DEPLOYMENT_DIR=/opt/seis-lab-data" >> envvars
-          echo "COMPOSE_FILE=compose.test-env.yaml" >> envvars
-      fi
-
   - name: deploy-to-test-env
     when:
       - evaluate: 'CI_PIPELINE_DEPLOY_TARGET == "naturalgis-test"'
@@ -58,7 +47,7 @@ steps:
       AUTHENTIK_BLUEPRINT_FILE_NAME="sld-auth-blueprint-test-env.yaml"
 
       echo "Copying files to host"
-      cp docker/$${COMPOSE_FILE_NAME} $${DEPLOYMENT_DIR}
+      cp docker/$${COMPOSE_FILE} $${DEPLOYMENT_DIR}
       chown $${TARGET_UID}:$${TARGET_GID} $${DEPLOYMENT_DIR}/$${COMPOSE_FILE_NAME}
       mkdir -p $${DEPLOYMENT_DIR}/authentik
       chown $${TARGET_UID}:$${TARGET_GID} $${DEPLOYMENT_DIR}/authentik
@@ -103,67 +92,64 @@ steps:
 
       docker logout ghcr.io
 
-  - name: sync-files-to-production-env
-    when:
-      - evaluate: 'CI_PIPELINE_DEPLOY_TARGET == "ipma-production"'
-    image: appleboy/drone-scp:1.8
-    settings:
-      host: "193.137.20.17"
-      username: {from_secret: prod_ssh_user}
-      key: {from_secret: prod_ssh_key}
-      target: /opt/seis-lab-data/
-      source:
-        - docker/compose.prod-env.yaml
-        - docker/authentik/sld-auth-blueprint-prod-env.yaml
-        - docker/caddy/Caddyfile
-        - docker/traefik/traefik-prod-config.toml
-        - envvars
-      strip_components: 2
-      overwrite: true
-
   - name: deploy-to-production-env
     when:
       - evaluate: 'CI_PIPELINE_DEPLOY_TARGET == "ipma-production"'
-    image: appleboy/drone-ssh:1.8.0
+    image: alpine:3.19
     environment:
+      SSH_USER: {from_secret: prod_ssh_user}
+      SSH_KEY: {from_secret: prod_ssh_key}
       GITHUB_USER: {from_secret: github_user}
       GITHUB_PAT: {from_secret: github_pat}
-    settings:
-      host: "193.137.20.17"
-      username: {from_secret: prod_ssh_user}
-      key: {from_secret: prod_ssh_key}
-      envs:
-        - GITHUB_USER
-        - GITHUB_PAT
-      script: |
+    commands: |
+      . envvars
+
+      if [ "$${SKIP_DEPLOYMENT}" = "true" ]; then
+        echo "Skipping deployment"
+        exit 0
+      fi
+
+      apk add --no-cache openssh-client
+
+      # Setup SSH
+      mkdir -p ~/.ssh
+      echo "$${SSH_KEY}" > ~/.ssh/id_rsa
+      chmod 600 ~/.ssh/id_rsa
+      ssh-keyscan -H 193.137.20.17 >> ~/.ssh/known_hosts 2>/dev/null
+
+      REMOTE_HOST="193.137.20.17"
+      REMOTE_DIR="/opt/seis-lab-data"
+
+      # Copy files to remote server
+      scp docker/compose.prod-env.yaml "$${SSH_USER}@$${REMOTE_HOST}:$${REMOTE_DIR}/"
+      scp docker/authentik/sld-auth-blueprint-prod-env.yaml "$${SSH_USER}@$${REMOTE_HOST}:$${REMOTE_DIR}/"
+      scp docker/caddy/Caddyfile "$${SSH_USER}@$${REMOTE_HOST}:$${REMOTE_DIR}/"
+      scp docker/traefik/traefik-prod-config.toml "$${SSH_USER}@$${REMOTE_HOST}:$${REMOTE_DIR}/"
+
+      # Run deployment on remote server
+      ssh "$${SSH_USER}@$${REMOTE_HOST}" GITHUB_USER="$${GITHUB_USER}" GITHUB_PAT="$${GITHUB_PAT}" IMAGE_URL="$${IMAGE_URL}" bash -s << 'ENDSSH'
+        set -e
         DEPLOYMENT_DIR="/opt/seis-lab-data"
-        COMPOSE_FILE="compose.prod-env.yaml"
-        ENV_FILE="compose-deployment.env"
-        cd "$${DEPLOYMENT_DIR}"
-        . envvars
-        if [ "$${SKIP_DEPLOYMENT}" = "true" ]; then
-            echo "Skipping deployment"
-            exit 0
-        fi
+        cd "$DEPLOYMENT_DIR"
 
-        echo "$${GITHUB_PAT}" | docker login ghcr.io --username "$${GITHUB_USER}" --password-stdin
+        echo "$GITHUB_PAT" | docker login ghcr.io --username "$GITHUB_USER" --password-stdin
 
-        echo "DEBUG: Deploying with Image -> $${IMAGE_URL}"
-        docker pull "$${IMAGE_URL}"
+        echo "Deploying with Image -> $IMAGE_URL"
+        docker pull "$IMAGE_URL"
 
-        echo "DEBUG: Storing image URL in the 'image_url.env' file"
-        echo "IMAGE_URL=$${IMAGE_URL}" > image_url.env
+        echo "IMAGE_URL=$IMAGE_URL" > image_url.env
 
         docker compose \
-          -f "$${COMPOSE_FILE}" \
-          --env-file "$${ENV_FILE}" \
+          -f compose.prod-env.yaml \
+          --env-file compose-deployment.env \
           --env-file image_url.env \
           up -d --remove-orphans
 
         echo "Running database migrations..."
-        docker compose -f "$${COMPOSE_FILE}" exec -T webapp uv run seis-lab-data db upgrade
+        docker compose -f compose.prod-env.yaml exec -T webapp uv run seis-lab-data db upgrade
 
         docker logout ghcr.io
+      ENDSSH
 
   - name: send telegram notification
     image: appleboy/drone-telegram:1.4.0
