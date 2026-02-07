@@ -130,34 +130,6 @@ services:
         condition: service_healthy
       message-broker:
         condition: service_healthy
-    healthcheck:
-      test: |
-        python -c '
-        import os
-        import requests
-        import sys
-        try:
-            client_id = os.getenv("SEIS_LAB_DATA_CLIENT_ID")
-            token = os.getenv("AUTHENTIK_BOOTSTRAP_TOKEN")
-            response = requests.get(
-                "http://auth-webapp:9000/api/v3/providers/oauth2/",
-                headers={"Authorization": f"Bearer {token}"},
-                timeout=5
-            )
-            response.raise_for_status()
-            providers = response.json().get("results", [])
-            if not any(p.get("client_id") == client_id for p in providers):
-                print("OAuth provider does not exist yet")
-                raise SystemExit(1)
-            print("Oauth provider found - sld-related blueprint has already been applied")
-        except Exception as err:
-            print(f"error checking availability of oauth provider: {err}")
-            sys.exit(1)
-        '
-      start_period: 45s
-      interval: 10s
-      retries: 20
-      timeout: 10s
 
   message-broker:
     image: redis:8

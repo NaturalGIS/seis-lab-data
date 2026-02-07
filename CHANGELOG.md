@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.1.13] - 2026-02-07
+
+### Changed
+
+- Removed healtchcheck on auth-worker service, as it was relying on
+  the bootstrap token always being valid, which was a faulty logic
+
+
 ## [0.1.12] - 2026-02-07
 
 ### Added
@@ -102,7 +110,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First release, mainly for trying out the deployment workflows
 
-[unreleased]: https://github.com/naturalgis/seis-lab-data/compare/v0.1.12...HEAD
+[unreleased]: https://github.com/naturalgis/seis-lab-data/compare/v0.1.13...HEAD
+[0.1.13]: https://github.com/naturalgis/seis-lab-data/compare/v0.1.12...v0.1.13
 [0.1.12]: https://github.com/naturalgis/seis-lab-data/compare/v0.1.11...v0.1.12
 [0.1.11]: https://github.com/naturalgis/seis-lab-data/compare/v0.1.10...v0.1.11
 [0.1.10]: https://github.com/naturalgis/seis-lab-data/compare/v0.1.9...v0.1.10
