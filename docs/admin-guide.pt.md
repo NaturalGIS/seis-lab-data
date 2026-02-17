@@ -120,6 +120,9 @@ no sistema.
 
 ## Management operations
 
+### Aceder aos logs
+
+
 ### seis-lab-data CLI tool
 
 ### start/stop the system
