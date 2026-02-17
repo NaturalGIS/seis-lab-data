@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed wrong TLS key filenames
+
 
 ## [0.1.16] - 2026-02-17
 
