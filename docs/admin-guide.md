@@ -16,7 +16,7 @@ by accessing the URL:
 The system is composed of the following services:
 
 ```mermaid
-graph TD
+flowchart TD
     rev-proxy(1. reverse proxy)
     webapp(2. web application)
     db[(3. main system db)]

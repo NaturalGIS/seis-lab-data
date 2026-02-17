@@ -8,7 +8,7 @@ name: seis-lab-data
 x-common-image: &common-image "${IMAGE_URL}"
 
 x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.8"
-x-auth-redirect-url: &auth-redirect-url "https://auth.seis-lab-data.ipma.pt/oauth2/callback"
+x-auth-redirect-url: &auth-redirect-url "https://seis-lab-data.ipma.pt/oauth2/callback"
 
 x-common-env: &common-env
   SEIS_LAB_DATA__DEBUG: ${DEBUG:-false}
@@ -57,15 +57,27 @@ services:
     ports:
       - target: 80
         published: 80
+      - target: 443
+        published: 443
     configs:
       - source: traefik-conf
         target: /traefik.toml
+      - source: traefik-tls-conf
+        target: /tls-config.toml
     command: --configFile /traefik.toml
     restart: unless-stopped
     volumes:
       - type: bind
         source: /var/run/docker.sock
         target: /var/run/docker.sock
+        read_only: true
+      - type: bind
+        source: /opt/seis-lab-data/certs
+        target: /certs
+        read_only: true
+      - type: bind
+        source: /opt/seis-lab-data/keys
+        target: /keys
         read_only: true
 
   auth-db:
@@ -94,7 +106,8 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.auth-router.rule=Host(`auth.seis-lab-data.ipma.pt`)"
-      - "traefik.http.routers.auth-router.entrypoints=web"
+      - "traefik.http.routers.auth-router.entrypoints=websecure"
+      - "traefik.http.routers.auth-router.tls=true"
       - "traefik.http.routers.auth-router.priority=100"
       - "traefik.http.services.auth-service.loadbalancer.server.port=9000"
     restart: unless-stopped
@@ -185,7 +198,8 @@ services:
       - "traefik.enable=true"
       - "traefik.http.services.sld-service.loadbalancer.server.port=5000"
       - "traefik.http.routers.sld-router.rule=Host(`seis-lab-data.ipma.pt`)"
-      - "traefik.http.routers.sld-router.entrypoints=web"
+      - "traefik.http.routers.sld-router.entrypoints=websecure"
+      - "traefik.http.routers.sld-router.tls=true"
       - "traefik.http.routers.sld-router.priority=10"
       - "traefik.http.routers.sld-router.service=sld-service"
     volumes:
@@ -230,7 +244,8 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.middlewares.martin-stripprefix.stripprefix.prefixes=/tiles"
-      - "traefik.http.routers.martin-router.entrypoints=web"
+      - "traefik.http.routers.martin-router.entrypoints=websecure"
+      - "traefik.http.routers.martin-router.tls=true"
       - "traefik.http.routers.martin-router.rule=Host(`seis-lab-data.ipma.pt`) && PathPrefix(`/tiles`)"
       - "traefik.http.routers.martin-router.priority=90"
       - "traefik.http.routers.martin-router.middlewares=martin-stripprefix"
@@ -254,13 +269,16 @@ services:
       - "traefik.http.middlewares.authentik-auth.forwardauth.authResponseHeaders=X-authentik-username,X-authentik-groups,X-authentik-email,X-authentik-name,X-authentik-uid"
       - "traefik.http.middlewares.authentik-auth.forwardauth.maxBodySize=1048576"
       - "traefik.http.routers.caddy-router.rule=Host(`data.seis-lab-data.ipma.pt`)"
-      - "traefik.http.routers.caddy-router.entrypoints=web"
+      - "traefik.http.routers.caddy-router.entrypoints=websecure"
+      - "traefik.http.routers.caddy-router.tls=true"
       - "traefik.http.routers.caddy-router.middlewares=authentik-auth"
       - "traefik.http.services.caddy-service.loadbalancer.server.port=8000"
 
 configs:
   traefik-conf:
     file: traefik-prod-config.toml
+  traefik-tls-conf:
+    file: traefik-tls-config.toml
 
 volumes:
   authentik_db:

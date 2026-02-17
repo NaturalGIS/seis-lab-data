@@ -11,14 +11,30 @@
 
 [accessLog]
 
+[api]
+dashboard = false
+insecure = false
+
 [entryPoints]
-[entryPoints.web]
-address = ":80"
+  [entryPoints.web]
+    address = ":80"
+    [entryPoints.web.http]
+      [entryPoints.web.http.redirections]
+        [entryPoints.web.http.redirections.entryPoint]
+          to = "websecure"
+          scheme = "https"
+
+  [entryPoints.websecure]
+    address = ":443"
 
 [providers]
+  [providers.docker]
+    exposedByDefault = false
+    network = "seis-lab-data_default"
 
-[providers.docker]
-exposedByDefault = false
+  [providers.file]
+    filename = "/tls-config.toml"
+    watch = true
 
-[api]
-insecure = true
+[log]
+  level = "INFO"

@@ -125,6 +125,7 @@ steps:
       scp docker/authentik/sld-auth-blueprint-prod-env.yaml "$${SSH_USER}@$${REMOTE_HOST}:$${REMOTE_DIR}/"
       scp docker/caddy/Caddyfile "$${SSH_USER}@$${REMOTE_HOST}:$${REMOTE_DIR}/"
       scp docker/traefik/traefik-prod-config.toml "$${SSH_USER}@$${REMOTE_HOST}:$${REMOTE_DIR}/"
+      scp docker/traefik/traefik-tls-config.toml "$${SSH_USER}@$${REMOTE_HOST}:$${REMOTE_DIR}/"
 
       # Run deployment on remote server
       ssh "$${SSH_USER}@$${REMOTE_HOST}" GITHUB_USER="$${GITHUB_USER}" GITHUB_PAT="$${GITHUB_PAT}" IMAGE_URL="$${IMAGE_URL}" bash -s << 'ENDSSH' || exit 1

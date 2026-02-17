@@ -1,0 +1,15 @@
+[[tls.certificates]]
+  certFile = "/certs/seis-lab-data.ipma.pt/Cert_bundle.pem"
+  keyFile = "/keys/seis-lab-data.ipma.pt.key"
+
+[[tls.certificates]]
+  certFile = "/certs/auth.seis-lab-data.ipma.pt/Cert_bundle.pem"
+  keyFile = "/keys/auth.seis-lab-data.ipma.pt.key"
+
+[[tls.certificates]]
+  certFile = "/certs/data.seis-lab-data.ipma.pt/Cert_bundle.pem"
+  keyFile = "/keys/data.seis-lab-data.ipma.pt.key"
+
+[[tls.certificates]]
+  certFile = "/certs/services.seis-lab-data.ipma.pt/Cert_bundle.pem"
+  keyFile = "/keys/services.seis-lab-data.ipma.pt.key"

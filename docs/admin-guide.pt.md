@@ -21,7 +21,7 @@ O sistema SeisLabData é composto pelos seguintes componentes:
 
 <span class="no-pdf">
 ```mermaid
-graph TD
+flowchart TD
     rev-proxy(<a href="#1-servico-reverse-proxy">1. reverse proxy</a>)
     webapp(<a href="#2-servico-web-application">2. web application</a>)
     db[(<a href="#3-servico-main-system-db">3. main system db</a>)]
@@ -67,7 +67,7 @@ Este serviço é uma instância [traefik]. Recebe pedidos HTTP e direciona-os pa
 
 ##### Ficheiros de configuração relevantes
 
-- `traefik-prod-config.toml`
+- `traefik-prod-config.toml` - contem a configuração estática do traefik
 - `compose.prod-env.yaml` - este ficheiro, usado pelo docker compose para orquestrar os
   vários serviços do sistema, contem também as configurações dinâmicas do traefik - estas
   são indicadas sob a forma the _labels_ docker.
@@ -77,15 +77,15 @@ Este serviço é uma instância [traefik]. Recebe pedidos HTTP e direciona-os pa
 
 Este serviço contem a aplicação principal do sistema. É uma aplicação web implementada
 em Python. Contem adicionalmente uma aplicação de linha de comandos que pode ser usada
-para executar comandos de manutenção, conforme indicado
+para executar comandos de manutenção, conforme indicado na secção [seis-lab-data CLI tool](#seis-lab-data-cli-tool).
 
 
 ##### Ficheiros de configuração relevantes
 
-- `compose.prod-env.yaml` - o serviço _docker compose_ chamado `webapp` contem as configurações
+- `compose.prod-env.yaml` - o serviço _docker compose_ chamado `webapp` contem as configurações relevantes, que
+  são definidas sob a forma de variáveis de ambiente
 - `sld-database-dsn` - contem credenciais de acesso à base de dados que são usadas por este serviço
 - `auth-client-id` e `auth-client-secrret` - contêm credenciais de acesso ao serviço de autenticação
-
 
 
 #### 3. Serviço `main system db`
