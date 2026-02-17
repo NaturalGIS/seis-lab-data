@@ -242,6 +242,27 @@ services:
       - "traefik.http.routers.caddy-router.middlewares=authentik-auth"
       - "traefik.http.services.caddy-service.loadbalancer.server.port=8000"
 
+  dozzle:
+    image: amir20/dozzle:v10
+    environment:
+      DOZZLE_BASE: /dozzle
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        read_only: true
+    restart: unless-stopped
+    networks:
+      - traefik-network
+      - default
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.dozzle-router.rule=Host(`seis-lab-data.naturalgis.pt`) && PathPrefix(`/dozzle`)"
+      - traefik.http.routers.dozzle-router.entrypoints=web
+      - traefik.http.routers.dozzle-router.priority=95
+      - traefik.http.routers.dozzle-router.middlewares=authentik-auth
+      - traefik.http.services.dozzle.loadbalancer.server.port=8080
+
 networks:
   traefik-network:
     external: true
