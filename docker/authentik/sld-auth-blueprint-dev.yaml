@@ -8,6 +8,7 @@ context:
   client_secret: !Env SEIS_LAB_DATA_CLIENT_SECRET
   redirect_uri: !Env SEIS_LAB_DATA_REDIRECT_URI
   file_server_url: !Env ARCHIVE_BASE_URL
+  authentik_url: !Env SEIS_LAB_DATA_AUTHENTIK_BASE_URL
 entries:
   # create the groups we need
   - model: authentik_core.group
@@ -353,5 +354,5 @@ entries:
       providers:
         - !KeyOf sld-archive-proxy-provider
       config:
-        authentik_host: http://auth.localhost:8888/
-        authentik_host_browser: http://auth.localhost:8888/
+        authentik_host: !Context authentik_url
+        authentik_host_browser: !Context authentik_url

@@ -114,6 +114,11 @@ docker compose -f docker/compose.dev.yaml up -d
 Deverá agora conseguir aceder à webapp em http://localhost:8888. Continue para a secção de arranque de uma
 instalação nova.
 
+Pode fazer login no sistema usando as credenciais:
+
+- utilizador: `akadmin@email.com`
+- password: `admin123`
+
 
 ## Arranque de uma instalação nova
 

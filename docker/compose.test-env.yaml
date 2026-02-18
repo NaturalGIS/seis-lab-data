@@ -7,7 +7,7 @@ name: seis-lab-data
 
 x-common-image: &common-image "${IMAGE_URL:-ghcr.io/naturalgis/seis-lab-data/seis-lab-data:latest}"
 
-x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.8"
+x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.12.4"
 x-auth-redirect-url: &auth-redirect-url "https://seis-lab-data.naturalgis.pt/oauth2/callback"
 
 x-common-env: &common-env
@@ -39,6 +39,7 @@ x-common-auth-env: &common-auth-env
   AUTHENTIK_POSTGRESQL__USER: sld_auth_user
   AUTHENTIK_POSTGRESQL__NAME: authentik
   AUTHENTIK_POSTGRESQL__PASSWORD: file:///run/secrets/auth-db-password
+  SEIS_LAB_DATA_AUTHENTIK_BASE_URL: https://auth.seis-lab-data.naturalgis.pt/
   SEIS_LAB_DATA_REDIRECT_URI: *auth-redirect-url
 
 x-common-volumes: &common-volumes
