@@ -8,6 +8,7 @@ context:
   client_secret: !File /run/secrets/auth-client-secret
   redirect_uri: !Env SEIS_LAB_DATA_REDIRECT_URI
   file_server_url: !Env ARCHIVE_BASE_URL
+  dozzle_url: !Env DOZZLE_BASE_URL
   authentik_url: !Env SEIS_LAB_DATA_AUTHENTIK_BASE_URL
 
 entries:
@@ -321,7 +322,7 @@ entries:
       meta_publisher: "NaturalGIS"
       policy_engine_mode: any
 
-  # Create a proxy provider for forward auth
+  # Create a proxy provider for archive forward auth
   - model: authentik_providers_proxy.proxyprovider
     id: sld-archive-proxy-provider
     identifiers:
@@ -346,7 +347,32 @@ entries:
       meta_description: "SeisLabData Archive File Browser"
       policy_engine_mode: any
 
-  # Update the embedded outpost to include our proxy provider
+  # Create a proxy provider for dozzle forward auth
+  - model: authentik_providers_proxy.proxyprovider
+    id: sld-dozzle-proxy-provider
+    identifiers:
+      name: sld-dozzle-proxy-provider
+    attrs:
+      name: sld-dozzle-proxy-provider
+      authorization_flow: !Find [authentik_flows.flow, [slug, "default-provider-authorization-implicit-consent"]]
+      authentication_flow: !Find [authentik_flows.flow, [slug, "sld-authentication-flow"]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, "default-invalidation-flow"]]
+      mode: forward_single
+      external_host: !Context dozzle_url
+
+  # Create an application for dozzle
+  - model: authentik_core.application
+    id: sld-dozzle-app
+    identifiers:
+      slug: sld-dozzle
+    attrs:
+      name: SLD Dozzle
+      slug: sld-dozzle
+      provider: !KeyOf sld-dozzle-proxy-provider
+      meta_description: "SeisLabData Container Log Viewer"
+      policy_engine_mode: any
+
+  # Update the embedded outpost to include our proxy providers
   - model: authentik_outposts.outpost
     state: present
     identifiers:
@@ -354,6 +380,7 @@ entries:
     attrs:
       providers:
         - !KeyOf sld-archive-proxy-provider
+        - !KeyOf sld-dozzle-proxy-provider
       config:
         authentik_host: !Context authentik_url
         authentik_host_browser: !Context authentik_url

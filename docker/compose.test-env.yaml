@@ -114,6 +114,7 @@ services:
       AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTH_AUTHENTIK_BOOTSTRAP_TOKEN?not_set}
       AUTHENTIK_BOOTSTRAP_EMAIL: ${AUTH_AUTHENTIK_BOOTSTRAP_EMAIL?not_set}
       ARCHIVE_BASE_URL: https://sld-archive.seis-lab-data.naturalgis.pt
+      DOZZLE_BASE_URL: https://seis-lab-data.naturalgis.pt/monitoring
     volumes:
       - type: bind
         source: ./authentik/sld-auth-blueprint-test-env.yaml
