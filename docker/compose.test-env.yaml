@@ -231,6 +231,9 @@ services:
         source: /opt/data
         target: /srv/archive
     restart: unless-stopped
+    networks:
+      - traefik-network
+      - default
     labels:
       - exposed.outside=true
       - traefik.enable=true
