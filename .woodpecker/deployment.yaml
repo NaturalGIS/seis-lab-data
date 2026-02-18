@@ -54,6 +54,11 @@ steps:
       cp docker/authentik/$${AUTHENTIK_BLUEPRINT_FILE_NAME} $${DEPLOYMENT_DIR}/authentik
       chown $${TARGET_UID}:$${TARGET_GID} $${DEPLOYMENT_DIR}/authentik/$${AUTHENTIK_BLUEPRINT_FILE_NAME}
 
+      mkdir -p $${DEPLOYMENT_DIR}/caddy
+      chown $${TARGET_UID}:$${TARGET_GID} $${DEPLOYMENT_DIR}/caddy
+      cp docker/caddy/Caddyfile $${DEPLOYMENT_DIR}/caddy
+      chown $${TARGET_UID}:$${TARGET_GID} $${DEPLOYMENT_DIR}/caddy/Caddyfile
+
       ENV_FILE_NAME="compose-deployment.env"
 
       if [ ! -f $${DEPLOYMENT_DIR}/$${ENV_FILE_NAME} ]; then
