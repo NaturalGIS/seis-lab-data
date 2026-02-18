@@ -1,6 +1,6 @@
 name: seis-lab-data
 
-x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.8"
+x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.12.4"
 x-auth-admin-token: &auth-admin-token "admin123"
 x-common-image: &common-image "${IMAGE_URL}"
 x-db-image: &db-image "postgis/postgis:17-3.5-alpine"
@@ -22,6 +22,7 @@ x-common-auth-env: &common-auth-env
   AUTHENTIK_POSTGRESQL__USER: authentik
   AUTHENTIK_POSTGRESQL__NAME: authentik
   AUTHENTIK_POSTGRESQL__PASSWORD: authentik_pass
+  SEIS_LAB_DATA_AUTHENTIK_BASE_URL: http://auth.localhost:8888/
   SEIS_LAB_DATA_CLIENT_ID: *auth-client-id
   SEIS_LAB_DATA_CLIENT_SECRET: *auth-client-secret
   SEIS_LAB_DATA_REDIRECT_URI: *auth-redirect-url

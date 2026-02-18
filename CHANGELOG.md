@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Authentik image is now 2025-12-04
+- Authentik proxy outpost host_url now points to public URL of authentik
+
+
 
 ## [0.1.17] - 2026-02-17
 
