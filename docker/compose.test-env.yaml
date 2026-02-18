@@ -245,7 +245,7 @@ services:
   dozzle:
     image: amir20/dozzle:v10
     environment:
-      DOZZLE_BASE: /dozzle
+      DOZZLE_BASE: /monitoring
     volumes:
       - type: bind
         source: /var/run/docker.sock
@@ -256,8 +256,9 @@ services:
       - traefik-network
       - default
     labels:
+      - exposed.outside=true
       - traefik.enable=true
-      - "traefik.http.routers.dozzle-router.rule=Host(`seis-lab-data.naturalgis.pt`) && PathPrefix(`/dozzle`)"
+      - "traefik.http.routers.dozzle-router.rule=Host(`seis-lab-data.naturalgis.pt`) && PathPrefix(`/monitoring`)"
       - traefik.http.routers.dozzle-router.entrypoints=web
       - traefik.http.routers.dozzle-router.priority=95
       - traefik.http.routers.dozzle-router.middlewares=authentik-auth
