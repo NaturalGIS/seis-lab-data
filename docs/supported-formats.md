@@ -72,7 +72,7 @@ products.
 | Categories | Bathymetry, Backscatter |
 | Stages | Processed data, Interpreted data |
 
-Network Common Data Form — a self-describing binary format widely used for oceanographic,
+Network Common Data Form, a self-describing binary format widely used for oceanographic,
 atmospheric, and climate data. GDAL can read NetCDF files as raster datasets, but only when
 they follow the CF (Climate and Forecast) conventions with properly defined coordinate
 variables, dimensions, and grid mapping attributes. Unstructured NetCDF files or files that
@@ -137,7 +137,7 @@ via VRT.
 | Categories | Bathymetry, Backscatter |
 | Stages | Raw data, QC, Processed data, Interpreted data |
 
-ESRI File Geodatabase — a directory containing multiple database files that store vector and
+ESRI File Geodatabase, a directory containing multiple database files that store vector and
 raster datasets. Used as secondary file for raw/QC/processed data and as primary/secondary for
 interpreted products. Read-only access via the OpenFileGDB driver (no ESRI license required).
 
@@ -266,7 +266,7 @@ Geophysical position data exchange format. Can be imported using the SeisPos_Imp
 | Stages | Processed data |
 
 CARIS HIPS and SIPS project directory. Proprietary format containing processed multibeam data.
-No automated extraction is planned — treated as an opaque directory.
+No automated extraction is planned, treated as an opaque directory.
 
 ### XLS
 

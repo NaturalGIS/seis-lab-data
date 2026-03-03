@@ -76,7 +76,7 @@ dados processados e como principal/secundário para produtos interpretados.
 | Categorias | Batimetria, Backscatter |
 | Fases | Dados processados, Dados interpretados |
 
-Network Common Data Form — formato binário auto-descritivo amplamente utilizado em dados
+Network Common Data Form, formato binário auto-descritivo amplamente utilizado em dados
 oceanográficos, atmosféricos e climáticos. O GDAL consegue ler ficheiros NetCDF como conjuntos
 de dados raster, mas apenas quando seguem as convenções CF (Climate and Forecast) com
 variáveis de coordenadas, dimensões e atributos de mapeamento de grelha devidamente definidos.
@@ -143,7 +143,7 @@ GDAL, pois pode ser tratado como raster em grelha via VRT.
 | Categorias | Batimetria, Backscatter |
 | Fases | Dados em bruto, Controlo de qualidade, Dados processados, Dados interpretados |
 
-ESRI File Geodatabase — um diretório contendo múltiplos ficheiros de base de dados que
+ESRI File Geodatabase, um diretório contendo múltiplos ficheiros de base de dados que
 armazenam conjuntos de dados vetoriais e raster. Utilizado como ficheiro secundário para
 dados em bruto/controlo de qualidade/processados e como principal/secundário para produtos
 interpretados. Acesso apenas de leitura através do driver OpenFileGDB (sem necessidade de
@@ -277,7 +277,7 @@ SeisPos_Import do QGIS.
 | Fases | Dados processados |
 
 Diretório de projeto CARIS HIPS e SIPS. Formato proprietário contendo dados multifeixe
-processados. Não está prevista extração automatizada — tratado como um diretório opaco.
+processados. Não está prevista extração automatizada, tratado como um diretório opaco.
 
 ### XLS
 
