@@ -13,6 +13,9 @@ nav:
   - Development: development.md
   - Writing docs: writing-docs.md
 
+extra_css:
+  - stylesheets/styles.css
+
 theme:
   name: material
   custom_dir: mkdocs-overrides
@@ -21,6 +24,7 @@ theme:
     accent: pink
   language: en
   features:
+    - content.footnote.tooltips
     - header.autohide
     - navigation.footer
     - navigation.path
@@ -49,6 +53,7 @@ plugins:
 markdown_extensions:
   - admonition
   - attr_list
+  - footnotes
   - pymdownx.highlight
   - pymdownx.inlinehilite
   - pymdownx.superfences:
