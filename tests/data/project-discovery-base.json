@@ -1,0 +1,134 @@
+{
+  "records": {
+    "fake1":  {
+      "dataset_category": "backscatter",
+      "domain_type": "geophysical",
+      "workflow_stage": "raw data",
+      "name": {
+        "pt": "uma coisa",
+        "en": "a thing"
+      },
+      "description": {
+        "pt": "Este conjunto de dados contem uma coisa",
+        "en": "This dataset contains a thing"
+      },
+      "assets": [
+        {
+          "name": {
+            "pt": "Ficheiro qualquer",
+            "en": "Some file"
+          },
+          "discovery_patterns": [
+            "{survey_mission_base_path}/subdirA/{dataset_category}/the_file_{some_var}??.segy",
+            "{survey_mission_base_path}/subdirA/{dataset_category}/the_file_{some_var}.sy"
+          ]
+        }
+      ],
+      "extra_context": {
+        "some_var": "abc"
+      }
+    },
+    "uhrs_segy_raw": {
+      "dataset_category": "seismic",
+      "domain_type": "geophysical",
+      "workflow_stage": "raw data",
+      "name": {
+        "pt": "Sísmica UHRS",
+        "en": "Seismic UHRS"
+      },
+      "description": {
+        "pt": "Este conjunto de dados contem as linhas de atravessamento",
+        "en": "This dataset contains path traversal lines"
+      },
+      "assets": [
+        {
+          "name": {
+            "pt": "Ficheiro SegY",
+            "en": "SegY file"
+          },
+          "discovery_patterns": [
+            "{survey_mission_base_path}/s13-uhrs/s02-raw-data/the_file_??.segy"
+          ]
+        }
+      ]
+    },
+    "uhrs_segy_time_mul": {
+      "dataset_category": "seismic",
+      "domain_type": "geophysical",
+      "workflow_stage": "processed data",
+      "name": {
+        "pt": "Sísmica UHRS processada em tempo, versão MUL",
+        "en": "Time-based UHRS seismic, MUL version"
+      },
+      "description": {
+        "pt": "Este conjunto de dados contem as linhas de atravessamento processadas com informação temporal",
+        "en": "This dataset contains path traversal lines with temporal info included"
+      },
+      "assets": [
+        {
+          "name": {
+            "pt": "Ficheiro segY processado",
+            "en": "Processed segY file"
+          },
+          "discovery_patterns": [
+            "{survey_mission_base_path}/s13-uhrs/s05-processed-data/s02-poststk/s01-twt/s01-mul/??????.segy"
+          ]
+        }
+      ]
+    },
+    "uhrs_segy_time_mig": {
+      "dataset_category": "seismic",
+      "domain_type": "geophysical",
+      "workflow_stage": "processed data",
+      "name": {
+        "pt": "Sísmica UHRS processada em tempo, versão MIG",
+        "en": "Time-based UHRS seismic, MIG version"
+      },
+      "description": {
+        "pt": "Este conjunto de dados contem as linhas de atravessamento processadas com informação temporal",
+        "en": "This dataset contains path traversal lines with temporal info included"
+      },
+      "assets": [
+        {
+          "name": {
+            "pt": "Ficheiro segY processado",
+            "en": "Processed segY file"
+          },
+          "discovery_patterns": [
+            "{survey_mission_base_path}/s13-uhrs/s05-processed-data/s02-poststk/s01-twt/s02-mig/??????.segy"
+          ]
+        }
+      ]
+    },
+    "uhrs_segy_depth": {
+      "dataset_category": "seismic",
+      "domain_type": "geophysical",
+      "workflow_stage": "processed data",
+      "name": {
+        "pt": "Sísmica UHRS processada em profundidade",
+        "en": "Depth-based UHRS seismic"
+      },
+      "description": {
+        "pt": "Este conjunto de dados contem as linhas de atravessamento processadas com informação de profundidade",
+        "en": "This dataset contains path traversal lines with depth info included"
+      },
+      "assets": [
+        {
+          "name": {
+            "pt": "Ficheiro segY processado",
+            "en": "Processed segY file"
+          },
+          "discovery_patterns": [
+            "{survey_mission_base_path}/s13-uhrs/s05-processed-data/s02-poststk/s02-dpt/s02-mig/s01-????????/??????.segy"
+          ]
+        }
+      ]
+    }
+  },
+  "record_relations": [
+    ["uhrs_segy_time_mul", "uhrs_segy_raw", "made from"],
+    ["uhrs_segy_time_mig", "uhrs_segy_raw", "made from"],
+    ["uhrs_segy_depth", "uhrs_segy_raw", "made from"],
+    ["uhrs_segy_time_mul", "uhrs_segy_time_mig", "other version"]
+  ]
+}
