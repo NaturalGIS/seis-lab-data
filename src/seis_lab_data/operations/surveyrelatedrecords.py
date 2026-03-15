@@ -218,6 +218,52 @@ async def list_workflow_stages(
     return await queries.list_workflow_stages(session, limit, offset, include_total)
 
 
+async def bulk_create_survey_related_records(
+    to_create: list[schemas.SurveyRelatedRecordCreate],
+    initiator: schemas.User | None,
+    session: AsyncSession,
+    settings: config.SeisLabDataSettings,
+    event_emitter: events.EventEmitterProtocol,
+):
+    survey_mission_ids = set([new_.survey_mission_id for new_ in to_create])
+    if len(survey_mission_ids) != 1:
+        raise errors.SeisLabDataError(
+            "Cannot create survey-related records for multiple survey missions at "
+            "the same time."
+        )
+    survey_mission_id = survey_mission_ids.pop()
+    if not (
+        survey_mission := await queries.get_survey_mission(session, survey_mission_id)
+    ):
+        raise errors.SeisLabDataError(
+            f"Survey mission with id {survey_mission_id} does not exist"
+        )
+    if initiator is None or not await permissions.can_create_survey_related_record(
+        initiator,
+        schemas.SurveyMissionId(survey_mission_id),
+        settings=settings,
+    ):
+        raise errors.SeisLabDataError(
+            "User is not allowed to create survey-related records."
+        )
+    if (mission_status := survey_mission.status) != SurveyMissionStatus.DRAFT:
+        raise errors.SeisLabDataError(
+            f"Cannot create survey-related record because parent survey "
+            f"mission's status is {mission_status}"
+        )
+    if (project_status := survey_mission.project.status) != ProjectStatus.DRAFT:
+        raise errors.SeisLabDataError(
+            f"Cannot create survey-related record because parent project's "
+            f"status is {project_status}"
+        )
+    created = []
+    for record_to_create in to_create:
+        survey_record = await commands.create_survey_related_record(
+            session, record_to_create
+        )
+        created.append(survey_record)
+
+
 async def create_survey_related_record(
     to_create: schemas.SurveyRelatedRecordCreate,
     initiator: schemas.User | None,
