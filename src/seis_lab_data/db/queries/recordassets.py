@@ -68,3 +68,14 @@ async def get_record_asset_by_english_name(
         .options(_SELECT_IN_LOAD_OPTIONS)
     )
     return (await session.exec(statement)).first()
+
+
+async def get_record_asset_by_file_path(
+    session: AsyncSession, file_path: str
+) -> models.RecordAsset | None:
+    statement = (
+        select(models.RecordAsset)
+        .where(models.RecordAsset.relative_path == file_path)
+        .options(_SELECT_IN_LOAD_OPTIONS)
+    )
+    return (await session.exec(statement)).first()
