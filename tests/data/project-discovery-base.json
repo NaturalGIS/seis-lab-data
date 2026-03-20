@@ -2,24 +2,25 @@
   "survey_missions": [
     {
       "name": {
-        "pt": "missão1",
-        "en": "first mission"
+        "pt": "missão1 owf-seism-2024",
+        "en": "first mission owf-seism-2024"
       },
       "description": {
         "pt": "Descrição da missão1",
         "en": "Description for first mission"
       },
-      "discovery_pattern": "/surveys",
+      "discovery_pattern": "/surveys/owf-seism-2024",
       "records": [
-        "fig_processed_bathy"
+        "record_batch_1"
       ]
     }
   ],
   "records": {
-    "fig_processed_bathy": {
+    "record_batch_1": {
       "dataset_category": "bathymetry",
       "domain_type": "geophysical",
       "workflow_stage": "processed data",
+      "extractor": "seis_lab_data.extractors.bathymetry.extractor_default_or_customizable",
       "name": {
         "pt": "Batimetria processada",
         "en": "Final processed bathymetry"
@@ -39,7 +40,7 @@
         }
       ],
       "extra_context": {
-        "area": "FIG"
+        "area": ["FIG",]
       }
     }
   },
