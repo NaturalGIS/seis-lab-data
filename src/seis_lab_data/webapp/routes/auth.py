@@ -10,6 +10,7 @@ from starlette.responses import RedirectResponse
 
 from seis_lab_data import schemas
 from seis_lab_data.constants import AUTH_CLIENT_NAME
+from seis_lab_data.db import commands
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,14 @@ async def auth_callback(request: Request):
             "token_type": token.get("token_type", "Bearer"),
             "expires_at": token.get("expires_at"),
         }
+        user = get_user(user_info)
+        if user:
+            session_maker = request.state.session_maker
+            try:
+                async with session_maker() as session:
+                    await commands.upsert_user(session, user)
+            except Exception:
+                logger.warning("Failed to upsert user to local DB", exc_info=True)
         return RedirectResponse(url=request.url_for("home"), status_code=302)
     except Exception as err:
         logger.error(f"Authentication error: {err}")
