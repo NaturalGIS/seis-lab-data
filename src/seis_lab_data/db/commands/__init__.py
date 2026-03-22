@@ -1,3 +1,4 @@
+from .users import upsert_user
 from .projects import (
     create_project,
     delete_project,
@@ -28,6 +29,7 @@ from .surveyrelatedrecords import (
 )
 
 __all__ = [
+    upsert_user,
     create_dataset_category,
     create_domain_type,
     create_project,

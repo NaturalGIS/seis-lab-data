@@ -4,61 +4,75 @@ from .. import (
     config,
     schemas,
 )
+from ..constants import ADMIN_ROLE, SurveyMissionStatus
+from ..db import models
 
 logger = logging.getLogger(__name__)
 
 
-async def can_read_survey_mission(
-    user: schemas.User,
-    survey_mission_id: schemas.SurveyMissionId,
-    *,
+def _is_admin(user: schemas.User) -> bool:
+    return ADMIN_ROLE in user.roles
+
+
+def can_read_survey_mission(
+    user: schemas.User | None,
+    mission: models.SurveyMission,
     settings: config.SeisLabDataSettings,
 ) -> bool:
-    return True
+    if user is not None and _is_admin(user):
+        return True
+    if mission.status == SurveyMissionStatus.PUBLISHED:
+        return True
+    return user is not None and (
+        mission.owner == user.id or mission.project.owner == user.id
+    )
 
 
-async def can_create_survey_mission(
-    user: schemas.User,
-    project_id: schemas.ProjectId,
-    *,
+def can_create_survey_mission(
+    user: schemas.User | None,
+    project: models.Project,
     settings: config.SeisLabDataSettings,
 ) -> bool:
-    # allow if user is admin
-    # or if user is the owner of the parent campaign
-    return True
+    if user is None:
+        return False
+    return _is_admin(user) or project.owner == user.id
 
 
-async def can_delete_survey_mission(
-    user: schemas.User,
-    survey_mission_id: schemas.SurveyMissionId,
-    *,
+def can_delete_survey_mission(
+    user: schemas.User | None,
+    mission: models.SurveyMission,
     settings: config.SeisLabDataSettings,
 ) -> bool:
-    return True
+    if user is None:
+        return False
+    return (
+        _is_admin(user) or mission.owner == user.id or mission.project.owner == user.id
+    )
 
 
-async def can_update_survey_mission(
-    user: schemas.User,
-    survey_mission_id: schemas.SurveyMissionId,
-    *,
+def can_update_survey_mission(
+    user: schemas.User | None,
+    mission: models.SurveyMission,
     settings: config.SeisLabDataSettings,
 ) -> bool:
-    return True
+    if user is None:
+        return False
+    return (
+        _is_admin(user) or mission.owner == user.id or mission.project.owner == user.id
+    )
 
 
-async def can_validate_survey_mission(
-    user: schemas.User,
-    survey_mission_id: schemas.SurveyMissionId,
-    *,
+def can_validate_survey_mission(
+    user: schemas.User | None,
+    mission: models.SurveyMission,
     settings: config.SeisLabDataSettings,
 ) -> bool:
-    return await can_update_survey_mission(user, survey_mission_id, settings=settings)
+    return can_update_survey_mission(user, mission, settings)
 
 
-async def can_change_survey_mission_status(
-    user: schemas.User,
-    survey_mission_id: schemas.SurveyMissionId,
-    *,
+def can_change_survey_mission_status(
+    user: schemas.User | None,
+    mission: models.SurveyMission,
     settings: config.SeisLabDataSettings,
 ) -> bool:
-    return await can_update_survey_mission(user, survey_mission_id, settings=settings)
+    return can_update_survey_mission(user, mission, settings)

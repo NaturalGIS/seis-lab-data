@@ -1,59 +1,69 @@
 import logging
+
 from .. import (
     config,
     schemas,
 )
+from ..constants import ADMIN_ROLE, ProjectStatus
+from ..db import models
 
 logger = logging.getLogger(__name__)
 
 
-async def can_read_project(
-    user: schemas.User,
-    project_id: schemas.ProjectId,
-    *,
+def _is_admin(user: schemas.User) -> bool:
+    return ADMIN_ROLE in user.roles
+
+
+def can_read_project(
+    user: schemas.User | None,
+    project: models.Project,
     settings: config.SeisLabDataSettings,
 ) -> bool:
-    return True
+    if user is not None and _is_admin(user):
+        return True
+    if project.status == ProjectStatus.PUBLISHED:
+        return True
+    return user is not None and project.owner == user.id
 
 
-async def can_create_project(
-    user: schemas.User,
+def can_create_project(
+    user: schemas.User | None,
     settings: config.SeisLabDataSettings,
 ) -> bool:
-    return True
+    return user is not None
 
 
-async def can_delete_project(
-    user: schemas.User,
-    project_id: schemas.ProjectId,
-    *,
+def can_delete_project(
+    user: schemas.User | None,
+    project: models.Project,
     settings: config.SeisLabDataSettings,
 ) -> bool:
-    return True
+    if user is None:
+        return False
+    return _is_admin(user) or project.owner == user.id
 
 
-async def can_update_project(
-    user: schemas.User,
-    project_id: schemas.ProjectId,
-    *,
+def can_update_project(
+    user: schemas.User | None,
+    project: models.Project,
     settings: config.SeisLabDataSettings,
 ) -> bool:
-    return True
+    if user is None:
+        return False
+    return _is_admin(user) or project.owner == user.id
 
 
-async def can_validate_project(
-    user: schemas.User,
-    project_id: schemas.ProjectId,
-    *,
+def can_validate_project(
+    user: schemas.User | None,
+    project: models.Project,
     settings: config.SeisLabDataSettings,
 ) -> bool:
-    return await can_update_project(user, project_id, settings=settings)
+    return can_update_project(user, project, settings)
 
 
-async def can_change_project_status(
-    user: schemas.User,
-    project_id: schemas.ProjectId,
-    *,
+def can_change_project_status(
+    user: schemas.User | None,
+    project: models.Project,
     settings: config.SeisLabDataSettings,
 ) -> bool:
-    return await can_update_project(user, project_id, settings=settings)
+    return can_update_project(user, project, settings)
