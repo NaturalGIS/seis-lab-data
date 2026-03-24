@@ -13,7 +13,7 @@ from .. import (
     schemas,
 )
 from ..constants import (
-    ADMIN_ROLE,
+    ROLE_ADMIN,
     ProjectStatus,
     SurveyMissionStatus,
     SurveyRelatedRecordStatus,
@@ -456,7 +456,7 @@ async def list_survey_related_records(
     )
     if initiator is None:
         return await queries.list_published_survey_related_records(session, **kwargs)
-    elif ADMIN_ROLE in initiator.roles:
+    elif ROLE_ADMIN in initiator.roles:
         return await queries.list_survey_related_records(session, **kwargs)
     else:
         return await queries.list_accessible_survey_related_records(

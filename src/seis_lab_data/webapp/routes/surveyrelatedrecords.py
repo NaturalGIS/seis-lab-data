@@ -97,16 +97,16 @@ async def _get_survey_related_record_details(
     serialized = schemas.SurveyRelatedRecordReadDetail.from_db_instance(
         survey_related_record, related_to, subject_for
     )
-    can_update = await permissions.can_update_survey_related_record(
-        user, survey_related_record_id, settings=settings
+    can_update = permissions.can_update_survey_related_record(
+        user, survey_related_record, settings=settings
     )
     return schemas.SurveyRelatedRecordDetails(
         item=serialized,
         permissions=schemas.UserPermissionDetails(
             can_create_children=can_update,
             can_update=can_update,
-            can_delete=await permissions.can_delete_survey_related_record(
-                user, survey_related_record_id, settings=settings
+            can_delete=permissions.can_delete_survey_related_record(
+                user, survey_related_record, settings=settings
             ),
         ),
         breadcrumbs=[
@@ -727,7 +727,7 @@ async def get_update_form(request: Request):
     async with session_maker() as session:
         initial_related_records_list, _ = await operations.list_survey_related_records(
             session,
-            initiator=user.id if user else None,
+            initiator=user or None,
         )
     initial_related_records = [
         (i.id, i.name["en"]) for i in initial_related_records_list
@@ -822,7 +822,7 @@ async def add_update_form_related_to_record(request: Request):
     async with session_maker() as session:
         initial_related_records_list, _ = await operations.list_survey_related_records(
             session,
-            initiator=user.id if user else None,
+            initiator=user or None,
         )
     initial_related_records = [
         (i.id, i.name["en"]) for i in initial_related_records_list
@@ -1019,7 +1019,7 @@ async def list_by_name(request: Request):
     async with session_maker() as session:
         items, _ = await operations.list_survey_related_records(
             session,
-            initiator=user.id if user else None,
+            initiator=user or None,
             **internal_filter_kwargs,
         )
     serialized_items = [  # noqa
@@ -1061,7 +1061,7 @@ async def get_list_component(request: Request):
     async with session_maker() as session:
         items, num_total = await operations.list_survey_related_records(
             session,
-            initiator=user.id if user else None,
+            initiator=user or None,
             page=current_page,
             page_size=settings.pagination_page_size,
             include_total=True,
@@ -1124,7 +1124,7 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
         async with session_maker() as session:
             items, num_total = await operations.list_survey_related_records(
                 session,
-                initiator=user.id if user else None,
+                initiator=user or None,
                 page=current_page,
                 page_size=settings.pagination_page_size,
                 include_total=True,

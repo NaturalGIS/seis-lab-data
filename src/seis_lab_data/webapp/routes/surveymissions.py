@@ -120,14 +120,14 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
             ),
         ),
         permissions=schemas.UserPermissionDetails(
-            can_create_children=await permissions.can_create_survey_related_record(
-                user, survey_mission_id, settings=settings
+            can_create_children=permissions.can_create_survey_related_record(
+                user, survey_mission, settings=settings
             ),
-            can_update=await permissions.can_update_survey_mission(
-                user, survey_mission_id, settings=settings
+            can_update=permissions.can_update_survey_mission(
+                user, survey_mission, settings=settings
             ),
-            can_delete=await permissions.can_delete_survey_mission(
-                user, survey_mission_id, settings=settings
+            can_delete=permissions.can_delete_survey_mission(
+                user, survey_mission, settings=settings
             ),
         ),
         breadcrumbs=[
@@ -390,7 +390,7 @@ async def get_list_component(request: Request):
     async with session_maker() as session:
         items, num_total = await operations.list_survey_missions(
             session,
-            initiator=user.id if user else None,
+            initiator=user or None,
             page=current_page,
             page_size=settings.pagination_page_size,
             include_total=True,
@@ -454,7 +454,7 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
         async with session_maker() as session:
             items, num_total = await operations.list_survey_missions(
                 session,
-                initiator=user.id if user else None,
+                initiator=user or None,
                 page=current_page,
                 page_size=settings.pagination_page_size,
                 include_total=True,

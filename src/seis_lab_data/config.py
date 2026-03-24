@@ -37,6 +37,7 @@ class SeisLabDataSettings(BaseSettings):
     auth_client_id: str = "someid"
     auth_client_secret: str = "somesecret"
     auth_admin_token: str = "sometoken"
+    auth_token_introspection_cache_seconds: int = 60
     csrf_secret: str = "somesecret"
     session_secret_key: str = "somesecretkey"
     auth_external_base_url: str = "http://localhost:9000"

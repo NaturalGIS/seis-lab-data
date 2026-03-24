@@ -5,7 +5,8 @@ from starlette_babel import gettext_lazy as _
 
 
 AUTH_CLIENT_NAME: typing.Final[str] = "authentik"
-ADMIN_ROLE: typing.Final[str] = "admin"
+ROLE_ADMIN: typing.Final[str] = "seis-lab-data-admins"
+ROLE_EDITOR: typing.Final[str] = "seis-lab-data-editors"
 NAME_MAX_LENGTH: typing.Final[int] = 100
 NAME_MIN_LENGTH: typing.Final[int] = 5
 DESCRIPTION_MAX_LENGTH: typing.Final[int] = 500
