@@ -45,6 +45,7 @@ from ..db.engine import (
 from ..processing.broker import setup_broker
 
 from . import jinjafilters
+from .middleware import TokenIntrospectionMiddleware
 from .routes import (
     auth,
     base,
@@ -94,6 +95,7 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
                 "status_under_validation": "sync",
                 "survey_missions": "directions_boat",
                 "survey_related_records": "source",
+                "user": "person",
                 "view_details": "info",
                 "validation_valid": "check_circle",
                 "validation_invalid": "dangerous",
@@ -146,7 +148,6 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
             Route("/oauth2/callback", auth.auth_callback),
             Route("/logout", auth.logout),
             Route("/profile", base.profile),
-            Route("/protected", base.protected),
             Route("/set-language/{lang}", base.set_language, name="set_language"),
             Mount("/projects", name="projects", routes=projects_routes),
             Mount("/survey-missions", name="survey_missions", routes=missions_routes),
@@ -167,6 +168,7 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                 SessionMiddleware,
                 secret_key=settings.session_secret_key,
             ),
+            Middleware(TokenIntrospectionMiddleware),
             Middleware(
                 CSRFProtectMiddleware,
                 csrf_secret=settings.csrf_secret,

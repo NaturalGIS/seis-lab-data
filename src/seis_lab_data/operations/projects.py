@@ -9,7 +9,7 @@ from .. import (
     errors,
     events,
 )
-from ..constants import ADMIN_ROLE, ProjectStatus
+from ..constants import ROLE_ADMIN, ProjectStatus
 from ..db import (
     commands,
     queries,
@@ -218,7 +218,7 @@ async def list_projects(
     )
     if initiator is None:
         return await queries.list_published_projects(session, **kwargs)
-    elif ADMIN_ROLE in initiator.roles:
+    elif ROLE_ADMIN in initiator.roles:
         return await queries.list_projects(session, **kwargs)
     else:
         return await queries.list_accessible_projects(session, initiator.id, **kwargs)

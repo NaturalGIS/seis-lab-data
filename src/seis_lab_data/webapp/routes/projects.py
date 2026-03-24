@@ -381,14 +381,14 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
             ),
         ),
         permissions=schemas.UserPermissionDetails(
-            can_delete=await permissions.can_delete_project(
-                user, project_id, settings=request.state.settings
+            can_delete=permissions.can_delete_project(
+                user, project, settings=request.state.settings
             ),
-            can_update=await permissions.can_update_project(
-                user, project_id, settings=request.state.settings
+            can_update=permissions.can_update_project(
+                user, project, settings=request.state.settings
             ),
-            can_create_children=await permissions.can_create_survey_mission(
-                user, project_id=project_id, settings=request.state.settings
+            can_create_children=permissions.can_create_survey_mission(
+                user, project, settings=request.state.settings
             ),
         ),
         breadcrumbs=[
@@ -538,7 +538,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                     schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
                     schemas.BreadcrumbItem(name=_("Projects")),
                 ],
-                "user_can_create": await permissions.can_create_project(
+                "user_can_create": permissions.can_create_project(
                     user, request.state.settings
                 ),
                 "search_initial_value": list_filters.get_text_search_filter(

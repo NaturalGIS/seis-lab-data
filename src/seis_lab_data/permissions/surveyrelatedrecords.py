@@ -4,14 +4,14 @@ from .. import (
     config,
     schemas,
 )
-from ..constants import ADMIN_ROLE, SurveyRelatedRecordStatus
+from ..constants import ROLE_ADMIN, SurveyRelatedRecordStatus
 from ..db import models
 
 logger = logging.getLogger(__name__)
 
 
 def _is_admin(user: schemas.User) -> bool:
-    return ADMIN_ROLE in user.roles
+    return ROLE_ADMIN in user.roles
 
 
 def can_create_dataset_category(

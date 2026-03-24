@@ -64,7 +64,7 @@ async def auth_callback(request: Request):
 
 async def logout(request: Request):
     request.session.clear()
-    logout_url = f"{request.state.auth_config.end_session_endpoint}?next={request.url_for('home')}"
+    logout_url = f"{request.state.auth_config.end_session_endpoint}?post_logout_redirect_uri={request.url_for('home')}"
     return RedirectResponse(url=logout_url, status_code=302)
 
 

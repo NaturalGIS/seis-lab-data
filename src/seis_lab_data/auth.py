@@ -16,6 +16,7 @@ class AuthConfig:
     client_id: str
     client_secret: str
     app_slug: str
+    token_introspection_cache_seconds: int
 
     @classmethod
     def from_settings(cls, settings: SeisLabDataSettings):
@@ -25,6 +26,7 @@ class AuthConfig:
             client_id=settings.auth_client_id,
             client_secret=settings.auth_client_secret,
             app_slug=settings.auth_application_slug,
+            token_introspection_cache_seconds=settings.auth_token_introspection_cache_seconds,
         )
 
     @property
