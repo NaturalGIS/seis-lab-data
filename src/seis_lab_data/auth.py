@@ -60,7 +60,7 @@ class AuthConfig:
         return f"{self.authentik_internal_url}/application/o/{self.app_slug}/jwks/"
 
 
-def get_oauth_manager(auth_config: AuthConfig):
+def get_oauth_manager(auth_config: AuthConfig) -> OAuth:
     oauth = OAuth()
     oauth.register(
         name=AUTH_CLIENT_NAME,
@@ -73,7 +73,7 @@ def get_oauth_manager(auth_config: AuthConfig):
         introspection_endpoint=auth_config.introspection_endpoint,
         jwks_uri=auth_config.jwks_uri,
         client_kwargs={
-            "scope": "openid email profile",
+            "scope": "openid email profile roles",
         },
         server_metadata={
             "end_session_endpoint": auth_config.end_session_endpoint,

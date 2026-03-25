@@ -78,7 +78,7 @@ def get_user(
         id=schemas.UserId(id_),
         email=user_info.get("email"),
         username=user_info.get("preferred_username"),
-        roles=[role for role in user_info.get("groups", [])],
+        roles=[role for role in user_info.get("roles", [])],
         active=user_info.get("email_verified"),
     )
 
@@ -98,7 +98,7 @@ def requires_auth(route_function: Callable):
         else:
             raise ValueError("No Request parameter found in route function.")
 
-        if not get_user(request.session.get("user", {})):
+        if not request.user.is_authenticated:
             if request.headers.get("Datastar-Request") == "true":
 
                 async def event_streamer():
