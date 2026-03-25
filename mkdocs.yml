@@ -11,6 +11,8 @@ nav:
   - Administration Guide: admin-guide.md
   - Test environment: test-environment.md
   - Development: development.md
+  - Dataset reference: dataset-reference.md
+  - Supported formats: supported-formats.md
   - Writing docs: writing-docs.md
 
 extra_css:
@@ -48,6 +50,8 @@ plugins:
             - Guia de administração do sistema: admin-guide.md
             - Guia do ambiente de testes: test-environment.md
             - Guia de desenvolvimento: development.md
+            - Referência de dados: dataset-reference.md
+            - Formatos suportados: supported-formats.md
             - Guia de escrita de documentação: writing-docs.md
 
 markdown_extensions:
