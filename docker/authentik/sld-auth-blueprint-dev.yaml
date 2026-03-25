@@ -9,18 +9,24 @@ context:
   redirect_uri: !Env SEIS_LAB_DATA_REDIRECT_URI
   file_server_url: !Env ARCHIVE_BASE_URL
   authentik_url: !Env SEIS_LAB_DATA_AUTHENTIK_BASE_URL
+  admin_group_name: seis-lab-data-catalog-admins
+  admin_scope_name: catalog-admin
+  editor_group_name: seis-lab-data-catalog-editors
+  editor_scope_name: catalog-editor
+  system_admin_scope_name: system-admin
 entries:
+
   # create the groups we need
   - model: authentik_core.group
     state: present
     identifiers:
-      name: seis-lab-data-editors
+      name: !Context admin_group_name
     attrs:
       is_superuser: false
   - model: authentik_core.group
     state: present
     identifiers:
-      name: seis-lab-data-catalog-admins
+      name: !Context editor_group_name
     attrs:
       is_superuser: false
 
@@ -74,7 +80,7 @@ entries:
     model: authentik_stages_user_write.userwritestage
     attrs:
       user_creation_mode: always_create
-      group: !Find [ authentik_core.group, [ name, "seis-lab-data-editors" ]]
+      group: !Find [ authentik_core.group, [ name, !Context editor_group_name ]]
       path: users
       user_type: internal
   - identifiers:
@@ -197,6 +203,7 @@ entries:
     model: authentik_stages_identification.identificationstage
     attrs:
       case_insensitive_matching: true
+      enrollment_flow: !KeyOf simple-enrollment-flow
       password_stage: !Find [authentik_stages_password.passwordstage, [name, "default-authentication-password"]]
       pretend_user_exists: true
       show_matched_user: true
@@ -254,16 +261,24 @@ entries:
       name: seis-lab-data-roles
       scope_name: roles
       description: "User roles for SeisLabData"
-      expression: |
-        roles = []
-        user_groups = [group.name for group in request.user.ak_groups.all()]
+      expression: !Format
+        - |
+          roles = []
+          user_groups = [group.name for group in request.user.ak_groups.all()]
 
-        if 'sld_catalog_admins' in user_groups:
-            roles.append('catalog_admin')
-        if 'sld_editors' in user_groups:
-            roles.append('editor')
+          if request.user.is_superuser:
+              roles.append('%s')
+          if '%s' in user_groups:
+              roles.append('%s')
+          if '%s' in user_groups:
+              roles.append('%s')
 
-        return roles
+          return {"roles": roles}
+        - !Context system_admin_scope_name
+        - !Context admin_group_name
+        - !Context admin_scope_name
+        - !Context editor_group_name
+        - !Context editor_scope_name
 
   # ensure the required default flows are present
   - model: authentik_blueprints.metaapplyblueprint

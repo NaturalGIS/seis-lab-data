@@ -13,6 +13,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.applications import Starlette
 from starlette_babel.contrib.jinja import configure_jinja_env
 from starlette.middleware import Middleware
+from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.routing import (
     Mount,
@@ -45,7 +46,7 @@ from ..db.engine import (
 from ..processing.broker import setup_broker
 
 from . import jinjafilters
-from .middleware import TokenIntrospectionMiddleware
+from .auth_backend import OIDCAuthBackend
 from .routes import (
     auth,
     base,
@@ -168,7 +169,7 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                 SessionMiddleware,
                 secret_key=settings.session_secret_key,
             ),
-            Middleware(TokenIntrospectionMiddleware),
+            Middleware(AuthenticationMiddleware, backend=OIDCAuthBackend(settings)),
             Middleware(
                 CSRFProtectMiddleware,
                 csrf_secret=settings.csrf_secret,

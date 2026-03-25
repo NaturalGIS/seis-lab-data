@@ -95,9 +95,9 @@
                                     <dd class="mb-2">{{ request.session.user.email }}</dd>
                                     <dt class="text-muted fw-normal">{{ _('ID') }}</dt>
                                     <dd class="mb-2 text-truncate font-monospace small">{{ request.session.user.sub }}</dd>
-                                    {% if request.session.user.groups %}
+                                    {% if request.user.roles %}
                                         <dt class="text-muted fw-normal">{{ _('Roles') }}</dt>
-                                        <dd class="mb-0">{{ request.session.user.groups | join(", ") }}</dd>
+                                        <dd class="mb-0">{{ request.user.roles | join(", ") }}</dd>
                                     {% endif %}
                                 </dl>
                                 <hr class="my-3">
