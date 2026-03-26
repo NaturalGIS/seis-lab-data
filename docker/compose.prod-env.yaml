@@ -40,6 +40,7 @@ x-common-auth-env: &common-auth-env
   AUTHENTIK_POSTGRESQL__NAME: authentik
   AUTHENTIK_POSTGRESQL__PASSWORD: file:///run/secrets/auth-db-password
   SEIS_LAB_DATA_REDIRECT_URI: *auth-redirect-url
+  SEIS_LAB_DATA_POST_LOGOUT_REDIRECT_URI: https://seis-lab-data.ipma.pt/
   SEIS_LAB_DATA_AUTHENTIK_BASE_URL: https://auth.seis-lab-data.ipma.pt/
 
 x-common-volumes: &common-volumes

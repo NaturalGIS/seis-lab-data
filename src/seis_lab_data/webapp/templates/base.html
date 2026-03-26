@@ -101,11 +101,9 @@
                                     {% endif %}
                                 </dl>
                                 <hr class="my-3">
-                                <form action="{{ url_for('logout') }}">
-                                    <button type="submit" class="btn btn-outline-secondary btn-sm w-100" data-testid="logout-nav">
-                                        <i class="bi bi-box-arrow-right"></i> {{ _("Logout") }}
-                                    </button>
-                                </form>
+                                <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary btn-sm w-100" data-testid="logout-nav">
+                                    <i class="bi bi-box-arrow-right"></i> {{ _("Logout") }}
+                                </a>
                             </div>
                         </li>
                     {% else %}

@@ -37,6 +37,7 @@ x-common-auth-env: &common-auth-env
   SEIS_LAB_DATA_CLIENT_ID: *auth-client-id
   SEIS_LAB_DATA_CLIENT_SECRET: *auth-client-secret
   SEIS_LAB_DATA_REDIRECT_URI: *auth-redirect-url
+  SEIS_LAB_DATA_POST_LOGOUT_REDIRECT_URI: http://localhost:8888/
 
 x-common-volumes: &common-volumes
   - type: bind

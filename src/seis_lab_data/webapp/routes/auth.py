@@ -16,9 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 async def login(request: Request):
-    logger.debug(
-        f"Session ID at login start: {request.session.get('_id', 'No session ID')}"
-    )
+    logger.debug(f"Session ID at login start: {request.session.get('_id')}")
     logger.debug(f"Session contents: {dict(request.session)=}")
     oauth_manager = request.state.oauth_manager
     oauth_client = oauth_manager.create_client(AUTH_CLIENT_NAME)
@@ -33,18 +31,17 @@ async def login(request: Request):
 
 
 async def auth_callback(request: Request):
-    logger.debug(
-        f"Session ID at auth_callback: {request.session.get('_id', 'No session ID')}"
-    )
-    logger.debug(f"Session contents at auth_callback: {dict(request.session)=}")
     try:
         oauth_manager = request.state.oauth_manager
         oauth_client = oauth_manager.create_client(AUTH_CLIENT_NAME)
-        logger.debug(f"{oauth_client.server_metadata=}")
         token = await oauth_client.authorize_access_token(request)
         user_info = token.get("userinfo")
         request.session["user"] = user_info
         request.session["token"] = {
+            # NOTE: do not store the id_token on the session
+            # browser cookies are typically not allowed to be bigger than 4096 chars
+            # and when they do, the cookie can be silently dropped, causing
+            # our logins to not work
             "access_token": token["access_token"],
             "token_type": token.get("token_type", "Bearer"),
             "expires_at": token.get("expires_at"),
@@ -57,15 +54,30 @@ async def auth_callback(request: Request):
                     await commands.upsert_user(session, user)
             except Exception:
                 logger.warning("Failed to upsert user to local DB", exc_info=True)
-        return RedirectResponse(url=request.url_for("home"), status_code=302)
+        response = RedirectResponse(url=request.url_for("home"), status_code=302)
+        id_token = token.get("id_token")
+        if id_token:
+            # The id_token is stored in a separate cookie (not the session) so it
+            # can be passed as id_token_hint to authentik's end_session endpoint at
+            # logout time. It cannot go in the session cookie because the combined
+            # size would exceed the browser's ~4096 byte cookie limit, causing the
+            # session cookie to be silently dropped and login to break.
+            response.set_cookie("id_token", id_token, httponly=True, samesite="lax")
+        return response
     except Exception as err:
         logger.error(f"Authentication error: {err}")
 
 
 async def logout(request: Request):
+    id_token = request.cookies.get("id_token")
     request.session.clear()
-    logout_url = f"{request.state.auth_config.end_session_endpoint}?post_logout_redirect_uri={request.url_for('home')}"
-    return RedirectResponse(url=logout_url, status_code=302)
+    params = f"post_logout_redirect_uri={request.url_for('home')}&client_id={request.state.auth_config.client_id}"
+    if id_token:
+        params += f"&id_token_hint={id_token}"
+    logout_url = f"{request.state.auth_config.end_session_endpoint}?{params}"
+    response = RedirectResponse(url=logout_url, status_code=302)
+    response.delete_cookie("id_token")
+    return response
 
 
 def get_user(

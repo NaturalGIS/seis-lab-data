@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 async def home(request: Request):
     template_processor = request.state.templates
+    logger.debug(f"{request.user=}")
     return template_processor.TemplateResponse(
         request, "index.html", context={"greeting": _("Hi there!")}
     )

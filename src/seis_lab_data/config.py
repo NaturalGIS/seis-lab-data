@@ -33,7 +33,7 @@ class SeisLabDataSettings(BaseSettings):
         secrets_dir="/run/secrets",
     )
 
-    auth_application_slug: str = "seis-lab-data-app"
+    auth_application_slug: str = "seis-lab-data"
     auth_client_id: str = "someid"
     auth_client_secret: str = "somesecret"
     auth_admin_token: str = "sometoken"

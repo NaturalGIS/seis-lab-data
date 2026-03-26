@@ -7,6 +7,7 @@ context:
   client_id: !File /run/secrets/auth-client-id
   client_secret: !File /run/secrets/auth-client-secret
   redirect_uri: !Env SEIS_LAB_DATA_REDIRECT_URI
+  post_logout_redirect_uri: !Env SEIS_LAB_DATA_POST_LOGOUT_REDIRECT_URI
   file_server_url: !Env ARCHIVE_BASE_URL
   authentik_url: !Env SEIS_LAB_DATA_AUTHENTIK_BASE_URL
   admin_group_name: seis-lab-data-catalog-admins
@@ -303,6 +304,8 @@ entries:
       redirect_uris:
         - url: !Context redirect_uri
           matching_mode: strict
+        - url: !Context post_logout_redirect_uri
+          matching_mode: strict
       sub_mode: user_uuid
       include_claims_in_id_token: true
       issuer_mode: per_provider
@@ -326,7 +329,7 @@ entries:
   - model: authentik_core.application
     id: seis-lab-data-app
     identifiers:
-      slug: seis-lab-data-app
+      slug: seis-lab-data
     attrs:
       name: seis-lab-data
       slug: seis-lab-data
