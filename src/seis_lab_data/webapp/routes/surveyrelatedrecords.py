@@ -71,7 +71,6 @@ async def _get_survey_related_record_details(
 ) -> schemas.SurveyRelatedRecordDetails:
     """Utility function to get survey-related record details and its assets."""
     user = get_user(request.session.get("user", {}))
-    settings: config.SeisLabDataSettings = request.state.settings
     session_maker = request.state.session_maker
     survey_related_record_id = get_id_from_request_path(
         request, "survey_related_record_id", schemas.SurveyRelatedRecordId
@@ -98,7 +97,7 @@ async def _get_survey_related_record_details(
         survey_related_record, related_to, subject_for
     )
     can_update = permissions.can_update_survey_related_record(
-        user, survey_related_record, settings=settings
+        user, survey_related_record
     )
     return schemas.SurveyRelatedRecordDetails(
         item=serialized,
@@ -106,7 +105,7 @@ async def _get_survey_related_record_details(
             can_create_children=can_update,
             can_update=can_update,
             can_delete=permissions.can_delete_survey_related_record(
-                user, survey_related_record, settings=settings
+                user, survey_related_record
             ),
         ),
         breadcrumbs=[

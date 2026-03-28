@@ -9,7 +9,7 @@ from .. import (
     errors,
     events,
 )
-from ..constants import ROLE_ADMIN, ProjectStatus
+from ..constants import ROLE_ADMIN, ROLE_SYSTEM_ADMIN, ProjectStatus
 from ..db import (
     commands,
     queries,
@@ -30,7 +30,7 @@ async def create_project(
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.Project:
-    if not permissions.can_create_project(initiator, settings):
+    if not permissions.can_create_project(initiator):
         raise errors.SeisLabDataError("User is not allowed to create a project.")
     project = await commands.create_project(session, to_create)
     event_emitter(
@@ -55,7 +55,7 @@ async def change_project_status(
 ) -> models.Project:
     if (project := await queries.get_project(session, project_id)) is None:
         raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
-    if not permissions.can_change_project_status(initiator, project, settings):
+    if not permissions.can_change_project_status(initiator, project):
         raise errors.SeisLabDataError("User is not allowed to change project status.")
     if (old_status := project.status) == target_status:
         logger.info(f"Project status is already set to {target_status} - nothing to do")
@@ -85,7 +85,7 @@ async def validate_project(
 ) -> models.Project:
     if (project := await queries.get_project(session, project_id)) is None:
         raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
-    if not permissions.can_validate_project(initiator, project, settings):
+    if not permissions.can_validate_project(initiator, project):
         raise errors.SeisLabDataError("User is not allowed to validate project.")
 
     old_validation_result = project.validation_result or {
@@ -145,7 +145,7 @@ async def update_project(
 ) -> models.Project:
     if (project := await queries.get_project(session, project_id)) is None:
         raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
-    if not permissions.can_update_project(initiator, project, settings):
+    if not permissions.can_update_project(initiator, project):
         raise errors.SeisLabDataError("User is not allowed to update project.")
     if project.status != ProjectStatus.DRAFT:
         raise errors.SeisLabDataError(
@@ -179,7 +179,7 @@ async def delete_project(
 ) -> None:
     if (project := await queries.get_project(session, project_id)) is None:
         raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
-    if not permissions.can_delete_project(initiator, project, settings):
+    if not permissions.can_delete_project(initiator, project):
         raise errors.SeisLabDataError("User is not allowed to delete projects.")
     if project.status != ProjectStatus.DRAFT:
         raise errors.SeisLabDataError(
@@ -218,7 +218,7 @@ async def list_projects(
     )
     if initiator is None:
         return await queries.list_published_projects(session, **kwargs)
-    elif ROLE_ADMIN in initiator.roles:
+    elif not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(initiator.roles):
         return await queries.list_projects(session, **kwargs)
     else:
         return await queries.list_accessible_projects(session, initiator.id, **kwargs)
@@ -233,7 +233,7 @@ async def get_project(
     project = await queries.get_project(session, project_id)
     if project is None:
         return None
-    if not permissions.can_read_project(initiator, project, settings):
+    if not permissions.can_read_project(initiator, project):
         raise errors.SeisLabDataError(
             f"User is not allowed to read project {project_id!r}."
         )

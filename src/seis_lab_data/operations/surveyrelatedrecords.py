@@ -14,6 +14,7 @@ from .. import (
 )
 from ..constants import (
     ROLE_ADMIN,
+    ROLE_SYSTEM_ADMIN,
     ProjectStatus,
     SurveyMissionStatus,
     SurveyRelatedRecordStatus,
@@ -34,7 +35,7 @@ async def create_dataset_category(
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.DatasetCategory:
-    if not permissions.can_create_dataset_category(initiator, settings):
+    if not permissions.can_create_dataset_category(initiator):
         raise errors.SeisLabDataError(
             "User is not allowed to create a dataset category."
         )
@@ -60,7 +61,7 @@ async def delete_dataset_category(
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
-    if not permissions.can_delete_dataset_category(initiator, settings):
+    if not permissions.can_delete_dataset_category(initiator):
         raise errors.SeisLabDataError(
             "User is not allowed to delete dataset categories."
         )
@@ -98,7 +99,7 @@ async def create_domain_type(
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.DomainType:
-    if not permissions.can_create_domain_type(initiator, settings):
+    if not permissions.can_create_domain_type(initiator):
         raise errors.SeisLabDataError("User is not allowed to create a domain type.")
     domain_type = await commands.create_domain_type(session, to_create)
     event_emitter(
@@ -120,7 +121,7 @@ async def delete_domain_type(
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
-    if not permissions.can_delete_domain_type(initiator, settings):
+    if not permissions.can_delete_domain_type(initiator):
         raise errors.SeisLabDataError("User is not allowed to delete domain types.")
     domain_type = await queries.get_domain_type(session, domain_type_id)
     if domain_type is None:
@@ -156,7 +157,7 @@ async def create_workflow_stage(
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.WorkflowStage:
-    if not permissions.can_create_workflow_stage(initiator, settings):
+    if not permissions.can_create_workflow_stage(initiator):
         raise errors.SeisLabDataError("User is not allowed to create a workflow stage.")
     workflow_stage = await commands.create_workflow_stage(session, to_create)
     event_emitter(
@@ -178,7 +179,7 @@ async def delete_workflow_stage(
     settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
-    if not permissions.can_delete_workflow_stage(initiator, settings):
+    if not permissions.can_delete_workflow_stage(initiator):
         raise errors.SeisLabDataError("User is not allowed to delete workflow stages.")
     workflow_stage = await queries.get_workflow_stage(session, workflow_stage_id)
     if workflow_stage is None:
@@ -222,9 +223,7 @@ async def create_survey_related_record(
         raise errors.SeisLabDataError(
             f"Survey mission with id {to_create.survey_mission_id} does not exist"
         )
-    if not permissions.can_create_survey_related_record(
-        initiator, survey_mission, settings
-    ):
+    if not permissions.can_create_survey_related_record(initiator, survey_mission):
         raise errors.SeisLabDataError(
             "User is not allowed to create a survey-related record."
         )
@@ -278,7 +277,7 @@ async def change_survey_related_record_status(
             f"Survey-related record with id {survey_related_record_id} does not exist."
         )
     if not permissions.can_change_survey_related_record_status(
-        initiator, survey_related_record, settings
+        initiator, survey_related_record
     ):
         raise errors.SeisLabDataError(
             "User is not allowed to change survey-related record's status."
@@ -323,7 +322,7 @@ async def validate_survey_related_record(
             f"Survey-related record with id {survey_related_record_id} does not exist."
         )
     if not permissions.can_validate_survey_related_record(
-        initiator, survey_related_record, settings
+        initiator, survey_related_record
     ):
         raise errors.SeisLabDataError(
             "User is not allowed to validate survey-related record."
@@ -393,9 +392,7 @@ async def delete_survey_related_record(
         raise errors.SeisLabDataError(
             f"Survey-related record with id {survey_related_record_id!r} does not exist."
         )
-    if not permissions.can_delete_survey_related_record(
-        initiator, survey_record, settings
-    ):
+    if not permissions.can_delete_survey_related_record(initiator, survey_record):
         raise errors.SeisLabDataError(
             "User is not allowed to delete survey-related record."
         )
@@ -456,7 +453,7 @@ async def list_survey_related_records(
     )
     if initiator is None:
         return await queries.list_published_survey_related_records(session, **kwargs)
-    elif ROLE_ADMIN in initiator.roles:
+    elif not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(initiator.roles):
         return await queries.list_survey_related_records(session, **kwargs)
     else:
         return await queries.list_accessible_survey_related_records(
@@ -480,7 +477,7 @@ async def get_survey_related_record(
     record = await queries.get_survey_related_record(session, survey_related_record_id)
     if record is None:
         return None
-    if not permissions.can_read_survey_related_record(initiator, record, settings):
+    if not permissions.can_read_survey_related_record(initiator, record):
         raise errors.SeisLabDataError(
             f"User is not allowed to read survey-related "
             f"record {survey_related_record_id!r}."
@@ -512,7 +509,7 @@ async def update_survey_related_record(
             f"Survey-related record with id {survey_related_record_id} does not exist."
         )
     if not permissions.can_update_survey_related_record(
-        initiator, survey_related_record, settings
+        initiator, survey_related_record
     ):
         raise errors.SeisLabDataError(
             "User is not allowed to update survey-related record."

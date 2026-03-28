@@ -11,6 +11,7 @@ from .. import (
 )
 from ..constants import (
     ROLE_ADMIN,
+    ROLE_SYSTEM_ADMIN,
     ProjectStatus,
     SurveyMissionStatus,
 )
@@ -38,7 +39,7 @@ async def create_survey_mission(
         raise errors.SeisLabDataError(
             f"Project with id {to_create.project_id} does not exist"
         )
-    if not permissions.can_create_survey_mission(initiator, project, settings):
+    if not permissions.can_create_survey_mission(initiator, project):
         raise errors.SeisLabDataError("User is not allowed to create a survey mission.")
     if (project_status := project.status) != ProjectStatus.DRAFT:
         raise errors.SeisLabDataError(
@@ -74,9 +75,7 @@ async def change_survey_mission_status(
         raise errors.SeisLabDataError(
             f"Survey mission with id {survey_mission_id} does not exist."
         )
-    if not permissions.can_change_survey_mission_status(
-        initiator, survey_mission, settings
-    ):
+    if not permissions.can_change_survey_mission_status(initiator, survey_mission):
         raise errors.SeisLabDataError(
             "User is not allowed to change survey mission status."
         )
@@ -114,7 +113,7 @@ async def validate_survey_mission(
         raise errors.SeisLabDataError(
             f"Survey mission with id {survey_mission_id} does not exist."
         )
-    if not permissions.can_validate_survey_mission(initiator, survey_mission, settings):
+    if not permissions.can_validate_survey_mission(initiator, survey_mission):
         raise errors.SeisLabDataError("User is not allowed to validate survey mission.")
 
     old_validation_result = survey_mission.validation_result or {
@@ -180,7 +179,7 @@ async def update_survey_mission(
         raise errors.SeisLabDataError(
             f"Survey mission with id {survey_mission_id} does not exist."
         )
-    if not permissions.can_update_survey_mission(initiator, survey_mission, settings):
+    if not permissions.can_update_survey_mission(initiator, survey_mission):
         raise errors.SeisLabDataError("User is not allowed to update survey mission.")
     if survey_mission.status != SurveyMissionStatus.DRAFT:
         raise errors.SeisLabDataError(
@@ -225,7 +224,7 @@ async def delete_survey_mission(
         raise errors.SeisLabDataError(
             f"Survey mission with id {survey_mission_id!r} does not exist."
         )
-    if not permissions.can_delete_survey_mission(initiator, survey_mission, settings):
+    if not permissions.can_delete_survey_mission(initiator, survey_mission):
         raise errors.SeisLabDataError("User is not allowed to delete survey missions.")
     if survey_mission.status != SurveyMissionStatus.DRAFT:
         raise errors.SeisLabDataError(
@@ -273,7 +272,7 @@ async def list_survey_missions(
     )
     if initiator is None:
         return await queries.list_published_survey_missions(session, **kwargs)
-    elif ROLE_ADMIN in initiator.roles:
+    elif not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(initiator.roles):
         return await queries.list_survey_missions(session, **kwargs)
     else:
         return await queries.list_accessible_survey_missions(
@@ -290,7 +289,7 @@ async def get_survey_mission(
     mission = await queries.get_survey_mission(session, survey_mission_id)
     if mission is None:
         return None
-    if not permissions.can_read_survey_mission(initiator, mission, settings):
+    if not permissions.can_read_survey_mission(initiator, mission):
         raise errors.SeisLabDataError(
             f"User is not allowed to read survey mission {survey_mission_id!r}."
         )

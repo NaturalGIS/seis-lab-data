@@ -121,14 +121,10 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
         ),
         permissions=schemas.UserPermissionDetails(
             can_create_children=permissions.can_create_survey_related_record(
-                user, survey_mission, settings=settings
+                user, survey_mission
             ),
-            can_update=permissions.can_update_survey_mission(
-                user, survey_mission, settings=settings
-            ),
-            can_delete=permissions.can_delete_survey_mission(
-                user, survey_mission, settings=settings
-            ),
+            can_update=permissions.can_update_survey_mission(user, survey_mission),
+            can_delete=permissions.can_delete_survey_mission(user, survey_mission),
         ),
         breadcrumbs=[
             schemas.BreadcrumbItem(name=_("Home"), url=str(request.url_for("home"))),

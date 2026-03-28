@@ -101,6 +101,11 @@
                                     {% endif %}
                                 </dl>
                                 <hr class="my-3">
+                                {% if "system-admin" in request.user.roles %}
+                                    <a href="{{ request.state.auth_config.authentik_external_url }}/if/admin/" target="_blank" class="btn btn-outline-secondary btn-sm w-100 mb-2">
+                                        <i class="bi bi-shield-lock"></i> {{ _("Authentik Admin") }}
+                                    </a>
+                                {% endif %}
                                 <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary btn-sm w-100" data-testid="logout-nav">
                                     <i class="bi bi-box-arrow-right"></i> {{ _("Logout") }}
                                 </a>
