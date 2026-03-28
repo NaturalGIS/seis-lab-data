@@ -48,6 +48,7 @@ class OIDCAuthBackend(AuthenticationBackend):
             id=schemas.UserId(id_),
             email=user_info.get("email"),
             username=user_info.get("preferred_username"),
+            name=user_info.get("name", ""),
             roles=list(user_info.get("roles", [])),
             active=user_info.get("email_verified", False),
         )

@@ -75,26 +75,28 @@
                             >pt - {{ _("Portuguese") }}</a></li>
                         </ul>
                     </li>
-                    {% if request.session.user %}
+                    {% if request.user.is_authenticated %}
                         <li class="nav-item dropdown" data-testid="user-menu">
                             <button
                                 class="btn btn-link text-light text-decoration-none dropdown-toggle"
                                 type="button"
                                 data-bs-toggle="dropdown"
                                 aria-expanded="false"
-                                data-testid="user-menu-toggle"
+                                aria-haspopup="menu"
+                                aria-controls="user-menu-dropdown"
+                                aria-label="user-menu-toggle"
                             >
                                 <span class="material-icons-outlined fs-4" aria-hidden="true">{{ icons.user }}</span>
                             </button>
-                            <div class="dropdown-menu dropdown-menu-end border-0 shadow p-4" data-bs-theme="light" style="min-width: 18rem;">
-                                <p class="mb-3 fw-semibold">{{ request.session.user.name }}</p>
+                            <div id="user-menu-dropdown" role="menu" aria-label="user-menu" class="dropdown-menu dropdown-menu-end border-0 shadow p-4" data-bs-theme="light" style="min-width: 18rem;">
+                                <p class="mb-3 fw-semibold">{{ request.user.name }}</p>
                                 <dl class="mb-0 small">
                                     <dt class="text-muted fw-normal">{{ _('Username') }}</dt>
-                                    <dd class="mb-2">{{ request.session.user.preferred_username }}</dd>
+                                    <dd class="mb-2">{{ request.user.username }}</dd>
                                     <dt class="text-muted fw-normal">{{ _('E-mail') }}</dt>
-                                    <dd class="mb-2">{{ request.session.user.email }}</dd>
+                                    <dd class="mb-2">{{ request.user.email }}</dd>
                                     <dt class="text-muted fw-normal">{{ _('ID') }}</dt>
-                                    <dd class="mb-2 text-truncate font-monospace small">{{ request.session.user.sub }}</dd>
+                                    <dd class="mb-2 text-truncate font-monospace small">{{ request.user.id }}</dd>
                                     {% if request.user.roles %}
                                         <dt class="text-muted fw-normal">{{ _('Roles') }}</dt>
                                         <dd class="mb-0">{{ request.user.roles | join(", ") }}</dd>
@@ -106,7 +108,7 @@
                                         <i class="bi bi-shield-lock"></i> {{ _("Authentik Admin") }}
                                     </a>
                                 {% endif %}
-                                <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary btn-sm w-100" data-testid="logout-nav">
+                                <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary btn-sm w-100" aria-label="logout-nav">
                                     <i class="bi bi-box-arrow-right"></i> {{ _("Logout") }}
                                 </a>
                             </div>

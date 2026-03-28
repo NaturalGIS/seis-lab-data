@@ -42,7 +42,6 @@ from .. import (
     forms,
 )
 from .auth import (
-    get_user,
     requires_auth,
 )
 from .common import (
@@ -104,14 +103,14 @@ async def get_project_creation_form(request: Request):
 @requires_auth
 async def get_project_update_form(request: Request):
     """Return a form suitable for updating an existing project."""
-    user = get_user(request.session.get("user", {}))
+    user = request.user if request.user.is_authenticated else None
     session_maker = request.state.session_maker
     project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
     async with session_maker() as session:
         try:
             project = await operations.get_project(
                 project_id,
-                user or None,
+                user,
                 session,
                 request.state.settings,
             )
@@ -221,7 +220,7 @@ async def get_project_detail_updates(request: Request):
     session_maker = request.state.session_maker
     settings: config.SeisLabDataSettings = request.state.settings
     redis_client: Redis = request.state.redis_client
-    user = get_user(request.session.get("user", {}))
+    user = request.user if request.user.is_authenticated else None
 
     async def on_project_deleted_message(
         raw_message: str,
@@ -254,7 +253,7 @@ async def get_project_detail_updates(request: Request):
             )
             async with session_maker() as session:
                 updated_project = await operations.get_project(
-                    project_id, user or None, session, settings
+                    project_id, user, session, settings
                 )
                 yield ServerSentEventGenerator.patch_signals(
                     {
@@ -273,7 +272,7 @@ async def get_project_detail_updates(request: Request):
             )
             async with session_maker() as session:
                 updated_project = await operations.get_project(
-                    project_id, user or None, session, settings
+                    project_id, user, session, settings
                 )
                 details_message = ""
                 if not updated_project.validation_result.get("is_valid"):
@@ -335,7 +334,7 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
     survey_mission_list_filters = filters.SurveyMissionListFilters.from_params(
         request.query_params, current_language
     )
-    user = get_user(request.session.get("user", {}))
+    user = request.user if request.user.is_authenticated else None
     settings: config.SeisLabDataSettings = request.state.settings
     session_maker = request.state.session_maker
     project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
@@ -343,7 +342,7 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
         try:
             project = await operations.get_project(
                 project_id,
-                user or None,
+                user,
                 session,
                 request.state.settings,
             )
@@ -414,21 +413,19 @@ async def get_list_component(request: Request):
         filter_query_string = ""
     current_page = get_page_from_request_params(request)
     session_maker = request.state.session_maker
-    user = get_user(request.session.get("user", {}))
+    user = request.user if request.user.is_authenticated else None
     settings: config.SeisLabDataSettings = request.state.settings
     async with session_maker() as session:
         items, num_total = await operations.list_projects(
             session,
-            initiator=user or None,
+            initiator=user,
             page=current_page,
             page_size=settings.pagination_page_size,
             include_total=True,
             **internal_filter_kwargs,
         )
         num_unfiltered_total = (
-            await operations.list_projects(
-                session, initiator=user or None, include_total=True
-            )
+            await operations.list_projects(session, initiator=user, include_total=True)
         )[1]
 
     pagination_info = get_pagination_info(
@@ -471,7 +468,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
     async def get(self, request: Request):
         """List projects."""
         session_maker = request.state.session_maker
-        user = get_user(request.session.get("user", {}))
+        user = request.user if request.user.is_authenticated else None
         settings: config.SeisLabDataSettings = request.state.settings
         current_page = get_page_from_request_params(request)
         current_language = request.state.language
@@ -481,7 +478,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         async with session_maker() as session:
             items, num_total = await operations.list_projects(
                 session,
-                initiator=user or None,
+                initiator=user,
                 page=current_page,
                 page_size=settings.pagination_page_size,
                 include_total=True,
@@ -489,7 +486,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             )
             num_unfiltered_total = (
                 await operations.list_projects(
-                    session, initiator=user or None, include_total=True
+                    session, initiator=user, include_total=True
                 )
             )[1]
         template_processor = request.state.templates
@@ -547,7 +544,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
     async def post(self, request: Request):
         """Create a new project."""
         template_processor: Jinja2Templates = request.state.templates
-        user = get_user(request.session.get("user", {}))
+        user = request.user if request.user.is_authenticated else None
         form_instance = await forms.ProjectCreateForm.get_validated_form_instance(
             request
         )
@@ -702,7 +699,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
     async def put(self, request: Request):
         """Update an existing project."""
         template_processor: Jinja2Templates = request.state.templates
-        user = get_user(request.session.get("user", {}))
+        user = request.user if request.user.is_authenticated else None
         session_maker = request.state.session_maker
         project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
         async with session_maker() as session:
@@ -880,14 +877,14 @@ class ProjectDetailEndpoint(HTTPEndpoint):
     @requires_auth
     async def delete(self, request: Request):
         """Delete a project."""
-        user = get_user(request.session.get("user", {}))
+        user = request.user if request.user.is_authenticated else None
         session_maker = request.state.session_maker
         project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
         async with session_maker() as session:
             try:
                 project = await operations.get_project(
                     project_id,
-                    user or None,
+                    user,
                     session,
                     request.state.settings,
                 )
@@ -961,7 +958,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
     @requires_auth
     async def post(self, request: Request):
         """Create a new survey mission belonging to the project."""
-        user = get_user(request.session.get("user", {}))
+        user = request.user if request.user.is_authenticated else None
         project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
         session_maker = request.state.session_maker
         template_processor: Jinja2Templates = request.state.templates

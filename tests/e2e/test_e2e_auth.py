@@ -14,4 +14,7 @@ def test_login(authenticated_page: Page):
 @pytest.mark.e2e
 def test_logout(fresh_authenticated_page: Page):
     fresh_authenticated_page.goto("/")
-    fresh_authenticated_page.get_by_test_id("logout-nav").click()
+    fresh_authenticated_page.get_by_role("button", name="user-menu-toggle").click()
+    fresh_authenticated_page.get_by_role("menu", name="user-menu").get_by_role(
+        "link", name="logout-nav"
+    ).click()

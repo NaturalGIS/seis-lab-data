@@ -43,7 +43,6 @@ from .. import (
 )
 from .auth import (
     requires_auth,
-    get_user,
 )
 from .common import (
     get_id_from_request_path,
@@ -66,7 +65,7 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
             request.query_params, current_language
         )
     )
-    user = get_user(request.session.get("user", {}))
+    user = request.user if request.user.is_authenticated else None
     settings: config.SeisLabDataSettings = request.state.settings
     session_maker = request.state.session_maker
     survey_mission_id = get_id_from_request_path(
@@ -76,7 +75,7 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
         try:
             survey_mission = await operations.get_survey_mission(
                 survey_mission_id,
-                user.id if user else None,
+                user,
                 session,
                 request.state.settings,
             )
@@ -182,7 +181,7 @@ async def get_survey_mission_detail_updates(request: Request):
     session_maker = request.state.session_maker
     settings: config.SeisLabDataSettings = request.state.settings
     redis_client: Redis = request.state.redis_client
-    user = get_user(request.session.get("user", {}))
+    user = request.user if request.user.is_authenticated else None
 
     async def on_deleted_message(
         raw_message: str,
@@ -215,7 +214,7 @@ async def get_survey_mission_detail_updates(request: Request):
             )
             async with session_maker() as session:
                 updated_survey_mission = await operations.get_survey_mission(
-                    survey_mission_id, user or None, session, settings
+                    survey_mission_id, user, session, settings
                 )
                 yield ServerSentEventGenerator.patch_signals(
                     {
@@ -234,7 +233,7 @@ async def get_survey_mission_detail_updates(request: Request):
             )
             async with session_maker() as session:
                 updated_survey_mission = await operations.get_survey_mission(
-                    survey_mission_id, user or None, session, settings
+                    survey_mission_id, user, session, settings
                 )
                 details_message = ""
                 if not updated_survey_mission.validation_result.get("is_valid"):
@@ -302,7 +301,7 @@ async def get_survey_mission_detail_updates(request: Request):
 @csrf_protect
 @requires_auth
 async def get_survey_mission_creation_form(request: Request):
-    user = get_user(request.session.get("user", {}))
+    user = request.user if request.user.is_authenticated else None
     project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
     session_maker = request.state.session_maker
     form_instance = await forms.SurveyMissionCreateForm.from_formdata(request)
@@ -381,12 +380,12 @@ async def get_list_component(request: Request):
 
     current_page = get_page_from_request_params(request)
     session_maker = request.state.session_maker
-    user = get_user(request.session.get("user", {}))
+    user = request.user if request.user.is_authenticated else None
     settings: config.SeisLabDataSettings = request.state.settings
     async with session_maker() as session:
         items, num_total = await operations.list_survey_missions(
             session,
-            initiator=user or None,
+            initiator=user,
             page=current_page,
             page_size=settings.pagination_page_size,
             include_total=True,
@@ -394,7 +393,7 @@ async def get_list_component(request: Request):
         )
         num_unfiltered_total = (
             await operations.list_survey_missions(
-                session, initiator=user or None, include_total=True
+                session, initiator=user, include_total=True
             )
         )[1]
 
@@ -446,11 +445,11 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
         )
         session_maker = request.state.session_maker
         settings: config.SeisLabDataSettings = request.state.settings
-        user = get_user(request.session.get("user", {}))
+        user = request.user if request.user.is_authenticated else None
         async with session_maker() as session:
             items, num_total = await operations.list_survey_missions(
                 session,
-                initiator=user or None,
+                initiator=user,
                 page=current_page,
                 page_size=settings.pagination_page_size,
                 include_total=True,
@@ -458,7 +457,7 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
             )
             num_unfiltered_total = (
                 await operations.list_survey_missions(
-                    session, initiator=user or None, include_total=True
+                    session, initiator=user, include_total=True
                 )
             )[1]
         template_processor = request.state.templates
@@ -533,7 +532,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
     async def put(self, request: Request):
         """Update an existing survey mission."""
         template_processor: Jinja2Templates = request.state.templates
-        user = get_user(request.session.get("user", {}))
+        user = request.user if request.user.is_authenticated else None
         session_maker = request.state.session_maker
         survey_mission_id = get_id_from_request_path(
             request, "survey_mission_id", schemas.SurveyMissionId
@@ -720,7 +719,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
     @requires_auth
     async def post(self, request: Request):
         """Create a new record in the survey mission's collection."""
-        user = get_user(request.session.get("user", {}))
+        user = request.user if request.user.is_authenticated else None
         survey_mission_id = get_id_from_request_path(
             request, "survey_mission_id", schemas.SurveyMissionId
         )
@@ -916,12 +915,12 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             request, "survey_mission_id", schemas.SurveyMissionId
         )
         session_maker = request.state.session_maker
-        user = get_user(request.session.get("user", {}))
+        user = request.user if request.user.is_authenticated else None
         async with session_maker() as session:
             try:
                 survey_mission = await operations.get_survey_mission(
                     survey_mission_id,
-                    user.id if user else None,
+                    user,
                     session,
                     request.state.settings,
                 )
@@ -996,14 +995,14 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
 @csrf_protect
 async def add_create_survey_mission_form_link(request: Request):
     """Add a form link to a create_survey_mission form."""
-    user = get_user(request.session.get("user", {}))
+    user = request.user if request.user.is_authenticated else None
     session_maker = request.state.session_maker
     project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
     async with session_maker() as session:
         try:
             project = await operations.get_project(
                 project_id,
-                user or None,
+                user,
                 session,
                 request.state.settings,
             )
@@ -1036,14 +1035,14 @@ async def add_create_survey_mission_form_link(request: Request):
 @csrf_protect
 async def remove_create_survey_mission_form_link(request: Request):
     """Remove a form link from a create_survey_mission form."""
-    user = get_user(request.session.get("user", {}))
+    user = request.user if request.user.is_authenticated else None
     session_maker = request.state.session_maker
     project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
     async with session_maker() as session:
         try:
             project = await operations.get_project(
                 project_id,
-                user or None,
+                user,
                 session,
                 request.state.settings,
             )
@@ -1129,7 +1128,7 @@ async def remove_update_survey_mission_form_link(request: Request):
 @requires_auth
 async def get_survey_mission_update_form(request: Request):
     """Return a form suitable for updating an existing survey mission."""
-    user = get_user(request.session.get("user", {}))
+    user = request.user if request.user.is_authenticated else None
     session_maker = request.state.session_maker
     survey_mission_id = get_id_from_request_path(
         request, "survey_mission_id", schemas.SurveyMissionId
@@ -1138,7 +1137,7 @@ async def get_survey_mission_update_form(request: Request):
         try:
             survey_mission = await operations.get_survey_mission(
                 survey_mission_id,
-                user or None,
+                user,
                 session,
                 request.state.settings,
             )

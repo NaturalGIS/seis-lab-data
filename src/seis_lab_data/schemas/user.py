@@ -11,6 +11,7 @@ class User(BaseUser):
     email: str
     username: str
     roles: list[str]
+    name: str = ""
     active: bool = False
 
     @property
