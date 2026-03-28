@@ -11,6 +11,7 @@ from .. import (
     config,
     schemas,
 )
+from ..constants import ROLE_ADMIN
 from ..db.engine import (
     get_engine,
     get_session_maker,
@@ -46,7 +47,9 @@ def base_callback(ctx: typer.Context) -> None:
             id=schemas.UserId("sld-admin"),
             username="SLD Admin",
             email="admin@sld.com",
-            roles=["admin"],
+            roles=[
+                ROLE_ADMIN,
+            ],
             active=True,
         ),
     }

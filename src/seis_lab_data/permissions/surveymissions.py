@@ -1,64 +1,70 @@
 import logging
 
-from .. import (
-    config,
-    schemas,
+from .. import schemas
+from ..constants import (
+    ROLE_ADMIN,
+    ROLE_EDITOR,
+    ROLE_SYSTEM_ADMIN,
+    SurveyMissionStatus,
 )
+from ..db import models
 
 logger = logging.getLogger(__name__)
 
 
-async def can_read_survey_mission(
-    user: schemas.User,
-    survey_mission_id: schemas.SurveyMissionId,
-    *,
-    settings: config.SeisLabDataSettings,
+def can_read_survey_mission(
+    user: schemas.User | None,
+    mission: models.SurveyMission,
 ) -> bool:
-    return True
+    if user and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles):
+        return True
+    if mission.status == SurveyMissionStatus.PUBLISHED:
+        return True
+    return user and (mission.owner == user.id or mission.project.owner == user.id)
 
 
-async def can_create_survey_mission(
-    user: schemas.User,
-    project_id: schemas.ProjectId,
-    *,
-    settings: config.SeisLabDataSettings,
+def can_create_survey_mission(
+    user: schemas.User | None,
+    project: models.Project,
 ) -> bool:
-    # allow if user is admin
-    # or if user is the owner of the parent campaign
-    return True
+    if user is None:
+        return False
+    if not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles):
+        return True
+    return ROLE_EDITOR in user.roles and project.owner == user.id
 
 
-async def can_delete_survey_mission(
-    user: schemas.User,
-    survey_mission_id: schemas.SurveyMissionId,
-    *,
-    settings: config.SeisLabDataSettings,
+def can_update_survey_mission(
+    user: schemas.User | None,
+    mission: models.SurveyMission,
 ) -> bool:
-    return True
+    if not user:
+        return False
+    if not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles):
+        return True
+    if ROLE_EDITOR in user.roles and mission.owner == user.id:
+        return True
+    if ROLE_EDITOR in user.roles and mission.project.owner == user.id:
+        return True
+    return False
 
 
-async def can_update_survey_mission(
-    user: schemas.User,
-    survey_mission_id: schemas.SurveyMissionId,
-    *,
-    settings: config.SeisLabDataSettings,
+def can_delete_survey_mission(
+    user: schemas.User | None,
+    mission: models.SurveyMission,
 ) -> bool:
-    return True
+    return can_update_survey_mission(user, mission)
 
 
-async def can_validate_survey_mission(
-    user: schemas.User,
-    survey_mission_id: schemas.SurveyMissionId,
-    *,
-    settings: config.SeisLabDataSettings,
+def can_validate_survey_mission(
+    user: schemas.User | None,
+    mission: models.SurveyMission,
 ) -> bool:
-    return await can_update_survey_mission(user, survey_mission_id, settings=settings)
+    return can_update_survey_mission(user, mission)
 
 
-async def can_change_survey_mission_status(
-    user: schemas.User,
-    survey_mission_id: schemas.SurveyMissionId,
-    *,
-    settings: config.SeisLabDataSettings,
+def can_change_survey_mission_status(
+    user: schemas.User | None,
+    mission: models.SurveyMission,
 ) -> bool:
-    return await can_update_survey_mission(user, survey_mission_id, settings=settings)
+    return can_update_survey_mission(user, mission)

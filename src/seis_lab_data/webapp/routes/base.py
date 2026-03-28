@@ -7,13 +7,13 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
 from ...config import SeisLabDataSettings
-from .auth import get_user
 
 logger = logging.getLogger(__name__)
 
 
 async def home(request: Request):
     template_processor = request.state.templates
+    logger.debug(f"{request.user=}")
     return template_processor.TemplateResponse(
         request, "index.html", context={"greeting": _("Hi there!")}
     )
@@ -35,7 +35,7 @@ async def set_language(request: Request):
 async def profile(request: Request):
     settings = request.state.settings
     settings: SeisLabDataSettings
-    user = get_user(request.session.get("user", {}))
+    user = request.user if request.user.is_authenticated else None
     if user:
         return RedirectResponse(
             url=f"{settings.auth_external_base_url}/if/user/", status_code=302
@@ -45,7 +45,7 @@ async def profile(request: Request):
 
 
 async def protected(request: Request):
-    if not (user := get_user(request.session.get("user", {}))):
+    if not (user := request.user if request.user.is_authenticated else None):
         return RedirectResponse(url=request.url_for("login"), status_code=302)
     template_processor = request.state.templates
     return template_processor.TemplateResponse(

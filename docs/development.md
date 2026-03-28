@@ -191,6 +191,32 @@ whenever you know there have been recent merges.
     `seis-lab-data translations compile` you need to restart the `webapp` service for the changes to take effect.
 
 
+## Auxiliary dev services
+
+The development docker compose stack includes some additional relevant services:
+
+
+##### dozzle
+
+This is a dozzle instance, useful for monitoring the logs of the various services in the stack.
+It is accessible at http://localhost:8888/monitoring
+
+
+##### jupyter
+
+This is a [jupyter](https://jupyter.org/) instance, useful for writing notebooks or interacting
+with a Python REPL. It is accessible at http://localhost:5002
+
+
+##### pg-admin
+
+A [pg-admin](https://www.pgadmin.org/) instance, useful for inspecting the stack's databases.
+It is accessible at http://pgadmin.localhost:8888 and login credentials are:
+
+- user: `dev@dev.com`
+- password: `dev`
+
+
 # Running tests
 
 Normal tests can be run from inside the `webapp` compose container, after installing the required dependencies:

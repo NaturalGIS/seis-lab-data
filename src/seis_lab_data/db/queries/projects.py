@@ -9,50 +9,19 @@ from sqlmodel import (
 )
 
 from ... import schemas
+from ...constants import ProjectStatus
 from .. import models
 from .common import _get_total_num_records
 
 logger = logging.getLogger(__name__)
 
 
-async def paginated_list_projects(
-    session: AsyncSession,
-    user: str | None = None,
-    page: int = 1,
-    page_size: int = 20,
-    include_total: bool = False,
+def _build_project_statement(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: schemas.TemporalExtentFilterValue | None = None,
-) -> tuple[list[models.Project], int | None]:
-    limit = page_size
-    offset = limit * (page - 1)
-    return await list_projects(
-        session,
-        user,
-        limit,
-        offset,
-        include_total,
-        en_name_filter=en_name_filter,
-        pt_name_filter=pt_name_filter,
-        spatial_intersect=spatial_intersect,
-        temporal_extent=temporal_extent,
-    )
-
-
-# TODO: only show projects that are either owned by user or published
-async def list_projects(
-    session: AsyncSession,
-    user: str | None = None,
-    limit: int = 20,
-    offset: int = 0,
-    include_total: bool = False,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
-    spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
-) -> tuple[list[models.Project], int | None]:
+):
     statement = select(models.Project)
     if en_name_filter:
         statement = statement.where(
@@ -81,9 +50,18 @@ async def list_projects(
             statement = statement.where(
                 models.Project.temporal_extent_end <= temporal_extent.end
             )
-    statement = statement.order_by(
+    return statement.order_by(
         models.Project.temporal_extent_end.desc().nullslast()
     ).order_by(models.Project.temporal_extent_begin.desc().nullslast())
+
+
+async def _exec_project_list(
+    session: AsyncSession,
+    statement,
+    limit: int,
+    offset: int,
+    include_total: bool,
+) -> tuple[list[models.Project], int | None]:
     items = (await session.exec(statement.offset(offset).limit(limit))).all()
     num_total = (
         await _get_total_num_records(session, statement) if include_total else None
@@ -91,11 +69,72 @@ async def list_projects(
     return items, num_total
 
 
+async def list_published_projects(
+    session: AsyncSession,
+    page: int = 1,
+    page_size: int = 20,
+    include_total: bool = False,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
+    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+) -> tuple[list[models.Project], int | None]:
+    statement = _build_project_statement(
+        en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
+    ).where(models.Project.status == ProjectStatus.PUBLISHED)
+    limit = page_size
+    offset = page_size * (page - 1)
+    return await _exec_project_list(session, statement, limit, offset, include_total)
+
+
+async def list_accessible_projects(
+    session: AsyncSession,
+    user_id: str,
+    page: int = 1,
+    page_size: int = 20,
+    include_total: bool = False,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
+    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+) -> tuple[list[models.Project], int | None]:
+    statement = _build_project_statement(
+        en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
+    ).where(
+        or_(
+            models.Project.status == ProjectStatus.PUBLISHED,
+            models.Project.owner == user_id,
+        )
+    )
+    limit = page_size
+    offset = page_size * (page - 1)
+    return await _exec_project_list(session, statement, limit, offset, include_total)
+
+
+async def list_projects(
+    session: AsyncSession,
+    page: int = 1,
+    page_size: int = 20,
+    include_total: bool = False,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
+    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+) -> tuple[list[models.Project], int | None]:
+    """Return all projects regardless of status. Intended for admin use."""
+    statement = _build_project_statement(
+        en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
+    )
+    limit = page_size
+    offset = page_size * (page - 1)
+    return await _exec_project_list(session, statement, limit, offset, include_total)
+
+
 async def collect_all_projects(
     session: AsyncSession,
 ) -> list[models.Project]:
-    _, num_total = await list_projects(session, limit=1, include_total=True)
-    items, _ = await list_projects(session, limit=num_total, include_total=False)
+    _, num_total = await list_projects(session, page_size=1, include_total=True)
+    items, _ = await list_projects(session, page_size=num_total, include_total=False)
     return items
 
 
