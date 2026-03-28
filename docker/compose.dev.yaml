@@ -299,12 +299,21 @@ services:
       PGADMIN_DEFAULT_EMAIL: dev@dev.dev
       PGADMIN_DEFAULT_PASSWORD: dev
       PGADMIN_LISTEN_ADDRESS: "0.0.0.0"
+      PGADMIN_REPLACE_SERVERS_ON_STARTUP: "True"
+      PGADMIN_SERVER_JSON_FILE: /pgadmin-servers-conf
+      PGPASSFILE: /pgadmin-pgpass-file
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.pgadmin-router.rule=Host(`pgadmin.localhost`)"
       - "traefik.http.routers.pgadmin-router.entrypoints=web"
       - "traefik.http.routers.pgadmin-router.priority=90"
       - "traefik.http.services.pgadmin.loadbalancer.server.port=80"
+    configs:
+      - pgadmin-servers-conf
+      - source: pgadmin-pgpass-file
+        mode: 0600
+        uid: "5050"
+        gid: "5050"
 
 
 configs:
@@ -363,6 +372,58 @@ configs:
       pmtiles:
         paths:
           - /pmtiles
+
+  pgadmin-servers-conf:
+    content: |
+      {
+        "Servers": {
+          "sld-db": {
+            "Name": "seis-lab-data dev database",
+            "Group": "Servers",
+            "Port": 5432,
+            "Username": "sld",
+            "Host": "db",
+            "MaintenanceDB": "postgres",
+            "ConnectionParameters": {
+              "sslmode": "prefer",
+              "connect_timeout": 10,
+              "passfile": "/pgadmin-pgpass-file"
+            }
+          },
+          "test-db": {
+            "Name": "seis-lab-data dev testing database",
+            "Group": "Servers",
+            "Port": 5432,
+            "Username": "sld",
+            "Host": "test-db",
+            "MaintenanceDB": "postgres",
+            "ConnectionParameters": {
+              "sslmode": "prefer",
+              "connect_timeout": 10,
+              "passfile": "/pgadmin-pgpass-file"
+            }
+          },
+          "authentik-db": {
+            "Name": "Authentik database",
+            "Group": "Servers",
+            "Port": 5432,
+            "Username": "authentik",
+            "Host": "auth-db",
+            "MaintenanceDB": "postgres",
+            "ConnectionParameters": {
+              "sslmode": "prefer",
+              "connect_timeout": 10,
+              "passfile": "/pgadmin-pgpass-file"
+            }
+          }
+        }
+      }
+
+  pgadmin-pgpass-file:
+    content: |
+      db:5432:*:sld:sldpass
+      test-db:5432:*:sld:sldpass
+      auth-db:5432:*:authentik:authentik_pass
 
 
 volumes:
