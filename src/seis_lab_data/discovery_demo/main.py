@@ -23,7 +23,6 @@ from ..schemas.common import (
     ProjectId,
     RecordAssetId,
     SurveyMissionId,
-    UserId,
 )
 from ..schemas.user import User
 
@@ -36,6 +35,7 @@ async def discover_project_contents(
     session: AsyncSession,
     project: models.Project,
     settings: SeisLabDataSettings,
+    user: User,
     event_emitter: EventEmitterProtocol,
 ):
     """Discover project contents by looking for configured survey missions, records and assets"""
@@ -46,21 +46,26 @@ async def discover_project_contents(
     )
     # first, create survey missions
     creation_map = {}
-    for survey_mission_conf in project_config.survey_missions:
+    for survey_mission_discovery_conf in project_config.survey_missions:
+        relative_path = (
+            patt[:-1]
+            if (patt := survey_mission_discovery_conf.discovery_pattern).endswith("/")
+            else patt
+        )
         creation_map[
-            survey_mission_conf
+            survey_mission_discovery_conf
         ] = await survey_mission_ops.create_survey_mission(
             to_create=mission_schemas.SurveyMissionCreate(
                 id=SurveyMissionId(uuid.uuid4()),
-                owner=UserId(project.owner),
+                owner=user.id,
                 project_id=ProjectId(project.id),
-                name=LocalizableDraftName(**survey_mission_conf.name),
+                name=LocalizableDraftName(**survey_mission_discovery_conf.name),
                 description=LocalizableDraftDescription(
-                    **survey_mission_conf.description
+                    **survey_mission_discovery_conf.description
                 ),
-                relative_path=survey_mission_conf.discovery_pattern,
+                relative_path=relative_path,
             ),
-            initiator=User(id=project.owner),
+            initiator=user,
             session=session,
             settings=settings,
             event_emitter=event_emitter,
@@ -71,17 +76,21 @@ async def discover_project_contents(
 async def discover_survey_mission_contents(
     session: AsyncSession,
     survey_mission: models.SurveyMission,
+    survey_mission_discovery_conf: discovery_schemas.SurveyMissionDiscoveryConfiguration,
+    record_relations_discovery_conf: list[
+        discovery_schemas.RecordRelationDiscoveryConfiguration
+    ],
 ) -> None:
-    record_discovery_configs = _get_project_discovery_config(
-        Path(__file__).parents[3] / "tests/data/project-discovery-base.json"
-    )
     records_to_create = []
-    for idx, record_config in enumerate(record_discovery_configs):
+    for idx, record_discovery_conf in enumerate(survey_mission_discovery_conf.records):
         logger.debug(
-            f"[{idx + 1}/{len(record_discovery_configs)}] Discovering record config {record_config.name!r}..."
+            f"[{idx + 1}/{len(survey_mission_discovery_conf.records)}] Discovering record "
+            f"config {record_discovery_conf.name!r}..."
         )
         if (
-            to_create := await discover_record(session, record_config, survey_mission)
+            to_create := await discover_record(
+                session, record_discovery_conf, survey_mission
+            )
         ) is not None:
             records_to_create.append(to_create)
     await survey_related_record_ops.bulk_create_survey_records(
@@ -137,6 +146,8 @@ async def discover_asset(
     asset_conf: discovery_schemas.RecordAssetDiscoveryConfiguration,
     record_conf: discovery_schemas.SurveyRecordDiscoveryConfiguration,
     base_path: Path,
+    survey_mission_conf: discovery_schemas.SurveyMissionDiscoveryConfiguration
+    | None = None,
 ) -> record_schemas.RecordAssetCreate | None:
     for discovery_pattern in asset_conf.discovery_patterns:
         to_look_for = discovery_pattern.format(
