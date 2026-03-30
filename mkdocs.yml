@@ -12,6 +12,8 @@ nav:
   - Test environment: test-environment.md
   - Development: development.md
   - Dataset reference: dataset-reference.md
+  - Data domain acronyms: acronyms.md
+  - Sample archive structure: sample-archive.md
   - Supported formats: supported-formats.md
   - Writing docs: writing-docs.md
 
