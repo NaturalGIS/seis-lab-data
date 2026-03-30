@@ -1,0 +1,719 @@
+# Sample archive structure
+
+Below is a sample archive structure, as provided by IPMA
+
+```
+.
+├── s01-survey-documentation
+├── s02-preparation
+│   ├── s01-documents
+│   ├── s02-lineplan
+│   │   ├── s01-final
+│   │   └── s02-old
+│   ├── s03-geotech-locations
+│   │   ├── s01-final
+│   │   └── s02-old
+│   ├── s04-templates
+│   └── s05-other
+├── s03-general-operations
+│   ├── s01-communications
+│   ├── s02-spare-lists
+│   ├── s03-equipment-issues
+│   ├── s04-infills
+│   ├── s05-time-schedules
+│   └── s06-planning
+├── s04-gis-master-survey
+│   ├── s01-final
+│   └── s02-old
+├── s05-charts
+├── s06-mbes
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   ├── s03-qc
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   ├── s01-ungridded
+│   │   ├── s02-dtm-points
+│   │   ├── s03-slope
+│   │   ├── s04-std-dev
+│   │   ├── s05-density
+│   │   └── s06-contours
+│   ├── s06-interpretation
+│   ├── s07-reports
+│   ├── s08-gis
+│   │   ├── s01-surfaces
+│   │   └── s02-tiff
+│   ├── s09-backscatter
+│   │   ├── s01-raw-data
+│   │   ├── s02-qc
+│   │   ├── s03-processing-flows
+│   │   ├── s04-processed-data
+│   │   │   ├── s01-xyz
+│   │   │   └── s02-tiff
+│   │   ├── s05-interpretation
+│   │   ├── s06-reports
+│   │   ├── s07-gis
+│   │   │   ├── s01-surfaces
+│   │   │   └── s02-tiff
+│   │   └── s08-tides
+│   ├── s10-tracklines
+│   └── s11-tides
+├── s07-sss
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   ├── s03-qc
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   ├── s01-xyz
+│   │   └── s02-tiff
+│   ├── s06-interpretation
+│   ├── s07-reports
+│   ├── s08-gis
+│   │   ├── s01-surfaces
+│   │   └── s02-tiff
+│   ├── s09-tracklines
+│   └── s10-other
+├── s08-chirp
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   ├── s03-qc
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   ├── s01-twt
+│   │   │   ├── s01-mul
+│   │   │   ├── s02-mig
+│   │   │   ├── s03-figures
+│   │   │   └── s04-other
+│   │   └── s02-dpt
+│   │       ├── s01-mul
+│   │       ├── s02-mig
+│   │       ├── s03-figures
+│   │       └── s04-other
+│   ├── s06-interpretation
+│   │   ├── s01-horizons
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s02-grids
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s03-faults
+│   │   ├── s04-ks-project
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   ├── s05-logs
+│   │   └── s06-other
+│   ├── s07-reports
+│   ├── s08-gis
+│   │   ├── s01-surfaces
+│   │   └── s02-tiff
+│   ├── s09-navigation
+│   │   ├── s01-p190
+│   │   └── s02-other
+│   └── s10-photos
+├── s09-sbp-other
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   ├── s03-qc
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   ├── s01-twt
+│   │   │   ├── s01-mul
+│   │   │   ├── s02-mig
+│   │   │   ├── s03-figures
+│   │   │   └── s04-other
+│   │   └── s02-dpt
+│   │       ├── s01-mul
+│   │       ├── s02-mig
+│   │       ├── s03-figures
+│   │       └── s04-other
+│   ├── s06-interpretation
+│   │   ├── s01-horizons
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s02-grids
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s03-faults
+│   │   ├── s04-ks-project
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   ├── s05-logs
+│   │   └── s06-other
+│   ├── s07-reports
+│   ├── s08-gis
+│   │   ├── s01-surfaces
+│   │   └── s02-tiff
+│   ├── s09-navigation
+│   │   ├── s01-p190
+│   │   └── s02-other
+│   └── s10-photos
+├── s10-innomar
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   ├── s03-qc
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   ├── s01-twt
+│   │   │   ├── s01-mul
+│   │   │   ├── s02-mig
+│   │   │   ├── s03-figures
+│   │   │   └── s04-other
+│   │   └── s02-dpt
+│   │       ├── s01-mul
+│   │       ├── s02-mig
+│   │       ├── s03-figures
+│   │       └── s04-other
+│   ├── s06-interpretation
+│   │   ├── s01-horizons
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s02-grids
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s03-faults
+│   │   ├── s04-ks-project
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   ├── s05-logs
+│   │   └── s06-other
+│   ├── s07-reports
+│   ├── s08-gis
+│   │   ├── s01-surfaces
+│   │   └── s02-tiff
+│   ├── s09-navigation
+│   │   ├── s01-p190
+│   │   └── s02-other
+│   └── s10-photos
+├── s11-boomer
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   ├── s03-qc
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   ├── s01-twt
+│   │   │   ├── s01-mul
+│   │   │   ├── s02-mig
+│   │   │   ├── s03-figures
+│   │   │   └── s04-other
+│   │   └── s02-dpt
+│   │       ├── s01-mul
+│   │       ├── s02-mig
+│   │       ├── s03-figures
+│   │       └── s04-other
+│   ├── s06-interpretation
+│   │   ├── s01-horizons
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s02-grids
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s03-faults
+│   │   ├── s04-ks-project
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   ├── s05-logs
+│   │   └── s06-other
+│   ├── s07-reports
+│   ├── s08-gis
+│   │   ├── s01-surfaces
+│   │   └── s02-tiff
+│   ├── s09-navigation
+│   │   ├── other
+│   │   └── p190
+│   └── s10-photos
+├── s12-scs
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   ├── s03-qc
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   ├── s01-twt
+│   │   │   ├── s01-mul
+│   │   │   ├── s02-mig
+│   │   │   ├── s03-figures
+│   │   │   └── s04-other
+│   │   └── s02-dpt
+│   │       ├── s01-mul
+│   │       ├── s02-mig
+│   │       ├── s03-figures
+│   │       └── s04-other
+│   ├── s06-interpretation
+│   │   ├── s01-horizons
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s02-grids
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s03-faults
+│   │   ├── s04-ks-project
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   ├── s05-logs
+│   │   └── s06-other
+│   ├── s07-reports
+│   ├── s08-gis
+│   │   ├── s01-surfaces
+│   │   └── s02-tiff
+│   ├── s09-navigation
+│   │   ├── other
+│   │   └── p190
+│   └── s10-photos
+├── s13-uhrs
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   ├── s03-qc
+│   │   ├── s01-seismic-data
+│   │   ├── s02-flows
+│   │   ├── s03-bstk
+│   │   ├── s04-figures
+│   │   ├── s05-navigation
+│   │   ├── s06-logs
+│   │   └── s07-other
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   ├── s01-prestk
+│   │   │   ├── s01-mul
+│   │   │   ├── s02-mig
+│   │   │   ├── s03-figures
+│   │   │   └── s04-other
+│   │   ├── s02-poststk
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-mul
+│   │   │   │   ├── s02-mig
+│   │   │   │   ├── s03-figures
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-mul
+│   │   │       ├── s02-mig
+│   │   │       ├── s03-figures
+│   │   │       └── s04-other
+│   │   ├── s03-velocities
+│   │   │   ├── s01-vel-picks
+│   │   │   ├── s02-vel-rms
+│   │   │   ├── s03-vel-int
+│   │   │   ├── s04-vel-stacking
+│   │   │   └── s05-other
+│   │   ├── s04-images
+│   │   └── s05-tests
+│   ├── s06-interpretation
+│   │   ├── s01-horizons
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s02-grids
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s03-faults
+│   │   ├── s04-ks-project
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   ├── s05-logs
+│   │   └── s06-other
+│   ├── s07-reports
+│   │   ├── s01-offshore-reports
+│   │   └── s02-onshore-reports
+│   ├── s08-gis
+│   │   ├── s01-lineplan
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   └── s02-sailed
+│   ├── s09-navigation
+│   │   ├── s01-p190
+│   │   └── s02-other
+│   ├── s10-lineplan-uhrs
+│   └── s11-photos
+├── s14-mcs-other
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   ├── s03-qc
+│   │   ├── s01-seismic-data
+│   │   ├── s02-flows
+│   │   ├── s03-bstk
+│   │   ├── s04-figures
+│   │   └── s05-other
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   ├── s01-prestk
+│   │   │   ├── s01-mul
+│   │   │   ├── s02-mig
+│   │   │   ├── s03-figures
+│   │   │   └── s04-other
+│   │   ├── s02-poststk
+│   │   │   ├── s01-mul
+│   │   │   ├── s02-mig
+│   │   │   ├── s03-figures
+│   │   │   └── s04-other
+│   │   ├── s03-velocities
+│   │   │   ├── s01-vel-picks
+│   │   │   ├── s02-vel-rms
+│   │   │   ├── s03-vel-int
+│   │   │   ├── s04-vel-stacking
+│   │   │   └── s05-other
+│   │   ├── s04-images
+│   │   └── s05-tests
+│   ├── s06-interpretation
+│   │   ├── s01-horizons
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s02-grids
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s03-faults
+│   │   ├── s04-ks-project
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   ├── s05-logs
+│   │   └── s06-other
+│   ├── s07-reports
+│   │   ├── s01-offshore-reports
+│   │   └── s02-onshore-reports
+│   ├── s08-gis
+│   │   ├── s01-lineplan
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   └── s02-sailed
+│   ├── s09-navigation
+│   │   ├── s01-p190
+│   │   └── s02-other
+│   ├── s10-lineplan
+│   └── s11-photos
+├── s15-wide-angle-seismic
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   ├── s03-qc
+│   │   ├── s01-seismic-data
+│   │   ├── s02-flows
+│   │   ├── s03-bstk
+│   │   ├── s04-figures
+│   │   └── s05-other
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   ├── s01-prestk
+│   │   ├── s02-poststk
+│   │   ├── s03-velocities
+│   │   ├── s04-images
+│   │   └── s05-tests
+│   ├── s06-interpretation
+│   │   ├── s01-horizons
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s02-grids
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s03-faults
+│   │   ├── s04-ks-project
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   ├── s05-logs
+│   │   └── s06-other
+│   ├── s07-reports
+│   │   ├── s01-offshore-reports
+│   │   └── s02-onshore-reports
+│   ├── s08-gis
+│   │   ├── s01-lineplan
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   └── s02-sailed
+│   ├── s09-navigation
+│   │   ├── s01-p190
+│   │   └── s02-other
+│   ├── s10-lineplan
+│   └── s11-photos
+├── s16-gravimetry
+├── s17-magnetometer
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   ├── s03-qc
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   └── s01-grids
+│   │       ├── s01-qas
+│   │       ├── s02-res
+│   │       └── s03-tf
+│   ├── s06-interpretation
+│   ├── s07-magnetometer-tracks
+│   ├── s08-magnetometer-targets
+│   │   ├── s01-magnetometer-target-list
+│   │   └── s02-magnetometer-gis-data
+│   ├── s09-reports
+│   └── s10-photos
+├── s18-grabs
+│   ├── s01-locations
+│   ├── s02-data
+│   ├── s03-photos
+│   └── s04-interpretation
+├── s19-vibrocorer
+│   ├── s01-raw-data
+│   ├── s02-analysis
+│   ├── s03-processed-data
+│   ├── s04-interpretation
+│   ├── s05-reports
+│   └── s06-photos
+├── s20-borehole
+│   ├── s01-raw-data
+│   ├── s02-analysis
+│   ├── s03-processed-data
+│   ├── s04-interpretation
+│   ├── s05-reports
+│   └── s06-photos
+├── s21-cpt
+│   ├── s01-raw-data
+│   ├── s02-analysis
+│   ├── s03-processed-data
+│   ├── s04-interpretation
+│   ├── s05-reports
+│   └── s06-photos
+├── s22-sedimentology
+│   ├── s01-raw-data
+│   ├── s02-analysis
+│   ├── s03-psa
+│   ├── s04-processed-data
+│   ├── s05-interpretation
+│   ├── s06-reports
+│   └── s07-photos
+├── s23-environmental
+│   ├── s01-benthic
+│   ├── s02-fish
+│   ├── s03-mammals
+│   ├── s04-habitat
+│   ├── s05-interpretation
+│   ├── s06-reports
+│   ├── s07-photos
+│   └── s08-other
+├── s24-metocean
+│   ├── s01-instrument-data
+│   ├── s02-processed-data
+│   ├── s03-statistics
+│   ├── s04-reports
+│   └── s05-other
+├── s25-underwater-footage
+│   ├── s01-raw-data
+│   ├── s02-lineplan
+│   ├── s03-navigation
+│   ├── s04-logs
+│   ├── s05-interpretation
+│   ├── s06-reports
+│   ├── s07-photos
+│   └── s08-other
+├── s26-logs
+├── s27-navigation
+├── s28-tracks
+│   ├── s01-qc
+│   │   ├── s01-vessel
+│   │   ├── s02-rotv
+│   │   └── s03-other
+│   └── s02-final
+│       ├── s01-vessel
+│       ├── s02-usbl
+│       │   ├── s01-raw-data
+│       │   ├── s02-processed
+│       │   └── s03-reporting
+│       ├── s03-sss
+│       ├── s04-magnetometer
+│       ├── s05-mbes
+│       ├── s06-sbp
+│       ├── s07-uhrs
+│       └── s08-other
+├── s29-ground-model
+│   ├── s01-raw-data
+│   ├── s02-processed-data
+│   ├── s03-interpretation
+│   ├── s04-reports
+│   ├── s05-vintage-models
+│   ├── s06-photos
+│   └── s07-other
+├── s30-reporting
+│   ├── s01-dpr
+│   ├── s02-daily
+│   ├── s03-weekly
+│   ├── s04-mmo
+│   ├── s05-vessel-logs
+│   ├── s06-mob
+│   ├── s07-operations
+│   ├── s08-field-report-data
+│   ├── s09-weather-forecasting
+│   ├── s10-old-reports
+│   ├── s11-drafts
+│   ├── s12-relevant-references
+│   ├── s13-final
+│   └── s14-other
+├── s31-processing-general
+│   ├── s01-deliverables
+│   ├── s02-logs
+│   └── s03-other
+├── s32-interpretation-general
+│   ├── s01-deliverables
+│   ├── s02-ks-project
+│   ├── s03-ssdm
+│   ├── s04-figures
+│   ├── s05-logs
+│   └── s06-other
+├── s33-geophys-other
+│   ├── s01-raw-data
+│   ├── s02-qc
+│   ├── s03-processed-data
+│   ├── s04-logs
+│   ├── s05-figures
+│   ├── s06-interpretation
+│   ├── s07-reports
+│   │   ├── s01-final
+│   │   └── s02-old
+│   └── s08-photos
+├── s34-geotech-other
+│   ├── s01-raw-data
+│   ├── s02-processed-data
+│   ├── s03-analysis
+│   ├── s04-interpretation
+│   ├── s05-reports
+│   ├── s06-photos
+│   └── s07-locations
+├── s35-hydrographic-other
+│   ├── s01-raw-data
+│   ├── s02-rosette
+│   ├── s03-svp
+│   ├── s04-ctd
+│   ├── s05-qc
+│   ├── s06-processed-data
+│   ├── s07-interpretation
+│   ├── s08-reports
+│   ├── s09-photos
+│   └── s10-other
+├── s36-data-drops
+├── s37-vintage-data
+├── s38-hse
+│   ├── s01-incident-reports
+│   ├── s02-reports
+│   ├── s03-photos
+│   └── s04-other
+└── survey-projects
+
+710 directories
+
+```
