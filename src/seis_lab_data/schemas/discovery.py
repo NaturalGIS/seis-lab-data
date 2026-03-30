@@ -8,6 +8,8 @@ RecordDiscoveryConfId = typing.NewType("RecordDiscoveryConfId", str)
 TemplatedString = typing.NewType("TemplatedString", str)
 TranslatableString = typing.NewType("TranslatableString", dict[str, TemplatedString])
 
+ExtraContext = dict[str, str | list[str]]
+
 
 class RecordAssetDiscoveryConfiguration(pydantic.BaseModel):
     name: TranslatableString
@@ -16,7 +18,7 @@ class RecordAssetDiscoveryConfiguration(pydantic.BaseModel):
     links: list[LinkSchema]
     # these can become tags in the generated record, to be searchable
     # they can also be used as placeholders when building the filesystem search template
-    extra_context: dict[str, str]
+    extra_context: ExtraContext
 
 
 class RecordRelationDiscoveryConfiguration(pydantic.BaseModel):
@@ -34,9 +36,6 @@ class SurveyRecordDiscoveryConfiguration(pydantic.BaseModel):
     description: TranslatableString | None
     assets: list[RecordAssetDiscoveryConfiguration]
     links: list[LinkSchema]
-    # these can become tags in the generated record, to be searchable
-    # they can also be used as placeholders when building the filesystem search template
-    extra_context: dict[str, str]
 
     @classmethod
     def from_raw_config(
@@ -70,7 +69,6 @@ class SurveyRecordDiscoveryConfiguration(pydantic.BaseModel):
                 for a in raw_config["assets"]
             ],
             links=[LinkSchema(**li) for li in raw_config.get("links", [])],
-            extra_context=dict(raw_config.get("extra_context", {})),
         )
 
 
@@ -82,7 +80,7 @@ class SurveyMissionDiscoveryConfiguration(pydantic.BaseModel):
     record_configuration_ids: list[RecordDiscoveryConfId]
     # these can become tags in the generated record, to be searchable
     # they can also be used as placeholders when building the filesystem search template
-    extra_context: dict[str, str]
+    extra_context: ExtraContext
 
     @classmethod
     def from_raw_config(
@@ -106,7 +104,7 @@ class ProjectDiscoveryConfiguration(pydantic.BaseModel):
     record_relations: list[RecordRelationDiscoveryConfiguration]
     # these can become tags in the generated record, to be searchable
     # they can also be used as placeholders when building the filesystem search template
-    extra_context: dict[str, str]
+    extra_context: ExtraContext
 
     @classmethod
     def from_raw_config(cls, raw_config: dict) -> "ProjectDiscoveryConfiguration":

@@ -148,12 +148,15 @@ async def discover_asset(
     base_path: Path,
     survey_mission_conf: discovery_schemas.SurveyMissionDiscoveryConfiguration
     | None = None,
+    project_conf: discovery_schemas.ProjectDiscoveryConfiguration | None = None,
 ) -> record_schemas.RecordAssetCreate | None:
     for discovery_pattern in asset_conf.discovery_patterns:
         to_look_for = discovery_pattern.format(
             dataset_category=record_conf.dataset_category,
             domain_type=record_conf.domain_type,
             workflow_stage=record_conf.workflow_stage,
+            **(project_conf.extra_context if project_conf else {}),
+            **(survey_mission_conf.extra_context if survey_mission_conf else {}),
             **record_conf.extra_context,
             **asset_conf.extra_context,
         )
@@ -183,6 +186,14 @@ async def discover_asset(
             f"Unable to locate any new file path for asset {asset_conf.name!r}"
         )
     return None
+
+
+async def discover_records():
+    ...
+    # for each record, form the context
+    # then build al list of all possible combinations - those are sure to originate individual records
+    # then try to find files that match each context combination, according to configured assets
+    # capture the dynamic part(s) of each found file
 
 
 async def _get_project_discovery_config(
