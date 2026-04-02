@@ -86,6 +86,14 @@ class Link(TypedDict):
     link_description: LocalizableString
 
 
+class User(SQLModel, table=True):
+    __tablename__ = "appuser"
+
+    id: str = Field(max_length=100, primary_key=True)
+    username: str = Field(max_length=150)
+    email: str = Field(max_length=254)
+
+
 class DatasetCategory(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (

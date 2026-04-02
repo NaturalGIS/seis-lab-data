@@ -8,50 +8,18 @@ from sqlmodel import (
 )
 
 from ... import schemas
+from ...constants import SurveyMissionStatus
 from ...db import models
 from .common import _get_total_num_records
 
 
-async def paginated_list_survey_missions(
-    session: AsyncSession,
-    user: schemas.User | None = None,
+def _build_survey_mission_statement(
     project_id: schemas.ProjectId | None = None,
-    page: int = 1,
-    page_size: int = 20,
-    include_total: bool = False,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: schemas.TemporalExtentFilterValue | None = None,
-) -> tuple[list[models.SurveyMission], int | None]:
-    limit = page_size
-    offset = limit * (page - 1)
-    return await list_survey_missions(
-        session,
-        user,
-        project_id,
-        limit,
-        offset,
-        include_total,
-        en_name_filter=en_name_filter,
-        pt_name_filter=pt_name_filter,
-        spatial_intersect=spatial_intersect,
-        temporal_extent=temporal_extent,
-    )
-
-
-async def list_survey_missions(
-    session: AsyncSession,
-    user: schemas.User | None = None,
-    project_id: schemas.ProjectId | None = None,
-    limit: int = 20,
-    offset: int = 0,
-    include_total: bool = False,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
-    spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
-) -> tuple[list[models.SurveyMission], int | None]:
+):
     statement = select(models.SurveyMission).options(
         selectinload(models.SurveyMission.project)
     )
@@ -84,14 +52,102 @@ async def list_survey_missions(
             statement = statement.where(
                 models.SurveyMission.temporal_extent_end <= temporal_extent.end
             )
-    statement = statement.order_by(
+    return statement.order_by(
         models.SurveyMission.temporal_extent_end.desc().nullslast()
     ).order_by(models.SurveyMission.temporal_extent_begin.desc().nullslast())
+
+
+async def _exec_survey_mission_list(
+    session: AsyncSession,
+    statement,
+    limit: int,
+    offset: int,
+    include_total: bool,
+) -> tuple[list[models.SurveyMission], int | None]:
     items = (await session.exec(statement.offset(offset).limit(limit))).all()
     num_total = (
         await _get_total_num_records(session, statement) if include_total else None
     )
     return items, num_total
+
+
+async def list_published_survey_missions(
+    session: AsyncSession,
+    project_id: schemas.ProjectId | None = None,
+    page: int = 1,
+    page_size: int = 20,
+    include_total: bool = False,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
+    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+) -> tuple[list[models.SurveyMission], int | None]:
+    statement = _build_survey_mission_statement(
+        project_id, en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
+    ).where(models.SurveyMission.status == SurveyMissionStatus.PUBLISHED)
+    limit = page_size
+    offset = page_size * (page - 1)
+    return await _exec_survey_mission_list(
+        session, statement, limit, offset, include_total
+    )
+
+
+async def list_accessible_survey_missions(
+    session: AsyncSession,
+    user_id: str,
+    project_id: schemas.ProjectId | None = None,
+    page: int = 1,
+    page_size: int = 20,
+    include_total: bool = False,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
+    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+) -> tuple[list[models.SurveyMission], int | None]:
+    statement = (
+        _build_survey_mission_statement(
+            project_id,
+            en_name_filter,
+            pt_name_filter,
+            spatial_intersect,
+            temporal_extent,
+        )
+        .join(models.Project, models.SurveyMission.project_id == models.Project.id)
+        .where(
+            or_(
+                models.SurveyMission.status == SurveyMissionStatus.PUBLISHED,
+                models.SurveyMission.owner == user_id,
+                models.Project.owner == user_id,
+            )
+        )
+    )
+    limit = page_size
+    offset = page_size * (page - 1)
+    return await _exec_survey_mission_list(
+        session, statement, limit, offset, include_total
+    )
+
+
+async def list_survey_missions(
+    session: AsyncSession,
+    project_id: schemas.ProjectId | None = None,
+    page: int = 1,
+    page_size: int = 20,
+    include_total: bool = False,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
+    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+) -> tuple[list[models.SurveyMission], int | None]:
+    """Return all survey missions regardless of status. Intended for admin use."""
+    statement = _build_survey_mission_statement(
+        project_id, en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
+    )
+    limit = page_size
+    offset = page_size * (page - 1)
+    return await _exec_survey_mission_list(
+        session, statement, limit, offset, include_total
+    )
 
 
 async def get_survey_mission(

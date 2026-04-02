@@ -124,7 +124,7 @@ Please continue with the [bootstrapping](#bootstrapping-a-fresh-installation) se
 The bootstrap process consists of:
 
 - Creating/upgrading the database;
-- Loading all default variables into the apropriate DB tables;
+- Loading all default variables into the appropriate DB tables;
 - Optionally adding some default projects, survey missions and survey-related records.
 
 Bootstrapping is done by using the `seis-lab-data` CLI, which is available in the `webapp`
@@ -189,6 +189,32 @@ whenever you know there have been recent merges.
     Because the docker compose file used for dev bind mounts the entire `src` directory, it will
     mask the container's own compiled `*.mo` files. This means that after running
     `seis-lab-data translations compile` you need to restart the `webapp` service for the changes to take effect.
+
+
+## Auxiliary dev services
+
+The development docker compose stack includes some additional relevant services:
+
+
+##### dozzle
+
+This is a dozzle instance, useful for monitoring the logs of the various services in the stack.
+It is accessible at http://localhost:8888/monitoring
+
+
+##### jupyter
+
+This is a [jupyter](https://jupyter.org/) instance, useful for writing notebooks or interacting
+with a Python REPL. It is accessible at http://localhost:5002
+
+
+##### pg-admin
+
+A [pg-admin](https://www.pgadmin.org/) instance, useful for inspecting the stack's databases.
+It is accessible at http://pgadmin.localhost:8888 and login credentials are:
+
+- user: `dev@dev.com`
+- password: `dev`
 
 
 # Running tests

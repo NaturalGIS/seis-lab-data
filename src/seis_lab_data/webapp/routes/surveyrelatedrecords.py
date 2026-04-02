@@ -50,7 +50,6 @@ from .. import (
     forms,
 )
 from .auth import (
-    get_user,
     requires_auth,
 )
 from .common import (
@@ -70,8 +69,7 @@ async def _get_survey_related_record_details(
     request: Request,
 ) -> schemas.SurveyRelatedRecordDetails:
     """Utility function to get survey-related record details and its assets."""
-    user = get_user(request.session.get("user", {}))
-    settings: config.SeisLabDataSettings = request.state.settings
+    user = request.user if request.user.is_authenticated else None
     session_maker = request.state.session_maker
     survey_related_record_id = get_id_from_request_path(
         request, "survey_related_record_id", schemas.SurveyRelatedRecordId
@@ -80,7 +78,7 @@ async def _get_survey_related_record_details(
         try:
             survey_related_record_info = await operations.get_survey_related_record(
                 survey_related_record_id,
-                user.id if user else None,
+                user,
                 session,
                 request.state.settings,
             )
@@ -97,16 +95,16 @@ async def _get_survey_related_record_details(
     serialized = schemas.SurveyRelatedRecordReadDetail.from_db_instance(
         survey_related_record, related_to, subject_for
     )
-    can_update = await permissions.can_update_survey_related_record(
-        user, survey_related_record_id, settings=settings
+    can_update = permissions.can_update_survey_related_record(
+        user, survey_related_record
     )
     return schemas.SurveyRelatedRecordDetails(
         item=serialized,
         permissions=schemas.UserPermissionDetails(
             can_create_children=can_update,
             can_update=can_update,
-            can_delete=await permissions.can_delete_survey_related_record(
-                user, survey_related_record_id, settings=settings
+            can_delete=permissions.can_delete_survey_related_record(
+                user, survey_related_record
             ),
         ),
         breadcrumbs=[
@@ -174,7 +172,7 @@ async def get_detail_updates(request: Request):
     session_maker = request.state.session_maker
     settings: config.SeisLabDataSettings = request.state.settings
     redis_client: Redis = request.state.redis_client
-    user = get_user(request.session.get("user", {}))
+    user = request.user if request.user.is_authenticated else None
 
     async def on_deleted_message(
         raw_message: str,
@@ -206,7 +204,7 @@ async def get_detail_updates(request: Request):
             )
             async with session_maker() as session:
                 updated_details = await operations.get_survey_related_record(
-                    survey_related_record_id, user or None, session, settings
+                    survey_related_record_id, user, session, settings
                 )
                 updated = updated_details[0]
                 yield ServerSentEventGenerator.patch_signals(
@@ -226,7 +224,7 @@ async def get_detail_updates(request: Request):
             )
             async with session_maker() as session:
                 updated_details = await operations.get_survey_related_record(
-                    survey_related_record_id, user or None, session, settings
+                    survey_related_record_id, user, session, settings
                 )
                 updated = updated_details[0]
                 details_message = ""
@@ -330,7 +328,7 @@ async def build_survey_related_record_form_instance(
 async def get_record_parent_survey_mission_from_request(
     request: Request,
 ) -> models.SurveyMission:
-    user = get_user(request.session.get("user", {}))
+    user = request.user if request.user.is_authenticated else None
     parent_survey_mission_id = get_id_from_request_path(
         request, "survey_mission_id", schemas.SurveyMissionId
     )
@@ -722,12 +720,12 @@ async def get_update_form(request: Request):
     template = template_processor.get_template(
         "survey-related-records/update-form.html"
     )
-    user = get_user(request.session.get("user", {}))
+    user = request.user if request.user.is_authenticated else None
     session_maker = request.state.session_maker
     async with session_maker() as session:
         initial_related_records_list, _ = await operations.list_survey_related_records(
             session,
-            initiator=user.id if user else None,
+            initiator=user,
         )
     initial_related_records = [
         (i.id, i.name["en"]) for i in initial_related_records_list
@@ -817,12 +815,12 @@ async def add_update_form_related_to_record(request: Request):
         "survey-related-records/update-form.html"
     )
 
-    user = get_user(request.session.get("user", {}))
+    user = request.user if request.user.is_authenticated else None
     session_maker = request.state.session_maker
     async with session_maker() as session:
         initial_related_records_list, _ = await operations.list_survey_related_records(
             session,
-            initiator=user.id if user else None,
+            initiator=user,
         )
     initial_related_records = [
         (i.id, i.name["en"]) for i in initial_related_records_list
@@ -1015,11 +1013,11 @@ async def list_by_name(request: Request):
     internal_filter_kwargs = record_name_filter.as_kwargs()
     logger.debug(f"{internal_filter_kwargs=}")
     session_maker = request.state.session_maker
-    user = get_user(request.session.get("user", {}))
+    user = request.user if request.user.is_authenticated else None
     async with session_maker() as session:
         items, _ = await operations.list_survey_related_records(
             session,
-            initiator=user.id if user else None,
+            initiator=user,
             **internal_filter_kwargs,
         )
     serialized_items = [  # noqa
@@ -1056,12 +1054,12 @@ async def get_list_component(request: Request):
     logger.debug(f"{internal_filter_kwargs=}")
     current_page = get_page_from_request_params(request)
     session_maker = request.state.session_maker
-    user = get_user(request.session.get("user", {}))
+    user = request.user if request.user.is_authenticated else None
     settings: config.SeisLabDataSettings = request.state.settings
     async with session_maker() as session:
         items, num_total = await operations.list_survey_related_records(
             session,
-            initiator=user.id if user else None,
+            initiator=user,
             page=current_page,
             page_size=settings.pagination_page_size,
             include_total=True,
@@ -1069,7 +1067,7 @@ async def get_list_component(request: Request):
         )
         num_unfiltered_total = (
             await operations.list_survey_related_records(
-                session, initiator=user or None, include_total=True
+                session, initiator=user, include_total=True
             )
         )[1]
     pagination_info = get_pagination_info(
@@ -1120,11 +1118,11 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
         )
         session_maker = request.state.session_maker
         settings: config.SeisLabDataSettings = request.state.settings
-        user = get_user(request.session.get("user", {}))
+        user = request.user if request.user.is_authenticated else None
         async with session_maker() as session:
             items, num_total = await operations.list_survey_related_records(
                 session,
-                initiator=user.id if user else None,
+                initiator=user,
                 page=current_page,
                 page_size=settings.pagination_page_size,
                 include_total=True,
@@ -1132,7 +1130,7 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
             )
             num_unfiltered_total = (
                 await operations.list_survey_related_records(
-                    session, initiator=user or None, include_total=True
+                    session, initiator=user, include_total=True
                 )
             )[1]
         template_processor = request.state.templates
@@ -1207,13 +1205,13 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         survey_related_record_id = get_id_from_request_path(
             request, "survey_related_record_id", schemas.SurveyRelatedRecordId
         )
-        user = get_user(request.session.get("user", {}))
+        user = request.user if request.user.is_authenticated else None
         async with request.state.session_maker() as session:
             if (
                 survey_related_record_details
                 := await operations.get_survey_related_record(
                     survey_related_record_id,
-                    user.id if user else None,
+                    user,
                     session,
                     request.state.settings,
                 )
@@ -1292,7 +1290,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
     async def put(self, request: Request):
         """Update an existing survey-related record."""
         template_processor: Jinja2Templates = request.state.templates
-        user = get_user(request.session.get("user", {}))
+        user = request.user if request.user.is_authenticated else None
         session_maker = request.state.session_maker
         survey_related_record_id = get_id_from_request_path(
             request, "survey_related_record_id", schemas.SurveyRelatedRecordId

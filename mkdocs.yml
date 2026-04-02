@@ -11,7 +11,14 @@ nav:
   - Administration Guide: admin-guide.md
   - Test environment: test-environment.md
   - Development: development.md
+  - Dataset reference: dataset-reference.md
+  - Data domain acronyms: acronyms.md
+  - Sample archive structure: sample-archive.md
+  - Supported formats: supported-formats.md
   - Writing docs: writing-docs.md
+
+extra_css:
+  - stylesheets/styles.css
 
 theme:
   name: material
@@ -21,6 +28,7 @@ theme:
     accent: pink
   language: en
   features:
+    - content.footnote.tooltips
     - header.autohide
     - navigation.footer
     - navigation.path
@@ -44,11 +52,14 @@ plugins:
             - Guia de administração do sistema: admin-guide.md
             - Guia do ambiente de testes: test-environment.md
             - Guia de desenvolvimento: development.md
+            - Referência de dados: dataset-reference.md
+            - Formatos suportados: supported-formats.md
             - Guia de escrita de documentação: writing-docs.md
 
 markdown_extensions:
   - admonition
   - attr_list
+  - footnotes
   - pymdownx.highlight
   - pymdownx.inlinehilite
   - pymdownx.superfences:

@@ -1,3 +1,9 @@
+@media screen {
+  .no-screen {
+    display: none !important;
+  }
+}
+
 @media print {
   pre,
   code,

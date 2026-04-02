@@ -13,61 +13,117 @@
     {% endblock %}
 </head>
 <body>
-<header class="p-3 mb-3 border-bottom bg-primary">
+<header class="mb-3 border-bottom bg-primary">
     <nav class="navbar navbar-expand-lg" data-bs-theme="dark">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('home') }}">SeisLabData</a>
-            <div class="navbar-nav me-auto">
-                <a class="nav-link" href="{{ url_for('projects:list') }}" aria-label="list-projects"><span class="material-icons-outlined" aria-hidden="true">{{ icons.projects }}</span>{{ _("Projects") }}</a>
-                <a class="nav-link" href="{{ url_for('survey_missions:list') }} " aria-label="list-survey-missions"><span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_missions }}</span>{{ _("Survey Missions") }}</a>
-                <a class="nav-link" href="{{ url_for('survey_related_records:list') }}" aria-label="list-survey-related-records"><span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_related_records }}</span>{{ _("Survey-related Records") }}</a>
-                {% if request.session.user %}
-                    <a class="nav-link" href="{{ url_for('profile') }}">{{ _("Profile") }}</a>
-                    <a class="nav-link" href="{{ url_for('protected') }}">{{ _("Protected") }}</a>
-                {% endif %}
-            </div>
-            <div class="navbar-nav ms-auto">
-                <div class="dropdown me-3">
-                  <button
-                          class="btn btn-outline-dark dropdown-toggle"
-                          aria-label="toggle-lang"
-                          type="button"
-                          data-bs-toggle="dropdown"
-                          aria-expanded="false"
-                  >
-                    {{ _(request.state.locale) }}
-                  </button>
-              <ul class="dropdown-menu text-bg-light">
-                <li><a
-                        class="dropdown-item"
-                        aria-label="set-lang-en"
-                        {% if request.state.locale == "en" %}active{% endif %}
-                        href="{{ url_for('set_language', lang='en') }}"
-                    >en - {{ _("English") }}</a></li>
-                <li><a
-                        class="dropdown-item"
-                        aria-label="set-lang-pt"
-                        {% if request.state.locale == "pt" %}active{% endif %}
-                        href="{{ url_for('set_language', lang='pt') }}"
-                >pt - {{ _("Portuguese") }}</a></li>
-              </ul>
-            </div>
-                {% if request.session.user %}
-                    <div class="navbar-nav align-items-center" data-testid="user-menu">
-                        <span class="navbar-text me-3">{{ request.session.user.name }}</span>
-                        <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}" data-testid="logout-nav">
-                            <i class="bi bi-box-arrow-right"></i> {{ _("Logout") }}
+            <a class="navbar-brand d-flex align-items-center gap-2" href="{{ url_for('home') }}">
+                <img src="{{ url_for('static', path='/img/sld-logo.png') }}" alt="" height="48">
+                SeisLabData
+            </a>
+            <button
+                class="navbar-toggler"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#main-navbar"
+                aria-controls="main-navbar"
+                aria-expanded="false"
+                aria-label="Toggle navigation"
+            >
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="main-navbar">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4 gap-lg-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('projects:list') }}" aria-label="list-projects">
+                            <span class="material-icons-outlined" aria-hidden="true">{{ icons.projects }}</span>{{ _("Projects") }}
                         </a>
-                    </div>
-                {% else %}
-                    <a class="btn btn-outline-light btn-sm" href="{{ url_for('login') }}" data-testid="login-nav">
-                        <i class="bi bi-box-arrow-in-right"></i> {{ _("Login / Register") }}
-                    </a>
-                {% endif %}
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('survey_missions:list') }}" aria-label="list-survey-missions">
+                            <span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_missions }}</span>{{ _("Survey Missions") }}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('survey_related_records:list') }}" aria-label="list-survey-related-records">
+                            <span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_related_records }}</span>{{ _("Survey-related Records") }}
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center">
+                    <li class="nav-item dropdown me-lg-3">
+                        <button
+                            class="btn btn-link text-light text-decoration-none dropdown-toggle"
+                            aria-label="toggle-lang"
+                            type="button"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false"
+                        >
+                            {{ _(request.state.locale) }}
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end border-0 shadow" data-bs-theme="light">
+                            <li><a
+                                class="dropdown-item"
+                                aria-label="set-lang-en"
+                                {% if request.state.locale == "en" %}active{% endif %}
+                                href="{{ url_for('set_language', lang='en') }}"
+                            >en - {{ _("English") }}</a></li>
+                            <li><a
+                                class="dropdown-item"
+                                aria-label="set-lang-pt"
+                                {% if request.state.locale == "pt" %}active{% endif %}
+                                href="{{ url_for('set_language', lang='pt') }}"
+                            >pt - {{ _("Portuguese") }}</a></li>
+                        </ul>
+                    </li>
+                    {% if request.user.is_authenticated %}
+                        <li class="nav-item dropdown" data-testid="user-menu">
+                            <button
+                                class="btn btn-link text-light text-decoration-none dropdown-toggle"
+                                type="button"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false"
+                                aria-haspopup="menu"
+                                aria-controls="user-menu-dropdown"
+                                aria-label="user-menu-toggle"
+                            >
+                                <span class="material-icons-outlined fs-4" aria-hidden="true">{{ icons.user }}</span>
+                            </button>
+                            <div id="user-menu-dropdown" role="menu" aria-label="user-menu" class="dropdown-menu dropdown-menu-end border-0 shadow p-4" data-bs-theme="light" style="min-width: 18rem;">
+                                <p class="mb-3 fw-semibold">{{ request.user.name }}</p>
+                                <dl class="mb-0 small">
+                                    <dt class="text-muted fw-normal">{{ _('Username') }}</dt>
+                                    <dd class="mb-2">{{ request.user.username }}</dd>
+                                    <dt class="text-muted fw-normal">{{ _('E-mail') }}</dt>
+                                    <dd class="mb-2">{{ request.user.email }}</dd>
+                                    <dt class="text-muted fw-normal">{{ _('ID') }}</dt>
+                                    <dd class="mb-2 text-truncate font-monospace small">{{ request.user.id }}</dd>
+                                    {% if request.user.roles %}
+                                        <dt class="text-muted fw-normal">{{ _('Roles') }}</dt>
+                                        <dd class="mb-0">{{ request.user.roles | join(", ") }}</dd>
+                                    {% endif %}
+                                </dl>
+                                <hr class="my-3">
+                                {% if "system-admin" in request.user.roles %}
+                                    <a href="{{ request.state.auth_config.authentik_external_url }}/if/admin/" target="_blank" class="btn btn-outline-secondary btn-sm w-100 mb-2">
+                                        <i class="bi bi-shield-lock"></i> {{ _("Authentik Admin") }}
+                                    </a>
+                                {% endif %}
+                                <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary btn-sm w-100" aria-label="logout-nav">
+                                    <i class="bi bi-box-arrow-right"></i> {{ _("Logout") }}
+                                </a>
+                            </div>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="btn btn-outline-light btn-sm" href="{{ url_for('login') }}" data-testid="login-nav">
+                                <i class="bi bi-box-arrow-in-right"></i> {{ _("Login / Register") }}
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
             </div>
         </div>
     </nav>
-
 </header>
 <div class="container-fluid">
     {% if breadcrumbs %}
