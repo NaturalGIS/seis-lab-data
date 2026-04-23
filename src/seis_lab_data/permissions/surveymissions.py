@@ -20,7 +20,7 @@ def can_read_survey_mission(
         return True
     if mission.status == SurveyMissionStatus.PUBLISHED:
         return True
-    return user and (mission.owner == user.id or mission.project.owner == user.id)
+    return user and (mission.owner_id == user.id or mission.project.owner_id == user.id)
 
 
 def can_create_survey_mission(
@@ -31,7 +31,7 @@ def can_create_survey_mission(
         return False
     if not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles):
         return True
-    return ROLE_EDITOR in user.roles and project.owner == user.id
+    return ROLE_EDITOR in user.roles and project.owner_id == user.id
 
 
 def can_update_survey_mission(
@@ -42,9 +42,9 @@ def can_update_survey_mission(
         return False
     if not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles):
         return True
-    if ROLE_EDITOR in user.roles and mission.owner == user.id:
+    if ROLE_EDITOR in user.roles and mission.owner_id == user.id:
         return True
-    if ROLE_EDITOR in user.roles and mission.project.owner == user.id:
+    if ROLE_EDITOR in user.roles and mission.project.owner_id == user.id:
         return True
     return False
 

@@ -6,7 +6,6 @@ import shapely
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from .. import (
-    config,
     errors,
     events,
     permissions,
@@ -32,7 +31,6 @@ async def create_dataset_category(
     to_create: schemas.DatasetCategoryCreate,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.DatasetCategory:
     if not permissions.can_create_dataset_category(initiator):
@@ -58,7 +56,6 @@ async def delete_dataset_category(
     dataset_category_id: uuid.UUID,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
     if not permissions.can_delete_dataset_category(initiator):
@@ -96,7 +93,6 @@ async def create_domain_type(
     to_create: schemas.DomainTypeCreate,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.DomainType:
     if not permissions.can_create_domain_type(initiator):
@@ -118,7 +114,6 @@ async def delete_domain_type(
     domain_type_id: uuid.UUID,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
     if not permissions.can_delete_domain_type(initiator):
@@ -154,7 +149,6 @@ async def create_workflow_stage(
     to_create: schemas.WorkflowStageCreate,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.WorkflowStage:
     if not permissions.can_create_workflow_stage(initiator):
@@ -176,7 +170,6 @@ async def delete_workflow_stage(
     workflow_stage_id: uuid.UUID,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
     if not permissions.can_delete_workflow_stage(initiator):
@@ -212,7 +205,6 @@ async def bulk_create_survey_related_records(
     to_create: list[schemas.SurveyRelatedRecordCreate],
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ):
     survey_mission_ids = set([new_.survey_mission_id for new_ in to_create])
@@ -228,10 +220,8 @@ async def bulk_create_survey_related_records(
         raise errors.SeisLabDataError(
             f"Survey mission with id {survey_mission_id} does not exist"
         )
-    if initiator is None or not await permissions.can_create_survey_related_record(
-        initiator,
-        schemas.SurveyMissionId(survey_mission_id),
-        settings=settings,
+    if initiator is None or not permissions.can_create_survey_related_record(
+        initiator, survey_mission
     ):
         raise errors.SeisLabDataError(
             "User is not allowed to create survey-related records."
@@ -252,13 +242,21 @@ async def bulk_create_survey_related_records(
             session, record_to_create
         )
         created.append(survey_record)
+    event_emitter(
+        schemas.SeisLabDataEvent(
+            type_=schemas.EventType.BULK_SURVEY_RELATED_RECORDS_CREATED,
+            initiator=initiator.id,
+            payload=schemas.EventPayload(
+                after={"created_ids": [c.id for c in created]}
+            ),
+        )
+    )
 
 
 async def create_survey_related_record(
     to_create: schemas.SurveyRelatedRecordCreate,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ):
     if not (
@@ -311,7 +309,6 @@ async def change_survey_related_record_status(
     survey_related_record_id: schemas.SurveyRelatedRecordId,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.SurveyRelatedRecord:
     if (
@@ -356,7 +353,6 @@ async def validate_survey_related_record(
     survey_related_record_id: schemas.SurveyRelatedRecordId,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.SurveyRelatedRecord:
     if (
@@ -427,7 +423,6 @@ async def delete_survey_related_record(
     survey_related_record_id: schemas.SurveyRelatedRecordId,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
     if (
@@ -511,7 +506,6 @@ async def get_survey_related_record(
     survey_related_record_id: schemas.SurveyRelatedRecordId,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
 ) -> (
     tuple[
         models.SurveyRelatedRecord,
@@ -543,7 +537,6 @@ async def update_survey_related_record(
     to_update: schemas.SurveyRelatedRecordUpdate,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.SurveyRelatedRecord:
     if (

@@ -1,24 +1,39 @@
+import asyncio
 from typing import Annotated
 
 import typer
 from sqlalchemy.exc import IntegrityError
 
 from .. import (
-    events,
+    config,
     operations,
     schemas,
 )
 from ..db import queries
-from ..events.emitters import null_emitter
 from . import sampledata
 from .asynctyper import AsyncTyper
+from .utils import resolve_admin_user
 
 app = AsyncTyper()
 
 
 @app.callback()
-def dev_app_callback(ctx: typer.Context):
+def dev_app_callback(
+    ctx: typer.Context,
+    admin_username: str | None = typer.Option(
+        default="akadmin",
+        help="Authentik username of the admin user to act as.",
+    ),
+    admin_user_id: str | None = typer.Option(
+        default=None,
+        help="Authentik sub (UUID) of the admin user to act as. Takes precedence over --admin-username.",
+    ),
+):
     """Dev-related commands"""
+    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
+    ctx.obj["admin_user"] = asyncio.run(
+        resolve_admin_user(settings, admin_username, admin_user_id)
+    )
 
 
 @app.async_command()
@@ -35,16 +50,11 @@ async def generate_many_projects(
             max=100,
         ),
     ] = 10,
-    enable_event_emitter: bool = False,
 ):
     """Generate synthetic data"""
-    session_maker = ctx.obj["session_maker"]
     created = []
-    settings = ctx.obj["main"].settings
-    emitter = (
-        events.get_event_emitter(settings) if enable_event_emitter else null_emitter
-    )
-    async with session_maker() as session:
+    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
+    async with settings.get_db_session_maker()() as session:
         dataset_categories = await queries.collect_all_dataset_categories(session)
         workflow_stages = await queries.collect_all_workflow_stages(session)
         domain_types = await queries.collect_all_domain_types(session)
@@ -66,8 +76,7 @@ async def generate_many_projects(
                     project_to_create,
                     initiator=ctx.obj["admin_user"],
                     session=session,
-                    settings=settings,
-                    event_emitter=emitter,
+                    event_emitter=settings.get_event_emitter(),
                 )
             )
             for mission_index, (mission_to_create, records_to_create) in enumerate(
@@ -80,8 +89,7 @@ async def generate_many_projects(
                     mission_to_create,
                     initiator=ctx.obj["admin_user"],
                     session=session,
-                    settings=settings,
-                    event_emitter=emitter,
+                    event_emitter=settings.get_event_emitter(),
                 )
                 for record_index, record_to_create in enumerate(records_to_create):
                     # ctx.obj["main"].status_console.print(
@@ -91,8 +99,7 @@ async def generate_many_projects(
                         record_to_create,
                         initiator=ctx.obj["admin_user"],
                         session=session,
-                        settings=settings,
-                        event_emitter=emitter,
+                        event_emitter=settings.get_event_emitter(),
                     )
             ctx.obj["main"].status_console.print("--------")
         ctx.obj["main"].status_console.print("Done!")
@@ -109,10 +116,9 @@ async def load_all_samples(ctx: typer.Context):
 @app.async_command()
 async def load_sample_projects(ctx: typer.Context):
     """Load sample projects into the database."""
-    session_maker = ctx.obj["session_maker"]
     created = []
-    settings = ctx.obj["main"].settings
-    async with session_maker() as session:
+    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
+    async with settings.get_db_session_maker()() as session:
         for to_create in sampledata.get_projects_to_create():
             try:
                 created.append(
@@ -120,8 +126,7 @@ async def load_sample_projects(ctx: typer.Context):
                         to_create,
                         initiator=ctx.obj["admin_user"],
                         session=session,
-                        settings=settings,
-                        event_emitter=events.get_event_emitter(settings),
+                        event_emitter=settings.get_event_emitter(),
                     )
                 )
             except IntegrityError:
@@ -137,10 +142,9 @@ async def load_sample_projects(ctx: typer.Context):
 @app.async_command()
 async def load_sample_survey_missions(ctx: typer.Context):
     """Load sample survey missions into the database."""
-    session_maker = ctx.obj["session_maker"]
     created = []
-    settings = ctx.obj["main"].settings
-    async with session_maker() as session:
+    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
+    async with settings.get_db_session_maker()() as session:
         for to_create in sampledata.get_survey_missions_to_create():
             try:
                 created.append(
@@ -148,8 +152,7 @@ async def load_sample_survey_missions(ctx: typer.Context):
                         to_create,
                         initiator=ctx.obj["admin_user"],
                         session=session,
-                        settings=settings,
-                        event_emitter=events.get_event_emitter(settings),
+                        event_emitter=settings.get_event_emitter(),
                     )
                 )
             except IntegrityError:
@@ -167,10 +170,9 @@ async def load_sample_survey_missions(ctx: typer.Context):
 @app.async_command()
 async def load_sample_survey_related_records(ctx: typer.Context):
     """Load sample survey-related records into the database."""
-    session_maker = ctx.obj["session_maker"]
     created = []
-    settings = ctx.obj["main"].settings
-    async with session_maker() as session:
+    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
+    async with settings.get_db_session_maker()() as session:
         all_dataset_categories = await queries.collect_all_dataset_categories(session)
         all_domain_types = await queries.collect_all_domain_types(session)
         all_workflow_stages = await queries.collect_all_workflow_stages(session)
@@ -185,8 +187,7 @@ async def load_sample_survey_related_records(ctx: typer.Context):
                         to_create,
                         initiator=ctx.obj["admin_user"],
                         session=session,
-                        settings=settings,
-                        event_emitter=events.get_event_emitter(settings),
+                        event_emitter=settings.get_event_emitter(),
                     )
                 )
             except IntegrityError:

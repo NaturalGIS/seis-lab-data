@@ -1,11 +1,13 @@
 import json
 import logging
 import uuid
+from collections.abc import AsyncIterable
 
 from anyio import Path
 
 from ..config import SeisLabDataSettings
 from ..db import models
+from ..db.queries import surveymissions as survey_mission_queries
 from ..db.queries import recordassets as asset_queries
 from ..events import EventEmitterProtocol
 from ..operations import (
@@ -23,6 +25,7 @@ from ..schemas.common import (
     ProjectId,
     RecordAssetId,
     SurveyMissionId,
+    UserId,
 )
 from ..schemas.user import User
 
@@ -31,45 +34,87 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 logger = logging.getLogger(__name__)
 
 
+async def expand_pattern(
+    path_pattern: str, context: dict | None = None
+) -> AsyncIterable[Path]:
+    async for concrete_path in Path().glob(path_pattern):
+        if await concrete_path.is_file():
+            yield concrete_path
+
+
 async def discover_project_contents(
     session: AsyncSession,
     project: models.Project,
     settings: SeisLabDataSettings,
-    user: User,
     event_emitter: EventEmitterProtocol,
+    user: User | None = None,
 ):
-    """Discover project contents by looking for configured survey missions, records and assets"""
+    """Discover project contents by looking for configured survey missions, records and assets.
+
+    Discovered resources become owned by the input user, if provided. Otherwise they become owned by the
+    project owner.
+    """
     # this would be pulled from DB, as one of the project properties instead
     # of being gotten from a file
     project_config = await _get_project_discovery_config(
         Path(__file__).parents[3] / "tests/data/project-discovery-base.json"
     )
     # first, create survey missions
-    creation_map = {}
+    mission_creation_map = {}
+    project_id = ProjectId(project.id)
     for survey_mission_discovery_conf in project_config.survey_missions:
-        relative_path = (
-            patt[:-1]
-            if (patt := survey_mission_discovery_conf.discovery_pattern).endswith("/")
-            else patt
+        path_pattern = "/".join(
+            (
+                project.root_path.strip(),
+                survey_mission_discovery_conf.discovery_pattern.strip(),
+            )
         )
-        creation_map[
-            survey_mission_discovery_conf
-        ] = await survey_mission_ops.create_survey_mission(
-            to_create=mission_schemas.SurveyMissionCreate(
+        async for concrete_mission_path in expand_pattern(path_pattern):
+            relative_path = str(concrete_mission_path.relative_to(project.root_path))
+            if (
+                existing_survey_mission
+                := await survey_mission_queries.get_survey_mission_by_path(
+                    session, project_id, relative_path
+                )
+            ) is not None:
+                logger.debug(
+                    f"Found an already existing survey mission with the same "
+                    f"path ({existing_survey_mission.id!r}), skipping..."
+                )
+                continue
+            mission_to_create = mission_schemas.SurveyMissionCreate(  # noqa
                 id=SurveyMissionId(uuid.uuid4()),
-                owner=user.id,
-                project_id=ProjectId(project.id),
+                owner=UserId(user.id) if user else project.owner,
+                project_id=project_id,
                 name=LocalizableDraftName(**survey_mission_discovery_conf.name),
                 description=LocalizableDraftDescription(
-                    **survey_mission_discovery_conf.description
+                    **(survey_mission_discovery_conf.description or {})
                 ),
-                relative_path=relative_path,
-            ),
-            initiator=user,
-            session=session,
-            settings=settings,
-            event_emitter=event_emitter,
-        )
+                relative_path=str(concrete_mission_path.relative_to(project.root_path)),
+            )
+
+            mission_creation_map[
+                survey_mission_discovery_conf
+            ] = await survey_mission_ops.create_survey_mission(
+                to_create=mission_schemas.SurveyMissionCreate(
+                    id=SurveyMissionId(uuid.uuid4()),
+                    owner=user.id,
+                    project_id=project_id,
+                    name=LocalizableDraftName(**survey_mission_discovery_conf.name),
+                    description=LocalizableDraftDescription(
+                        **(survey_mission_discovery_conf.description or {})
+                    ),
+                    relative_path=str(
+                        concrete_mission_path.relative_to(project.root_path)
+                    ),
+                ),
+                initiator=user,
+                session=session,
+                event_emitter=event_emitter,
+            )
+            logger.debug(
+                f"{mission_creation_map[survey_mission_discovery_conf].model_dump_json()=}"
+            )
     # then discover each survey mission's contents
 
 

@@ -7,15 +7,7 @@ from rich.padding import Padding
 from rich.panel import Panel
 import typer
 
-from .. import (
-    config,
-    schemas,
-)
-from ..constants import ROLE_ADMIN
-from ..db.engine import (
-    get_engine,
-    get_session_maker,
-)
+from .. import config
 from .bootstrapapp import app as bootstrap_app
 from .dbapp import app as db_app
 from .devapp import app as dev_app
@@ -36,23 +28,7 @@ def base_callback(ctx: typer.Context) -> None:
     """SeisLabData command line interface"""
     context = config.get_cli_context()
     config.configure_logging(context)
-    engine = get_engine(
-        context.settings.database_dsn.unicode_string(), context.settings.debug
-    )
-    session_maker = get_session_maker(engine)
-    ctx.obj = {
-        "main": context,
-        "session_maker": session_maker,
-        "admin_user": schemas.User(
-            id=schemas.UserId("sld-admin"),
-            username="SLD Admin",
-            email="admin@sld.com",
-            roles=[
-                ROLE_ADMIN,
-            ],
-            active=True,
-        ),
-    }
+    ctx.obj = {"main": context}
 
 
 @app.command(

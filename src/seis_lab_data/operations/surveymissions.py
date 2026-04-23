@@ -5,7 +5,6 @@ import shapely
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from .. import (
-    config,
     errors,
     events,
 )
@@ -32,7 +31,6 @@ async def create_survey_mission(
     to_create: schemas.SurveyMissionCreate,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.SurveyMission:
     if not (project := await queries.get_project(session, to_create.project_id)):
@@ -66,7 +64,6 @@ async def change_survey_mission_status(
     survey_mission_id: schemas.SurveyMissionId,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.SurveyMission:
     if (
@@ -104,7 +101,6 @@ async def validate_survey_mission(
     survey_mission_id: schemas.SurveyMissionId,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.SurveyMission:
     if (
@@ -170,7 +166,6 @@ async def update_survey_mission(
     to_update: schemas.SurveyMissionUpdate,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.SurveyMission:
     if (
@@ -215,7 +210,6 @@ async def delete_survey_mission(
     survey_mission_id: schemas.SurveyMissionId,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
     if (
@@ -284,7 +278,6 @@ async def get_survey_mission(
     survey_mission_id: schemas.SurveyMissionId,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
 ) -> models.SurveyMission | None:
     mission = await queries.get_survey_mission(session, survey_mission_id)
     if mission is None:

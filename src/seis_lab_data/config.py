@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 import jinja2
+import sqlmodel
 import yaml
 from pydantic import (
     BaseModel,
@@ -20,6 +21,15 @@ from pydantic_settings import (
 )
 from rich.console import Console
 from rich.logging import RichHandler
+from sqlalchemy import Engine
+from sqlalchemy.ext.asyncio.session import async_sessionmaker
+from sqlalchemy.ext.asyncio.engine import (
+    AsyncEngine,
+    create_async_engine,
+)
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from .events import emitters
 
 warnings.filterwarnings(
     "ignore", r".*directory.*does not exist.*", UserWarning, module="pydantic_settings"
@@ -87,6 +97,41 @@ class SeisLabDataSettings(BaseSettings):
     )
     default_temporal_extent_begin: str = ""
     default_temporal_extent_end: str = ""
+
+    _db_engine: AsyncEngine | None = None
+    _sync_db_engine: Engine | None = None
+    _db_session_maker: async_sessionmaker | None = None
+    _event_emitter: emitters.EventEmitterProtocol | None = None
+
+    def get_db_engine(self) -> AsyncEngine:
+        if self._db_engine is None:
+            self._db_engine = create_async_engine(self.database_dsn.unicode_string())
+        return self._db_engine
+
+    def get_sync_db_engine(self) -> Engine:
+        if self._sync_db_engine is None:
+            self._sync_db_engine = sqlmodel.create_engine(
+                self.database_dsn.unicode_string()
+            )
+        return self._sync_db_engine
+
+    def get_db_session_maker(self) -> async_sessionmaker:
+        if self._db_session_maker is None:
+            self._db_session_maker = async_sessionmaker(
+                autocommit=False,
+                autoflush=False,
+                bind=self.get_db_engine(),
+                expire_on_commit=False,
+                class_=AsyncSession,
+            )
+        return self._db_session_maker
+
+    def get_event_emitter(self) -> emitters.EventEmitterProtocol:
+        if self._event_emitter is None:
+            self._event_emitter = (
+                emitters.emit_event if self.emit_events else emitters.no_op_emit_event
+            )
+        return self._event_emitter
 
 
 class SeisLabDataCliContext(BaseModel):

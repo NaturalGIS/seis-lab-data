@@ -1,20 +1,37 @@
+import asyncio
+
 import typer
 from sqlalchemy.exc import IntegrityError
 
 from .. import (
-    events,
+    config,
     operations,
     schemas,
 )
 from . import bootstrapdata
 from .asynctyper import AsyncTyper
+from .utils import resolve_admin_user
 
 app = AsyncTyper()
 
 
 @app.callback()
-def bootstrap_app_callback(ctx: typer.Context):
+def bootstrap_app_callback(
+    ctx: typer.Context,
+    admin_username: str | None = typer.Option(
+        default="akadmin",
+        help="Authentik username of the admin user to act as.",
+    ),
+    admin_user_id: str | None = typer.Option(
+        default=None,
+        help="Authentik sub (UUID) of the admin user to act as. Takes precedence over --admin-username.",
+    ),
+):
     """Bootstrapp newly installed instances."""
+    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
+    ctx.obj["admin_user"] = asyncio.run(
+        resolve_admin_user(settings, admin_username, admin_user_id)
+    )
 
 
 @app.async_command(name="all")
@@ -29,8 +46,8 @@ async def bootstrap_all(ctx: typer.Context):
 async def bootstrap_dataset_categories(ctx: typer.Context):
     """Create default dataset categories."""
     created = []
-    settings = ctx.obj["main"].settings
-    async with ctx.obj["session_maker"]() as session:
+    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
+    async with settings.get_db_session_maker()() as session:
         for to_create in bootstrapdata.DATASET_CATEGORIES_TO_CREATE.values():
             try:
                 created.append(
@@ -38,8 +55,7 @@ async def bootstrap_dataset_categories(ctx: typer.Context):
                         to_create,
                         initiator=ctx.obj["admin_user"],
                         session=session,
-                        settings=settings,
-                        event_emitter=events.get_event_emitter(settings),
+                        event_emitter=settings.get_event_emitter(),
                     )
                 )
             except IntegrityError:
@@ -56,8 +72,8 @@ async def bootstrap_dataset_categories(ctx: typer.Context):
 async def bootstrap_domain_types(ctx: typer.Context):
     """Create default domain types."""
     created = []
-    settings = ctx.obj["main"].settings
-    async with ctx.obj["session_maker"]() as session:
+    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
+    async with settings.get_db_session_maker()() as session:
         for to_create in bootstrapdata.DOMAIN_TYPES_TO_CREATE.values():
             try:
                 created.append(
@@ -65,8 +81,7 @@ async def bootstrap_domain_types(ctx: typer.Context):
                         to_create,
                         initiator=ctx.obj["admin_user"],
                         session=session,
-                        settings=settings,
-                        event_emitter=events.get_event_emitter(settings),
+                        event_emitter=settings.get_event_emitter(),
                     )
                 )
             except IntegrityError:
@@ -83,8 +98,8 @@ async def bootstrap_domain_types(ctx: typer.Context):
 async def bootstrap_workflow_stages(ctx: typer.Context):
     """Create default workflow stages."""
     created = []
-    settings = ctx.obj["main"].settings
-    async with ctx.obj["session_maker"]() as session:
+    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
+    async with settings.get_db_session_maker()() as session:
         for to_create in bootstrapdata.WORKFLOW_STAGES_TO_CREATE.values():
             try:
                 created.append(
@@ -92,8 +107,7 @@ async def bootstrap_workflow_stages(ctx: typer.Context):
                         to_create,
                         initiator=ctx.obj["admin_user"],
                         session=session,
-                        settings=settings,
-                        event_emitter=events.get_event_emitter(settings),
+                        event_emitter=settings.get_event_emitter(),
                     )
                 )
             except IntegrityError:

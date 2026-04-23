@@ -9,7 +9,7 @@
         "pt": "Descrição da missão1",
         "en": "Description for first mission"
       },
-      "discovery_pattern": "/surveys/owf-seism-2024",
+      "discovery_pattern": "surveys/owf-seism-2024/",
       "records": [
         "record_batch_1"
       ]

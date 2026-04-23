@@ -79,6 +79,7 @@ async def list_published_projects(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.Project], int | None]:
+    """Lists public projects."""
     statement = _build_project_statement(
         en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
     ).where(models.Project.status == ProjectStatus.PUBLISHED)
@@ -98,6 +99,7 @@ async def list_accessible_projects(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.Project], int | None]:
+    """List projects that are viewable by the input user."""
     statement = _build_project_statement(
         en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
     ).where(

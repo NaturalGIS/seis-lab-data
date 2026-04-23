@@ -48,7 +48,7 @@ async def auth_callback(request: Request):
         }
         user = get_user(user_info)
         if user:
-            session_maker = request.state.session_maker
+            session_maker = request.state.settings.get_db_session_maker()
             try:
                 async with session_maker() as session:
                     await commands.upsert_user(session, user)

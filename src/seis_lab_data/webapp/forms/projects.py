@@ -111,7 +111,7 @@ class _ProjectForm(StarletteForm):
         # then validate the form data with our custom pydantic model
         await form_instance.validate_on_submit()
         form_instance.validate_with_schema()
-        session_maker = request.state.session_maker
+        session_maker = request.state.settings.get_db_session_maker()
         async with session_maker() as session:
             await form_instance.check_if_english_name_is_unique(
                 session, disregard_id=disregard_id
