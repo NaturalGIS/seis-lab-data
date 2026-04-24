@@ -1,0 +1,48 @@
+{
+  "survey_missions": [
+    {
+      "name": {
+        "pt": "missão1 owf-seism-2024",
+        "en": "first mission owf-seism-2024"
+      },
+      "description": {
+        "pt": "Descrição da missão1",
+        "en": "Description for first mission"
+      },
+      "discovery_pattern": "surveys/owf-seism-2024/",
+      "records": [
+        "record_batch_1"
+      ]
+    }
+  ],
+  "records": {
+    "record_batch_1": {
+      "dataset_category": "bathymetry",
+      "domain_type": "geophysical",
+      "workflow_stage": "processed data",
+      "extractor": "seis_lab_data.extractors.bathymetry.extractor_default_or_customizable",
+      "name": {
+        "pt": "Batimetria processada",
+        "en": "Final processed bathymetry"
+      },
+      "assets": [
+        {
+          "name": {
+            "pt": "Ficheiro xyz",
+            "en": "xyz file"
+          },
+          "discovery_patterns": [
+            "s06-mbes/s05-processed-data/s02-dtm-points/????????/{area}_All_Mainlines_and_Xlines_MBES_Grid_{grid_resolution}.xyz"
+          ],
+          "extra_context": {
+            "grid_resolution": "4m"
+          }
+        }
+      ],
+      "extra_context": {
+        "area": ["FIG"]
+      }
+    }
+  },
+  "record_relations" : []
+}

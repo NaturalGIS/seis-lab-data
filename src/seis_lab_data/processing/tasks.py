@@ -2,7 +2,6 @@ import asyncio
 import json
 import logging
 import uuid
-from collections.abc import Callable
 
 import dramatiq
 from redis.asyncio import Redis
@@ -31,7 +30,6 @@ from ..constants import (
     PROJECT_DELETED_TOPIC,
 )
 
-from ..events import get_event_emitter
 from . import decorators
 
 logger = logging.getLogger(__name__)
@@ -46,7 +44,6 @@ dramatiq.set_broker(_stub_broker)
 @dramatiq.actor
 @decorators.sld_settings
 @decorators.redis_client
-@decorators.session_maker
 async def validate_survey_related_record(
     raw_request_id: str,
     raw_survey_related_record_id: str,
@@ -54,7 +51,6 @@ async def validate_survey_related_record(
     *,
     settings: config.SeisLabDataSettings,
     redis_client: Redis,
-    session_maker: Callable,
 ):
     survey_related_record_id = schemas.SurveyRelatedRecordId(
         uuid.UUID(raw_survey_related_record_id)
@@ -68,8 +64,7 @@ async def validate_survey_related_record(
     logger.debug(f"validation updates will be published to topic {validity_topic=} ")
     logger.debug(f"status updates will be published to topic {status_topic=} ")
     initiator = schemas.User(**json.loads(raw_initiator))
-    event_emitter = get_event_emitter(settings)
-    async with session_maker() as session:
+    async with settings.get_db_session_maker()() as session:
         try:
             # await asyncio.sleep(2)
             await operations.change_survey_related_record_status(
@@ -77,8 +72,7 @@ async def validate_survey_related_record(
                 survey_related_record_id,
                 initiator,
                 session,
-                settings,
-                event_emitter,
+                event_emitter=settings.get_event_emitter(),
             )
             await redis_client.publish(
                 status_topic,
@@ -89,7 +83,10 @@ async def validate_survey_related_record(
             )
             await asyncio.sleep(2)
             await operations.validate_survey_related_record(
-                survey_related_record_id, initiator, session, settings, event_emitter
+                survey_related_record_id,
+                initiator,
+                session,
+                settings.get_event_emitter(),
             )
             await redis_client.publish(
                 validity_topic,
@@ -104,8 +101,7 @@ async def validate_survey_related_record(
                 survey_related_record_id,
                 initiator,
                 session,
-                settings,
-                event_emitter,
+                event_emitter=settings.get_event_emitter(),
             )
             await redis_client.publish(
                 status_topic,
@@ -121,7 +117,6 @@ async def validate_survey_related_record(
 @dramatiq.actor
 @decorators.sld_settings
 @decorators.redis_client
-@decorators.session_maker
 async def validate_survey_mission(
     raw_request_id: str,
     raw_survey_mission_id: str,
@@ -129,7 +124,6 @@ async def validate_survey_mission(
     *,
     settings: config.SeisLabDataSettings,
     redis_client: Redis,
-    session_maker: Callable,
 ):
     survey_mission_id = schemas.SurveyMissionId(uuid.UUID(raw_survey_mission_id))
     validity_topic = SURVEY_MISSION_VALIDITY_CHANGED_TOPIC.format(
@@ -141,8 +135,7 @@ async def validate_survey_mission(
     logger.debug(f"validation updates will be published to topic {validity_topic=} ")
     logger.debug(f"status updates will be published to topic {status_topic=} ")
     initiator = schemas.User(**json.loads(raw_initiator))
-    event_emitter = get_event_emitter(settings)
-    async with session_maker() as session:
+    async with settings.get_db_session_maker()() as session:
         try:
             # await asyncio.sleep(2)
             await operations.change_survey_mission_status(
@@ -150,8 +143,7 @@ async def validate_survey_mission(
                 survey_mission_id,
                 initiator,
                 session,
-                settings,
-                event_emitter,
+                event_emitter=settings.get_event_emitter(),
             )
             await redis_client.publish(
                 status_topic,
@@ -162,7 +154,7 @@ async def validate_survey_mission(
             )
             await asyncio.sleep(2)
             await operations.validate_survey_mission(
-                survey_mission_id, initiator, session, settings, event_emitter
+                survey_mission_id, initiator, session, settings.get_event_emitter()
             )
             await redis_client.publish(
                 validity_topic,
@@ -177,8 +169,7 @@ async def validate_survey_mission(
                 survey_mission_id,
                 initiator,
                 session,
-                settings,
-                event_emitter,
+                event_emitter=settings.get_event_emitter(),
             )
             await redis_client.publish(
                 status_topic,
@@ -194,7 +185,6 @@ async def validate_survey_mission(
 @dramatiq.actor
 @decorators.sld_settings
 @decorators.redis_client
-@decorators.session_maker
 async def validate_project(
     raw_request_id: str,
     raw_project_id: str,
@@ -202,7 +192,6 @@ async def validate_project(
     *,
     settings: config.SeisLabDataSettings,
     redis_client: Redis,
-    session_maker: Callable,
 ):
     project_id = schemas.ProjectId(uuid.UUID(raw_project_id))
     validity_topic = PROJECT_VALIDITY_CHANGED_TOPIC.format(project_id=project_id)
@@ -210,8 +199,7 @@ async def validate_project(
     logger.debug(f"validation updates will be published to topic {validity_topic=} ")
     logger.debug(f"status updates will be published to topic {status_topic=} ")
     initiator = schemas.User(**json.loads(raw_initiator))
-    event_emitter = get_event_emitter(settings)
-    async with session_maker() as session:
+    async with settings.get_db_session_maker()() as session:
         try:
             # await asyncio.sleep(2)
             await operations.change_project_status(
@@ -219,8 +207,7 @@ async def validate_project(
                 project_id,
                 initiator,
                 session,
-                settings,
-                event_emitter,
+                event_emitter=settings.get_event_emitter(),
             )
             await redis_client.publish(
                 status_topic,
@@ -231,7 +218,7 @@ async def validate_project(
             )
             await asyncio.sleep(2)
             await operations.validate_project(
-                project_id, initiator, session, settings, event_emitter
+                project_id, initiator, session, settings.get_event_emitter()
             )
             await redis_client.publish(
                 validity_topic,
@@ -245,8 +232,7 @@ async def validate_project(
                 project_id,
                 initiator,
                 session,
-                settings,
-                event_emitter,
+                event_emitter=settings.get_event_emitter(),
             )
             await redis_client.publish(
                 status_topic,
@@ -262,7 +248,6 @@ async def validate_project(
 @dramatiq.actor
 @decorators.sld_settings
 @decorators.redis_client
-@decorators.session_maker
 async def create_project(
     raw_request_id: str,
     raw_to_create: str,
@@ -270,7 +255,6 @@ async def create_project(
     *,
     settings: config.SeisLabDataSettings,
     redis_client: Redis,
-    session_maker: Callable,
 ):
     logger.debug("Hi from the create_project task")
     request_id = schemas.RequestId(uuid.UUID(raw_request_id))
@@ -295,13 +279,12 @@ async def create_project(
                 message="Creating project...",
             ).model_dump_json(),
         )
-        async with session_maker() as session:
+        async with settings.get_db_session_maker()() as session:
             project = await operations.create_project(
                 to_create=to_create,
                 initiator=initiator,
                 session=session,
-                settings=settings,
-                event_emitter=get_event_emitter(settings),
+                event_emitter=settings.get_event_emitter(),
             )
 
         await redis_client.publish(
@@ -345,7 +328,6 @@ async def create_project(
 @dramatiq.actor
 @decorators.sld_settings
 @decorators.redis_client
-@decorators.session_maker
 async def update_project(
     raw_request_id: str,
     raw_project_id: str,
@@ -354,14 +336,12 @@ async def update_project(
     *,
     settings: config.SeisLabDataSettings,
     redis_client: Redis,
-    session_maker: Callable,
 ):
     logger.debug("Hi from the update_project task")
     request_id = schemas.RequestId(uuid.UUID(raw_request_id))
     topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     initiator = schemas.User(**json.loads(raw_initiator))
     to_update = schemas.ProjectUpdate(**json.loads(raw_to_update))
-    event_emitter = get_event_emitter(settings)
     try:
         await redis_client.publish(
             topic_name,
@@ -371,14 +351,13 @@ async def update_project(
                 message="Project update started",
             ).model_dump_json(),
         )
-        async with session_maker() as session:
+        async with settings.get_db_session_maker()() as session:
             updated_project = await operations.update_project(
                 project_id=schemas.ProjectId(uuid.UUID(raw_project_id)),
                 to_update=to_update,
                 initiator=initiator,
                 session=session,
-                settings=settings,
-                event_emitter=event_emitter,
+                event_emitter=settings.get_event_emitter(),
             )
         await redis_client.publish(
             topic_name,
@@ -408,7 +387,6 @@ async def update_project(
 @dramatiq.actor
 @decorators.sld_settings
 @decorators.redis_client
-@decorators.session_maker
 async def delete_project(
     raw_request_id: str,
     raw_project_id: str,
@@ -416,7 +394,6 @@ async def delete_project(
     *,
     settings: config.SeisLabDataSettings,
     redis_client: Redis,
-    session_maker: Callable,
 ):
     logger.debug("Hi from the delete_project task")
     request_id = schemas.RequestId(uuid.UUID(raw_request_id))
@@ -432,13 +409,12 @@ async def delete_project(
                 message="Project deletion started",
             ).model_dump_json(),
         )
-        async with session_maker() as session:
+        async with settings.get_db_session_maker()() as session:
             await operations.delete_project(
                 project_id=project_id,
                 initiator=initiator,
                 session=session,
-                settings=settings,
-                event_emitter=get_event_emitter(settings),
+                event_emitter=settings.get_event_emitter(),
             )
         await redis_client.publish(
             topic_name,
@@ -469,7 +445,6 @@ async def delete_project(
 @dramatiq.actor
 @decorators.sld_settings
 @decorators.redis_client
-@decorators.session_maker
 async def create_survey_mission(
     raw_request_id: str,
     raw_to_create: str,
@@ -477,7 +452,6 @@ async def create_survey_mission(
     *,
     settings: config.SeisLabDataSettings,
     redis_client: Redis,
-    session_maker: Callable,
 ):
     request_id = schemas.RequestId(uuid.UUID(raw_request_id))
     topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
@@ -501,13 +475,12 @@ async def create_survey_mission(
                 message="Creating survey mission...",
             ).model_dump_json(),
         )
-        async with session_maker() as session:
+        async with settings.get_db_session_maker()() as session:
             survey_mission = await operations.create_survey_mission(
                 to_create=to_create,
                 initiator=initiator,
                 session=session,
-                settings=settings,
-                event_emitter=get_event_emitter(settings),
+                event_emitter=settings.get_event_emitter(),
             )
 
         await redis_client.publish(
@@ -551,7 +524,6 @@ async def create_survey_mission(
 @dramatiq.actor
 @decorators.sld_settings
 @decorators.redis_client
-@decorators.session_maker
 async def update_survey_mission(
     raw_request_id: str,
     raw_survey_mission_id: str,
@@ -560,7 +532,6 @@ async def update_survey_mission(
     *,
     settings: config.SeisLabDataSettings,
     redis_client: Redis,
-    session_maker: Callable,
 ):
     logger.debug("Hi from the update_survey_mission task")
     request_id = schemas.RequestId(uuid.UUID(raw_request_id))
@@ -576,7 +547,7 @@ async def update_survey_mission(
                 message="Survey mission update started",
             ).model_dump_json(),
         )
-        async with session_maker() as session:
+        async with settings.get_db_session_maker()() as session:
             updated_survey_mission = await operations.update_survey_mission(
                 survey_mission_id=schemas.SurveyMissionId(
                     uuid.UUID(raw_survey_mission_id)
@@ -584,8 +555,7 @@ async def update_survey_mission(
                 to_update=to_update,
                 initiator=initiator,
                 session=session,
-                settings=settings,
-                event_emitter=get_event_emitter(settings),
+                event_emitter=settings.get_event_emitter(),
             )
         await redis_client.publish(
             topic_name,
@@ -617,7 +587,6 @@ async def update_survey_mission(
 @dramatiq.actor
 @decorators.sld_settings
 @decorators.redis_client
-@decorators.session_maker
 async def delete_survey_mission(
     raw_request_id: str,
     raw_survey_mission_id: str,
@@ -625,7 +594,6 @@ async def delete_survey_mission(
     *,
     settings: config.SeisLabDataSettings,
     redis_client: Redis,
-    session_maker: Callable,
 ):
     logger.debug("Hi from the delete_survey_mission task")
     request_id = schemas.RequestId(uuid.UUID(raw_request_id))
@@ -640,15 +608,14 @@ async def delete_survey_mission(
                 message="Survey mission deletion started",
             ).model_dump_json(),
         )
-        async with session_maker() as session:
+        async with settings.get_db_session_maker()() as session:
             await operations.delete_survey_mission(
                 survey_mission_id=schemas.SurveyMissionId(
                     uuid.UUID(raw_survey_mission_id)
                 ),
                 initiator=initiator,
                 session=session,
-                settings=settings,
-                event_emitter=get_event_emitter(settings),
+                event_emitter=settings.get_event_emitter(),
             )
         await redis_client.publish(
             topic_name,
@@ -671,7 +638,6 @@ async def delete_survey_mission(
 @dramatiq.actor
 @decorators.sld_settings
 @decorators.redis_client
-@decorators.session_maker
 async def create_survey_related_record(
     raw_request_id: str,
     raw_to_create: str,
@@ -679,7 +645,6 @@ async def create_survey_related_record(
     *,
     settings: config.SeisLabDataSettings,
     redis_client: Redis,
-    session_maker: Callable,
 ):
     request_id = schemas.RequestId(uuid.UUID(raw_request_id))
     topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
@@ -703,13 +668,12 @@ async def create_survey_related_record(
                 message="Creating survey-related record...",
             ).model_dump_json(),
         )
-        async with session_maker() as session:
+        async with settings.get_db_session_maker()() as session:
             survey_related_record = await operations.create_survey_related_record(
                 to_create=to_create,
                 initiator=initiator,
                 session=session,
-                settings=settings,
-                event_emitter=get_event_emitter(settings),
+                event_emitter=settings.get_event_emitter(),
             )
 
         await redis_client.publish(
@@ -753,7 +717,6 @@ async def create_survey_related_record(
 @dramatiq.actor
 @decorators.sld_settings
 @decorators.redis_client
-@decorators.session_maker
 async def delete_survey_related_record(
     raw_request_id: str,
     raw_survey_related_record_id: str,
@@ -761,7 +724,6 @@ async def delete_survey_related_record(
     *,
     settings: config.SeisLabDataSettings,
     redis_client: Redis,
-    session_maker: Callable,
 ):
     logger.debug("Hi from the delete_survey_related_record task")
     request_id = schemas.RequestId(uuid.UUID(raw_request_id))
@@ -776,15 +738,14 @@ async def delete_survey_related_record(
                 message="Survey-related record deletion started",
             ).model_dump_json(),
         )
-        async with session_maker() as session:
+        async with settings.get_db_session_maker()() as session:
             await operations.delete_survey_related_record(
                 survey_related_record_id=schemas.SurveyRelatedRecordId(
                     uuid.UUID(raw_survey_related_record_id)
                 ),
                 initiator=initiator,
                 session=session,
-                settings=settings,
-                event_emitter=get_event_emitter(settings),
+                event_emitter=settings.get_event_emitter(),
             )
         await redis_client.publish(
             topic_name,
@@ -807,7 +768,6 @@ async def delete_survey_related_record(
 @dramatiq.actor
 @decorators.sld_settings
 @decorators.redis_client
-@decorators.session_maker
 async def update_survey_related_record(
     raw_request_id: str,
     raw_survey_related_record_id: str,
@@ -816,7 +776,6 @@ async def update_survey_related_record(
     *,
     settings: config.SeisLabDataSettings,
     redis_client: Redis,
-    session_maker: Callable,
 ):
     logger.debug("Hi from the update_survey_related_record task")
     request_id = schemas.RequestId(uuid.UUID(raw_request_id))
@@ -832,7 +791,7 @@ async def update_survey_related_record(
                 message="Survey-related record update started",
             ).model_dump_json(),
         )
-        async with session_maker() as session:
+        async with settings.get_db_session_maker()() as session:
             updated = await operations.update_survey_related_record(
                 survey_related_record_id=schemas.SurveyRelatedRecordId(
                     uuid.UUID(raw_survey_related_record_id)
@@ -840,8 +799,7 @@ async def update_survey_related_record(
                 to_update=to_update,
                 initiator=initiator,
                 session=session,
-                settings=settings,
-                event_emitter=get_event_emitter(settings),
+                event_emitter=settings.get_event_emitter(),
             )
         await redis_client.publish(
             topic_name,

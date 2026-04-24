@@ -104,7 +104,7 @@ async def get_project_creation_form(request: Request):
 async def get_project_update_form(request: Request):
     """Return a form suitable for updating an existing project."""
     user = request.user if request.user.is_authenticated else None
-    session_maker = request.state.session_maker
+    session_maker = request.state.settings.get_db_session_maker()
     project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
     async with session_maker() as session:
         try:
@@ -112,7 +112,6 @@ async def get_project_update_form(request: Request):
                 project_id,
                 user,
                 session,
-                request.state.settings,
             )
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -217,8 +216,7 @@ async def get_project_detail_updates(request: Request):
         project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
     except ValueError as err:
         raise HTTPException(status_code=400, detail="Invalid project id") from err
-    session_maker = request.state.session_maker
-    settings: config.SeisLabDataSettings = request.state.settings
+    session_maker = request.state.settings.get_db_session_maker()
     redis_client: Redis = request.state.redis_client
     user = request.user if request.user.is_authenticated else None
 
@@ -253,7 +251,7 @@ async def get_project_detail_updates(request: Request):
             )
             async with session_maker() as session:
                 updated_project = await operations.get_project(
-                    project_id, user, session, settings
+                    project_id, user, session
                 )
                 yield ServerSentEventGenerator.patch_signals(
                     {
@@ -272,7 +270,7 @@ async def get_project_detail_updates(request: Request):
             )
             async with session_maker() as session:
                 updated_project = await operations.get_project(
-                    project_id, user, session, settings
+                    project_id, user, session
                 )
                 details_message = ""
                 if not updated_project.validation_result.get("is_valid"):
@@ -335,16 +333,14 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
         request.query_params, current_language
     )
     user = request.user if request.user.is_authenticated else None
-    settings: config.SeisLabDataSettings = request.state.settings
-    session_maker = request.state.session_maker
     project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
-    async with session_maker() as session:
+    settings: config.SeisLabDataSettings = request.state.settings
+    async with settings.get_db_session_maker()() as session:
         try:
             project = await operations.get_project(
                 project_id,
                 user,
                 session,
-                request.state.settings,
             )
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -412,10 +408,9 @@ async def get_list_component(request: Request):
         internal_filter_kwargs = {}
         filter_query_string = ""
     current_page = get_page_from_request_params(request)
-    session_maker = request.state.session_maker
-    user = request.user if request.user.is_authenticated else None
     settings: config.SeisLabDataSettings = request.state.settings
-    async with session_maker() as session:
+    user = request.user if request.user.is_authenticated else None
+    async with settings.get_db_session_maker()() as session:
         items, num_total = await operations.list_projects(
             session,
             initiator=user,
@@ -467,15 +462,14 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
 
     async def get(self, request: Request):
         """List projects."""
-        session_maker = request.state.session_maker
-        user = request.user if request.user.is_authenticated else None
         settings: config.SeisLabDataSettings = request.state.settings
+        user = request.user if request.user.is_authenticated else None
         current_page = get_page_from_request_params(request)
         current_language = request.state.language
         list_filters = filters.ProjectListFilters.from_params(
             request.query_params, current_language
         )
-        async with session_maker() as session:
+        async with settings.get_db_session_maker()() as session:
             items, num_total = await operations.list_projects(
                 session,
                 initiator=user,
@@ -568,7 +562,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         request_id = schemas.RequestId(uuid.uuid4())
         to_create = schemas.ProjectCreate(
             id=schemas.ProjectId(uuid.uuid4()),
-            owner=user.id,
+            owner_id=user.id,
             name=schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,
@@ -700,13 +694,11 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         """Update an existing project."""
         template_processor: Jinja2Templates = request.state.templates
         user = request.user if request.user.is_authenticated else None
-        session_maker = request.state.session_maker
+        session_maker = request.state.settings.get_db_session_maker()
         project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
         async with session_maker() as session:
             if (
-                project := await operations.get_project(
-                    project_id, user, session, request.state.settings
-                )
+                project := await operations.get_project(project_id, user, session)
             ) is None:
                 raise HTTPException(404, f"Project {project_id!r} not found.")
         form_instance = await forms.ProjectUpdateForm.get_validated_form_instance(
@@ -734,7 +726,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
 
         request_id = schemas.RequestId(uuid.uuid4())
         to_update = schemas.ProjectUpdate(
-            owner=user.id,
+            owner_id=user.id,
             name=schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,
@@ -878,7 +870,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
     async def delete(self, request: Request):
         """Delete a project."""
         user = request.user if request.user.is_authenticated else None
-        session_maker = request.state.session_maker
+        session_maker = request.state.settings.get_db_session_maker()
         project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
         async with session_maker() as session:
             try:
@@ -886,7 +878,6 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                     project_id,
                     user,
                     session,
-                    request.state.settings,
                 )
             except errors.SeisLabDataError as exc:
                 raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -960,14 +951,12 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         """Create a new survey mission belonging to the project."""
         user = request.user if request.user.is_authenticated else None
         project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
-        session_maker = request.state.session_maker
+        session_maker = request.state.settings.get_db_session_maker()
         template_processor: Jinja2Templates = request.state.templates
         creation_form = await forms.SurveyMissionCreateForm.from_formdata(request)
         async with session_maker() as session:
             try:
-                project = await operations.get_project(
-                    project_id, user, session, request.state.settings
-                )
+                project = await operations.get_project(project_id, user, session)
             except errors.SeisLabDataError as exc:
                 raise HTTPException(status_code=404, detail=str(exc)) from exc
             if project is None:
@@ -1005,7 +994,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         to_create = schemas.SurveyMissionCreate(
             id=schemas.SurveyMissionId(uuid.uuid4()),
             project_id=project.id,
-            owner=user.id,
+            owner_id=user.id,
             name=schemas.LocalizableDraftName(
                 en=creation_form.name.en.data,
                 pt=creation_form.name.pt.data,

@@ -202,7 +202,7 @@ class _SurveyRelatedRecordForm(StarletteForm):
         else:
             form_instance = await cls.from_formdata(request)
         current_language = request.state.language
-        async with request.state.session_maker() as session:
+        async with request.state.settings.get_db_session_maker()() as session:
             form_instance.dataset_category_id.choices = [
                 (dc.id, dc.name.get(current_language, dc.name["en"]))
                 for dc in await queries.collect_all_dataset_categories(
@@ -250,7 +250,7 @@ class _SurveyRelatedRecordForm(StarletteForm):
         form_instance = await cls.from_request(request)
         await form_instance.validate_on_submit()
         form_instance.validate_with_schema()
-        session_maker = request.state.session_maker
+        session_maker = request.state.settings.get_db_session_maker()
         async with session_maker() as session:
             await form_instance.check_if_english_name_is_unique_for_survey_mission(
                 session, survey_mission_id=survey_mission_id, disregard_id=disregard_id
@@ -288,7 +288,7 @@ class SurveyRelatedRecordCreateForm(_SurveyRelatedRecordForm):
             schemas.SurveyRelatedRecordCreate(
                 # these are not part of the form, but we must provide something
                 id=None,
-                owner=None,
+                owner_id=None,
                 survey_mission_id=None,
                 name={**get_form_field_by_name(self, "name").data},
                 description={**get_form_field_by_name(self, "description").data},
@@ -360,7 +360,7 @@ class SurveyRelatedRecordUpdateForm(_SurveyRelatedRecordForm):
         try:
             schemas.SurveyRelatedRecordUpdate(
                 # these are not part of the form, but we must provide something
-                owner=None,
+                owner_id=None,
                 survey_mission_id=None,
                 name={**get_form_field_by_name(self, "name").data},
                 description={**get_form_field_by_name(self, "description").data},

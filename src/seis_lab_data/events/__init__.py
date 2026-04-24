@@ -1,9 +1,5 @@
-from .emitters import (
-    EventEmitterProtocol,
-    get_event_emitter,
-)
+from .emitters import EventEmitterProtocol
 
 __all__ = [
-    EventEmitterProtocol,
-    get_event_emitter,
+    "EventEmitterProtocol",
 ]

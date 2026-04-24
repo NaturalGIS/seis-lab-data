@@ -1977,6 +1977,7 @@ source = { editable = "." }
 dependencies = [
     { name = "alembic" },
     { name = "alembic-postgresql-enum" },
+    { name = "anyio" },
     { name = "authlib" },
     { name = "datastar-py" },
     { name = "dramatiq", extra = ["redis", "watch"] },
@@ -2028,6 +2029,7 @@ jupyter = [
 requires-dist = [
     { name = "alembic", specifier = ">=1.16.4" },
     { name = "alembic-postgresql-enum", specifier = ">=1.8.0" },
+    { name = "anyio", specifier = ">=4.9.0" },
     { name = "authlib", specifier = ">=1.6.1" },
     { name = "datastar-py", specifier = ">=0.6.5" },
     { name = "dramatiq", extras = ["redis", "watch"], specifier = ">=1.18.0" },

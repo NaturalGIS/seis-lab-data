@@ -67,17 +67,15 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
     )
     user = request.user if request.user.is_authenticated else None
     settings: config.SeisLabDataSettings = request.state.settings
-    session_maker = request.state.session_maker
     survey_mission_id = get_id_from_request_path(
         request, "survey_mission_id", schemas.SurveyMissionId
     )
-    async with session_maker() as session:
+    async with settings.get_db_session_maker()() as session:
         try:
             survey_mission = await operations.get_survey_mission(
                 survey_mission_id,
                 user,
                 session,
-                request.state.settings,
             )
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -178,8 +176,7 @@ async def get_survey_mission_detail_updates(request: Request):
         raise HTTPException(
             status_code=400, detail="Invalid survey_mission id"
         ) from err
-    session_maker = request.state.session_maker
-    settings: config.SeisLabDataSettings = request.state.settings
+    session_maker = request.state.settings.get_db_session_maker()
     redis_client: Redis = request.state.redis_client
     user = request.user if request.user.is_authenticated else None
 
@@ -214,7 +211,7 @@ async def get_survey_mission_detail_updates(request: Request):
             )
             async with session_maker() as session:
                 updated_survey_mission = await operations.get_survey_mission(
-                    survey_mission_id, user, session, settings
+                    survey_mission_id, user, session
                 )
                 yield ServerSentEventGenerator.patch_signals(
                     {
@@ -233,7 +230,7 @@ async def get_survey_mission_detail_updates(request: Request):
             )
             async with session_maker() as session:
                 updated_survey_mission = await operations.get_survey_mission(
-                    survey_mission_id, user, session, settings
+                    survey_mission_id, user, session
                 )
                 details_message = ""
                 if not updated_survey_mission.validation_result.get("is_valid"):
@@ -303,14 +300,11 @@ async def get_survey_mission_detail_updates(request: Request):
 async def get_survey_mission_creation_form(request: Request):
     user = request.user if request.user.is_authenticated else None
     project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
-    session_maker = request.state.session_maker
     form_instance = await forms.SurveyMissionCreateForm.from_formdata(request)
 
-    async with session_maker() as session:
+    async with request.state.settings.get_db_session_maker()() as session:
         try:
-            project = await operations.get_project(
-                project_id, user, session, request.state.settings
-            )
+            project = await operations.get_project(project_id, user, session)
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         if project is None:
@@ -379,10 +373,9 @@ async def get_list_component(request: Request):
         filter_query_string = ""
 
     current_page = get_page_from_request_params(request)
-    session_maker = request.state.session_maker
-    user = request.user if request.user.is_authenticated else None
     settings: config.SeisLabDataSettings = request.state.settings
-    async with session_maker() as session:
+    user = request.user if request.user.is_authenticated else None
+    async with settings.get_db_session_maker()() as session:
         items, num_total = await operations.list_survey_missions(
             session,
             initiator=user,
@@ -443,10 +436,9 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
         list_filters = filters.SurveyMissionListFilters.from_params(
             request.query_params, current_language
         )
-        session_maker = request.state.session_maker
         settings: config.SeisLabDataSettings = request.state.settings
         user = request.user if request.user.is_authenticated else None
-        async with session_maker() as session:
+        async with settings.get_db_session_maker()() as session:
             items, num_total = await operations.list_survey_missions(
                 session,
                 initiator=user,
@@ -533,14 +525,13 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         """Update an existing survey mission."""
         template_processor: Jinja2Templates = request.state.templates
         user = request.user if request.user.is_authenticated else None
-        session_maker = request.state.session_maker
         survey_mission_id = get_id_from_request_path(
             request, "survey_mission_id", schemas.SurveyMissionId
         )
-        async with session_maker() as session:
+        async with request.state.settings.get_db_session_maker()() as session:
             if (
                 survey_mission := await operations.get_survey_mission(
-                    survey_mission_id, user, session, request.state.settings
+                    survey_mission_id, user, session
                 )
             ) is None:
                 raise HTTPException(
@@ -576,7 +567,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
 
         request_id = schemas.RequestId(uuid.uuid4())
         to_update = schemas.SurveyMissionUpdate(
-            owner=user.id,
+            owner_id=user.id,
             name=schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,
@@ -771,7 +762,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         to_create = schemas.SurveyRelatedRecordCreate(
             id=schemas.SurveyRelatedRecordId(uuid.uuid4()),
             survey_mission_id=survey_mission_id,
-            owner=user.id,
+            owner_id=user.id,
             name=schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,
@@ -914,15 +905,13 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         survey_mission_id = get_id_from_request_path(
             request, "survey_mission_id", schemas.SurveyMissionId
         )
-        session_maker = request.state.session_maker
         user = request.user if request.user.is_authenticated else None
-        async with session_maker() as session:
+        async with request.state.settings.get_db_session_maker()() as session:
             try:
                 survey_mission = await operations.get_survey_mission(
                     survey_mission_id,
                     user,
                     session,
-                    request.state.settings,
                 )
             except errors.SeisLabDataError as exc:
                 raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -996,15 +985,13 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
 async def add_create_survey_mission_form_link(request: Request):
     """Add a form link to a create_survey_mission form."""
     user = request.user if request.user.is_authenticated else None
-    session_maker = request.state.session_maker
     project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
-    async with session_maker() as session:
+    async with request.state.settings.get_db_session_maker()() as session:
         try:
             project = await operations.get_project(
                 project_id,
                 user,
                 session,
-                request.state.settings,
             )
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -1036,15 +1023,13 @@ async def add_create_survey_mission_form_link(request: Request):
 async def remove_create_survey_mission_form_link(request: Request):
     """Remove a form link from a create_survey_mission form."""
     user = request.user if request.user.is_authenticated else None
-    session_maker = request.state.session_maker
     project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
-    async with session_maker() as session:
+    async with request.state.settings.get_db_session_maker()() as session:
         try:
             project = await operations.get_project(
                 project_id,
                 user,
                 session,
-                request.state.settings,
             )
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -1129,17 +1114,15 @@ async def remove_update_survey_mission_form_link(request: Request):
 async def get_survey_mission_update_form(request: Request):
     """Return a form suitable for updating an existing survey mission."""
     user = request.user if request.user.is_authenticated else None
-    session_maker = request.state.session_maker
     survey_mission_id = get_id_from_request_path(
         request, "survey_mission_id", schemas.SurveyMissionId
     )
-    async with session_maker() as session:
+    async with request.state.settings.get_db_session_maker()() as session:
         try:
             survey_mission = await operations.get_survey_mission(
                 survey_mission_id,
                 user,
                 session,
-                request.state.settings,
             )
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc

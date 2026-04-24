@@ -126,7 +126,7 @@ class _SurveyMissionForm(StarletteForm):
         # then validate the form data with our custom pydantic model
         await form_instance.validate_on_submit()
         form_instance.validate_with_schema()
-        session_maker = request.state.session_maker
+        session_maker = request.state.settings.get_db_session_maker()
         async with session_maker() as session:
             await form_instance.check_if_english_name_is_unique_for_project(
                 session, project_id=project_id, disregard_id=disregard_id
@@ -145,7 +145,7 @@ class SurveyMissionCreateForm(_SurveyMissionForm):
             schemas.SurveyMissionCreate(
                 # these are not part of the form, but we must provide something
                 id=None,
-                owner=None,
+                owner_id=None,
                 project_id=None,
                 name={
                     **get_form_field_by_name(self, "name").data,
@@ -183,7 +183,7 @@ class SurveyMissionUpdateForm(_SurveyMissionForm):
         try:
             schemas.SurveyMissionUpdate(
                 # these are not part of the form, but we must provide something
-                owner=None,
+                owner_id=None,
                 project_id=None,
                 name={
                     **get_form_field_by_name(self, "name").data,

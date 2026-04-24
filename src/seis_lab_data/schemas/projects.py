@@ -20,7 +20,7 @@ from .common import (
 
 class ProjectCreate(pydantic.BaseModel):
     id: ProjectId
-    owner: UserId
+    owner_id: UserId
     name: LocalizableDraftName
     description: LocalizableDraftDescription | None = None
     root_path: str
@@ -31,7 +31,7 @@ class ProjectCreate(pydantic.BaseModel):
 
 
 class ProjectUpdate(pydantic.BaseModel):
-    owner: UserId | None = None
+    owner_id: UserId | None = None
     name: LocalizableDraftName | None = None
     description: LocalizableDraftDescription | None = None
     root_path: str | None = None
@@ -71,7 +71,7 @@ class ProjectReadListItem(ProjectReadEmbedded):
 
 
 class ProjectReadDetail(ProjectReadListItem):
-    owner: UserId
+    owner_id: UserId
     links: list[LinkSchema] = []
     bbox_4326: PolygonOut | None
 

@@ -1,5 +1,4 @@
 import contextlib
-from collections.abc import Callable
 from typing import (
     AsyncIterator,
     TypedDict,
@@ -9,7 +8,6 @@ import jinja2
 import shapely
 from authlib.integrations.starlette_client import OAuth
 from redis import asyncio as aioredis
-from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.applications import Starlette
 from starlette_babel.contrib.jinja import configure_jinja_env
 from starlette.middleware import Middleware
@@ -33,15 +31,10 @@ from starlette_wtf import (
 from .. import (
     config,
     constants,
-    events,
 )
 from ..auth import (
     AuthConfig,
     get_oauth_manager,
-)
-from ..db.engine import (
-    get_engine,
-    get_session_maker,
 )
 from ..processing.broker import setup_broker
 
@@ -61,8 +54,6 @@ class State(TypedDict):
     templates: Jinja2Templates
     auth_config: AuthConfig
     oauth_manager: OAuth
-    session_maker: Callable[[], AsyncSession]
-    event_emitter: events.EventEmitterProtocol
     redis_client: aioredis.Redis
 
 
@@ -126,17 +117,13 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
     jinja_env.filters["get_status_icon_name"] = jinjafilters.get_status_icon_name
     configure_jinja_env(jinja_env)
     templates = Jinja2Templates(env=jinja_env)
-    engine = get_engine(settings.database_dsn.unicode_string(), settings.debug)
     yield State(
         settings=settings,
         templates=templates,
         auth_config=auth_config,
         oauth_manager=get_oauth_manager(auth_config),
-        session_maker=get_session_maker(engine),
-        event_emitter=events.get_event_emitter(settings),
         redis_client=aioredis.from_url(settings.message_broker_dsn.unicode_string()),
     )
-    await engine.dispose()
 
 
 def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:

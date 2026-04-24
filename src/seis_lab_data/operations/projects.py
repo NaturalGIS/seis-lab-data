@@ -5,7 +5,6 @@ import shapely
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from .. import (
-    config,
     errors,
     events,
 )
@@ -27,7 +26,6 @@ async def create_project(
     to_create: schemas.ProjectCreate,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.Project:
     if not permissions.can_create_project(initiator):
@@ -50,7 +48,6 @@ async def change_project_status(
     project_id: schemas.ProjectId,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.Project:
     if (project := await queries.get_project(session, project_id)) is None:
@@ -80,7 +77,6 @@ async def validate_project(
     project_id: schemas.ProjectId,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.Project:
     if (project := await queries.get_project(session, project_id)) is None:
@@ -140,7 +136,6 @@ async def update_project(
     to_update: schemas.ProjectUpdate,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.Project:
     if (project := await queries.get_project(session, project_id)) is None:
@@ -174,7 +169,6 @@ async def delete_project(
     project_id: schemas.ProjectId,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
     if (project := await queries.get_project(session, project_id)) is None:
@@ -228,7 +222,6 @@ async def get_project(
     project_id: schemas.ProjectId,
     initiator: schemas.User | None,
     session: AsyncSession,
-    settings: config.SeisLabDataSettings,
 ) -> models.Project | None:
     project = await queries.get_project(session, project_id)
     if project is None:

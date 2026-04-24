@@ -124,7 +124,7 @@ Please continue with the [bootstrapping](#bootstrapping-a-fresh-installation) se
 The bootstrap process consists of:
 
 - Creating/upgrading the database;
-- Loading all default variables into the apropriate DB tables;
+- Loading all default variables into the appropriate DB tables;
 - Optionally adding some default projects, survey missions and survey-related records.
 
 Bootstrapping is done by using the `seis-lab-data` CLI, which is available in the `webapp`
@@ -213,7 +213,7 @@ with a Python REPL. It is accessible at http://localhost:5002
 A [pg-admin](https://www.pgadmin.org/) instance, useful for inspecting the stack's databases.
 It is accessible at http://pgadmin.localhost:8888 and login credentials are:
 
-- user: `dev@dev.com`
+- user: `dev@dev.dev`
 - password: `dev`
 
 
