@@ -288,7 +288,7 @@ class SurveyRelatedRecordCreateForm(_SurveyRelatedRecordForm):
             schemas.SurveyRelatedRecordCreate(
                 # these are not part of the form, but we must provide something
                 id=None,
-                owner=None,
+                owner_id=None,
                 survey_mission_id=None,
                 name={**get_form_field_by_name(self, "name").data},
                 description={**get_form_field_by_name(self, "description").data},
@@ -360,7 +360,7 @@ class SurveyRelatedRecordUpdateForm(_SurveyRelatedRecordForm):
         try:
             schemas.SurveyRelatedRecordUpdate(
                 # these are not part of the form, but we must provide something
-                owner=None,
+                owner_id=None,
                 survey_mission_id=None,
                 name={**get_form_field_by_name(self, "name").data},
                 description={**get_form_field_by_name(self, "description").data},

@@ -1,7 +1,9 @@
 import asyncio
+import logging
 from typing import Annotated
 
 import typer
+from psycopg.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
 
 from .. import (
@@ -10,10 +12,12 @@ from .. import (
     schemas,
 )
 from ..db import queries
+from ..events.emitters import null_emitter
 from . import sampledata
 from .asynctyper import AsyncTyper
 from .utils import resolve_admin_user
 
+logger = logging.getLogger(__name__)
 app = AsyncTyper()
 
 
@@ -50,16 +54,21 @@ async def generate_many_projects(
             max=100,
         ),
     ] = 10,
+    disable_event_emitter: bool = True,
 ):
     """Generate synthetic data"""
     created = []
+    admin_ = ctx.obj["admin_user"]
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
+    emitter = (
+        settings.get_event_emitter() if not disable_event_emitter else null_emitter
+    )
     async with settings.get_db_session_maker()() as session:
         dataset_categories = await queries.collect_all_dataset_categories(session)
         workflow_stages = await queries.collect_all_workflow_stages(session)
         domain_types = await queries.collect_all_domain_types(session)
         project_generator = sampledata.generate_sample_projects(
-            owners=[schemas.UserId("fake_user")],
+            owners=[admin_],
             dataset_categories=[
                 schemas.DatasetCategoryId(dc.id) for dc in dataset_categories
             ],
@@ -74,9 +83,9 @@ async def generate_many_projects(
             created.append(
                 await operations.create_project(
                     project_to_create,
-                    initiator=ctx.obj["admin_user"],
+                    initiator=admin_,
                     session=session,
-                    event_emitter=settings.get_event_emitter(),
+                    event_emitter=emitter,
                 )
             )
             for mission_index, (mission_to_create, records_to_create) in enumerate(
@@ -87,9 +96,9 @@ async def generate_many_projects(
                 )
                 await operations.create_survey_mission(
                     mission_to_create,
-                    initiator=ctx.obj["admin_user"],
+                    initiator=admin_,
                     session=session,
-                    event_emitter=settings.get_event_emitter(),
+                    event_emitter=emitter,
                 )
                 for record_index, record_to_create in enumerate(records_to_create):
                     # ctx.obj["main"].status_console.print(
@@ -97,9 +106,9 @@ async def generate_many_projects(
                     # )
                     await operations.create_survey_related_record(
                         record_to_create,
-                        initiator=ctx.obj["admin_user"],
+                        initiator=admin_,
                         session=session,
-                        event_emitter=settings.get_event_emitter(),
+                        event_emitter=emitter,
                     )
             ctx.obj["main"].status_console.print("--------")
         ctx.obj["main"].status_console.print("Done!")
@@ -117,23 +126,27 @@ async def load_all_samples(ctx: typer.Context):
 async def load_sample_projects(ctx: typer.Context):
     """Load sample projects into the database."""
     created = []
+    admin_ = ctx.obj["admin_user"]
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        for to_create in sampledata.get_projects_to_create():
+        for to_create in sampledata.get_projects_to_create(owner=admin_):
             try:
                 created.append(
                     await operations.create_project(
                         to_create,
-                        initiator=ctx.obj["admin_user"],
+                        initiator=admin_,
                         session=session,
                         event_emitter=settings.get_event_emitter(),
                     )
                 )
-            except IntegrityError:
-                ctx.obj["main"].status_console.print(
-                    f"Project {to_create.id!r} already exists, skipping..."
-                )
+            except IntegrityError as err:
                 await session.rollback()
+                if isinstance(err.orig, UniqueViolation):
+                    ctx.obj["main"].status_console.print(
+                        f"Project {to_create.id!r} already exists, skipping..."
+                    )
+                else:
+                    raise RuntimeError from err
     for created_project in created:
         to_show = schemas.ProjectReadListItem(**created_project.model_dump())
         ctx.obj["main"].status_console.print(to_show)
@@ -143,23 +156,27 @@ async def load_sample_projects(ctx: typer.Context):
 async def load_sample_survey_missions(ctx: typer.Context):
     """Load sample survey missions into the database."""
     created = []
+    admin_ = ctx.obj["admin_user"]
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        for to_create in sampledata.get_survey_missions_to_create():
+        for to_create in sampledata.get_survey_missions_to_create(admin_):
             try:
                 created.append(
                     await operations.create_survey_mission(
                         to_create,
-                        initiator=ctx.obj["admin_user"],
+                        initiator=admin_,
                         session=session,
                         event_emitter=settings.get_event_emitter(),
                     )
                 )
-            except IntegrityError:
-                ctx.obj["main"].status_console.print(
-                    f"Survey mission {to_create.id!r} already exists, skipping..."
-                )
+            except IntegrityError as err:
                 await session.rollback()
+                if isinstance(err.orig, UniqueViolation):
+                    ctx.obj["main"].status_console.print(
+                        f"Survey mission {to_create.id!r} already exists, skipping..."
+                    )
+                else:
+                    raise RuntimeError from err
     for created_survey_mission in created:
         to_show = schemas.SurveyMissionReadListItem.from_db_instance(
             created_survey_mission
@@ -171,12 +188,14 @@ async def load_sample_survey_missions(ctx: typer.Context):
 async def load_sample_survey_related_records(ctx: typer.Context):
     """Load sample survey-related records into the database."""
     created = []
+    admin_ = ctx.obj["admin_user"]
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
         all_dataset_categories = await queries.collect_all_dataset_categories(session)
         all_domain_types = await queries.collect_all_domain_types(session)
         all_workflow_stages = await queries.collect_all_workflow_stages(session)
         for to_create in sampledata.get_survey_related_records_to_create(
+            owner=admin_,
             dataset_categories={c.name["en"]: c for c in all_dataset_categories},
             domain_types={d.name["en"]: d for d in all_domain_types},
             workflow_stages={w.name["en"]: w for w in all_workflow_stages},
@@ -185,16 +204,19 @@ async def load_sample_survey_related_records(ctx: typer.Context):
                 created.append(
                     await operations.create_survey_related_record(
                         to_create,
-                        initiator=ctx.obj["admin_user"],
+                        initiator=admin_,
                         session=session,
                         event_emitter=settings.get_event_emitter(),
                     )
                 )
-            except IntegrityError:
-                ctx.obj["main"].status_console.print(
-                    f"Survey-related record {to_create.id!r} already exists, skipping..."
-                )
+            except IntegrityError as err:
                 await session.rollback()
+                if isinstance(err.orig, UniqueViolation):
+                    ctx.obj["main"].status_console.print(
+                        f"Survey-related record {to_create.id!r} already exists, skipping..."
+                    )
+                else:
+                    raise RuntimeError from err
     for created_survey_record in created:
         to_show = schemas.SurveyRelatedRecordReadListItem.from_db_instance(
             created_survey_record

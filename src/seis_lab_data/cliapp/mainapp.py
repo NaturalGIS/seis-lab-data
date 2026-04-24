@@ -115,7 +115,7 @@ async def create_survey_related_record(
         created = await operations.create_survey_related_record(
             to_create=schemas.SurveyRelatedRecordCreate(
                 id=schemas.SurveyRelatedRecordId(uuid.uuid4()),
-                owner=schemas.UserId(owner),
+                owner_id=schemas.UserId(owner),
                 name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
                 description=schemas.LocalizableDraftDescription(
                     en=description_en, pt=description_pt
@@ -238,7 +238,7 @@ async def create_survey_mission(
             to_create=schemas.SurveyMissionCreate(
                 id=schemas.SurveyMissionId(uuid.uuid4()),
                 project_id=schemas.ProjectId(project.id),
-                owner=schemas.UserId(owner),
+                owner_id=schemas.UserId(owner),
                 name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
                 description=schemas.LocalizableDraftDescription(
                     en=description_en, pt=description_pt
@@ -351,7 +351,7 @@ async def create_project(
         created = await operations.create_project(
             to_create=schemas.ProjectCreate(
                 id=schemas.ProjectId(uuid.uuid4()),
-                owner=schemas.UserId(owner),
+                owner_id=schemas.UserId(owner),
                 name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
                 description=schemas.LocalizableDraftDescription(
                     en=description_en, pt=description_pt

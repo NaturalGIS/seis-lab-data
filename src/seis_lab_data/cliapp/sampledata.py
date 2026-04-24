@@ -20,7 +20,6 @@ from ..db import models
 _FAKE_EN = Faker("en_US")
 _FAKE_PT = Faker("pt_PT")
 
-_owner_id = schemas.UserId("fake-owner1")
 _my_first_project_id = schemas.ProjectId(
     uuid.UUID("74f07051-1aa9-4c08-bc27-3ecf101ab5b3")
 )
@@ -45,11 +44,11 @@ _my_fifth_survey_mission_id = schemas.SurveyMissionId(
 )
 
 
-def get_projects_to_create() -> list[schemas.ProjectCreate]:
+def get_projects_to_create(owner: schemas.User) -> list[schemas.ProjectCreate]:
     return [
         schemas.ProjectCreate(
             id=_my_first_project_id,
-            owner=_owner_id,
+            owner_id=schemas.UserId(owner.id),
             name=schemas.LocalizableDraftName(
                 en="My first project", pt="O meu primeiro projeto"
             ),
@@ -72,7 +71,7 @@ def get_projects_to_create() -> list[schemas.ProjectCreate]:
         ),
         schemas.ProjectCreate(
             id=_my_second_project_id,
-            owner=_owner_id,
+            owner_id=schemas.UserId(owner.id),
             name=schemas.LocalizableDraftName(
                 en="My second project", pt="O meu segundo projeto"
             ),
@@ -96,11 +95,13 @@ def get_projects_to_create() -> list[schemas.ProjectCreate]:
     ]
 
 
-def get_survey_missions_to_create() -> list[schemas.SurveyMissionCreate]:
+def get_survey_missions_to_create(
+    owner: schemas.User,
+) -> list[schemas.SurveyMissionCreate]:
     return [
         schemas.SurveyMissionCreate(
             id=_my_first_survey_mission_id,
-            owner=_owner_id,
+            owner_id=schemas.UserId(owner.id),
             project_id=_my_first_project_id,
             name=schemas.LocalizableDraftName(
                 en="My first survey mission", pt="A minha primeira missão"
@@ -133,7 +134,7 @@ def get_survey_missions_to_create() -> list[schemas.SurveyMissionCreate]:
         ),
         schemas.SurveyMissionCreate(
             id=_my_second_survey_mission_id,
-            owner=_owner_id,
+            owner_id=schemas.UserId(owner.id),
             project_id=_my_first_project_id,
             name=schemas.LocalizableDraftName(
                 en="My second survey mission", pt="A minha segunda missão"
@@ -166,7 +167,7 @@ def get_survey_missions_to_create() -> list[schemas.SurveyMissionCreate]:
         ),
         schemas.SurveyMissionCreate(
             id=_my_third_survey_mission_id,
-            owner=_owner_id,
+            owner_id=schemas.UserId(owner.id),
             project_id=_my_first_project_id,
             name=schemas.LocalizableDraftName(
                 en="My third survey mission", pt="A minha terceira missão"
@@ -199,7 +200,7 @@ def get_survey_missions_to_create() -> list[schemas.SurveyMissionCreate]:
         ),
         schemas.SurveyMissionCreate(
             id=_my_fourth_survey_mission_id,
-            owner=_owner_id,
+            owner_id=schemas.UserId(owner.id),
             project_id=_my_second_project_id,
             name=schemas.LocalizableDraftName(
                 en="My fourth survey mission", pt="A minha quarta missão"
@@ -232,7 +233,7 @@ def get_survey_missions_to_create() -> list[schemas.SurveyMissionCreate]:
         ),
         schemas.SurveyMissionCreate(
             id=_my_fifth_survey_mission_id,
-            owner=_owner_id,
+            owner_id=schemas.UserId(owner.id),
             project_id=_my_second_project_id,
             name=schemas.LocalizableDraftName(
                 en="My fifth survey mission", pt="A minha quinta missão"
@@ -267,6 +268,7 @@ def get_survey_missions_to_create() -> list[schemas.SurveyMissionCreate]:
 
 
 def get_survey_related_records_to_create(
+    owner: schemas.User,
     dataset_categories: dict[str, models.DatasetCategory],
     domain_types: dict[str, models.DomainType],
     workflow_stages: dict[str, models.WorkflowStage],
@@ -276,7 +278,7 @@ def get_survey_related_records_to_create(
             id=schemas.SurveyRelatedRecordId(
                 uuid.UUID("f49d678b-f11a-4798-92dc-604883bc8bda")
             ),
-            owner=_owner_id,
+            owner_id=schemas.UserId(owner.id),
             name=schemas.LocalizableDraftName(
                 en="First record",
                 pt="Primeiro registo",
@@ -295,7 +297,7 @@ def get_survey_related_records_to_create(
             links=[],
             assets=[
                 schemas.RecordAssetCreate(
-                    id=schemas.SurveyRelatedRecordId(
+                    id=schemas.RecordAssetId(
                         uuid.UUID("85f4683c-7d4a-444c-8896-04278bc89e63")
                     ),
                     name=schemas.LocalizableDraftName(
@@ -310,7 +312,7 @@ def get_survey_related_records_to_create(
                     links=[],
                 ),
                 schemas.RecordAssetCreate(
-                    id=schemas.SurveyRelatedRecordId(
+                    id=schemas.RecordAssetId(
                         uuid.UUID("a9eca3df-03ba-4f46-a98d-3e30139eb035")
                     ),
                     name=schemas.LocalizableDraftName(
@@ -330,7 +332,7 @@ def get_survey_related_records_to_create(
             id=schemas.SurveyRelatedRecordId(
                 uuid.UUID("c51e0d11-c4c4-4b4f-8d04-2a115196ff04")
             ),
-            owner=_owner_id,
+            owner_id=schemas.UserId(owner.id),
             name=schemas.LocalizableDraftName(
                 en="Second record",
                 pt="Segundo registo",
@@ -349,7 +351,7 @@ def get_survey_related_records_to_create(
             links=[],
             assets=[
                 schemas.RecordAssetCreate(
-                    id=schemas.SurveyRelatedRecordId(
+                    id=schemas.RecordAssetId(
                         uuid.UUID("a53728ed-5422-4f08-806f-3e75bbb1b3e8")
                     ),
                     name=schemas.LocalizableDraftName(
@@ -364,7 +366,7 @@ def get_survey_related_records_to_create(
                     links=[],
                 ),
                 schemas.RecordAssetCreate(
-                    id=schemas.SurveyRelatedRecordId(
+                    id=schemas.RecordAssetId(
                         uuid.UUID("bd4bed96-43bd-4d5c-a7b2-d04461dfb23c")
                     ),
                     name=schemas.LocalizableDraftName(
@@ -384,7 +386,7 @@ def get_survey_related_records_to_create(
 
 
 def generate_sample_projects(
-    owners: Sequence[schemas.UserId],
+    owners: Sequence[schemas.User],
     dataset_categories: Sequence[schemas.DatasetCategoryId],
     domain_types: Sequence[schemas.DomainTypeId],
     workflow_stages: Sequence[schemas.WorkflowStageId],
@@ -413,7 +415,7 @@ def generate_sample_projects(
         temporal_extent = _generate_sample_temporal_extent()
         project = schemas.ProjectCreate(
             id=schemas.ProjectId(uuid.uuid4()),
-            owner=random.choice(owners),
+            owner_id=schemas.UserId(random.choice(owners).id),
             name=schemas.LocalizableDraftName(
                 en=f"sample_{_FAKE_EN.sentence()}",
                 pt=f"amostra_{_FAKE_PT.sentence()}",
@@ -442,7 +444,7 @@ def generate_sample_projects(
 
 
 def generate_sample_survey_missions(
-    owners: Sequence[schemas.UserId],
+    owners: Sequence[schemas.User],
     project_id: schemas.ProjectId,
     dataset_categories: Sequence[schemas.DatasetCategoryId],
     domain_types: Sequence[schemas.DomainTypeId],
@@ -465,7 +467,7 @@ def generate_sample_survey_missions(
         mission = schemas.SurveyMissionCreate(
             id=schemas.SurveyMissionId(uuid.uuid4()),
             project_id=project_id,
-            owner=random.choice(owners),
+            owner_id=schemas.UserId(random.choice(owners).id),
             name=schemas.LocalizableDraftName(
                 en=f"sample_{_FAKE_EN.sentence()}",
                 pt=f"amostra_{_FAKE_PT.sentence()}",
@@ -496,7 +498,7 @@ def generate_sample_survey_missions(
 
 
 def generate_sample_survey_related_records(
-    owners: Sequence[schemas.UserId],
+    owners: Sequence[schemas.User],
     survey_mission_id: schemas.SurveyMissionId,
     dataset_categories: Sequence[schemas.DatasetCategoryId],
     domain_types: Sequence[schemas.DomainTypeId],
@@ -526,7 +528,7 @@ def generate_sample_survey_related_records(
         )
         yield schemas.SurveyRelatedRecordCreate(
             id=schemas.SurveyRelatedRecordId(uuid.uuid4()),
-            owner=random.choice(owners),
+            owner_id=schemas.UserId(random.choice(owners).id),
             name=schemas.LocalizableDraftName(
                 en=f"sample_{_FAKE_EN.sentence()}",
                 pt=f"amostra_{_FAKE_PT.sentence()}",

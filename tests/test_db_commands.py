@@ -92,10 +92,10 @@ async def test_delete_workflow_stage(db, db_session_maker):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_create_project(db, db_session_maker):
+async def test_create_project(db, db_session_maker, admin_user):
     to_create = schemas.ProjectCreate(
         id=schemas.ProjectId(uuid.UUID("5fe24752-5919-4a05-be46-aed53a6936db")),
-        owner="fakeowner",
+        owner_id=admin_user.id,
         name=schemas.LocalizableDraftName(en="A fake project", pt="Um projeto falso"),
         description=schemas.LocalizableDraftDescription(
             en="A description for fake project",
@@ -106,7 +106,7 @@ async def test_create_project(db, db_session_maker):
     async with db_session_maker() as session:
         created = await commands.create_project(session, to_create)
         assert created.id == to_create.id
-        assert created.owner == to_create.owner
+        assert created.owner_id == to_create.owner_id
         assert created.id == to_create.id
         assert created.name["en"] == to_create.name.en
         assert created.name["pt"] == to_create.name.pt
@@ -114,10 +114,10 @@ async def test_create_project(db, db_session_maker):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_delete_project(db, db_session_maker):
+async def test_delete_project(db, db_session_maker, admin_user):
     to_create = schemas.ProjectCreate(
         id=schemas.ProjectId(uuid.UUID("0637d5d9-6381-4ba8-b9ec-89750baa93a4")),
-        owner="fakeowner",
+        owner_id=admin_user.id,
         name=schemas.LocalizableDraftName(en="A fake project", pt="Um projeto falso"),
         description=schemas.LocalizableDraftDescription(
             en="A description for fake project",
@@ -134,11 +134,11 @@ async def test_delete_project(db, db_session_maker):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_create_survey_mission(db, db_session_maker, sample_projects):
+async def test_create_survey_mission(db, db_session_maker, sample_projects, admin_user):
     to_create = schemas.SurveyMissionCreate(
         id=schemas.SurveyMissionId(uuid.UUID("1aad09c3-d606-445e-9216-d9620586c332")),
         project_id=schemas.ProjectId(sample_projects[0].id),
-        owner=schemas.UserId("fakeowner"),
+        owner_id=admin_user.id,
         name=schemas.LocalizableDraftName(
             en="A fake survey mission", pt="Uma missão falsa"
         ),
@@ -151,7 +151,7 @@ async def test_create_survey_mission(db, db_session_maker, sample_projects):
     async with db_session_maker() as session:
         created = await commands.create_survey_mission(session, to_create)
         assert created.id == to_create.id
-        assert created.owner == to_create.owner
+        assert created.owner_id == to_create.owner_id
         assert created.id == to_create.id
         assert created.name["en"] == to_create.name.en
         assert created.name["pt"] == to_create.name.pt
@@ -159,11 +159,11 @@ async def test_create_survey_mission(db, db_session_maker, sample_projects):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_delete_survey_mission(db, db_session_maker, sample_projects):
+async def test_delete_survey_mission(db, db_session_maker, sample_projects, admin_user):
     to_create = schemas.SurveyMissionCreate(
         id=schemas.SurveyMissionId(uuid.UUID("449a96e4-9b3b-41ad-a08b-75d31332b846")),
         project_id=schemas.ProjectId(sample_projects[0].id),
-        owner=schemas.UserId("fakeowner"),
+        owner_id=admin_user.id,
         name=schemas.LocalizableDraftName(
             en="A fake survey mission", pt="Uma missão falsa"
         ),
@@ -189,6 +189,7 @@ async def test_create_survey_related_record(
     bootstrap_dataset_categories,
     bootstrap_domain_types,
     bootstrap_workflow_stages,
+    admin_user,
 ):
     dataset_category = [
         c for c in bootstrap_dataset_categories if c.name["en"] == "bathymetry"
@@ -204,7 +205,7 @@ async def test_create_survey_related_record(
             uuid.UUID("cabe6a5f-d81c-496c-80cc-c3505b9121c2")
         ),
         survey_mission_id=schemas.SurveyMissionId(sample_survey_missions[0].id),
-        owner=schemas.UserId("fakeowner"),
+        owner_id=admin_user.id,
         name=schemas.LocalizableDraftName(
             en="A fake survey-related record", pt="Um registo falso"
         ),
@@ -250,7 +251,7 @@ async def test_create_survey_related_record(
     async with db_session_maker() as session:
         created = await commands.create_survey_related_record(session, to_create)
         assert created.id == to_create.id
-        assert created.owner == to_create.owner
+        assert created.owner_id == to_create.owner_id
         assert created.id == to_create.id
         assert created.name["en"] == to_create.name.en
         assert created.name["pt"] == to_create.name.pt
@@ -265,6 +266,7 @@ async def test_delete_survey_related_record(
     bootstrap_dataset_categories,
     bootstrap_domain_types,
     bootstrap_workflow_stages,
+    admin_user,
 ):
     dataset_category = [
         c for c in bootstrap_dataset_categories if c.name["en"] == "bathymetry"
@@ -280,7 +282,7 @@ async def test_delete_survey_related_record(
             uuid.UUID("d0f6cb56-e942-4fd7-a0a9-083c3069d698")
         ),
         survey_mission_id=schemas.SurveyMissionId(sample_survey_missions[0].id),
-        owner=schemas.UserId("fakeowner"),
+        owner_id=admin_user.id,
         name=schemas.LocalizableDraftName(
             en="A fake survey-related record", pt="Um registo falso"
         ),

@@ -130,7 +130,7 @@ class ProjectCreateForm(_ProjectForm):
             schemas.ProjectCreate(
                 # these are not part of the form, but we must provide something
                 id=None,
-                owner=None,
+                owner_id=None,
                 name={
                     **get_form_field_by_name(self, "name").data,
                 },
@@ -165,7 +165,7 @@ class ProjectUpdateForm(_ProjectForm):
         # pydantic validation errors with wtforms field errors
         try:
             schemas.ProjectUpdate(
-                owner=None,
+                owner_id=None,
                 name={
                     **get_form_field_by_name(self, "name").data,
                 },

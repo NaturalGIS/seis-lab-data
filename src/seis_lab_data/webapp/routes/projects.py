@@ -562,7 +562,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         request_id = schemas.RequestId(uuid.uuid4())
         to_create = schemas.ProjectCreate(
             id=schemas.ProjectId(uuid.uuid4()),
-            owner=user.id,
+            owner_id=user.id,
             name=schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,
@@ -726,7 +726,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
 
         request_id = schemas.RequestId(uuid.uuid4())
         to_update = schemas.ProjectUpdate(
-            owner=user.id,
+            owner_id=user.id,
             name=schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,
@@ -994,7 +994,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         to_create = schemas.SurveyMissionCreate(
             id=schemas.SurveyMissionId(uuid.uuid4()),
             project_id=project.id,
-            owner=user.id,
+            owner_id=user.id,
             name=schemas.LocalizableDraftName(
                 en=creation_form.name.en.data,
                 pt=creation_form.name.pt.data,

@@ -145,7 +145,7 @@ class SurveyMissionCreateForm(_SurveyMissionForm):
             schemas.SurveyMissionCreate(
                 # these are not part of the form, but we must provide something
                 id=None,
-                owner=None,
+                owner_id=None,
                 project_id=None,
                 name={
                     **get_form_field_by_name(self, "name").data,
@@ -183,7 +183,7 @@ class SurveyMissionUpdateForm(_SurveyMissionForm):
         try:
             schemas.SurveyMissionUpdate(
                 # these are not part of the form, but we must provide something
-                owner=None,
+                owner_id=None,
                 project_id=None,
                 name={
                     **get_form_field_by_name(self, "name").data,

@@ -213,7 +213,7 @@ with a Python REPL. It is accessible at http://localhost:5002
 A [pg-admin](https://www.pgadmin.org/) instance, useful for inspecting the stack's databases.
 It is accessible at http://pgadmin.localhost:8888 and login credentials are:
 
-- user: `dev@dev.com`
+- user: `dev@dev.dev`
 - password: `dev`
 
 

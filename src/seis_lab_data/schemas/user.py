@@ -10,7 +10,7 @@ class User(BaseUser):
     id: UserId
     email: str
     username: str
-    roles: list[str]
+    roles: list[str] = dataclasses.field(default_factory=list)
     name: str = ""
     active: bool = False
 

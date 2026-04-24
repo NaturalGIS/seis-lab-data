@@ -152,7 +152,7 @@ class RelatedRecordCreate(pydantic.BaseModel):
 
 class SurveyRelatedRecordCreate(pydantic.BaseModel):
     id: SurveyRelatedRecordId
-    owner: UserId
+    owner_id: UserId
     survey_mission_id: SurveyMissionId
 
     name: LocalizableDraftName
@@ -173,7 +173,7 @@ class SurveyRelatedRecordCreate(pydantic.BaseModel):
 
 
 class SurveyRelatedRecordUpdate(pydantic.BaseModel):
-    owner: UserId | None = None
+    owner_id: UserId | None = None
     survey_mission_id: SurveyMissionId | None = None
 
     name: LocalizableDraftName | None = None
@@ -221,7 +221,7 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
 
 
 class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
-    owner: UserId
+    owner_id: UserId
     relative_path: str
     links: list[LinkSchema] = []
     survey_mission: SurveyMissionReadEmbedded

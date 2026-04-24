@@ -84,7 +84,7 @@ async def discover_project_contents(
                 continue
             mission_to_create = mission_schemas.SurveyMissionCreate(  # noqa
                 id=SurveyMissionId(uuid.uuid4()),
-                owner=UserId(user.id) if user else project.owner,
+                owner_id=UserId(user.id) if user else project.owner,
                 project_id=project_id,
                 name=LocalizableDraftName(**survey_mission_discovery_conf.name),
                 description=LocalizableDraftDescription(
@@ -98,7 +98,7 @@ async def discover_project_contents(
             ] = await survey_mission_ops.create_survey_mission(
                 to_create=mission_schemas.SurveyMissionCreate(
                     id=SurveyMissionId(uuid.uuid4()),
-                    owner=user.id,
+                    owner_id=user.id,
                     project_id=project_id,
                     name=LocalizableDraftName(**survey_mission_discovery_conf.name),
                     description=LocalizableDraftDescription(
@@ -169,7 +169,7 @@ async def discover_record(
         return None
     return record_schemas.SurveyRelatedRecordCreate(
         id=None,
-        owner=None,
+        owner_id=None,
         survey_mission_id=None,
         name=None,
         description=None,

@@ -567,7 +567,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
 
         request_id = schemas.RequestId(uuid.uuid4())
         to_update = schemas.SurveyMissionUpdate(
-            owner=user.id,
+            owner_id=user.id,
             name=schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,
@@ -762,7 +762,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         to_create = schemas.SurveyRelatedRecordCreate(
             id=schemas.SurveyRelatedRecordId(uuid.uuid4()),
             survey_mission_id=survey_mission_id,
-            owner=user.id,
+            owner_id=user.id,
             name=schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,

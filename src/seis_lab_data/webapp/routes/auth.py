@@ -66,6 +66,7 @@ async def auth_callback(request: Request):
         return response
     except Exception as err:
         logger.error(f"Authentication error: {err}")
+        return RedirectResponse(url=request.url_for("login"), status_code=302)
 
 
 async def logout(request: Request):

@@ -24,7 +24,10 @@ def bootstrap_app_callback(
     ),
     admin_user_id: str | None = typer.Option(
         default=None,
-        help="Authentik sub (UUID) of the admin user to act as. Takes precedence over --admin-username.",
+        help=(
+            "Authentik sub (UUID) of the admin user to act as. Takes "
+            "precedence over --admin-username."
+        ),
     ),
 ):
     """Bootstrapp newly installed instances."""

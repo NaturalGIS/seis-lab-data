@@ -1356,7 +1356,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 )
             )
         to_update = schemas.SurveyRelatedRecordUpdate(
-            owner=user.id,
+            owner_id=user.id,
             survey_mission_id=parent_survey_mission_id,
             name=schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,

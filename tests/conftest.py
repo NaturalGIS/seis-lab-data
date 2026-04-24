@@ -4,17 +4,24 @@ import pytest_asyncio
 import sqlmodel
 from starlette.testclient import TestClient
 
-from seis_lab_data import config
+from seis_lab_data import (
+    config,
+    constants,
+)
 from seis_lab_data.cliapp import (
     bootstrapdata,
     sampledata,
 )
+from seis_lab_data.db import commands
 from seis_lab_data.db.engine import (
     get_engine,
     get_session_maker,
     get_sync_engine,
 )
-from seis_lab_data.db import commands
+from seis_lab_data.schemas import (
+    User,
+    UserId,
+)
 from seis_lab_data.webapp.app import create_app_from_settings
 
 
@@ -61,6 +68,19 @@ def test_client(app):
 
 
 @pytest_asyncio.fixture
+async def admin_user(db, db_session_maker):
+    admin_user = User(
+        id=UserId("testeradmin"),
+        username="tester-admin",
+        email="testeradmin@tests.dev",
+        roles=[constants.ROLE_SYSTEM_ADMIN],
+    )
+    async with db_session_maker() as session:
+        await commands.upsert_user(session, admin_user)
+    yield admin_user
+
+
+@pytest_asyncio.fixture
 async def bootstrap_dataset_categories(db, db_session_maker):
     created = []
     async with db_session_maker() as session:
@@ -92,19 +112,21 @@ async def bootstrap_workflow_stages(db, db_session_maker):
 
 
 @pytest_asyncio.fixture
-async def sample_projects(db, db_session_maker):
+async def sample_projects(db, db_session_maker, admin_user):
     created = []
     async with db_session_maker() as session:
-        for project_to_create in sampledata.get_projects_to_create():
+        for project_to_create in sampledata.get_projects_to_create(admin_user):
             created.append(await commands.create_project(session, project_to_create))
     yield created
 
 
 @pytest_asyncio.fixture
-async def sample_survey_missions(db, db_session_maker, sample_projects):
+async def sample_survey_missions(db, db_session_maker, sample_projects, admin_user):
     created = []
     async with db_session_maker() as session:
-        for survey_mission_to_create in sampledata.get_survey_missions_to_create():
+        for survey_mission_to_create in sampledata.get_survey_missions_to_create(
+            admin_user
+        ):
             created.append(
                 await commands.create_survey_mission(session, survey_mission_to_create)
             )
@@ -119,6 +141,7 @@ async def sample_survey_related_records(
     bootstrap_dataset_categories,
     bootstrap_domain_types,
     bootstrap_workflow_stages,
+    admin_user,
 ):
     created = []
     async with db_session_maker() as session:
@@ -126,6 +149,7 @@ async def sample_survey_related_records(
             dataset_categories={c.name["en"]: c for c in bootstrap_dataset_categories},
             domain_types={d.name["en"]: d for d in bootstrap_domain_types},
             workflow_stages={w.name["en"]: w for w in bootstrap_workflow_stages},
+            owner=admin_user,
         ):
             created.append(
                 await commands.create_survey_related_record(
