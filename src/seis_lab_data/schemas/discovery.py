@@ -1,4 +1,9 @@
 import typing
+from typing import (
+    Annotated,
+    Literal,
+    Union,
+)
 import pydantic
 
 from .common import LinkSchema
@@ -9,6 +14,30 @@ TemplatedString = typing.NewType("TemplatedString", str)
 TranslatableString = typing.NewType("TranslatableString", dict[str, TemplatedString])
 
 ExtraContext = dict[str, str | list[str]]
+
+
+class PropertyExtractor(pydantic.BaseModel):
+    pattern: str
+    converter: str
+
+
+class MatcherDatetime(pydantic.BaseModel):
+    type_: Annotated[Literal["datetime"], pydantic.Field(validation_alias="type")]
+    delta_below_seconds: int
+
+
+class MatcherConstant(pydantic.BaseModel):
+    type_: Annotated[Literal["constant"], pydantic.Field(validation_alias="type")]
+    choices: list[str]
+    match_type: Literal["equal", "any"]
+
+
+class RecordProperty(pydantic.BaseModel):
+    identifier: str  # this needs to be a valid python identifier, as we will use it to build a regexp identifier
+    extractor: PropertyExtractor
+    matcher: Union[MatcherConstant, MatcherDatetime] = pydantic.Field(
+        discriminator="type"
+    )
 
 
 class RecordAssetDiscoveryConfiguration(pydantic.BaseModel):
@@ -36,6 +65,7 @@ class SurveyRecordDiscoveryConfiguration(pydantic.BaseModel):
     description: TranslatableString | None
     assets: list[RecordAssetDiscoveryConfiguration]
     links: list[LinkSchema]
+    extra_properties: list[RecordProperty] | None = None
 
     @classmethod
     def from_raw_config(
@@ -69,6 +99,14 @@ class SurveyRecordDiscoveryConfiguration(pydantic.BaseModel):
                 for a in raw_config["assets"]
             ],
             links=[LinkSchema(**li) for li in raw_config.get("links", [])],
+            extra_properties=(
+                [
+                    RecordProperty(identifier=k, **raw_props)
+                    for k, raw_props in extra.items()
+                ]
+                if (extra := raw_config.get("extra_properties")) is not None
+                else None
+            ),
         )
 
 

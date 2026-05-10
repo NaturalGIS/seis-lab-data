@@ -83,6 +83,19 @@ async def _discover_survey_missions(
         )
 
 
+async def _get_project_config(project: models.Project) -> ProjectDiscoveryConfiguration:
+    """Temporary helper to retrieve sample project discovery config.
+
+    This would be pulled from DB, as one of the project properties instead.
+    """
+    # of being gotten from a file
+    discovery_config_path = (
+        Path(__file__).parents[3] / "tests/data/project-discovery-base.json"
+    )
+    raw_conf = json.loads(await discovery_config_path.read_text())
+    return ProjectDiscoveryConfiguration.from_raw_config(raw_conf)
+
+
 async def discover_project_survey_missions(
     session: AsyncSession,
     project: models.Project,
@@ -94,11 +107,7 @@ async def discover_project_survey_missions(
     Discovered resources become owned by the input user, if provided.
     Otherwise, they become owned by the project owner.
     """
-    # this would be pulled from DB, as one of the project properties instead
-    # of being gotten from a file
-    project_config = await _get_project_discovery_config(
-        Path(__file__).parents[3] / "tests/data/project-discovery-base.json"
-    )
+    project_config = await _get_project_config(project)
     created = []
     for survey_mission_discovery_conf in project_config.survey_missions:
         async for mission_to_create in _discover_survey_missions(
@@ -112,6 +121,23 @@ async def discover_project_survey_missions(
             )
             created.append((db_survey_mission, survey_mission_discovery_conf))
     return created
+
+
+async def discover_project_contents(
+    session: AsyncSession,
+    project: models.Project,
+    event_emitter: EventEmitterProtocol,
+    user: User | None = None,
+):
+    # discover survey missions
+    # for each discovered mission, discover its contents
+    new_survey_missions = await discover_project_survey_missions(
+        session, project, event_emitter, user
+    )
+    for survey_mission in new_survey_missions:
+        await discover_survey_mission_records(
+            session, survey_mission, event_emitter, user
+        )
 
 
 async def discover_survey_mission_records(
