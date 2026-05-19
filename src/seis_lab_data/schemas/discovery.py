@@ -36,7 +36,7 @@ class RecordProperty(pydantic.BaseModel):
     identifier: str  # this needs to be a valid python identifier, as we will use it to build a regexp identifier
     extractor: PropertyExtractor
     matcher: Union[MatcherConstant, MatcherDatetime] = pydantic.Field(
-        discriminator="type"
+        discriminator="type_"
     )
 
 
@@ -112,7 +112,8 @@ class SurveyRecordDiscoveryConfiguration(pydantic.BaseModel):
 
 class SurveyMissionDiscoveryConfiguration(pydantic.BaseModel):
     name: TranslatableString
-    discovery_pattern: TemplatedString
+    # survey mission config's path is not supposed to be a pattern, but rather a simple string
+    relative_path: str
     description: TranslatableString | None = None
     links: list[LinkSchema]
     record_configuration_ids: list[RecordDiscoveryConfId]
@@ -128,7 +129,7 @@ class SurveyMissionDiscoveryConfiguration(pydantic.BaseModel):
         return cls(
             name=TranslatableString(dict(raw_config.get("name"))),
             description=TranslatableString(dict(raw_config.get("description"))),
-            discovery_pattern=TemplatedString(raw_config["discovery_pattern"]),
+            relative_path=raw_config.get("relative_path", "/").strip("/"),
             links=[LinkSchema(**li) for li in raw_config.get("links", [])],
             record_configuration_ids=raw_config.get("records", []),
             extra_context=dict(raw_config.get("extra_context", {})),

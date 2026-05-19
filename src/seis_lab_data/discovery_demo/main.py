@@ -1,7 +1,6 @@
 import json
 import logging
 import uuid
-from collections.abc import AsyncIterable
 
 from anyio import Path
 
@@ -36,51 +35,44 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 logger = logging.getLogger(__name__)
 
 
-async def expand_pattern(
-    path_pattern: str, context: dict | None = None
-) -> AsyncIterable[Path]:
-    to_glob = path_pattern.format(**context) if context else path_pattern
-    async for concrete_path in Path().glob(to_glob):
-        if await concrete_path.is_file():
-            yield concrete_path
-
-
-async def _discover_survey_missions(
+async def _discover_survey_mission(
     session: AsyncSession,
     project: models.Project,
     survey_mission_discovery_conf: SurveyMissionDiscoveryConfiguration,
     owner: User | None = None,
-) -> AsyncIterable[SurveyMissionCreate]:
-    path_pattern = "/".join(
-        (
-            project.root_path.strip(),
-            survey_mission_discovery_conf.discovery_pattern.strip(),
+) -> SurveyMissionCreate | None:
+    mission_path = Path(
+        "/".join(
+            (
+                project.root_path.rstrip("/"),
+                survey_mission_discovery_conf.relative_path.lstrip("/"),
+            )
         )
     )
+    if not await mission_path.is_dir():
+        return None
     project_id = ProjectId(project.id)
-    async for concrete_mission_path in expand_pattern(path_pattern):
-        relative_path = str(concrete_mission_path.relative_to(project.root_path))
-        if (
-            existing_survey_mission
-            := await survey_mission_queries.get_survey_mission_by_path(
-                session, project_id, relative_path
-            )
-        ) is not None:
-            logger.debug(
-                f"Found an already existing survey mission with the same "
-                f"path ({existing_survey_mission.id!r}), skipping..."
-            )
-            continue
-        yield SurveyMissionCreate(  # noqa
-            id=SurveyMissionId(uuid.uuid4()),
-            owner_id=UserId(owner.id if owner else project.owner_id),
-            project_id=project_id,
-            name=LocalizableDraftName(**survey_mission_discovery_conf.name),
-            description=LocalizableDraftDescription(
-                **(survey_mission_discovery_conf.description or {})
-            ),
-            relative_path=str(concrete_mission_path.relative_to(project.root_path)),
+    if (
+        existing_survey_mission
+        := await survey_mission_queries.get_survey_mission_by_path(
+            session, project_id, survey_mission_discovery_conf.relative_path
         )
+    ) is not None:
+        logger.debug(
+            f"Found an already existing survey mission with the same "
+            f"path ({existing_survey_mission.id!r}), skipping..."
+        )
+        return None
+    return SurveyMissionCreate(  # noqa
+        id=SurveyMissionId(uuid.uuid4()),
+        owner_id=UserId(owner.id if owner else project.owner_id),
+        project_id=project_id,
+        name=LocalizableDraftName(**survey_mission_discovery_conf.name),
+        description=LocalizableDraftDescription(
+            **(survey_mission_discovery_conf.description or {})
+        ),
+        relative_path=survey_mission_discovery_conf.relative_path,
+    )
 
 
 async def _get_project_config(project: models.Project) -> ProjectDiscoveryConfiguration:
@@ -110,16 +102,19 @@ async def discover_project_survey_missions(
     project_config = await _get_project_config(project)
     created = []
     for survey_mission_discovery_conf in project_config.survey_missions:
-        async for mission_to_create in _discover_survey_missions(
-            session, project, survey_mission_discovery_conf
-        ):
-            db_survey_mission = await survey_mission_ops.create_survey_mission(
-                to_create=mission_to_create,
-                initiator=user,
-                session=session,
-                event_emitter=event_emitter,
+        if (
+            mission_to_create := await _discover_survey_mission(
+                session, project, survey_mission_discovery_conf
             )
-            created.append((db_survey_mission, survey_mission_discovery_conf))
+        ) is None:
+            continue
+        db_survey_mission = await survey_mission_ops.create_survey_mission(
+            to_create=mission_to_create,
+            initiator=user,
+            session=session,
+            event_emitter=event_emitter,
+        )
+        created.append((db_survey_mission, survey_mission_discovery_conf))
     return created
 
 
