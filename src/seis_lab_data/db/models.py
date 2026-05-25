@@ -382,7 +382,7 @@ class Project(SQLModel, table=True):
         )
 
     @declared_attr
-    def _discovery_config(self):
+    def _discovery_config(self) -> discovery_schemas.ProjectDiscoveryConfiguration:
         """Temporary helper to retrieve sample project discovery config.
 
         This would be pulled from DB, as one of the project properties instead.

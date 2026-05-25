@@ -9,7 +9,7 @@ from ..db.queries import surveymissions as survey_mission_queries
 from ..db.queries import recordassets as asset_queries
 from ..events import EventEmitterProtocol
 from ..operations import (
-    # surveyrelatedrecords as survey_related_record_ops,
+    surveyrelatedrecords as survey_related_record_ops,
     surveymissions as survey_mission_ops,
 )
 from ..schemas import (
@@ -20,7 +20,6 @@ from ..schemas import (
     RecordAssetCreate,
     RecordAssetDiscoveryConfiguration,
     RecordAssetId,
-    # RecordRelationDiscoveryConfiguration,
     SurveyMissionCreate,
     SurveyMissionId,
     SurveyMissionDiscoveryConfiguration,
@@ -51,10 +50,9 @@ async def discover_project_contents(
         session, project, event_emitter, user
     )
     for db_survey_mission in new_survey_missions:
-        ...
-        # await discover_survey_mission_records(
-        #     session, db_survey_mission, event_emitter, user
-        # )
+        await discover_survey_mission_records(
+            session, db_survey_mission, event_emitter, user
+        )
 
 
 async def discover_project_survey_missions(
@@ -87,84 +85,46 @@ async def discover_project_survey_missions(
     return created
 
 
-# async def discover_survey_mission_records(
-#     session: AsyncSession,
-#     survey_mission: models.SurveyMission,
-# ) -> None:
-#     survey_mission_discovery_conf = survey_mission.project._discovery_config
-#     records_to_create = []
-#     relationships_to_create = []  # noqa
-#     for idx, record_discovery_conf_name in enumerate(
-#         survey_mission_discovery_conf.records
-#     ):
-#         logger.debug(
-#             f"[{idx + 1}/{len(survey_mission_discovery_conf.records)}] Discovering record "
-#             f"config {record_discovery_conf.name!r}..."
-#         )
-#         if (
-#             to_create := await discover_record(
-#                 session, record_discovery_conf, survey_mission
-#             )
-#         ) is not None:
-#             records_to_create.append(to_create)
-#     await survey_related_record_ops.bulk_create_survey_records(
-#         session, records_to_create
-#     )
-
-
-async def _discover_survey_mission(
+async def discover_survey_mission_records(
     session: AsyncSession,
-    project: models.Project,
-    survey_mission_discovery_conf: SurveyMissionDiscoveryConfiguration,
-    owner: User | None = None,
-) -> SurveyMissionCreate | None:
-    mission_path = Path(
-        "/".join(
-            (
-                project.root_path.rstrip("/"),
-                survey_mission_discovery_conf.relative_path.lstrip("/"),
-            )
-        )
-    )
-    if not await mission_path.is_dir():
-        return None
-    project_id = ProjectId(project.id)
-    if (
-        existing_survey_mission
-        := await survey_mission_queries.get_survey_mission_by_path(
-            session, project_id, survey_mission_discovery_conf.relative_path
-        )
-    ) is not None:
-        logger.debug(
-            f"Found an already existing survey mission with the same "
-            f"path ({existing_survey_mission.id!r}), skipping..."
-        )
-        return None
-    return SurveyMissionCreate(  # noqa
-        id=SurveyMissionId(uuid.uuid4()),
-        owner_id=UserId(owner.id if owner else project.owner_id),
-        project_id=project_id,
-        name=LocalizableDraftName(**survey_mission_discovery_conf.name),
-        description=LocalizableDraftDescription(
-            **(survey_mission_discovery_conf.description or {})
-        ),
-        relative_path=survey_mission_discovery_conf.relative_path,
-    )
-
-
-async def get_survey_mission_discovery_conf(
     survey_mission: models.SurveyMission,
-) -> SurveyMissionDiscoveryConfiguration | None:
-    mission_path = Path(
-        "/".join(
-            (
-                survey_mission.project.root_path.rstrip("/"),
-                survey_mission.relative_path.lstrip("/"),
-            )
+) -> None:
+    if (
+        mission_discovery_conf := _get_survey_mission_discovery_conf(survey_mission)
+    ) is None:
+        logger.warning(
+            f"Could not determine survey mission discovery configuration for "
+            f"mission {survey_mission.id!r}"
         )
-    )
-    if not await mission_path.is_dir():
         return None
+    records_to_create = []
+    relationships_to_create = []  # noqa
+    for idx, record_discovery_conf_name in enumerate(
+        mission_discovery_conf.record_configuration_ids
+    ):
+        logger.debug(
+            f"[{idx + 1}/{len(mission_discovery_conf.record_configuration_ids)}] "
+            f"Discovering record config {record_discovery_conf_name!r}..."
+        )
+        if (
+            record_discovery_conf
+            := survey_mission.project._discovery_config.records.get(
+                record_discovery_conf_name
+            )
+        ) is None:
+            logger.warning(
+                f"Record conf named {record_discovery_conf_name!r} not found."
+            )
+            continue
+        if (
+            to_create := await discover_record(
+                session, record_discovery_conf, survey_mission
+            )
+        ) is not None:
+            records_to_create.append(to_create)
+    await survey_related_record_ops.bulk_create_survey_records(
+        session, records_to_create
+    )
 
 
 async def discover_record(
@@ -208,6 +168,60 @@ async def discover_record(
         assets=new_assets,
         related_records=None,
     )
+
+
+async def _discover_survey_mission(
+    session: AsyncSession,
+    project: models.Project,
+    survey_mission_discovery_conf: SurveyMissionDiscoveryConfiguration,
+    owner: User | None = None,
+) -> SurveyMissionCreate | None:
+    mission_path = Path(
+        "/".join(
+            (
+                project.root_path.rstrip("/"),
+                survey_mission_discovery_conf.relative_path.lstrip("/"),
+            )
+        )
+    )
+    if not await mission_path.is_dir():
+        return None
+    project_id = ProjectId(project.id)
+    if (
+        existing_survey_mission
+        := await survey_mission_queries.get_survey_mission_by_path(
+            session, project_id, survey_mission_discovery_conf.relative_path
+        )
+    ) is not None:
+        logger.debug(
+            f"Found an already existing survey mission with the same "
+            f"path ({existing_survey_mission.id!r}), skipping..."
+        )
+        return None
+    return SurveyMissionCreate(  # noqa
+        id=SurveyMissionId(uuid.uuid4()),
+        owner_id=UserId(owner.id if owner else project.owner_id),
+        project_id=project_id,
+        name=LocalizableDraftName(**survey_mission_discovery_conf.name),
+        description=LocalizableDraftDescription(
+            **(survey_mission_discovery_conf.description or {})
+        ),
+        relative_path=survey_mission_discovery_conf.relative_path,
+    )
+
+
+def _get_survey_mission_discovery_conf(
+    survey_mission: models.SurveyMission,
+) -> SurveyMissionDiscoveryConfiguration | None:
+    """Find a mission's discovery configuration."""
+
+    for discovery_conf in survey_mission.project._discovery_config.survey_missions:
+        if discovery_conf.relative_path.lstrip(
+            "/"
+        ) == survey_mission.relative_path.lstrip("/"):
+            return discovery_conf
+    else:
+        return None
 
 
 async def discover_asset(
