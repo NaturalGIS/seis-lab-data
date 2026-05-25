@@ -9,7 +9,7 @@ from ..db.queries import surveymissions as survey_mission_queries
 from ..db.queries import recordassets as asset_queries
 from ..events import EventEmitterProtocol
 from ..operations import (
-    surveyrelatedrecords as survey_related_record_ops,
+    # surveyrelatedrecords as survey_related_record_ops,
     surveymissions as survey_mission_ops,
 )
 from ..schemas import (
@@ -20,7 +20,7 @@ from ..schemas import (
     RecordAssetCreate,
     RecordAssetDiscoveryConfiguration,
     RecordAssetId,
-    RecordRelationDiscoveryConfiguration,
+    # RecordRelationDiscoveryConfiguration,
     SurveyMissionCreate,
     SurveyMissionId,
     SurveyMissionDiscoveryConfiguration,
@@ -33,6 +33,83 @@ from ..schemas import (
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 logger = logging.getLogger(__name__)
+
+
+async def discover_project_contents(
+    session: AsyncSession,
+    project: models.Project,
+    event_emitter: EventEmitterProtocol,
+    user: User | None = None,
+):
+    """Discover a new project's contents.
+
+    This follows roughly a workflow like:
+    - discover survey missions and save them in the db
+    - for each survey mission, discover its records
+    """
+    new_survey_missions = await discover_project_survey_missions(
+        session, project, event_emitter, user
+    )
+    for db_survey_mission in new_survey_missions:
+        ...
+        # await discover_survey_mission_records(
+        #     session, db_survey_mission, event_emitter, user
+        # )
+
+
+async def discover_project_survey_missions(
+    session: AsyncSession,
+    project: models.Project,
+    event_emitter: EventEmitterProtocol,
+    user: User | None = None,
+) -> list[tuple[models.SurveyMission, SurveyMissionDiscoveryConfiguration]]:
+    """Discover a project's survey missions by scanning the filesystem.
+
+    Discovered resources become owned by the input user, if provided.
+    Otherwise, they become owned by the project owner.
+    """
+
+    created = []
+    for survey_mission_discovery_conf in project._discovery_config.survey_missions:
+        if (
+            mission_to_create := await _discover_survey_mission(
+                session, project, survey_mission_discovery_conf
+            )
+        ) is None:
+            continue
+        db_survey_mission = await survey_mission_ops.create_survey_mission(
+            to_create=mission_to_create,
+            initiator=user,
+            session=session,
+            event_emitter=event_emitter,
+        )
+        created.append((db_survey_mission, survey_mission_discovery_conf))
+    return created
+
+
+# async def discover_survey_mission_records(
+#     session: AsyncSession,
+#     survey_mission: models.SurveyMission,
+# ) -> None:
+#     survey_mission_discovery_conf = survey_mission.project._discovery_config
+#     records_to_create = []
+#     relationships_to_create = []  # noqa
+#     for idx, record_discovery_conf_name in enumerate(
+#         survey_mission_discovery_conf.records
+#     ):
+#         logger.debug(
+#             f"[{idx + 1}/{len(survey_mission_discovery_conf.records)}] Discovering record "
+#             f"config {record_discovery_conf.name!r}..."
+#         )
+#         if (
+#             to_create := await discover_record(
+#                 session, record_discovery_conf, survey_mission
+#             )
+#         ) is not None:
+#             records_to_create.append(to_create)
+#     await survey_related_record_ops.bulk_create_survey_records(
+#         session, records_to_create
+#     )
 
 
 async def _discover_survey_mission(
@@ -75,89 +152,19 @@ async def _discover_survey_mission(
     )
 
 
-async def _get_project_config(project: models.Project) -> ProjectDiscoveryConfiguration:
-    """Temporary helper to retrieve sample project discovery config.
-
-    This would be pulled from DB, as one of the project properties instead.
-    """
-    # of being gotten from a file
-    discovery_config_path = (
-        Path(__file__).parents[3] / "tests/data/project-discovery-base.json"
-    )
-    raw_conf = json.loads(await discovery_config_path.read_text())
-    return ProjectDiscoveryConfiguration.from_raw_config(raw_conf)
-
-
-async def discover_project_survey_missions(
-    session: AsyncSession,
-    project: models.Project,
-    event_emitter: EventEmitterProtocol,
-    user: User | None = None,
-) -> list[tuple[models.SurveyMission, SurveyMissionDiscoveryConfiguration]]:
-    """Discover a project's survey missions by scanning the filesystem.
-
-    Discovered resources become owned by the input user, if provided.
-    Otherwise, they become owned by the project owner.
-    """
-    project_config = await _get_project_config(project)
-    created = []
-    for survey_mission_discovery_conf in project_config.survey_missions:
-        if (
-            mission_to_create := await _discover_survey_mission(
-                session, project, survey_mission_discovery_conf
-            )
-        ) is None:
-            continue
-        db_survey_mission = await survey_mission_ops.create_survey_mission(
-            to_create=mission_to_create,
-            initiator=user,
-            session=session,
-            event_emitter=event_emitter,
-        )
-        created.append((db_survey_mission, survey_mission_discovery_conf))
-    return created
-
-
-async def discover_project_contents(
-    session: AsyncSession,
-    project: models.Project,
-    event_emitter: EventEmitterProtocol,
-    user: User | None = None,
-):
-    # discover survey missions
-    # for each discovered mission, discover its contents
-    new_survey_missions = await discover_project_survey_missions(
-        session, project, event_emitter, user
-    )
-    for survey_mission in new_survey_missions:
-        await discover_survey_mission_records(
-            session, survey_mission, event_emitter, user
-        )
-
-
-async def discover_survey_mission_records(
-    session: AsyncSession,
+async def get_survey_mission_discovery_conf(
     survey_mission: models.SurveyMission,
-    survey_mission_discovery_conf: SurveyMissionDiscoveryConfiguration,
-    records_discovery_conf: list[SurveyRecordDiscoveryConfiguration],
-    record_relations_discovery_conf: list[RecordRelationDiscoveryConfiguration],
-) -> None:
-    records_to_create = []
-    relationships_to_create = []  # noqa
-    for idx, record_discovery_conf in enumerate(survey_mission_discovery_conf.records):
-        logger.debug(
-            f"[{idx + 1}/{len(survey_mission_discovery_conf.records)}] Discovering record "
-            f"config {record_discovery_conf.name!r}..."
-        )
-        if (
-            to_create := await discover_record(
-                session, record_discovery_conf, survey_mission
+) -> SurveyMissionDiscoveryConfiguration | None:
+    mission_path = Path(
+        "/".join(
+            (
+                survey_mission.project.root_path.rstrip("/"),
+                survey_mission.relative_path.lstrip("/"),
             )
-        ) is not None:
-            records_to_create.append(to_create)
-    await survey_related_record_ops.bulk_create_survey_records(
-        session, records_to_create
+        )
     )
+    if not await mission_path.is_dir():
+        return None
 
 
 async def discover_record(
