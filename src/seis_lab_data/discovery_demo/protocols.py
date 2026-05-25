@@ -19,19 +19,3 @@ class RecordExtractorProtocol(Protocol):
         record_relations_configuration: discovery_schemas.RecordRelationDiscoveryConfiguration,
     ) -> record_schemas.SurveyRelatedRecordCreate:
         """Discover records and their assets on the filesystem"""
-
-
-async def extractor1(
-    asset_paths: list[Path],
-    record_configuration: discovery_schemas.SurveyRecordDiscoveryConfiguration,
-    record_relations_configuration: discovery_schemas.RecordRelationDiscoveryConfiguration,
-) -> record_schemas.SurveyRelatedRecordCreate: ...
-
-
-class MyExtractor:
-    async def __call__(
-        self,
-        asset_paths: list[Path],
-        record_configuration: discovery_schemas.SurveyRecordDiscoveryConfiguration,
-        record_relations_configuration: discovery_schemas.RecordRelationDiscoveryConfiguration,
-    ) -> record_schemas.SurveyRelatedRecordCreate: ...
