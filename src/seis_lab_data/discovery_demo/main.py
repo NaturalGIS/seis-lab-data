@@ -29,6 +29,7 @@ from ..schemas import (
     User,
     UserId,
 )
+from . import protocols
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -168,38 +169,27 @@ async def discover_record(
     base_path = Path(
         "/".join((survey_mission.project.root_path, survey_mission.relative_path))
     )
-    new_assets = []
+    discovered: list[protocols.DiscoveredAsset] = []
     for asset_conf in record_discovery_config.assets:
         if (
-            new_asset := discover_asset(
+            found := await discover_asset(
                 session, asset_conf, record_discovery_config, base_path
             )
         ) is None:
             logger.debug(f"Unable to locate new asset {asset_conf.name!r}")
             continue
-        new_assets.append(new_asset)
-    if len(new_assets) == 0:
+        discovered.append(found)
+    if not discovered:
         logger.warning(
             f"Unable to locate any new asset for record "
             f"configuration {record_discovery_config.name!r}"
         )
         return None
-    return SurveyRelatedRecordCreate(
-        id=None,
-        owner_id=None,
-        survey_mission_id=None,
-        name=None,
-        description=None,
-        dataset_category_id=None,
-        domain_type_id=None,
-        workflow_stage_id=None,
-        relative_path=None,
-        bbox_4326=None,
-        temporal_extent_begin=None,
-        temporal_extent_end=None,
-        links=None,
-        assets=new_assets,
-        related_records=None,
+    return await protocols.extractor1(
+        survey_mission=survey_mission,
+        record_configuration=record_discovery_config,
+        discovered_assets=discovered,
+        session=session,
     )
 
 
@@ -210,7 +200,7 @@ async def discover_asset(
     base_path: Path,
     survey_mission_conf: SurveyMissionDiscoveryConfiguration | None = None,
     project_conf: ProjectDiscoveryConfiguration | None = None,
-) -> RecordAssetCreate | None:
+) -> protocols.DiscoveredAsset | None:
     for discovery_pattern in asset_conf.discovery_patterns:
         to_look_for = discovery_pattern.format(
             dataset_category=record_conf.dataset_category,
@@ -231,13 +221,18 @@ async def discover_asset(
                     f"path {found_file_path!r} is already in the catalog, skipping..."
                 )
                 continue
-            return RecordAssetCreate(
+            asset = RecordAssetCreate(
                 id=RecordAssetId(uuid.uuid4()),
-                name=asset_conf.name,
-                description=asset_conf.description,
+                name=LocalizableDraftName(**asset_conf.name),
+                description=(
+                    LocalizableDraftDescription(**asset_conf.description)
+                    if asset_conf.description
+                    else LocalizableDraftDescription()
+                ),
                 relative_path=relative_path,
-                links=asset_conf.links,
+                links=list(asset_conf.links),
             )
+            return asset, found_file_path
         else:
             logger.debug(
                 f"Unable to locate any new file path for pattern {to_look_for!r}"
