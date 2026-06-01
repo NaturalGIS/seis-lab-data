@@ -11,11 +11,54 @@
       },
       "relative_path": "surveys/owf-seism-2024/",
       "records": [
-        "record_batch_1"
+        "raw_bathy"
       ]
     }
   ],
   "records": {
+    "raw_bathy": {
+      "dataset_category": "bathymetry",
+      "domain_type": "geophysical",
+      "workflow_stage": "raw data",
+      "metadata_extractor": "seis_lab_data.extractors.bathymetry.extractor_default_or_customizable",
+      "name": {
+        "pt": "Batimetria em bruto",
+        "en": "Raw bathymetry"
+      },
+      "assets": [
+        {
+          "name": {
+            "pt": "Ficheiro kmall",
+            "en": "kmall file"
+          },
+          "discovery_patterns": [
+            "s06-mbes/s02-raw-data/01-EM712/{date-dashed}/\\d{4}_{date}_\\d{6}_MarioRuivo.kmall"
+          ]
+        }
+      ],
+      "extra_properties": {
+        "date": {
+          "extractor": {
+            "pattern": "\\d{8}",
+            "converter": "datetime.fromisoformat"
+          },
+          "matcher": {
+            "type": "datetime",
+            "delta_below_seconds": 3600
+          }
+        },
+        "date-dashed": {
+          "extractor": {
+            "pattern": "\\d{4}-\\d{2}-\\d{2}",
+            "converter": "seis_lab_data.filesystemextractors.get_data_dashed"
+          },
+          "matcher": {
+            "type": "datetime",
+            "delta_below_seconds": 3600
+          }
+        }
+      }
+    },
     "record_batch_1": {
       "dataset_category": "bathymetry",
       "domain_type": "geophysical",

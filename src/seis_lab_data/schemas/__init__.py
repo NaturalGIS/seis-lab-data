@@ -17,6 +17,7 @@ from .discovery import (
     ProjectDiscoveryConfiguration,
     RecordAssetDiscoveryConfiguration,
     RecordRelationDiscoveryConfiguration,
+    RecordProperty,
     SurveyMissionDiscoveryConfiguration,
     SurveyRecordDiscoveryConfiguration,
 )
@@ -114,6 +115,7 @@ __all__ = [
     "RecordAssetReadDetail",
     "RecordAssetReadListItem",
     "RecordAssetUpdate",
+    "RecordProperty",
     "RecordRelationDiscoveryConfiguration",
     "RelatedRecordCreate",
     "RequestId",

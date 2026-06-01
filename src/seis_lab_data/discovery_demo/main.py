@@ -1,6 +1,8 @@
 import json
 import logging
+import re
 import uuid
+from collections.abc import AsyncIterator
 
 from anyio import Path
 
@@ -8,22 +10,17 @@ from ..db import models
 from ..db.queries import surveymissions as survey_mission_queries
 from ..db.queries import recordassets as asset_queries
 from ..events import EventEmitterProtocol
-from ..operations import (
-    surveyrelatedrecords as survey_related_record_ops,
-    surveymissions as survey_mission_ops,
-)
+from ..operations import surveymissions as survey_mission_ops
+from ..schemas import discovery as discovery_schemas
 from ..schemas import (
     LocalizableDraftName,
     LocalizableDraftDescription,
     ProjectDiscoveryConfiguration,
     ProjectId,
     RecordAssetCreate,
-    RecordAssetDiscoveryConfiguration,
     RecordAssetId,
     SurveyMissionCreate,
     SurveyMissionId,
-    SurveyMissionDiscoveryConfiguration,
-    SurveyRecordDiscoveryConfiguration,
     SurveyRelatedRecordCreate,
     User,
     UserId,
@@ -60,11 +57,14 @@ async def discover_project_survey_missions(
     project: models.Project,
     event_emitter: EventEmitterProtocol,
     user: User | None = None,
-) -> list[tuple[models.SurveyMission, SurveyMissionDiscoveryConfiguration]]:
-    """Discover a project's survey missions by scanning the filesystem.
+) -> list[models.SurveyMission]:
+    """Discover and save a project's survey missions.
 
-    Discovered resources become owned by the input user, if provided.
-    Otherwise, they become owned by the project owner.
+    Survey missions become owned by the input user, if provided. Otherwise, they
+    are owned by the project owner.
+
+    Note that this function does not discover whatever resources may be part of
+    survey missions, it just creates the missions.
     """
 
     created = []
@@ -81,13 +81,15 @@ async def discover_project_survey_missions(
             session=session,
             event_emitter=event_emitter,
         )
-        created.append((db_survey_mission, survey_mission_discovery_conf))
+        created.append(db_survey_mission)
     return created
 
 
 async def discover_survey_mission_records(
     session: AsyncSession,
     survey_mission: models.SurveyMission,
+    event_emitter: EventEmitterProtocol,
+    user: User | None = None,
 ) -> None:
     if (
         mission_discovery_conf := _get_survey_mission_discovery_conf(survey_mission)
@@ -97,7 +99,7 @@ async def discover_survey_mission_records(
             f"mission {survey_mission.id!r}"
         )
         return None
-    records_to_create = []
+    created_records = []
     relationships_to_create = []  # noqa
     for idx, record_discovery_conf_name in enumerate(
         mission_discovery_conf.record_configuration_ids
@@ -117,33 +119,40 @@ async def discover_survey_mission_records(
             )
             continue
         if (
-            to_create := await discover_record(
-                session, record_discovery_conf, survey_mission
+            db_record := await discover_record(
+                session, record_discovery_conf, survey_mission, event_emitter, user
             )
         ) is not None:
-            records_to_create.append(to_create)
-    await survey_related_record_ops.bulk_create_survey_records(
-        session, records_to_create
-    )
+            created_records.append(db_record)
+    # now we need to handle record relationships
 
 
 async def discover_record(
     session: AsyncSession,
-    record_discovery_config: SurveyRecordDiscoveryConfiguration,
+    record_discovery_config: discovery_schemas.SurveyRecordDiscoveryConfiguration,
     survey_mission: models.SurveyMission,
+    event_emitter: EventEmitterProtocol,
+    user: User | None = None,
 ) -> SurveyRelatedRecordCreate | None:
+    """Discover survey related records and their assets in the filesystem, and save them."""
     base_path = Path(
         "/".join((survey_mission.project.root_path, survey_mission.relative_path))
     )
     new_assets = []
+    discovered_properties: dict[str, str] = {}
     for asset_conf in record_discovery_config.assets:
         if (
-            new_asset := discover_asset(
-                session, asset_conf, record_discovery_config, base_path
+            discovered := discover_asset(
+                session,
+                asset_conf,
+                record_discovery_config.extra_properties,
+                base_path,
+                discovered_properties,
             )
         ) is None:
             logger.debug(f"Unable to locate new asset {asset_conf.name!r}")
             continue
+        new_asset, discovered_properties = discovered
         new_assets.append(new_asset)
     if len(new_assets) == 0:
         logger.warning(
@@ -173,7 +182,7 @@ async def discover_record(
 async def _discover_survey_mission(
     session: AsyncSession,
     project: models.Project,
-    survey_mission_discovery_conf: SurveyMissionDiscoveryConfiguration,
+    survey_mission_discovery_conf: discovery_schemas.SurveyMissionDiscoveryConfiguration,
     owner: User | None = None,
 ) -> SurveyMissionCreate | None:
     mission_path = Path(
@@ -212,7 +221,7 @@ async def _discover_survey_mission(
 
 def _get_survey_mission_discovery_conf(
     survey_mission: models.SurveyMission,
-) -> SurveyMissionDiscoveryConfiguration | None:
+) -> discovery_schemas.SurveyMissionDiscoveryConfiguration | None:
     """Find a mission's discovery configuration."""
 
     for discovery_conf in survey_mission.project._discovery_config.survey_missions:
@@ -226,20 +235,13 @@ def _get_survey_mission_discovery_conf(
 
 async def discover_asset(
     session: AsyncSession,
-    asset_conf: RecordAssetDiscoveryConfiguration,
-    record_conf: SurveyRecordDiscoveryConfiguration,
+    asset_conf: discovery_schemas.RecordAssetDiscoveryConfiguration,
+    extra_properties: list[discovery_schemas.RecordProperty],
     base_path: Path,
-    survey_mission_conf: SurveyMissionDiscoveryConfiguration | None = None,
-    project_conf: ProjectDiscoveryConfiguration | None = None,
-) -> RecordAssetCreate | None:
+    already_discovered_properties: dict[str, str],
+) -> tuple[RecordAssetCreate, dict[str, str]] | None:
     for discovery_pattern in asset_conf.discovery_patterns:
         to_look_for = discovery_pattern.format(
-            dataset_category=record_conf.dataset_category,
-            domain_type=record_conf.domain_type,
-            workflow_stage=record_conf.workflow_stage,
-            **(project_conf.extra_context if project_conf else {}),
-            **(survey_mission_conf.extra_context if survey_mission_conf else {}),
-            **record_conf.extra_context,
             **asset_conf.extra_context,
         )
         async for found_file_path in base_path.glob(to_look_for):
@@ -270,16 +272,70 @@ async def discover_asset(
     return None
 
 
-async def discover_records():
-    ...
-    # for each record, form the context
-    # then build al list of all possible combinations - those are sure to originate individual records
-    # then try to find files that match each context combination, according to configured assets
-    # capture the dynamic part(s) of each found file
-
-
 async def _get_project_discovery_config(
     discovery_config_path: Path,
 ) -> ProjectDiscoveryConfiguration:
     raw_conf = json.loads(await discovery_config_path.read_text())
     return ProjectDiscoveryConfiguration.from_raw_config(raw_conf)
+
+
+def _build_pattern_regex(
+    template: str,
+    properties: dict[str, discovery_schemas.RecordProperty],
+) -> re.Pattern:
+    def replacer(m: re.Match) -> str:
+        name = m.group("prop_name")
+        if name not in properties:
+            raise ValueError(f"Placeholder {{{name}}} not found in extra_properties")
+        return f"(?P<{name}>{properties[name].pattern})"
+
+    regex_str = re.sub(r"\{(?P<prop_name>\w+)\}", replacer, template)
+    return re.compile(regex_str)
+
+
+async def discover_files(
+    root: Path,
+    config: discovery_schemas.RecordAssetDiscoveryConfiguration,
+) -> AsyncIterator[discovery_schemas.DiscoveredFile]:
+    compiled_patterns = [
+        _build_pattern_regex(p, config.properties) for p in config.discovery_patterns
+    ]
+
+    async for path in root.rglob("*"):
+        if not await path.is_file():
+            continue
+
+        relative = path.relative_to(root).as_posix()
+
+        for pattern in compiled_patterns:
+            m = pattern.search(relative)
+            if not m:
+                continue
+
+            extracted = {}
+            valid = True
+
+            for name, prop in config.properties.items():
+                try:
+                    raw = m.group(name)
+                except IndexError:
+                    continue  # This placeholder isn't in this pattern — skip
+
+                try:
+                    value = prop.convert(raw)
+                except Exception:
+                    valid = False
+                    break
+
+                if not prop.validate_value(value):
+                    valid = False
+                    break
+
+                extracted[name] = value
+
+            if valid:
+                yield discovery_schemas.DiscoveredFile(
+                    path=str(path), properties=extracted
+                )
+
+            break  # matched a pattern, don't try others

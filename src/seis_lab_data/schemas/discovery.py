@@ -1,10 +1,13 @@
+import datetime as dt
 import typing
 from typing import (
     Annotated,
     Literal,
     Union,
 )
+
 import pydantic
+from typing_extensions import Self
 
 from .common import LinkSchema
 
@@ -13,31 +16,52 @@ RecordDiscoveryConfId = typing.NewType("RecordDiscoveryConfId", str)
 TemplatedString = typing.NewType("TemplatedString", str)
 TranslatableString = typing.NewType("TranslatableString", dict[str, TemplatedString])
 
-ExtraContext = dict[str, str | list[str]]
 
-
-class PropertyExtractor(pydantic.BaseModel):
-    pattern: str
-    converter: str
-
-
-class MatcherDatetime(pydantic.BaseModel):
+class DatetimeProperty(pydantic.BaseModel):
     type_: Annotated[Literal["datetime"], pydantic.Field(validation_alias="type")]
+    pattern: str = r"\d{8}"  # sensible default
     delta_below_seconds: int
 
+    def convert(self, raw: str) -> dt.date:
+        return dt.datetime.strptime(raw, "%Y%m%d").date()
 
-class MatcherConstant(pydantic.BaseModel):
+    def validate_value(self, value: dt.date) -> bool:
+        return abs((dt.date.today() - value).total_seconds()) < self.delta_below_seconds
+
+
+class ConstantProperty(pydantic.BaseModel):
     type_: Annotated[Literal["constant"], pydantic.Field(validation_alias="type")]
+    pattern: str = r"\w+"  # sensible default, overridable
     choices: list[str]
     match_type: Literal["equal", "any"]
+
+    def convert(self, raw: str) -> str:
+        return raw
+
+    def validate_value(self, value: str) -> bool:
+        if self.match_type == "equal":
+            return value in self.choices
+        return any(c in value for c in self.choices)
+
+
+PropertyHandler = Annotated[
+    Union[DatetimeProperty, ConstantProperty], pydantic.Field(discriminator="type_")
+]
 
 
 class RecordProperty(pydantic.BaseModel):
     identifier: str  # this needs to be a valid python identifier, as we will use it to build a regexp identifier
-    extractor: PropertyExtractor
-    matcher: Union[MatcherConstant, MatcherDatetime] = pydantic.Field(
-        discriminator="type_"
-    )
+    handler: PropertyHandler
+
+    def convert(self, raw: str):
+        return self.handler.convert(raw)
+
+    def validate_value(self, value) -> bool:
+        return self.handler.validate_value(value)
+
+    @property
+    def pattern(self) -> str:
+        return self.handler.pattern
 
 
 class RecordAssetDiscoveryConfiguration(pydantic.BaseModel):
@@ -45,9 +69,26 @@ class RecordAssetDiscoveryConfiguration(pydantic.BaseModel):
     description: TranslatableString | None
     discovery_patterns: list[TemplatedString]
     links: list[LinkSchema]
-    # these can become tags in the generated record, to be searchable
-    # they can also be used as placeholders when building the filesystem search template
-    extra_context: ExtraContext
+    extra_properties: dict[str, PropertyHandler]
+    _properties: dict[str, RecordProperty]
+
+    @pydantic.model_validator(mode="after")
+    def _inject_identifiers(self) -> Self:
+        # Wrap each handler in a RecordProperty, injecting the dict key
+        self._properties: dict[str, RecordProperty] = {
+            key: RecordProperty(identifier=key, handler=handler)
+            for key, handler in self.extra_properties.items()
+        }
+        return self
+
+    @property
+    def properties(self) -> dict[str, RecordProperty]:
+        return self._properties
+
+
+class DiscoveredFile(pydantic.BaseModel):
+    path: str
+    properties: dict[str, object]  # identifier -> converted value
 
 
 class RecordRelationDiscoveryConfiguration(pydantic.BaseModel):
@@ -73,6 +114,14 @@ class SurveyRecordDiscoveryConfiguration(pydantic.BaseModel):
         raw_identifier: str,
         raw_config: dict,
     ) -> "SurveyRecordDiscoveryConfiguration":
+        extra_properties = (
+            [
+                RecordProperty(identifier=k, **raw_props)
+                for k, raw_props in extra.items()
+            ]
+            if (extra := raw_config.get("extra_properties")) is not None
+            else None
+        )
         return cls(
             id_=RecordDiscoveryConfId(raw_identifier),
             dataset_category=raw_config["dataset_category"],
@@ -94,19 +143,12 @@ class SurveyRecordDiscoveryConfiguration(pydantic.BaseModel):
                     ),
                     discovery_patterns=list(a["discovery_patterns"]),
                     links=[LinkSchema(**li) for li in a.get("links", [])],
-                    extra_context=a.get("extra_context", {}),
+                    extra_properties=extra_properties,
                 )
                 for a in raw_config["assets"]
             ],
             links=[LinkSchema(**li) for li in raw_config.get("links", [])],
-            extra_properties=(
-                [
-                    RecordProperty(identifier=k, **raw_props)
-                    for k, raw_props in extra.items()
-                ]
-                if (extra := raw_config.get("extra_properties")) is not None
-                else None
-            ),
+            extra_properties=extra_properties,
         )
 
 
@@ -117,9 +159,6 @@ class SurveyMissionDiscoveryConfiguration(pydantic.BaseModel):
     description: TranslatableString | None = None
     links: list[LinkSchema]
     record_configuration_ids: list[RecordDiscoveryConfId]
-    # these can become tags in the generated record, to be searchable
-    # they can also be used as placeholders when building the filesystem search template
-    extra_context: ExtraContext
 
     @classmethod
     def from_raw_config(
@@ -132,7 +171,6 @@ class SurveyMissionDiscoveryConfiguration(pydantic.BaseModel):
             relative_path=raw_config.get("relative_path", "/").strip("/"),
             links=[LinkSchema(**li) for li in raw_config.get("links", [])],
             record_configuration_ids=raw_config.get("records", []),
-            extra_context=dict(raw_config.get("extra_context", {})),
         )
 
 
@@ -141,9 +179,6 @@ class ProjectDiscoveryConfiguration(pydantic.BaseModel):
     links: list[LinkSchema]
     records: dict[RecordDiscoveryConfId, SurveyRecordDiscoveryConfiguration]
     record_relations: list[RecordRelationDiscoveryConfiguration]
-    # these can become tags in the generated record, to be searchable
-    # they can also be used as placeholders when building the filesystem search template
-    extra_context: ExtraContext
 
     @classmethod
     def from_raw_config(cls, raw_config: dict) -> "ProjectDiscoveryConfiguration":
@@ -167,5 +202,4 @@ class ProjectDiscoveryConfiguration(pydantic.BaseModel):
                 )
                 for rel_conf in raw_config.get("record_relations", [])
             ],
-            extra_context=raw_config.get("extra_context", {}),
         )
