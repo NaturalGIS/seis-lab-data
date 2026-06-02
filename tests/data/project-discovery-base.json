@@ -30,13 +30,11 @@
         }
       ],
       "extra_properties": {
-        "date": {
-          "extractor": {"pattern": "\\d{8}", "converter": "datetime.fromisoformat"},
-          "matcher": {"type": "datetime", "delta_below_seconds": 3600}
-        },
+        "date": {"type": "date"},
         "date-dashed": {
-          "extractor": {"pattern": "\\d{4}-\\d{2}-\\d{2}", "converter": "seis_lab_data.filesystemextractors.get_data_dashed"},
-          "matcher": {"type": "datetime", "delta_below_seconds": 3600}
+          "type": "date",
+          "pattern": "\\d{4}-\\d{2}-\\d{2}",
+          "converter": "convert_from_y_m_d"
         }
       }
     },
@@ -54,8 +52,9 @@
       ],
       "extra_properties": {
         "region": {
-          "extractor": {"pattern": "[A-Z]{3}", "converter": "str"},
-          "matcher": {"type": "constant", "choices": ["FIG", "LEI"], "match_type":  "equal"}
+          "type": "constant",
+          "pattern": "[A-Z]{3}",
+          "compatibility": "equal"
         }
       }
     },
@@ -73,8 +72,8 @@
       ],
       "extra_properties": {
         "mark": {
-          "extractor": {"pattern": "[A-Z](\\d\\d\\d(_\\d)?)?", "converter": "str"},
-          "matcher": {"type": "constant", "match_type":  "equal"}
+          "type": "constant",
+          "pattern": "[A-Z](\\d\\d\\d(_\\d)?)?"
         }
       }
     }

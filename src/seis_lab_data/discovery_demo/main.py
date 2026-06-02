@@ -270,10 +270,16 @@ async def discover_record(
     the catalog are filtered out.
     """
     base_path = Path(
-        "/".join((survey_mission.project.root_path, survey_mission.relative_path))
+        "/".join(
+            (
+                survey_mission.project.root_path.rstrip("/"),
+                survey_mission.relative_path.lstrip("/"),
+            )
+        )
     )
-    instances = await scan_record_instances(base_path, record_discovery_config)
-    if not instances:
+    if not (
+        instances := await scan_record_instances(base_path, record_discovery_config)
+    ):
         logger.warning(
             f"No record instances found for config {record_discovery_config.id_!r}"
         )

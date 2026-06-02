@@ -1,4 +1,5 @@
 import datetime as dt
+import inspect
 import typing
 from typing import (
     Annotated,
@@ -12,73 +13,74 @@ from typing_extensions import Self
 from .common import LinkSchema
 
 
-def _parse_property_handler_from_raw(name: str, raw: dict) -> "PropertyHandler":
-    """Parse a property handler from the {extractor, matcher} JSON config format."""
-    extractor = raw.get("extractor", {})
-    matcher = raw.get("matcher", {})
-    prop_type = matcher.get("type")
-    pattern = extractor.get("pattern")
-    if prop_type == "datetime":
-        kwargs: dict = {
-            "type": "datetime",
-            "delta_below_seconds": matcher["delta_below_seconds"],
-        }
-        if pattern:
-            kwargs["pattern"] = pattern
-        return DatetimeProperty(**kwargs)
-    elif prop_type == "constant":
-        kwargs = {
-            "type": "constant",
-            "choices": matcher["choices"],
-            "match_type": matcher["match_type"],
-        }
-        if pattern:
-            kwargs["pattern"] = pattern
-        return ConstantProperty(**kwargs)
-    else:
-        raise ValueError(f"Unknown property type {prop_type!r} for property {name!r}")
-
-
 RecordDiscoveryConfId = typing.NewType("RecordDiscoveryConfId", str)
 TemplatedString = typing.NewType("TemplatedString", str)
 TranslatableString = typing.NewType("TranslatableString", dict[str, TemplatedString])
 
 
-class DatetimeProperty(pydantic.BaseModel):
-    type_: Annotated[Literal["datetime"], pydantic.Field(validation_alias="type")]
-    pattern: str = r"\d{8}"  # sensible default
-    delta_below_seconds: int
+class DateProperty(pydantic.BaseModel):
+    type_: Annotated[Literal["date"], pydantic.Field(validation_alias="type")] = "date"
+    pattern: str = r"\d{8}"
+    converter: str = "convert_from_ymd"
+    compatibility: Literal["day", "month"] = "day"
 
-    def convert(self, raw: str) -> dt.date:
+    @pydantic.field_validator("converter", mode="after")
+    @classmethod
+    def validate_converter(cls, value: str) -> str:
+        existing_converters = [
+            method
+            for method, _ in inspect.getmembers(cls, predicate=inspect.isfunction)
+            if method.startswith("convert_")
+        ]
+        if value not in existing_converters:
+            raise ValueError(f"Converter {value!r} does not exist")
+        return value
+
+    def convert_from_ymd(self, raw: str) -> dt.date:
         return dt.datetime.strptime(raw, "%Y%m%d").date()
+
+    def convert_from_y_m_d(self, raw: str) -> dt.date:
+        return dt.datetime.strptime(raw, "%Y-%m-%d").date()
+
+    def convert(self, raw: str) -> str:
+        return getattr(self, self.converter)(raw)
 
     def validate_value(self, value: dt.date) -> bool:
         return isinstance(value, dt.date)
 
     def is_compatible(self, a: dt.date, b: dt.date) -> bool:
-        return abs((a - b).total_seconds()) < self.delta_below_seconds
+        match self.compatibility:
+            case "day":
+                return a == b
+            case "month":
+                return a.year == b.year and a.month == b.month
+            case _:
+                raise NotImplementedError
 
 
 class ConstantProperty(pydantic.BaseModel):
     type_: Annotated[Literal["constant"], pydantic.Field(validation_alias="type")]
     pattern: str = r"\w+"  # sensible default, overridable
-    choices: list[str]
-    match_type: Literal["equal", "any"]
+    choices: list[str] | None = None
+    match_type: Literal["equal", "any"] = "equal"
 
     def convert(self, raw: str) -> str:
         return raw
 
     def validate_value(self, value: str) -> bool:
-        if self.match_type == "equal":
-            return value in self.choices
-        return any(c in value for c in self.choices)
+        if self.choices is None:
+            return True
+        return value in self.choices
 
     def is_compatible(self, a: str, b: str) -> bool:
-        return a == b
+        if self.match_type == "equal":
+            return a == b
+        else:
+            return True
 
 
 PropertyHandler = Annotated[
-    Union[DatetimeProperty, ConstantProperty], pydantic.Field(discriminator="type_")
+    Union[DateProperty, ConstantProperty], pydantic.Field(discriminator="type_")
 ]
 
 
@@ -162,10 +164,12 @@ class SurveyRecordDiscoveryConfiguration(pydantic.BaseModel):
         # Parse extra_properties from the {extractor, matcher} JSON format
         asset_extra_props: dict[str, PropertyHandler] = {}
         record_extra_props: list[RecordProperty] = []
-        for k, v in raw_config.get("extra_properties", {}).items():
-            handler = _parse_property_handler_from_raw(k, v)
-            asset_extra_props[k] = handler
-            record_extra_props.append(RecordProperty(identifier=k, handler=handler))
+        for prop_name, raw_prop in raw_config.get("extra_properties", {}).items():
+            handler = pydantic.TypeAdapter(PropertyHandler).validate_python(raw_prop)
+            asset_extra_props[prop_name] = handler
+            record_extra_props.append(
+                RecordProperty(identifier=prop_name, handler=handler)
+            )
 
         return cls(
             id_=RecordDiscoveryConfId(raw_identifier),
