@@ -12,6 +12,33 @@ from typing_extensions import Self
 from .common import LinkSchema
 
 
+def _parse_property_handler_from_raw(name: str, raw: dict) -> "PropertyHandler":
+    """Parse a property handler from the {extractor, matcher} JSON config format."""
+    extractor = raw.get("extractor", {})
+    matcher = raw.get("matcher", {})
+    prop_type = matcher.get("type")
+    pattern = extractor.get("pattern")
+    if prop_type == "datetime":
+        kwargs: dict = {
+            "type": "datetime",
+            "delta_below_seconds": matcher["delta_below_seconds"],
+        }
+        if pattern:
+            kwargs["pattern"] = pattern
+        return DatetimeProperty(**kwargs)
+    elif prop_type == "constant":
+        kwargs = {
+            "type": "constant",
+            "choices": matcher["choices"],
+            "match_type": matcher["match_type"],
+        }
+        if pattern:
+            kwargs["pattern"] = pattern
+        return ConstantProperty(**kwargs)
+    else:
+        raise ValueError(f"Unknown property type {prop_type!r} for property {name!r}")
+
+
 RecordDiscoveryConfId = typing.NewType("RecordDiscoveryConfId", str)
 TemplatedString = typing.NewType("TemplatedString", str)
 TranslatableString = typing.NewType("TranslatableString", dict[str, TemplatedString])
@@ -26,7 +53,10 @@ class DatetimeProperty(pydantic.BaseModel):
         return dt.datetime.strptime(raw, "%Y%m%d").date()
 
     def validate_value(self, value: dt.date) -> bool:
-        return abs((dt.date.today() - value).total_seconds()) < self.delta_below_seconds
+        return isinstance(value, dt.date)
+
+    def is_compatible(self, a: dt.date, b: dt.date) -> bool:
+        return abs((a - b).total_seconds()) < self.delta_below_seconds
 
 
 class ConstantProperty(pydantic.BaseModel):
@@ -43,6 +73,9 @@ class ConstantProperty(pydantic.BaseModel):
             return value in self.choices
         return any(c in value for c in self.choices)
 
+    def is_compatible(self, a: str, b: str) -> bool:
+        return a == b
+
 
 PropertyHandler = Annotated[
     Union[DatetimeProperty, ConstantProperty], pydantic.Field(discriminator="type_")
@@ -58,6 +91,9 @@ class RecordProperty(pydantic.BaseModel):
 
     def validate_value(self, value) -> bool:
         return self.handler.validate_value(value)
+
+    def is_compatible(self, a, b) -> bool:
+        return self.handler.is_compatible(a, b)
 
     @property
     def pattern(self) -> str:
@@ -91,6 +127,15 @@ class DiscoveredFile(pydantic.BaseModel):
     properties: dict[str, object]  # identifier -> converted value
 
 
+class DiscoveredRecord(pydantic.BaseModel):
+    """A group of files (one per asset type) that share the same property values."""
+
+    properties: dict[
+        str, object
+    ]  # the shared property values that identify this record
+    assets: dict[int, DiscoveredFile]  # asset index -> DiscoveredFile
+
+
 class RecordRelationDiscoveryConfiguration(pydantic.BaseModel):
     subject_record_id: RecordDiscoveryConfId
     related_record_id: RecordDiscoveryConfId
@@ -114,14 +159,14 @@ class SurveyRecordDiscoveryConfiguration(pydantic.BaseModel):
         raw_identifier: str,
         raw_config: dict,
     ) -> "SurveyRecordDiscoveryConfiguration":
-        extra_properties = (
-            [
-                RecordProperty(identifier=k, **raw_props)
-                for k, raw_props in extra.items()
-            ]
-            if (extra := raw_config.get("extra_properties")) is not None
-            else None
-        )
+        # Parse extra_properties from the {extractor, matcher} JSON format
+        asset_extra_props: dict[str, PropertyHandler] = {}
+        record_extra_props: list[RecordProperty] = []
+        for k, v in raw_config.get("extra_properties", {}).items():
+            handler = _parse_property_handler_from_raw(k, v)
+            asset_extra_props[k] = handler
+            record_extra_props.append(RecordProperty(identifier=k, handler=handler))
+
         return cls(
             id_=RecordDiscoveryConfId(raw_identifier),
             dataset_category=raw_config["dataset_category"],
@@ -143,12 +188,12 @@ class SurveyRecordDiscoveryConfiguration(pydantic.BaseModel):
                     ),
                     discovery_patterns=list(a["discovery_patterns"]),
                     links=[LinkSchema(**li) for li in a.get("links", [])],
-                    extra_properties=extra_properties,
+                    extra_properties=asset_extra_props,
                 )
                 for a in raw_config["assets"]
             ],
             links=[LinkSchema(**li) for li in raw_config.get("links", [])],
-            extra_properties=extra_properties,
+            extra_properties=record_extra_props if record_extra_props else None,
         )
 
 

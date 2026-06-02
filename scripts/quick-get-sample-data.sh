@@ -36,8 +36,12 @@ fetch /mnt/seislab_data/surveys/owf-seism-2024/s06-mbes/s05-processed-data/LEI_A
     "${SIMULATED_ARCHIVE_ROOT}"/surveys/owf-seism-2024/s06-mbes/s05-processed-data/
 
 # HUGE FILE!: seismic uhrs raw data (139GB)
-# fetch '/mnt/seislab_data/surveys/owf-seism-2024/s13-uhrs/s02-raw-data/BACKED UP - FIGUEIRA/FIG-24-M001/FIG-24-M001_rev1.segy' \
-#     "${SIMULATED_ARCHIVE_ROOT}"/surveys/owf-seism-2024/s13-uhrs/s02-raw-data/
+fetch '/mnt/seislab_data/surveys/owf-seism-2024/s13-uhrs/s02-raw-data/BACKED\ UP\ -\ FIGUEIRA/FIG-24-M001/FIG-24-M001_rev1.segy' \
+    "${SIMULATED_ARCHIVE_ROOT}/surveys/owf-seism-2024/s13-uhrs/s02-raw-data/BACKED UP - FIGUEIRA/FIG-24-M001"
+
+# HUGE FILE!: seismic uhrs raw data (84GB)
+fetch '/mnt/seislab_data/surveys/owf-seism-2024/s13-uhrs/s02-raw-data/BACKED\ UP\ -\ FIGUEIRA/FIG-24-M010/FIG-24-M010_rev1.segy' \
+    "${SIMULATED_ARCHIVE_ROOT}/surveys/owf-seism-2024/s13-uhrs/s02-raw-data/BACKED UP - FIGUEIRA/FIG-24-M010"
 
 # seismic uhrs qc data (~2GB)
 fetch /mnt/seislab_data/surveys/owf-seism-2024/s13-uhrs/s03-qc/s03-bstk/FIG-24-M001_BSTK.sgy \
