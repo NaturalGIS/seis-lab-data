@@ -1,5 +1,4 @@
 import datetime as dt
-import inspect
 import typing
 from typing import (
     Annotated,
@@ -18,51 +17,55 @@ TemplatedString = typing.NewType("TemplatedString", str)
 TranslatableString = typing.NewType("TranslatableString", dict[str, TemplatedString])
 
 
-class DateProperty(pydantic.BaseModel):
-    type_: Annotated[Literal["date"], pydantic.Field(validation_alias="type")] = "date"
+def _is_date_compatible(mode: str, a: dt.date, b: dt.date) -> bool:
+    match mode:
+        case "day":
+            return a == b
+        case "month":
+            return a.year == b.year and a.month == b.month
+        case _:
+            raise NotImplementedError
+
+
+class DateYmdProperty(pydantic.BaseModel):
+    type_: Annotated[Literal["date:ymd"], pydantic.Field(validation_alias="type")] = (
+        "date:ymd"
+    )
     pattern: str = r"\d{8}"
-    converter: str = "convert_from_ymd"
     compatibility: Literal["day", "month"] = "day"
 
-    @pydantic.field_validator("converter", mode="after")
-    @classmethod
-    def validate_converter(cls, value: str) -> str:
-        existing_converters = [
-            method
-            for method, _ in inspect.getmembers(cls, predicate=inspect.isfunction)
-            if method.startswith("convert_")
-        ]
-        if value not in existing_converters:
-            raise ValueError(f"Converter {value!r} does not exist")
-        return value
-
-    def convert_from_ymd(self, raw: str) -> dt.date:
+    def convert(self, raw: str) -> dt.date:
         return dt.datetime.strptime(raw, "%Y%m%d").date()
-
-    def convert_from_y_m_d(self, raw: str) -> dt.date:
-        return dt.datetime.strptime(raw, "%Y-%m-%d").date()
-
-    def convert(self, raw: str) -> str:
-        return getattr(self, self.converter)(raw)
 
     def validate_value(self, value: dt.date) -> bool:
         return isinstance(value, dt.date)
 
     def is_compatible(self, a: dt.date, b: dt.date) -> bool:
-        match self.compatibility:
-            case "day":
-                return a == b
-            case "month":
-                return a.year == b.year and a.month == b.month
-            case _:
-                raise NotImplementedError
+        return _is_date_compatible(self.compatibility, a, b)
+
+
+class DateYmdDashedProperty(pydantic.BaseModel):
+    type_: Annotated[
+        Literal["date:ymd-dashed"], pydantic.Field(validation_alias="type")
+    ] = "date:ymd-dashed"
+    pattern: str = r"\d{4}-\d{2}-\d{2}"
+    compatibility: Literal["day", "month"] = "day"
+
+    def convert(self, raw: str) -> dt.date:
+        return dt.datetime.strptime(raw, "%Y-%m-%d").date()
+
+    def validate_value(self, value: dt.date) -> bool:
+        return isinstance(value, dt.date)
+
+    def is_compatible(self, a: dt.date, b: dt.date) -> bool:
+        return _is_date_compatible(self.compatibility, a, b)
 
 
 class ConstantProperty(pydantic.BaseModel):
     type_: Annotated[Literal["constant"], pydantic.Field(validation_alias="type")]
-    pattern: str = r"\w+"  # sensible default, overridable
+    pattern: str = r"\w+"
     choices: list[str] | None = None
-    match_type: Literal["equal", "any"] = "equal"
+    compatibility: Literal["equal", "any"] = "equal"
 
     def convert(self, raw: str) -> str:
         return raw
@@ -73,14 +76,15 @@ class ConstantProperty(pydantic.BaseModel):
         return value in self.choices
 
     def is_compatible(self, a: str, b: str) -> bool:
-        if self.match_type == "equal":
+        if self.compatibility == "equal":
             return a == b
         else:
             return True
 
 
 PropertyHandler = Annotated[
-    Union[DateProperty, ConstantProperty], pydantic.Field(discriminator="type_")
+    Union[DateYmdProperty, DateYmdDashedProperty, ConstantProperty],
+    pydantic.Field(discriminator="type_"),
 ]
 
 

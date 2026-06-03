@@ -5,6 +5,7 @@ import warnings
 from functools import partial
 from pathlib import Path
 from typing import (
+    Any,
     Annotated,
     Optional,
     TypedDict,
@@ -345,6 +346,7 @@ class Project(SQLModel, table=True):
             ),
         )
     )
+    discovery_configuration: dict[str, Any] | None = Field(sa_column=Column(JSONB))
     created_at: dt.datetime | None = Field(default_factory=now_)
     updated_at: dt.datetime | None = Field(
         sa_column=Column(DateTime(), onupdate=func.now())

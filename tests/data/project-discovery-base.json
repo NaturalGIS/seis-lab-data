@@ -12,7 +12,8 @@
       "relative_path": "surveys/owf-seism-2024/",
       "records": [
         "raw_bathy",
-        "processed_bathy"
+        "processed_bathy",
+        "raw_uhrs_line"
       ]
     }
   ],
@@ -26,16 +27,13 @@
       "assets": [
         {
           "name": {"pt": "Ficheiro kmall", "en": "kmall file"},
-          "discovery_patterns": ["s06-mbes/s02-raw-data/01-EM712/{date-dashed}/\\d{4}_{date}_\\d{6}_MarioRuivo.kmall"]
+          "discovery_patterns": ["s06-mbes/s02-raw-data/01-EM712/{{date_dashed}}/\\d{4}_{{date}}_\\d{6}_{{ship}}.kmall"]
         }
       ],
       "extra_properties": {
-        "date": {"type": "date"},
-        "date-dashed": {
-          "type": "date",
-          "pattern": "\\d{4}-\\d{2}-\\d{2}",
-          "converter": "convert_from_y_m_d"
-        }
+        "date": {"type": "date:ymd"},
+        "date_dashed": {"type": "date:ymd-dashed"},
+        "ship": {"type":  "constant", "pattern":  "\\w+"}
       }
     },
     "processed_bathy": {
@@ -47,34 +45,27 @@
       "assets": [
         {
           "name": {"pt": "Ficheiro xyz", "en": "xyz file"},
-          "discovery_patterns": ["s06-mbes/s05-processed-data/{region}_All_Mainlines?_and_Xlines?_MBES_Grid_4m.xyz"]
+          "discovery_patterns": ["s06-mbes/s05-processed-data/{{region}}_All_Mainlines?_and_Xlines?_MBES_Grid_4m.xyz"]
         }
       ],
       "extra_properties": {
-        "region": {
-          "type": "constant",
-          "pattern": "[A-Z]{3}",
-          "compatibility": "equal"
-        }
+        "region": {"type": "constant", "pattern": "[A-Z]{3}"}
       }
     },
     "raw_uhrs_line": {
-      "dataset_category": "uhrs",
-      "domain_type": "geoseismic",
+      "dataset_category": "seismic",
+      "domain_type": "geophysical",
       "workflow_stage": "raw data",
       "metadata_extractor": "seis_lab_data.extractors.bathymetry.extractor_default_or_customizable",
       "name": {"pt": "Sísmica UHRS raw", "en": "UHRS raw"},
       "assets": [
         {
           "name": {"pt": "twt", "en": "twt"},
-          "discovery_patterns": ["s13-uhrs/s02-raw-data/BACKED UP - FIGUEIRA/FIG-24-{mark}/FIG-24-{mark}_rev1.segy"]
+          "discovery_patterns": ["s13-uhrs/s02-raw-data/BACKED UP - FIGUEIRA/FIG-24-{{mark}}/FIG-24-{{mark}}_rev1.segy"]
         }
       ],
       "extra_properties": {
-        "mark": {
-          "type": "constant",
-          "pattern": "[A-Z](\\d\\d\\d(_\\d)?)?"
-        }
+        "mark": {"type": "constant", "pattern": "[A-Z](\\d\\d\\d(_\\d)?)?"}
       }
     }
   },

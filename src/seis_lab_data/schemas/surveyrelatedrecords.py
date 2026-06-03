@@ -160,7 +160,6 @@ class SurveyRelatedRecordCreate(pydantic.BaseModel):
     dataset_category_id: DatasetCategoryId
     domain_type_id: DomainTypeId
     workflow_stage_id: WorkflowStageId
-    relative_path: str
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
     temporal_extent_end: dt.date | None = None
@@ -170,6 +169,7 @@ class SurveyRelatedRecordCreate(pydantic.BaseModel):
         pydantic.AfterValidator(check_asset_english_names_for_uniqueness),
     ] = []
     related_records: list[RelatedRecordCreate] = []
+    extra_properties: dict[str, str] | None = None
 
 
 class SurveyRelatedRecordUpdate(pydantic.BaseModel):

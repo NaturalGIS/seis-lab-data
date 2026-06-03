@@ -8,10 +8,15 @@ from anyio import Path
 from ..db import models
 from ..db.queries import surveymissions as survey_mission_queries
 from ..db.queries import recordassets as asset_queries
+from ..db.queries import surveyrelatedrecords as record_queries
 from ..events import EventEmitterProtocol
+from .. import errors
 from ..operations import surveymissions as survey_mission_ops
+from ..operations import surveyrelatedrecords as record_ops
 from ..schemas import discovery as discovery_schemas
 from ..schemas import (
+    DatasetCategoryId,
+    DomainTypeId,
     LocalizableDraftName,
     LocalizableDraftDescription,
     ProjectId,
@@ -20,8 +25,10 @@ from ..schemas import (
     SurveyMissionCreate,
     SurveyMissionId,
     SurveyRelatedRecordCreate,
+    SurveyRelatedRecordId,
     User,
     UserId,
+    WorkflowStageId,
 )
 
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -170,10 +177,18 @@ async def discover_survey_mission_records(
                 f"Record conf named {record_discovery_conf_name!r} not found."
             )
             continue
-        new_records = await discover_record(
-            session, record_discovery_conf, survey_mission, event_emitter, user
+        new_records = await discover_records(
+            session,
+            record_discovery_config=record_discovery_conf,
+            survey_mission=survey_mission,
+            owner_id=UserId(user.id) if user else None,
         )
-        created_records.extend(new_records)
+        for new_record in new_records:
+            # use a file extractor to discover missing information (spatial extent, etc.)
+            created_record = await record_ops.create_survey_related_record(
+                new_record, initiator=user, session=session, event_emitter=event_emitter
+            )
+            created_records.append(created_record)
     # now we need to handle record relationships
 
 
@@ -256,12 +271,11 @@ async def scan_record_instances(
     return results
 
 
-async def discover_record(
+async def discover_records(
     session: AsyncSession,
     record_discovery_config: discovery_schemas.SurveyRecordDiscoveryConfiguration,
     survey_mission: models.SurveyMission,
-    event_emitter: EventEmitterProtocol,
-    user: User | None = None,
+    owner_id: UserId | None = None,
 ) -> list[SurveyRelatedRecordCreate]:
     """Discover survey-related record instances and their assets in the filesystem.
 
@@ -269,6 +283,31 @@ async def discover_record(
     that share the same property values). Instances whose assets are already in
     the catalog are filtered out.
     """
+    if (
+        dataset_category := await record_queries.get_dataset_category_by_english_name(
+            session, record_discovery_config.dataset_category
+        )
+    ) is None:
+        raise errors.SeisLabDataError(
+            f"Unknown dataset category: {record_discovery_config.dataset_category!r}"
+        )
+    if (
+        domain_type := await record_queries.get_domain_type_by_english_name(
+            session, record_discovery_config.domain_type
+        )
+    ) is None:
+        raise errors.SeisLabDataError(
+            f"Unknown domain type: {record_discovery_config.domain_type!r}"
+        )
+    if (
+        workflow_stage := await record_queries.get_workflow_stage_by_english_name(
+            session, record_discovery_config.workflow_stage
+        )
+    ) is None:
+        raise errors.SeisLabDataError(
+            f"Unknown workflow stage: {record_discovery_config.workflow_stage!r}"
+        )
+
     base_path = Path(
         "/".join(
             (
@@ -277,6 +316,7 @@ async def discover_record(
             )
         )
     )
+
     if not (
         instances := await scan_record_instances(base_path, record_discovery_config)
     ):
@@ -307,7 +347,7 @@ async def discover_record(
                 RecordAssetCreate(
                     id=RecordAssetId(uuid.uuid4()),
                     name=asset_conf.name,
-                    description=asset_conf.description,
+                    description=asset_conf.description or {},
                     relative_path=relative_path,
                     links=asset_conf.links,
                 )
@@ -315,22 +355,24 @@ async def discover_record(
         if not already_catalogued and instance_assets:
             results.append(
                 SurveyRelatedRecordCreate(
-                    id=None,
-                    owner_id=None,
-                    survey_mission_id=None,
-                    name=None,
-                    description=None,
-                    dataset_category_id=None,
-                    domain_type_id=None,
-                    workflow_stage_id=None,
-                    relative_path=None,
+                    id=SurveyRelatedRecordId(uuid.uuid4()),
+                    owner_id=owner_id or UserId(survey_mission.owner_id),
+                    survey_mission_id=SurveyMissionId(survey_mission.id),
+                    name=record_discovery_config.name,
+                    description=record_discovery_config.description or {},
+                    dataset_category_id=DatasetCategoryId(dataset_category.id),
+                    domain_type_id=DomainTypeId(domain_type.id),
+                    workflow_stage_id=WorkflowStageId(workflow_stage.id),
                     bbox_4326=None,
                     temporal_extent_begin=None,
                     temporal_extent_end=None,
-                    links=None,
+                    links=[],
                     assets=instance_assets,
-                    related_records=None,
-                )
+                    related_records=[],
+                    extra_properties={
+                        k: str(v) for k, v in instance.properties.items()
+                    },
+                ),
             )
     return results
 
@@ -387,11 +429,18 @@ def _build_pattern_regex(
     template: str,
     properties: dict[str, discovery_schemas.RecordProperty],
 ) -> re.Pattern:
+    logger.debug(f"{locals()=}")
+    seen: set[str] = set()
+
     def replacer(m: re.Match) -> str:
         name = m.group("prop_name")
         if name not in properties:
             raise ValueError(f"Placeholder {{{name}}} not found in extra_properties")
+        if name in seen:
+            return f"(?P={name})"
+        seen.add(name)
         return f"(?P<{name}>{properties[name].pattern})"
 
-    regex_str = re.sub(r"\{(?P<prop_name>\w+)\}", replacer, template)
+    regex_str = re.sub(r"\{\{(?P<prop_name>\w+)\}\}", replacer, template)
+    logger.debug(f"{regex_str=}")
     return re.compile(regex_str)
