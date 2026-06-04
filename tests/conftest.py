@@ -18,10 +18,8 @@ from seis_lab_data.db.engine import (
     get_session_maker,
     get_sync_engine,
 )
-from seis_lab_data.schemas import (
-    User,
-    UserId,
-)
+from seis_lab_data.schemas import User
+from seis_lab_data.schemas.identifiers import UserId
 from seis_lab_data.webapp.app import create_app_from_settings
 
 

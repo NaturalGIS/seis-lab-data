@@ -6,6 +6,7 @@ import typer
 from psycopg.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
 
+from schemas import identifiers
 from .. import (
     config,
     operations,
@@ -70,10 +71,12 @@ async def generate_many_projects(
         project_generator = sampledata.generate_sample_projects(
             owners=[admin_],
             dataset_categories=[
-                schemas.DatasetCategoryId(dc.id) for dc in dataset_categories
+                identifiers.DatasetCategoryId(dc.id) for dc in dataset_categories
             ],
-            domain_types=[schemas.DomainTypeId(dt.id) for dt in domain_types],
-            workflow_stages=[schemas.WorkflowStageId(ws.id) for ws in workflow_stages],
+            domain_types=[identifiers.DomainTypeId(dt.id) for dt in domain_types],
+            workflow_stages=[
+                identifiers.WorkflowStageId(ws.id) for ws in workflow_stages
+            ],
         )
         for i in range(num_projects):
             ctx.obj["main"].status_console.print(

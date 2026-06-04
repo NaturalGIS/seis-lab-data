@@ -12,6 +12,7 @@ from .. import (
     schemas,
 )
 from ..db import queries
+from ..schemas import identifiers
 from .asynctyper import AsyncTyper
 from .utils import resolve_admin_user
 
@@ -102,7 +103,7 @@ async def create_survey_related_record(
             raise typer.Abort()
         if (
             survey_mission := await operations.get_survey_mission(
-                schemas.SurveyMissionId(parent_survey_mission_id),
+                identifiers.SurveyMissionId(parent_survey_mission_id),
                 ctx.obj["admin_user"],
                 session,
             )
@@ -114,16 +115,18 @@ async def create_survey_related_record(
             raise typer.Abort()
         created = await operations.create_survey_related_record(
             to_create=schemas.SurveyRelatedRecordCreate(
-                id=schemas.SurveyRelatedRecordId(uuid.uuid4()),
-                owner_id=schemas.UserId(owner),
+                id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
+                owner_id=identifiers.UserId(owner),
                 name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
                 description=schemas.LocalizableDraftDescription(
                     en=description_en, pt=description_pt
                 ),
-                survey_mission_id=schemas.SurveyMissionId(survey_mission.id),
-                dataset_category_id=schemas.DatasetCategoryId(db_dataset_category.id),
-                domain_type_id=schemas.DomainTypeId(db_domain_type.id),
-                workflow_stage_id=schemas.WorkflowStageId(db_workflow_stage.id),
+                survey_mission_id=identifiers.SurveyMissionId(survey_mission.id),
+                dataset_category_id=identifiers.DatasetCategoryId(
+                    db_dataset_category.id
+                ),
+                domain_type_id=identifiers.DomainTypeId(db_domain_type.id),
+                workflow_stage_id=identifiers.WorkflowStageId(db_workflow_stage.id),
                 relative_path=relative_path,
                 links=[schemas.LinkSchema(**li) for li in link],
             ),
@@ -169,7 +172,7 @@ async def get_survey_related_record(
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
         record_details = await operations.get_survey_related_record(
-            schemas.SurveyRelatedRecordId(survey_related_record_id),
+            identifiers.SurveyRelatedRecordId(survey_related_record_id),
             ctx.obj["admin_user"].id,
             session,
         )
@@ -195,7 +198,7 @@ async def delete_survey_related_record(
     printer = ctx.obj["main"].status_console.print
     async with settings.get_db_session_maker()() as session:
         await operations.delete_survey_related_record(
-            schemas.SurveyRelatedRecordId(survey_related_record_id),
+            identifiers.SurveyRelatedRecordId(survey_related_record_id),
             initiator=ctx.obj["admin_user"].id,
             session=session,
             event_emitter=settings.get_event_emitter(),
@@ -225,7 +228,7 @@ async def create_survey_mission(
     async with settings.get_db_session_maker()() as session:
         if (
             project := await operations.get_project(
-                schemas.ProjectId(parent_project_id),
+                identifiers.ProjectId(parent_project_id),
                 ctx.obj["admin_user"],
                 session,
             )
@@ -236,9 +239,9 @@ async def create_survey_mission(
             raise typer.Abort()
         created = await operations.create_survey_mission(
             to_create=schemas.SurveyMissionCreate(
-                id=schemas.SurveyMissionId(uuid.uuid4()),
-                project_id=schemas.ProjectId(project.id),
-                owner_id=schemas.UserId(owner),
+                id=identifiers.SurveyMissionId(uuid.uuid4()),
+                project_id=identifiers.ProjectId(project.id),
+                owner_id=identifiers.UserId(owner),
                 name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
                 description=schemas.LocalizableDraftDescription(
                     en=description_en, pt=description_pt
@@ -280,7 +283,7 @@ async def get_survey_mission(ctx: typer.Context, survey_mission_id: uuid.UUID):
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
         survey_mission = await operations.get_survey_mission(
-            schemas.SurveyMissionId(survey_mission_id),
+            identifiers.SurveyMissionId(survey_mission_id),
             ctx.obj["admin_user"].id,
             session,
         )
@@ -303,7 +306,7 @@ async def delete_survey_mission(
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
         await operations.delete_survey_mission(
-            schemas.SurveyMissionId(survey_mission_id),
+            identifiers.SurveyMissionId(survey_mission_id),
             initiator=ctx.obj["admin_user"].id,
             session=session,
             event_emitter=settings.get_event_emitter(),
@@ -350,8 +353,8 @@ async def create_project(
     async with settings.get_db_session_maker()() as session:
         created = await operations.create_project(
             to_create=schemas.ProjectCreate(
-                id=schemas.ProjectId(uuid.uuid4()),
-                owner_id=schemas.UserId(owner),
+                id=identifiers.ProjectId(uuid.uuid4()),
+                owner_id=identifiers.UserId(owner),
                 name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
                 description=schemas.LocalizableDraftDescription(
                     en=description_en, pt=description_pt
@@ -384,7 +387,7 @@ async def get_project(ctx: typer.Context, project_id: uuid.UUID):
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
         project = await operations.get_project(
-            schemas.ProjectId(project_id),
+            identifiers.ProjectId(project_id),
             ctx.obj["admin_user"].id,
             session,
         )
@@ -424,7 +427,7 @@ async def delete_project(
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
         await operations.delete_project(
-            schemas.ProjectId(project_id),
+            identifiers.ProjectId(project_id),
             initiator=ctx.obj["admin_user"],
             session=session,
             event_emitter=settings.get_event_emitter(),
@@ -448,7 +451,7 @@ async def create_dataset_category(
     async with settings.get_db_session_maker()() as session:
         created = await operations.create_dataset_category(
             to_create=schemas.DatasetCategoryCreate(
-                id=schemas.DatasetCategoryId(uuid.uuid4()),
+                id=identifiers.DatasetCategoryId(uuid.uuid4()),
                 name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
             ),
             initiator=ctx.obj["admin_user"],
@@ -508,7 +511,7 @@ async def create_domain_type(
     async with settings.get_db_session_maker()() as session:
         created = await operations.create_domain_type(
             to_create=schemas.DomainTypeCreate(
-                id=schemas.DomainTypeId(uuid.uuid4()),
+                id=identifiers.DomainTypeId(uuid.uuid4()),
                 name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
             ),
             initiator=ctx.obj["admin_user"],
@@ -568,7 +571,7 @@ async def create_workflow_stage(
     async with settings.get_db_session_maker()() as session:
         created = await operations.create_workflow_stage(
             to_create=schemas.WorkflowStageCreate(
-                id=schemas.WorkflowStageId(uuid.uuid4()),
+                id=identifiers.WorkflowStageId(uuid.uuid4()),
                 name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
             ),
             initiator=ctx.obj["admin_user"],

@@ -10,9 +10,9 @@ import pydantic
 from typing_extensions import Self
 
 from .common import LinkSchema
+from .identifiers import RecordDiscoveryConfId
 
 
-RecordDiscoveryConfId = typing.NewType("RecordDiscoveryConfId", str)
 TemplatedString = typing.NewType("TemplatedString", str)
 TranslatableString = typing.NewType("TranslatableString", dict[str, TemplatedString])
 
@@ -62,7 +62,9 @@ class DateYmdDashedProperty(pydantic.BaseModel):
 
 
 class ConstantProperty(pydantic.BaseModel):
-    type_: Annotated[Literal["constant"], pydantic.Field(validation_alias="type")]
+    type_: Annotated[Literal["constant"], pydantic.Field(validation_alias="type")] = (
+        "constant"
+    )
     pattern: str = r"\w+"
     choices: list[str] | None = None
     compatibility: Literal["equal", "any"] = "equal"
@@ -108,11 +110,11 @@ class RecordProperty(pydantic.BaseModel):
 
 class RecordAssetDiscoveryConfiguration(pydantic.BaseModel):
     name: TranslatableString
-    description: TranslatableString | None
+    description: TranslatableString | None = None
     discovery_patterns: list[TemplatedString]
-    links: list[LinkSchema]
-    extra_properties: dict[str, PropertyHandler]
-    _properties: dict[str, RecordProperty]
+    links: list[LinkSchema] | None = None
+    extra_properties: dict[str, PropertyHandler] | None = None
+    _properties: dict[str, RecordProperty] | None = None
 
     @pydantic.model_validator(mode="after")
     def _inject_identifiers(self) -> Self:
@@ -154,9 +156,10 @@ class SurveyRecordDiscoveryConfiguration(pydantic.BaseModel):
     domain_type: str
     workflow_stage: str
     name: TranslatableString
-    description: TranslatableString | None
+    description: TranslatableString | None = None
+    metadata_extractor: str | None = None
     assets: list[RecordAssetDiscoveryConfiguration]
-    links: list[LinkSchema]
+    links: list[LinkSchema] | None = None
     extra_properties: list[RecordProperty] | None = None
 
     @classmethod
@@ -210,7 +213,7 @@ class SurveyMissionDiscoveryConfiguration(pydantic.BaseModel):
     # survey mission config's path is not supposed to be a pattern, but rather a simple string
     relative_path: str
     description: TranslatableString | None = None
-    links: list[LinkSchema]
+    links: list[LinkSchema] | None = None
     record_configuration_ids: list[RecordDiscoveryConfId]
 
     @classmethod
@@ -229,7 +232,7 @@ class SurveyMissionDiscoveryConfiguration(pydantic.BaseModel):
 
 class ProjectDiscoveryConfiguration(pydantic.BaseModel):
     survey_missions: list[SurveyMissionDiscoveryConfiguration]
-    links: list[LinkSchema]
+    links: list[LinkSchema] | None = None
     records: dict[RecordDiscoveryConfId, SurveyRecordDiscoveryConfiguration]
     record_relations: list[RecordRelationDiscoveryConfiguration]
 

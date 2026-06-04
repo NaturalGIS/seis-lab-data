@@ -11,9 +11,11 @@ from .common import (
     LocalizableDraftName,
     PolygonOut,
     PossiblyInvalidPolygon,
-    ProjectId,
     serialize_id,
     serialize_possibly_empty_date,
+)
+from .identifiers import (
+    ProjectId,
     SurveyMissionId,
     UserId,
 )

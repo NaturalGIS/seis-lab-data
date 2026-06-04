@@ -7,6 +7,7 @@ from sqlmodel import (
     select,
 )
 
+from schemas import identifiers
 from ... import schemas
 from ...constants import SurveyMissionStatus
 from ...db import models
@@ -14,7 +15,7 @@ from .common import _get_total_num_records
 
 
 def _build_survey_mission_statement(
-    project_id: schemas.ProjectId | None = None,
+    project_id: identifiers.ProjectId | None = None,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
@@ -73,7 +74,7 @@ async def _exec_survey_mission_list(
 
 async def list_published_survey_missions(
     session: AsyncSession,
-    project_id: schemas.ProjectId | None = None,
+    project_id: identifiers.ProjectId | None = None,
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
@@ -95,7 +96,7 @@ async def list_published_survey_missions(
 async def list_accessible_survey_missions(
     session: AsyncSession,
     user_id: str,
-    project_id: schemas.ProjectId | None = None,
+    project_id: identifiers.ProjectId | None = None,
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
@@ -130,7 +131,7 @@ async def list_accessible_survey_missions(
 
 async def list_survey_missions(
     session: AsyncSession,
-    project_id: schemas.ProjectId | None = None,
+    project_id: identifiers.ProjectId | None = None,
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
@@ -152,7 +153,7 @@ async def list_survey_missions(
 
 async def get_survey_mission(
     session: AsyncSession,
-    survey_mission_id: schemas.SurveyMissionId,
+    survey_mission_id: identifiers.SurveyMissionId,
 ) -> models.SurveyMission | None:
     statement = (
         select(models.SurveyMission)
@@ -164,7 +165,7 @@ async def get_survey_mission(
 
 async def get_survey_mission_by_english_name(
     session: AsyncSession,
-    project_id: schemas.ProjectId,
+    project_id: identifiers.ProjectId,
     english_name: str,
 ) -> models.SurveyMission | None:
     statement = (
@@ -178,7 +179,7 @@ async def get_survey_mission_by_english_name(
 
 async def get_survey_mission_by_path(
     session: AsyncSession,
-    project_id: schemas.ProjectId,
+    project_id: identifiers.ProjectId,
     mission_path: str,
 ) -> models.SurveyMission | None:
     statement = (

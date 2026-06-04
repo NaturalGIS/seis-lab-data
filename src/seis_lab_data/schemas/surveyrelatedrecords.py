@@ -7,19 +7,21 @@ import pydantic
 from ..db import models
 from ..constants import SurveyRelatedRecordStatus
 from .common import (
-    DatasetCategoryId,
-    DomainTypeId,
     LinkSchema,
     LocalizableDraftDescription,
     LocalizableDraftName,
     LocalizableDraftRelationship,
     PolygonOut,
     PossiblyInvalidPolygon,
-    RecordAssetId,
     serialize_id,
     serialize_possibly_empty_date,
-    SurveyMissionId,
+)
+from .identifiers import (
+    DatasetCategoryId,
+    DomainTypeId,
+    RecordAssetId,
     SurveyRelatedRecordId,
+    SurveyMissionId,
     UserId,
     WorkflowStageId,
 )

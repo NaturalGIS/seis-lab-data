@@ -11,6 +11,7 @@ from wtforms import (
     StringField,
 )
 
+from schemas import identifiers
 from ... import (
     constants,
     schemas,
@@ -59,7 +60,7 @@ class _ProjectForm(StarletteForm):
     )
 
     async def check_if_english_name_is_unique(
-        self, session: AsyncSession, disregard_id: schemas.ProjectId | None = None
+        self, session: AsyncSession, disregard_id: identifiers.ProjectId | None = None
     ):
         """Check if the current english name is already used by another project.
 
@@ -71,7 +72,7 @@ class _ProjectForm(StarletteForm):
 
         if candidate := await get_project_by_english_name(session, self.name.en.data):
             if disregard_id:
-                if schemas.ProjectId(candidate.id) != disregard_id:
+                if identifiers.ProjectId(candidate.id) != disregard_id:
                     self.name.en.errors.append(error_message)
             else:
                 self.name.en.errors.append(error_message)
@@ -93,7 +94,7 @@ class _ProjectForm(StarletteForm):
 
     @classmethod
     async def get_validated_form_instance(
-        cls, request: Request, disregard_id: schemas.ProjectId | None = None
+        cls, request: Request, disregard_id: identifiers.ProjectId | None = None
     ):
         """Performs full validation of a project-related form.
 

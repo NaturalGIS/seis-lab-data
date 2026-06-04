@@ -2,6 +2,7 @@ import httpx
 
 from .. import authentik, config, schemas
 from ..db import commands as db_commands
+from ..schemas import identifiers
 
 
 async def resolve_admin_user(
@@ -13,7 +14,7 @@ async def resolve_admin_user(
         if admin_user_id:
             user = await authentik.get_user_by_uuid(
                 admin_token=settings.auth_admin_token,
-                user_id=schemas.UserId(admin_user_id),
+                user_id=identifiers.UserId(admin_user_id),
                 web_client=client,
                 authentik_base_url=settings.auth_internal_base_url,
             )

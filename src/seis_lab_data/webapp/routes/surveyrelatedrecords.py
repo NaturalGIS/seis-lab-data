@@ -24,6 +24,7 @@ from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 from starlette_wtf import csrf_protect
 
+from schemas import identifiers
 from ... import (
     config,
     errors,
@@ -71,7 +72,7 @@ async def _get_survey_related_record_details(
     """Utility function to get survey-related record details and its assets."""
     user = request.user if request.user.is_authenticated else None
     survey_related_record_id = get_id_from_request_path(
-        request, "survey_related_record_id", schemas.SurveyRelatedRecordId
+        request, "survey_related_record_id", identifiers.SurveyRelatedRecordId
     )
     async with request.state.settings.get_db_session_maker()() as session:
         try:
@@ -160,7 +161,7 @@ async def get_details_component(request: Request):
 
 async def get_detail_updates(request: Request):
     try:
-        survey_related_record_id = schemas.SurveyRelatedRecordId(
+        survey_related_record_id = identifiers.SurveyRelatedRecordId(
             uuid.UUID(request.path_params["survey_related_record_id"])
         )
     except ValueError as err:
@@ -331,7 +332,7 @@ async def get_record_parent_survey_mission_from_request(
 ) -> models.SurveyMission:
     user = request.user if request.user.is_authenticated else None
     parent_survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
     async with request.state.settings.get_db_session_maker()() as session:
         if not (
@@ -350,7 +351,7 @@ async def get_record_parent_survey_mission_from_request(
 async def get_creation_form(request: Request):
     """Show an HTML form for the client to prepare a record creation operation."""
     parent_survey_mission = await get_record_parent_survey_mission_from_request(request)
-    survey_mission_id = schemas.SurveyMissionId(parent_survey_mission.id)
+    survey_mission_id = identifiers.SurveyMissionId(parent_survey_mission.id)
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template(
@@ -414,7 +415,7 @@ async def get_creation_form(request: Request):
 @csrf_protect
 async def add_creation_form_link(request: Request):
     parent_survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     form_instance.links.append_entry()
@@ -441,7 +442,7 @@ async def add_creation_form_link(request: Request):
 @csrf_protect
 async def remove_creation_form_link(request: Request):
     parent_survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     link_index = int(request.query_params.get("link_index", 0))
@@ -469,7 +470,7 @@ async def remove_creation_form_link(request: Request):
 @csrf_protect
 async def add_creation_form_asset(request: Request):
     parent_survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     form_instance.assets.append_entry()
@@ -496,7 +497,7 @@ async def add_creation_form_asset(request: Request):
 @csrf_protect
 async def remove_creation_form_asset(request: Request):
     parent_survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     index = int(request.query_params.get("asset_index", 0))
@@ -524,7 +525,7 @@ async def remove_creation_form_asset(request: Request):
 @csrf_protect
 async def add_creation_form_asset_link(request: Request):
     survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
     asset_index = int(request.path_params["asset_index"])
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
@@ -552,7 +553,7 @@ async def add_creation_form_asset_link(request: Request):
 @csrf_protect
 async def remove_creation_form_asset_link(request: Request):
     survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
 
     asset_index = int(request.path_params["asset_index"])
@@ -584,7 +585,7 @@ async def remove_creation_form_asset_link(request: Request):
 @csrf_protect
 async def add_creation_form_related_record(request: Request):
     parent_survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     form_instance.related_records.append_entry()
@@ -611,7 +612,7 @@ async def add_creation_form_related_record(request: Request):
 @csrf_protect
 async def remove_creation_form_related_record(request: Request):
     parent_survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     index = int(request.query_params.get("index", 0))
@@ -1199,7 +1200,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
     @requires_auth
     async def delete(self, request: Request):
         survey_related_record_id = get_id_from_request_path(
-            request, "survey_related_record_id", schemas.SurveyRelatedRecordId
+            request, "survey_related_record_id", identifiers.SurveyRelatedRecordId
         )
         user = request.user if request.user.is_authenticated else None
         async with request.state.settings.get_db_session_maker()() as session:
@@ -1219,7 +1220,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 )
 
         survey_related_record = survey_related_record_details[0]
-        request_id = schemas.RequestId(uuid.uuid4())
+        request_id = identifiers.RequestId(uuid.uuid4())
         logger.debug(f"{survey_related_record=}")
 
         async def handle_processing_success(
@@ -1287,7 +1288,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         template_processor: Jinja2Templates = request.state.templates
         user = request.user if request.user.is_authenticated else None
         survey_related_record_id = get_id_from_request_path(
-            request, "survey_related_record_id", schemas.SurveyRelatedRecordId
+            request, "survey_related_record_id", identifiers.SurveyRelatedRecordId
         )
         async with request.state.settings.get_db_session_maker()() as session:
             if (
@@ -1304,7 +1305,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 )
 
         survey_related_record, related_to, subject_for = survey_related_record_details
-        parent_survey_mission_id = schemas.SurveyMissionId(
+        parent_survey_mission_id = identifiers.SurveyMissionId(
             survey_related_record.survey_mission_id
         )
         form_instance = (
@@ -1337,12 +1338,12 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
 
             return DatastarResponse(stream_validation_failed_events(), status_code=422)
 
-        request_id = schemas.RequestId(uuid.uuid4())
+        request_id = identifiers.RequestId(uuid.uuid4())
         related_records = []
         for related_ in form_instance.related_records.entries:
             related_records.append(
                 schemas.RelatedRecordCreate(
-                    related_record_id=schemas.SurveyRelatedRecordId(
+                    related_record_id=identifiers.SurveyRelatedRecordId(
                         uuid.UUID(
                             form_instance.parse_related_record_compound_name(
                                 related_.related_record.data
@@ -1395,7 +1396,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
             ],
             assets=[
                 schemas.RecordAssetUpdate(
-                    id=schemas.RecordAssetId(uuid.UUID(af.asset_id.data)),
+                    id=identifiers.RecordAssetId(uuid.UUID(af.asset_id.data)),
                     name=schemas.LocalizableDraftName(
                         en=af.asset_name.en.data,
                         pt=af.asset_name.pt.data,

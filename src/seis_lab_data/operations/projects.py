@@ -4,6 +4,7 @@ import pydantic
 import shapely
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from schemas import identifiers
 from .. import (
     errors,
     events,
@@ -45,7 +46,7 @@ async def create_project(
 
 async def change_project_status(
     target_status: ProjectStatus,
-    project_id: schemas.ProjectId,
+    project_id: identifiers.ProjectId,
     initiator: schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
@@ -58,7 +59,7 @@ async def change_project_status(
         logger.info(f"Project status is already set to {target_status} - nothing to do")
         return project
     updated_project = await commands.set_project_status(
-        session, schemas.ProjectId(project.id), target_status
+        session, identifiers.ProjectId(project.id), target_status
     )
     event_emitter(
         schemas.SeisLabDataEvent(
@@ -74,7 +75,7 @@ async def change_project_status(
 
 
 async def validate_project(
-    project_id: schemas.ProjectId,
+    project_id: identifiers.ProjectId,
     initiator: schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
@@ -132,7 +133,7 @@ async def validate_project(
 
 
 async def update_project(
-    project_id: schemas.ProjectId,
+    project_id: identifiers.ProjectId,
     to_update: schemas.ProjectUpdate,
     initiator: schemas.User | None,
     session: AsyncSession,
@@ -166,7 +167,7 @@ async def update_project(
 
 
 async def delete_project(
-    project_id: schemas.ProjectId,
+    project_id: identifiers.ProjectId,
     initiator: schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
@@ -219,7 +220,7 @@ async def list_projects(
 
 
 async def get_project(
-    project_id: schemas.ProjectId,
+    project_id: identifiers.ProjectId,
     initiator: schemas.User | None,
     session: AsyncSession,
 ) -> models.Project | None:

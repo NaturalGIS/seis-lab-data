@@ -10,6 +10,7 @@ from sqlmodel import (
     select,
 )
 
+from schemas import identifiers
 from ... import schemas
 from ...constants import SurveyRelatedRecordStatus
 from ...db import models
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def _build_survey_related_record_statement(
-    survey_mission_id: schemas.SurveyMissionId | None = None,
+    survey_mission_id: identifiers.SurveyMissionId | None = None,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
@@ -89,7 +90,7 @@ async def _exec_survey_related_record_list(
 
 async def list_published_survey_related_records(
     session: AsyncSession,
-    survey_mission_id: schemas.SurveyMissionId | None = None,
+    survey_mission_id: identifiers.SurveyMissionId | None = None,
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
@@ -115,7 +116,7 @@ async def list_published_survey_related_records(
 async def list_accessible_survey_related_records(
     session: AsyncSession,
     user_id: str,
-    survey_mission_id: schemas.SurveyMissionId | None = None,
+    survey_mission_id: identifiers.SurveyMissionId | None = None,
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
@@ -156,7 +157,7 @@ async def list_accessible_survey_related_records(
 
 async def list_survey_related_records(
     session: AsyncSession,
-    survey_mission_id: schemas.SurveyMissionId | None = None,
+    survey_mission_id: identifiers.SurveyMissionId | None = None,
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
@@ -182,7 +183,7 @@ async def list_survey_related_records(
 
 async def get_survey_related_record(
     session: AsyncSession,
-    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    survey_related_record_id: identifiers.SurveyRelatedRecordId,
 ) -> models.SurveyRelatedRecord | None:
     statement = (
         select(models.SurveyRelatedRecord)
@@ -206,7 +207,7 @@ async def get_survey_related_record(
 
 async def get_survey_related_record_by_english_name(
     session: AsyncSession,
-    survey_mission_id: schemas.SurveyMissionId,
+    survey_mission_id: identifiers.SurveyMissionId,
     english_name: str,
 ) -> models.SurveyRelatedRecord | None:
     statement = (
@@ -232,7 +233,7 @@ async def get_survey_related_record_by_english_name(
 
 async def list_survey_related_record_related_to_records(
     session: AsyncSession,
-    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    survey_related_record_id: identifiers.SurveyRelatedRecordId,
     limit: int = 20,
     offset: int = 0,
 ) -> list[tuple[dict, models.SurveyRelatedRecord]]:
@@ -267,7 +268,7 @@ async def list_survey_related_record_related_to_records(
 
 async def list_survey_related_record_subject_records(
     session: AsyncSession,
-    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    survey_related_record_id: identifiers.SurveyRelatedRecordId,
     limit: int = 20,
     offset: int = 0,
 ) -> list[tuple[dict, models.SurveyRelatedRecord]]:

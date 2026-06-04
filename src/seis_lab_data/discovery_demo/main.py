@@ -15,18 +15,20 @@ from ..operations import surveymissions as survey_mission_ops
 from ..operations import surveyrelatedrecords as record_ops
 from ..schemas import discovery as discovery_schemas
 from ..schemas import (
-    DatasetCategoryId,
-    DomainTypeId,
     LocalizableDraftName,
     LocalizableDraftDescription,
-    ProjectId,
     RecordAssetCreate,
-    RecordAssetId,
     SurveyMissionCreate,
-    SurveyMissionId,
     SurveyRelatedRecordCreate,
-    SurveyRelatedRecordId,
     User,
+)
+from ..schemas.identifiers import (
+    DatasetCategoryId,
+    DomainTypeId,
+    RecordAssetId,
+    SurveyRelatedRecordId,
+    SurveyMissionId,
+    ProjectId,
     UserId,
     WorkflowStageId,
 )

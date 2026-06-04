@@ -8,9 +8,10 @@ from datastar_py.starlette import DatastarResponse
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
-from seis_lab_data import schemas
-from seis_lab_data.constants import AUTH_CLIENT_NAME
-from seis_lab_data.db import commands
+from ... import schemas
+from ...constants import AUTH_CLIENT_NAME
+from ...db import commands
+from ...schemas import identifiers
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +89,7 @@ def get_user(
     if id_ is None:
         return None
     return schemas.User(
-        id=schemas.UserId(id_),
+        id=identifiers.UserId(id_),
         email=user_info.get("email"),
         username=user_info.get("preferred_username"),
         roles=[role for role in user_info.get("roles", [])],

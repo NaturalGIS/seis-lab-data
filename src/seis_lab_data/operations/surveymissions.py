@@ -4,6 +4,7 @@ import pydantic
 import shapely
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from schemas import identifiers
 from .. import (
     errors,
     events,
@@ -61,7 +62,7 @@ async def create_survey_mission(
 
 async def change_survey_mission_status(
     target_status: SurveyMissionStatus,
-    survey_mission_id: schemas.SurveyMissionId,
+    survey_mission_id: identifiers.SurveyMissionId,
     initiator: schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
@@ -82,7 +83,7 @@ async def change_survey_mission_status(
         )
         return survey_mission
     updated_survey_mission = await commands.set_survey_mission_status(
-        session, schemas.SurveyMissionId(survey_mission.id), target_status
+        session, identifiers.SurveyMissionId(survey_mission.id), target_status
     )
     event_emitter(
         schemas.SeisLabDataEvent(
@@ -98,7 +99,7 @@ async def change_survey_mission_status(
 
 
 async def validate_survey_mission(
-    survey_mission_id: schemas.SurveyMissionId,
+    survey_mission_id: identifiers.SurveyMissionId,
     initiator: schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
@@ -162,7 +163,7 @@ async def validate_survey_mission(
 
 
 async def update_survey_mission(
-    survey_mission_id: schemas.SurveyMissionId,
+    survey_mission_id: identifiers.SurveyMissionId,
     to_update: schemas.SurveyMissionUpdate,
     initiator: schemas.User | None,
     session: AsyncSession,
@@ -207,7 +208,7 @@ async def update_survey_mission(
 
 
 async def delete_survey_mission(
-    survey_mission_id: schemas.SurveyMissionId,
+    survey_mission_id: identifiers.SurveyMissionId,
     initiator: schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
@@ -245,7 +246,7 @@ async def delete_survey_mission(
 async def list_survey_missions(
     session: AsyncSession,
     initiator: schemas.User | None,
-    project_id: schemas.ProjectId | None = None,
+    project_id: identifiers.ProjectId | None = None,
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
@@ -275,7 +276,7 @@ async def list_survey_missions(
 
 
 async def get_survey_mission(
-    survey_mission_id: schemas.SurveyMissionId,
+    survey_mission_id: identifiers.SurveyMissionId,
     initiator: schemas.User | None,
     session: AsyncSession,
 ) -> models.SurveyMission | None:

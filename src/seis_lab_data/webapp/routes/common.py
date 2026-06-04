@@ -22,6 +22,7 @@ from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.templating import Jinja2Templates
 
+from schemas import identifiers
 from ... import schemas
 from ...constants import ProcessingStatus
 from ...localization import translate_localizable
@@ -80,9 +81,9 @@ def get_pagination_info(
 
 RequestPathRetrievableIdType = TypeVar(
     "RequestPathRetrievableIdType",
-    schemas.ProjectId,
-    schemas.SurveyMissionId,
-    schemas.SurveyRelatedRecordId,
+    identifiers.ProjectId,
+    identifiers.SurveyMissionId,
+    identifiers.SurveyRelatedRecordId,
 )
 
 

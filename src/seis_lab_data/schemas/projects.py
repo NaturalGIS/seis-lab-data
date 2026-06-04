@@ -11,11 +11,10 @@ from .common import (
     LocalizableDraftName,
     PolygonOut,
     PossiblyInvalidPolygon,
-    ProjectId,
     serialize_id,
     serialize_possibly_empty_date,
-    UserId,
 )
+from .identifiers import ProjectId, UserId
 from .discovery import ProjectDiscoveryConfiguration
 
 

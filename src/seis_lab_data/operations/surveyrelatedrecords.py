@@ -5,6 +5,7 @@ import pydantic
 import shapely
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from schemas import identifiers
 from .. import (
     errors,
     events,
@@ -283,10 +284,10 @@ async def create_survey_related_record(
         )
     survey_record = await commands.create_survey_related_record(session, to_create)
     related_to = await queries.list_survey_related_record_related_to_records(
-        session, schemas.SurveyRelatedRecordId(survey_record.id)
+        session, identifiers.SurveyRelatedRecordId(survey_record.id)
     )
     subject_for = await queries.list_survey_related_record_subject_records(
-        session, schemas.SurveyRelatedRecordId(survey_record.id)
+        session, identifiers.SurveyRelatedRecordId(survey_record.id)
     )
     event_emitter(
         schemas.SeisLabDataEvent(
@@ -306,7 +307,7 @@ async def create_survey_related_record(
 
 async def change_survey_related_record_status(
     target_status: SurveyRelatedRecordStatus,
-    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    survey_related_record_id: identifiers.SurveyRelatedRecordId,
     initiator: schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
@@ -333,7 +334,7 @@ async def change_survey_related_record_status(
         return survey_related_record
     updated_survey_related_record = await commands.set_survey_related_record_status(
         session,
-        schemas.SurveyRelatedRecordId(survey_related_record.id),
+        identifiers.SurveyRelatedRecordId(survey_related_record.id),
         target_status,
     )
     event_emitter(
@@ -350,7 +351,7 @@ async def change_survey_related_record_status(
 
 
 async def validate_survey_related_record(
-    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    survey_related_record_id: identifiers.SurveyRelatedRecordId,
     initiator: schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
@@ -420,7 +421,7 @@ async def validate_survey_related_record(
 
 
 async def delete_survey_related_record(
-    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    survey_related_record_id: identifiers.SurveyRelatedRecordId,
     initiator: schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
@@ -452,10 +453,10 @@ async def delete_survey_related_record(
             f"status is {project_status}"
         )
     related_to = await queries.list_survey_related_record_related_to_records(
-        session, schemas.SurveyRelatedRecordId(survey_record.id)
+        session, identifiers.SurveyRelatedRecordId(survey_record.id)
     )
     subject_for = await queries.list_survey_related_record_subject_records(
-        session, schemas.SurveyRelatedRecordId(survey_record.id)
+        session, identifiers.SurveyRelatedRecordId(survey_record.id)
     )
     serialized_survey_record = schemas.SurveyRelatedRecordReadDetail.from_db_instance(
         survey_record, records_related_to=related_to, records_subject_for=subject_for
@@ -473,7 +474,7 @@ async def delete_survey_related_record(
 async def list_survey_related_records(
     session: AsyncSession,
     initiator: schemas.User | None,
-    survey_mission_id: schemas.SurveyMissionId | None = None,
+    survey_mission_id: identifiers.SurveyMissionId | None = None,
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
@@ -503,7 +504,7 @@ async def list_survey_related_records(
 
 
 async def get_survey_related_record(
-    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    survey_related_record_id: identifiers.SurveyRelatedRecordId,
     initiator: schemas.User | None,
     session: AsyncSession,
 ) -> (
@@ -522,7 +523,7 @@ async def get_survey_related_record(
             f"User is not allowed to read survey-related "
             f"record {survey_related_record_id!r}."
         )
-    record_id: schemas.SurveyRelatedRecordId = record.id
+    record_id: identifiers.SurveyRelatedRecordId = record.id
     records_related_to = await queries.list_survey_related_record_related_to_records(
         session, record_id
     )
@@ -533,7 +534,7 @@ async def get_survey_related_record(
 
 
 async def update_survey_related_record(
-    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    survey_related_record_id: identifiers.SurveyRelatedRecordId,
     to_update: schemas.SurveyRelatedRecordUpdate,
     initiator: schemas.User | None,
     session: AsyncSession,

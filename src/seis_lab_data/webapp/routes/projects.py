@@ -21,6 +21,7 @@ from starlette.templating import Jinja2Templates
 from starlette_babel import gettext_lazy as _
 from starlette_wtf import csrf_protect
 
+from schemas import identifiers
 from ... import (
     config,
     errors,
@@ -105,7 +106,7 @@ async def get_project_update_form(request: Request):
     """Return a form suitable for updating an existing project."""
     user = request.user if request.user.is_authenticated else None
     session_maker = request.state.settings.get_db_session_maker()
-    project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
+    project_id = get_id_from_request_path(request, "project_id", identifiers.ProjectId)
     async with session_maker() as session:
         try:
             project = await operations.get_project(
@@ -213,7 +214,7 @@ async def get_project_detail_updates(request: Request):
     - project updates -> ask client to reload project details page
     """
     try:
-        project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
+        project_id = identifiers.ProjectId(uuid.UUID(request.path_params["project_id"]))
     except ValueError as err:
         raise HTTPException(status_code=400, detail="Invalid project id") from err
     session_maker = request.state.settings.get_db_session_maker()
@@ -333,7 +334,7 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
         request.query_params, current_language
     )
     user = request.user if request.user.is_authenticated else None
-    project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
+    project_id = get_id_from_request_path(request, "project_id", identifiers.ProjectId)
     settings: config.SeisLabDataSettings = request.state.settings
     async with settings.get_db_session_maker()() as session:
         try:
@@ -559,9 +560,9 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
 
             return DatastarResponse(event_streamer(), status_code=422)
 
-        request_id = schemas.RequestId(uuid.uuid4())
+        request_id = identifiers.RequestId(uuid.uuid4())
         to_create = schemas.ProjectCreate(
-            id=schemas.ProjectId(uuid.uuid4()),
+            id=identifiers.ProjectId(uuid.uuid4()),
             owner_id=user.id,
             name=schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
@@ -695,7 +696,9 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         template_processor: Jinja2Templates = request.state.templates
         user = request.user if request.user.is_authenticated else None
         session_maker = request.state.settings.get_db_session_maker()
-        project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
+        project_id = get_id_from_request_path(
+            request, "project_id", identifiers.ProjectId
+        )
         async with session_maker() as session:
             if (
                 project := await operations.get_project(project_id, user, session)
@@ -724,7 +727,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
 
             return DatastarResponse(event_streamer(), status_code=422)
 
-        request_id = schemas.RequestId(uuid.uuid4())
+        request_id = identifiers.RequestId(uuid.uuid4())
         to_update = schemas.ProjectUpdate(
             owner_id=user.id,
             name=schemas.LocalizableDraftName(
@@ -871,7 +874,9 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         """Delete a project."""
         user = request.user if request.user.is_authenticated else None
         session_maker = request.state.settings.get_db_session_maker()
-        project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
+        project_id = get_id_from_request_path(
+            request, "project_id", identifiers.ProjectId
+        )
         async with session_maker() as session:
             try:
                 project = await operations.get_project(
@@ -886,7 +891,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                     status_code=404, detail=_(f"Project {project_id!r} not found.")
                 )
 
-        request_id = schemas.RequestId(uuid.uuid4())
+        request_id = identifiers.RequestId(uuid.uuid4())
 
         async def handle_processing_success(
             final_message: schemas.ProcessingMessage, message_template: Template
@@ -950,7 +955,9 @@ class ProjectDetailEndpoint(HTTPEndpoint):
     async def post(self, request: Request):
         """Create a new survey mission belonging to the project."""
         user = request.user if request.user.is_authenticated else None
-        project_id = get_id_from_request_path(request, "project_id", schemas.ProjectId)
+        project_id = get_id_from_request_path(
+            request, "project_id", identifiers.ProjectId
+        )
         session_maker = request.state.settings.get_db_session_maker()
         template_processor: Jinja2Templates = request.state.templates
         creation_form = await forms.SurveyMissionCreateForm.from_formdata(request)
@@ -990,9 +997,9 @@ class ProjectDetailEndpoint(HTTPEndpoint):
 
             return DatastarResponse(stream_validation_failed_events(), 422)
 
-        request_id = schemas.RequestId(uuid.uuid4())
+        request_id = identifiers.RequestId(uuid.uuid4())
         to_create = schemas.SurveyMissionCreate(
-            id=schemas.SurveyMissionId(uuid.uuid4()),
+            id=identifiers.SurveyMissionId(uuid.uuid4()),
             project_id=project.id,
             owner_id=user.id,
             name=schemas.LocalizableDraftName(

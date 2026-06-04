@@ -2,7 +2,7 @@ import dataclasses
 
 from starlette.authentication import BaseUser
 
-from .common import UserId
+from .identifiers import UserId
 
 
 @dataclasses.dataclass

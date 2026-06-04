@@ -2,6 +2,7 @@ import logging
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from schemas import identifiers
 from ... import (
     errors,
     schemas,
@@ -39,7 +40,7 @@ async def create_project(
 
 async def delete_project(
     session: AsyncSession,
-    project_id: schemas.ProjectId,
+    project_id: identifiers.ProjectId,
 ) -> None:
     if project := (await queries.get_project(session, project_id)):
         await session.delete(project)
@@ -79,11 +80,11 @@ async def update_project_validation_result(
     session.add(project)
     await session.commit()
     await session.refresh(project)
-    return await queries.get_project(session, schemas.ProjectId(project.id))
+    return await queries.get_project(session, identifiers.ProjectId(project.id))
 
 
 async def set_project_status(
-    session: AsyncSession, project_id: schemas.ProjectId, status: ProjectStatus
+    session: AsyncSession, project_id: identifiers.ProjectId, status: ProjectStatus
 ) -> models.Project:
     """Unconditionally sets the project's status."""
     if (project := (await queries.get_project(session, project_id))) is None:
@@ -92,4 +93,4 @@ async def set_project_status(
     session.add(project)
     await session.commit()
     await session.refresh(project)
-    return await queries.get_project(session, schemas.ProjectId(project_id))
+    return await queries.get_project(session, identifiers.ProjectId(project_id))

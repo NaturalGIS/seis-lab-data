@@ -8,6 +8,7 @@ from sqlmodel import (
     select,
 )
 
+from schemas import identifiers
 from ... import schemas
 from ...constants import ProjectStatus
 from .. import models
@@ -142,7 +143,7 @@ async def collect_all_projects(
 
 async def get_project(
     session: AsyncSession,
-    project_id: "schemas.ProjectId",
+    project_id: "identifiers.ProjectId",
 ) -> models.Project | None:
     return await session.get(models.Project, project_id)
 

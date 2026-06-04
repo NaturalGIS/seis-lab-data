@@ -6,6 +6,7 @@ import httpx
 
 from . import schemas
 from .constants import ROLE_ADMIN, ROLE_EDITOR, ROLE_SYSTEM_ADMIN
+from .schemas import identifiers
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ async def get_user_by_username(
         return None
     raw_user = payload["results"][0]
     return schemas.User(
-        id=schemas.UserId(raw_user["uuid"]),
+        id=identifiers.UserId(raw_user["uuid"]),
         email=raw_user.get("email", ""),
         username=raw_user.get("name", ""),
         roles=_roles_from_raw_user(raw_user),
@@ -56,7 +57,7 @@ async def get_user_by_username(
 
 async def get_user_by_uuid(
     admin_token: str,
-    user_id: schemas.UserId,
+    user_id: identifiers.UserId,
     web_client: httpx.AsyncClient,
     authentik_base_url: str,
 ) -> schemas.User | None:

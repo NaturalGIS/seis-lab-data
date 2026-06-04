@@ -21,6 +21,7 @@ from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 from starlette_wtf import csrf_protect
 
+from schemas import identifiers
 from ... import (
     config,
     errors,
@@ -68,7 +69,7 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
     user = request.user if request.user.is_authenticated else None
     settings: config.SeisLabDataSettings = request.state.settings
     survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
     async with settings.get_db_session_maker()() as session:
         try:
@@ -169,7 +170,7 @@ async def get_details_component(request: Request):
 
 async def get_survey_mission_detail_updates(request: Request):
     try:
-        survey_mission_id = schemas.SurveyMissionId(
+        survey_mission_id = identifiers.SurveyMissionId(
             uuid.UUID(request.path_params["survey_mission_id"])
         )
     except ValueError as err:
@@ -299,7 +300,7 @@ async def get_survey_mission_detail_updates(request: Request):
 @requires_auth
 async def get_survey_mission_creation_form(request: Request):
     user = request.user if request.user.is_authenticated else None
-    project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
+    project_id = identifiers.ProjectId(uuid.UUID(request.path_params["project_id"]))
     form_instance = await forms.SurveyMissionCreateForm.from_formdata(request)
 
     async with request.state.settings.get_db_session_maker()() as session:
@@ -526,7 +527,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         template_processor: Jinja2Templates = request.state.templates
         user = request.user if request.user.is_authenticated else None
         survey_mission_id = get_id_from_request_path(
-            request, "survey_mission_id", schemas.SurveyMissionId
+            request, "survey_mission_id", identifiers.SurveyMissionId
         )
         async with request.state.settings.get_db_session_maker()() as session:
             if (
@@ -539,7 +540,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 )
         form_instance = await forms.SurveyMissionUpdateForm.get_validated_form_instance(
             request,
-            project_id=schemas.ProjectId(survey_mission.project_id),
+            project_id=identifiers.ProjectId(survey_mission.project_id),
             disregard_id=survey_mission_id,
         )
         logger.debug(f"{form_instance.has_validation_errors()=}")
@@ -565,7 +566,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
 
             return DatastarResponse(stream_validation_failed_events(), status_code=422)
 
-        request_id = schemas.RequestId(uuid.uuid4())
+        request_id = identifiers.RequestId(uuid.uuid4())
         to_update = schemas.SurveyMissionUpdate(
             owner_id=user.id,
             name=schemas.LocalizableDraftName(
@@ -712,7 +713,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         """Create a new record in the survey mission's collection."""
         user = request.user if request.user.is_authenticated else None
         survey_mission_id = get_id_from_request_path(
-            request, "survey_mission_id", schemas.SurveyMissionId
+            request, "survey_mission_id", identifiers.SurveyMissionId
         )
         form_instance = (
             await forms.SurveyRelatedRecordCreateForm.get_validated_form_instance(
@@ -741,12 +742,12 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
 
             return DatastarResponse(event_streamer(), status_code=422)
 
-        request_id = schemas.RequestId(uuid.uuid4())
+        request_id = identifiers.RequestId(uuid.uuid4())
         related_records = []
         for related_ in form_instance.related_records.entries:
             related_records.append(
                 schemas.RelatedRecordCreate(
-                    related_record_id=schemas.SurveyRelatedRecordId(
+                    related_record_id=identifiers.SurveyRelatedRecordId(
                         uuid.UUID(
                             form_instance.parse_related_record_compound_name(
                                 related_.related_record.data
@@ -760,7 +761,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 )
             )
         to_create = schemas.SurveyRelatedRecordCreate(
-            id=schemas.SurveyRelatedRecordId(uuid.uuid4()),
+            id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
             survey_mission_id=survey_mission_id,
             owner_id=user.id,
             name=schemas.LocalizableDraftName(
@@ -800,7 +801,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             ],
             assets=[
                 schemas.RecordAssetCreate(
-                    id=schemas.RecordAssetId(uuid.uuid4()),
+                    id=identifiers.RecordAssetId(uuid.uuid4()),
                     name=schemas.LocalizableDraftName(
                         en=af.asset_name.en.data,
                         pt=af.asset_name.pt.data,
@@ -903,7 +904,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
     @requires_auth
     async def delete(self, request: Request):
         survey_mission_id = get_id_from_request_path(
-            request, "survey_mission_id", schemas.SurveyMissionId
+            request, "survey_mission_id", identifiers.SurveyMissionId
         )
         user = request.user if request.user.is_authenticated else None
         async with request.state.settings.get_db_session_maker()() as session:
@@ -921,7 +922,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                     detail=_(f"Survey mission {survey_mission_id!r} not found."),
                 )
 
-        request_id = schemas.RequestId(uuid.uuid4())
+        request_id = identifiers.RequestId(uuid.uuid4())
 
         async def handle_processing_success(
             final_message: schemas.ProcessingMessage, message_template: Template
@@ -985,7 +986,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
 async def add_create_survey_mission_form_link(request: Request):
     """Add a form link to a create_survey_mission form."""
     user = request.user if request.user.is_authenticated else None
-    project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
+    project_id = identifiers.ProjectId(uuid.UUID(request.path_params["project_id"]))
     async with request.state.settings.get_db_session_maker()() as session:
         try:
             project = await operations.get_project(
@@ -1023,7 +1024,7 @@ async def add_create_survey_mission_form_link(request: Request):
 async def remove_create_survey_mission_form_link(request: Request):
     """Remove a form link from a create_survey_mission form."""
     user = request.user if request.user.is_authenticated else None
-    project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
+    project_id = identifiers.ProjectId(uuid.UUID(request.path_params["project_id"]))
     async with request.state.settings.get_db_session_maker()() as session:
         try:
             project = await operations.get_project(
@@ -1115,7 +1116,7 @@ async def get_survey_mission_update_form(request: Request):
     """Return a form suitable for updating an existing survey mission."""
     user = request.user if request.user.is_authenticated else None
     survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
     async with request.state.settings.get_db_session_maker()() as session:
         try:

@@ -16,6 +16,7 @@ from wtforms import (
     validators,
 )
 
+from schemas import identifiers
 from ... import (
     constants,
     schemas,
@@ -148,8 +149,8 @@ class _SurveyRelatedRecordForm(StarletteForm):
     async def check_if_english_name_is_unique_for_survey_mission(
         self,
         session: AsyncSession,
-        survey_mission_id: schemas.SurveyMissionId,
-        disregard_id: schemas.SurveyRelatedRecordId | None = None,
+        survey_mission_id: identifiers.SurveyMissionId,
+        disregard_id: identifiers.SurveyRelatedRecordId | None = None,
     ):
         """Check if the current english name is already used by another record under the same survey mission.
 
@@ -164,7 +165,7 @@ class _SurveyRelatedRecordForm(StarletteForm):
             session, survey_mission_id, self.name.en.data
         ):
             if disregard_id:
-                if schemas.SurveyRelatedRecordId(candidate.id) != disregard_id:
+                if identifiers.SurveyRelatedRecordId(candidate.id) != disregard_id:
                     self.name.en.errors.append(error_message)
             else:
                 self.name.en.errors.append(error_message)
@@ -232,8 +233,8 @@ class _SurveyRelatedRecordForm(StarletteForm):
     async def get_validated_form_instance(
         cls,
         request: Request,
-        survey_mission_id: schemas.SurveyMissionId,
-        disregard_id: schemas.SurveyRelatedRecordId | None = None,
+        survey_mission_id: identifiers.SurveyMissionId,
+        disregard_id: identifiers.SurveyRelatedRecordId | None = None,
     ):
         """Performs full validation of a mission-related record form.
 

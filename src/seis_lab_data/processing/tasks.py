@@ -7,6 +7,7 @@ import dramatiq
 from redis.asyncio import Redis
 from dramatiq.brokers.stub import StubBroker
 
+from schemas import identifiers
 from .. import (
     config,
     schemas,
@@ -52,7 +53,7 @@ async def validate_survey_related_record(
     settings: config.SeisLabDataSettings,
     redis_client: Redis,
 ):
-    survey_related_record_id = schemas.SurveyRelatedRecordId(
+    survey_related_record_id = identifiers.SurveyRelatedRecordId(
         uuid.UUID(raw_survey_related_record_id)
     )
     validity_topic = SURVEY_RELATED_RECORD_VALIDITY_CHANGED_TOPIC.format(
@@ -125,7 +126,7 @@ async def validate_survey_mission(
     settings: config.SeisLabDataSettings,
     redis_client: Redis,
 ):
-    survey_mission_id = schemas.SurveyMissionId(uuid.UUID(raw_survey_mission_id))
+    survey_mission_id = identifiers.SurveyMissionId(uuid.UUID(raw_survey_mission_id))
     validity_topic = SURVEY_MISSION_VALIDITY_CHANGED_TOPIC.format(
         survey_mission_id=survey_mission_id
     )
@@ -193,7 +194,7 @@ async def validate_project(
     settings: config.SeisLabDataSettings,
     redis_client: Redis,
 ):
-    project_id = schemas.ProjectId(uuid.UUID(raw_project_id))
+    project_id = identifiers.ProjectId(uuid.UUID(raw_project_id))
     validity_topic = PROJECT_VALIDITY_CHANGED_TOPIC.format(project_id=project_id)
     status_topic = PROJECT_STATUS_CHANGED_TOPIC.format(project_id=project_id)
     logger.debug(f"validation updates will be published to topic {validity_topic=} ")
@@ -257,7 +258,7 @@ async def create_project(
     redis_client: Redis,
 ):
     logger.debug("Hi from the create_project task")
-    request_id = schemas.RequestId(uuid.UUID(raw_request_id))
+    request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
     topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     to_create = schemas.ProjectCreate(**json.loads(raw_to_create))
     initiator = schemas.User(**json.loads(raw_initiator))
@@ -338,7 +339,7 @@ async def update_project(
     redis_client: Redis,
 ):
     logger.debug("Hi from the update_project task")
-    request_id = schemas.RequestId(uuid.UUID(raw_request_id))
+    request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
     topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     initiator = schemas.User(**json.loads(raw_initiator))
     to_update = schemas.ProjectUpdate(**json.loads(raw_to_update))
@@ -353,7 +354,7 @@ async def update_project(
         )
         async with settings.get_db_session_maker()() as session:
             updated_project = await operations.update_project(
-                project_id=schemas.ProjectId(uuid.UUID(raw_project_id)),
+                project_id=identifiers.ProjectId(uuid.UUID(raw_project_id)),
                 to_update=to_update,
                 initiator=initiator,
                 session=session,
@@ -371,7 +372,7 @@ async def update_project(
         await redis_client.publish(
             PROJECT_UPDATED_TOPIC.format(project_id=updated_project.id),
             schemas.ProjectUpdatedMessage(
-                project_id=schemas.ProjectId(updated_project.id)
+                project_id=identifiers.ProjectId(updated_project.id)
             ).model_dump_json(),
         )
     except Exception as err:
@@ -396,8 +397,8 @@ async def delete_project(
     redis_client: Redis,
 ):
     logger.debug("Hi from the delete_project task")
-    request_id = schemas.RequestId(uuid.UUID(raw_request_id))
-    project_id = schemas.ProjectId(uuid.UUID(raw_project_id))
+    request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
+    project_id = identifiers.ProjectId(uuid.UUID(raw_project_id))
     topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     initiator = schemas.User(**json.loads(raw_initiator))
     try:
@@ -453,7 +454,7 @@ async def create_survey_mission(
     settings: config.SeisLabDataSettings,
     redis_client: Redis,
 ):
-    request_id = schemas.RequestId(uuid.UUID(raw_request_id))
+    request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
     topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     to_create = schemas.SurveyMissionCreate(**json.loads(raw_to_create))
     initiator = schemas.User(**json.loads(raw_initiator))
@@ -534,7 +535,7 @@ async def update_survey_mission(
     redis_client: Redis,
 ):
     logger.debug("Hi from the update_survey_mission task")
-    request_id = schemas.RequestId(uuid.UUID(raw_request_id))
+    request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
     topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     initiator = schemas.User(**json.loads(raw_initiator))
     to_update = schemas.SurveyMissionUpdate(**json.loads(raw_to_update))
@@ -549,7 +550,7 @@ async def update_survey_mission(
         )
         async with settings.get_db_session_maker()() as session:
             updated_survey_mission = await operations.update_survey_mission(
-                survey_mission_id=schemas.SurveyMissionId(
+                survey_mission_id=identifiers.SurveyMissionId(
                     uuid.UUID(raw_survey_mission_id)
                 ),
                 to_update=to_update,
@@ -571,7 +572,7 @@ async def update_survey_mission(
                 survey_mission_id=updated_survey_mission.id
             ),
             schemas.SurveyMissionUpdatedMessage(
-                survey_mission_id=schemas.SurveyMissionId(updated_survey_mission.id)
+                survey_mission_id=identifiers.SurveyMissionId(updated_survey_mission.id)
             ).model_dump_json(),
         )
     except Exception as err:
@@ -596,7 +597,7 @@ async def delete_survey_mission(
     redis_client: Redis,
 ):
     logger.debug("Hi from the delete_survey_mission task")
-    request_id = schemas.RequestId(uuid.UUID(raw_request_id))
+    request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
     topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     initiator = schemas.User(**json.loads(raw_initiator))
     try:
@@ -610,7 +611,7 @@ async def delete_survey_mission(
         )
         async with settings.get_db_session_maker()() as session:
             await operations.delete_survey_mission(
-                survey_mission_id=schemas.SurveyMissionId(
+                survey_mission_id=identifiers.SurveyMissionId(
                     uuid.UUID(raw_survey_mission_id)
                 ),
                 initiator=initiator,
@@ -646,7 +647,7 @@ async def create_survey_related_record(
     settings: config.SeisLabDataSettings,
     redis_client: Redis,
 ):
-    request_id = schemas.RequestId(uuid.UUID(raw_request_id))
+    request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
     topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     to_create = schemas.SurveyRelatedRecordCreate(**json.loads(raw_to_create))
     initiator = schemas.User(**json.loads(raw_initiator))
@@ -726,7 +727,7 @@ async def delete_survey_related_record(
     redis_client: Redis,
 ):
     logger.debug("Hi from the delete_survey_related_record task")
-    request_id = schemas.RequestId(uuid.UUID(raw_request_id))
+    request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
     topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     initiator = schemas.User(**json.loads(raw_initiator))
     try:
@@ -740,7 +741,7 @@ async def delete_survey_related_record(
         )
         async with settings.get_db_session_maker()() as session:
             await operations.delete_survey_related_record(
-                survey_related_record_id=schemas.SurveyRelatedRecordId(
+                survey_related_record_id=identifiers.SurveyRelatedRecordId(
                     uuid.UUID(raw_survey_related_record_id)
                 ),
                 initiator=initiator,
@@ -778,7 +779,7 @@ async def update_survey_related_record(
     redis_client: Redis,
 ):
     logger.debug("Hi from the update_survey_related_record task")
-    request_id = schemas.RequestId(uuid.UUID(raw_request_id))
+    request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
     topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     initiator = schemas.User(**json.loads(raw_initiator))
     to_update = schemas.SurveyRelatedRecordUpdate(**json.loads(raw_to_update))
@@ -793,7 +794,7 @@ async def update_survey_related_record(
         )
         async with settings.get_db_session_maker()() as session:
             updated = await operations.update_survey_related_record(
-                survey_related_record_id=schemas.SurveyRelatedRecordId(
+                survey_related_record_id=identifiers.SurveyRelatedRecordId(
                     uuid.UUID(raw_survey_related_record_id)
                 ),
                 to_update=to_update,
@@ -815,7 +816,7 @@ async def update_survey_related_record(
                 survey_related_record_id=updated.id
             ),
             schemas.SurveyRelatedRecordUpdatedMessage(
-                survey_related_record_id=schemas.SurveyRelatedRecordId(updated.id)
+                survey_related_record_id=identifiers.SurveyRelatedRecordId(updated.id)
             ).model_dump_json(),
         )
     except Exception as err:
