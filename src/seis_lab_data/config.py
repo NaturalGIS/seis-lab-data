@@ -97,7 +97,8 @@ class SeisLabDataSettings(BaseSettings):
     )
     default_temporal_extent_begin: str = ""
     default_temporal_extent_end: str = ""
-
+    readonly_archive_root_directory: Path = "/mnt/data"
+    editable_archive_root_directory: Path = "/mnt/sld"
     _db_engine: AsyncEngine | None = None
     _sync_db_engine: Engine | None = None
     _db_session_maker: async_sessionmaker | None = None

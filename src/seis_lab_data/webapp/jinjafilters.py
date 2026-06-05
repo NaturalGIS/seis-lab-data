@@ -1,10 +1,15 @@
 """Custom jinja filters."""
 
+import json
 import logging
 import typing
 
 import shapely
 from jinja2 import pass_context
+from markupsafe import Markup
+from pygments import highlight
+from pygments.formatters import HtmlFormatter
+from pygments.lexers import JsonLexer
 
 from ..constants import (
     ProjectStatus,
@@ -41,3 +46,8 @@ def translate_enum(value: TranslatableEnumProtocol) -> str:
 def get_polygon_bounds(polygon_wkt: str) -> tuple[float, float, float, float]:
     geom = shapely.from_wkt(polygon_wkt)
     return geom.bounds
+
+
+def highlight_json(value: dict) -> Markup:
+    json_str = json.dumps(value, indent=2, ensure_ascii=False)
+    return Markup(highlight(json_str, JsonLexer(), HtmlFormatter()))

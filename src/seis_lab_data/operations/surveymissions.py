@@ -4,7 +4,6 @@ import pydantic
 import shapely
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from schemas import identifiers
 from .. import (
     errors,
     events,
@@ -24,6 +23,7 @@ from .. import (
     permissions,
     schemas,
 )
+from ..schemas import identifiers
 
 logger = logging.getLogger(__name__)
 

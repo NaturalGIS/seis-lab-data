@@ -2,12 +2,12 @@ import uuid
 
 import pytest
 
-from schemas import identifiers
 from seis_lab_data.db import (
     commands,
     queries,
 )
 from seis_lab_data import schemas
+from seis_lab_data.schemas import identifiers
 
 
 @pytest.mark.integration

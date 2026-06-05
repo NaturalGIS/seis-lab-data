@@ -5,9 +5,7 @@ import uuid
 
 import dramatiq
 from redis.asyncio import Redis
-from dramatiq.brokers.stub import StubBroker
 
-from schemas import identifiers
 from .. import (
     config,
     schemas,
@@ -30,16 +28,14 @@ from ..constants import (
     SURVEY_RELATED_RECORD_VALIDITY_CHANGED_TOPIC,
     PROJECT_DELETED_TOPIC,
 )
+from ..schemas import identifiers
 
 from . import decorators
+from .stub import sld_stub_broker
+
+dramatiq.set_broker(sld_stub_broker)
 
 logger = logging.getLogger(__name__)
-
-# this _stub_broker is only meant as a way to be able to register actors
-# without triggering the unwanted side-effect of having dramatiq eagerly
-# trying to connect to it
-_stub_broker = StubBroker()
-dramatiq.set_broker(_stub_broker)
 
 
 @dramatiq.actor

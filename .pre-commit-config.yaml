@@ -10,7 +10,7 @@ repos:
         exclude: "^docker/authentik/.*.yaml$"
         args: [--unsafe]
     -   id: check-added-large-files
-        args: ["--maxkb=1000"]
+        args: ["--maxkb=1200"]
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: v0.12.1
   hooks:

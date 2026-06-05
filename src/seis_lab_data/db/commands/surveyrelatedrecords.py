@@ -3,17 +3,17 @@ import uuid
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from schemas import identifiers
 from ... import (
     errors,
     schemas,
 )
+from ...constants import SurveyRelatedRecordStatus
+from ...schemas import identifiers
 from .. import (
     models,
     queries,
 )
 from .common import get_bbox_4326_for_db
-from ...constants import SurveyRelatedRecordStatus
 
 logger = logging.getLogger(__name__)
 

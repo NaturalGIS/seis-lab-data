@@ -24,6 +24,7 @@ x-common-env: &common-env
   SEIS_LAB_DATA__TEST_DATABASE_DSN: postgresql+psycopg://sld:sldpass@test-db:5432/seis_lab_data_test
   SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
   SEIS_LAB_DATA__AUTH_ADMIN_TOKEN: *auth-admin-token
+  SEIS_LAB_DATA__READONLY_ARCHIVE_ROOT_DIRECTORY: /data/simulated-archive
 
 x-common-auth-env: &common-auth-env
   AUTHENTIK_LOG_LEVEL: debug

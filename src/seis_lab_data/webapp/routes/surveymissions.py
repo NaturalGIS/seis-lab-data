@@ -21,7 +21,6 @@ from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 from starlette_wtf import csrf_protect
 
-from schemas import identifiers
 from ... import (
     config,
     errors,
@@ -38,6 +37,7 @@ from ...constants import (
     SURVEY_MISSION_VALIDITY_CHANGED_TOPIC,
 )
 from ...processing import tasks
+from ...schemas import identifiers
 from .. import (
     filters,
     forms,

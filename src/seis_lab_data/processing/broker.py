@@ -22,7 +22,10 @@ from .middleware import (
 # registered with dramatiq (using the stub broker). When calling the `dramatiq` cli,
 # we rely on this import being done before the call to our own `setup_broker()` function,
 # as we need to ensure the actors are known before we set the real broker.
-from . import tasks  # noqa
+from . import (
+    tasks,  # noqa
+    discovery,  # noqa
+)
 
 logger = logging.getLogger(__name__)
 

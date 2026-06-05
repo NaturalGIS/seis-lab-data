@@ -16,7 +16,6 @@ from wtforms import (
     validators,
 )
 
-from schemas import identifiers
 from ... import (
     constants,
     schemas,
@@ -25,6 +24,7 @@ from ...db import (
     models,
     queries,
 )
+from ...schemas import identifiers
 from .common import (
     BoundingBoxForm,
     DescriptionForm,

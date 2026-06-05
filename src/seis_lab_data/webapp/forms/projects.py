@@ -1,3 +1,4 @@
+import json
 import logging
 
 import pydantic
@@ -9,14 +10,15 @@ from wtforms import (
     FieldList,
     FormField,
     StringField,
+    TextAreaField,
 )
 
-from schemas import identifiers
 from ... import (
     constants,
     schemas,
 )
 from ...db.queries import get_project_by_english_name
+from ...schemas import identifiers
 from .common import (
     BoundingBoxForm,
     DescriptionForm,
@@ -58,6 +60,27 @@ class _ProjectForm(StarletteForm):
         min_entries=0,
         max_entries=constants.PROJECT_MAX_LINKS,
     )
+    discovery_configuration = TextAreaField(label=_("Discovery configuration"))
+
+    def _parse_discovery_configuration(self) -> dict | None:
+        raw_json = self.discovery_configuration.data
+        if not raw_json:
+            return None
+        try:
+            parsed = json.loads(raw_json)
+            schemas.ProjectDiscoveryConfiguration.model_validate(parsed)
+            return parsed
+        except json.JSONDecodeError:
+            self.discovery_configuration.errors.append(_("Invalid JSON"))
+            return None
+        except pydantic.ValidationError as exc:
+            self.discovery_configuration.errors.append(
+                "; ".join(
+                    f"{'.'.join(str(part) for part in e['loc'])}: {e['msg']}"
+                    for e in exc.errors()
+                )
+            )
+            return None
 
     async def check_if_english_name_is_unique(
         self, session: AsyncSession, disregard_id: identifiers.ProjectId | None = None
@@ -127,6 +150,7 @@ class ProjectCreateForm(_ProjectForm):
         # in order to ensure pydantic validates the full set of data at once and
         # includes full error locations - otherwise it would be harder to match
         # pydantic validation errors with wtforms field errors
+        discovery_configuration = self._parse_discovery_configuration()
         try:
             schemas.ProjectCreate(
                 # these are not part of the form, but we must provide something
@@ -152,6 +176,7 @@ class ProjectCreateForm(_ProjectForm):
                 ],
                 temporal_extent_begin=self.temporal_extent_begin.data or None,
                 temporal_extent_end=self.temporal_extent_end.data or None,
+                discovery_configuration=discovery_configuration,
             )
         except pydantic.ValidationError as exc:
             incorporate_schema_validation_errors_into_form(exc.errors(), self)
@@ -164,6 +189,7 @@ class ProjectUpdateForm(_ProjectForm):
         # in order to ensure pydantic validates the full set of data at once and
         # includes full error locations - otherwise it would be harder to match
         # pydantic validation errors with wtforms field errors
+        discovery_configuration = self._parse_discovery_configuration()
         try:
             schemas.ProjectUpdate(
                 owner_id=None,
@@ -187,6 +213,7 @@ class ProjectUpdateForm(_ProjectForm):
                     }
                     for li in self.links.entries
                 ],
+                discovery_configuration=discovery_configuration,
             )
         except pydantic.ValidationError as exc:
             incorporate_schema_validation_errors_into_form(exc.errors(), self)

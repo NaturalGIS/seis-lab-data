@@ -24,7 +24,6 @@ from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 from starlette_wtf import csrf_protect
 
-from schemas import identifiers
 from ... import (
     config,
     errors,
@@ -46,6 +45,7 @@ from ...db import (
     queries,
 )
 from ...processing import tasks
+from ...schemas import identifiers
 from .. import (
     filters,
     forms,

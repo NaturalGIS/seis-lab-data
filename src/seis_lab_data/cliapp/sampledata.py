@@ -66,7 +66,7 @@ def get_projects_to_create(owner: schemas.User) -> list[schemas.ProjectCreate]:
                 en="A description about the PRR windfarms project",
                 pt="Uma descrição sobre o projeto PRR Eólicas",
             ),
-            root_path="${ARCHIVE_ROOT}/projects/prr-eolicas",
+            root_path="projects/prr-eolicas",
             discovery_configuration=discovery_schemas.ProjectDiscoveryConfiguration(
                 survey_missions=[
                     discovery_schemas.SurveyMissionDiscoveryConfiguration(

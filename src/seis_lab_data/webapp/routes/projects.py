@@ -21,7 +21,6 @@ from starlette.templating import Jinja2Templates
 from starlette_babel import gettext_lazy as _
 from starlette_wtf import csrf_protect
 
-from schemas import identifiers
 from ... import (
     config,
     errors,
@@ -38,6 +37,7 @@ from ...constants import (
     PROJECT_VALIDITY_CHANGED_TOPIC,
 )
 from ...processing import tasks
+from ...schemas import identifiers
 from .. import (
     filters,
     forms,
@@ -159,6 +159,11 @@ async def get_project_update_form(request: Request):
                 }
                 for li in project.links
             ],
+            "discovery_configuration": (
+                json.dumps(project.discovery_configuration)
+                if project.discovery_configuration
+                else ""
+            ),
         },
     )
     template_processor: Jinja2Templates = request.state.templates
@@ -728,6 +733,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             return DatastarResponse(event_streamer(), status_code=422)
 
         request_id = identifiers.RequestId(uuid.uuid4())
+        raw_dc = form_instance.discovery_configuration.data
         to_update = schemas.ProjectUpdate(
             owner_id=user.id,
             name=schemas.LocalizableDraftName(
@@ -762,6 +768,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 )
                 for lf in form_instance.links.entries
             ],
+            discovery_configuration=json.loads(raw_dc) if raw_dc else None,
         )
 
         async def handle_processing_success(

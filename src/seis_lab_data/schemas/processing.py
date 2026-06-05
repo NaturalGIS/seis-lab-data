@@ -2,7 +2,13 @@ import pydantic
 
 from ..constants import ProcessingStatus
 
-from . import events, RequestId, SurveyRelatedRecordId, SurveyMissionId, ProjectId
+from .identifiers import (
+    ProjectId,
+    RequestId,
+    SurveyRelatedRecordId,
+    SurveyMissionId,
+)
+from . import events
 
 
 class ProjectUpdatedMessage(pydantic.BaseModel):

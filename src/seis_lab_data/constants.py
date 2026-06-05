@@ -28,6 +28,7 @@ PROJECT_VALIDITY_CHANGED_TOPIC: typing.Final[str] = (
     "project-validity-changed:{project_id}"
 )
 PROJECT_DELETED_TOPIC: typing.Final[str] = "project-deleted:{project_id}"
+PROJECT_DISCOVERY_TOPIC: typing.Final[str] = "project-discovery:{project_id}"
 
 SURVEY_MISSION_UPDATED_TOPIC: typing.Final[str] = (
     "survey-mission-updated:{survey_mission_id}"

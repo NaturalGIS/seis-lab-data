@@ -15,6 +15,8 @@ class EventType(enum.Enum):
     DOMAIN_TYPE_DELETED = "domain_type_deleted"
     PROJECT_CREATED = "project_created"
     PROJECT_DELETED = "project_deleted"
+    PROJECT_DISCOVERY_STARTED = "project_discovery_started"
+    PROJECT_DISCOVERY_FINISHED = "project_discovery_finished"
     PROJECT_UPDATED = "project_updated"
     PROJECT_VALIDATED = "project_validated"
     PROJECT_VALIDATION_PROGRESS = "project_validation_progress"

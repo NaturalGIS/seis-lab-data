@@ -114,10 +114,13 @@ class RecordAssetDiscoveryConfiguration(pydantic.BaseModel):
     discovery_patterns: list[TemplatedString]
     links: list[LinkSchema] | None = None
     extra_properties: dict[str, PropertyHandler] | None = None
-    _properties: dict[str, RecordProperty] | None = None
+    _properties: dict[str, RecordProperty]
 
     @pydantic.model_validator(mode="after")
     def _inject_identifiers(self) -> Self:
+        if not self.extra_properties:
+            self._properties = {}
+            return self
         # Wrap each handler in a RecordProperty, injecting the dict key
         self._properties: dict[str, RecordProperty] = {
             key: RecordProperty(identifier=key, handler=handler)

@@ -6,14 +6,15 @@ import typer
 from psycopg.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
 
-from schemas import identifiers
 from .. import (
     config,
     operations,
     schemas,
 )
 from ..db import queries
+from ..errors import SeisLabDataError
 from ..events.emitters import null_emitter
+from ..schemas import identifiers
 from . import sampledata
 from .asynctyper import AsyncTyper
 from .utils import resolve_admin_user
@@ -133,6 +134,9 @@ async def load_sample_projects(ctx: typer.Context):
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
         for to_create in sampledata.get_projects_to_create(owner=admin_):
+            ctx.obj["main"].status_console.print(
+                f"Creating project {to_create.name.en!r}..."
+            )
             try:
                 created.append(
                     await operations.create_project(
@@ -142,6 +146,9 @@ async def load_sample_projects(ctx: typer.Context):
                         event_emitter=settings.get_event_emitter(),
                     )
                 )
+            except SeisLabDataError as err:
+                ctx.obj["main"].status_console.print(f"[red]{err}[/red]")
+                continue
             except IntegrityError as err:
                 await session.rollback()
                 if isinstance(err.orig, UniqueViolation):

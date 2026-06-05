@@ -1,7 +1,7 @@
 import uuid
 
-from schemas import identifiers
 from .. import schemas
+from ..schemas import identifiers
 
 DATASET_CATEGORIES_TO_CREATE: dict[str, schemas.DatasetCategoryCreate] = {
     "bathymetry": schemas.DatasetCategoryCreate(

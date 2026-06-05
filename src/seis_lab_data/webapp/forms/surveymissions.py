@@ -11,12 +11,12 @@ from wtforms import (
     StringField,
 )
 
-from schemas import identifiers
 from ... import (
     constants,
     schemas,
 )
 from ...db.queries import get_survey_mission_by_english_name
+from ...schemas import identifiers
 from .common import (
     BoundingBoxForm,
     NameForm,

@@ -60,6 +60,12 @@
                                 </div>
                             </div>
                         </div>
+                        {% if project.discovery_configuration %}
+                        <details class="mt-3">
+                            <summary style="cursor: pointer;">{{ _("project discovery configuration") | capitalize }}</summary>
+                            {{ project.discovery_configuration.model_dump() | highlight_json }}
+                        </details>
+                        {% endif %}
                     </div>
                 </div>
             </div>

@@ -2,12 +2,12 @@ import logging
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from schemas import identifiers
 from ... import (
     errors,
     schemas,
 )
 from ...constants import ProjectStatus
+from ...schemas import identifiers
 from .. import (
     models,
     queries,

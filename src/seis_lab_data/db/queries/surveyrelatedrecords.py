@@ -10,10 +10,10 @@ from sqlmodel import (
     select,
 )
 
-from schemas import identifiers
 from ... import schemas
 from ...constants import SurveyRelatedRecordStatus
 from ...db import models
+from ...schemas import identifiers
 from .common import _get_total_num_records
 
 logger = logging.getLogger(__name__)
