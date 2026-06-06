@@ -28,9 +28,7 @@ def _is_date_compatible(mode: str, a: dt.date, b: dt.date) -> bool:
 
 
 class DateYmdProperty(pydantic.BaseModel):
-    type_: Annotated[Literal["date:ymd"], pydantic.Field(validation_alias="type")] = (
-        "date:ymd"
-    )
+    type: Literal["date:ymd"] = "date:ymd"
     pattern: str = r"\d{8}"
     compatibility: Literal["day", "month"] = "day"
 
@@ -45,9 +43,7 @@ class DateYmdProperty(pydantic.BaseModel):
 
 
 class DateYmdDashedProperty(pydantic.BaseModel):
-    type_: Annotated[
-        Literal["date:ymd-dashed"], pydantic.Field(validation_alias="type")
-    ] = "date:ymd-dashed"
+    type: Literal["date:ymd-dashed"] = "date:ymd-dashed"
     pattern: str = r"\d{4}-\d{2}-\d{2}"
     compatibility: Literal["day", "month"] = "day"
 
@@ -62,9 +58,7 @@ class DateYmdDashedProperty(pydantic.BaseModel):
 
 
 class ConstantProperty(pydantic.BaseModel):
-    type_: Annotated[Literal["constant"], pydantic.Field(validation_alias="type")] = (
-        "constant"
-    )
+    type: Literal["constant"] = "constant"
     pattern: str = r"\w+"
     choices: list[str] | None = None
     compatibility: Literal["equal", "any"] = "equal"
@@ -86,7 +80,7 @@ class ConstantProperty(pydantic.BaseModel):
 
 PropertyHandler = Annotated[
     Union[DateYmdProperty, DateYmdDashedProperty, ConstantProperty],
-    pydantic.Field(discriminator="type_"),
+    pydantic.Field(discriminator="type"),
 ]
 
 

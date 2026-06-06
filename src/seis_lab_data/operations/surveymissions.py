@@ -39,7 +39,9 @@ async def create_survey_mission(
             f"Project with id {to_create.project_id} does not exist"
         )
     if not permissions.can_create_survey_mission(initiator, project):
-        raise errors.SeisLabDataError("User is not allowed to create a survey mission.")
+        raise errors.SeisLabDataError(
+            f"User {initiator!r} is not allowed to create a survey mission."
+        )
     if (project_status := project.status) != ProjectStatus.DRAFT:
         raise errors.SeisLabDataError(
             f"Cannot create survey mission because parent project's "

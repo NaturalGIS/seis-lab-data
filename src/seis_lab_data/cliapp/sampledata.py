@@ -66,7 +66,7 @@ def get_projects_to_create(owner: schemas.User) -> list[schemas.ProjectCreate]:
                 en="A description about the PRR windfarms project",
                 pt="Uma descrição sobre o projeto PRR Eólicas",
             ),
-            root_path="projects/prr-eolicas",
+            root_path="surveys",
             discovery_configuration=discovery_schemas.ProjectDiscoveryConfiguration(
                 survey_missions=[
                     discovery_schemas.SurveyMissionDiscoveryConfiguration(
@@ -80,7 +80,7 @@ def get_projects_to_create(owner: schemas.User) -> list[schemas.ProjectCreate]:
                                 )
                             }
                         ),
-                        relative_path="project-surveys/seism-2024",
+                        relative_path="owf-seism-2024",
                         record_configuration_ids=[
                             _raw_bathy_record_discovery_conf_id,
                             _processed_bathy_record_discovery_conf_id,

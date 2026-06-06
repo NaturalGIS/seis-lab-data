@@ -42,11 +42,16 @@ def _get_survey_mission_discovery_conf(
 ) -> discovery_schemas.SurveyMissionDiscoveryConfiguration | None:
     """Find a mission's discovery configuration."""
 
-    for discovery_conf in survey_mission.project._discovery_config.survey_missions:
-        if discovery_conf.relative_path.lstrip(
+    project_discovery_conf = (
+        discovery_schemas.ProjectDiscoveryConfiguration.model_validate(
+            survey_mission.project.discovery_configuration
+        )
+    )
+    for mission_discovery_conf in project_discovery_conf.survey_missions:
+        if mission_discovery_conf.relative_path.strip(
             "/"
-        ) == survey_mission.relative_path.lstrip("/"):
-            return discovery_conf
+        ) == survey_mission.relative_path.strip("/"):
+            return mission_discovery_conf
     else:
         return None
 
@@ -74,13 +79,19 @@ async def discover_project_contents(
     )
     for db_survey_mission in new_survey_missions:
         await discover_survey_mission_records(
-            session, db_survey_mission, event_emitter, user
+            session=session,
+            archive_root=str(settings.readonly_archive_root_directory),
+            survey_mission=db_survey_mission,
+            event_emitter=event_emitter,
+            user=user,
         )
     return new_survey_missions
 
 
 async def discover_survey_mission_records(
+    *,
     session: AsyncSession,
+    archive_root: str,
     survey_mission: models.SurveyMission,
     event_emitter: EventEmitterProtocol,
     user: User | None = None,
@@ -113,7 +124,8 @@ async def discover_survey_mission_records(
             )
             continue
         new_records = await discover_records(
-            session,
+            session=session,
+            archive_root=archive_root,
             record_discovery_config=record_discovery_conf,
             survey_mission=survey_mission,
             owner_id=identifiers.UserId(user.id) if user else None,
@@ -128,7 +140,9 @@ async def discover_survey_mission_records(
 
 
 async def discover_records(
+    *,
     session: AsyncSession,
+    archive_root: str,
     record_discovery_config: discovery_schemas.SurveyRecordDiscoveryConfiguration,
     survey_mission: models.SurveyMission,
     owner_id: identifiers.UserId | None = None,
@@ -167,8 +181,9 @@ async def discover_records(
     base_path = Path(
         "/".join(
             (
-                survey_mission.project.root_path.rstrip("/"),
-                survey_mission.relative_path.lstrip("/"),
+                archive_root,
+                survey_mission.project.root_path.strip("/"),
+                survey_mission.relative_path.strip("/"),
             )
         )
     )
@@ -366,7 +381,6 @@ def _build_pattern_regex(
     template: str,
     properties: dict[str, discovery_schemas.RecordProperty],
 ) -> re.Pattern:
-    logger.debug(f"{locals()=}")
     seen: set[str] = set()
 
     def replacer(m: re.Match) -> str:
@@ -430,18 +444,15 @@ async def _discover_survey_mission(
     settings: config.SeisLabDataSettings,
     owner: User | None = None,
 ) -> SurveyMissionCreate | None:
-    if survey_mission_discovery_conf.relative_path.startswith("/"):
-        mission_path = Path(survey_mission_discovery_conf.relative_path)
-    else:
-        mission_path = Path(
-            "/".join(
-                (
-                    str(settings.readonly_archive_root_directory).rstrip("/"),
-                    project.root_path.rstrip("/"),
-                    survey_mission_discovery_conf.relative_path.lstrip("/"),
-                )
+    mission_path = Path(
+        "/".join(
+            (
+                str(settings.readonly_archive_root_directory).rstrip("/"),
+                project.root_path.strip("/"),
+                survey_mission_discovery_conf.relative_path.strip("/"),
             )
         )
+    )
     logger.debug(f"{mission_path=}")
     if not await mission_path.is_dir():
         return None

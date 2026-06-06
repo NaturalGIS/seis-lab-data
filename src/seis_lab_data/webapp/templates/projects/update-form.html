@@ -41,6 +41,10 @@
                         document.getElementById('json-editor-discovery-config'),
                         {
                             mode: 'tree',
+                            modes: [
+                                'tree',
+                                'code',
+                            ],
                             onChange: function() {
                                 try { textarea.value = JSON.stringify(editor.get()); } catch(e) {}
                             }
