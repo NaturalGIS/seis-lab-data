@@ -21,7 +21,10 @@ async def create_project(
     session: AsyncSession, to_create: schemas.ProjectCreate
 ) -> models.Project:
     project = models.Project(
-        **to_create.model_dump(exclude={"bbox_4326"}),
+        **to_create.model_dump(
+            exclude={"bbox_4326"},
+            exclude_none=True,
+        ),
         bbox_4326=(
             get_bbox_4326_for_db(bbox)
             if (bbox := to_create.bbox_4326) is not None

@@ -168,13 +168,10 @@ class SurveyRecordDiscoveryConfiguration(pydantic.BaseModel):
         # Parse extra_properties from the {extractor, matcher} JSON format
         asset_extra_props: dict[str, PropertyHandler] = {}
         record_extra_props: list[RecordProperty] = []
-        for prop_name, raw_prop in raw_config.get("extra_properties", {}).items():
-            handler = pydantic.TypeAdapter(PropertyHandler).validate_python(raw_prop)
-            asset_extra_props[prop_name] = handler
-            record_extra_props.append(
-                RecordProperty(identifier=prop_name, handler=handler)
-            )
-
+        for extra_prop in raw_config.get("extra_properties"):
+            record_property = RecordProperty.model_validate(extra_prop)
+            asset_extra_props[record_property.identifier] = record_property.handler
+            record_extra_props.append(record_property)
         return cls(
             id_=RecordDiscoveryConfId(raw_identifier),
             dataset_category=raw_config["dataset_category"],
@@ -223,13 +220,12 @@ class SurveyMissionDiscoveryConfiguration(pydantic.BaseModel):
             description=TranslatableString(dict(raw_config.get("description"))),
             relative_path=raw_config.get("relative_path", "/").strip("/"),
             links=[LinkSchema(**li) for li in raw_config.get("links", [])],
-            record_configuration_ids=raw_config.get("records", []),
+            record_configuration_ids=raw_config.get("record_configuration_ids", []),
         )
 
 
 class ProjectDiscoveryConfiguration(pydantic.BaseModel):
     survey_missions: list[SurveyMissionDiscoveryConfiguration]
-    links: list[LinkSchema] | None = None
     records: dict[RecordDiscoveryConfId, SurveyRecordDiscoveryConfiguration]
     record_relations: list[RecordRelationDiscoveryConfiguration]
 
@@ -240,7 +236,6 @@ class ProjectDiscoveryConfiguration(pydantic.BaseModel):
                 SurveyMissionDiscoveryConfiguration.from_raw_config(m)
                 for m in raw_config.get("survey_missions", [])
             ],
-            links=[LinkSchema(**li) for li in raw_config.get("links", [])],
             records={
                 rec_id: SurveyRecordDiscoveryConfiguration.from_raw_config(
                     rec_id, rec_conf

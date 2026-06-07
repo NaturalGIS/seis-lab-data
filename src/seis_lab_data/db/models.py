@@ -3,7 +3,6 @@ import json
 import uuid
 import warnings
 from functools import partial
-from pathlib import Path
 from typing import (
     Any,
     Annotated,
@@ -42,7 +41,6 @@ from sqlmodel import (
 )
 
 from .. import constants
-from ..schemas import discovery as discovery_schemas
 
 warnings.filterwarnings(
     "ignore",
@@ -382,19 +380,6 @@ class Project(SQLModel, table=True):
             .correlate_except(SurveyRelatedRecord)
             .scalar_subquery()
         )
-
-    @declared_attr
-    def _discovery_config(self) -> discovery_schemas.ProjectDiscoveryConfiguration:
-        """Temporary helper to retrieve sample project discovery config.
-
-        This would be pulled from DB, as one of the project properties instead.
-        of being gotten from a file
-        """
-        discovery_config_path = (
-            Path(__file__).parents[3] / "tests/data/project-discovery-base.json"
-        )
-        raw_conf = json.loads(discovery_config_path.read_text())
-        return discovery_schemas.ProjectDiscoveryConfiguration.from_raw_config(raw_conf)
 
 
 class RecordAsset(SQLModel, table=True):

@@ -43,7 +43,7 @@ def _get_survey_mission_discovery_conf(
     """Find a mission's discovery configuration."""
 
     project_discovery_conf = (
-        discovery_schemas.ProjectDiscoveryConfiguration.model_validate(
+        discovery_schemas.ProjectDiscoveryConfiguration.from_raw_config(
             survey_mission.project.discovery_configuration
         )
     )
@@ -104,6 +104,18 @@ async def discover_survey_mission_records(
             f"mission {survey_mission.id!r}"
         )
         return None
+    project_discovery_conf = (
+        discovery_schemas.ProjectDiscoveryConfiguration.from_raw_config(
+            survey_mission.project.discovery_configuration
+        )
+        if survey_mission.project.discovery_configuration
+        else None
+    )
+    if project_discovery_conf is None:
+        logger.warning(
+            "The survey mission's project does not have a discovery configuration - Cannot discover records"
+        )
+        return None
     created_records = []
     relationships_to_create = []  # noqa
     for idx, record_discovery_conf_name in enumerate(
@@ -114,8 +126,7 @@ async def discover_survey_mission_records(
             f"Discovering record config {record_discovery_conf_name!r}..."
         )
         if (
-            record_discovery_conf
-            := survey_mission.project._discovery_config.records.get(
+            record_discovery_conf := project_discovery_conf.records.get(
                 record_discovery_conf_name
             )
         ) is None:
@@ -223,13 +234,23 @@ async def discover_records(
                     links=asset_conf.links,
                 )
             )
+        extra_props = {k: str(v) for k, v in instance.properties.items()}
+        logger.debug(f"{extra_props=}")
+        logger.debug(f"{record_discovery_config.name=}")
+        da_name = {
+            k: v.format(**extra_props) for k, v in record_discovery_config.name.items()
+        }
+        logger.debug(f"{da_name=}")
         if not already_catalogued and instance_assets:
             results.append(
                 SurveyRelatedRecordCreate(
                     id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
                     owner_id=owner_id or identifiers.UserId(survey_mission.owner_id),
                     survey_mission_id=identifiers.SurveyMissionId(survey_mission.id),
-                    name=record_discovery_config.name,
+                    name={
+                        k: v.format(**extra_props)
+                        for k, v in record_discovery_config.name.items()
+                    },
                     description=record_discovery_config.description or {},
                     dataset_category_id=identifiers.DatasetCategoryId(
                         dataset_category.id
@@ -331,10 +352,11 @@ def _files_are_compatible(
 
 async def discover_files(
     root: Path,
-    config: discovery_schemas.RecordAssetDiscoveryConfiguration,
+    asset_config: discovery_schemas.RecordAssetDiscoveryConfiguration,
 ) -> AsyncIterator[discovery_schemas.DiscoveredFile]:
     compiled_patterns = [
-        _build_pattern_regex(p, config.properties) for p in config.discovery_patterns
+        _build_pattern_regex(p, asset_config.properties)
+        for p in asset_config.discovery_patterns
     ]
 
     async for path in root.rglob("*"):
@@ -351,7 +373,7 @@ async def discover_files(
             extracted = {}
             valid = True
 
-            for name, prop in config.properties.items():
+            for name, prop in asset_config.properties.items():
                 try:
                     raw = m.group(name)
                 except IndexError:
@@ -381,12 +403,13 @@ def _build_pattern_regex(
     template: str,
     properties: dict[str, discovery_schemas.RecordProperty],
 ) -> re.Pattern:
+    logger.debug(f"{properties=}")
     seen: set[str] = set()
 
     def replacer(m: re.Match) -> str:
         name = m.group("prop_name")
         if name not in properties:
-            raise ValueError(f"Placeholder {{{name}}} not found in extra_properties")
+            raise ValueError(f"Placeholder {name} not found in extra_properties")
         if name in seen:
             return f"(?P={name})"
         seen.add(name)
@@ -415,7 +438,7 @@ async def discover_project_survey_missions(
     """
 
     discovery_configuration = (
-        discovery_schemas.ProjectDiscoveryConfiguration.model_validate(
+        discovery_schemas.ProjectDiscoveryConfiguration.from_raw_config(
             project.discovery_configuration
         )
     )

@@ -98,10 +98,10 @@ def get_projects_to_create(owner: schemas.User) -> list[schemas.ProjectCreate]:
                         name=discovery_schemas.TranslatableString(
                             {
                                 "en": discovery_schemas.TemplatedString(
-                                    "Raw bathymetry"
+                                    "Raw bathymetry {date_dashed} - pathway #{pathway}"
                                 ),
                                 "pt": discovery_schemas.TemplatedString(
-                                    "Batimetria em bruto"
+                                    "Batimetria em bruto {date_dashed} - pathway #{pathway}"
                                 ),
                             }
                         ),
@@ -113,6 +113,12 @@ def get_projects_to_create(owner: schemas.User) -> list[schemas.ProjectCreate]:
                             discovery_schemas.RecordProperty(
                                 identifier="date_dashed",
                                 handler=discovery_schemas.DateYmdDashedProperty(),
+                            ),
+                            discovery_schemas.RecordProperty(
+                                identifier="pathway",
+                                handler=discovery_schemas.ConstantProperty(
+                                    pattern=r"\d{4}"
+                                ),
                             ),
                             discovery_schemas.RecordProperty(
                                 identifier="ship",
@@ -135,7 +141,7 @@ def get_projects_to_create(owner: schemas.User) -> list[schemas.ProjectCreate]:
                                 ),
                                 discovery_patterns=[
                                     discovery_schemas.TemplatedString(
-                                        r"s06-mbes/s02-raw-data/01-EM712/{{date_dashed}}/\d{4}_{{date}}_\d{6}_{{ship}}.kmall"
+                                        r"s06-mbes/s02-raw-data/01-EM712/{{date_dashed}}/{{pathway}}_{{date}}_\d{6}_{{ship}}.kmall"
                                     )
                                 ],
                             )
@@ -151,10 +157,10 @@ def get_projects_to_create(owner: schemas.User) -> list[schemas.ProjectCreate]:
                         name=discovery_schemas.TranslatableString(
                             {
                                 "en": discovery_schemas.TemplatedString(
-                                    "Processed bathymetry"
+                                    "{region} - Processed bathymetry"
                                 ),
                                 "pt": discovery_schemas.TemplatedString(
-                                    "Batimetria processada"
+                                    "Batimetria processada - {region}"
                                 ),
                             }
                         ),
