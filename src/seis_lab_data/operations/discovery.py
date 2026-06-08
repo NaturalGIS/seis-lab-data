@@ -8,6 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from .. import (
     config,
+    constants,
     errors,
 )
 from ..db import models
@@ -30,6 +31,7 @@ from ..schemas.surveyrelatedrecords import (
 from ..schemas import identifiers
 
 from . import (
+    projects as project_ops,
     surveymissions as survey_mission_ops,
     surveyrelatedrecords as record_ops,
 )
@@ -62,7 +64,7 @@ async def discover_project_contents(
     project: models.Project,
     settings: config.SeisLabDataSettings,
     user: User | None = None,
-) -> list[models.SurveyMission]:
+) -> None:
     """Discover a new project's contents.
 
     This follows roughly a workflow like:
@@ -70,9 +72,17 @@ async def discover_project_contents(
     - for each survey mission, discover its records
     """
     event_emitter = settings.get_event_emitter()
+    proj_id = identifiers.ProjectId(project.id)
+    db_project = await project_ops.change_project_status(
+        constants.ProjectStatus.UNDER_DISCOVERY,
+        proj_id,
+        initiator=user,
+        session=session,
+        event_emitter=event_emitter,
+    )
     new_survey_missions = await discover_project_survey_missions(
         session=session,
-        project=project,
+        project=db_project,
         event_emitter=event_emitter,
         settings=settings,
         user=user,
@@ -85,7 +95,13 @@ async def discover_project_contents(
             event_emitter=event_emitter,
             user=user,
         )
-    return new_survey_missions
+    await project_ops.change_project_status(
+        constants.ProjectStatus.DRAFT,
+        proj_id,
+        initiator=user,
+        session=session,
+        event_emitter=event_emitter,
+    )
 
 
 async def discover_survey_mission_records(
@@ -104,6 +120,7 @@ async def discover_survey_mission_records(
             f"mission {survey_mission.id!r}"
         )
         return None
+
     project_discovery_conf = (
         discovery_schemas.ProjectDiscoveryConfiguration.from_raw_config(
             survey_mission.project.discovery_configuration
@@ -116,6 +133,15 @@ async def discover_survey_mission_records(
             "The survey mission's project does not have a discovery configuration - Cannot discover records"
         )
         return None
+
+    mission_id = identifiers.SurveyMissionId(survey_mission.id)
+    await survey_mission_ops.change_survey_mission_status(
+        constants.SurveyMissionStatus.UNDER_DISCOVERY,
+        mission_id,
+        initiator=user,
+        session=session,
+        event_emitter=event_emitter,
+    )
     created_records = []
     relationships_to_create = []  # noqa
     for idx, record_discovery_conf_name in enumerate(
@@ -147,7 +173,14 @@ async def discover_survey_mission_records(
                 new_record, initiator=user, session=session, event_emitter=event_emitter
             )
             created_records.append(created_record)
-    # now we need to handle record relationships
+    # TODO: now we need to handle record relationships
+    await survey_mission_ops.change_survey_mission_status(
+        constants.SurveyMissionStatus.DRAFT,
+        mission_id,
+        initiator=user,
+        session=session,
+        event_emitter=event_emitter,
+    )
 
 
 async def discover_records(

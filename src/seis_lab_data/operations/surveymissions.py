@@ -84,6 +84,7 @@ async def change_survey_mission_status(
             f"Survey mission status is already set to {target_status} - nothing to do"
         )
         return survey_mission
+    # TODO: also need to ensure the mission's parent project status is updated
     updated_survey_mission = await commands.set_survey_mission_status(
         session, identifiers.SurveyMissionId(survey_mission.id), target_status
     )
