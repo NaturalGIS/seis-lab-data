@@ -19,18 +19,23 @@ from ..db import (
     queries,
     models,
 )
-from .. import (
-    permissions,
-    schemas,
+from .. import permissions
+from ..schemas import (
+    events as event_schemas,
+    filters as filter_schemas,
+    identifiers,
+    surveymissions as survey_mission_schemas,
+    user as user_schemas,
+    validation as validation_schemas,
 )
-from ..schemas import identifiers
+from . import projects as project_ops
 
 logger = logging.getLogger(__name__)
 
 
 async def create_survey_mission(
-    to_create: schemas.SurveyMissionCreate,
-    initiator: schemas.User | None,
+    to_create: survey_mission_schemas.SurveyMissionCreate,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.SurveyMission:
@@ -49,11 +54,11 @@ async def create_survey_mission(
         )
     survey_mission = await commands.create_survey_mission(session, to_create)
     event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.SURVEY_MISSION_CREATED,
+        event_schemas.SeisLabDataEvent(
+            type_=event_schemas.EventType.SURVEY_MISSION_CREATED,
             initiator=initiator.id,
-            payload=schemas.EventPayload(
-                after=schemas.SurveyMissionReadDetail.from_db_instance(
+            payload=event_schemas.EventPayload(
+                after=survey_mission_schemas.SurveyMissionReadDetail.from_db_instance(
                     survey_mission
                 ).model_dump()
             ),
@@ -65,7 +70,7 @@ async def create_survey_mission(
 async def change_survey_mission_status(
     target_status: SurveyMissionStatus,
     survey_mission_id: identifiers.SurveyMissionId,
-    initiator: schemas.User | None,
+    initiator: user_schemas.User,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.SurveyMission:
@@ -84,15 +89,22 @@ async def change_survey_mission_status(
             f"Survey mission status is already set to {target_status} - nothing to do"
         )
         return survey_mission
-    # TODO: also need to ensure the mission's parent project status is updated
+    if target_status == SurveyMissionStatus.UNDER_DISCOVERY:
+        await project_ops.change_project_status(
+            ProjectStatus.UNDER_DISCOVERY,
+            identifiers.ProjectId(survey_mission.project_id),
+            initiator,
+            session,
+            event_emitter,
+        )
     updated_survey_mission = await commands.set_survey_mission_status(
         session, identifiers.SurveyMissionId(survey_mission.id), target_status
     )
     event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.SURVEY_MISSION_STATUS_CHANGED,
+        event_schemas.SeisLabDataEvent(
+            type_=event_schemas.EventType.SURVEY_MISSION_STATUS_CHANGED,
             initiator=initiator.id,
-            payload=schemas.EventPayload(
+            payload=event_schemas.EventPayload(
                 before={"status": old_status.value},
                 after={"status": updated_survey_mission.status.value},
             ),
@@ -103,7 +115,7 @@ async def change_survey_mission_status(
 
 async def validate_survey_mission(
     survey_mission_id: identifiers.SurveyMissionId,
-    initiator: schemas.User | None,
+    initiator: user_schemas.User,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.SurveyMission:
@@ -122,7 +134,7 @@ async def validate_survey_mission(
     }
     validation_errors = []
     try:
-        schemas.ValidSurveyMission(**survey_mission.model_dump())
+        validation_schemas.ValidSurveyMission(**survey_mission.model_dump())
     except pydantic.ValidationError as err:
         for error in err.errors():
             validation_errors.append(
@@ -147,10 +159,10 @@ async def validate_survey_mission(
             validation_result={"is_valid": True, "errors": None},
         )
     event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.SURVEY_MISSION_VALIDATED,
+        event_schemas.SeisLabDataEvent(
+            type_=event_schemas.EventType.SURVEY_MISSION_VALIDATED,
             initiator=initiator.id,
-            payload=schemas.EventPayload(
+            payload=event_schemas.EventPayload(
                 before={
                     "survey_mission_id": survey_mission.id,
                     "validation_result": {**old_validation_result},
@@ -167,8 +179,8 @@ async def validate_survey_mission(
 
 async def update_survey_mission(
     survey_mission_id: identifiers.SurveyMissionId,
-    to_update: schemas.SurveyMissionUpdate,
-    initiator: schemas.User | None,
+    to_update: survey_mission_schemas.SurveyMissionUpdate,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.SurveyMission:
@@ -189,19 +201,21 @@ async def update_survey_mission(
             f"Cannot delete survey mission because parent project's status "
             f"is {survey_mission.project.status}"
         )
-    serialized_mission_before = schemas.SurveyMissionReadDetail.from_db_instance(
-        survey_mission
-    ).model_dump()
+    serialized_mission_before = (
+        survey_mission_schemas.SurveyMissionReadDetail.from_db_instance(
+            survey_mission
+        ).model_dump()
+    )
     updated_survey_mission = await commands.update_survey_mission(
         session, survey_mission, to_update
     )
     event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.SURVEY_MISSION_UPDATED,
+        event_schemas.SeisLabDataEvent(
+            type_=event_schemas.EventType.SURVEY_MISSION_UPDATED,
             initiator=initiator.id,
-            payload=schemas.EventPayload(
+            payload=event_schemas.EventPayload(
                 before=serialized_mission_before,
-                after=schemas.SurveyMissionReadDetail.from_db_instance(
+                after=survey_mission_schemas.SurveyMissionReadDetail.from_db_instance(
                     updated_survey_mission
                 ).model_dump(),
             ),
@@ -212,7 +226,7 @@ async def update_survey_mission(
 
 async def delete_survey_mission(
     survey_mission_id: identifiers.SurveyMissionId,
-    initiator: schemas.User | None,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
@@ -233,22 +247,24 @@ async def delete_survey_mission(
             f"Cannot delete survey mission because parent project's status "
             f"is {survey_mission.project.status}"
         )
-    serialized_survey_mission = schemas.SurveyMissionReadDetail.from_db_instance(
-        survey_mission
-    ).model_dump()
+    serialized_survey_mission = (
+        survey_mission_schemas.SurveyMissionReadDetail.from_db_instance(
+            survey_mission
+        ).model_dump()
+    )
     await commands.delete_survey_mission(session, survey_mission_id)
     event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.SURVEY_MISSION_DELETED,
+        event_schemas.SeisLabDataEvent(
+            type_=event_schemas.EventType.SURVEY_MISSION_DELETED,
             initiator=initiator.id,
-            payload=schemas.EventPayload(before=serialized_survey_mission),
+            payload=event_schemas.EventPayload(before=serialized_survey_mission),
         )
     )
 
 
 async def list_survey_missions(
     session: AsyncSession,
-    initiator: schemas.User | None,
+    initiator: user_schemas.User | None,
     project_id: identifiers.ProjectId | None = None,
     page: int = 1,
     page_size: int = 20,
@@ -256,7 +272,7 @@ async def list_survey_missions(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.SurveyMission], int | None]:
     kwargs = dict(
         project_id=project_id,
@@ -280,7 +296,7 @@ async def list_survey_missions(
 
 async def get_survey_mission(
     survey_mission_id: identifiers.SurveyMissionId,
-    initiator: schemas.User | None,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
 ) -> models.SurveyMission | None:
     mission = await queries.get_survey_mission(session, survey_mission_id)

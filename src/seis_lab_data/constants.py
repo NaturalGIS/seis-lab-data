@@ -30,6 +30,10 @@ PROJECT_VALIDITY_CHANGED_TOPIC: typing.Final[str] = (
 PROJECT_DELETED_TOPIC: typing.Final[str] = "project-deleted:{project_id}"
 PROJECT_DISCOVERY_TOPIC: typing.Final[str] = "project-discovery:{project_id}"
 
+SURVEY_MISSION_CREATED_TOPIC: typing.Final[str] = "survey-mission-created"
+SURVEY_MISSION_DISCOVERY_TOPIC: typing.Final[str] = (
+    "survey-mission-discovery:{survey_mission_id}"
+)
 SURVEY_MISSION_UPDATED_TOPIC: typing.Final[str] = (
     "survey-mission-updated:{survey_mission_id}"
 )
@@ -43,6 +47,7 @@ SURVEY_MISSION_DELETED_TOPIC: typing.Final[str] = (
     "survey-mission-deleted:{survey_mission_id}"
 )
 
+SURVEY_RELATED_RECORD_CREATED_TOPIC: typing.Final[str] = "survey-related-record-created"
 SURVEY_RELATED_RECORD_UPDATED_TOPIC: typing.Final[str] = (
     "survey-related-record-updated:{survey_related_record_id}"
 )

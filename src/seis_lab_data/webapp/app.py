@@ -83,6 +83,7 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
                 "search": "search",
                 "expand_less": "expand_less",
                 "expand_more": "expand_more",
+                "discover_project": "travel_explore",
                 "status_draft": "design_services",
                 "status_published": "public",
                 "status_under_validation": "sync",

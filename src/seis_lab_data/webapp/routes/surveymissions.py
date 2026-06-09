@@ -31,7 +31,9 @@ from ... import (
 )
 from ...constants import (
     PROGRESS_TOPIC_NAME_TEMPLATE,
+    SURVEY_MISSION_CREATED_TOPIC,
     SURVEY_MISSION_DELETED_TOPIC,
+    SURVEY_MISSION_DISCOVERY_TOPIC,
     SURVEY_MISSION_STATUS_CHANGED_TOPIC,
     SURVEY_MISSION_UPDATED_TOPIC,
     SURVEY_MISSION_VALIDITY_CHANGED_TOPIC,
@@ -272,10 +274,57 @@ async def get_survey_mission_detail_updates(request: Request):
                 ),
             )
 
+    async def on_discovery_message(
+        raw_message: str,
+    ) -> AsyncGenerator[DatastarEvent, None]:
+        logger.debug(
+            "Received message about survey mission discovery update, "
+            "refreshing records list..."
+        )
+        settings: config.SeisLabDataSettings = request.state.settings
+        async with session_maker() as session:
+            (
+                survey_related_records,
+                total,
+            ) = await operations.list_survey_related_records(
+                session,
+                user,
+                survey_mission_id=survey_mission_id,
+                include_total=True,
+                page=1,
+                page_size=settings.pagination_page_size,
+            )
+        pagination = get_pagination_info(
+            current_page=1,
+            page_size=settings.pagination_page_size,
+            total_filtered_items=total,
+            total_unfiltered_items=total,
+            collection_url=str(
+                request.url_for(
+                    "survey_missions:detail", survey_mission_id=survey_mission_id
+                )
+            ),
+        )
+        serialized_records = [
+            schemas.SurveyRelatedRecordReadListItem.from_db_instance(r)
+            for r in survey_related_records
+        ]
+        rendered = request.state.templates.get_template(
+            "survey-related-records/list-component.html"
+        ).render(request=request, items=serialized_records, pagination=pagination)
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=schemas.selector_info.survey_mission_records_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
     topic_handlers = {
         SURVEY_MISSION_DELETED_TOPIC.format(
             survey_mission_id=survey_mission_id
         ): on_deleted_message,
+        SURVEY_MISSION_DISCOVERY_TOPIC.format(
+            survey_mission_id=survey_mission_id
+        ): on_discovery_message,
         SURVEY_MISSION_VALIDITY_CHANGED_TOPIC.format(
             survey_mission_id=survey_mission_id
         ): on_validation_update_message,
@@ -423,6 +472,58 @@ async def get_list_component(request: Request):
                 )
             )
         )
+
+    return DatastarResponse(event_streamer())
+
+
+async def get_listing_updates(request: Request):
+    redis_client: Redis = request.state.redis_client
+    user = request.user if request.user.is_authenticated else None
+    settings: config.SeisLabDataSettings = request.state.settings
+
+    async def on_mission_created_message(
+        raw_message: str,
+    ) -> AsyncGenerator[DatastarEvent, None]:
+        logger.debug(
+            "Received message about new survey mission created, "
+            "refreshing missions list..."
+        )
+        async with settings.get_db_session_maker()() as session:
+            items, total = await operations.list_survey_missions(
+                session,
+                initiator=user,
+                include_total=True,
+                page=1,
+                page_size=settings.pagination_page_size,
+            )
+        pagination = get_pagination_info(
+            current_page=1,
+            page_size=settings.pagination_page_size,
+            total_filtered_items=total,
+            total_unfiltered_items=total,
+            collection_url=str(request.url_for("survey_missions:list")),
+        )
+        serialized_items = [
+            schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items
+        ]
+        rendered = request.state.templates.get_template(
+            "survey-missions/list-component.html"
+        ).render(request=request, items=serialized_items, pagination=pagination)
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=schemas.selector_info.items_selector,
+            mode=ElementPatchMode.REPLACE,
+        )
+
+    topic_handlers = {
+        SURVEY_MISSION_CREATED_TOPIC: on_mission_created_message,
+    }
+
+    async def event_streamer():
+        async for sse_event in produce_event_stream_for_item_updates(
+            redis_client, request, timeout_seconds=30, **topic_handlers
+        ):
+            yield sse_event
 
     return DatastarResponse(event_streamer())
 
@@ -1203,6 +1304,12 @@ routes = [
         get_list_component,
         methods=["GET"],
         name="get_list_component",
+    ),
+    Route(
+        "/listing-updates",
+        get_listing_updates,
+        methods=["GET"],
+        name="get_listing_updates",
     ),
     Route(
         "/{project_id}/new",

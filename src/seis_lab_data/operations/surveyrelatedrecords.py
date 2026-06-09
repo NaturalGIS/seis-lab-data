@@ -9,7 +9,6 @@ from .. import (
     errors,
     events,
     permissions,
-    schemas,
 )
 from ..constants import (
     ROLE_ADMIN,
@@ -23,14 +22,22 @@ from ..db import (
     queries,
     models,
 )
-from ..schemas import identifiers
+from ..schemas import (
+    events as event_schemas,
+    filters as filter_schemas,
+    identifiers,
+    surveyrelatedrecords as record_schemas,
+    user as user_schemas,
+    validation as validation_schemas,
+)
+from . import surveymissions as survey_mission_ops
 
 logger = logging.getLogger(__name__)
 
 
 async def create_dataset_category(
-    to_create: schemas.DatasetCategoryCreate,
-    initiator: schemas.User | None,
+    to_create: record_schemas.DatasetCategoryCreate,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.DatasetCategory:
@@ -40,11 +47,11 @@ async def create_dataset_category(
         )
     dataset_category = await commands.create_dataset_category(session, to_create)
     event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.DATASET_CATEGORY_CREATED,
+        event_schemas.SeisLabDataEvent(
+            type_=event_schemas.EventType.DATASET_CATEGORY_CREATED,
             initiator=initiator.id,
-            payload=schemas.EventPayload(
-                after=schemas.DatasetCategoryRead(
+            payload=event_schemas.EventPayload(
+                after=record_schemas.DatasetCategoryRead(
                     **dataset_category.model_dump()
                 ).model_dump()
             ),
@@ -55,7 +62,7 @@ async def create_dataset_category(
 
 async def delete_dataset_category(
     dataset_category_id: uuid.UUID,
-    initiator: schemas.User | None,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
@@ -68,15 +75,15 @@ async def delete_dataset_category(
         raise errors.SeisLabDataError(
             f"Dataset category with id {dataset_category_id} does not exist."
         )
-    serialized_category = schemas.DatasetCategoryRead(
+    serialized_category = record_schemas.DatasetCategoryRead(
         **dataset_category.model_dump()
     ).model_dump()
     await commands.delete_dataset_category(session, dataset_category_id)
     event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.DATASET_CATEGORY_DELETED,
+        event_schemas.SeisLabDataEvent(
+            type_=event_schemas.EventType.DATASET_CATEGORY_DELETED,
             initiator=initiator.id,
-            payload=schemas.EventPayload(before=serialized_category),
+            payload=event_schemas.EventPayload(before=serialized_category),
         )
     )
 
@@ -91,8 +98,8 @@ async def list_dataset_categories(
 
 
 async def create_domain_type(
-    to_create: schemas.DomainTypeCreate,
-    initiator: schemas.User | None,
+    to_create: record_schemas.DomainTypeCreate,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.DomainType:
@@ -100,11 +107,13 @@ async def create_domain_type(
         raise errors.SeisLabDataError("User is not allowed to create a domain type.")
     domain_type = await commands.create_domain_type(session, to_create)
     event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.DOMAIN_TYPE_CREATED,
+        event_schemas.SeisLabDataEvent(
+            type_=event_schemas.EventType.DOMAIN_TYPE_CREATED,
             initiator=initiator.id,
-            payload=schemas.EventPayload(
-                after=schemas.DomainTypeRead(**domain_type.model_dump()).model_dump()
+            payload=event_schemas.EventPayload(
+                after=record_schemas.DomainTypeRead(
+                    **domain_type.model_dump()
+                ).model_dump()
             ),
         )
     )
@@ -113,7 +122,7 @@ async def create_domain_type(
 
 async def delete_domain_type(
     domain_type_id: uuid.UUID,
-    initiator: schemas.User | None,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
@@ -124,15 +133,15 @@ async def delete_domain_type(
         raise errors.SeisLabDataError(
             f"Domain type with id {domain_type_id} does not exist."
         )
-    serialized_domain_type = schemas.DomainTypeRead(
+    serialized_domain_type = record_schemas.DomainTypeRead(
         **domain_type.model_dump()
     ).model_dump()
     await commands.delete_domain_type(session, domain_type_id)
     event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.DOMAIN_TYPE_DELETED,
+        event_schemas.SeisLabDataEvent(
+            type_=event_schemas.EventType.DOMAIN_TYPE_DELETED,
             initiator=initiator.id,
-            payload=schemas.EventPayload(before=serialized_domain_type),
+            payload=event_schemas.EventPayload(before=serialized_domain_type),
         )
     )
 
@@ -147,8 +156,8 @@ async def list_domain_types(
 
 
 async def create_workflow_stage(
-    to_create: schemas.WorkflowStageCreate,
-    initiator: schemas.User | None,
+    to_create: record_schemas.WorkflowStageCreate,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.WorkflowStage:
@@ -156,11 +165,13 @@ async def create_workflow_stage(
         raise errors.SeisLabDataError("User is not allowed to create a workflow stage.")
     workflow_stage = await commands.create_workflow_stage(session, to_create)
     event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.WORKFLOW_STAGE_CREATED,
+        event_schemas.SeisLabDataEvent(
+            type_=event_schemas.EventType.WORKFLOW_STAGE_CREATED,
             initiator=initiator.id,
-            payload=schemas.EventPayload(
-                after=schemas.DomainTypeRead(**workflow_stage.model_dump()).model_dump()
+            payload=event_schemas.EventPayload(
+                after=record_schemas.DomainTypeRead(
+                    **workflow_stage.model_dump()
+                ).model_dump()
             ),
         )
     )
@@ -169,7 +180,7 @@ async def create_workflow_stage(
 
 async def delete_workflow_stage(
     workflow_stage_id: uuid.UUID,
-    initiator: schemas.User | None,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
@@ -180,15 +191,15 @@ async def delete_workflow_stage(
         raise errors.SeisLabDataError(
             f"Workflow stage with id {workflow_stage_id} does not exist."
         )
-    serialized_workflow_stage = schemas.DomainTypeRead(
+    serialized_workflow_stage = record_schemas.DomainTypeRead(
         **workflow_stage.model_dump()
     ).model_dump()
     await commands.delete_workflow_stage(session, workflow_stage_id)
     event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.WORKFLOW_STAGE_DELETED,
+        event_schemas.SeisLabDataEvent(
+            type_=event_schemas.EventType.WORKFLOW_STAGE_DELETED,
             initiator=initiator.id,
-            payload=schemas.EventPayload(before=serialized_workflow_stage),
+            payload=event_schemas.EventPayload(before=serialized_workflow_stage),
         )
     )
 
@@ -202,61 +213,9 @@ async def list_workflow_stages(
     return await queries.list_workflow_stages(session, limit, offset, include_total)
 
 
-async def bulk_create_survey_related_records(
-    to_create: list[schemas.SurveyRelatedRecordCreate],
-    initiator: schemas.User | None,
-    session: AsyncSession,
-    event_emitter: events.EventEmitterProtocol,
-):
-    survey_mission_ids = set([new_.survey_mission_id for new_ in to_create])
-    if len(survey_mission_ids) != 1:
-        raise errors.SeisLabDataError(
-            "Cannot create survey-related records for multiple survey missions at "
-            "the same time."
-        )
-    survey_mission_id = survey_mission_ids.pop()
-    if not (
-        survey_mission := await queries.get_survey_mission(session, survey_mission_id)
-    ):
-        raise errors.SeisLabDataError(
-            f"Survey mission with id {survey_mission_id} does not exist"
-        )
-    if initiator is None or not permissions.can_create_survey_related_record(
-        initiator, survey_mission
-    ):
-        raise errors.SeisLabDataError(
-            "User is not allowed to create survey-related records."
-        )
-    if (mission_status := survey_mission.status) != SurveyMissionStatus.DRAFT:
-        raise errors.SeisLabDataError(
-            f"Cannot create survey-related record because parent survey "
-            f"mission's status is {mission_status}"
-        )
-    if (project_status := survey_mission.project.status) != ProjectStatus.DRAFT:
-        raise errors.SeisLabDataError(
-            f"Cannot create survey-related record because parent project's "
-            f"status is {project_status}"
-        )
-    created = []
-    for record_to_create in to_create:
-        survey_record = await commands.create_survey_related_record(
-            session, record_to_create
-        )
-        created.append(survey_record)
-    event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.BULK_SURVEY_RELATED_RECORDS_CREATED,
-            initiator=initiator.id,
-            payload=schemas.EventPayload(
-                after={"created_ids": [c.id for c in created]}
-            ),
-        )
-    )
-
-
 async def create_survey_related_record(
-    to_create: schemas.SurveyRelatedRecordCreate,
-    initiator: schemas.User | None,
+    to_create: record_schemas.SurveyRelatedRecordCreate,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
 ):
@@ -290,11 +249,11 @@ async def create_survey_related_record(
         session, identifiers.SurveyRelatedRecordId(survey_record.id)
     )
     event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.SURVEY_RELATED_RECORD_CREATED,
+        event_schemas.SeisLabDataEvent(
+            type_=event_schemas.EventType.SURVEY_RELATED_RECORD_CREATED,
             initiator=initiator.id,
-            payload=schemas.EventPayload(
-                after=schemas.SurveyRelatedRecordReadDetail.from_db_instance(
+            payload=event_schemas.EventPayload(
+                after=record_schemas.SurveyRelatedRecordReadDetail.from_db_instance(
                     survey_record,
                     records_related_to=related_to,
                     records_subject_for=subject_for,
@@ -308,7 +267,7 @@ async def create_survey_related_record(
 async def change_survey_related_record_status(
     target_status: SurveyRelatedRecordStatus,
     survey_related_record_id: identifiers.SurveyRelatedRecordId,
-    initiator: schemas.User | None,
+    initiator: user_schemas.User,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.SurveyRelatedRecord:
@@ -332,16 +291,24 @@ async def change_survey_related_record_status(
             f"set to {target_status} - nothing to do"
         )
         return survey_related_record
+    if target_status == SurveyRelatedRecordStatus.UNDER_DISCOVERY:
+        await survey_mission_ops.change_survey_mission_status(
+            SurveyMissionStatus.UNDER_DISCOVERY,
+            identifiers.SurveyMissionId(survey_related_record.survey_mission_id),
+            initiator,
+            session,
+            event_emitter,
+        )
     updated_survey_related_record = await commands.set_survey_related_record_status(
         session,
         identifiers.SurveyRelatedRecordId(survey_related_record.id),
         target_status,
     )
     event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.SURVEY_RELATED_RECORD_STATUS_CHANGED,
+        event_schemas.SeisLabDataEvent(
+            type_=event_schemas.EventType.SURVEY_RELATED_RECORD_STATUS_CHANGED,
             initiator=initiator.id,
-            payload=schemas.EventPayload(
+            payload=event_schemas.EventPayload(
                 before={"status": old_status.value},
                 after={"status": updated_survey_related_record.status.value},
             ),
@@ -352,7 +319,7 @@ async def change_survey_related_record_status(
 
 async def validate_survey_related_record(
     survey_related_record_id: identifiers.SurveyRelatedRecordId,
-    initiator: schemas.User | None,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.SurveyRelatedRecord:
@@ -377,7 +344,9 @@ async def validate_survey_related_record(
     }
     validation_errors = []
     try:
-        schemas.ValidSurveyRelatedRecord(**survey_related_record.model_dump())
+        validation_schemas.ValidSurveyRelatedRecord(
+            **survey_related_record.model_dump()
+        )
     except pydantic.ValidationError as err:
         for error in err.errors():
             validation_errors.append(
@@ -402,10 +371,10 @@ async def validate_survey_related_record(
             validation_result={"is_valid": True, "errors": None},
         )
     event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.SURVEY_RELATED_RECORD_VALIDATED,
+        event_schemas.SeisLabDataEvent(
+            type_=event_schemas.EventType.SURVEY_RELATED_RECORD_VALIDATED,
             initiator=initiator.id,
-            payload=schemas.EventPayload(
+            payload=event_schemas.EventPayload(
                 before={
                     "survey_related_record_id": survey_related_record.id,
                     "validation_result": {**old_validation_result},
@@ -422,7 +391,7 @@ async def validate_survey_related_record(
 
 async def delete_survey_related_record(
     survey_related_record_id: identifiers.SurveyRelatedRecordId,
-    initiator: schemas.User | None,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
 ) -> None:
@@ -458,22 +427,26 @@ async def delete_survey_related_record(
     subject_for = await queries.list_survey_related_record_subject_records(
         session, identifiers.SurveyRelatedRecordId(survey_record.id)
     )
-    serialized_survey_record = schemas.SurveyRelatedRecordReadDetail.from_db_instance(
-        survey_record, records_related_to=related_to, records_subject_for=subject_for
-    ).model_dump()
+    serialized_survey_record = (
+        record_schemas.SurveyRelatedRecordReadDetail.from_db_instance(
+            survey_record,
+            records_related_to=related_to,
+            records_subject_for=subject_for,
+        ).model_dump()
+    )
     await commands.delete_survey_related_record(session, survey_related_record_id)
     event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.SURVEY_RELATED_RECORD_DELETED,
+        event_schemas.SeisLabDataEvent(
+            type_=event_schemas.EventType.SURVEY_RELATED_RECORD_DELETED,
             initiator=initiator.id,
-            payload=schemas.EventPayload(before=serialized_survey_record),
+            payload=event_schemas.EventPayload(before=serialized_survey_record),
         )
     )
 
 
 async def list_survey_related_records(
     session: AsyncSession,
-    initiator: schemas.User | None,
+    initiator: user_schemas.User | None,
     survey_mission_id: identifiers.SurveyMissionId | None = None,
     page: int = 1,
     page_size: int = 20,
@@ -481,7 +454,7 @@ async def list_survey_related_records(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     kwargs = dict(
         survey_mission_id=survey_mission_id,
@@ -505,7 +478,7 @@ async def list_survey_related_records(
 
 async def get_survey_related_record(
     survey_related_record_id: identifiers.SurveyRelatedRecordId,
-    initiator: schemas.User | None,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
 ) -> (
     tuple[
@@ -535,8 +508,8 @@ async def get_survey_related_record(
 
 async def update_survey_related_record(
     survey_related_record_id: identifiers.SurveyRelatedRecordId,
-    to_update: schemas.SurveyRelatedRecordUpdate,
-    initiator: schemas.User | None,
+    to_update: record_schemas.SurveyRelatedRecordUpdate,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
     event_emitter: events.EventEmitterProtocol,
 ) -> models.SurveyRelatedRecord:
@@ -574,7 +547,7 @@ async def update_survey_related_record(
     before_subject_for = await queries.list_survey_related_record_subject_records(
         session, survey_related_record_id
     )
-    serialized_before = schemas.SurveyRelatedRecordReadDetail.from_db_instance(
+    serialized_before = record_schemas.SurveyRelatedRecordReadDetail.from_db_instance(
         survey_related_record,
         before_related_to,
         before_subject_for,
@@ -589,12 +562,12 @@ async def update_survey_related_record(
         session, survey_related_record_id
     )
     event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.SURVEY_MISSION_UPDATED,
+        event_schemas.SeisLabDataEvent(
+            type_=event_schemas.EventType.SURVEY_MISSION_UPDATED,
             initiator=initiator.id,
-            payload=schemas.EventPayload(
+            payload=event_schemas.EventPayload(
                 before=serialized_before,
-                after=schemas.SurveyRelatedRecordReadDetail.from_db_instance(
+                after=record_schemas.SurveyRelatedRecordReadDetail.from_db_instance(
                     updated_survey_related_record, after_related_to, after_subject_for
                 ).model_dump(),
             ),

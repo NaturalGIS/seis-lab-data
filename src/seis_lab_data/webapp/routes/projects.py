@@ -32,11 +32,13 @@ from ... import (
 from ...constants import (
     PROGRESS_TOPIC_NAME_TEMPLATE,
     PROJECT_DELETED_TOPIC,
+    PROJECT_DISCOVERY_TOPIC,
     PROJECT_STATUS_CHANGED_TOPIC,
     PROJECT_UPDATED_TOPIC,
     PROJECT_VALIDITY_CHANGED_TOPIC,
 )
 from ...processing import tasks
+from ...processing import discovery as discovery_tasks
 from ...schemas import identifiers
 from .. import (
     filters,
@@ -311,8 +313,57 @@ async def get_project_detail_updates(request: Request):
                 str(request.url_for("projects:detail", project_id=project_id)),
             )
 
+    async def on_project_discovery_message(
+        raw_message: str,
+    ) -> AsyncGenerator[DatastarEvent, None]:
+        message = schemas.ProjectEvent(**json.loads(raw_message))
+        if message.project_id == project_id:
+            logger.debug(
+                "Received message about project discovery update, "
+                "refreshing survey missions list..."
+            )
+            settings: config.SeisLabDataSettings = request.state.settings
+            async with session_maker() as session:
+                survey_missions, total = await operations.list_survey_missions(
+                    session,
+                    initiator=user,
+                    project_id=project_id,
+                    include_total=True,
+                    page=1,
+                    page_size=settings.pagination_page_size,
+                )
+            pagination = get_pagination_info(
+                current_page=1,
+                page_size=settings.pagination_page_size,
+                total_filtered_items=total,
+                total_unfiltered_items=total,
+                collection_url=str(
+                    request.url_for("projects:detail", project_id=project_id)
+                ),
+            )
+            serialized_missions = [
+                schemas.SurveyMissionReadListItem.from_db_instance(m)
+                for m in survey_missions
+            ]
+            template_processor = request.state.templates
+            rendered = template_processor.get_template(
+                "survey-missions/list-component.html"
+            ).render(
+                request=request,
+                items=serialized_missions,
+                pagination=pagination,
+            )
+            yield ServerSentEventGenerator.patch_elements(
+                rendered,
+                selector=schemas.selector_info.project_survey_missions_selector,
+                mode=ElementPatchMode.INNER,
+            )
+
     topic_handlers = {
         PROJECT_DELETED_TOPIC.format(project_id=project_id): on_project_deleted_message,
+        PROJECT_DISCOVERY_TOPIC.format(
+            project_id=project_id
+        ): on_project_discovery_message,
         PROJECT_VALIDITY_CHANGED_TOPIC.format(
             project_id=project_id
         ): on_validation_update_message,
@@ -1209,6 +1260,50 @@ async def remove_update_project_form_link(request: Request):
     return DatastarResponse(event_streamer())
 
 
+@csrf_protect
+@requires_auth
+async def trigger_project_discovery(request: Request):
+    user = request.user if request.user.is_authenticated else None
+    project_id = get_id_from_request_path(request, "project_id", identifiers.ProjectId)
+    request_id = identifiers.RequestId(uuid.uuid4())
+    discovery_tasks.discover_project_contents.send(
+        raw_request_id=str(request_id),
+        raw_project_id=str(project_id),
+        raw_initiator=json.dumps(dataclasses.asdict(user)),
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            "Discovery started",
+            selector=schemas.selector_info.feedback_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer(), status_code=202)
+
+
+@csrf_protect
+@requires_auth
+async def trigger_project_validation(request: Request):
+    user = request.user if request.user.is_authenticated else None
+    project_id = get_id_from_request_path(request, "project_id", identifiers.ProjectId)
+    request_id = identifiers.RequestId(uuid.uuid4())
+    tasks.validate_project.send(
+        raw_request_id=str(request_id),
+        raw_project_id=str(project_id),
+        raw_initiator=json.dumps(dataclasses.asdict(user)),
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            "Validation started",
+            selector=schemas.selector_info.feedback_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer(), status_code=202)
+
+
 routes = [
     Route("/", ProjectCollectionEndpoint, name="list"),
     Route("/search", get_list_component, name="get_list_component"),
@@ -1259,6 +1354,18 @@ routes = [
         get_project_detail_updates,
         methods=["GET"],
         name="get_detail_updates",
+    ),
+    Route(
+        "/{project_id}/discover",
+        trigger_project_discovery,
+        methods=["POST"],
+        name="trigger_discovery",
+    ),
+    Route(
+        "/{project_id}/validate",
+        trigger_project_validation,
+        methods=["POST"],
+        name="trigger_validation",
     ),
     Route(
         "/{project_id}",
