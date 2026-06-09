@@ -3,7 +3,7 @@
 {% import "macros-maps.html" as macros_maps %}
 <div
     class="row"
-    data-on:load="@get('{{ url_for("projects:get_detail_updates", project_id=project.id) }}')"
+    data-on-intersect__once="@get('{{ url_for("projects:get_detail_updates", project_id=project.id) }}')"
     data-signals:is-valid="{{ 'true' if project.validation_result.is_valid else 'false' }}"
     data-signals:status="'{{ project.status.value }}'"
 >

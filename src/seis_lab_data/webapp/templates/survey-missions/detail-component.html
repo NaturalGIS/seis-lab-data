@@ -4,7 +4,7 @@
 {% import "macros-maps.html" as macros_maps %}
 <div
         class="row"
-        data-on:load="@get('{{ url_for("survey_missions:get_detail_updates", survey_mission_id=survey_mission.id) }}')"
+        data-on-intersect__once="@get('{{ url_for("survey_missions:get_detail_updates", survey_mission_id=survey_mission.id) }}')"
         data-signals:is-valid="{{ survey_mission.validation_result.is_valid | default(False, True) | tojson }}"
         data-signals:status="'{{ survey_mission.status.value }}'"
         data-signals:deleting="false"

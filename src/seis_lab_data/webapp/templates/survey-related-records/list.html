@@ -114,7 +114,7 @@
         </div>
     </div>
     <div class="row"
-         data-on:load="@get('{{ url_for("survey_related_records:get_listing_updates") }}')"
+         data-on-intersect__once="@get('{{ url_for("survey_related_records:get_listing_updates") }}')"
     >
         <div class="col-9">
             {% include "survey-related-records/list-component.html" %}
