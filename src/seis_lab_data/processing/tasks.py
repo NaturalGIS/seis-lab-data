@@ -8,25 +8,10 @@ from redis.asyncio import Redis
 
 from .. import (
     config,
+    constants,
     schemas,
     operations,
-)
-from ..constants import (
-    ProcessingStatus,
-    ProjectStatus,
-    SurveyMissionStatus,
-    SurveyRelatedRecordStatus,
-    PROGRESS_TOPIC_NAME_TEMPLATE,
-    PROJECT_UPDATED_TOPIC,
-    PROJECT_STATUS_CHANGED_TOPIC,
-    PROJECT_VALIDITY_CHANGED_TOPIC,
-    SURVEY_MISSION_UPDATED_TOPIC,
-    SURVEY_MISSION_STATUS_CHANGED_TOPIC,
-    SURVEY_MISSION_VALIDITY_CHANGED_TOPIC,
-    SURVEY_RELATED_RECORD_UPDATED_TOPIC,
-    SURVEY_RELATED_RECORD_STATUS_CHANGED_TOPIC,
-    SURVEY_RELATED_RECORD_VALIDITY_CHANGED_TOPIC,
-    PROJECT_DELETED_TOPIC,
+    subscribers,
 )
 from ..schemas import identifiers
 
@@ -52,10 +37,10 @@ async def validate_survey_related_record(
     survey_related_record_id = identifiers.SurveyRelatedRecordId(
         uuid.UUID(raw_survey_related_record_id)
     )
-    validity_topic = SURVEY_RELATED_RECORD_VALIDITY_CHANGED_TOPIC.format(
+    validity_topic = constants.SURVEY_RELATED_RECORD_VALIDITY_CHANGED_TOPIC.format(
         survey_related_record_id=survey_related_record_id
     )
-    status_topic = SURVEY_RELATED_RECORD_STATUS_CHANGED_TOPIC.format(
+    status_topic = constants.SURVEY_RELATED_RECORD_STATUS_CHANGED_TOPIC.format(
         survey_related_record_id=survey_related_record_id
     )
     logger.debug(f"validation updates will be published to topic {validity_topic=} ")
@@ -65,7 +50,7 @@ async def validate_survey_related_record(
         try:
             # await asyncio.sleep(2)
             await operations.change_survey_related_record_status(
-                SurveyRelatedRecordStatus.UNDER_VALIDATION,
+                constants.SurveyRelatedRecordStatus.UNDER_VALIDATION,
                 survey_related_record_id,
                 initiator,
                 session,
@@ -94,7 +79,7 @@ async def validate_survey_related_record(
             )
             await asyncio.sleep(2)
             await operations.change_survey_related_record_status(
-                SurveyRelatedRecordStatus.DRAFT,
+                constants.SurveyRelatedRecordStatus.DRAFT,
                 survey_related_record_id,
                 initiator,
                 session,
@@ -123,10 +108,10 @@ async def validate_survey_mission(
     redis_client: Redis,
 ):
     survey_mission_id = identifiers.SurveyMissionId(uuid.UUID(raw_survey_mission_id))
-    validity_topic = SURVEY_MISSION_VALIDITY_CHANGED_TOPIC.format(
+    validity_topic = constants.SURVEY_MISSION_VALIDITY_CHANGED_TOPIC.format(
         survey_mission_id=survey_mission_id
     )
-    status_topic = SURVEY_MISSION_STATUS_CHANGED_TOPIC.format(
+    status_topic = constants.SURVEY_MISSION_STATUS_CHANGED_TOPIC.format(
         survey_mission_id=survey_mission_id
     )
     logger.debug(f"validation updates will be published to topic {validity_topic=} ")
@@ -136,7 +121,7 @@ async def validate_survey_mission(
         try:
             # await asyncio.sleep(2)
             await operations.change_survey_mission_status(
-                SurveyMissionStatus.UNDER_VALIDATION,
+                constants.SurveyMissionStatus.UNDER_VALIDATION,
                 survey_mission_id,
                 initiator,
                 session,
@@ -162,7 +147,7 @@ async def validate_survey_mission(
             )
             await asyncio.sleep(2)
             await operations.change_survey_mission_status(
-                SurveyMissionStatus.DRAFT,
+                constants.SurveyMissionStatus.DRAFT,
                 survey_mission_id,
                 initiator,
                 session,
@@ -191,8 +176,10 @@ async def validate_project(
     redis_client: Redis,
 ):
     project_id = identifiers.ProjectId(uuid.UUID(raw_project_id))
-    validity_topic = PROJECT_VALIDITY_CHANGED_TOPIC.format(project_id=project_id)
-    status_topic = PROJECT_STATUS_CHANGED_TOPIC.format(project_id=project_id)
+    validity_topic = constants.PROJECT_VALIDITY_CHANGED_TOPIC.format(
+        project_id=project_id
+    )
+    status_topic = constants.PROJECT_STATUS_CHANGED_TOPIC.format(project_id=project_id)
     logger.debug(f"validation updates will be published to topic {validity_topic=} ")
     logger.debug(f"status updates will be published to topic {status_topic=} ")
     initiator = schemas.User(**json.loads(raw_initiator))
@@ -200,7 +187,7 @@ async def validate_project(
         try:
             # await asyncio.sleep(2)
             await operations.change_project_status(
-                ProjectStatus.UNDER_VALIDATION,
+                constants.ProjectStatus.UNDER_VALIDATION,
                 project_id,
                 initiator,
                 session,
@@ -225,7 +212,7 @@ async def validate_project(
             )
             await asyncio.sleep(2)
             await operations.change_project_status(
-                ProjectStatus.DRAFT,
+                constants.ProjectStatus.DRAFT,
                 project_id,
                 initiator,
                 session,
@@ -245,6 +232,47 @@ async def validate_project(
 @dramatiq.actor
 @decorators.sld_settings
 @decorators.redis_client
+async def succinct_create_project(
+    raw_to_create: str,
+    raw_initiator: str,
+    *,
+    settings: config.SeisLabDataSettings,
+    redis_client: Redis,
+):
+    topic_name = constants.NEW_TOPIC_PROJECTS
+    to_create = schemas.ProjectCreate(**json.loads(raw_to_create))
+    initiator = schemas.User(**json.loads(raw_initiator))
+    await redis_client.publish(
+        topic_name,
+        subscribers.ProjectCreationStartedMessage().model_dump_json(),
+    )
+    try:
+        async with settings.get_db_session_maker()() as session:
+            project = await operations.create_project(
+                to_create=to_create,
+                initiator=initiator,
+                session=session,
+                event_emitter=settings.get_event_emitter(),
+            )
+    except Exception as err:
+        await redis_client.publish(
+            topic_name,
+            subscribers.ProjectCreationFailedMessage(
+                details=str(err)
+            ).model_dump_json(),
+        )
+
+    await redis_client.publish(
+        topic_name,
+        subscribers.ProjectCreationSuccessfulMessage(
+            project_id=identifiers.ProjectId(project.id),
+        ).model_dump_json(),
+    )
+
+
+@dramatiq.actor
+@decorators.sld_settings
+@decorators.redis_client
 async def create_project(
     raw_request_id: str,
     raw_to_create: str,
@@ -255,7 +283,7 @@ async def create_project(
 ):
     logger.debug("Hi from the create_project task")
     request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
-    topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
+    topic_name = constants.PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     to_create = schemas.ProjectCreate(**json.loads(raw_to_create))
     initiator = schemas.User(**json.loads(raw_initiator))
     logger.info(f"{to_create=}")
@@ -264,7 +292,7 @@ async def create_project(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.RUNNING,
+                status=constants.ProcessingStatus.RUNNING,
                 message="Project creation started",
             ).model_dump_json(),
         )
@@ -272,7 +300,7 @@ async def create_project(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.RUNNING,
+                status=constants.ProcessingStatus.RUNNING,
                 message="Creating project...",
             ).model_dump_json(),
         )
@@ -288,7 +316,7 @@ async def create_project(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.RUNNING,
+                status=constants.ProcessingStatus.RUNNING,
                 message=f"Created project {project.id!r}",
             ).model_dump_json(),
         )
@@ -300,7 +328,7 @@ async def create_project(
                 topic_name,
                 schemas.ProcessingMessage(
                     request_id=request_id,
-                    status=ProcessingStatus.RUNNING,
+                    status=constants.ProcessingStatus.RUNNING,
                     message=f"Project is being validated {i}...",
                 ).model_dump_json(),
             )
@@ -308,7 +336,7 @@ async def create_project(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.SUCCESS,
+                status=constants.ProcessingStatus.SUCCESS,
                 message="Project successfully created",
             ).model_dump_json(),
         )
@@ -317,7 +345,9 @@ async def create_project(
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(
-                request_id=request_id, status=ProcessingStatus.FAILED, message=str(err)
+                request_id=request_id,
+                status=constants.ProcessingStatus.FAILED,
+                message=str(err),
             ).model_dump_json(),
         )
 
@@ -336,7 +366,7 @@ async def update_project(
 ):
     logger.debug("Hi from the update_project task")
     request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
-    topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
+    topic_name = constants.PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     initiator = schemas.User(**json.loads(raw_initiator))
     to_update = schemas.ProjectUpdate(**json.loads(raw_to_update))
     try:
@@ -344,7 +374,7 @@ async def update_project(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.RUNNING,
+                status=constants.ProcessingStatus.RUNNING,
                 message="Project update started",
             ).model_dump_json(),
         )
@@ -360,13 +390,13 @@ async def update_project(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.SUCCESS,
+                status=constants.ProcessingStatus.SUCCESS,
                 message="Project successfully updated",
             ).model_dump_json(),
         )
         # on success, publish also to the project updates topic
         await redis_client.publish(
-            PROJECT_UPDATED_TOPIC.format(project_id=updated_project.id),
+            constants.PROJECT_UPDATED_TOPIC.format(project_id=updated_project.id),
             schemas.ProjectUpdatedMessage(
                 project_id=identifiers.ProjectId(updated_project.id)
             ).model_dump_json(),
@@ -376,7 +406,9 @@ async def update_project(
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(
-                request_id=request_id, status=ProcessingStatus.FAILED, message=str(err)
+                request_id=request_id,
+                status=constants.ProcessingStatus.FAILED,
+                message=str(err),
             ).model_dump_json(),
         )
 
@@ -395,14 +427,14 @@ async def delete_project(
     logger.debug("Hi from the delete_project task")
     request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
     project_id = identifiers.ProjectId(uuid.UUID(raw_project_id))
-    topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
+    topic_name = constants.PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     initiator = schemas.User(**json.loads(raw_initiator))
     try:
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.RUNNING,
+                status=constants.ProcessingStatus.RUNNING,
                 message="Project deletion started",
             ).model_dump_json(),
         )
@@ -417,13 +449,13 @@ async def delete_project(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.SUCCESS,
+                status=constants.ProcessingStatus.SUCCESS,
                 message="Project successfully deleted",
             ).model_dump_json(),
         )
         # on success, publish also to the project deletions topic
         await redis_client.publish(
-            PROJECT_DELETED_TOPIC.format(project_id=project_id),
+            constants.PROJECT_DELETED_TOPIC.format(project_id=project_id),
             schemas.ProjectEvent(
                 project_id=project_id,
                 event=schemas.EventType.PROJECT_DELETED,
@@ -434,7 +466,9 @@ async def delete_project(
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(
-                request_id=request_id, status=ProcessingStatus.FAILED, message=str(err)
+                request_id=request_id,
+                status=constants.ProcessingStatus.FAILED,
+                message=str(err),
             ).model_dump_json(),
         )
 
@@ -451,7 +485,7 @@ async def create_survey_mission(
     redis_client: Redis,
 ):
     request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
-    topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
+    topic_name = constants.PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     to_create = schemas.SurveyMissionCreate(**json.loads(raw_to_create))
     initiator = schemas.User(**json.loads(raw_initiator))
     logger.info(f"{to_create=}")
@@ -460,7 +494,7 @@ async def create_survey_mission(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.RUNNING,
+                status=constants.ProcessingStatus.RUNNING,
                 message="Survey mission creation started",
             ).model_dump_json(),
         )
@@ -468,7 +502,7 @@ async def create_survey_mission(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.RUNNING,
+                status=constants.ProcessingStatus.RUNNING,
                 message="Creating survey mission...",
             ).model_dump_json(),
         )
@@ -484,7 +518,7 @@ async def create_survey_mission(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.RUNNING,
+                status=constants.ProcessingStatus.RUNNING,
                 message=f"Created survey mission {survey_mission.id!r}",
             ).model_dump_json(),
         )
@@ -496,7 +530,7 @@ async def create_survey_mission(
                 topic_name,
                 schemas.ProcessingMessage(
                     request_id=request_id,
-                    status=ProcessingStatus.RUNNING,
+                    status=constants.ProcessingStatus.RUNNING,
                     message=f"Survey mission is being validated {i}...",
                 ).model_dump_json(),
             )
@@ -504,7 +538,7 @@ async def create_survey_mission(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.SUCCESS,
+                status=constants.ProcessingStatus.SUCCESS,
                 message="Survey mission successfully created",
             ).model_dump_json(),
         )
@@ -513,7 +547,9 @@ async def create_survey_mission(
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(
-                request_id=request_id, status=ProcessingStatus.FAILED, message=str(err)
+                request_id=request_id,
+                status=constants.ProcessingStatus.FAILED,
+                message=str(err),
             ).model_dump_json(),
         )
 
@@ -532,7 +568,7 @@ async def update_survey_mission(
 ):
     logger.debug("Hi from the update_survey_mission task")
     request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
-    topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
+    topic_name = constants.PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     initiator = schemas.User(**json.loads(raw_initiator))
     to_update = schemas.SurveyMissionUpdate(**json.loads(raw_to_update))
     try:
@@ -540,7 +576,7 @@ async def update_survey_mission(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.RUNNING,
+                status=constants.ProcessingStatus.RUNNING,
                 message="Survey mission update started",
             ).model_dump_json(),
         )
@@ -558,13 +594,13 @@ async def update_survey_mission(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.SUCCESS,
+                status=constants.ProcessingStatus.SUCCESS,
                 message="Survey mission successfully updated",
             ).model_dump_json(),
         )
         # on success, publish also to the survey mission updates topic
         await redis_client.publish(
-            SURVEY_MISSION_UPDATED_TOPIC.format(
+            constants.SURVEY_MISSION_UPDATED_TOPIC.format(
                 survey_mission_id=updated_survey_mission.id
             ),
             schemas.SurveyMissionUpdatedMessage(
@@ -576,7 +612,9 @@ async def update_survey_mission(
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(
-                request_id=request_id, status=ProcessingStatus.FAILED, message=str(err)
+                request_id=request_id,
+                status=constants.ProcessingStatus.FAILED,
+                message=str(err),
             ).model_dump_json(),
         )
 
@@ -594,14 +632,14 @@ async def delete_survey_mission(
 ):
     logger.debug("Hi from the delete_survey_mission task")
     request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
-    topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
+    topic_name = constants.PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     initiator = schemas.User(**json.loads(raw_initiator))
     try:
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.RUNNING,
+                status=constants.ProcessingStatus.RUNNING,
                 message="Survey mission deletion started",
             ).model_dump_json(),
         )
@@ -618,7 +656,7 @@ async def delete_survey_mission(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.SUCCESS,
+                status=constants.ProcessingStatus.SUCCESS,
                 message="Survey mission successfully deleted",
             ).model_dump_json(),
         )
@@ -627,7 +665,9 @@ async def delete_survey_mission(
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(
-                request_id=request_id, status=ProcessingStatus.FAILED, message=str(err)
+                request_id=request_id,
+                status=constants.ProcessingStatus.FAILED,
+                message=str(err),
             ).model_dump_json(),
         )
 
@@ -644,7 +684,7 @@ async def create_survey_related_record(
     redis_client: Redis,
 ):
     request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
-    topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
+    topic_name = constants.PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     to_create = schemas.SurveyRelatedRecordCreate(**json.loads(raw_to_create))
     initiator = schemas.User(**json.loads(raw_initiator))
     logger.info(f"{to_create=}")
@@ -653,7 +693,7 @@ async def create_survey_related_record(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.RUNNING,
+                status=constants.ProcessingStatus.RUNNING,
                 message="Survey-related record creation started",
             ).model_dump_json(),
         )
@@ -661,7 +701,7 @@ async def create_survey_related_record(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.RUNNING,
+                status=constants.ProcessingStatus.RUNNING,
                 message="Creating survey-related record...",
             ).model_dump_json(),
         )
@@ -677,7 +717,7 @@ async def create_survey_related_record(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.RUNNING,
+                status=constants.ProcessingStatus.RUNNING,
                 message=f"Created survey-related record {survey_related_record.id!r}",
             ).model_dump_json(),
         )
@@ -689,7 +729,7 @@ async def create_survey_related_record(
                 topic_name,
                 schemas.ProcessingMessage(
                     request_id=request_id,
-                    status=ProcessingStatus.RUNNING,
+                    status=constants.ProcessingStatus.RUNNING,
                     message=f"Survey-related record is being validated {i}...",
                 ).model_dump_json(),
             )
@@ -697,7 +737,7 @@ async def create_survey_related_record(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.SUCCESS,
+                status=constants.ProcessingStatus.SUCCESS,
                 message="Survey-related record successfully created",
             ).model_dump_json(),
         )
@@ -706,7 +746,9 @@ async def create_survey_related_record(
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(
-                request_id=request_id, status=ProcessingStatus.FAILED, message=str(err)
+                request_id=request_id,
+                status=constants.ProcessingStatus.FAILED,
+                message=str(err),
             ).model_dump_json(),
         )
 
@@ -724,14 +766,14 @@ async def delete_survey_related_record(
 ):
     logger.debug("Hi from the delete_survey_related_record task")
     request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
-    topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
+    topic_name = constants.PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     initiator = schemas.User(**json.loads(raw_initiator))
     try:
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.RUNNING,
+                status=constants.ProcessingStatus.RUNNING,
                 message="Survey-related record deletion started",
             ).model_dump_json(),
         )
@@ -748,7 +790,7 @@ async def delete_survey_related_record(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.SUCCESS,
+                status=constants.ProcessingStatus.SUCCESS,
                 message="Survey-related record successfully deleted",
             ).model_dump_json(),
         )
@@ -757,7 +799,9 @@ async def delete_survey_related_record(
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(
-                request_id=request_id, status=ProcessingStatus.FAILED, message=str(err)
+                request_id=request_id,
+                status=constants.ProcessingStatus.FAILED,
+                message=str(err),
             ).model_dump_json(),
         )
 
@@ -776,7 +820,7 @@ async def update_survey_related_record(
 ):
     logger.debug("Hi from the update_survey_related_record task")
     request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
-    topic_name = PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
+    topic_name = constants.PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id)
     initiator = schemas.User(**json.loads(raw_initiator))
     to_update = schemas.SurveyRelatedRecordUpdate(**json.loads(raw_to_update))
     try:
@@ -784,7 +828,7 @@ async def update_survey_related_record(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.RUNNING,
+                status=constants.ProcessingStatus.RUNNING,
                 message="Survey-related record update started",
             ).model_dump_json(),
         )
@@ -802,13 +846,13 @@ async def update_survey_related_record(
             topic_name,
             schemas.ProcessingMessage(
                 request_id=request_id,
-                status=ProcessingStatus.SUCCESS,
+                status=constants.ProcessingStatus.SUCCESS,
                 message="Survey-related record successfully updated",
             ).model_dump_json(),
         )
         # on success, publish also to the survey-related record updates topic
         await redis_client.publish(
-            SURVEY_RELATED_RECORD_UPDATED_TOPIC.format(
+            constants.SURVEY_RELATED_RECORD_UPDATED_TOPIC.format(
                 survey_related_record_id=updated.id
             ),
             schemas.SurveyRelatedRecordUpdatedMessage(
@@ -820,6 +864,8 @@ async def update_survey_related_record(
         await redis_client.publish(
             topic_name,
             schemas.ProcessingMessage(
-                request_id=request_id, status=ProcessingStatus.FAILED, message=str(err)
+                request_id=request_id,
+                status=constants.ProcessingStatus.FAILED,
+                message=str(err),
             ).model_dump_json(),
         )

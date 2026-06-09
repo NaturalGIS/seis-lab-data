@@ -1,20 +1,30 @@
 import asyncio
+import dataclasses
+import json
 import logging
+from collections.abc import AsyncGenerator
 from typing import Annotated
 
 import typer
 from psycopg.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
+from redis import asyncio as aioredis
 
 from .. import (
     config,
+    constants,
     operations,
     schemas,
+    subscribers,
 )
 from ..db import queries
 from ..errors import SeisLabDataError
 from ..events.emitters import null_emitter
 from ..schemas import identifiers
+from ..processing import (
+    broker,
+    tasks,
+)
 from . import sampledata
 from .asynctyper import AsyncTyper
 from .utils import resolve_admin_user
@@ -37,6 +47,7 @@ def dev_app_callback(
 ):
     """Dev-related commands"""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
+    broker.setup_broker(settings)
     ctx.obj["admin_user"] = asyncio.run(
         resolve_admin_user(settings, admin_username, admin_user_id)
     )
@@ -124,6 +135,63 @@ async def load_all_samples(ctx: typer.Context):
     await ctx.invoke(load_sample_projects, ctx=ctx)
     await ctx.invoke(load_sample_survey_missions, ctx=ctx)
     await ctx.invoke(load_sample_survey_related_records, ctx=ctx)
+
+
+@app.async_command()
+async def load_sample_projects_via_tasks(ctx: typer.Context):
+    redis_client: aioredis.Redis = ctx.obj["main"].redis_client
+    admin_ = ctx.obj["admin_user"]
+
+    projects_to_create = list(sampledata.get_projects_to_create(owner=admin_))
+    remaining = len(projects_to_create)
+
+    async def handle_project_creation_started(
+        message: subscribers.ProjectCreationStartedMessage,
+        done: asyncio.Event | None = None,
+    ) -> AsyncGenerator[str, None]:
+        yield "Project creation has started"
+
+    async def handle_project_creation_successful(
+        message: subscribers.ProjectCreationSuccessfulMessage,
+        done: asyncio.Event | None = None,
+    ) -> AsyncGenerator[str, None]:
+        nonlocal remaining
+        yield f"Project {message.project_id!r} created successfully!"
+        remaining -= 1
+        if remaining == 0 and done is not None:
+            done.set()
+
+    async def handle_project_creation_failed(
+        message: subscribers.ProjectCreationFailedMessage,
+        done: asyncio.Event | None = None,
+    ) -> AsyncGenerator[str, None]:
+        nonlocal remaining
+        yield f"Project creation failed with {message.details!r}"
+        remaining -= 1
+        if remaining == 0 and done is not None:
+            done.set()
+
+    subscription = subscribers.subscribe_to_topic(
+        redis_client,
+        topic_name=constants.NEW_TOPIC_PROJECTS,
+        message_handlers={
+            "project_creation_started": handle_project_creation_started,
+            "project_creation_successful": handle_project_creation_successful,
+            "project_creation_failed": handle_project_creation_failed,
+        },
+    )
+
+    for to_create in projects_to_create:
+        ctx.obj["main"].status_console.print(
+            f"Queueing project {to_create.name.en!r} for creation..."
+        )
+        tasks.succinct_create_project.send(
+            raw_to_create=to_create.model_dump_json(exclude_none=True),
+            raw_initiator=json.dumps(dataclasses.asdict(admin_)),
+        )  # noqa
+
+    async for chunk in subscription:
+        ctx.obj["main"].status_console.print(chunk)
 
 
 @app.async_command()

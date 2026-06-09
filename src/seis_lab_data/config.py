@@ -19,6 +19,7 @@ from pydantic_settings import (
     BaseSettings,
     SettingsConfigDict,
 )
+from redis import asyncio as aioredis
 from rich.console import Console
 from rich.logging import RichHandler
 from sqlalchemy import Engine
@@ -141,6 +142,7 @@ class SeisLabDataCliContext(BaseModel):
     jinja_environment: jinja2.Environment = jinja2.Environment()
     status_console: Console
     settings: SeisLabDataSettings
+    redis_client: aioredis.Redis
 
 
 def get_settings() -> SeisLabDataSettings:
@@ -153,6 +155,7 @@ def get_cli_context() -> SeisLabDataCliContext:
         jinja_environment=_get_jinja_environment(settings),
         settings=settings,
         status_console=Console(stderr=True),
+        redis_client=aioredis.from_url(settings.message_broker_dsn.unicode_string()),
     )
 
 

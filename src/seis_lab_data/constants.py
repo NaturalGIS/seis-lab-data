@@ -20,6 +20,8 @@ SURVEY_RELATED_RECORD_MAX_LINKS: typing.Final[int] = 5
 SURVEY_RELATED_RECORD_MAX_ASSETS: typing.Final[int] = 20
 SURVEY_RELATED_RECORD_MAX_RELATED: typing.Final[int] = 5
 
+NEW_TOPIC_PROJECTS: typing.Final[str] = "projects"
+
 PROGRESS_TOPIC_NAME_TEMPLATE: typing.Final[str] = "progress:{request_id}"
 
 PROJECT_UPDATED_TOPIC: typing.Final[str] = "project-updated:{project_id}"

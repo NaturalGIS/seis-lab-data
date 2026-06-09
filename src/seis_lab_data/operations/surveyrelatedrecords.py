@@ -231,12 +231,18 @@ async def create_survey_related_record(
         raise errors.SeisLabDataError(
             "User is not allowed to create a survey-related record."
         )
-    if (mission_status := survey_mission.status) != SurveyMissionStatus.DRAFT:
+    if (mission_status := survey_mission.status) not in (
+        SurveyMissionStatus.DRAFT,
+        SurveyMissionStatus.UNDER_DISCOVERY,
+    ):
         raise errors.SeisLabDataError(
             f"Cannot create survey-related record because parent survey "
             f"mission's status is {mission_status}"
         )
-    if (project_status := survey_mission.project.status) != ProjectStatus.DRAFT:
+    if (project_status := survey_mission.project.status) not in (
+        ProjectStatus.DRAFT,
+        ProjectStatus.UNDER_DISCOVERY,
+    ):
         raise errors.SeisLabDataError(
             f"Cannot create survey-related record because parent project's "
             f"status is {project_status}"

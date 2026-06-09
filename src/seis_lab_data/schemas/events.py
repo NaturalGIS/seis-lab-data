@@ -5,6 +5,7 @@ from functools import partial
 
 
 class EventType(enum.Enum):
+    HELLO = "hello"
     BULK_SURVEY_RELATED_RECORDS_CREATED = "bulk_survey_related_records_created"
     ASSET_CREATED = "asset_created"
     ASSET_DELETED = "asset_deleted"

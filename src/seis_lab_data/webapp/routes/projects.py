@@ -595,7 +595,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
     async def post(self, request: Request):
         """Create a new project."""
         template_processor: Jinja2Templates = request.state.templates
-        user = request.user if request.user.is_authenticated else None
+        user = request.user
         form_instance = await forms.ProjectCreateForm.get_validated_form_instance(
             request
         )
@@ -638,6 +638,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}"
                 f"))"
             ),
+            discovery_configuration=form_instance.discovery_configuration.data,
             temporal_extent_begin=form_instance.temporal_extent_begin.data,
             temporal_extent_end=form_instance.temporal_extent_end.data,
             links=[
@@ -653,7 +654,6 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 for lf in form_instance.links.entries
             ],
         )
-        logger.info(f"{to_create=}")
 
         async def handle_processing_success(
             final_message: schemas.ProcessingMessage, message_template: Template
@@ -1263,7 +1263,7 @@ async def remove_update_project_form_link(request: Request):
 @csrf_protect
 @requires_auth
 async def trigger_project_discovery(request: Request):
-    user = request.user if request.user.is_authenticated else None
+    user = request.user
     project_id = get_id_from_request_path(request, "project_id", identifiers.ProjectId)
     request_id = identifiers.RequestId(uuid.uuid4())
     discovery_tasks.discover_project_contents.send(

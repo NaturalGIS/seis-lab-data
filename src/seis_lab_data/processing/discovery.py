@@ -49,11 +49,7 @@ async def discover_project_contents(
     initiator = user_schemas.User(**json.loads(raw_initiator))
     async with settings.get_db_session_maker()() as session:
         try:
-            if (
-                db_project := await project_ops.get_project(
-                    project_id, initiator, session
-                )
-            ) is None:
+            if (await project_ops.get_project(project_id, initiator, session)) is None:
                 raise errors.SeisLabDataError(
                     f"Project with id {project_id!r} does not exist"
                 )
