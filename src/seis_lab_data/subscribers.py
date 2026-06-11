@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio.session import async_sessionmaker
 
 from .schemas import identifiers
 from .schemas.messages import SldPubSubMessage
+from .schemas.user import User
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -27,6 +28,8 @@ class HandlerContext:
     jinja_environment: jinja2.Environment | None = None
     url_resolver: Callable[[str], Any] | None = None
     db_session_factory: async_sessionmaker | None = None
+    user: User | None = None
+    request_id: identifiers.RequestId | None = None
 
 
 @dataclasses.dataclass(frozen=True)
