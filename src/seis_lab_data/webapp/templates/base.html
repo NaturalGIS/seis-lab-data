@@ -175,9 +175,7 @@
 <div class="toast-container position-fixed top-0 end-0 p-3" aria-live="polite"></div>
 <script src="{{ url_for('static', path='js/bootstrap.bundle.min.js') }}"></script>
 <script>
-    const flash = JSON.parse(localStorage.getItem('sld:flash') || 'null');
-    if (flash) {
-        localStorage.removeItem('sld:flash');
+    function showFlash(flash) {
         const el = document.createElement('div');
         el.className = `toast align-items-center text-bg-${flash.category} border-0`;
         el.setAttribute('role', 'alert');
@@ -185,6 +183,11 @@
         el.innerHTML = `<div class="d-flex"><div class="toast-body">${flash.message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button></div>`;
         document.querySelector('.toast-container').appendChild(el);
         bootstrap.Toast.getOrCreateInstance(el, {delay: 6000}).show();
+    }
+    const flash = JSON.parse(localStorage.getItem('sld:flash') || 'null');
+    if (flash) {
+        localStorage.removeItem('sld:flash');
+        showFlash(flash);
     }
 </script>
 </body>
