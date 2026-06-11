@@ -1,5 +1,10 @@
 {% import "macros.html" as macros %}
-<form data-on:datastar-fetch="evt.detail.type === 'finished' && document.querySelector('bbox-map')?.initMap()">
+<form
+        data-on-intersect__once="@get('{{ url_for("projects:new_stream", request_id=form.request_id.data) }}')"
+        data-on:datastar-fetch="evt.detail.type === 'finished' && document.querySelector('bbox-map')?.initMap()"
+        data-signals:submitted="false"
+>
+    {{ form.request_id() }}
     {{ macros.render_localizable_field(form.name) }}
     {{ macros.render_localizable_field(form.description) }}
 
@@ -48,6 +53,7 @@
         form.csrf_token.current_token
     ) }}
 
+    <output></output>
     <div class="row mb-3">
         <div class="col-sm-10 offset-sm-2">
             <button
@@ -61,17 +67,16 @@
                     type="submit"
                     aria-label="submit-create-form"
                     class="btn btn-primary"
-                    data-on:click="@post('{{ url_for('projects:list') }}', {
+                    data-on:click="$submitted = true; @post('{{ url_for('projects:list') }}', {
                             contentType: 'form',
                             headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
                         })"
-                    data-indicator="posting"
-                    data-attr:disabled="$posting"
-                    data-text="$posting ? '{{ _('Creating project...') }}' : '{{ _('Create project') }}'"
+                    data-attr:disabled="$submitted"
+                    data-text="$submitted ? '{{ _('Creating project...') }}' : '{{ _('Create project') }}'"
             >
             </button>
             <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
-                 data-attr:hidden="!$posting">
+                 data-attr:hidden="!$submitted">
                 <span class="visually-hidden">{{ _("Loading...") }}</span>
             </div>
         </div>

@@ -31,13 +31,15 @@ This template is loaded as a GET response to the /projects/ endpoint. It is used
         window.iconNames = JSON.parse('{{ icons | tojson }}')
     </script>
 
-    <div class="row">
+    <div class="row" data-on-intersect__once="@get('{{ url_for("projects:list_stream") }}')">
         <div class="col">
             <div
                     class="row justify-content-center m-5"
                     data-signals:search='{{ search_initial_value }}'
                     data-signals:advanced-search-panel-open="false"
                     data-signals:searching="false"
+                    data-signals:project-listing-version="0"
+                    data-effect="$projectListingVersion > 0 && @get('{{ url_for('projects:get_list_component') }}')"
             >
                 <div class="col-8">
                     <search class="form-floating">
