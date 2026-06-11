@@ -15,6 +15,7 @@ from jinja2 import Template
 from redis.asyncio import Redis
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
+from starlette.responses import Response
 from starlette.requests import Request
 from starlette.routing import Route
 from starlette.templating import Jinja2Templates
@@ -23,26 +24,22 @@ from starlette_wtf import csrf_protect
 
 from ... import (
     config,
+    constants,
     errors,
     geojson,
     operations,
     permissions,
     schemas,
+    subscribers,
 )
-from ...constants import (
-    PROGRESS_TOPIC_NAME_TEMPLATE,
-    PROJECT_DELETED_TOPIC,
-    PROJECT_DISCOVERY_TOPIC,
-    PROJECT_STATUS_CHANGED_TOPIC,
-    PROJECT_UPDATED_TOPIC,
-    PROJECT_VALIDITY_CHANGED_TOPIC,
-)
+from ...constants import PROGRESS_TOPIC_NAME_TEMPLATE
 from ...processing import tasks
 from ...processing import discovery as discovery_tasks
 from ...schemas import identifiers
 from .. import (
     filters,
     forms,
+    handlers,
 )
 from .auth import (
     requires_auth,
@@ -52,7 +49,6 @@ from .common import (
     get_page_from_request_params,
     get_pagination_info,
     produce_event_stream_for_topic,
-    produce_event_stream_for_item_updates,
     UPDATE_BASEMAP_JS_SCRIPT,
 )
 
@@ -228,26 +224,6 @@ async def get_project_detail_updates(request: Request):
     redis_client: Redis = request.state.redis_client
     user = request.user if request.user.is_authenticated else None
 
-    async def on_project_deleted_message(
-        raw_message: str,
-    ) -> AsyncGenerator[DatastarEvent, None]:
-        message = schemas.ProjectEvent(**json.loads(raw_message))
-        deleted_project_id = message.project_id
-        if deleted_project_id == project_id:
-            logger.debug(
-                "Received message about recent project deletion, "
-                "redirecting frontend..."
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                "Project has been deleted",
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.INNER,
-            )
-            await asyncio.sleep(1)
-            yield ServerSentEventGenerator.redirect(
-                str(request.url_for("projects:list"))
-            )
-
     async def on_status_update_message(
         raw_message: str,
     ) -> AsyncGenerator[DatastarEvent, None]:
@@ -359,25 +335,42 @@ async def get_project_detail_updates(request: Request):
                 mode=ElementPatchMode.INNER,
             )
 
-    topic_handlers = {
-        PROJECT_DELETED_TOPIC.format(project_id=project_id): on_project_deleted_message,
-        PROJECT_DISCOVERY_TOPIC.format(
-            project_id=project_id
-        ): on_project_discovery_message,
-        PROJECT_VALIDITY_CHANGED_TOPIC.format(
-            project_id=project_id
-        ): on_validation_update_message,
-        PROJECT_STATUS_CHANGED_TOPIC.format(
-            project_id=project_id
-        ): on_status_update_message,
-        PROJECT_UPDATED_TOPIC.format(project_id=project_id): on_project_update_message,
-    }
+    # topic_handlers = {
+    #     # PROJECT_DELETED_TOPIC.format(project_id=project_id): on_project_deleted_message,
+    #     PROJECT_DISCOVERY_TOPIC.format(
+    #         project_id=project_id
+    #     ): on_project_discovery_message,
+    #     PROJECT_VALIDITY_CHANGED_TOPIC.format(
+    #         project_id=project_id
+    #     ): on_validation_update_message,
+    #     PROJECT_STATUS_CHANGED_TOPIC.format(
+    #         project_id=project_id
+    #     ): on_status_update_message,
+    #     PROJECT_UPDATED_TOPIC.format(project_id=project_id): on_project_update_message,
+    # }
+
+    subscription = subscribers.subscribe_to_topic(
+        redis_client,
+        constants.NEW_TOPIC_PROJECTS,
+        subscribers.ProjectHandlerContext(
+            project_id=project_id,
+            jinja_environment=request.state.templates.env,
+            url_resolver=request.url_for,
+            db_session_factory=session_maker,
+        ),
+        {
+            "project_deletion_successful": handlers.handle_project_deletion_success_detail_page,
+            "project_deletion_failed": handlers.handle_project_deletion_failure_detail_page,
+        },
+    )
 
     async def event_streamer():
-        async for sse_event in produce_event_stream_for_item_updates(
-            redis_client, request, timeout_seconds=30, **topic_handlers
-        ):
+        async for sse_event in subscription:
             yield sse_event
+        # async for sse_event in produce_event_stream_for_item_updates(
+        #     redis_client, request, timeout_seconds=30, **topic_handlers
+        # ):
+        #     yield sse_event
 
     return DatastarResponse(event_streamer())
 
@@ -558,7 +551,6 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             schemas.ProjectReadListItem.from_db_instance(i) for i in items
         ]
         geojson_features = geojson.to_feature_collection(serialized_items)
-
         return template_processor.TemplateResponse(
             request,
             "projects/list.html",
@@ -930,83 +922,28 @@ class ProjectDetailEndpoint(HTTPEndpoint):
     @requires_auth
     async def delete(self, request: Request):
         """Delete a project."""
-        user = request.user if request.user.is_authenticated else None
+        request_id = identifiers.RequestId(uuid.uuid4())
+        user = request.user
         session_maker = request.state.settings.get_db_session_maker()
         project_id = get_id_from_request_path(
             request, "project_id", identifiers.ProjectId
         )
         async with session_maker() as session:
-            try:
-                project = await operations.get_project(
-                    project_id,
-                    user,
-                    session,
-                )
-            except errors.SeisLabDataError as exc:
-                raise HTTPException(status_code=404, detail=str(exc)) from exc
+            project = await operations.get_project(
+                project_id,
+                user,
+                session,
+            )
             if project is None:
                 raise HTTPException(
                     status_code=404, detail=_(f"Project {project_id!r} not found.")
                 )
-
-        request_id = identifiers.RequestId(uuid.uuid4())
-
-        async def handle_processing_success(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            yield ServerSentEventGenerator.patch_elements(
-                message_template.render(
-                    data_test_id="processing-success-message",
-                    status=final_message.status,
-                    message=f"{final_message.message} - you will be redirected shortly.",
-                ),
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-            await asyncio.sleep(1)
-            yield ServerSentEventGenerator.redirect(
-                str(request.url_for("projects:list")),
-            )
-
-        async def handle_processing_failure(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            rendered = message_template.render(
-                status=final_message.status.value,
-                message=f"ERROR: {final_message.message}",
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                rendered,
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-
-        async def stream_events():
-            yield ServerSentEventGenerator.patch_elements(
-                """<li>Deleting project as a background task...</li>""",
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-            enqueued_message: Message = tasks.delete_project.send(
-                raw_request_id=str(request_id),
-                raw_project_id=str(project_id),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
-            )
-            logger.debug(f"{enqueued_message=}")
-            redis_client: Redis = request.state.redis_client
-            event_stream_generator = produce_event_stream_for_topic(
-                redis_client,
-                request,
-                topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
-                on_success=handle_processing_success,
-                on_failure=handle_processing_failure,
-                patch_elements_selector=schemas.selector_info.feedback_selector,
-                timeout_seconds=30,
-            )
-            async for sse_event in event_stream_generator:
-                yield sse_event
-
-        return DatastarResponse(stream_events())
+        tasks.succinct_delete_project.send(
+            raw_request_id=str(request_id),
+            raw_project_id=str(project_id),
+            raw_initiator=json.dumps(dataclasses.asdict(user)),
+        )  # noqa
+        return Response(status_code=202)
 
     @csrf_protect
     @requires_auth
@@ -1350,10 +1287,10 @@ routes = [
         name="get_details_component",
     ),
     Route(
-        "/{project_id}/detail-updates",
+        "/{project_id}/stream",
         get_project_detail_updates,
         methods=["GET"],
-        name="get_detail_updates",
+        name="detail_stream",
     ),
     Route(
         "/{project_id}/discover",

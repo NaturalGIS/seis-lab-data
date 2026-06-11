@@ -2,6 +2,7 @@ import asyncio
 import dataclasses
 import json
 import logging
+import uuid
 from collections.abc import AsyncGenerator
 from typing import Annotated
 
@@ -20,11 +21,11 @@ from .. import (
 from ..db import queries
 from ..errors import SeisLabDataError
 from ..events.emitters import null_emitter
-from ..schemas import identifiers
-from ..processing import (
-    broker,
-    tasks,
+from ..schemas import (
+    identifiers,
+    messages as message_schemas,
 )
+from ..processing import tasks
 from . import sampledata
 from .asynctyper import AsyncTyper
 from .utils import resolve_admin_user
@@ -47,7 +48,6 @@ def dev_app_callback(
 ):
     """Dev-related commands"""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
-    broker.setup_broker(settings)
     ctx.obj["admin_user"] = asyncio.run(
         resolve_admin_user(settings, admin_username, admin_user_id)
     )
@@ -138,35 +138,38 @@ async def load_all_samples(ctx: typer.Context):
 
 
 @app.async_command()
-async def load_sample_projects_via_tasks(ctx: typer.Context):
+async def load_sample_projects(ctx: typer.Context):
     redis_client: aioredis.Redis = ctx.obj["main"].redis_client
     admin_ = ctx.obj["admin_user"]
 
     projects_to_create = list(sampledata.get_projects_to_create(owner=admin_))
     remaining = len(projects_to_create)
 
-    async def handle_project_creation_started(
-        message: subscribers.ProjectCreationStartedMessage,
+    async def handle_started(
+        message: message_schemas.ProjectCreationStartedMessage,
+        context: subscribers.HandlerContext,
         done: asyncio.Event | None = None,
     ) -> AsyncGenerator[str, None]:
-        yield "Project creation has started"
+        yield "[purple]Info:[/purple]Project creation has started"
 
-    async def handle_project_creation_successful(
-        message: subscribers.ProjectCreationSuccessfulMessage,
+    async def handle_success(
+        message: message_schemas.ProjectCreationSuccessfulMessage,
+        context: subscribers.HandlerContext,
         done: asyncio.Event | None = None,
     ) -> AsyncGenerator[str, None]:
         nonlocal remaining
-        yield f"Project {message.project_id!r} created successfully!"
+        yield f"[green]Success:[/green] Project {message.project_id!r} created successfully!"
         remaining -= 1
         if remaining == 0 and done is not None:
             done.set()
 
-    async def handle_project_creation_failed(
-        message: subscribers.ProjectCreationFailedMessage,
+    async def handle_failure(
+        message: message_schemas.ProjectCreationFailedMessage,
+        context: subscribers.HandlerContext,
         done: asyncio.Event | None = None,
     ) -> AsyncGenerator[str, None]:
         nonlocal remaining
-        yield f"Project creation failed with {message.details!r}"
+        yield f"[red]Error:[/red] Project creation failed with {message.details!r}"
         remaining -= 1
         if remaining == 0 and done is not None:
             done.set()
@@ -174,10 +177,11 @@ async def load_sample_projects_via_tasks(ctx: typer.Context):
     subscription = subscribers.subscribe_to_topic(
         redis_client,
         topic_name=constants.NEW_TOPIC_PROJECTS,
+        handler_context=subscribers.HandlerContext(),
         message_handlers={
-            "project_creation_started": handle_project_creation_started,
-            "project_creation_successful": handle_project_creation_successful,
-            "project_creation_failed": handle_project_creation_failed,
+            "project_creation_started": handle_started,
+            "project_creation_successful": handle_success,
+            "project_creation_failed": handle_failure,
         },
     )
 
@@ -186,6 +190,7 @@ async def load_sample_projects_via_tasks(ctx: typer.Context):
             f"Queueing project {to_create.name.en!r} for creation..."
         )
         tasks.succinct_create_project.send(
+            raw_request_id=str(uuid.uuid4()),
             raw_to_create=to_create.model_dump_json(exclude_none=True),
             raw_initiator=json.dumps(dataclasses.asdict(admin_)),
         )  # noqa
@@ -195,7 +200,7 @@ async def load_sample_projects_via_tasks(ctx: typer.Context):
 
 
 @app.async_command()
-async def load_sample_projects(ctx: typer.Context):
+async def old_load_sample_projects(ctx: typer.Context):
     """Load sample projects into the database."""
     created = []
     admin_ = ctx.obj["admin_user"]

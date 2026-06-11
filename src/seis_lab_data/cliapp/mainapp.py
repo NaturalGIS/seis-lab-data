@@ -1,20 +1,26 @@
 import asyncio
+import dataclasses
 import json
 import uuid
 from typing import Annotated
 
 import shapely
 import typer
+import redis.asyncio as aioredis
 
 from .. import (
     config,
+    constants,
     operations,
     schemas,
+    subscribers,
 )
+from ..processing import tasks
 from ..db import queries
 from ..schemas import identifiers
 from .asynctyper import AsyncTyper
 from .utils import resolve_admin_user
+from . import handlers
 
 app = AsyncTyper()
 
@@ -420,6 +426,32 @@ async def list_projects(
 
 @projects_app.async_command(name="delete")
 async def delete_project(
+    ctx: typer.Context,
+    project_id: uuid.UUID,
+):
+    """Delete a project."""
+    redis_client: aioredis.Redis = ctx.obj["main"].redis_client
+    subscription = subscribers.subscribe_to_topic(
+        redis_client,
+        topic_name=constants.NEW_TOPIC_PROJECTS,
+        handler_context=subscribers.HandlerContext(),
+        message_handlers={
+            "project_deletion_started": handlers.handle_project_deletion_started,
+            "project_deletion_successful": handlers.handle_project_deletion_success,
+            "project_deletion_failed": handlers.handle_project_deletion_failure,
+        },
+    )
+    tasks.succinct_delete_project.send(
+        raw_request_id=str(uuid.uuid4()),
+        raw_project_id=str(identifiers.ProjectId(project_id)),
+        raw_initiator=json.dumps(dataclasses.asdict(ctx.obj["admin_user"])),
+    )  # noqa
+    async for chunk in subscription:
+        ctx.obj["main"].status_console.print(chunk)
+
+
+@projects_app.async_command(name="old-delete")
+async def old_delete_project(
     ctx: typer.Context,
     project_id: uuid.UUID,
 ):

@@ -31,9 +31,13 @@ async def create_project(
             else bbox
         ),
     )
-    if await queries.get_project_by_english_name(session, to_create.name.en):
+    if (
+        existing_project := await queries.get_project_by_english_name(
+            session, to_create.name.en
+        )
+    ) is not None:
         raise errors.SeisLabDataError(
-            f"Project with english name {to_create.name.en!r} already exists."
+            f"Project with english name {to_create.name.en!r} already exists ({existing_project.id})."
         )
     session.add(project)
     await session.commit()

@@ -9,11 +9,14 @@ from redis.asyncio import Redis
 from .. import (
     config,
     constants,
+    errors,
     schemas,
     operations,
-    subscribers,
 )
-from ..schemas import identifiers
+from ..schemas import (
+    identifiers,
+    messages as message_schemas,
+)
 
 from . import decorators
 from .stub import sld_stub_broker
@@ -233,18 +236,22 @@ async def validate_project(
 @decorators.sld_settings
 @decorators.redis_client
 async def succinct_create_project(
+    raw_request_id: str,
     raw_to_create: str,
     raw_initiator: str,
     *,
     settings: config.SeisLabDataSettings,
     redis_client: Redis,
-):
+) -> None:
     topic_name = constants.NEW_TOPIC_PROJECTS
-    to_create = schemas.ProjectCreate(**json.loads(raw_to_create))
+    request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
+    to_create = schemas.ProjectCreate.model_validate_json(raw_to_create)
     initiator = schemas.User(**json.loads(raw_initiator))
     await redis_client.publish(
         topic_name,
-        subscribers.ProjectCreationStartedMessage().model_dump_json(),
+        message_schemas.ProjectCreationStartedMessage(
+            request_id=request_id
+        ).model_dump_json(),
     )
     try:
         async with settings.get_db_session_maker()() as session:
@@ -254,20 +261,122 @@ async def succinct_create_project(
                 session=session,
                 event_emitter=settings.get_event_emitter(),
             )
-    except Exception as err:
+    except errors.SeisLabDataError as err:
         await redis_client.publish(
             topic_name,
-            subscribers.ProjectCreationFailedMessage(
-                details=str(err)
+            message_schemas.ProjectCreationFailedMessage(
+                request_id=request_id, details=str(err)
+            ).model_dump_json(),
+        )
+    else:
+        await redis_client.publish(
+            topic_name,
+            message_schemas.ProjectCreationSuccessfulMessage(
+                request_id=request_id,
+                project_id=identifiers.ProjectId(project.id),
             ).model_dump_json(),
         )
 
+
+@dramatiq.actor
+@decorators.sld_settings
+@decorators.redis_client
+async def succinct_update_project(
+    raw_request_id: str,
+    raw_project_id: str,
+    raw_to_update: str,
+    raw_initiator: str,
+    *,
+    settings: config.SeisLabDataSettings,
+    redis_client: Redis,
+) -> None:
+    request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
+    project_id = identifiers.ProjectId(uuid.UUID(raw_project_id))
+    topic_name = constants.NEW_TOPIC_PROJECTS
+    initiator = schemas.User(**json.loads(raw_initiator))
+    to_update = schemas.ProjectUpdate.model_validate_json(raw_to_update)
     await redis_client.publish(
         topic_name,
-        subscribers.ProjectCreationSuccessfulMessage(
-            project_id=identifiers.ProjectId(project.id),
+        message_schemas.ProjectUpdateStartedMessage(
+            request_id=request_id,
+            project_id=project_id,
         ).model_dump_json(),
     )
+    try:
+        async with settings.get_db_session_maker()() as session:
+            await operations.update_project(
+                project_id=project_id,
+                to_update=to_update,
+                initiator=initiator,
+                session=session,
+                event_emitter=settings.get_event_emitter(),
+            )
+    except errors.SeisLabDataError as err:
+        await redis_client.publish(
+            topic_name,
+            message_schemas.ProjectUpdateFailedMessage(
+                request_id=request_id,
+                project_id=project_id,
+                details=str(err),
+            ).model_dump_json(),
+        )
+    else:
+        await redis_client.publish(
+            topic_name,
+            message_schemas.ProjectUpdateSuccessfulMessage(
+                request_id=request_id,
+                project_id=project_id,
+            ).model_dump_json(),
+        )
+
+
+@dramatiq.actor
+@decorators.sld_settings
+@decorators.redis_client
+async def succinct_delete_project(
+    raw_request_id: str,
+    raw_project_id: str,
+    raw_initiator: str,
+    *,
+    settings: config.SeisLabDataSettings,
+    redis_client: Redis,
+) -> None:
+    request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
+    project_id = identifiers.ProjectId(uuid.UUID(raw_project_id))
+    topic_name = constants.NEW_TOPIC_PROJECTS
+    initiator = schemas.User(**json.loads(raw_initiator))
+    await redis_client.publish(
+        topic_name,
+        message_schemas.ProjectDeletionStartedMessage(
+            request_id=request_id,
+            project_id=project_id,
+        ).model_dump_json(),
+    )
+    try:
+        async with settings.get_db_session_maker()() as session:
+            await operations.delete_project(
+                project_id=project_id,
+                initiator=initiator,
+                session=session,
+                event_emitter=settings.get_event_emitter(),
+            )
+    except errors.SeisLabDataError as err:
+        await redis_client.publish(
+            topic_name,
+            message_schemas.ProjectDeletionFailedMessage(
+                request_id=request_id,
+                project_id=project_id,
+                details=str(err),
+            ).model_dump_json(),
+        )
+    else:
+        await redis_client.publish(
+            topic_name,
+            message_schemas.ProjectDeletionSuccessfulMessage(
+                request_id=request_id,
+                project_id=project_id,
+            ).model_dump_json(),
+        )
 
 
 @dramatiq.actor

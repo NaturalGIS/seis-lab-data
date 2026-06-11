@@ -8,6 +8,7 @@ from rich.panel import Panel
 import typer
 
 from .. import config
+from ..processing import broker
 from .bootstrapapp import app as bootstrap_app
 from .dbapp import app as db_app
 from .devapp import app as dev_app
@@ -27,6 +28,7 @@ app.add_typer(bootstrap_app, name="bootstrap")
 def base_callback(ctx: typer.Context) -> None:
     """SeisLabData command line interface"""
     context = config.get_cli_context()
+    broker.setup_broker(context.settings)
     config.configure_logging(context)
     ctx.obj = {"main": context}
 

@@ -1,58 +1,54 @@
 import asyncio
+import dataclasses
 import logging
 from collections.abc import AsyncGenerator
 from typing import (
     Any,
-    Annotated,
-    Literal,
+    Callable,
     Protocol,
     TypeVar,
-    TypeAlias,
 )
 
+import jinja2
 import pydantic
 from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio.session import async_sessionmaker
 
 from .schemas import identifiers
+from .schemas.messages import SldPubSubMessage
 
 logger = logging.getLogger(__name__)
-
-
-class ProjectCreationStartedMessage(pydantic.BaseModel):
-    type: Literal["project_creation_started"] = "project_creation_started"
-
-
-class ProjectCreationSuccessfulMessage(pydantic.BaseModel):
-    type: Literal["project_creation_successful"] = "project_creation_successful"
-    project_id: identifiers.ProjectId
-
-
-class ProjectCreationFailedMessage(pydantic.BaseModel):
-    type: Literal["project_creation_failed"] = "project_creation_failed"
-    details: str
-
-
-class HelloMessage(pydantic.BaseModel):
-    type: Literal["hello"]
-    greeting: str
-    sleep_for_seconds: int = 1
-
-
-SldPubSubMessage: TypeAlias = Annotated[
-    ProjectCreationStartedMessage
-    | ProjectCreationFailedMessage
-    | ProjectCreationSuccessfulMessage
-    | HelloMessage,
-    pydantic.Field(discriminator="type"),
-]
 T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
 
 
-class MessageHandlerProtocol(Protocol[T_co]):
+@dataclasses.dataclass(frozen=True)
+class HandlerContext:
+    jinja_environment: jinja2.Environment | None = None
+    url_resolver: Callable[[str], Any] | None = None
+    db_session_factory: async_sessionmaker | None = None
+
+
+@dataclasses.dataclass(frozen=True)
+class ProjectHandlerContext(HandlerContext):
+    project_id: identifiers.ProjectId | None = None
+
+
+@dataclasses.dataclass(frozen=True)
+class SurveyMissionHandlerContext(HandlerContext):
+    survey_mission_id: identifiers.SurveyMissionId | None = None
+
+
+@dataclasses.dataclass(frozen=True)
+class SurveyRelatedRecordHandlerContext(HandlerContext):
+    survey_related_record_id: identifiers.SurveyRelatedRecordId | None = None
+
+
+class MessageHandlerProtocol[T_co, TContext: HandlerContext](Protocol):
     def __call__(
         self,
         message: Any,
+        context: TContext,
         done: asyncio.Event | None = None,
     ) -> AsyncGenerator[T_co, None]:
         """Handle incoming messages and yield the result
@@ -63,10 +59,11 @@ class MessageHandlerProtocol(Protocol[T_co]):
         ...
 
 
-async def subscribe_to_topic(
+async def subscribe_to_topic[T, TContext: HandlerContext](
     redis_client: Redis,
     topic_name: str,
-    message_handlers: dict[str, MessageHandlerProtocol[T]],
+    handler_context: TContext,
+    message_handlers: dict[str, MessageHandlerProtocol[T, TContext]],
 ) -> AsyncGenerator[T, None]:
     """
     Subscribe to a pubsub topic and dispatch incoming messages to relevant handlers.
@@ -98,7 +95,9 @@ async def subscribe_to_topic(
                     logger.debug(f"No handler for {parsed.type!r}, ignoring")
                     continue
 
-                async for chunk in handler(parsed, done=done_event):
+                async for chunk in handler(
+                    parsed, context=handler_context, done=done_event
+                ):
                     yield chunk
 
                 if done_event.is_set():
@@ -108,50 +107,3 @@ async def subscribe_to_topic(
             logger.info(f"pubsub listener for {topic_name!r} cancelled")
         finally:
             await pubsub.unsubscribe(topic_name)
-
-
-async def hello_handler(
-    hello_message: HelloMessage, done: asyncio.Event | None = None
-) -> AsyncGenerator[str, None]:
-    """Example handler.
-
-    You can test it interactively like this:
-
-    ```
-    python -m asyncio
-    >>> import asyncio
-    >>> import redis.asyncio as aioredis
-    >>> from seis_lab_data import subscribers
-    >>> from seis_lab_data.config import get_settings
-    >>> from seis_lab_data.schemas.events import EventType
-    >>> s = get_settings()
-    >>> rc = aioredis.from_url(s.message_broker_dsn.unicode_string())
-    >>> async for chunk in subscribers.subscribe_to_topic(
-    ...     rc,
-    ...     "demo-topic",
-    ...     {"hello": subscribers.hello_handler}
-    ... ):
-    ```
-
-    and in the redis-cli:
-
-    ```
-    PUBLISH demo-topic '{"type": "hello", "greeting": "hi", "sleep_for_seconds": 1}'
-    ```
-    """
-    message = [
-        "Hi there!",
-        "How's life?",
-        "I hope it is fine",
-        "Mine is good",
-        f"You sent me this greeting: {hello_message.greeting!r}",
-        "Thanks for that, may you have it in double",
-    ]
-    for index, sentence in enumerate(message):
-        yield sentence
-        if index != len(message) - 1:
-            await asyncio.sleep(hello_message.sleep_for_seconds)
-    else:
-        yield "About to leave"
-    if done is not None:
-        done.set()
