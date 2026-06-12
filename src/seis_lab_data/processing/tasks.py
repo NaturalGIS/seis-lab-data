@@ -28,72 +28,24 @@ logger = logging.getLogger(__name__)
 
 @dramatiq.actor
 @decorators.sld_settings
-@decorators.redis_client
 async def validate_survey_related_record(
     raw_request_id: str,
     raw_survey_related_record_id: str,
     raw_initiator: str,
     *,
     settings: config.SeisLabDataSettings,
-    redis_client: Redis,
 ):
     survey_related_record_id = identifiers.SurveyRelatedRecordId(
         uuid.UUID(raw_survey_related_record_id)
     )
-    validity_topic = constants.SURVEY_RELATED_RECORD_VALIDITY_CHANGED_TOPIC.format(
-        survey_related_record_id=survey_related_record_id
-    )
-    status_topic = constants.SURVEY_RELATED_RECORD_STATUS_CHANGED_TOPIC.format(
-        survey_related_record_id=survey_related_record_id
-    )
-    logger.debug(f"validation updates will be published to topic {validity_topic=} ")
-    logger.debug(f"status updates will be published to topic {status_topic=} ")
     initiator = schemas.User(**json.loads(raw_initiator))
     async with settings.get_db_session_maker()() as session:
         try:
-            # await asyncio.sleep(2)
-            await operations.change_survey_related_record_status(
-                constants.SurveyRelatedRecordStatus.UNDER_VALIDATION,
-                survey_related_record_id,
-                initiator,
-                session,
-                event_emitter=settings.get_event_emitter(),
-            )
-            await redis_client.publish(
-                status_topic,
-                schemas.SurveyRelatedRecordEvent(
-                    survey_related_record_id=survey_related_record_id,
-                    event=schemas.EventType.SURVEY_RELATED_RECORD_STATUS_CHANGED,
-                ).model_dump_json(),
-            )
-            await asyncio.sleep(2)
             await operations.validate_survey_related_record(
                 survey_related_record_id,
                 initiator,
                 session,
-                settings.get_event_emitter(),
-            )
-            await redis_client.publish(
-                validity_topic,
-                schemas.SurveyRelatedRecordEvent(
-                    survey_related_record_id=survey_related_record_id,
-                    event=schemas.EventType.SURVEY_RELATED_RECORD_VALIDATED,
-                ).model_dump_json(),
-            )
-            await asyncio.sleep(2)
-            await operations.change_survey_related_record_status(
-                constants.SurveyRelatedRecordStatus.DRAFT,
-                survey_related_record_id,
-                initiator,
-                session,
-                event_emitter=settings.get_event_emitter(),
-            )
-            await redis_client.publish(
-                status_topic,
-                schemas.SurveyRelatedRecordEvent(
-                    survey_related_record_id=survey_related_record_id,
-                    event=schemas.EventType.SURVEY_RELATED_RECORD_STATUS_CHANGED,
-                ).model_dump_json(),
+                settings.get_event_dispatcher(),
             )
         except Exception:
             logger.exception("Task failed")
@@ -101,67 +53,19 @@ async def validate_survey_related_record(
 
 @dramatiq.actor
 @decorators.sld_settings
-@decorators.redis_client
 async def validate_survey_mission(
     raw_request_id: str,
     raw_survey_mission_id: str,
     raw_initiator: str,
     *,
     settings: config.SeisLabDataSettings,
-    redis_client: Redis,
 ):
     survey_mission_id = identifiers.SurveyMissionId(uuid.UUID(raw_survey_mission_id))
-    validity_topic = constants.SURVEY_MISSION_VALIDITY_CHANGED_TOPIC.format(
-        survey_mission_id=survey_mission_id
-    )
-    status_topic = constants.SURVEY_MISSION_STATUS_CHANGED_TOPIC.format(
-        survey_mission_id=survey_mission_id
-    )
-    logger.debug(f"validation updates will be published to topic {validity_topic=} ")
-    logger.debug(f"status updates will be published to topic {status_topic=} ")
     initiator = schemas.User(**json.loads(raw_initiator))
     async with settings.get_db_session_maker()() as session:
         try:
-            # await asyncio.sleep(2)
-            await operations.change_survey_mission_status(
-                constants.SurveyMissionStatus.UNDER_VALIDATION,
-                survey_mission_id,
-                initiator,
-                session,
-                event_emitter=settings.get_event_emitter(),
-            )
-            await redis_client.publish(
-                status_topic,
-                schemas.SurveyMissionEvent(
-                    survey_mission_id=survey_mission_id,
-                    event=schemas.EventType.SURVEY_MISSION_STATUS_CHANGED,
-                ).model_dump_json(),
-            )
-            await asyncio.sleep(2)
             await operations.validate_survey_mission(
-                survey_mission_id, initiator, session, settings.get_event_emitter()
-            )
-            await redis_client.publish(
-                validity_topic,
-                schemas.SurveyMissionEvent(
-                    survey_mission_id=survey_mission_id,
-                    event=schemas.EventType.SURVEY_MISSION_VALIDATED,
-                ).model_dump_json(),
-            )
-            await asyncio.sleep(2)
-            await operations.change_survey_mission_status(
-                constants.SurveyMissionStatus.DRAFT,
-                survey_mission_id,
-                initiator,
-                session,
-                event_emitter=settings.get_event_emitter(),
-            )
-            await redis_client.publish(
-                status_topic,
-                schemas.SurveyMissionEvent(
-                    survey_mission_id=survey_mission_id,
-                    event=schemas.EventType.SURVEY_MISSION_STATUS_CHANGED,
-                ).model_dump_json(),
+                survey_mission_id, initiator, session, settings.get_event_dispatcher()
             )
         except Exception:
             logger.exception("Task failed")
@@ -169,64 +73,19 @@ async def validate_survey_mission(
 
 @dramatiq.actor
 @decorators.sld_settings
-@decorators.redis_client
 async def validate_project(
     raw_request_id: str,
     raw_project_id: str,
     raw_initiator: str,
     *,
     settings: config.SeisLabDataSettings,
-    redis_client: Redis,
 ):
     project_id = identifiers.ProjectId(uuid.UUID(raw_project_id))
-    validity_topic = constants.PROJECT_VALIDITY_CHANGED_TOPIC.format(
-        project_id=project_id
-    )
-    status_topic = constants.PROJECT_STATUS_CHANGED_TOPIC.format(project_id=project_id)
-    logger.debug(f"validation updates will be published to topic {validity_topic=} ")
-    logger.debug(f"status updates will be published to topic {status_topic=} ")
     initiator = schemas.User(**json.loads(raw_initiator))
     async with settings.get_db_session_maker()() as session:
         try:
-            # await asyncio.sleep(2)
-            await operations.change_project_status(
-                constants.ProjectStatus.UNDER_VALIDATION,
-                project_id,
-                initiator,
-                session,
-                event_emitter=settings.get_event_emitter(),
-            )
-            await redis_client.publish(
-                status_topic,
-                schemas.ProjectEvent(
-                    project_id=project_id,
-                    event=schemas.EventType.PROJECT_STATUS_CHANGED,
-                ).model_dump_json(),
-            )
-            await asyncio.sleep(2)
             await operations.validate_project(
-                project_id, initiator, session, settings.get_event_emitter()
-            )
-            await redis_client.publish(
-                validity_topic,
-                schemas.ProjectEvent(
-                    project_id=project_id, event=schemas.EventType.PROJECT_VALIDATED
-                ).model_dump_json(),
-            )
-            await asyncio.sleep(2)
-            await operations.change_project_status(
-                constants.ProjectStatus.DRAFT,
-                project_id,
-                initiator,
-                session,
-                event_emitter=settings.get_event_emitter(),
-            )
-            await redis_client.publish(
-                status_topic,
-                schemas.ProjectEvent(
-                    project_id=project_id,
-                    event=schemas.EventType.PROJECT_STATUS_CHANGED,
-                ).model_dump_json(),
+                project_id, initiator, session, settings.get_event_dispatcher()
             )
         except Exception:
             logger.exception("Task failed")
@@ -259,7 +118,7 @@ async def succinct_create_project(
                 to_create=to_create,
                 initiator=initiator,
                 session=session,
-                event_emitter=settings.get_event_emitter(),
+                event_dispatcher=settings.get_event_dispatcher(),
             )
     except errors.SeisLabDataError as err:
         await redis_client.publish(
@@ -309,7 +168,7 @@ async def succinct_update_project(
                 to_update=to_update,
                 initiator=initiator,
                 session=session,
-                event_emitter=settings.get_event_emitter(),
+                event_dispatcher=settings.get_event_dispatcher(),
             )
     except errors.SeisLabDataError as err:
         await redis_client.publish(
@@ -358,7 +217,7 @@ async def succinct_delete_project(
                 project_id=project_id,
                 initiator=initiator,
                 session=session,
-                event_emitter=settings.get_event_emitter(),
+                event_dispatcher=settings.get_event_dispatcher(),
             )
     except errors.SeisLabDataError as err:
         await redis_client.publish(
@@ -418,7 +277,7 @@ async def create_project(
                 to_create=to_create,
                 initiator=initiator,
                 session=session,
-                event_emitter=settings.get_event_emitter(),
+                event_dispatcher=settings.get_event_dispatcher(),
             )
 
         await redis_client.publish(
@@ -488,12 +347,12 @@ async def update_project(
             ).model_dump_json(),
         )
         async with settings.get_db_session_maker()() as session:
-            updated_project = await operations.update_project(
+            await operations.update_project(
                 project_id=identifiers.ProjectId(uuid.UUID(raw_project_id)),
                 to_update=to_update,
                 initiator=initiator,
                 session=session,
-                event_emitter=settings.get_event_emitter(),
+                event_dispatcher=settings.get_event_dispatcher(),
             )
         await redis_client.publish(
             topic_name,
@@ -501,13 +360,6 @@ async def update_project(
                 request_id=request_id,
                 status=constants.ProcessingStatus.SUCCESS,
                 message="Project successfully updated",
-            ).model_dump_json(),
-        )
-        # on success, publish also to the project updates topic
-        await redis_client.publish(
-            constants.PROJECT_UPDATED_TOPIC.format(project_id=updated_project.id),
-            schemas.ProjectUpdatedMessage(
-                project_id=identifiers.ProjectId(updated_project.id)
             ).model_dump_json(),
         )
     except Exception as err:
@@ -552,7 +404,7 @@ async def delete_project(
                 project_id=project_id,
                 initiator=initiator,
                 session=session,
-                event_emitter=settings.get_event_emitter(),
+                event_dispatcher=settings.get_event_dispatcher(),
             )
         await redis_client.publish(
             topic_name,
@@ -560,14 +412,6 @@ async def delete_project(
                 request_id=request_id,
                 status=constants.ProcessingStatus.SUCCESS,
                 message="Project successfully deleted",
-            ).model_dump_json(),
-        )
-        # on success, publish also to the project deletions topic
-        await redis_client.publish(
-            constants.PROJECT_DELETED_TOPIC.format(project_id=project_id),
-            schemas.ProjectEvent(
-                project_id=project_id,
-                event=schemas.EventType.PROJECT_DELETED,
             ).model_dump_json(),
         )
     except Exception as err:
@@ -620,7 +464,7 @@ async def create_survey_mission(
                 to_create=to_create,
                 initiator=initiator,
                 session=session,
-                event_emitter=settings.get_event_emitter(),
+                event_dispatcher=settings.get_event_dispatcher(),
             )
 
         await redis_client.publish(
@@ -690,14 +534,14 @@ async def update_survey_mission(
             ).model_dump_json(),
         )
         async with settings.get_db_session_maker()() as session:
-            updated_survey_mission = await operations.update_survey_mission(
+            await operations.update_survey_mission(
                 survey_mission_id=identifiers.SurveyMissionId(
                     uuid.UUID(raw_survey_mission_id)
                 ),
                 to_update=to_update,
                 initiator=initiator,
                 session=session,
-                event_emitter=settings.get_event_emitter(),
+                event_dispatcher=settings.get_event_dispatcher(),
             )
         await redis_client.publish(
             topic_name,
@@ -705,15 +549,6 @@ async def update_survey_mission(
                 request_id=request_id,
                 status=constants.ProcessingStatus.SUCCESS,
                 message="Survey mission successfully updated",
-            ).model_dump_json(),
-        )
-        # on success, publish also to the survey mission updates topic
-        await redis_client.publish(
-            constants.SURVEY_MISSION_UPDATED_TOPIC.format(
-                survey_mission_id=updated_survey_mission.id
-            ),
-            schemas.SurveyMissionUpdatedMessage(
-                survey_mission_id=identifiers.SurveyMissionId(updated_survey_mission.id)
             ).model_dump_json(),
         )
     except Exception as err:
@@ -759,7 +594,7 @@ async def delete_survey_mission(
                 ),
                 initiator=initiator,
                 session=session,
-                event_emitter=settings.get_event_emitter(),
+                event_dispatcher=settings.get_event_dispatcher(),
             )
         await redis_client.publish(
             topic_name,
@@ -819,7 +654,7 @@ async def create_survey_related_record(
                 to_create=to_create,
                 initiator=initiator,
                 session=session,
-                event_emitter=settings.get_event_emitter(),
+                event_dispatcher=settings.get_event_dispatcher(),
             )
 
         await redis_client.publish(
@@ -893,7 +728,7 @@ async def delete_survey_related_record(
                 ),
                 initiator=initiator,
                 session=session,
-                event_emitter=settings.get_event_emitter(),
+                event_dispatcher=settings.get_event_dispatcher(),
             )
         await redis_client.publish(
             topic_name,
@@ -942,14 +777,14 @@ async def update_survey_related_record(
             ).model_dump_json(),
         )
         async with settings.get_db_session_maker()() as session:
-            updated = await operations.update_survey_related_record(
+            await operations.update_survey_related_record(
                 survey_related_record_id=identifiers.SurveyRelatedRecordId(
                     uuid.UUID(raw_survey_related_record_id)
                 ),
                 to_update=to_update,
                 initiator=initiator,
                 session=session,
-                event_emitter=settings.get_event_emitter(),
+                event_dispatcher=settings.get_event_dispatcher(),
             )
         await redis_client.publish(
             topic_name,
@@ -957,15 +792,6 @@ async def update_survey_related_record(
                 request_id=request_id,
                 status=constants.ProcessingStatus.SUCCESS,
                 message="Survey-related record successfully updated",
-            ).model_dump_json(),
-        )
-        # on success, publish also to the survey-related record updates topic
-        await redis_client.publish(
-            constants.SURVEY_RELATED_RECORD_UPDATED_TOPIC.format(
-                survey_related_record_id=updated.id
-            ),
-            schemas.SurveyRelatedRecordUpdatedMessage(
-                survey_related_record_id=identifiers.SurveyRelatedRecordId(updated.id)
             ).model_dump_json(),
         )
     except Exception as err:

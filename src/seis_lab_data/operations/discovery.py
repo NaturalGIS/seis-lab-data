@@ -8,15 +8,17 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from .. import (
     config,
+    constants,
     errors,
 )
+from ..schemas import events as event_schemas
 from ..db import models
 from ..db.queries import (
     surveymissions as survey_mission_queries,
     surveyrelatedrecords as record_queries,
     recordassets as asset_queries,
 )
-from ..events import EventEmitterProtocol
+from .. import dispatch
 from ..schemas import (
     common,
     discovery as discovery_schemas,
@@ -30,6 +32,7 @@ from ..schemas.surveyrelatedrecords import (
 from ..schemas import identifiers
 
 from . import (
+    projects as project_ops,
     surveymissions as survey_mission_ops,
     surveyrelatedrecords as record_ops,
 )
@@ -61,7 +64,7 @@ async def discover_survey_mission_records(
     session: AsyncSession,
     archive_root: str,
     survey_mission: models.SurveyMission,
-    event_emitter: EventEmitterProtocol,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
     user: User | None = None,
 ) -> AsyncIterator[models.SurveyRelatedRecord]:
     if (
@@ -112,7 +115,10 @@ async def discover_survey_mission_records(
         )
         for new_record in new_records:
             created_record = await record_ops.create_survey_related_record(
-                new_record, initiator=user, session=session, event_emitter=event_emitter
+                new_record,
+                initiator=user,
+                session=session,
+                event_dispatcher=event_dispatcher,
             )
             yield created_record
         # TODO: now we need to handle record relationships
@@ -392,7 +398,7 @@ async def discover_project_survey_missions(
     *,
     session: AsyncSession,
     project: models.Project,
-    event_emitter: EventEmitterProtocol,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
     settings: config.SeisLabDataSettings,
     user: User | None = None,
 ) -> AsyncIterator[models.SurveyMission]:
@@ -420,7 +426,7 @@ async def discover_project_survey_missions(
             to_create=mission_to_create,
             initiator=user,
             session=session,
-            event_emitter=event_emitter,
+            event_dispatcher=event_dispatcher,
         )
         yield db_survey_mission
 
@@ -465,4 +471,69 @@ async def _discover_survey_mission(
             **(survey_mission_discovery_conf.description or {})
         ),
         relative_path=survey_mission_discovery_conf.relative_path,
+    )
+
+
+async def run_project_discovery(
+    *,
+    project_id: identifiers.ProjectId,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+    settings: config.SeisLabDataSettings,
+    user: User | None = None,
+) -> None:
+    db_project = await project_ops.change_project_status(
+        constants.ProjectStatus.UNDER_DISCOVERY,
+        project_id,
+        user,
+        session,
+        event_dispatcher,
+    )
+
+    async for db_survey_mission in discover_project_survey_missions(
+        session=session,
+        project=db_project,
+        event_dispatcher=event_dispatcher,
+        settings=settings,
+        user=user,
+    ):
+        survey_mission_id = identifiers.SurveyMissionId(db_survey_mission.id)
+        await event_dispatcher(
+            event_schemas.ProjectDiscoveryProgressEvent(
+                project_id=project_id,
+                details=f"Discovered survey mission {db_survey_mission.id}",
+                initiator=user.id if user else "",
+            )
+        )
+        await survey_mission_ops.change_survey_mission_status(
+            constants.SurveyMissionStatus.UNDER_DISCOVERY,
+            survey_mission_id,
+            user,
+            session,
+            event_dispatcher,
+        )
+
+        async for _ in discover_survey_mission_records(
+            session=session,
+            archive_root=str(settings.readonly_archive_root_directory),
+            survey_mission=db_survey_mission,
+            event_dispatcher=event_dispatcher,
+            user=user,
+        ):
+            pass
+
+        await survey_mission_ops.change_survey_mission_status(
+            constants.SurveyMissionStatus.DRAFT,
+            survey_mission_id,
+            user,
+            session,
+            event_dispatcher,
+        )
+
+    await project_ops.change_project_status(
+        constants.ProjectStatus.DRAFT,
+        project_id,
+        user,
+        session,
+        event_dispatcher,
     )

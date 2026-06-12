@@ -5,8 +5,8 @@ import shapely
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from .. import (
+    dispatch,
     errors,
-    events,
     permissions,
     schemas,
 )
@@ -16,7 +16,10 @@ from ..db import (
     queries,
     models,
 )
-from ..schemas import identifiers
+from ..schemas import (
+    events as event_schemas,
+    identifiers,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,18 +28,15 @@ async def create_project(
     to_create: schemas.ProjectCreate,
     initiator: schemas.User | None,
     session: AsyncSession,
-    event_emitter: events.EventEmitterProtocol,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.Project:
     if not permissions.can_create_project(initiator):
         raise errors.SeisLabDataError("User is not allowed to create a project.")
     project = await commands.create_project(session, to_create)
-    event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.PROJECT_CREATED,
+    await event_dispatcher(
+        event_schemas.ProjectCreatedEvent(
+            project_id=identifiers.ProjectId(project.id),
             initiator=initiator.id,
-            payload=schemas.EventPayload(
-                after=schemas.ProjectReadDetail(**project.model_dump()).model_dump()
-            ),
         )
     )
     return project
@@ -47,7 +47,7 @@ async def change_project_status(
     project_id: identifiers.ProjectId,
     initiator: schemas.User | None,
     session: AsyncSession,
-    event_emitter: events.EventEmitterProtocol,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.Project:
     if (project := await queries.get_project(session, project_id)) is None:
         raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
@@ -59,14 +59,12 @@ async def change_project_status(
     updated_project = await commands.set_project_status(
         session, identifiers.ProjectId(project.id), target_status
     )
-    event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.PROJECT_STATUS_CHANGED,
+    await event_dispatcher(
+        event_schemas.ProjectStatusChangedEvent(
+            project_id=project_id,
+            old_status=old_status,
+            new_status=updated_project.status,
             initiator=initiator.id,
-            payload=schemas.EventPayload(
-                before={"status": old_status.value},
-                after={"status": updated_project.status.value},
-            ),
         )
     )
     return updated_project
@@ -76,17 +74,15 @@ async def validate_project(
     project_id: identifiers.ProjectId,
     initiator: schemas.User | None,
     session: AsyncSession,
-    event_emitter: events.EventEmitterProtocol,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.Project:
+    await change_project_status(
+        ProjectStatus.UNDER_VALIDATION, project_id, initiator, session, event_dispatcher
+    )
     if (project := await queries.get_project(session, project_id)) is None:
         raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
     if not permissions.can_validate_project(initiator, project):
         raise errors.SeisLabDataError("User is not allowed to validate project.")
-
-    old_validation_result = project.validation_result or {
-        "is_valid": False,
-        "errors": None,
-    }
     validation_errors = []
     try:
         schemas.ValidProject(**project.model_dump())
@@ -111,21 +107,15 @@ async def validate_project(
         await commands.update_project_validation_result(
             session, project, validation_result={"is_valid": True, "errors": None}
         )
-    event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.PROJECT_VALIDATED,
+    await event_dispatcher(
+        event_schemas.ProjectValidatedEvent(
+            project_id=project_id,
+            is_valid=not validation_errors,
             initiator=initiator.id,
-            payload=schemas.EventPayload(
-                before={
-                    "project_id": project.id,
-                    "validation_result": {**old_validation_result},
-                },
-                after={
-                    "project_id": project.id,
-                    "validation_result": {**project.validation_result},
-                },
-            ),
         )
+    )
+    await change_project_status(
+        ProjectStatus.DRAFT, project_id, initiator, session, event_dispatcher
     )
     return project
 
@@ -135,7 +125,7 @@ async def update_project(
     to_update: schemas.ProjectUpdate,
     initiator: schemas.User | None,
     session: AsyncSession,
-    event_emitter: events.EventEmitterProtocol,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.Project:
     if (project := await queries.get_project(session, project_id)) is None:
         raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
@@ -145,20 +135,11 @@ async def update_project(
         raise errors.SeisLabDataError(
             f"Cannot update project with status {project.status}."
         )
-    serialized_project_before = schemas.ProjectReadDetail.from_db_instance(
-        project
-    ).model_dump()
     updated_project = await commands.update_project(session, project, to_update)
-    event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.PROJECT_UPDATED,
+    await event_dispatcher(
+        event_schemas.ProjectUpdatedEvent(
+            project_id=project_id,
             initiator=initiator.id,
-            payload=schemas.EventPayload(
-                before=serialized_project_before,
-                after=schemas.ProjectReadDetail.from_db_instance(
-                    updated_project
-                ).model_dump(),
-            ),
         )
     )
     return updated_project
@@ -168,7 +149,7 @@ async def delete_project(
     project_id: identifiers.ProjectId,
     initiator: schemas.User | None,
     session: AsyncSession,
-    event_emitter: events.EventEmitterProtocol,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> None:
     if (project := await queries.get_project(session, project_id)) is None:
         raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
@@ -178,13 +159,11 @@ async def delete_project(
         raise errors.SeisLabDataError(
             f"Cannot delete project with status {project.status}."
         )
-    serialized_project = schemas.ProjectReadDetail(**project.model_dump()).model_dump()
     await commands.delete_project(session, project_id)
-    event_emitter(
-        schemas.SeisLabDataEvent(
-            type_=schemas.EventType.PROJECT_DELETED,
+    await event_dispatcher(
+        event_schemas.ProjectDeletedEvent(
+            project_id=project_id,
             initiator=initiator.id,
-            payload=schemas.EventPayload(before=serialized_project),
         )
     )
 

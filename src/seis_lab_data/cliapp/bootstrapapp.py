@@ -58,7 +58,7 @@ async def bootstrap_dataset_categories(ctx: typer.Context):
                         to_create,
                         initiator=ctx.obj["admin_user"],
                         session=session,
-                        event_emitter=settings.get_event_emitter(),
+                        event_dispatcher=settings.get_event_dispatcher(),
                     )
                 )
             except IntegrityError:
@@ -84,7 +84,7 @@ async def bootstrap_domain_types(ctx: typer.Context):
                         to_create,
                         initiator=ctx.obj["admin_user"],
                         session=session,
-                        event_emitter=settings.get_event_emitter(),
+                        event_dispatcher=settings.get_event_dispatcher(),
                     )
                 )
             except IntegrityError:
@@ -110,7 +110,7 @@ async def bootstrap_workflow_stages(ctx: typer.Context):
                         to_create,
                         initiator=ctx.obj["admin_user"],
                         session=session,
-                        event_emitter=settings.get_event_emitter(),
+                        event_dispatcher=settings.get_event_dispatcher(),
                     )
                 )
             except IntegrityError:

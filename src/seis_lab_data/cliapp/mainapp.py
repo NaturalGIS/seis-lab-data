@@ -138,7 +138,7 @@ async def create_survey_related_record(
             ),
             initiator=ctx.obj["admin_user"],
             session=session,
-            event_emitter=settings.get_event_emitter(),
+            event_dispatcher=settings.get_event_dispatcher(),
         )
         print(schemas.SurveyRelatedRecordReadDetail(**created.model_dump()))
 
@@ -207,7 +207,7 @@ async def delete_survey_related_record(
             identifiers.SurveyRelatedRecordId(survey_related_record_id),
             initiator=ctx.obj["admin_user"].id,
             session=session,
-            event_emitter=settings.get_event_emitter(),
+            event_dispatcher=settings.get_event_dispatcher(),
         )
     printer(f"Deleted survey-related record with id {survey_related_record_id!r}")
 
@@ -257,7 +257,7 @@ async def create_survey_mission(
             ),
             initiator=ctx.obj["admin_user"],
             session=session,
-            event_emitter=settings.get_event_emitter(),
+            event_dispatcher=settings.get_event_dispatcher(),
         )
         print(schemas.SurveyMissionReadDetail(**created.model_dump()))
 
@@ -315,7 +315,7 @@ async def delete_survey_mission(
             identifiers.SurveyMissionId(survey_mission_id),
             initiator=ctx.obj["admin_user"].id,
             session=session,
-            event_emitter=settings.get_event_emitter(),
+            event_dispatcher=settings.get_event_dispatcher(),
         )
     print(f"Deleted survey mission with id {survey_mission_id!r}")
 
@@ -382,7 +382,7 @@ async def create_project(
             ),
             initiator=ctx.obj["admin_user"],
             session=session,
-            event_emitter=settings.get_event_emitter(),
+            event_dispatcher=settings.get_event_dispatcher(),
         )
         print(schemas.ProjectReadDetail(**created.model_dump()))
 
@@ -462,7 +462,7 @@ async def old_delete_project(
             identifiers.ProjectId(project_id),
             initiator=ctx.obj["admin_user"],
             session=session,
-            event_emitter=settings.get_event_emitter(),
+            event_dispatcher=settings.get_event_dispatcher(),
         )
     print(f"Deleted project with id {project_id!r}")
 
@@ -488,7 +488,7 @@ async def create_dataset_category(
             ),
             initiator=ctx.obj["admin_user"],
             session=session,
-            event_emitter=settings.get_event_emitter(),
+            event_dispatcher=settings.get_event_dispatcher(),
         )
         print(schemas.DatasetCategoryRead(**created.model_dump()))
 
@@ -522,7 +522,7 @@ async def delete_dataset_category(
             dataset_category_id,
             initiator=ctx.obj["admin_user"],
             session=session,
-            event_emitter=settings.get_event_emitter(),
+            event_dispatcher=settings.get_event_dispatcher(),
         )
     print(f"Deleted dataset category with id {dataset_category_id!r}")
 
@@ -548,7 +548,7 @@ async def create_domain_type(
             ),
             initiator=ctx.obj["admin_user"],
             session=session,
-            event_emitter=settings.get_event_emitter(),
+            event_dispatcher=settings.get_event_dispatcher(),
         )
         print(schemas.DomainTypeRead(**created.model_dump()))
 
@@ -582,7 +582,7 @@ async def delete_domain_type(
             domain_type_id,
             initiator=ctx.obj["admin_user"],
             session=session,
-            event_emitter=settings.get_event_emitter(),
+            event_dispatcher=settings.get_event_dispatcher(),
         )
     print(f"Deleted domain type with id {domain_type_id!r}")
 
@@ -608,7 +608,7 @@ async def create_workflow_stage(
             ),
             initiator=ctx.obj["admin_user"],
             session=session,
-            event_emitter=settings.get_event_emitter(),
+            event_dispatcher=settings.get_event_dispatcher(),
         )
         print(schemas.WorkflowStageRead(**created.model_dump()))
 
@@ -642,6 +642,6 @@ async def delete_workflow_stage(
             workflow_stage_id,
             initiator=ctx.obj["admin_user"],
             session=session,
-            event_emitter=settings.get_event_emitter(),
+            event_dispatcher=settings.get_event_dispatcher(),
         )
     print(f"Deleted workflow stage with id {workflow_stage_id!r}")

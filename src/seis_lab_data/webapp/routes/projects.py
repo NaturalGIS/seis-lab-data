@@ -221,6 +221,9 @@ async def get_project_list_updates(request: Request):
             "project_creation_successful": handlers.handle_project_modification_list_page,
             "project_deletion_successful": handlers.handle_project_modification_list_page,
             "project_update_successful": handlers.handle_project_modification_list_page,
+            "project_created": handlers.handle_project_modification_list_page,
+            "project_updated": handlers.handle_project_modification_list_page,
+            "project_deleted": handlers.handle_project_modification_list_page,
         },
     )
 
@@ -273,136 +276,12 @@ async def get_project_detail_updates(request: Request):
     redis_client: Redis = request.state.redis_client
     user = request.user if request.user.is_authenticated else None
 
-    async def on_status_update_message(
-        raw_message: str,
-    ) -> AsyncGenerator[DatastarEvent, None]:
-        message = schemas.ProjectEvent(**json.loads(raw_message))
-        if message.project_id == project_id:
-            logger.debug(
-                "Received message about recent project status update, "
-                "patching frontend..."
-            )
-            async with session_maker() as session:
-                updated_project = await operations.get_project(
-                    project_id, user, session
-                )
-                yield ServerSentEventGenerator.patch_signals(
-                    {
-                        "status": updated_project.status.value,
-                    },
-                )
-
-    async def on_validation_update_message(
-        raw_message: str,
-    ) -> AsyncGenerator[DatastarEvent, None]:
-        message = schemas.ProjectEvent(**json.loads(raw_message))
-        if message.project_id == project_id:
-            logger.debug(
-                "Received message about recent project validation update, "
-                "patching frontend..."
-            )
-            async with session_maker() as session:
-                updated_project = await operations.get_project(
-                    project_id, user, session
-                )
-                details_message = ""
-                if not updated_project.validation_result.get("is_valid"):
-                    details_message += "<ul>"
-                    for err in updated_project.validation_result.get("errors", []):
-                        detail = f"{err['name']}: {err['message']}"
-                        details_message += f"<li>{detail}</li>"
-                yield ServerSentEventGenerator.patch_elements(
-                    details_message,
-                    selector=schemas.selector_info.validation_result_details_selector,
-                    mode=ElementPatchMode.INNER,
-                )
-                yield ServerSentEventGenerator.patch_signals(
-                    {
-                        "isValid": updated_project.validation_result["is_valid"],
-                    },
-                )
-
-    async def on_project_update_message(
-        raw_message: str,
-    ) -> AsyncGenerator[DatastarEvent, None]:
-        message = schemas.ProjectEvent(**json.loads(raw_message))
-        if message.project_id == project_id:
-            logger.debug("Received message about recent project update")
-            yield ServerSentEventGenerator.patch_elements(
-                "Project has been updated - refreshing the page shortly",
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.INNER,
-            )
-            await asyncio.sleep(1)
-            yield ServerSentEventGenerator.redirect(
-                str(request.url_for("projects:detail", project_id=project_id)),
-            )
-
-    async def on_project_discovery_message(
-        raw_message: str,
-    ) -> AsyncGenerator[DatastarEvent, None]:
-        message = schemas.ProjectEvent(**json.loads(raw_message))
-        if message.project_id == project_id:
-            logger.debug(
-                "Received message about project discovery update, "
-                "refreshing survey missions list..."
-            )
-            settings: config.SeisLabDataSettings = request.state.settings
-            async with session_maker() as session:
-                survey_missions, total = await operations.list_survey_missions(
-                    session,
-                    initiator=user,
-                    project_id=project_id,
-                    include_total=True,
-                    page=1,
-                    page_size=settings.pagination_page_size,
-                )
-            pagination = get_pagination_info(
-                current_page=1,
-                page_size=settings.pagination_page_size,
-                total_filtered_items=total,
-                total_unfiltered_items=total,
-                collection_url=str(
-                    request.url_for("projects:detail", project_id=project_id)
-                ),
-            )
-            serialized_missions = [
-                schemas.SurveyMissionReadListItem.from_db_instance(m)
-                for m in survey_missions
-            ]
-            template_processor = request.state.templates
-            rendered = template_processor.get_template(
-                "survey-missions/list-component.html"
-            ).render(
-                request=request,
-                items=serialized_missions,
-                pagination=pagination,
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                rendered,
-                selector=schemas.selector_info.project_survey_missions_selector,
-                mode=ElementPatchMode.INNER,
-            )
-
-    # topic_handlers = {
-    #     # PROJECT_DELETED_TOPIC.format(project_id=project_id): on_project_deleted_message,
-    #     PROJECT_DISCOVERY_TOPIC.format(
-    #         project_id=project_id
-    #     ): on_project_discovery_message,
-    #     PROJECT_VALIDITY_CHANGED_TOPIC.format(
-    #         project_id=project_id
-    #     ): on_validation_update_message,
-    #     PROJECT_STATUS_CHANGED_TOPIC.format(
-    #         project_id=project_id
-    #     ): on_status_update_message,
-    #     PROJECT_UPDATED_TOPIC.format(project_id=project_id): on_project_update_message,
-    # }
-
     subscription = subscribers.subscribe_to_topic(
         redis_client,
         constants.NEW_TOPIC_PROJECTS,
         subscribers.ProjectHandlerContext(
             project_id=project_id,
+            user=user,
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
             db_session_factory=session_maker,
@@ -410,16 +289,15 @@ async def get_project_detail_updates(request: Request):
         {
             "project_deletion_successful": handlers.handle_project_deletion_success_detail_page,
             "project_deletion_failed": handlers.handle_project_deletion_failure_detail_page,
+            "project_status_changed": handlers.handle_project_status_changed_detail_page,
+            "project_validated": handlers.handle_project_validated_detail_page,
+            "project_discovery_progress": handlers.handle_project_discovery_progress_detail_page,
         },
     )
 
     async def event_streamer():
         async for sse_event in subscription:
             yield sse_event
-        # async for sse_event in produce_event_stream_for_item_updates(
-        #     redis_client, request, timeout_seconds=30, **topic_handlers
-        # ):
-        #     yield sse_event
 
     return DatastarResponse(event_streamer())
 
@@ -1261,23 +1139,11 @@ async def remove_update_project_form_link(request: Request):
 @csrf_protect
 @requires_auth
 async def trigger_project_discovery(request: Request):
-    user = request.user
-    project_id = get_id_from_request_path(request, "project_id", identifiers.ProjectId)
-    request_id = identifiers.RequestId(uuid.uuid4())
     discovery_tasks.discover_project_contents.send(
-        raw_request_id=str(request_id),
-        raw_project_id=str(project_id),
-        raw_initiator=json.dumps(dataclasses.asdict(user)),
-    )
-
-    async def event_streamer():
-        yield ServerSentEventGenerator.patch_elements(
-            "Discovery started",
-            selector=schemas.selector_info.feedback_selector,
-            mode=ElementPatchMode.INNER,
-        )
-
-    return DatastarResponse(event_streamer(), status_code=202)
+        raw_project_id=request.path_params["project_id"],
+        raw_initiator=json.dumps(dataclasses.asdict(request.user)),
+    )  # noqa
+    return Response(status_code=202)
 
 
 @csrf_protect

@@ -4,11 +4,7 @@ from .common import (
     LocalizableDraftName,
     LocalizableDraftRelationship,
 )
-from .events import (
-    EventType,
-    EventPayload,
-    SeisLabDataEvent,
-)
+from .events import SeisLabDataEvent
 from .filters import TemporalExtentFilterValue
 from .processing import (
     ProcessingMessage,
@@ -72,8 +68,6 @@ __all__ = [
     "DatasetCategoryRead",
     "DomainTypeCreate",
     "DomainTypeRead",
-    "EventPayload",
-    "EventType",
     "ItemSelectorInfo",
     "LinkSchema",
     "LocalizableDraftDescription",

@@ -20,7 +20,7 @@ from .. import (
 )
 from ..db import queries
 from ..errors import SeisLabDataError
-from ..events.emitters import null_emitter
+from ..dispatch import no_op_dispatcher
 from ..schemas import (
     identifiers,
     messages as message_schemas,
@@ -67,14 +67,16 @@ async def generate_many_projects(
             max=100,
         ),
     ] = 10,
-    disable_event_emitter: bool = True,
+    disable_event_dispatcher: bool = True,
 ):
     """Generate synthetic data"""
     created = []
     admin_ = ctx.obj["admin_user"]
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     emitter = (
-        settings.get_event_emitter() if not disable_event_emitter else null_emitter
+        settings.get_event_dispatcher()
+        if not disable_event_dispatcher
+        else no_op_dispatcher
     )
     async with settings.get_db_session_maker()() as session:
         dataset_categories = await queries.collect_all_dataset_categories(session)
@@ -100,7 +102,7 @@ async def generate_many_projects(
                     project_to_create,
                     initiator=admin_,
                     session=session,
-                    event_emitter=emitter,
+                    event_dispatcher=emitter,
                 )
             )
             for mission_index, (mission_to_create, records_to_create) in enumerate(
@@ -113,7 +115,7 @@ async def generate_many_projects(
                     mission_to_create,
                     initiator=admin_,
                     session=session,
-                    event_emitter=emitter,
+                    event_dispatcher=emitter,
                 )
                 for record_index, record_to_create in enumerate(records_to_create):
                     # ctx.obj["main"].status_console.print(
@@ -123,7 +125,7 @@ async def generate_many_projects(
                         record_to_create,
                         initiator=admin_,
                         session=session,
-                        event_emitter=emitter,
+                        event_dispatcher=emitter,
                     )
             ctx.obj["main"].status_console.print("--------")
         ctx.obj["main"].status_console.print("Done!")
@@ -216,7 +218,7 @@ async def old_load_sample_projects(ctx: typer.Context):
                         to_create,
                         initiator=admin_,
                         session=session,
-                        event_emitter=settings.get_event_emitter(),
+                        event_dispatcher=settings.get_event_dispatcher(),
                     )
                 )
             except SeisLabDataError as err:
@@ -249,7 +251,7 @@ async def load_sample_survey_missions(ctx: typer.Context):
                         to_create,
                         initiator=admin_,
                         session=session,
-                        event_emitter=settings.get_event_emitter(),
+                        event_dispatcher=settings.get_event_dispatcher(),
                     )
                 )
             except IntegrityError as err:
@@ -289,7 +291,7 @@ async def load_sample_survey_related_records(ctx: typer.Context):
                         to_create,
                         initiator=admin_,
                         session=session,
-                        event_emitter=settings.get_event_emitter(),
+                        event_dispatcher=settings.get_event_dispatcher(),
                     )
                 )
             except IntegrityError as err:

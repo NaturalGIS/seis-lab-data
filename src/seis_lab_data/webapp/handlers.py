@@ -9,7 +9,7 @@ from datastar_py.starlette import DatastarEvent
 from datastar_py.consts import ElementPatchMode
 from datastar_py.sse import ServerSentEventGenerator
 
-from .. import subscribers
+from .. import operations, subscribers
 from ..schemas import (
     messages as message_schemas,
     webui as webui_schemas,
@@ -20,6 +20,9 @@ ProjectModified: TypeAlias = (
     message_schemas.ProjectCreationSuccessfulMessage
     | message_schemas.ProjectDeletionSuccessfulMessage
     | message_schemas.ProjectUpdateSuccessfulMessage
+    | message_schemas.ProjectCreatedMessage
+    | message_schemas.ProjectUpdatedMessage
+    | message_schemas.ProjectDeletedMessage
 )
 
 
@@ -94,7 +97,10 @@ async def handle_project_modification_list_page(
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
     match message:
-        case message_schemas.ProjectDeletionSuccessfulMessage():
+        case (
+            message_schemas.ProjectDeletionSuccessfulMessage()
+            | message_schemas.ProjectDeletedMessage()
+        ):
             message = (
                 f"Project {message.project_id} has been deleted - Reloaded project list"
             )
@@ -165,3 +171,111 @@ async def handle_project_deletion_failure_detail_page(
     )
     if done is not None:
         done.set()
+
+
+async def handle_project_discovery_started_detail_page(
+    message: message_schemas.ProjectDiscoveryStartedMessage,
+    context: subscribers.ProjectHandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    """Update project detail page when discovery starts."""
+    if message.project_id != context.project_id:
+        return
+    message_template = context.jinja_environment.get_template(
+        "processing/progress-message-list-item.html"
+    )
+    yield ServerSentEventGenerator.patch_elements(
+        message_template.render(
+            data_test_id="processing-discovery-started-message",
+            status="success",
+            message="Project discovery started",
+        ),
+        selector=webui_schemas.selector_info.feedback_selector,
+        mode=ElementPatchMode.APPEND,
+    )
+    if done is not None:
+        done.set()
+
+
+async def handle_project_discovery_successful_detail_page(
+    message: message_schemas.ProjectDiscoverySuccessfulMessage,
+    context: subscribers.ProjectHandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    """Update project detail page when discovery ends successfully."""
+    if message.project_id != context.project_id:
+        return
+    message_template = context.jinja_environment.get_template(
+        "processing/progress-message-list-item.html"
+    )
+    yield ServerSentEventGenerator.patch_elements(
+        message_template.render(
+            data_test_id="processing-discovery-successful-message",
+            status="success",
+            message="Project discovery finished",
+        ),
+        selector=webui_schemas.selector_info.feedback_selector,
+        mode=ElementPatchMode.APPEND,
+    )
+    if done is not None:
+        done.set()
+
+
+async def handle_project_status_changed_detail_page(
+    message: message_schemas.ProjectStatusChangedMessage,
+    context: subscribers.ProjectHandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    """Update the status signal on the project detail page."""
+    if message.project_id != context.project_id:
+        return
+    yield ServerSentEventGenerator.patch_signals({"status": message.new_status.value})
+
+
+async def handle_project_validated_detail_page(
+    message: message_schemas.ProjectValidatedMessage,
+    context: subscribers.ProjectHandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    """Update the validation result on the project detail page."""
+    if message.project_id != context.project_id:
+        return
+    if context.db_session_factory is not None:
+        async with context.db_session_factory() as session:
+            project = await operations.get_project(
+                message.project_id, context.user, session
+            )
+        if project is not None:
+            details_html = ""
+            if not project.validation_result.get("is_valid"):
+                details_html = "<ul>"
+                for err in project.validation_result.get("errors") or []:
+                    details_html += f"<li>{err['name']}: {err['message']}</li>"
+                details_html += "</ul>"
+            yield ServerSentEventGenerator.patch_elements(
+                details_html,
+                selector=webui_schemas.selector_info.validation_result_details_selector,
+                mode=ElementPatchMode.INNER,
+            )
+    yield ServerSentEventGenerator.patch_signals({"isValid": message.is_valid})
+
+
+async def handle_project_discovery_progress_detail_page(
+    message: message_schemas.ProjectDiscoveryProgressMessage,
+    context: subscribers.ProjectHandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    """Append a discovery progress message on the project detail page."""
+    if message.project_id != context.project_id:
+        return
+    message_template = context.jinja_environment.get_template(
+        "processing/progress-message-list-item.html"
+    )
+    yield ServerSentEventGenerator.patch_elements(
+        message_template.render(
+            status="info",
+            message=message.details,
+        ),
+        selector=webui_schemas.selector_info.feedback_selector,
+        mode=ElementPatchMode.APPEND,
+    )

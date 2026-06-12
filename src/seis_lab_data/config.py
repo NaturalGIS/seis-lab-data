@@ -30,7 +30,7 @@ from sqlalchemy.ext.asyncio.engine import (
 )
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from .events import emitters
+from . import dispatch
 
 warnings.filterwarnings(
     "ignore", r".*directory.*does not exist.*", UserWarning, module="pydantic_settings"
@@ -103,7 +103,7 @@ class SeisLabDataSettings(BaseSettings):
     _db_engine: AsyncEngine | None = None
     _sync_db_engine: Engine | None = None
     _db_session_maker: async_sessionmaker | None = None
-    _event_emitter: emitters.EventEmitterProtocol | None = None
+    _event_dispatcher: dispatch.EventDispatcherProtocol | None = None
 
     def get_db_engine(self) -> AsyncEngine:
         if self._db_engine is None:
@@ -128,12 +128,17 @@ class SeisLabDataSettings(BaseSettings):
             )
         return self._db_session_maker
 
-    def get_event_emitter(self) -> emitters.EventEmitterProtocol:
-        if self._event_emitter is None:
-            self._event_emitter = (
-                emitters.emit_event if self.emit_events else emitters.no_op_emit_event
-            )
-        return self._event_emitter
+    def get_event_dispatcher(self) -> dispatch.EventDispatcherProtocol:
+        if self._event_dispatcher is None:
+            if self.emit_events:
+                self._event_dispatcher = dispatch.RedisEventDispatcher(
+                    redis_client=aioredis.from_url(
+                        self.message_broker_dsn.unicode_string()
+                    )
+                )
+            else:
+                self._event_dispatcher = dispatch.no_op_dispatcher
+        return self._event_dispatcher
 
 
 class SeisLabDataCliContext(BaseModel):

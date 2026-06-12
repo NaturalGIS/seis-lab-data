@@ -1,57 +1,184 @@
-import enum
 import datetime as dt
 import dataclasses
 from functools import partial
+from typing import TypeAlias
 
-
-class EventType(enum.Enum):
-    HELLO = "hello"
-    BULK_SURVEY_RELATED_RECORDS_CREATED = "bulk_survey_related_records_created"
-    ASSET_CREATED = "asset_created"
-    ASSET_DELETED = "asset_deleted"
-    ASSET_UPDATED = "asset_updated"
-    DATASET_CATEGORY_CREATED = "dataset_category_created"
-    DATASET_CATEGORY_DELETED = "dataset_category_deleted"
-    DOMAIN_TYPE_CREATED = "domain_type_created"
-    DOMAIN_TYPE_DELETED = "domain_type_deleted"
-    PROJECT_CREATED = "project_created"
-    PROJECT_DELETED = "project_deleted"
-    PROJECT_DISCOVERY_STARTED = "project_discovery_started"
-    PROJECT_DISCOVERY_FINISHED = "project_discovery_finished"
-    PROJECT_UPDATED = "project_updated"
-    PROJECT_VALIDATED = "project_validated"
-    PROJECT_VALIDATION_PROGRESS = "project_validation_progress"
-    PROJECT_STATUS_CHANGED = "project_status_changed"
-    SURVEY_MISSION_CREATED = "survey_mission_created"
-    SURVEY_MISSION_DELETED = "survey_mission_deleted"
-    SURVEY_MISSION_UPDATED = "survey_mission_updated"
-    SURVEY_MISSION_VALIDATED = "survey_mission_validated"
-    SURVEY_MISSION_VALIDATION_PROGRESS = "survey_mission_validation_progress"
-    SURVEY_MISSION_STATUS_CHANGED = "survey_mission_status_changed"
-    SURVEY_RELATED_RECORD_CREATED = "survey_related_record_created"
-    SURVEY_RELATED_RECORD_DELETED = "survey_related_record_deleted"
-    SURVEY_RELATED_RECORD_UPDATED = "survey_related_record_updated"
-    SURVEY_RELATED_RECORD_VALIDATED = "survey_related_record_validated"
-    SURVEY_RELATED_RECORD_VALIDATION_PROGRESS = (
-        "survey_related_record_validation_progress"
-    )
-    SURVEY_RELATED_RECORD_STATUS_CHANGED = "survey_related_record_status_changed"
-    WORKFLOW_STAGE_CREATED = "workflow_stage_created"
-    WORKFLOW_STAGE_DELETED = "workflow_stage_deleted"
+from .. import constants
+from . import identifiers
 
 
 get_utc_now = partial(dt.datetime.now, tz=dt.timezone.utc)
 
 
-@dataclasses.dataclass(frozen=True)
-class EventPayload:
-    before: dict | None = None
-    after: dict | None = None
-
-
-@dataclasses.dataclass(frozen=True)
-class SeisLabDataEvent:
-    type_: EventType
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class _EventBase:
     initiator: str
-    payload: EventPayload
     timestamp: dt.datetime = dataclasses.field(default_factory=get_utc_now)
+
+
+# Project events
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ProjectCreatedEvent(_EventBase):
+    project_id: identifiers.ProjectId
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ProjectUpdatedEvent(_EventBase):
+    project_id: identifiers.ProjectId
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ProjectDeletedEvent(_EventBase):
+    project_id: identifiers.ProjectId
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ProjectStatusChangedEvent(_EventBase):
+    project_id: identifiers.ProjectId
+    old_status: constants.ProjectStatus
+    new_status: constants.ProjectStatus
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ProjectValidatedEvent(_EventBase):
+    project_id: identifiers.ProjectId
+    is_valid: bool
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ProjectDiscoveryProgressEvent(_EventBase):
+    project_id: identifiers.ProjectId
+    details: str
+
+
+# Survey mission events
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyMissionCreatedEvent(_EventBase):
+    survey_mission_id: identifiers.SurveyMissionId
+    project_id: identifiers.ProjectId
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyMissionUpdatedEvent(_EventBase):
+    survey_mission_id: identifiers.SurveyMissionId
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyMissionDeletedEvent(_EventBase):
+    survey_mission_id: identifiers.SurveyMissionId
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyMissionStatusChangedEvent(_EventBase):
+    survey_mission_id: identifiers.SurveyMissionId
+    old_status: constants.SurveyMissionStatus
+    new_status: constants.SurveyMissionStatus
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyMissionValidatedEvent(_EventBase):
+    survey_mission_id: identifiers.SurveyMissionId
+    is_valid: bool
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyMissionDiscoveryProgressEvent(_EventBase):
+    survey_mission_id: identifiers.SurveyMissionId
+    project_id: identifiers.ProjectId
+    details: str
+
+
+# Survey-related record events
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyRelatedRecordCreatedEvent(_EventBase):
+    record_id: identifiers.SurveyRelatedRecordId
+    survey_mission_id: identifiers.SurveyMissionId
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyRelatedRecordUpdatedEvent(_EventBase):
+    record_id: identifiers.SurveyRelatedRecordId
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyRelatedRecordDeletedEvent(_EventBase):
+    record_id: identifiers.SurveyRelatedRecordId
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyRelatedRecordStatusChangedEvent(_EventBase):
+    record_id: identifiers.SurveyRelatedRecordId
+    old_status: constants.SurveyRelatedRecordStatus
+    new_status: constants.SurveyRelatedRecordStatus
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyRelatedRecordValidatedEvent(_EventBase):
+    record_id: identifiers.SurveyRelatedRecordId
+    is_valid: bool
+
+
+# Reference data events
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class DatasetCategoryCreatedEvent(_EventBase):
+    category_id: identifiers.DatasetCategoryId
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class DatasetCategoryDeletedEvent(_EventBase):
+    category_id: identifiers.DatasetCategoryId
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class DomainTypeCreatedEvent(_EventBase):
+    domain_type_id: identifiers.DomainTypeId
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class DomainTypeDeletedEvent(_EventBase):
+    domain_type_id: identifiers.DomainTypeId
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class WorkflowStageCreatedEvent(_EventBase):
+    stage_id: identifiers.WorkflowStageId
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class WorkflowStageDeletedEvent(_EventBase):
+    stage_id: identifiers.WorkflowStageId
+
+
+SeisLabDataEvent: TypeAlias = (
+    ProjectCreatedEvent
+    | ProjectUpdatedEvent
+    | ProjectDeletedEvent
+    | ProjectStatusChangedEvent
+    | ProjectValidatedEvent
+    | ProjectDiscoveryProgressEvent
+    | SurveyMissionCreatedEvent
+    | SurveyMissionUpdatedEvent
+    | SurveyMissionDeletedEvent
+    | SurveyMissionStatusChangedEvent
+    | SurveyMissionValidatedEvent
+    | SurveyMissionDiscoveryProgressEvent
+    | SurveyRelatedRecordCreatedEvent
+    | SurveyRelatedRecordUpdatedEvent
+    | SurveyRelatedRecordDeletedEvent
+    | SurveyRelatedRecordStatusChangedEvent
+    | SurveyRelatedRecordValidatedEvent
+    | DatasetCategoryCreatedEvent
+    | DatasetCategoryDeletedEvent
+    | DomainTypeCreatedEvent
+    | DomainTypeDeletedEvent
+    | WorkflowStageCreatedEvent
+    | WorkflowStageDeletedEvent
+)
