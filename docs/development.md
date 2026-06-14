@@ -222,8 +222,8 @@ It is accessible at http://pgadmin.localhost:8888 and login credentials are:
 Normal tests can be run from inside the `webapp` compose container, after installing the required dependencies:
 
 ```shell
-docker compose --file docker/compose.dev.yaml exec webapp uv sync --locked --group gdal --group dev
-docker compose --file docker/compose.dev.yaml exec webapp uv run pytest
+docker compose --file docker/compose.dev.yaml exec -ti webapp uv sync --locked --group gdal --group dev
+docker compose --file docker/compose.dev.yaml exec -ti webapp uv run pytest
 ```
 
 Integration tests can be run with the following incantation:

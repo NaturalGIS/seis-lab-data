@@ -137,13 +137,13 @@
                             contentType: 'form',
                             headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
                         })"
-                    data-indicator="putting"
-                    data-attr:disabled="$putting"
-                    data-text="$putting ? '{{ _('Updating survey-related record...') }}' : '{{ _('Update survey-related record') }}'"
+                    data-indicator="submitting"
+                    data-attr:disabled="$submitting"
+                    data-text="$submitting ? '{{ _('Updating survey-related record...') }}' : '{{ _('Update survey-related record') }}'"
             >
             </button>
             <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
-                 data-attr:hidden="!$putting">
+                 data-attr:hidden="!$submitting">
                 <span class="visually-hidden">{{ _("Loading...") }}</span>
             </div>
         </div>

@@ -2,7 +2,6 @@
 <form
         data-on-intersect__once="@get('{{ url_for("projects:new_stream", request_id=form.request_id.data) }}')"
         data-on:datastar-fetch="evt.detail.type === 'finished' && document.querySelector('bbox-map')?.initMap()"
-        data-signals:submitted="false"
 >
     {{ form.request_id() }}
     {{ macros.render_localizable_field(form.name) }}
@@ -67,16 +66,17 @@
                     type="submit"
                     aria-label="submit-create-form"
                     class="btn btn-primary"
-                    data-on:click="$submitted = true; @post('{{ url_for('projects:list') }}', {
+                    data-on:click="@post('{{ url_for('projects:list') }}', {
                             contentType: 'form',
                             headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
                         })"
-                    data-attr:disabled="$submitted"
-                    data-text="$submitted ? '{{ _('Creating project...') }}' : '{{ _('Create project') }}'"
+                    data-indicator="submitting"
+                    data-attr:disabled="$submitting"
+                    data-text="$submitting ? '{{ _('Creating project...') }}' : '{{ _('Create project') }}'"
             >
             </button>
             <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
-                 data-attr:hidden="!$submitted">
+                 data-attr:hidden="!$submitting">
                 <span class="visually-hidden">{{ _("Loading...") }}</span>
             </div>
         </div>

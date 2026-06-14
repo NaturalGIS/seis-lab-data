@@ -664,8 +664,12 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                     selector=schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
+                yield ServerSentEventGenerator.execute_script(
+                    "document.querySelector('.is-invalid')?.scrollIntoView({behavior: 'smooth', block: 'center'})"
+                )
 
-            return DatastarResponse(stream_validation_failed_events(), status_code=422)
+            # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
+            return DatastarResponse(stream_validation_failed_events(), status_code=200)
 
         request_id = identifiers.RequestId(uuid.uuid4())
         to_update = schemas.SurveyMissionUpdate(
@@ -806,7 +810,8 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             async for sse_event in event_stream_generator:
                 yield sse_event
 
-        return DatastarResponse(event_streamer(), status_code=202)
+        # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
+        return DatastarResponse(event_streamer(), status_code=200)
 
     @csrf_protect
     @requires_auth
@@ -840,8 +845,12 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                     selector=schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
+                yield ServerSentEventGenerator.execute_script(
+                    "document.querySelector('.is-invalid')?.scrollIntoView({behavior: 'smooth', block: 'center'})"
+                )
 
-            return DatastarResponse(event_streamer(), status_code=422)
+            # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
+            return DatastarResponse(event_streamer(), status_code=200)
 
         request_id = identifiers.RequestId(uuid.uuid4())
         related_records = []
@@ -999,7 +1008,8 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             async for sse_event in event_stream_generator:
                 yield sse_event
 
-        return DatastarResponse(stream_events(), status_code=202)
+        # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
+        return DatastarResponse(stream_events(), status_code=200)
 
     @csrf_protect
     @requires_auth

@@ -1,8 +1,23 @@
+import re
+import uuid
+
 import pytest
 from playwright.sync_api import (
     Page,
     expect,
 )
+
+
+def _fill_project_form(page: Page, english_name: str):
+    page.get_by_role("textbox", name="field-name-en").fill(english_name)
+    page.get_by_role("textbox", name="field-name-pt").fill("projeto de teste e2e")
+    page.get_by_role("textbox", name="field-description-en").fill(
+        "e2e test description"
+    )
+    page.get_by_role("textbox", name="field-description-pt").fill(
+        "descrição do projeto de teste"
+    )
+    page.get_by_role("textbox", name="field-root_path").fill("/somewhere")
 
 
 @pytest.mark.e2e
@@ -14,20 +29,9 @@ def test_project_lifecycle(authenticated_page: Page):
     authenticated_page.get_by_role("link", name="list-projects").click()
     authenticated_page.get_by_role("button", name="new-project").click()
 
-    # fill out the form and submit it
-    authenticated_page.get_by_role("textbox", name="field-name-en").fill(
-        "e2e test project"
-    )
-    authenticated_page.get_by_role("textbox", name="field-name-pt").fill(
-        "projeto de teste e2e"
-    )
-    authenticated_page.get_by_role("textbox", name="field-description-en").fill(
-        "e2e test description"
-    )
-    authenticated_page.get_by_role("textbox", name="field-description-pt").fill(
-        "descrição do projeto de teste"
-    )
-    authenticated_page.get_by_role("textbox", name="field-root_path").fill("/somewhere")
+    # fill out the form and submit it — use a unique suffix to avoid collisions across runs
+    project_name = f"e2e test project {uuid.uuid4().hex[:8]}"
+    _fill_project_form(authenticated_page, project_name)
 
     authenticated_page.get_by_role("button", name="add-another-link").click()
     authenticated_page.get_by_role("textbox", name="field-link-links-0-url").fill(
@@ -65,12 +69,49 @@ def test_project_lifecycle(authenticated_page: Page):
 
     authenticated_page.get_by_role("button", name="submit-create-form").click()
 
-    # expect to see some confirmation that the project was created
-    expect(
-        authenticated_page.get_by_test_id("processing-success-message")
-    ).to_be_visible(timeout=10_000)
+    # expect to be redirected to the project detail page upon successful creation
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=10_000
+    )
 
     # clean up by deleting the newly-created project
+    authenticated_page.get_by_role(
+        "button", name="show-delete-confirmation-modal"
+    ).click()
+    authenticated_page.get_by_role("button", name="delete-item").click()
+    expect(authenticated_page.get_by_role("button", name="new-project")).to_be_visible()
+
+
+@pytest.mark.e2e
+def test_project_creation_rejects_duplicate_english_name(authenticated_page: Page):
+    authenticated_page.goto("/")
+    authenticated_page.get_by_role("link", name="list-projects").click()
+
+    # create an initial project
+    project_name = f"e2e duplicate test {uuid.uuid4().hex[:8]}"
+    authenticated_page.get_by_role("button", name="new-project").click()
+    _fill_project_form(authenticated_page, project_name)
+    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=10_000
+    )
+
+    # save the detail page URL so we can navigate back for cleanup
+    detail_url = authenticated_page.url
+
+    # navigate to the create form and submit with the same english name
+    authenticated_page.get_by_role("link", name="list-projects").click()
+    authenticated_page.get_by_role("button", name="new-project").click()
+    _fill_project_form(authenticated_page, project_name)
+    authenticated_page.get_by_role("button", name="submit-create-form").click()
+
+    # the form should re-render in place with an inline error on the english name field
+    expect(
+        authenticated_page.locator("#backend-validation-name-en-feedback")
+    ).to_be_visible()
+
+    # clean up by navigating to the detail page and deleting the project
+    authenticated_page.goto(detail_url)
     authenticated_page.get_by_role(
         "button", name="show-delete-confirmation-modal"
     ).click()

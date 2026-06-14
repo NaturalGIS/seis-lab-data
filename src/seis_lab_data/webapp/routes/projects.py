@@ -532,8 +532,12 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                     selector=schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
+                yield ServerSentEventGenerator.execute_script(
+                    "document.querySelector('.is-invalid')?.scrollIntoView({behavior: 'smooth', block: 'center'})"
+                )
 
-            return DatastarResponse(event_streamer(), status_code=422)
+            # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
+            return DatastarResponse(event_streamer(), status_code=200)
 
         to_create = schemas.ProjectCreate(
             id=identifiers.ProjectId(uuid.uuid4()),
@@ -579,7 +583,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             raw_to_create=to_create.model_dump_json(),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
         )  # noqa
-        return Response(status_code=202)
+        return Response(status_code=200)
 
         # tasks.create_project.send(
         #     raw_request_id=str(request_id),
@@ -649,7 +653,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         #     async for sse_event in event_stream_generator:
         #         yield sse_event
         #
-        # return DatastarResponse(event_streamer(), status_code=202)
+        # return DatastarResponse(event_streamer(), status_code=200)
 
 
 class ProjectDetailEndpoint(HTTPEndpoint):
@@ -711,8 +715,12 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                     selector=schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
+                yield ServerSentEventGenerator.execute_script(
+                    "document.querySelector('.is-invalid')?.scrollIntoView({behavior: 'smooth', block: 'center'})"
+                )
 
-            return DatastarResponse(event_streamer(), status_code=422)
+            # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
+            return DatastarResponse(event_streamer(), status_code=200)
 
         request_id = identifiers.RequestId(uuid.uuid4())
         raw_dc = form_instance.discovery_configuration.data
@@ -855,7 +863,8 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             async for sse_event in event_stream_generator:
                 yield sse_event
 
-        return DatastarResponse(event_streamer(), status_code=202)
+        # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
+        return DatastarResponse(event_streamer(), status_code=200)
 
     @csrf_protect
     @requires_auth
@@ -882,7 +891,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             raw_project_id=str(project_id),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
         )  # noqa
-        return Response(status_code=202)
+        return Response(status_code=200)
 
     @csrf_protect
     @requires_auth
@@ -929,7 +938,8 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                     mode=ElementPatchMode.INNER,
                 )
 
-            return DatastarResponse(stream_validation_failed_events(), 422)
+            # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
+            return DatastarResponse(stream_validation_failed_events(), status_code=200)
 
         request_id = identifiers.RequestId(uuid.uuid4())
         to_create = schemas.SurveyMissionCreate(
@@ -1039,7 +1049,8 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             async for sse_event in event_stream_generator:
                 yield sse_event
 
-        return DatastarResponse(stream_events(), status_code=202)
+        # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
+        return DatastarResponse(stream_events(), status_code=200)
 
 
 @csrf_protect
@@ -1143,7 +1154,7 @@ async def trigger_project_discovery(request: Request):
         raw_project_id=request.path_params["project_id"],
         raw_initiator=json.dumps(dataclasses.asdict(request.user)),
     )  # noqa
-    return Response(status_code=202)
+    return Response(status_code=200)
 
 
 @csrf_protect
@@ -1165,7 +1176,8 @@ async def trigger_project_validation(request: Request):
             mode=ElementPatchMode.INNER,
         )
 
-    return DatastarResponse(event_streamer(), status_code=202)
+    # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
+    return DatastarResponse(event_streamer(), status_code=200)
 
 
 routes = [
