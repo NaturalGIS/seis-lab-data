@@ -107,6 +107,12 @@ services:
         condition: service_healthy
       message-broker:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import requests; import os; requests.get(\"http://auth-webapp:9000/api/v3/core/users/\", params={\"username\": \"akadmin\"}, headers={\"Authorization\": f\"Bearer {os.getenv(\"AUTHENTIK_BOOTSTRAP_TOKEN\")}\"}).json()[\"results\"][0][\"username\"] == \"akadmin\"'"]
+      start_period: 60s
+      interval: 10s
+      retries: 10
+      timeout: 5s
 
   message-broker:
     image: redis:8
@@ -157,13 +163,6 @@ services:
         condition: service_healthy
     volumes:
       *common-volumes
-    healthcheck:
-      # TODO: replace with an /api/health endpoint on our app
-      test: ["CMD-SHELL", "uv run python -c 'import httpx; import os; httpx.get(\"http://auth-webapp:9000/api/v3/core/users/\", params={\"username\": \"akadmin\"}, headers={\"Authorization\": f\"Bearer {os.getenv(\"SEIS_LAB_DATA__AUTH_ADMIN_TOKEN\")}\"}).json()[\"results\"][0][\"username\"] == \"akadmin\"'"]
-      start_period: 30s
-      interval: 8s
-      retries: 10
-      timeout: 5s
 
   processing-worker:
     image: *common-image
