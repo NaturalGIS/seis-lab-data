@@ -11,6 +11,7 @@ x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.12.4"
 x-auth-redirect-url: &auth-redirect-url "https://seis-lab-data.naturalgis.pt/oauth2/callback"
 
 x-common-env: &common-env
+  SEIS_LAB_DATA__AUTH_ADMIN_TOKEN: ${AUTH_AUTHENTIK_BOOTSTRAP_TOKEN?not_set}
   SEIS_LAB_DATA__DEBUG: ${DEBUG:-false}
   SEIS_LAB_DATA__LOG_CONFIG_FILE: ${LOG_CONFIG_FILE:-/home/ubuntu/app/dev-log-config.yml}
   SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
