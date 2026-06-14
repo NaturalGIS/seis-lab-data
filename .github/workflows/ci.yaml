@@ -92,7 +92,7 @@ jobs:
       - name: "Stand up compose stack"
         run: |
           IMAGE_URL=${{ fromJSON(steps.docker_metadata.outputs.json).tags[0] }} \
-          docker compose --file docker/compose.ci.yaml up --wait --wait-timeout 60
+          docker compose --file docker/compose.ci.yaml up --wait --wait-timeout 120
 
       - name: "Bootstrap stack"
         env:
