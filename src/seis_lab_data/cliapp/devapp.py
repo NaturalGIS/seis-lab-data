@@ -25,7 +25,7 @@ from ..schemas import (
     identifiers,
     messages as message_schemas,
 )
-from ..processing import tasks
+from ..processing import projects as project_tasks
 from . import sampledata
 from .asynctyper import AsyncTyper
 from .utils import resolve_admin_user
@@ -191,7 +191,7 @@ async def load_sample_projects(ctx: typer.Context):
         ctx.obj["main"].status_console.print(
             f"Queueing project {to_create.name.en!r} for creation..."
         )
-        tasks.succinct_create_project.send(
+        project_tasks.create_project.send(
             raw_request_id=str(uuid.uuid4()),
             raw_to_create=to_create.model_dump_json(exclude_none=True),
             raw_initiator=json.dumps(dataclasses.asdict(admin_)),

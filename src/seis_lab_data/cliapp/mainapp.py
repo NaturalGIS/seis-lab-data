@@ -15,7 +15,7 @@ from .. import (
     schemas,
     subscribers,
 )
-from ..processing import tasks
+from ..processing import projects as project_tasks
 from ..db import queries
 from ..schemas import identifiers
 from .asynctyper import AsyncTyper
@@ -441,7 +441,7 @@ async def delete_project(
             "project_deletion_failed": handlers.handle_project_deletion_failure,
         },
     )
-    tasks.succinct_delete_project.send(
+    project_tasks.delete_project.send(
         raw_request_id=str(uuid.uuid4()),
         raw_project_id=str(identifiers.ProjectId(project_id)),
         raw_initiator=json.dumps(dataclasses.asdict(ctx.obj["admin_user"])),

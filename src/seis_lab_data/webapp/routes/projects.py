@@ -33,13 +33,16 @@ from ... import (
     subscribers,
 )
 from ...constants import PROGRESS_TOPIC_NAME_TEMPLATE
-from ...processing import tasks
-from ...processing import discovery as discovery_tasks
+from ...processing import (
+    projects as project_tasks,
+    discovery as discovery_tasks,
+    tasks,
+)
 from ...schemas import identifiers
+from ..streamhandlers import projects as project_handlers
 from .. import (
     filters,
     forms,
-    handlers,
 )
 from .auth import (
     requires_auth,
@@ -218,12 +221,12 @@ async def get_project_list_updates(request: Request):
             db_session_factory=request.state.settings.get_db_session_maker(),
         ),
         {
-            "project_creation_successful": handlers.handle_project_modification_list_page,
-            "project_deletion_successful": handlers.handle_project_modification_list_page,
-            "project_update_successful": handlers.handle_project_modification_list_page,
-            "project_created": handlers.handle_project_modification_list_page,
-            "project_updated": handlers.handle_project_modification_list_page,
-            "project_deleted": handlers.handle_project_modification_list_page,
+            "project_creation_successful": project_handlers.handle_list_page_project_modification,
+            "project_deletion_successful": project_handlers.handle_list_page_project_modification,
+            "project_update_successful": project_handlers.handle_list_page_project_modification,
+            "project_created": project_handlers.handle_list_page_project_modification,
+            "project_updated": project_handlers.handle_list_page_project_modification,
+            "project_deleted": project_handlers.handle_list_page_project_modification,
         },
     )
 
@@ -254,8 +257,8 @@ async def get_project_new_updates(request: Request):
             db_session_factory=request.state.settings.get_db_session_maker(),
         ),
         {
-            "project_creation_successful": handlers.handle_project_creation_successful_new_page,
-            "project_creation_failed": handlers.handle_project_creation_failed_new_page,
+            "project_created": project_handlers.handle_new_page_project_creation_successful,
+            "project_not_created": project_handlers.handle_new_page_project_creation_failed,
         },
     )
 
@@ -271,7 +274,9 @@ async def get_project_detail_updates(request: Request):
     try:
         project_id = identifiers.ProjectId(uuid.UUID(request.path_params["project_id"]))
     except ValueError as err:
-        raise HTTPException(status_code=400, detail="Invalid project id") from err
+        raise HTTPException(
+            status_code=400, detail="Invalid project or request id"
+        ) from err
     session_maker = request.state.settings.get_db_session_maker()
     redis_client: Redis = request.state.redis_client
     user = request.user if request.user.is_authenticated else None
@@ -287,11 +292,13 @@ async def get_project_detail_updates(request: Request):
             db_session_factory=session_maker,
         ),
         {
-            "project_deletion_successful": handlers.handle_project_deletion_success_detail_page,
-            "project_deletion_failed": handlers.handle_project_deletion_failure_detail_page,
-            "project_status_changed": handlers.handle_project_status_changed_detail_page,
-            "project_validated": handlers.handle_project_validated_detail_page,
-            "project_discovery_progress": handlers.handle_project_discovery_progress_detail_page,
+            "project_deleted": project_handlers.handle_detail_page_project_deletion_success,
+            "project_deletion_failed": project_handlers.handle_detail_page_project_deletion_failure,
+            "project_discovery_progress": project_handlers.handle_detail_page_project_discovery_progress,
+            "project_status_changed": project_handlers.handle_detail_page_project_status_changed,
+            "project_updated": project_handlers.handle_edit_page_project_modification_successful,
+            "project_not_updated": project_handlers.handle_edit_page_project_modification_failure,
+            "project_validated": project_handlers.handle_detail_page_project_validated,
         },
     )
 
@@ -578,7 +585,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         )
 
         request_id = identifiers.RequestId(uuid.UUID(form_instance.request_id.data))
-        tasks.succinct_create_project.send(
+        project_tasks.create_project.send(
             raw_request_id=str(request_id),
             raw_to_create=to_create.model_dump_json(),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
@@ -685,7 +692,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
     async def put(self, request: Request):
         """Update an existing project."""
         template_processor: Jinja2Templates = request.state.templates
-        user = request.user if request.user.is_authenticated else None
+        user = request.user
         session_maker = request.state.settings.get_db_session_maker()
         project_id = get_id_from_request_path(
             request, "project_id", identifiers.ProjectId
@@ -722,7 +729,6 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
             return DatastarResponse(event_streamer(), status_code=200)
 
-        request_id = identifiers.RequestId(uuid.uuid4())
         raw_dc = form_instance.discovery_configuration.data
         to_update = schemas.ProjectUpdate(
             owner_id=user.id,
@@ -760,111 +766,13 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             ],
             discovery_configuration=json.loads(raw_dc) if raw_dc else None,
         )
-
-        async def handle_processing_success(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            """Handle successful processing of the project update background task.
-
-            After receiving the final message with a success status, update the
-            UI to reflect the changes.
-            """
-            project_details = await _get_project_details(request)
-            rendered_message = message_template.render(
-                status=final_message.status.value,
-                message=f"{final_message.message}",
-            )
-
-            yield ServerSentEventGenerator.patch_elements(
-                rendered_message,
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-            template = template_processor.get_template("projects/detail-component.html")
-            # need to update:
-            # - project details section (name, description, links, ...)
-            # - breadcrumbs (project name may have changed)
-            # - page title (project name may have changed)
-            # - clear the feedback section
-            breadcrumbs_template = template_processor.get_template("breadcrumbs.html")
-
-            tasks.validate_project.send(
-                raw_request_id=str(request_id),
-                raw_project_id=str(project_id),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
-            )
-
-            yield ServerSentEventGenerator.patch_elements(
-                breadcrumbs_template.render(
-                    request=request, breadcrumbs=project_details.breadcrumbs
-                ),
-                selector=schemas.selector_info.breadcrumbs_selector,
-                mode=ElementPatchMode.INNER,
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                template.render(
-                    request=request,
-                    project=project_details.item,
-                    pagination=project_details.pagination,
-                    survey_missions=project_details.children,
-                    permissions=project_details.permissions,
-                ),
-                selector=schemas.selector_info.main_content_selector,
-                mode=ElementPatchMode.INNER,
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                project_details.item.name.en,
-                selector=schemas.selector_info.page_title_selector,
-                mode=ElementPatchMode.INNER,
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                "",
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.INNER,
-            )
-
-        async def handle_processing_failure(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            rendered = message_template.render(
-                status=final_message.status.value,
-                message=f"ERROR: {final_message.message}",
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                rendered,
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-
-        async def event_streamer():
-            yield ServerSentEventGenerator.patch_elements(
-                """<li>Updating project as a background task...</li>""",
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-
-            enqueued_message: Message = tasks.update_project.send(
-                raw_request_id=str(request_id),
-                raw_project_id=str(project_id),
-                raw_to_update=to_update.model_dump_json(),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
-            )
-            logger.debug(f"{enqueued_message=}")
-            redis_client: Redis = request.state.redis_client
-            event_stream_generator = produce_event_stream_for_topic(
-                redis_client,
-                request,
-                topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
-                on_success=handle_processing_success,
-                on_failure=handle_processing_failure,
-                patch_elements_selector=schemas.selector_info.feedback_selector,
-                timeout_seconds=30,
-            )
-            async for sse_event in event_stream_generator:
-                yield sse_event
-
-        # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
-        return DatastarResponse(event_streamer(), status_code=200)
+        project_tasks.update_project.send(
+            raw_request_id=str(identifiers.RequestId(uuid.uuid4())),
+            raw_project_id=str(project_id),
+            raw_to_update=to_update.model_dump_json(),
+            raw_initiator=json.dumps(dataclasses.asdict(user)),
+        )  # noqa
+        return Response(status_code=200)
 
     @csrf_protect
     @requires_auth
@@ -886,7 +794,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 raise HTTPException(
                     status_code=404, detail=_(f"Project {project_id!r} not found.")
                 )
-        tasks.succinct_delete_project.send(
+        project_tasks.delete_project.send(
             raw_request_id=str(request_id),
             raw_project_id=str(project_id),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
@@ -1163,7 +1071,7 @@ async def trigger_project_validation(request: Request):
     user = request.user if request.user.is_authenticated else None
     project_id = get_id_from_request_path(request, "project_id", identifiers.ProjectId)
     request_id = identifiers.RequestId(uuid.uuid4())
-    tasks.validate_project.send(
+    project_tasks.validate_project.send(
         raw_request_id=str(request_id),
         raw_project_id=str(project_id),
         raw_initiator=json.dumps(dataclasses.asdict(user)),

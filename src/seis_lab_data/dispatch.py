@@ -4,8 +4,7 @@ from typing import Protocol
 from redis import asyncio as aioredis
 
 from . import constants
-from .schemas import events as event_schemas
-from .schemas import messages as message_schemas
+from .schemas import events as event_schemas, messages as message_schemas
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +28,7 @@ class RedisEventDispatcher:
                     constants.NEW_TOPIC_PROJECTS,
                     message_schemas.ProjectCreatedMessage(
                         project_id=event.project_id,
+                        request_id=event.request_id,
                     ).model_dump_json(),
                 )
             case event_schemas.ProjectUpdatedEvent():
@@ -36,6 +36,7 @@ class RedisEventDispatcher:
                     constants.NEW_TOPIC_PROJECTS,
                     message_schemas.ProjectUpdatedMessage(
                         project_id=event.project_id,
+                        request_id=event.request_id,
                     ).model_dump_json(),
                 )
             case event_schemas.ProjectDeletedEvent():
@@ -43,6 +44,7 @@ class RedisEventDispatcher:
                     constants.NEW_TOPIC_PROJECTS,
                     message_schemas.ProjectDeletedMessage(
                         project_id=event.project_id,
+                        request_id=event.request_id,
                     ).model_dump_json(),
                 )
             case event_schemas.ProjectStatusChangedEvent():

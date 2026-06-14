@@ -94,16 +94,33 @@ class ProjectDiscoveryFailedMessage(pydantic.BaseModel):
 class ProjectCreatedMessage(pydantic.BaseModel):
     type: Literal["project_created"] = "project_created"
     project_id: identifiers.ProjectId
+    request_id: identifiers.RequestId | None = None
+
+
+class ProjectNotCreatedMessage(pydantic.BaseModel):
+    type: Literal["project_not_created"] = "project_not_created"
+    project_id: identifiers.ProjectId
+    request_id: identifiers.RequestId
+    details: str
 
 
 class ProjectUpdatedMessage(pydantic.BaseModel):
     type: Literal["project_updated"] = "project_updated"
     project_id: identifiers.ProjectId
+    request_id: identifiers.RequestId | None = None
+
+
+class ProjectNotUpdatedMessage(pydantic.BaseModel):
+    type: Literal["project_not_updated"] = "project_updated"
+    project_id: identifiers.ProjectId
+    request_id: identifiers.RequestId | None = None
+    details: str
 
 
 class ProjectDeletedMessage(pydantic.BaseModel):
     type: Literal["project_deleted"] = "project_deleted"
     project_id: identifiers.ProjectId
+    request_id: identifiers.RequestId | None = None
 
 
 class ProjectStatusChangedMessage(pydantic.BaseModel):
