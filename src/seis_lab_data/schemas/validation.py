@@ -9,7 +9,7 @@ import pydantic
 from geoalchemy2 import WKBElement
 
 from .. import constants
-from . import common
+from . import identifiers
 
 
 def validate_polygon_geometry(value: shapely.Polygon) -> shapely.Polygon:
@@ -94,13 +94,13 @@ def parse_possibly_empty_wkbelement_polygon_into_valid_geometry(
 
 
 class ValidProject(pydantic.BaseModel):
-    id: common.ProjectId
+    id: identifiers.ProjectId
     name: LocalizableValidName
     description: LocalizableValidDescription
     status: constants.ProjectStatus
     temporal_extent_begin: dt.date | None
     temporal_extent_end: dt.date | None
-    owner: common.UserId
+    owner: identifiers.UserId
     root_path: Annotated[str, pydantic.PlainValidator(ensure_root_path_exists)]
     links: list[ValidLinkSchema] = []
     bbox_4326: Annotated[
@@ -112,13 +112,13 @@ class ValidProject(pydantic.BaseModel):
 
 
 class ValidSurveyMission(pydantic.BaseModel):
-    id: common.SurveyMissionId
+    id: identifiers.SurveyMissionId
     name: LocalizableValidName
     description: LocalizableValidDescription
     status: constants.SurveyMissionStatus
     temporal_extent_begin: dt.date | None
     temporal_extent_end: dt.date | None
-    owner: common.UserId
+    owner: identifiers.UserId
     relative_path: Annotated[str, pydantic.PlainValidator(ensure_relative_path_exists)]
     links: list[ValidLinkSchema] = []
     bbox_4326: Annotated[
@@ -130,16 +130,16 @@ class ValidSurveyMission(pydantic.BaseModel):
 
 
 class ValidSurveyRelatedRecord(pydantic.BaseModel):
-    id: common.SurveyRelatedRecordId
+    id: identifiers.SurveyRelatedRecordId
     name: LocalizableValidName
-    dataset_category_id: common.DatasetCategoryId
-    domain_type_id: common.DomainTypeId
-    workflow_stage_id: common.WorkflowStageId
+    dataset_category_id: identifiers.DatasetCategoryId
+    domain_type_id: identifiers.DomainTypeId
+    workflow_stage_id: identifiers.WorkflowStageId
     description: LocalizableValidDescription
     status: constants.SurveyMissionStatus
     temporal_extent_begin: dt.date | None
     temporal_extent_end: dt.date | None
-    owner: common.UserId
+    owner: identifiers.UserId
     relative_path: Annotated[str, pydantic.PlainValidator(ensure_relative_path_exists)]
     links: list[ValidLinkSchema] = []
     bbox_4326: Annotated[

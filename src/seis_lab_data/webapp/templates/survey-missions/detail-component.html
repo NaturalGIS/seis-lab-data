@@ -4,7 +4,7 @@
 {% import "macros-maps.html" as macros_maps %}
 <div
         class="row"
-        data-effect="@peek(() => @get('{{ url_for("survey_missions:get_detail_updates", survey_mission_id=survey_mission.id) }}'))"
+        data-on-intersect__once="@get('{{ url_for("survey_missions:get_detail_updates", survey_mission_id=survey_mission.id) }}')"
         data-signals:is-valid="{{ survey_mission.validation_result.is_valid | default(False, True) | tojson }}"
         data-signals:status="'{{ survey_mission.status.value }}'"
         data-signals:deleting="false"
@@ -70,10 +70,24 @@
                 </div>
             </div>
         </div>
+        <div class="row mt-4">
+            <div class="col">
+                <h2>{{ _("survey-related-records") | capitalize }}</h2>
+                {% if items | length > 0 %}
+                    {{ macros.render_search_component(
+                       url_for("survey_related_records:get_list_component"),
+                       _("search survey-related records"),
+                       initial_value=search_initial_value
+                    ) }}
+                {% endif %}
+                <div id="survey-mission-records">
+                    {% with items = survey_related_records %}
+                        {% include "survey-related-records/list-component.html" %}
+                    {% endwith %}
+                </div>
+            </div>
+        </div>
     </div>
-
-
-
     <div class="col-3">
         <h5>{{ _("actions") | capitalize }}</h5>
         <div class="list-group mb-3">
@@ -155,24 +169,4 @@
     </div>
 
 
-</div>
-
-<div class="row">
-    <div class="col">
-        <h2>{{ _("survey-related-records") | capitalize }}</h2>
-        {% if items | length > 0 %}
-            {{ macros.render_search_component(
-               url_for("survey_related_records:get_list_component"),
-               _("search survey-related records"),
-               initial_value=search_initial_value
-            ) }}
-        {% endif %}
-        <div class="row" aria-label="items">
-            <div class="col">
-                {% with items = survey_related_records %}
-                    {% include "survey-related-records/list-component.html" %}
-                {% endwith %}
-            </div>
-        </div>
-    </div>
 </div>

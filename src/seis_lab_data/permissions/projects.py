@@ -20,7 +20,7 @@ def can_read_project(
         return True
     if project.status == ProjectStatus.PUBLISHED:
         return True
-    return user and project.owner == user.id
+    return user and project.owner_id == user.id
 
 
 def can_create_project(
@@ -42,7 +42,7 @@ def can_update_project(
         return False
     if not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles):
         return True
-    if ROLE_EDITOR in user.roles and project.owner == user.id:
+    if ROLE_EDITOR in user.roles and project.owner_id == user.id:
         return True
     return False
 

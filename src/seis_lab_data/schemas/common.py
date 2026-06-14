@@ -3,7 +3,6 @@ import uuid
 from typing import (
     Annotated,
     cast,
-    NewType,
     Protocol,
 )
 
@@ -12,16 +11,6 @@ import shapely
 from geoalchemy2 import WKBElement
 
 from .. import constants
-
-DatasetCategoryId = NewType("DatasetCategoryId", uuid.UUID)
-DomainTypeId = NewType("DomainTypeId", uuid.UUID)
-RecordAssetId = NewType("RecordAssetId", uuid.UUID)
-RequestId = NewType("RequestId", uuid.UUID)
-SurveyRelatedRecordId = NewType("SurveyRelatedRecordId", uuid.UUID)
-SurveyMissionId = NewType("SurveyMissionId", uuid.UUID)
-ProjectId = NewType("ProjectId", uuid.UUID)
-UserId = NewType("UserId", str)
-WorkflowStageId = NewType("WorkflowStageId", uuid.UUID)
 
 
 class Localizable(Protocol):

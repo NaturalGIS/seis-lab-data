@@ -56,11 +56,11 @@ def can_read_survey_related_record(
         return True
     if record.status == SurveyRelatedRecordStatus.PUBLISHED:
         return True
-    if user and record.owner == user.id:
+    if user and record.owner_id == user.id:
         return True
-    if user and record.survey_mission.owner == user.id:
+    if user and record.survey_mission.owner_id == user.id:
         return True
-    if user and record.survey_mission.project.owner == user.id:
+    if user and record.survey_mission.project.owner_id == user.id:
         return True
     return False
 
@@ -73,9 +73,9 @@ def can_create_survey_related_record(
         return False
     if not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles):
         return True
-    if ROLE_EDITOR in user.roles and mission.owner == user.id:
+    if ROLE_EDITOR in user.roles and mission.owner_id == user.id:
         return True
-    if ROLE_EDITOR in user.roles and mission.project.owner == user.id:
+    if ROLE_EDITOR in user.roles and mission.project.owner_id == user.id:
         return True
     return False
 
@@ -88,11 +88,11 @@ def can_update_survey_related_record(
         return False
     if not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles):
         return True
-    if ROLE_EDITOR in user.roles and record.owner == user.id:
+    if ROLE_EDITOR in user.roles and record.owner_id == user.id:
         return True
-    if ROLE_EDITOR in user.roles and record.survey_mission.owner == user.id:
+    if ROLE_EDITOR in user.roles and record.survey_mission.owner_id == user.id:
         return True
-    if ROLE_EDITOR in user.roles and record.survey_mission.project.owner == user.id:
+    if ROLE_EDITOR in user.roles and record.survey_mission.project.owner_id == user.id:
         return True
     return False
 

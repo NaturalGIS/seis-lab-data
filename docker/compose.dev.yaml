@@ -18,12 +18,14 @@ x-auth-client-secret: &auth-client-secret "sld-client-secret"
 x-auth-redirect-url: &auth-redirect-url "http://localhost:8888/oauth2/callback"
 
 x-common-env: &common-env
-  SEIS_LAB_DATA__DEBUG: true
-  SEIS_LAB_DATA__LOG_CONFIG_FILE: /home/ubuntu/app/dev-log-config.yml
-  SEIS_LAB_DATA__DATABASE_DSN: postgresql+psycopg://sld:sldpass@db:5432/seis_lab_data
-  SEIS_LAB_DATA__TEST_DATABASE_DSN: postgresql+psycopg://sld:sldpass@test-db:5432/seis_lab_data_test
-  SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
   SEIS_LAB_DATA__AUTH_ADMIN_TOKEN: *auth-admin-token
+  SEIS_LAB_DATA__AUTH_INTERNAL_BASE_URL: http://auth-webapp:9000
+  SEIS_LAB_DATA__DEBUG: true
+  SEIS_LAB_DATA__DATABASE_DSN: postgresql+psycopg://sld:sldpass@db:5432/seis_lab_data
+  SEIS_LAB_DATA__LOG_CONFIG_FILE: /home/ubuntu/app/dev-log-config.yml
+  SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
+  SEIS_LAB_DATA__TEST_DATABASE_DSN: postgresql+psycopg://sld:sldpass@test-db:5432/seis_lab_data_test
+  SEIS_LAB_DATA__READONLY_ARCHIVE_ROOT_DIRECTORY: /data/simulated-archive
 
 x-common-auth-env: &common-auth-env
   AUTHENTIK_LOG_LEVEL: debug
@@ -132,6 +134,12 @@ services:
         condition: service_healthy
       message-broker:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import requests; import os; r = requests.get(\"http://auth-webapp:9000/api/v3/core/users/\", params={\"username\": \"akadmin\"}, headers={\"Authorization\": f\"Bearer {os.getenv(\"AUTHENTIK_BOOTSTRAP_TOKEN\")}\"}); r.raise_for_status(); assert r.json()[\"results\"][0][\"username\"] == \"akadmin\"'"]
+      start_period: 30s
+      interval: 10s
+      retries: 10
+      timeout: 5s
 
   message-broker:
     image: redis:8

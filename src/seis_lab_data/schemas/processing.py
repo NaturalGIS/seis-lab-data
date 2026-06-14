@@ -1,14 +1,13 @@
 import pydantic
 
 from ..constants import ProcessingStatus
-from .common import (
-    ProjectId,
-    SurveyMissionId,
-    SurveyRelatedRecordId,
-    RequestId,
-)
 
-from . import events
+from .identifiers import (
+    ProjectId,
+    RequestId,
+    SurveyRelatedRecordId,
+    SurveyMissionId,
+)
 
 
 class ProjectUpdatedMessage(pydantic.BaseModel):
@@ -17,7 +16,7 @@ class ProjectUpdatedMessage(pydantic.BaseModel):
 
 class ProjectEvent(pydantic.BaseModel):
     project_id: ProjectId
-    event: events.EventType
+    event: str
     message: str | None = None
 
 
@@ -27,7 +26,7 @@ class SurveyMissionUpdatedMessage(pydantic.BaseModel):
 
 class SurveyMissionEvent(pydantic.BaseModel):
     survey_mission_id: SurveyMissionId
-    event: events.EventType
+    event: str
     message: str | None = None
 
 
@@ -37,7 +36,7 @@ class SurveyRelatedRecordUpdatedMessage(pydantic.BaseModel):
 
 class SurveyRelatedRecordEvent(pydantic.BaseModel):
     survey_related_record_id: SurveyRelatedRecordId
-    event: events.EventType
+    event: str
     message: str | None = None
 
 

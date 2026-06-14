@@ -11,6 +11,7 @@ x-auth-image: &auth-image "ghcr.io/goauthentik/server:2026.2.1"
 x-auth-redirect-url: &auth-redirect-url "https://seis-lab-data.ipma.pt/oauth2/callback"
 
 x-common-env: &common-env
+  SEIS_LAB_DATA__AUTH_ADMIN_TOKEN: ${AUTH_AUTHENTIK_BOOTSTRAP_TOKEN?not_set}
   SEIS_LAB_DATA__DEBUG: ${DEBUG:-false}
   SEIS_LAB_DATA__LOG_CONFIG_FILE: ${LOG_CONFIG_FILE:-/home/ubuntu/app/prod-log-config.yml}
   SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
@@ -161,6 +162,12 @@ services:
       - auth-email-password
       - auth-client-id
       - auth-client-secret
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import requests; import os; r = requests.get(\"http://auth-webapp:9000/api/v3/core/users/\", params={\"username\": \"akadmin\"}, headers={\"Authorization\": f\"Bearer {os.getenv(\"AUTHENTIK_BOOTSTRAP_TOKEN\")}\"}); r.raise_for_status(); assert r.json()[\"results\"][0][\"username\"] == \"akadmin\"'"]
+      start_period: 30s
+      interval: 10s
+      retries: 10
+      timeout: 5s
 
   message-broker:
     image: redis:8

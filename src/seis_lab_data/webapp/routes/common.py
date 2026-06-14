@@ -25,6 +25,7 @@ from starlette.templating import Jinja2Templates
 from ... import schemas
 from ...constants import ProcessingStatus
 from ...localization import translate_localizable
+from ...schemas import identifiers
 
 logger = logging.getLogger(__name__)
 
@@ -80,9 +81,9 @@ def get_pagination_info(
 
 RequestPathRetrievableIdType = TypeVar(
     "RequestPathRetrievableIdType",
-    schemas.ProjectId,
-    schemas.SurveyMissionId,
-    schemas.SurveyRelatedRecordId,
+    identifiers.ProjectId,
+    identifiers.SurveyMissionId,
+    identifiers.SurveyRelatedRecordId,
 )
 
 

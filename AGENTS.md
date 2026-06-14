@@ -66,7 +66,7 @@ src/seis_lab_data/
 
 Routes → Operations → Permissions + DB queries/commands
 
-- **Routes** extract the user from the session (`get_user(request.session["user"])`), get a DB session from `request.state.session_maker`, and call operations.
+- **Routes** extract the user from the session (`get_user(request.session["user"])`), get a DB session from `request.state.settings.get_db_session_maker()`, and call operations.
 - **Operations** fetch the relevant DB object first, then call a permission function, then call a command and emit an event.
 - **Permissions** are pure sync functions that accept model instances (never IDs) and a user — no DB calls inside.
 - **Queries** contain three variants per entity for listing: `list_published_*` (unauthenticated), `list_accessible_*` (authenticated, applies ownership/co-ownership filter), and `list_*` (admin, no filter). The operations layer picks the right one.

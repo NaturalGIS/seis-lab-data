@@ -7,19 +7,21 @@ import pydantic
 from ..db import models
 from ..constants import SurveyRelatedRecordStatus
 from .common import (
-    DatasetCategoryId,
-    DomainTypeId,
     LinkSchema,
     LocalizableDraftDescription,
     LocalizableDraftName,
     LocalizableDraftRelationship,
     PolygonOut,
     PossiblyInvalidPolygon,
-    RecordAssetId,
     serialize_id,
     serialize_possibly_empty_date,
-    SurveyMissionId,
+)
+from .identifiers import (
+    DatasetCategoryId,
+    DomainTypeId,
+    RecordAssetId,
     SurveyRelatedRecordId,
+    SurveyMissionId,
     UserId,
     WorkflowStageId,
 )
@@ -152,7 +154,7 @@ class RelatedRecordCreate(pydantic.BaseModel):
 
 class SurveyRelatedRecordCreate(pydantic.BaseModel):
     id: SurveyRelatedRecordId
-    owner: UserId
+    owner_id: UserId
     survey_mission_id: SurveyMissionId
 
     name: LocalizableDraftName
@@ -160,7 +162,6 @@ class SurveyRelatedRecordCreate(pydantic.BaseModel):
     dataset_category_id: DatasetCategoryId
     domain_type_id: DomainTypeId
     workflow_stage_id: WorkflowStageId
-    relative_path: str
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
     temporal_extent_end: dt.date | None = None
@@ -170,10 +171,11 @@ class SurveyRelatedRecordCreate(pydantic.BaseModel):
         pydantic.AfterValidator(check_asset_english_names_for_uniqueness),
     ] = []
     related_records: list[RelatedRecordCreate] = []
+    extra_properties: dict[str, str] | None = None
 
 
 class SurveyRelatedRecordUpdate(pydantic.BaseModel):
-    owner: UserId | None = None
+    owner_id: UserId | None = None
     survey_mission_id: SurveyMissionId | None = None
 
     name: LocalizableDraftName | None = None
@@ -221,7 +223,7 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
 
 
 class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
-    owner: UserId
+    owner_id: UserId
     relative_path: str
     links: list[LinkSchema] = []
     survey_mission: SurveyMissionReadEmbedded

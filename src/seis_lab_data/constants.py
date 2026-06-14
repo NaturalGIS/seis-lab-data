@@ -20,6 +20,10 @@ SURVEY_RELATED_RECORD_MAX_LINKS: typing.Final[int] = 5
 SURVEY_RELATED_RECORD_MAX_ASSETS: typing.Final[int] = 20
 SURVEY_RELATED_RECORD_MAX_RELATED: typing.Final[int] = 5
 
+NEW_TOPIC_PROJECTS: typing.Final[str] = "projects"
+NEW_TOPIC_SURVEY_MISSIONS: typing.Final[str] = "survey_missions"
+NEW_TOPIC_SURVEY_RELATED_RECORDS: typing.Final[str] = "survey_related_records"
+
 PROGRESS_TOPIC_NAME_TEMPLATE: typing.Final[str] = "progress:{request_id}"
 
 PROJECT_UPDATED_TOPIC: typing.Final[str] = "project-updated:{project_id}"
@@ -28,7 +32,12 @@ PROJECT_VALIDITY_CHANGED_TOPIC: typing.Final[str] = (
     "project-validity-changed:{project_id}"
 )
 PROJECT_DELETED_TOPIC: typing.Final[str] = "project-deleted:{project_id}"
+PROJECT_DISCOVERY_TOPIC: typing.Final[str] = "project-discovery:{project_id}"
 
+SURVEY_MISSION_CREATED_TOPIC: typing.Final[str] = "survey-mission-created"
+SURVEY_MISSION_DISCOVERY_TOPIC: typing.Final[str] = (
+    "survey-mission-discovery:{survey_mission_id}"
+)
 SURVEY_MISSION_UPDATED_TOPIC: typing.Final[str] = (
     "survey-mission-updated:{survey_mission_id}"
 )
@@ -42,6 +51,7 @@ SURVEY_MISSION_DELETED_TOPIC: typing.Final[str] = (
     "survey-mission-deleted:{survey_mission_id}"
 )
 
+SURVEY_RELATED_RECORD_CREATED_TOPIC: typing.Final[str] = "survey-related-record-created"
 SURVEY_RELATED_RECORD_UPDATED_TOPIC: typing.Final[str] = (
     "survey-related-record-updated:{survey_related_record_id}"
 )
@@ -80,6 +90,7 @@ class ProcessingStatus(str, enum.Enum):
 class ProjectStatus(str, enum.Enum):
     DRAFT = "draft"
     PUBLISHED = "published"
+    UNDER_DISCOVERY = "under_discovery"
     UNDER_PARSING = "under_parsing"
     UNDER_VALIDATION = "under_validation"
 
@@ -87,6 +98,7 @@ class ProjectStatus(str, enum.Enum):
         return {
             self.DRAFT: _("draft"),
             self.PUBLISHED: _("published"),
+            self.UNDER_DISCOVERY: _("under_discovery"),
             self.UNDER_PARSING: _("under_parsing"),
             self.UNDER_VALIDATION: _("under_validation"),
         }.get(self, self.value)
@@ -95,6 +107,7 @@ class ProjectStatus(str, enum.Enum):
 class SurveyMissionStatus(str, enum.Enum):
     DRAFT = "draft"
     PUBLISHED = "published"
+    UNDER_DISCOVERY = "under_discovery"
     UNDER_PARSING = "under_parsing"
     UNDER_VALIDATION = "under_validation"
 
@@ -102,6 +115,7 @@ class SurveyMissionStatus(str, enum.Enum):
         return {
             self.DRAFT: _("draft"),
             self.PUBLISHED: _("published"),
+            self.UNDER_DISCOVERY: _("under_discovery"),
             self.UNDER_PARSING: _("under_parsing"),
             self.UNDER_VALIDATION: _("under_validation"),
         }.get(self, self.value)
@@ -111,6 +125,7 @@ class SurveyRelatedRecordStatus(str, enum.Enum):
     DRAFT = "draft"
     PUBLISHED = "published"
     UNDER_DERIVATION = "under_derivation"
+    UNDER_DISCOVERY = "under_discovery"
     UNDER_EXPORT = "under_export"
     UNDER_VALIDATION = "under_validation"
     UNDER_PARSING = "under_parsing"
@@ -120,6 +135,7 @@ class SurveyRelatedRecordStatus(str, enum.Enum):
             self.DRAFT: _("draft"),
             self.PUBLISHED: _("published"),
             self.UNDER_DERIVATION: _("under_derivation"),
+            self.UNDER_DISCOVERY: _("under_discovery"),
             self.UNDER_EXPORT: _("under_export"),
             self.UNDER_PARSING: _("under_parsing"),
             self.UNDER_VALIDATION: _("under_validation"),

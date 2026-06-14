@@ -15,41 +15,190 @@ from .. import (
     constants,
     schemas,
 )
+from ..schemas import identifiers
+from ..schemas import discovery as discovery_schemas
+
 from ..db import models
 
 _FAKE_EN = Faker("en_US")
 _FAKE_PT = Faker("pt_PT")
 
-_owner_id = schemas.UserId("fake-owner1")
-_my_first_project_id = schemas.ProjectId(
+_raw_bathy_record_discovery_conf_id = identifiers.RecordDiscoveryConfId("raw_bathy")
+_processed_bathy_record_discovery_conf_id = identifiers.RecordDiscoveryConfId(
+    "processed_bathy"
+)
+_prr_eolicas_project_id = identifiers.ProjectId(
+    uuid.UUID("2b663029-2651-4c2f-b4a9-2f53d5d00c41")
+)
+
+_my_first_project_id = identifiers.ProjectId(
     uuid.UUID("74f07051-1aa9-4c08-bc27-3ecf101ab5b3")
 )
-_my_second_project_id = schemas.ProjectId(
+_my_second_project_id = identifiers.ProjectId(
     uuid.UUID("9a877fbe-da98-45ab-af70-711879c6fc01")
 )
 
-_my_first_survey_mission_id = schemas.SurveyMissionId(
+_my_first_survey_mission_id = identifiers.SurveyMissionId(
     uuid.UUID("cfe10cd8-5a5e-40e4-807b-7064f94a2edf")
 )
-_my_second_survey_mission_id = schemas.SurveyMissionId(
+_my_second_survey_mission_id = identifiers.SurveyMissionId(
     uuid.UUID("38d9ad16-6cf5-4c64-abfe-0915c6c22268")
 )
-_my_third_survey_mission_id = schemas.SurveyMissionId(
+_my_third_survey_mission_id = identifiers.SurveyMissionId(
     uuid.UUID("ebedf3e5-38a4-42ad-bb60-52b4eee6bd54")
 )
-_my_fourth_survey_mission_id = schemas.SurveyMissionId(
+_my_fourth_survey_mission_id = identifiers.SurveyMissionId(
     uuid.UUID("03a5f8c1-60ba-4309-a06a-e7b0c8851f20")
 )
-_my_fifth_survey_mission_id = schemas.SurveyMissionId(
+_my_fifth_survey_mission_id = identifiers.SurveyMissionId(
     uuid.UUID("51a44e56-42e7-4aab-a1c7-659436df99c1")
 )
 
 
-def get_projects_to_create() -> list[schemas.ProjectCreate]:
+def get_projects_to_create(owner: schemas.User) -> list[schemas.ProjectCreate]:
+    owner_id = identifiers.UserId(owner.id)
     return [
         schemas.ProjectCreate(
+            id=_prr_eolicas_project_id,
+            owner_id=owner_id,
+            name=schemas.LocalizableDraftName(en="PRR windfarms", pt="PRR Eólicas"),
+            description=schemas.LocalizableDraftDescription(
+                en="A description about the PRR windfarms project",
+                pt="Uma descrição sobre o projeto PRR Eólicas",
+            ),
+            root_path="surveys",
+            discovery_configuration=discovery_schemas.ProjectDiscoveryConfiguration(
+                survey_missions=[
+                    discovery_schemas.SurveyMissionDiscoveryConfiguration(
+                        name=discovery_schemas.TranslatableString(
+                            {"en": discovery_schemas.TemplatedString("seism-2024")}
+                        ),
+                        description=discovery_schemas.TranslatableString(
+                            {
+                                "en": discovery_schemas.TemplatedString(
+                                    "Some description about the seism-2024 survey"
+                                )
+                            }
+                        ),
+                        relative_path="owf-seism-2024",
+                        record_configuration_ids=[
+                            _raw_bathy_record_discovery_conf_id,
+                            _processed_bathy_record_discovery_conf_id,
+                        ],
+                    ),
+                ],
+                records={
+                    str(
+                        _raw_bathy_record_discovery_conf_id
+                    ): discovery_schemas.SurveyRecordDiscoveryConfiguration(
+                        id_=_raw_bathy_record_discovery_conf_id,
+                        dataset_category="bathymetry",
+                        domain_type="geophysical",
+                        workflow_stage="raw data",
+                        name=discovery_schemas.TranslatableString(
+                            {
+                                "en": discovery_schemas.TemplatedString(
+                                    "Raw bathymetry {date_dashed} - pathway #{pathway}"
+                                ),
+                                "pt": discovery_schemas.TemplatedString(
+                                    "Batimetria em bruto {date_dashed} - pathway #{pathway}"
+                                ),
+                            }
+                        ),
+                        extra_properties=[
+                            discovery_schemas.RecordProperty(
+                                identifier="date",
+                                handler=discovery_schemas.DateYmdProperty(),
+                            ),
+                            discovery_schemas.RecordProperty(
+                                identifier="date_dashed",
+                                handler=discovery_schemas.DateYmdDashedProperty(),
+                            ),
+                            discovery_schemas.RecordProperty(
+                                identifier="pathway",
+                                handler=discovery_schemas.ConstantProperty(
+                                    pattern=r"\d{4}"
+                                ),
+                            ),
+                            discovery_schemas.RecordProperty(
+                                identifier="ship",
+                                handler=discovery_schemas.ConstantProperty(
+                                    pattern=r"\w+"
+                                ),
+                            ),
+                        ],
+                        assets=[
+                            discovery_schemas.RecordAssetDiscoveryConfiguration(
+                                name=discovery_schemas.TranslatableString(
+                                    {
+                                        "en": discovery_schemas.TemplatedString(
+                                            "kmall file"
+                                        ),
+                                        "pt": discovery_schemas.TemplatedString(
+                                            "Ficheiro kmall"
+                                        ),
+                                    }
+                                ),
+                                discovery_patterns=[
+                                    discovery_schemas.TemplatedString(
+                                        r"s06-mbes/s02-raw-data/01-EM712/{{date_dashed}}/{{pathway}}_{{date}}_\d{6}_{{ship}}.kmall"
+                                    )
+                                ],
+                            )
+                        ],
+                    ),
+                    str(
+                        _processed_bathy_record_discovery_conf_id
+                    ): discovery_schemas.SurveyRecordDiscoveryConfiguration(
+                        id_=_processed_bathy_record_discovery_conf_id,
+                        dataset_category="bathymetry",
+                        domain_type="geophysical",
+                        workflow_stage="processed data",
+                        name=discovery_schemas.TranslatableString(
+                            {
+                                "en": discovery_schemas.TemplatedString(
+                                    "{region} - Processed bathymetry"
+                                ),
+                                "pt": discovery_schemas.TemplatedString(
+                                    "Batimetria processada - {region}"
+                                ),
+                            }
+                        ),
+                        extra_properties=[
+                            discovery_schemas.RecordProperty(
+                                identifier="region",
+                                handler=discovery_schemas.ConstantProperty(
+                                    pattern=r"[A-Z]{3}"
+                                ),
+                            ),
+                        ],
+                        assets=[
+                            discovery_schemas.RecordAssetDiscoveryConfiguration(
+                                name=discovery_schemas.TranslatableString(
+                                    {
+                                        "en": discovery_schemas.TemplatedString(
+                                            "XYZ file"
+                                        ),
+                                        "pt": discovery_schemas.TemplatedString(
+                                            "Ficheiro XYZ"
+                                        ),
+                                    }
+                                ),
+                                discovery_patterns=[
+                                    discovery_schemas.TemplatedString(
+                                        r"s06-mbes/s05-processed-data/{{region}}_All_Mainlines?_and_Xlines?_MBES_Grid_4m.xyz"
+                                    )
+                                ],
+                            )
+                        ],
+                    ),
+                },
+                record_relations=[],
+            ),
+        ),
+        schemas.ProjectCreate(
             id=_my_first_project_id,
-            owner=_owner_id,
+            owner_id=owner_id,
             name=schemas.LocalizableDraftName(
                 en="My first project", pt="O meu primeiro projeto"
             ),
@@ -72,7 +221,7 @@ def get_projects_to_create() -> list[schemas.ProjectCreate]:
         ),
         schemas.ProjectCreate(
             id=_my_second_project_id,
-            owner=_owner_id,
+            owner_id=owner_id,
             name=schemas.LocalizableDraftName(
                 en="My second project", pt="O meu segundo projeto"
             ),
@@ -96,11 +245,13 @@ def get_projects_to_create() -> list[schemas.ProjectCreate]:
     ]
 
 
-def get_survey_missions_to_create() -> list[schemas.SurveyMissionCreate]:
+def get_survey_missions_to_create(
+    owner: schemas.User,
+) -> list[schemas.SurveyMissionCreate]:
     return [
         schemas.SurveyMissionCreate(
             id=_my_first_survey_mission_id,
-            owner=_owner_id,
+            owner_id=identifiers.UserId(owner.id),
             project_id=_my_first_project_id,
             name=schemas.LocalizableDraftName(
                 en="My first survey mission", pt="A minha primeira missão"
@@ -133,7 +284,7 @@ def get_survey_missions_to_create() -> list[schemas.SurveyMissionCreate]:
         ),
         schemas.SurveyMissionCreate(
             id=_my_second_survey_mission_id,
-            owner=_owner_id,
+            owner_id=identifiers.UserId(owner.id),
             project_id=_my_first_project_id,
             name=schemas.LocalizableDraftName(
                 en="My second survey mission", pt="A minha segunda missão"
@@ -166,7 +317,7 @@ def get_survey_missions_to_create() -> list[schemas.SurveyMissionCreate]:
         ),
         schemas.SurveyMissionCreate(
             id=_my_third_survey_mission_id,
-            owner=_owner_id,
+            owner_id=identifiers.UserId(owner.id),
             project_id=_my_first_project_id,
             name=schemas.LocalizableDraftName(
                 en="My third survey mission", pt="A minha terceira missão"
@@ -199,7 +350,7 @@ def get_survey_missions_to_create() -> list[schemas.SurveyMissionCreate]:
         ),
         schemas.SurveyMissionCreate(
             id=_my_fourth_survey_mission_id,
-            owner=_owner_id,
+            owner_id=identifiers.UserId(owner.id),
             project_id=_my_second_project_id,
             name=schemas.LocalizableDraftName(
                 en="My fourth survey mission", pt="A minha quarta missão"
@@ -232,7 +383,7 @@ def get_survey_missions_to_create() -> list[schemas.SurveyMissionCreate]:
         ),
         schemas.SurveyMissionCreate(
             id=_my_fifth_survey_mission_id,
-            owner=_owner_id,
+            owner_id=identifiers.UserId(owner.id),
             project_id=_my_second_project_id,
             name=schemas.LocalizableDraftName(
                 en="My fifth survey mission", pt="A minha quinta missão"
@@ -267,16 +418,17 @@ def get_survey_missions_to_create() -> list[schemas.SurveyMissionCreate]:
 
 
 def get_survey_related_records_to_create(
+    owner: schemas.User,
     dataset_categories: dict[str, models.DatasetCategory],
     domain_types: dict[str, models.DomainType],
     workflow_stages: dict[str, models.WorkflowStage],
 ) -> list[schemas.SurveyRelatedRecordCreate]:
     return [
         schemas.SurveyRelatedRecordCreate(
-            id=schemas.SurveyRelatedRecordId(
+            id=identifiers.SurveyRelatedRecordId(
                 uuid.UUID("f49d678b-f11a-4798-92dc-604883bc8bda")
             ),
-            owner=_owner_id,
+            owner_id=identifiers.UserId(owner.id),
             name=schemas.LocalizableDraftName(
                 en="First record",
                 pt="Primeiro registo",
@@ -286,16 +438,18 @@ def get_survey_related_records_to_create(
                 pt="Descrição do primeiro registo",
             ),
             survey_mission_id=_my_first_survey_mission_id,
-            dataset_category_id=schemas.DatasetCategoryId(
+            dataset_category_id=identifiers.DatasetCategoryId(
                 dataset_categories["bathymetry"].id
             ),
-            domain_type_id=schemas.DomainTypeId(domain_types["geophysical"].id),
-            workflow_stage_id=schemas.WorkflowStageId(workflow_stages["raw data"].id),
+            domain_type_id=identifiers.DomainTypeId(domain_types["geophysical"].id),
+            workflow_stage_id=identifiers.WorkflowStageId(
+                workflow_stages["raw data"].id
+            ),
             relative_path="first-record",
             links=[],
             assets=[
                 schemas.RecordAssetCreate(
-                    id=schemas.SurveyRelatedRecordId(
+                    id=identifiers.RecordAssetId(
                         uuid.UUID("85f4683c-7d4a-444c-8896-04278bc89e63")
                     ),
                     name=schemas.LocalizableDraftName(
@@ -310,7 +464,7 @@ def get_survey_related_records_to_create(
                     links=[],
                 ),
                 schemas.RecordAssetCreate(
-                    id=schemas.SurveyRelatedRecordId(
+                    id=identifiers.RecordAssetId(
                         uuid.UUID("a9eca3df-03ba-4f46-a98d-3e30139eb035")
                     ),
                     name=schemas.LocalizableDraftName(
@@ -327,10 +481,10 @@ def get_survey_related_records_to_create(
             ],
         ),
         schemas.SurveyRelatedRecordCreate(
-            id=schemas.SurveyRelatedRecordId(
+            id=identifiers.SurveyRelatedRecordId(
                 uuid.UUID("c51e0d11-c4c4-4b4f-8d04-2a115196ff04")
             ),
-            owner=_owner_id,
+            owner_id=identifiers.UserId(owner.id),
             name=schemas.LocalizableDraftName(
                 en="Second record",
                 pt="Segundo registo",
@@ -340,16 +494,18 @@ def get_survey_related_records_to_create(
                 pt="Descrição do segundo registo",
             ),
             survey_mission_id=_my_second_survey_mission_id,
-            dataset_category_id=schemas.DatasetCategoryId(
+            dataset_category_id=identifiers.DatasetCategoryId(
                 dataset_categories["bathymetry"].id
             ),
-            domain_type_id=schemas.DomainTypeId(domain_types["geophysical"].id),
-            workflow_stage_id=schemas.WorkflowStageId(workflow_stages["raw data"].id),
+            domain_type_id=identifiers.DomainTypeId(domain_types["geophysical"].id),
+            workflow_stage_id=identifiers.WorkflowStageId(
+                workflow_stages["raw data"].id
+            ),
             relative_path="second-record",
             links=[],
             assets=[
                 schemas.RecordAssetCreate(
-                    id=schemas.SurveyRelatedRecordId(
+                    id=identifiers.RecordAssetId(
                         uuid.UUID("a53728ed-5422-4f08-806f-3e75bbb1b3e8")
                     ),
                     name=schemas.LocalizableDraftName(
@@ -364,7 +520,7 @@ def get_survey_related_records_to_create(
                     links=[],
                 ),
                 schemas.RecordAssetCreate(
-                    id=schemas.SurveyRelatedRecordId(
+                    id=identifiers.RecordAssetId(
                         uuid.UUID("bd4bed96-43bd-4d5c-a7b2-d04461dfb23c")
                     ),
                     name=schemas.LocalizableDraftName(
@@ -384,10 +540,10 @@ def get_survey_related_records_to_create(
 
 
 def generate_sample_projects(
-    owners: Sequence[schemas.UserId],
-    dataset_categories: Sequence[schemas.DatasetCategoryId],
-    domain_types: Sequence[schemas.DomainTypeId],
-    workflow_stages: Sequence[schemas.WorkflowStageId],
+    owners: Sequence[schemas.User],
+    dataset_categories: Sequence[identifiers.DatasetCategoryId],
+    domain_types: Sequence[identifiers.DomainTypeId],
+    workflow_stages: Sequence[identifiers.WorkflowStageId],
     root_path: str = "/archive",
 ) -> Iterator[
     tuple[
@@ -412,8 +568,8 @@ def generate_sample_projects(
         )
         temporal_extent = _generate_sample_temporal_extent()
         project = schemas.ProjectCreate(
-            id=schemas.ProjectId(uuid.uuid4()),
-            owner=random.choice(owners),
+            id=identifiers.ProjectId(uuid.uuid4()),
+            owner_id=identifiers.UserId(random.choice(owners).id),
             name=schemas.LocalizableDraftName(
                 en=f"sample_{_FAKE_EN.sentence()}",
                 pt=f"amostra_{_FAKE_PT.sentence()}",
@@ -442,11 +598,11 @@ def generate_sample_projects(
 
 
 def generate_sample_survey_missions(
-    owners: Sequence[schemas.UserId],
-    project_id: schemas.ProjectId,
-    dataset_categories: Sequence[schemas.DatasetCategoryId],
-    domain_types: Sequence[schemas.DomainTypeId],
-    workflow_stages: Sequence[schemas.WorkflowStageId],
+    owners: Sequence[schemas.User],
+    project_id: identifiers.ProjectId,
+    dataset_categories: Sequence[identifiers.DatasetCategoryId],
+    domain_types: Sequence[identifiers.DomainTypeId],
+    workflow_stages: Sequence[identifiers.WorkflowStageId],
 ) -> Iterator[
     tuple[schemas.SurveyMissionCreate, list[schemas.SurveyRelatedRecordCreate]],
 ]:
@@ -463,9 +619,9 @@ def generate_sample_survey_missions(
         )
         temporal_extent = _generate_sample_temporal_extent()
         mission = schemas.SurveyMissionCreate(
-            id=schemas.SurveyMissionId(uuid.uuid4()),
+            id=identifiers.SurveyMissionId(uuid.uuid4()),
             project_id=project_id,
-            owner=random.choice(owners),
+            owner_id=identifiers.UserId(random.choice(owners).id),
             name=schemas.LocalizableDraftName(
                 en=f"sample_{_FAKE_EN.sentence()}",
                 pt=f"amostra_{_FAKE_PT.sentence()}",
@@ -496,11 +652,11 @@ def generate_sample_survey_missions(
 
 
 def generate_sample_survey_related_records(
-    owners: Sequence[schemas.UserId],
-    survey_mission_id: schemas.SurveyMissionId,
-    dataset_categories: Sequence[schemas.DatasetCategoryId],
-    domain_types: Sequence[schemas.DomainTypeId],
-    workflow_stages: Sequence[schemas.WorkflowStageId],
+    owners: Sequence[schemas.User],
+    survey_mission_id: identifiers.SurveyMissionId,
+    dataset_categories: Sequence[identifiers.DatasetCategoryId],
+    domain_types: Sequence[identifiers.DomainTypeId],
+    workflow_stages: Sequence[identifiers.WorkflowStageId],
 ) -> Iterator[schemas.SurveyRelatedRecordCreate]:
     temporal_extent = _generate_sample_temporal_extent()
     for _ in count():
@@ -525,8 +681,8 @@ def generate_sample_survey_related_records(
             else []
         )
         yield schemas.SurveyRelatedRecordCreate(
-            id=schemas.SurveyRelatedRecordId(uuid.uuid4()),
-            owner=random.choice(owners),
+            id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
+            owner_id=identifiers.UserId(random.choice(owners).id),
             name=schemas.LocalizableDraftName(
                 en=f"sample_{_FAKE_EN.sentence()}",
                 pt=f"amostra_{_FAKE_PT.sentence()}",
@@ -567,7 +723,7 @@ def generate_sample_asset() -> Iterator[schemas.RecordAssetCreate]:
             else []
         )
         yield schemas.RecordAssetCreate(
-            id=schemas.RecordAssetId(uuid.uuid4()),
+            id=identifiers.RecordAssetId(uuid.uuid4()),
             name=schemas.LocalizableDraftName(
                 en=f"sample_{_FAKE_EN.sentence()}",
                 pt=f"amostra_{_FAKE_PT.sentence()}",

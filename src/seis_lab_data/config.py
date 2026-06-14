@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 import jinja2
+import sqlmodel
 import yaml
 from pydantic import (
     BaseModel,
@@ -18,8 +19,18 @@ from pydantic_settings import (
     BaseSettings,
     SettingsConfigDict,
 )
+from redis import asyncio as aioredis
 from rich.console import Console
 from rich.logging import RichHandler
+from sqlalchemy import Engine
+from sqlalchemy.ext.asyncio.session import async_sessionmaker
+from sqlalchemy.ext.asyncio.engine import (
+    AsyncEngine,
+    create_async_engine,
+)
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from . import dispatch
 
 warnings.filterwarnings(
     "ignore", r".*directory.*does not exist.*", UserWarning, module="pydantic_settings"
@@ -87,6 +98,47 @@ class SeisLabDataSettings(BaseSettings):
     )
     default_temporal_extent_begin: str = ""
     default_temporal_extent_end: str = ""
+    readonly_archive_root_directory: Path = "/mnt/data"
+    editable_archive_root_directory: Path = "/mnt/sld"
+    _db_engine: AsyncEngine | None = None
+    _sync_db_engine: Engine | None = None
+    _db_session_maker: async_sessionmaker | None = None
+    _event_dispatcher: dispatch.EventDispatcherProtocol | None = None
+
+    def get_db_engine(self) -> AsyncEngine:
+        if self._db_engine is None:
+            self._db_engine = create_async_engine(self.database_dsn.unicode_string())
+        return self._db_engine
+
+    def get_sync_db_engine(self) -> Engine:
+        if self._sync_db_engine is None:
+            self._sync_db_engine = sqlmodel.create_engine(
+                self.database_dsn.unicode_string()
+            )
+        return self._sync_db_engine
+
+    def get_db_session_maker(self) -> async_sessionmaker:
+        if self._db_session_maker is None:
+            self._db_session_maker = async_sessionmaker(
+                autocommit=False,
+                autoflush=False,
+                bind=self.get_db_engine(),
+                expire_on_commit=False,
+                class_=AsyncSession,
+            )
+        return self._db_session_maker
+
+    def get_event_dispatcher(self) -> dispatch.EventDispatcherProtocol:
+        if self._event_dispatcher is None:
+            if self.emit_events:
+                self._event_dispatcher = dispatch.RedisEventDispatcher(
+                    redis_client=aioredis.from_url(
+                        self.message_broker_dsn.unicode_string()
+                    )
+                )
+            else:
+                self._event_dispatcher = dispatch.no_op_dispatcher
+        return self._event_dispatcher
 
 
 class SeisLabDataCliContext(BaseModel):
@@ -95,6 +147,7 @@ class SeisLabDataCliContext(BaseModel):
     jinja_environment: jinja2.Environment = jinja2.Environment()
     status_console: Console
     settings: SeisLabDataSettings
+    redis_client: aioredis.Redis
 
 
 def get_settings() -> SeisLabDataSettings:
@@ -107,6 +160,7 @@ def get_cli_context() -> SeisLabDataCliContext:
         jinja_environment=_get_jinja_environment(settings),
         settings=settings,
         status_console=Console(stderr=True),
+        redis_client=aioredis.from_url(settings.message_broker_dsn.unicode_string()),
     )
 
 

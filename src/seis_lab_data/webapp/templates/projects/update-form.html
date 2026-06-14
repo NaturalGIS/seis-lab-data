@@ -22,6 +22,44 @@
         form.csrf_token.current_token
     ) }}
 
+    <h3>{{ _("Discovery configuration") | capitalize }}</h3>
+    <div class="row mb-3">
+        <div class="col">
+            {{ form.discovery_configuration(class_="d-none") }}
+            {% if form.discovery_configuration.errors %}
+                <div class="invalid-feedback d-block">
+                    {% for error in form.discovery_configuration.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            <div id="json-editor-discovery-config" style="height: 400px;"></div>
+            <script>
+                (function() {
+                    var textarea = document.getElementById('discovery_configuration');
+                    var editor = new JSONEditor(
+                        document.getElementById('json-editor-discovery-config'),
+                        {
+                            mode: 'tree',
+                            modes: [
+                                'tree',
+                                'code',
+                            ],
+                            onChange: function() {
+                                try { textarea.value = JSON.stringify(editor.get()); } catch(e) {}
+                            }
+                        }
+                    );
+                    try {
+                        editor.set(JSON.parse(textarea.value || 'null'));
+                    } catch(e) {
+                        editor.set(null);
+                    }
+                })();
+            </script>
+        </div>
+    </div>
+
     <div class="row mb-3">
         <div class="col-sm-10 offset-sm-2">
             <button

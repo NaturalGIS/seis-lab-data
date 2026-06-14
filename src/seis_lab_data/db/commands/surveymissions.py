@@ -6,6 +6,7 @@ from ... import (
     errors,
     schemas,
 )
+from ...schemas import identifiers
 from .. import (
     models,
     queries,
@@ -30,7 +31,7 @@ async def create_survey_mission(
     )
     # need to ensure english name is unique for combination of project and survey mission
     if await queries.get_survey_mission_by_english_name(
-        session, schemas.ProjectId(to_create.project_id), to_create.name.en
+        session, identifiers.ProjectId(to_create.project_id), to_create.name.en
     ):
         raise errors.SeisLabDataError(
             f"There is already a survey mission with english name {to_create.name.en!r} for "
@@ -45,7 +46,7 @@ async def create_survey_mission(
 
 async def delete_survey_mission(
     session: AsyncSession,
-    survey_mission_id: schemas.SurveyMissionId,
+    survey_mission_id: identifiers.SurveyMissionId,
 ) -> None:
     if survey_mission := (await queries.get_survey_mission(session, survey_mission_id)):
         await session.delete(survey_mission)
@@ -89,13 +90,13 @@ async def update_survey_mission_validation_result(
     await session.commit()
     await session.refresh(survey_mission)
     return await queries.get_survey_mission(
-        session, schemas.SurveyMissionId(survey_mission.id)
+        session, identifiers.SurveyMissionId(survey_mission.id)
     )
 
 
 async def set_survey_mission_status(
     session: AsyncSession,
-    survey_mission_id: schemas.SurveyMissionId,
+    survey_mission_id: identifiers.SurveyMissionId,
     status: SurveyMissionStatus,
 ) -> models.SurveyMission:
     """Unconditionally sets the survey mission's status."""
@@ -110,5 +111,5 @@ async def set_survey_mission_status(
     await session.commit()
     await session.refresh(survey_mission)
     return await queries.get_survey_mission(
-        session, schemas.SurveyMissionId(survey_mission_id)
+        session, identifiers.SurveyMissionId(survey_mission_id)
     )

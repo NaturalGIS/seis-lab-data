@@ -13,6 +13,11 @@ formatters:
     fmt: "%(levelprefix)s %(asctime)s %(message)s"
     use_colors: null
 
+  sld:
+    (): uvicorn.logging.DefaultFormatter
+    fmt: "%(levelprefix)s %(asctime)s %(module)s %(funcName)s %(message)s"
+    use_colors: null
+
   access:
     (): uvicorn.logging.AccessFormatter
     fmt: '%(levelprefix)s %(asctime)s %(client_addr)s - "%(request_line)s" %(status_code)s'
@@ -23,6 +28,11 @@ handlers:
     formatter: default
     class: rich.logging.RichHandler
     rich_tracebacks: true
+
+  sld_handler:
+    formatter: sld
+    class: logging.StreamHandler
+    stream: ext://sys.stderr
 
   default:
     formatter: default
@@ -59,7 +69,7 @@ loggers:
 
   seis_lab_data:
     handlers:
-      - default
+      - sld_handler
     level: DEBUG
     propagate: false
 

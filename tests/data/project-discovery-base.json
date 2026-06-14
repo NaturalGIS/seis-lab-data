@@ -1,0 +1,73 @@
+{
+  "survey_missions": [
+    {
+      "name": {
+        "pt": "missão1 owf-seism-2024",
+        "en": "first mission owf-seism-2024"
+      },
+      "description": {
+        "pt": "Descrição da missão1",
+        "en": "Description for first mission"
+      },
+      "relative_path": "surveys/owf-seism-2024/",
+      "records": [
+        "raw_bathy",
+        "processed_bathy",
+        "raw_uhrs_line"
+      ]
+    }
+  ],
+  "records": {
+    "raw_bathy": {
+      "dataset_category": "bathymetry",
+      "domain_type": "geophysical",
+      "workflow_stage": "raw data",
+      "metadata_extractor": "seis_lab_data.extractors.bathymetry.extractor_default_or_customizable",
+      "name": {"pt": "Batimetria em bruto", "en": "Raw bathymetry"},
+      "assets": [
+        {
+          "name": {"pt": "Ficheiro kmall", "en": "kmall file"},
+          "discovery_patterns": ["s06-mbes/s02-raw-data/01-EM712/{{date_dashed}}/\\d{4}_{{date}}_\\d{6}_{{ship}}.kmall"]
+        }
+      ],
+      "extra_properties": {
+        "date": {"type": "date:ymd"},
+        "date_dashed": {"type": "date:ymd-dashed"},
+        "ship": {"type":  "constant", "pattern":  "\\w+"}
+      }
+    },
+    "processed_bathy": {
+      "dataset_category": "bathymetry",
+      "domain_type": "geophysical",
+      "workflow_stage": "processed data",
+      "metadata_extractor": "seis_lab_data.extractors.bathymetry.extractor_default_or_customizable",
+      "name": {"pt": "Batimetria processada", "en": "Processed bathymetry"},
+      "assets": [
+        {
+          "name": {"pt": "Ficheiro xyz", "en": "xyz file"},
+          "discovery_patterns": ["s06-mbes/s05-processed-data/{{region}}_All_Mainlines?_and_Xlines?_MBES_Grid_4m.xyz"]
+        }
+      ],
+      "extra_properties": {
+        "region": {"type": "constant", "pattern": "[A-Z]{3}"}
+      }
+    },
+    "raw_uhrs_line": {
+      "dataset_category": "seismic",
+      "domain_type": "geophysical",
+      "workflow_stage": "raw data",
+      "metadata_extractor": "seis_lab_data.extractors.bathymetry.extractor_default_or_customizable",
+      "name": {"pt": "Sísmica UHRS raw", "en": "UHRS raw"},
+      "assets": [
+        {
+          "name": {"pt": "twt", "en": "twt"},
+          "discovery_patterns": ["s13-uhrs/s02-raw-data/BACKED UP - FIGUEIRA/FIG-24-{{mark}}/FIG-24-{{mark}}_rev1.segy"]
+        }
+      ],
+      "extra_properties": {
+        "mark": {"type": "constant", "pattern": "[A-Z](\\d\\d\\d(_\\d)?)?"}
+      }
+    }
+  },
+  "record_relations" : []
+}

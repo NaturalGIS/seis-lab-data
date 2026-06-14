@@ -1,8 +1,33 @@
+import re
+import uuid
+
 import pytest
 from playwright.sync_api import (
     expect,
     Page,
 )
+
+
+def _fill_project_form_minimal(page: Page, english_name: str):
+    page.get_by_role("textbox", name="field-name-en").fill(english_name)
+
+
+def _fill_survey_mission_form_minimal(page: Page, english_name: str):
+    page.get_by_role("textbox", name="field-name-en").fill(english_name)
+
+
+def _fill_survey_related_record_form(page: Page, english_name: str):
+    page.get_by_role("textbox", name="field-name-en").fill(english_name)
+    page.get_by_role("textbox", name="field-name-pt").fill("Registo de teste e2e")
+    page.get_by_role("textbox", name="field-description-en").fill(
+        "e2e survey-related record description"
+    )
+    page.get_by_role("textbox", name="field-description-pt").fill(
+        "descrição do registo de teste"
+    )
+    page.get_by_role("textbox", name="field-relative_path").fill(
+        "/somewhere/survey/related/record"
+    )
 
 
 @pytest.mark.e2e
@@ -11,65 +36,33 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
     # and deletion lifecycle of survey-related records. Let's revise later once
     # search functionality has been implemented.
 
-    # Create a new project first, then a new survey mission under it
-    # and finally a survey-related record under that
-
-    # start from the landing page
     authenticated_page.goto("/")
-
-    # navigate to the projects page and click the create new project button
     authenticated_page.get_by_role("link", name="list-projects").click()
     authenticated_page.get_by_role("button", name="new-project").click()
 
-    # fill out the form and submit it
-    authenticated_page.get_by_role("textbox", name="field-name-en").fill(
-        "e2e test project"
-    )
-
+    project_name = f"e2e test project {uuid.uuid4().hex[:8]}"
+    _fill_project_form_minimal(authenticated_page, project_name)
     authenticated_page.get_by_role("button", name="submit-create-form").click()
-
-    # expect to see some confirmation that the project was created
-    expect(
-        authenticated_page.get_by_test_id("processing-success-message")
-    ).to_be_visible(timeout=10_000)
-
-    # now create the new survey mission
-    authenticated_page.get_by_role("button", name="new-item").click()
-    # fill out the form and submit it
-    authenticated_page.get_by_role("textbox", name="field-name-en").fill(
-        "e2e test survey mission"
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=10_000
     )
 
+    # create the survey mission
+    authenticated_page.get_by_role("button", name="new-item").click()
+    mission_name = f"e2e test survey mission {uuid.uuid4().hex[:8]}"
+    _fill_survey_mission_form_minimal(authenticated_page, mission_name)
     authenticated_page.get_by_role("button", name="submit-create-form").click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/survey-missions/[0-9a-f-]{36}$"), timeout=10_000
+    )
 
-    # expect to see some confirmation that the survey mission was created
-    expect(
-        authenticated_page.get_by_test_id("processing-success-message")
-    ).to_be_visible(timeout=10_000)
-
-    # now create a new survey-related record under that survey mission
+    # create the survey-related record
     authenticated_page.get_by_role("button", name="new-item").click()
+    record_name = f"e2e test survey-related record {uuid.uuid4().hex[:8]}"
+    _fill_survey_related_record_form(authenticated_page, record_name)
 
-    # fill out the form and submit it
-    authenticated_page.get_by_role("textbox", name="field-name-en").fill(
-        "e2e test survey-related record"
-    )
-    authenticated_page.get_by_role("textbox", name="field-name-pt").fill(
-        "Registo de teste e2e"
-    )
-    authenticated_page.get_by_role("textbox", name="field-description-en").fill(
-        "e2e survey-related record description"
-    )
-    authenticated_page.get_by_role("textbox", name="field-description-pt").fill(
-        "descrição do registo de teste"
-    )
-    authenticated_page.get_by_role("textbox", name="field-relative_path").fill(
-        "/somewhere/survey/related/record"
-    )
     authenticated_page.get_by_role(
-        "button",
-        name="add-another-link",
-        exact=True,
+        "button", name="add-another-link", exact=True
     ).click()
     authenticated_page.get_by_role("textbox", name="field-link-links-0-url").fill(
         "http://fakelink.com/for/record"
@@ -88,9 +81,7 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
     ).fill("uma descrição do link")
 
     authenticated_page.get_by_role(
-        "button",
-        name="add-another-link",
-        exact=True,
+        "button", name="add-another-link", exact=True
     ).click()
     authenticated_page.get_by_role("textbox", name="field-link-links-1-url").fill(
         "http://fakelink2.com"
@@ -144,7 +135,6 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
     ).fill("uma descrição do link")
 
     authenticated_page.get_by_role("button", name="add-another-asset").click()
-
     authenticated_page.get_by_role("textbox", name="field-asset-assets-1-name-en").fill(
         "Sample e2e second asset"
     )
@@ -178,27 +168,88 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
     ).fill("uma descrição do link")
 
     authenticated_page.get_by_role("button", name="submit-create-form").click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/survey-related-records/[0-9a-f-]{36}$"), timeout=10_000
+    )
 
-    # expect to see some confirmation that the survey mission was created
+    # clean up: delete record → mission → project
+    authenticated_page.get_by_role(
+        "button", name="show-delete-confirmation-modal"
+    ).click()
+    authenticated_page.get_by_role("button", name="delete-item").click()
+    expect(authenticated_page.get_by_role("button", name="new-item")).to_be_visible()
+
+    authenticated_page.get_by_role(
+        "button", name="show-delete-confirmation-modal"
+    ).click()
+    authenticated_page.get_by_role("button", name="delete-item").click()
+    expect(authenticated_page.get_by_role("button", name="new-item")).to_be_visible()
+
+    authenticated_page.get_by_role(
+        "button", name="show-delete-confirmation-modal"
+    ).click()
+    authenticated_page.get_by_role("button", name="delete-item").click()
+    expect(authenticated_page.get_by_role("button", name="new-project")).to_be_visible()
+
+
+@pytest.mark.e2e
+def test_survey_related_record_creation_rejects_duplicate_english_name(
+    authenticated_page: Page,
+):
+    authenticated_page.goto("/")
+    authenticated_page.get_by_role("link", name="list-projects").click()
+    authenticated_page.get_by_role("button", name="new-project").click()
+
+    project_name = f"e2e test project {uuid.uuid4().hex[:8]}"
+    _fill_project_form_minimal(authenticated_page, project_name)
+    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=10_000
+    )
+
+    # create the survey mission
+    authenticated_page.get_by_role("button", name="new-item").click()
+    mission_name = f"e2e test survey mission {uuid.uuid4().hex[:8]}"
+    _fill_survey_mission_form_minimal(authenticated_page, mission_name)
+    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/survey-missions/[0-9a-f-]{36}$"), timeout=10_000
+    )
+    mission_detail_url = authenticated_page.url
+
+    # create the initial survey-related record
+    authenticated_page.get_by_role("button", name="new-item").click()
+    record_name = f"e2e duplicate record {uuid.uuid4().hex[:8]}"
+    _fill_survey_related_record_form(authenticated_page, record_name)
+    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/survey-related-records/[0-9a-f-]{36}$"), timeout=10_000
+    )
+    record_detail_url = authenticated_page.url
+
+    # try to create another record with the same english name under the same mission
+    authenticated_page.goto(mission_detail_url)
+    authenticated_page.get_by_role("button", name="new-item").click()
+    _fill_survey_related_record_form(authenticated_page, record_name)
+    authenticated_page.get_by_role("button", name="submit-create-form").click()
     expect(
-        authenticated_page.get_by_test_id("processing-success-message")
-    ).to_be_visible(timeout=10_000)
+        authenticated_page.locator("#backend-validation-name-en-feedback")
+    ).to_be_visible()
 
-    # clean up by deleting the newly-created survey-related record
+    # clean up: navigate to the record detail page and delete it, then mission, then project
+    authenticated_page.goto(record_detail_url)
     authenticated_page.get_by_role(
         "button", name="show-delete-confirmation-modal"
     ).click()
     authenticated_page.get_by_role("button", name="delete-item").click()
     expect(authenticated_page.get_by_role("button", name="new-item")).to_be_visible()
 
-    # and then delete also the newly-created survey mission
     authenticated_page.get_by_role(
         "button", name="show-delete-confirmation-modal"
     ).click()
     authenticated_page.get_by_role("button", name="delete-item").click()
     expect(authenticated_page.get_by_role("button", name="new-item")).to_be_visible()
 
-    # and then delete also the also newly-created project
     authenticated_page.get_by_role(
         "button", name="show-delete-confirmation-modal"
     ).click()

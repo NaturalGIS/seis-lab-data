@@ -2,8 +2,8 @@ from sqlalchemy.orm import selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 
-from ... import schemas
 from ...db import models
+from ...schemas import identifiers
 from .common import _get_total_num_records
 
 _SELECT_IN_LOAD_OPTIONS = (
@@ -15,7 +15,7 @@ _SELECT_IN_LOAD_OPTIONS = (
 
 async def collect_all_record_assets(
     session: AsyncSession,
-    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    survey_related_record_id: identifiers.SurveyRelatedRecordId,
 ) -> list[models.RecordAsset]:
     statement = (
         select(models.RecordAsset)
@@ -27,7 +27,7 @@ async def collect_all_record_assets(
 
 async def list_record_assets(
     session: AsyncSession,
-    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    survey_related_record_id: identifiers.SurveyRelatedRecordId,
     limit: int = 20,
     offset: int = 0,
     include_total: bool = False,
@@ -46,7 +46,7 @@ async def list_record_assets(
 
 async def get_record_asset(
     session: AsyncSession,
-    record_asset_id: schemas.RecordAssetId,
+    record_asset_id: identifiers.RecordAssetId,
 ) -> models.RecordAsset | None:
     statement = (
         select(models.RecordAsset)
@@ -58,13 +58,24 @@ async def get_record_asset(
 
 async def get_record_asset_by_english_name(
     session: AsyncSession,
-    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    survey_related_record_id: identifiers.SurveyRelatedRecordId,
     english_name: str,
 ) -> models.RecordAsset | None:
     statement = (
         select(models.RecordAsset)
         .where(models.RecordAsset.name["en"].astext == english_name)
         .where(models.RecordAsset.survey_related_record_id == survey_related_record_id)
+        .options(_SELECT_IN_LOAD_OPTIONS)
+    )
+    return (await session.exec(statement)).first()
+
+
+async def get_record_asset_by_file_path(
+    session: AsyncSession, file_path: str
+) -> models.RecordAsset | None:
+    statement = (
+        select(models.RecordAsset)
+        .where(models.RecordAsset.relative_path == file_path)
         .options(_SELECT_IN_LOAD_OPTIONS)
     )
     return (await session.exec(statement)).first()

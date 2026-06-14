@@ -31,12 +31,15 @@ from ... import (
 )
 from ...constants import (
     PROGRESS_TOPIC_NAME_TEMPLATE,
+    SURVEY_MISSION_CREATED_TOPIC,
     SURVEY_MISSION_DELETED_TOPIC,
+    SURVEY_MISSION_DISCOVERY_TOPIC,
     SURVEY_MISSION_STATUS_CHANGED_TOPIC,
     SURVEY_MISSION_UPDATED_TOPIC,
     SURVEY_MISSION_VALIDITY_CHANGED_TOPIC,
 )
 from ...processing import tasks
+from ...schemas import identifiers
 from .. import (
     filters,
     forms,
@@ -67,17 +70,15 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
     )
     user = request.user if request.user.is_authenticated else None
     settings: config.SeisLabDataSettings = request.state.settings
-    session_maker = request.state.session_maker
     survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
-    async with session_maker() as session:
+    async with settings.get_db_session_maker()() as session:
         try:
             survey_mission = await operations.get_survey_mission(
                 survey_mission_id,
                 user,
                 session,
-                request.state.settings,
             )
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -171,15 +172,14 @@ async def get_details_component(request: Request):
 
 async def get_survey_mission_detail_updates(request: Request):
     try:
-        survey_mission_id = schemas.SurveyMissionId(
+        survey_mission_id = identifiers.SurveyMissionId(
             uuid.UUID(request.path_params["survey_mission_id"])
         )
     except ValueError as err:
         raise HTTPException(
             status_code=400, detail="Invalid survey_mission id"
         ) from err
-    session_maker = request.state.session_maker
-    settings: config.SeisLabDataSettings = request.state.settings
+    session_maker = request.state.settings.get_db_session_maker()
     redis_client: Redis = request.state.redis_client
     user = request.user if request.user.is_authenticated else None
 
@@ -214,7 +214,7 @@ async def get_survey_mission_detail_updates(request: Request):
             )
             async with session_maker() as session:
                 updated_survey_mission = await operations.get_survey_mission(
-                    survey_mission_id, user, session, settings
+                    survey_mission_id, user, session
                 )
                 yield ServerSentEventGenerator.patch_signals(
                     {
@@ -233,7 +233,7 @@ async def get_survey_mission_detail_updates(request: Request):
             )
             async with session_maker() as session:
                 updated_survey_mission = await operations.get_survey_mission(
-                    survey_mission_id, user, session, settings
+                    survey_mission_id, user, session
                 )
                 details_message = ""
                 if not updated_survey_mission.validation_result.get("is_valid"):
@@ -274,10 +274,57 @@ async def get_survey_mission_detail_updates(request: Request):
                 ),
             )
 
+    async def on_discovery_message(
+        raw_message: str,
+    ) -> AsyncGenerator[DatastarEvent, None]:
+        logger.debug(
+            "Received message about survey mission discovery update, "
+            "refreshing records list..."
+        )
+        settings: config.SeisLabDataSettings = request.state.settings
+        async with session_maker() as session:
+            (
+                survey_related_records,
+                total,
+            ) = await operations.list_survey_related_records(
+                session,
+                user,
+                survey_mission_id=survey_mission_id,
+                include_total=True,
+                page=1,
+                page_size=settings.pagination_page_size,
+            )
+        pagination = get_pagination_info(
+            current_page=1,
+            page_size=settings.pagination_page_size,
+            total_filtered_items=total,
+            total_unfiltered_items=total,
+            collection_url=str(
+                request.url_for(
+                    "survey_missions:detail", survey_mission_id=survey_mission_id
+                )
+            ),
+        )
+        serialized_records = [
+            schemas.SurveyRelatedRecordReadListItem.from_db_instance(r)
+            for r in survey_related_records
+        ]
+        rendered = request.state.templates.get_template(
+            "survey-related-records/list-component.html"
+        ).render(request=request, items=serialized_records, pagination=pagination)
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=schemas.selector_info.survey_mission_records_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
     topic_handlers = {
         SURVEY_MISSION_DELETED_TOPIC.format(
             survey_mission_id=survey_mission_id
         ): on_deleted_message,
+        SURVEY_MISSION_DISCOVERY_TOPIC.format(
+            survey_mission_id=survey_mission_id
+        ): on_discovery_message,
         SURVEY_MISSION_VALIDITY_CHANGED_TOPIC.format(
             survey_mission_id=survey_mission_id
         ): on_validation_update_message,
@@ -302,15 +349,12 @@ async def get_survey_mission_detail_updates(request: Request):
 @requires_auth
 async def get_survey_mission_creation_form(request: Request):
     user = request.user if request.user.is_authenticated else None
-    project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
-    session_maker = request.state.session_maker
+    project_id = identifiers.ProjectId(uuid.UUID(request.path_params["project_id"]))
     form_instance = await forms.SurveyMissionCreateForm.from_formdata(request)
 
-    async with session_maker() as session:
+    async with request.state.settings.get_db_session_maker()() as session:
         try:
-            project = await operations.get_project(
-                project_id, user, session, request.state.settings
-            )
+            project = await operations.get_project(project_id, user, session)
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         if project is None:
@@ -379,10 +423,9 @@ async def get_list_component(request: Request):
         filter_query_string = ""
 
     current_page = get_page_from_request_params(request)
-    session_maker = request.state.session_maker
-    user = request.user if request.user.is_authenticated else None
     settings: config.SeisLabDataSettings = request.state.settings
-    async with session_maker() as session:
+    user = request.user if request.user.is_authenticated else None
+    async with settings.get_db_session_maker()() as session:
         items, num_total = await operations.list_survey_missions(
             session,
             initiator=user,
@@ -433,6 +476,58 @@ async def get_list_component(request: Request):
     return DatastarResponse(event_streamer())
 
 
+async def get_listing_updates(request: Request):
+    redis_client: Redis = request.state.redis_client
+    user = request.user if request.user.is_authenticated else None
+    settings: config.SeisLabDataSettings = request.state.settings
+
+    async def on_mission_created_message(
+        raw_message: str,
+    ) -> AsyncGenerator[DatastarEvent, None]:
+        logger.debug(
+            "Received message about new survey mission created, "
+            "refreshing missions list..."
+        )
+        async with settings.get_db_session_maker()() as session:
+            items, total = await operations.list_survey_missions(
+                session,
+                initiator=user,
+                include_total=True,
+                page=1,
+                page_size=settings.pagination_page_size,
+            )
+        pagination = get_pagination_info(
+            current_page=1,
+            page_size=settings.pagination_page_size,
+            total_filtered_items=total,
+            total_unfiltered_items=total,
+            collection_url=str(request.url_for("survey_missions:list")),
+        )
+        serialized_items = [
+            schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items
+        ]
+        rendered = request.state.templates.get_template(
+            "survey-missions/list-component.html"
+        ).render(request=request, items=serialized_items, pagination=pagination)
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=schemas.selector_info.items_selector,
+            mode=ElementPatchMode.REPLACE,
+        )
+
+    topic_handlers = {
+        SURVEY_MISSION_CREATED_TOPIC: on_mission_created_message,
+    }
+
+    async def event_streamer():
+        async for sse_event in produce_event_stream_for_item_updates(
+            redis_client, request, timeout_seconds=30, **topic_handlers
+        ):
+            yield sse_event
+
+    return DatastarResponse(event_streamer())
+
+
 class SurveyMissionCollectionEndpoint(HTTPEndpoint):
     """Manage collection of survey missions."""
 
@@ -443,10 +538,9 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
         list_filters = filters.SurveyMissionListFilters.from_params(
             request.query_params, current_language
         )
-        session_maker = request.state.session_maker
         settings: config.SeisLabDataSettings = request.state.settings
         user = request.user if request.user.is_authenticated else None
-        async with session_maker() as session:
+        async with settings.get_db_session_maker()() as session:
             items, num_total = await operations.list_survey_missions(
                 session,
                 initiator=user,
@@ -533,14 +627,13 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         """Update an existing survey mission."""
         template_processor: Jinja2Templates = request.state.templates
         user = request.user if request.user.is_authenticated else None
-        session_maker = request.state.session_maker
         survey_mission_id = get_id_from_request_path(
-            request, "survey_mission_id", schemas.SurveyMissionId
+            request, "survey_mission_id", identifiers.SurveyMissionId
         )
-        async with session_maker() as session:
+        async with request.state.settings.get_db_session_maker()() as session:
             if (
                 survey_mission := await operations.get_survey_mission(
-                    survey_mission_id, user, session, request.state.settings
+                    survey_mission_id, user, session
                 )
             ) is None:
                 raise HTTPException(
@@ -548,7 +641,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 )
         form_instance = await forms.SurveyMissionUpdateForm.get_validated_form_instance(
             request,
-            project_id=schemas.ProjectId(survey_mission.project_id),
+            project_id=identifiers.ProjectId(survey_mission.project_id),
             disregard_id=survey_mission_id,
         )
         logger.debug(f"{form_instance.has_validation_errors()=}")
@@ -571,12 +664,16 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                     selector=schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
+                yield ServerSentEventGenerator.execute_script(
+                    "document.querySelector('.is-invalid')?.scrollIntoView({behavior: 'smooth', block: 'center'})"
+                )
 
-            return DatastarResponse(stream_validation_failed_events(), status_code=422)
+            # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
+            return DatastarResponse(stream_validation_failed_events(), status_code=200)
 
-        request_id = schemas.RequestId(uuid.uuid4())
+        request_id = identifiers.RequestId(uuid.uuid4())
         to_update = schemas.SurveyMissionUpdate(
-            owner=user.id,
+            owner_id=user.id,
             name=schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,
@@ -713,7 +810,8 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             async for sse_event in event_stream_generator:
                 yield sse_event
 
-        return DatastarResponse(event_streamer(), status_code=202)
+        # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
+        return DatastarResponse(event_streamer(), status_code=200)
 
     @csrf_protect
     @requires_auth
@@ -721,7 +819,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         """Create a new record in the survey mission's collection."""
         user = request.user if request.user.is_authenticated else None
         survey_mission_id = get_id_from_request_path(
-            request, "survey_mission_id", schemas.SurveyMissionId
+            request, "survey_mission_id", identifiers.SurveyMissionId
         )
         form_instance = (
             await forms.SurveyRelatedRecordCreateForm.get_validated_form_instance(
@@ -747,15 +845,19 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                     selector=schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
+                yield ServerSentEventGenerator.execute_script(
+                    "document.querySelector('.is-invalid')?.scrollIntoView({behavior: 'smooth', block: 'center'})"
+                )
 
-            return DatastarResponse(event_streamer(), status_code=422)
+            # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
+            return DatastarResponse(event_streamer(), status_code=200)
 
-        request_id = schemas.RequestId(uuid.uuid4())
+        request_id = identifiers.RequestId(uuid.uuid4())
         related_records = []
         for related_ in form_instance.related_records.entries:
             related_records.append(
                 schemas.RelatedRecordCreate(
-                    related_record_id=schemas.SurveyRelatedRecordId(
+                    related_record_id=identifiers.SurveyRelatedRecordId(
                         uuid.UUID(
                             form_instance.parse_related_record_compound_name(
                                 related_.related_record.data
@@ -769,9 +871,9 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 )
             )
         to_create = schemas.SurveyRelatedRecordCreate(
-            id=schemas.SurveyRelatedRecordId(uuid.uuid4()),
+            id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
             survey_mission_id=survey_mission_id,
-            owner=user.id,
+            owner_id=user.id,
             name=schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,
@@ -809,7 +911,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             ],
             assets=[
                 schemas.RecordAssetCreate(
-                    id=schemas.RecordAssetId(uuid.uuid4()),
+                    id=identifiers.RecordAssetId(uuid.uuid4()),
                     name=schemas.LocalizableDraftName(
                         en=af.asset_name.en.data,
                         pt=af.asset_name.pt.data,
@@ -906,23 +1008,22 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             async for sse_event in event_stream_generator:
                 yield sse_event
 
-        return DatastarResponse(stream_events(), status_code=202)
+        # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
+        return DatastarResponse(stream_events(), status_code=200)
 
     @csrf_protect
     @requires_auth
     async def delete(self, request: Request):
         survey_mission_id = get_id_from_request_path(
-            request, "survey_mission_id", schemas.SurveyMissionId
+            request, "survey_mission_id", identifiers.SurveyMissionId
         )
-        session_maker = request.state.session_maker
         user = request.user if request.user.is_authenticated else None
-        async with session_maker() as session:
+        async with request.state.settings.get_db_session_maker()() as session:
             try:
                 survey_mission = await operations.get_survey_mission(
                     survey_mission_id,
                     user,
                     session,
-                    request.state.settings,
                 )
             except errors.SeisLabDataError as exc:
                 raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -932,7 +1033,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                     detail=_(f"Survey mission {survey_mission_id!r} not found."),
                 )
 
-        request_id = schemas.RequestId(uuid.uuid4())
+        request_id = identifiers.RequestId(uuid.uuid4())
 
         async def handle_processing_success(
             final_message: schemas.ProcessingMessage, message_template: Template
@@ -996,15 +1097,13 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
 async def add_create_survey_mission_form_link(request: Request):
     """Add a form link to a create_survey_mission form."""
     user = request.user if request.user.is_authenticated else None
-    session_maker = request.state.session_maker
-    project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
-    async with session_maker() as session:
+    project_id = identifiers.ProjectId(uuid.UUID(request.path_params["project_id"]))
+    async with request.state.settings.get_db_session_maker()() as session:
         try:
             project = await operations.get_project(
                 project_id,
                 user,
                 session,
-                request.state.settings,
             )
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -1036,15 +1135,13 @@ async def add_create_survey_mission_form_link(request: Request):
 async def remove_create_survey_mission_form_link(request: Request):
     """Remove a form link from a create_survey_mission form."""
     user = request.user if request.user.is_authenticated else None
-    session_maker = request.state.session_maker
-    project_id = schemas.ProjectId(uuid.UUID(request.path_params["project_id"]))
-    async with session_maker() as session:
+    project_id = identifiers.ProjectId(uuid.UUID(request.path_params["project_id"]))
+    async with request.state.settings.get_db_session_maker()() as session:
         try:
             project = await operations.get_project(
                 project_id,
                 user,
                 session,
-                request.state.settings,
             )
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -1129,17 +1226,15 @@ async def remove_update_survey_mission_form_link(request: Request):
 async def get_survey_mission_update_form(request: Request):
     """Return a form suitable for updating an existing survey mission."""
     user = request.user if request.user.is_authenticated else None
-    session_maker = request.state.session_maker
     survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
-    async with session_maker() as session:
+    async with request.state.settings.get_db_session_maker()() as session:
         try:
             survey_mission = await operations.get_survey_mission(
                 survey_mission_id,
                 user,
                 session,
-                request.state.settings,
             )
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -1219,6 +1314,12 @@ routes = [
         get_list_component,
         methods=["GET"],
         name="get_list_component",
+    ),
+    Route(
+        "/listing-updates",
+        get_listing_updates,
+        methods=["GET"],
+        name="get_listing_updates",
     ),
     Route(
         "/{project_id}/new",

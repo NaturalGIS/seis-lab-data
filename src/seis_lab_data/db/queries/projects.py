@@ -10,6 +10,7 @@ from sqlmodel import (
 
 from ... import schemas
 from ...constants import ProjectStatus
+from ...schemas import identifiers
 from .. import models
 from .common import _get_total_num_records
 
@@ -79,6 +80,7 @@ async def list_published_projects(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.Project], int | None]:
+    """Lists public projects."""
     statement = _build_project_statement(
         en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
     ).where(models.Project.status == ProjectStatus.PUBLISHED)
@@ -98,6 +100,7 @@ async def list_accessible_projects(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.Project], int | None]:
+    """List projects that are viewable by the input user."""
     statement = _build_project_statement(
         en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
     ).where(
@@ -140,7 +143,7 @@ async def collect_all_projects(
 
 async def get_project(
     session: AsyncSession,
-    project_id: "schemas.ProjectId",
+    project_id: "identifiers.ProjectId",
 ) -> models.Project | None:
     return await session.get(models.Project, project_id)
 

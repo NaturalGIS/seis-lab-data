@@ -162,6 +162,7 @@ cython_debug/
 .idea/
 
 sample-data
+sample-data-recreated
 
 # playwright traces
 test-results/

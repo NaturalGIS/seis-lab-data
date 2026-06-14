@@ -12,6 +12,7 @@ from starlette.requests import HTTPConnection
 from ..auth import AuthConfig
 from ..config import SeisLabDataSettings
 from .. import schemas
+from ..schemas import identifiers
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ class OIDCAuthBackend(AuthenticationBackend):
             return AuthCredentials([]), UnauthenticatedUser()
 
         return AuthCredentials(["authenticated"]), schemas.User(
-            id=schemas.UserId(id_),
+            id=identifiers.UserId(id_),
             email=user_info.get("email"),
             username=user_info.get("preferred_username"),
             name=user_info.get("name", ""),

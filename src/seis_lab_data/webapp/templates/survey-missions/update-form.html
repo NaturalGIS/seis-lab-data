@@ -39,13 +39,13 @@
                             contentType: 'form',
                             headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
                         })"
-                    data-indicator="updating"
-                    data-attr:disabled="$updating"
-                    data-text="$updating ? '{{ _('updating survey mission...') | capitalize }}' : '{{ _('update survey mission') | capitalize }}'"
+                    data-indicator="submitting"
+                    data-attr:disabled="$submitting"
+                    data-text="$submitting ? '{{ _('updating survey mission...') | capitalize }}' : '{{ _('update survey mission') | capitalize }}'"
             >
             </button>
             <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
-                 data-attr:hidden="!$updating">
+                 data-attr:hidden="!$submitting">
                 <span class="visually-hidden">{{ _("loading...") | capitalize }}</span>
             </div>
         </div>

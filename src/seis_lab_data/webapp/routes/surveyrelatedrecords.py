@@ -34,6 +34,7 @@ from ... import (
 )
 from ...constants import (
     PROGRESS_TOPIC_NAME_TEMPLATE,
+    SURVEY_RELATED_RECORD_CREATED_TOPIC,
     SURVEY_RELATED_RECORD_DELETED_TOPIC,
     SURVEY_RELATED_RECORD_MAX_RELATED,
     SURVEY_RELATED_RECORD_STATUS_CHANGED_TOPIC,
@@ -45,6 +46,7 @@ from ...db import (
     queries,
 )
 from ...processing import tasks
+from ...schemas import identifiers
 from .. import (
     filters,
     forms,
@@ -70,17 +72,15 @@ async def _get_survey_related_record_details(
 ) -> schemas.SurveyRelatedRecordDetails:
     """Utility function to get survey-related record details and its assets."""
     user = request.user if request.user.is_authenticated else None
-    session_maker = request.state.session_maker
     survey_related_record_id = get_id_from_request_path(
-        request, "survey_related_record_id", schemas.SurveyRelatedRecordId
+        request, "survey_related_record_id", identifiers.SurveyRelatedRecordId
     )
-    async with session_maker() as session:
+    async with request.state.settings.get_db_session_maker()() as session:
         try:
             survey_related_record_info = await operations.get_survey_related_record(
                 survey_related_record_id,
                 user,
                 session,
-                request.state.settings,
             )
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -162,15 +162,14 @@ async def get_details_component(request: Request):
 
 async def get_detail_updates(request: Request):
     try:
-        survey_related_record_id = schemas.SurveyRelatedRecordId(
+        survey_related_record_id = identifiers.SurveyRelatedRecordId(
             uuid.UUID(request.path_params["survey_related_record_id"])
         )
     except ValueError as err:
         raise HTTPException(
             status_code=400, detail="Invalid survey_related_record id"
         ) from err
-    session_maker = request.state.session_maker
-    settings: config.SeisLabDataSettings = request.state.settings
+    session_maker = request.state.settings.get_db_session_maker()
     redis_client: Redis = request.state.redis_client
     user = request.user if request.user.is_authenticated else None
 
@@ -204,7 +203,9 @@ async def get_detail_updates(request: Request):
             )
             async with session_maker() as session:
                 updated_details = await operations.get_survey_related_record(
-                    survey_related_record_id, user, session, settings
+                    survey_related_record_id,
+                    user,
+                    session,
                 )
                 updated = updated_details[0]
                 yield ServerSentEventGenerator.patch_signals(
@@ -224,7 +225,9 @@ async def get_detail_updates(request: Request):
             )
             async with session_maker() as session:
                 updated_details = await operations.get_survey_related_record(
-                    survey_related_record_id, user, session, settings
+                    survey_related_record_id,
+                    user,
+                    session,
                 )
                 updated = updated_details[0]
                 details_message = ""
@@ -300,7 +303,7 @@ async def build_survey_related_record_form_instance(
 ) -> FormType:
     form_instance = await form_type.from_formdata(request)
     current_language = request.state.language
-    async with request.state.session_maker() as session:
+    async with request.state.settings.get_db_session_maker()() as session:
         form_instance.dataset_category_id.choices = [
             (dc.id, dc.name.get(current_language, dc.name["en"]))
             for dc in await queries.collect_all_dataset_categories(
@@ -330,12 +333,12 @@ async def get_record_parent_survey_mission_from_request(
 ) -> models.SurveyMission:
     user = request.user if request.user.is_authenticated else None
     parent_survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
-    async with request.state.session_maker() as session:
+    async with request.state.settings.get_db_session_maker()() as session:
         if not (
             survey_mission := await operations.get_survey_mission(
-                parent_survey_mission_id, user, session, request.state.settings
+                parent_survey_mission_id, user, session
             )
         ):
             raise HTTPException(
@@ -349,7 +352,7 @@ async def get_record_parent_survey_mission_from_request(
 async def get_creation_form(request: Request):
     """Show an HTML form for the client to prepare a record creation operation."""
     parent_survey_mission = await get_record_parent_survey_mission_from_request(request)
-    survey_mission_id = schemas.SurveyMissionId(parent_survey_mission.id)
+    survey_mission_id = identifiers.SurveyMissionId(parent_survey_mission.id)
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template(
@@ -413,7 +416,7 @@ async def get_creation_form(request: Request):
 @csrf_protect
 async def add_creation_form_link(request: Request):
     parent_survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     form_instance.links.append_entry()
@@ -440,7 +443,7 @@ async def add_creation_form_link(request: Request):
 @csrf_protect
 async def remove_creation_form_link(request: Request):
     parent_survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     link_index = int(request.query_params.get("link_index", 0))
@@ -468,7 +471,7 @@ async def remove_creation_form_link(request: Request):
 @csrf_protect
 async def add_creation_form_asset(request: Request):
     parent_survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     form_instance.assets.append_entry()
@@ -495,7 +498,7 @@ async def add_creation_form_asset(request: Request):
 @csrf_protect
 async def remove_creation_form_asset(request: Request):
     parent_survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     index = int(request.query_params.get("asset_index", 0))
@@ -523,7 +526,7 @@ async def remove_creation_form_asset(request: Request):
 @csrf_protect
 async def add_creation_form_asset_link(request: Request):
     survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
     asset_index = int(request.path_params["asset_index"])
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
@@ -551,7 +554,7 @@ async def add_creation_form_asset_link(request: Request):
 @csrf_protect
 async def remove_creation_form_asset_link(request: Request):
     survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
 
     asset_index = int(request.path_params["asset_index"])
@@ -583,7 +586,7 @@ async def remove_creation_form_asset_link(request: Request):
 @csrf_protect
 async def add_creation_form_related_record(request: Request):
     parent_survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     form_instance.related_records.append_entry()
@@ -610,7 +613,7 @@ async def add_creation_form_related_record(request: Request):
 @csrf_protect
 async def remove_creation_form_related_record(request: Request):
     parent_survey_mission_id = get_id_from_request_path(
-        request, "survey_mission_id", schemas.SurveyMissionId
+        request, "survey_mission_id", identifiers.SurveyMissionId
     )
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     index = int(request.query_params.get("index", 0))
@@ -721,8 +724,7 @@ async def get_update_form(request: Request):
         "survey-related-records/update-form.html"
     )
     user = request.user if request.user.is_authenticated else None
-    session_maker = request.state.session_maker
-    async with session_maker() as session:
+    async with request.state.settings.get_db_session_maker()() as session:
         initial_related_records_list, _ = await operations.list_survey_related_records(
             session,
             initiator=user,
@@ -816,8 +818,7 @@ async def add_update_form_related_to_record(request: Request):
     )
 
     user = request.user if request.user.is_authenticated else None
-    session_maker = request.state.session_maker
-    async with session_maker() as session:
+    async with request.state.settings.get_db_session_maker()() as session:
         initial_related_records_list, _ = await operations.list_survey_related_records(
             session,
             initiator=user,
@@ -1012,9 +1013,8 @@ async def list_by_name(request: Request):
     )
     internal_filter_kwargs = record_name_filter.as_kwargs()
     logger.debug(f"{internal_filter_kwargs=}")
-    session_maker = request.state.session_maker
     user = request.user if request.user.is_authenticated else None
-    async with session_maker() as session:
+    async with request.state.settings.get_db_session_maker()() as session:
         items, _ = await operations.list_survey_related_records(
             session,
             initiator=user,
@@ -1053,10 +1053,9 @@ async def get_list_component(request: Request):
         filter_query_string = ""
     logger.debug(f"{internal_filter_kwargs=}")
     current_page = get_page_from_request_params(request)
-    session_maker = request.state.session_maker
     user = request.user if request.user.is_authenticated else None
     settings: config.SeisLabDataSettings = request.state.settings
-    async with session_maker() as session:
+    async with settings.get_db_session_maker()() as session:
         items, num_total = await operations.list_survey_related_records(
             session,
             initiator=user,
@@ -1108,6 +1107,58 @@ async def get_list_component(request: Request):
     return DatastarResponse(event_streamer())
 
 
+async def get_listing_updates(request: Request):
+    redis_client: Redis = request.state.redis_client
+    user = request.user if request.user.is_authenticated else None
+    settings: config.SeisLabDataSettings = request.state.settings
+
+    async def on_record_created_message(
+        raw_message: str,
+    ) -> AsyncGenerator[DatastarEvent, None]:
+        logger.debug(
+            "Received message about new survey-related record created, "
+            "refreshing records list..."
+        )
+        async with settings.get_db_session_maker()() as session:
+            items, total = await operations.list_survey_related_records(
+                session,
+                initiator=user,
+                include_total=True,
+                page=1,
+                page_size=settings.pagination_page_size,
+            )
+        pagination = get_pagination_info(
+            current_page=1,
+            page_size=settings.pagination_page_size,
+            total_filtered_items=total,
+            total_unfiltered_items=total,
+            collection_url=str(request.url_for("survey_related_records:list")),
+        )
+        serialized_items = [
+            schemas.SurveyRelatedRecordReadListItem.from_db_instance(i) for i in items
+        ]
+        rendered = request.state.templates.get_template(
+            "survey-related-records/list-component.html"
+        ).render(request=request, items=serialized_items, pagination=pagination)
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=schemas.selector_info.items_selector,
+            mode=ElementPatchMode.REPLACE,
+        )
+
+    topic_handlers = {
+        SURVEY_RELATED_RECORD_CREATED_TOPIC: on_record_created_message,
+    }
+
+    async def event_streamer():
+        async for sse_event in produce_event_stream_for_item_updates(
+            redis_client, request, timeout_seconds=30, **topic_handlers
+        ):
+            yield sse_event
+
+    return DatastarResponse(event_streamer())
+
+
 class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
     async def get(self, request: Request):
         """List survey-related records."""
@@ -1116,10 +1167,9 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
         list_filters = filters.SurveyRelatedRecordListFilters.from_params(
             request.query_params, current_language
         )
-        session_maker = request.state.session_maker
         settings: config.SeisLabDataSettings = request.state.settings
         user = request.user if request.user.is_authenticated else None
-        async with session_maker() as session:
+        async with settings.get_db_session_maker()() as session:
             items, num_total = await operations.list_survey_related_records(
                 session,
                 initiator=user,
@@ -1203,17 +1253,16 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
     @requires_auth
     async def delete(self, request: Request):
         survey_related_record_id = get_id_from_request_path(
-            request, "survey_related_record_id", schemas.SurveyRelatedRecordId
+            request, "survey_related_record_id", identifiers.SurveyRelatedRecordId
         )
         user = request.user if request.user.is_authenticated else None
-        async with request.state.session_maker() as session:
+        async with request.state.settings.get_db_session_maker()() as session:
             if (
                 survey_related_record_details
                 := await operations.get_survey_related_record(
                     survey_related_record_id,
                     user,
                     session,
-                    request.state.settings,
                 )
             ) is None:
                 raise HTTPException(
@@ -1224,7 +1273,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 )
 
         survey_related_record = survey_related_record_details[0]
-        request_id = schemas.RequestId(uuid.uuid4())
+        request_id = identifiers.RequestId(uuid.uuid4())
         logger.debug(f"{survey_related_record=}")
 
         async def handle_processing_success(
@@ -1291,15 +1340,16 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         """Update an existing survey-related record."""
         template_processor: Jinja2Templates = request.state.templates
         user = request.user if request.user.is_authenticated else None
-        session_maker = request.state.session_maker
         survey_related_record_id = get_id_from_request_path(
-            request, "survey_related_record_id", schemas.SurveyRelatedRecordId
+            request, "survey_related_record_id", identifiers.SurveyRelatedRecordId
         )
-        async with session_maker() as session:
+        async with request.state.settings.get_db_session_maker()() as session:
             if (
                 survey_related_record_details
                 := await operations.get_survey_related_record(
-                    survey_related_record_id, user, session, request.state.settings
+                    survey_related_record_id,
+                    user,
+                    session,
                 )
             ) is None:
                 raise HTTPException(
@@ -1308,7 +1358,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 )
 
         survey_related_record, related_to, subject_for = survey_related_record_details
-        parent_survey_mission_id = schemas.SurveyMissionId(
+        parent_survey_mission_id = identifiers.SurveyMissionId(
             survey_related_record.survey_mission_id
         )
         form_instance = (
@@ -1338,15 +1388,19 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                     selector=schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
+                yield ServerSentEventGenerator.execute_script(
+                    "document.querySelector('.is-invalid')?.scrollIntoView({behavior: 'smooth', block: 'center'})"
+                )
 
-            return DatastarResponse(stream_validation_failed_events(), status_code=422)
+            # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
+            return DatastarResponse(stream_validation_failed_events(), status_code=200)
 
-        request_id = schemas.RequestId(uuid.uuid4())
+        request_id = identifiers.RequestId(uuid.uuid4())
         related_records = []
         for related_ in form_instance.related_records.entries:
             related_records.append(
                 schemas.RelatedRecordCreate(
-                    related_record_id=schemas.SurveyRelatedRecordId(
+                    related_record_id=identifiers.SurveyRelatedRecordId(
                         uuid.UUID(
                             form_instance.parse_related_record_compound_name(
                                 related_.related_record.data
@@ -1360,7 +1414,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 )
             )
         to_update = schemas.SurveyRelatedRecordUpdate(
-            owner=user.id,
+            owner_id=user.id,
             survey_mission_id=parent_survey_mission_id,
             name=schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
@@ -1399,7 +1453,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
             ],
             assets=[
                 schemas.RecordAssetUpdate(
-                    id=schemas.RecordAssetId(uuid.UUID(af.asset_id.data)),
+                    id=identifiers.RecordAssetId(uuid.UUID(af.asset_id.data)),
                     name=schemas.LocalizableDraftName(
                         en=af.asset_name.en.data,
                         pt=af.asset_name.pt.data,
@@ -1527,7 +1581,8 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
             async for sse_event in event_stream_generator:
                 yield sse_event
 
-        return DatastarResponse(event_streamer(), status_code=202)
+        # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
+        return DatastarResponse(event_streamer(), status_code=200)
 
 
 routes = [
@@ -1596,6 +1651,12 @@ routes = [
         get_list_component,
         methods=["GET"],
         name="get_list_component",
+    ),
+    Route(
+        "/listing-updates",
+        get_listing_updates,
+        methods=["GET"],
+        name="get_listing_updates",
     ),
     Route(
         "/filter-by-name",

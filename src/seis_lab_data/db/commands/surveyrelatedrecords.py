@@ -7,12 +7,13 @@ from ... import (
     errors,
     schemas,
 )
+from ...constants import SurveyRelatedRecordStatus
+from ...schemas import identifiers
 from .. import (
     models,
     queries,
 )
 from .common import get_bbox_4326_for_db
-from ...constants import SurveyRelatedRecordStatus
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +109,9 @@ async def create_survey_related_record(
     )
     # need to ensure english name is unique for combination of mission and record
     if await queries.get_survey_related_record_by_english_name(
-        session, schemas.SurveyMissionId(to_create.survey_mission_id), to_create.name.en
+        session,
+        identifiers.SurveyMissionId(to_create.survey_mission_id),
+        to_create.name.en,
     ):
         raise errors.SeisLabDataError(
             f"There is already a survey-related record with english name {to_create.name.en!r} for "
@@ -135,7 +138,7 @@ async def create_survey_related_record(
 
 async def delete_survey_related_record(
     session: AsyncSession,
-    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    survey_related_record_id: identifiers.SurveyRelatedRecordId,
 ) -> None:
     if survey_record := (
         await queries.get_survey_related_record(session, survey_related_record_id)
@@ -176,7 +179,7 @@ async def update_survey_related_record(
             existing_asset = [
                 a
                 for a in survey_related_record.assets
-                if schemas.RecordAssetId(a.id) == proposed_asset.id
+                if identifiers.RecordAssetId(a.id) == proposed_asset.id
             ][0]
         except IndexError:  # this is a new asset that needs to be created
             db_asset = models.RecordAsset(
@@ -191,11 +194,11 @@ async def update_survey_related_record(
 
     proposed_asset_ids = [s.id for s in to_update.assets]
     for existing_asset in survey_related_record.assets:
-        if schemas.RecordAssetId(existing_asset.id) not in proposed_asset_ids:
+        if identifiers.RecordAssetId(existing_asset.id) not in proposed_asset_ids:
             await session.delete(existing_asset)
 
     already_related_to = await queries.list_survey_related_record_related_to_records(
-        session, schemas.SurveyRelatedRecordId(survey_related_record.id)
+        session, identifiers.SurveyRelatedRecordId(survey_related_record.id)
     )
     logger.debug(f"{already_related_to=}")
     for proposed_related_to in to_update.related_records:
@@ -222,7 +225,7 @@ async def update_survey_related_record(
     proposed_related_to_ids = [r.related_record_id for r in to_update.related_records]
     for existing_related in survey_related_record.related_to_links:
         if (
-            schemas.SurveyRelatedRecordId(existing_related.related_to_id)
+            identifiers.SurveyRelatedRecordId(existing_related.related_to_id)
             not in proposed_related_to_ids
         ):
             await session.delete(existing_related)
@@ -230,7 +233,7 @@ async def update_survey_related_record(
     await session.commit()
     await session.refresh(survey_related_record)
     return await queries.get_survey_related_record(
-        session, schemas.SurveyRelatedRecordId(survey_related_record.id)
+        session, identifiers.SurveyRelatedRecordId(survey_related_record.id)
     )
 
 
@@ -245,13 +248,13 @@ async def update_survey_related_record_validation_result(
     await session.commit()
     await session.refresh(survey_related_record)
     return await queries.get_survey_related_record(
-        session, schemas.SurveyRelatedRecordId(survey_related_record.id)
+        session, identifiers.SurveyRelatedRecordId(survey_related_record.id)
     )
 
 
 async def set_survey_related_record_status(
     session: AsyncSession,
-    survey_related_record_id: schemas.SurveyRelatedRecordId,
+    survey_related_record_id: identifiers.SurveyRelatedRecordId,
     status: SurveyRelatedRecordStatus,
 ) -> models.SurveyRelatedRecord:
     """Unconditionally sets the survey-related record's status."""
@@ -268,5 +271,5 @@ async def set_survey_related_record_status(
     await session.commit()
     await session.refresh(survey_related_record)
     return await queries.get_survey_related_record(
-        session, schemas.SurveyRelatedRecordId(survey_related_record_id)
+        session, identifiers.SurveyRelatedRecordId(survey_related_record_id)
     )

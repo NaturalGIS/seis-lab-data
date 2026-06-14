@@ -11,9 +11,11 @@ from .common import (
     LocalizableDraftName,
     PolygonOut,
     PossiblyInvalidPolygon,
-    ProjectId,
     serialize_id,
     serialize_possibly_empty_date,
+)
+from .identifiers import (
+    ProjectId,
     SurveyMissionId,
     UserId,
 )
@@ -22,7 +24,7 @@ from .projects import ProjectReadEmbedded
 
 class SurveyMissionCreate(pydantic.BaseModel):
     id: SurveyMissionId
-    owner: UserId
+    owner_id: UserId
     project_id: ProjectId
     name: LocalizableDraftName
     description: LocalizableDraftDescription
@@ -34,7 +36,7 @@ class SurveyMissionCreate(pydantic.BaseModel):
 
 
 class SurveyMissionUpdate(pydantic.BaseModel):
-    owner: UserId | None = None
+    owner_id: UserId | None = None
     project_id: ProjectId | None = None
     name: LocalizableDraftName | None = None
     description: LocalizableDraftDescription | None = None
@@ -98,7 +100,7 @@ class SurveyMissionReadListItem(pydantic.BaseModel):
 
 
 class SurveyMissionReadDetail(SurveyMissionReadListItem):
-    owner: UserId
+    owner_id: UserId
     relative_path: str
     links: list[LinkSchema] = []
 

@@ -33,6 +33,8 @@ class NewItemSelectorInfo:
     validation_result_selector: str = "[aria-label='validation-result']"
     validation_result_details_selector: str = "[aria-label='validation-result-details']"
     status_selector: str = "[aria-label='status']"
+    project_survey_missions_selector: str = "#project-survey-missions"
+    survey_mission_records_selector: str = "#survey-mission-records"
 
 
 selector_info = NewItemSelectorInfo()

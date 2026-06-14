@@ -7,6 +7,7 @@ from ... import (
     schemas,
 )
 from ...constants import ProjectStatus
+from ...schemas import identifiers
 from .. import (
     models,
     queries,
@@ -20,16 +21,23 @@ async def create_project(
     session: AsyncSession, to_create: schemas.ProjectCreate
 ) -> models.Project:
     project = models.Project(
-        **to_create.model_dump(exclude={"bbox_4326"}),
+        **to_create.model_dump(
+            exclude={"bbox_4326"},
+            exclude_none=True,
+        ),
         bbox_4326=(
             get_bbox_4326_for_db(bbox)
             if (bbox := to_create.bbox_4326) is not None
             else bbox
         ),
     )
-    if await queries.get_project_by_english_name(session, to_create.name.en):
+    if (
+        existing_project := await queries.get_project_by_english_name(
+            session, to_create.name.en
+        )
+    ) is not None:
         raise errors.SeisLabDataError(
-            f"Project with english name {to_create.name.en!r} already exists."
+            f"Project with english name {to_create.name.en!r} already exists ({existing_project.id})."
         )
     session.add(project)
     await session.commit()
@@ -39,7 +47,7 @@ async def create_project(
 
 async def delete_project(
     session: AsyncSession,
-    project_id: schemas.ProjectId,
+    project_id: identifiers.ProjectId,
 ) -> None:
     if project := (await queries.get_project(session, project_id)):
         await session.delete(project)
@@ -79,11 +87,11 @@ async def update_project_validation_result(
     session.add(project)
     await session.commit()
     await session.refresh(project)
-    return await queries.get_project(session, schemas.ProjectId(project.id))
+    return await queries.get_project(session, identifiers.ProjectId(project.id))
 
 
 async def set_project_status(
-    session: AsyncSession, project_id: schemas.ProjectId, status: ProjectStatus
+    session: AsyncSession, project_id: identifiers.ProjectId, status: ProjectStatus
 ) -> models.Project:
     """Unconditionally sets the project's status."""
     if (project := (await queries.get_project(session, project_id))) is None:
@@ -92,4 +100,4 @@ async def set_project_status(
     session.add(project)
     await session.commit()
     await session.refresh(project)
-    return await queries.get_project(session, schemas.ProjectId(project_id))
+    return await queries.get_project(session, identifiers.ProjectId(project_id))

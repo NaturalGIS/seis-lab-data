@@ -2,7 +2,7 @@ import dataclasses
 
 from starlette.authentication import BaseUser
 
-from .common import UserId
+from .identifiers import UserId
 
 
 @dataclasses.dataclass
@@ -10,7 +10,7 @@ class User(BaseUser):
     id: UserId
     email: str
     username: str
-    roles: list[str]
+    roles: list[str] = dataclasses.field(default_factory=list)
     name: str = ""
     active: bool = False
 

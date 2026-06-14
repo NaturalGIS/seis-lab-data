@@ -8,9 +8,10 @@ from datastar_py.starlette import DatastarResponse
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
-from seis_lab_data import schemas
-from seis_lab_data.constants import AUTH_CLIENT_NAME
-from seis_lab_data.db import commands
+from ... import schemas
+from ...constants import AUTH_CLIENT_NAME
+from ...db import commands
+from ...schemas import identifiers
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ async def auth_callback(request: Request):
         }
         user = get_user(user_info)
         if user:
-            session_maker = request.state.session_maker
+            session_maker = request.state.settings.get_db_session_maker()
             try:
                 async with session_maker() as session:
                     await commands.upsert_user(session, user)
@@ -66,6 +67,7 @@ async def auth_callback(request: Request):
         return response
     except Exception as err:
         logger.error(f"Authentication error: {err}")
+        return RedirectResponse(url=request.url_for("login"), status_code=302)
 
 
 async def logout(request: Request):
@@ -87,7 +89,7 @@ def get_user(
     if id_ is None:
         return None
     return schemas.User(
-        id=schemas.UserId(id_),
+        id=identifiers.UserId(id_),
         email=user_info.get("email"),
         username=user_info.get("preferred_username"),
         roles=[role for role in user_info.get("roles", [])],

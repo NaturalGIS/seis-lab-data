@@ -1,3 +1,4 @@
+import json
 import logging
 
 import pydantic
@@ -8,7 +9,9 @@ from starlette_wtf import StarletteForm
 from wtforms import (
     FieldList,
     FormField,
+    HiddenField,
     StringField,
+    TextAreaField,
 )
 
 from ... import (
@@ -16,6 +19,7 @@ from ... import (
     schemas,
 )
 from ...db.queries import get_project_by_english_name
+from ...schemas import identifiers
 from .common import (
     BoundingBoxForm,
     DescriptionForm,
@@ -42,6 +46,7 @@ class _ProjectForm(StarletteForm):
     inputs.
     """
 
+    request_id = HiddenField()
     name = FormField(NameForm)
     description = FormField(DescriptionForm)
     root_path = StringField(
@@ -57,9 +62,30 @@ class _ProjectForm(StarletteForm):
         min_entries=0,
         max_entries=constants.PROJECT_MAX_LINKS,
     )
+    discovery_configuration = TextAreaField(label=_("Discovery configuration"))
+
+    def _parse_discovery_configuration(self) -> dict | None:
+        raw_json = self.discovery_configuration.data
+        if not raw_json:
+            return None
+        try:
+            parsed = json.loads(raw_json)
+            schemas.ProjectDiscoveryConfiguration.model_validate(parsed)
+            return parsed
+        except json.JSONDecodeError:
+            self.discovery_configuration.errors.append(_("Invalid JSON"))
+            return None
+        except pydantic.ValidationError as exc:
+            self.discovery_configuration.errors.append(
+                "; ".join(
+                    f"{'.'.join(str(part) for part in e['loc'])}: {e['msg']}"
+                    for e in exc.errors()
+                )
+            )
+            return None
 
     async def check_if_english_name_is_unique(
-        self, session: AsyncSession, disregard_id: schemas.ProjectId | None = None
+        self, session: AsyncSession, disregard_id: identifiers.ProjectId | None = None
     ):
         """Check if the current english name is already used by another project.
 
@@ -71,7 +97,7 @@ class _ProjectForm(StarletteForm):
 
         if candidate := await get_project_by_english_name(session, self.name.en.data):
             if disregard_id:
-                if schemas.ProjectId(candidate.id) != disregard_id:
+                if identifiers.ProjectId(candidate.id) != disregard_id:
                     self.name.en.errors.append(error_message)
             else:
                 self.name.en.errors.append(error_message)
@@ -93,7 +119,7 @@ class _ProjectForm(StarletteForm):
 
     @classmethod
     async def get_validated_form_instance(
-        cls, request: Request, disregard_id: schemas.ProjectId | None = None
+        cls, request: Request, disregard_id: identifiers.ProjectId | None = None
     ):
         """Performs full validation of a project-related form.
 
@@ -111,7 +137,7 @@ class _ProjectForm(StarletteForm):
         # then validate the form data with our custom pydantic model
         await form_instance.validate_on_submit()
         form_instance.validate_with_schema()
-        session_maker = request.state.session_maker
+        session_maker = request.state.settings.get_db_session_maker()
         async with session_maker() as session:
             await form_instance.check_if_english_name_is_unique(
                 session, disregard_id=disregard_id
@@ -126,11 +152,12 @@ class ProjectCreateForm(_ProjectForm):
         # in order to ensure pydantic validates the full set of data at once and
         # includes full error locations - otherwise it would be harder to match
         # pydantic validation errors with wtforms field errors
+        discovery_configuration = self._parse_discovery_configuration()
         try:
             schemas.ProjectCreate(
                 # these are not part of the form, but we must provide something
                 id=None,
-                owner=None,
+                owner_id=None,
                 name={
                     **get_form_field_by_name(self, "name").data,
                 },
@@ -151,6 +178,7 @@ class ProjectCreateForm(_ProjectForm):
                 ],
                 temporal_extent_begin=self.temporal_extent_begin.data or None,
                 temporal_extent_end=self.temporal_extent_end.data or None,
+                discovery_configuration=discovery_configuration,
             )
         except pydantic.ValidationError as exc:
             incorporate_schema_validation_errors_into_form(exc.errors(), self)
@@ -163,9 +191,10 @@ class ProjectUpdateForm(_ProjectForm):
         # in order to ensure pydantic validates the full set of data at once and
         # includes full error locations - otherwise it would be harder to match
         # pydantic validation errors with wtforms field errors
+        discovery_configuration = self._parse_discovery_configuration()
         try:
             schemas.ProjectUpdate(
-                owner=None,
+                owner_id=None,
                 name={
                     **get_form_field_by_name(self, "name").data,
                 },
@@ -186,6 +215,7 @@ class ProjectUpdateForm(_ProjectForm):
                     }
                     for li in self.links.entries
                 ],
+                discovery_configuration=discovery_configuration,
             )
         except pydantic.ValidationError as exc:
             incorporate_schema_validation_errors_into_form(exc.errors(), self)

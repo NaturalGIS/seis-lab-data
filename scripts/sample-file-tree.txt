@@ -1,0 +1,3237 @@
+/mnt/seislab_data/surveys/owf-seism-2024/
+├── s01-survey-documentation
+│   ├── s01-pre-survey
+│   └── s02-other-docs
+├── s02-preparation
+│   ├── s01-documents
+│   │   ├── 1.Vessel_MarioRuivo_Equipment_info
+│   │   │   └── Vessel_MarioRuivo_Equipment_info
+│   │   │       ├── Equipment_Configuration
+│   │   │       │   ├── EM 712
+│   │   │       │   │   ├── HW
+│   │   │       │   │   ├── SW
+│   │   │       │   │   │   └── Files
+│   │   │       │   │   └── Test
+│   │   │       │   │       ├── FAT
+│   │   │       │   │       └── HAT
+│   │   │       │   ├── K-Sync
+│   │   │       │   │   ├── HW
+│   │   │       │   │   ├── SW
+│   │   │       │   │   │   └── Files
+│   │   │       │   │   └── Test
+│   │   │       │   ├── MGC R2
+│   │   │       │   │   ├── HW
+│   │   │       │   │   └── SW
+│   │   │       │   │       └── Files
+│   │   │       │   ├── Matrix
+│   │   │       │   │   └── SW
+│   │   │       │   │       └── Files
+│   │   │       │   ├── Network
+│   │   │       │   │   ├── HW
+│   │   │       │   │   └── SW
+│   │   │       │   │       └── Files
+│   │   │       │   ├── POSMv
+│   │   │       │   │   ├── HW
+│   │   │       │   │   └── SW
+│   │   │       │   │       └── Files
+│   │   │       │   ├── SVS
+│   │   │       │   │   └── HW
+│   │   │       │   ├── Seapath 380
+│   │   │       │   │   ├── HW
+│   │   │       │   │   ├── SW
+│   │   │       │   │   │   └── Files
+│   │   │       │   │   └── Test
+│   │   │       │   │       └── CTP
+│   │   │       │   └── TOPAS PS 18
+│   │   │       │       ├── HW
+│   │   │       │       ├── SW
+│   │   │       │       │   └── Files
+│   │   │       │       └── Test
+│   │   │       │           └── HAT
+│   │   │       │               └── HAT old
+│   │   │       ├── Equipment_DataSheets
+│   │   │       ├── Equipment_Installation
+│   │   │       └── Manuals
+│   │   │           ├── EM 712
+│   │   │           ├── EM SIS
+│   │   │           ├── K-Sync
+│   │   │           ├── Matrix
+│   │   │           ├── SVS
+│   │   │           ├── Seapath 380-R
+│   │   │           └── TOPAS PS 18
+│   │   ├── 3.NI_Mario_Ruivo_paperwork
+│   │   ├── 4.GeoSurveys_paperwork_to_embark
+│   │   ├── 4.TOPAS_MB_test_August_2024
+│   │   │   ├── 1.TOPAS_test
+│   │   │   └── 2.SBP_Config_test
+│   │   ├── 5.GMSS_paperwork_to_embark
+│   │   ├── 5.Presentations_media
+│   │   ├── 6.IPMA_paperwork_to_embark
+│   │   ├── 7.MMOs_paperwork_to_embark
+│   │   ├── 8.OARS_paperwork_to_embark
+│   │   ├── 9.Cardama
+│   │   ├── Contactos_hospitais_e_portos
+│   │   └── Docs_Embarque_NNIO_Agosto2024
+│   │       ├── Docs_Tanya
+│   │       ├── Drafts
+│   │       ├── OARS
+│   │       └── PAM
+│   ├── s02-lineplan
+│   │   ├── s01-final
+│   │   │   ├── 01-Line_Plan
+│   │   │   │   ├── IPMA-2024-FIG-LEI_Tie_Line_Rev6a
+│   │   │   │   ├── IPMA-2024-LEI-FIG_Line_Plan_Rev6a
+│   │   │   │   ├── IPMA_2024_FIG-LEI_T002
+│   │   │   │   └── Reference_bathymetry
+│   │   │   │       └── EMODnet
+│   │   │   │           └── F3_2022.tif
+│   │   │   └── 1.Ongoing_version
+│   │   └── s02-old
+│   │       ├── 2.Previous_versions
+│   │       │   └── IPMA-2024-ALL_Line_Plan_Rev4
+│   │       └── LinePlan_Planeamento_preliminar
+│   ├── s03-geotech-locations
+│   │   ├── s01-final
+│   │   │   └── FinalSamplingPlan
+│   │   │       └── 3001-IPMA-PLAN-05-Rev0 - Final Sampling Plan-Draft Version-2025 Geotech Invest_VysusGroup_20250216
+│   │   │           └── APPENDICES
+│   │   └── s02-old
+│   │       ├── 2025-09-04_Sample_Sites_Checking
+│   │       │   ├── Geotec_Project_Manual
+│   │       │   └── SHP
+│   │       └── 20250204_DraftSampleLocations
+│   ├── s04-templates
+│   │   └── 4.Log_templates
+│   └── s05-other
+│       └── 3.Verisub_presentations
+├── s03-general-operations
+│   ├── 08.QC_2024_survey
+│   │   ├── 1.Ongoing
+│   │   ├── 2.Vysus_QC
+│   │   ├── 3.Minutes_wk_meetings
+│   │   └── 4.Verisub_presentation
+│   ├── 2.Vysus_QC
+│   │   └── 1.Ongoing
+│   └── p01-photos
+│       ├── Photos_DinisGeraldes
+│       ├── Photos_LuisCarriço_MarioRuivo
+│       │   ├── 02-08-24
+│       │   ├── 16~9-24-MR-HEOLICAS-figeira
+│       │   ├── 20-08-24
+│       │   ├── 29-07-24-mario ruivo
+│       │   ├── 3-8[[4-8-24
+│       │   ├── 31-07-24
+│       │   ├── 5-9-24--MR-EOLICAS
+│       │   ├── 9-8-24
+│       │   └── madeira
+│       ├── Photos_Marco_GMSS
+│       ├── Photos_MattMeyer_OARS_IPMA-24
+│       ├── Photos_Paul_OCR
+│       │   └── Paul's_photos
+│       │       └── Paul's_photos
+│       └── Photos_PedroBrito
+├── s04-gis-master-survey
+│   ├── IH
+│   │   └── Shapes
+│   ├── OARS
+│   ├── s01-final
+│   │   ├── Amostragem-sedimentos
+│   │   ├── LIne_Plan_2024
+│   │   ├── mbes_XYZ_seism2024
+│   │   ├── mbes_geotiff
+│   │   ├── negative_depth_seism2024
+│   │   ├── s02-cdps
+│   │   │   └── Superseded
+│   │   └── s03-gs-deliverables
+│   │       ├── fig
+│   │       └── lei
+│   └── s02-old
+│       └── Poly_Areas_Rev01
+├── s05-charts
+├── s06-mbes
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   │   ├── 01-EM712
+│   │   │   ├── 2024-08-16
+│   │   │   ├── 2024-08-17
+│   │   │   ├── 2024-08-18
+│   │   │   ├── 2024-08-19
+│   │   │   ├── 2024-08-20
+│   │   │   ├── 2024-08-21
+│   │   │   ├── 2024-08-22
+│   │   │   ├── 2024-08-23
+│   │   │   ├── 2024-08-24
+│   │   │   ├── 2024-08-25
+│   │   │   ├── 2024-08-26
+│   │   │   ├── 2024-08-27
+│   │   │   ├── 2024-08-28
+│   │   │   ├── 2024-08-29
+│   │   │   ├── 2024-08-30
+│   │   │   ├── 2024-08-31
+│   │   │   ├── 2024-09-01
+│   │   │   ├── 2024-09-02
+│   │   │   ├── 2024-09-03
+│   │   │   ├── 2024-09-04
+│   │   │   ├── 2024-09-05
+│   │   │   ├── 2024-09-06
+│   │   │   │   └── index
+│   │   │   ├── 2024-09-07
+│   │   │   │   └── index
+│   │   │   ├── 2024-09-08
+│   │   │   ├── 2024-09-09
+│   │   │   ├── 2024-09-10
+│   │   │   ├── 2024-09-11
+│   │   │   ├── 2024-09-12
+│   │   │   ├── 2024-09-13
+│   │   │   ├── 2024-09-14
+│   │   │   ├── 2024-09-15
+│   │   │   ├── 2024-09-16
+│   │   │   ├── 2024-09-17
+│   │   │   ├── 2024-09-18
+│   │   │   ├── 2024-09-19
+│   │   │   ├── 2024-09-20
+│   │   │   │   └── DEPTH TEST
+│   │   │   ├── 2024-09-21
+│   │   │   ├── 2024-09-22
+│   │   │   ├── 2024-09-23
+│   │   │   ├── 2024-09-24
+│   │   │   ├── 2024-09-25
+│   │   │   ├── 2024-09-28
+│   │   │   └── 2024-09-29
+│   │   ├── 03-SVP
+│   │   │   ├── 2024-08-16
+│   │   │   ├── 2024-08-17
+│   │   │   ├── 2024-08-18
+│   │   │   ├── 2024-08-19
+│   │   │   ├── 2024-08-20
+│   │   │   ├── 2024-08-21
+│   │   │   ├── 2024-08-22
+│   │   │   ├── 2024-08-23
+│   │   │   ├── 2024-08-24
+│   │   │   ├── 2024-08-25
+│   │   │   ├── 2024-08-26
+│   │   │   ├── 2024-08-27
+│   │   │   ├── 2024-08-28
+│   │   │   ├── 2024-08-29
+│   │   │   ├── 2024-08-30
+│   │   │   ├── 2024-08-31
+│   │   │   ├── 2024-09-01
+│   │   │   ├── 2024-09-02
+│   │   │   ├── 2024-09-03
+│   │   │   ├── 2024-09-04
+│   │   │   ├── 2024-09-05
+│   │   │   ├── 2024-09-06
+│   │   │   ├── 2024-09-07
+│   │   │   │   └── DNU
+│   │   │   ├── 2024-09-08
+│   │   │   │   └── DNU
+│   │   │   ├── 2024-09-09
+│   │   │   ├── 2024-09-10
+│   │   │   ├── 2024-09-11
+│   │   │   ├── 2024-09-12
+│   │   │   ├── 2024-09-13
+│   │   │   ├── 2024-09-14
+│   │   │   │   ├── Castaway_Comparison
+│   │   │   │   └── DNU
+│   │   │   ├── 2024-09-15
+│   │   │   │   └── DNU
+│   │   │   ├── 2024-09-16
+│   │   │   │   └── DNU
+│   │   │   ├── 2024-09-17
+│   │   │   │   └── DNU
+│   │   │   ├── 2024-09-18
+│   │   │   │   └── DNU
+│   │   │   ├── 2024-09-19
+│   │   │   │   ├── Comparison cast
+│   │   │   │   └── DNU
+│   │   │   ├── 2024-09-20
+│   │   │   │   └── DNU
+│   │   │   ├── 2024-09-21
+│   │   │   │   └── DNU
+│   │   │   ├── 2024-09-22
+│   │   │   │   └── DNU
+│   │   │   ├── 2024-09-23
+│   │   │   │   └── DNU
+│   │   │   ├── 2024-09-24
+│   │   │   │   └── DNU
+│   │   │   ├── 2024-09-28
+│   │   │   │   └── DNU
+│   │   │   └── 2024-09-29
+│   │   │       └── DNU
+│   │   └── 04-POSPAC
+│   │       ├── 2024-08-16
+│   │       ├── 2024-08-17
+│   │       ├── 2024-08-18
+│   │       ├── 2024-08-19
+│   │       ├── 2024-08-20
+│   │       ├── 2024-08-21
+│   │       ├── 2024-08-22
+│   │       ├── 2024-08-23
+│   │       ├── 2024-08-24
+│   │       ├── 2024-08-25
+│   │       │   ├── A
+│   │       │   ├── B
+│   │       │   └── C
+│   │       ├── 2024-08-26
+│   │       ├── 2024-08-27
+│   │       ├── 2024-08-28
+│   │       ├── 2024-08-29
+│   │       ├── 2024-08-30
+│   │       ├── 2024-08-31
+│   │       │   ├── A
+│   │       │   ├── B
+│   │       │   └── C
+│   │       ├── 2024-09-01
+│   │       │   ├── A
+│   │       │   └── B
+│   │       ├── 2024-09-02
+│   │       ├── 2024-09-03
+│   │       ├── 2024-09-04
+│   │       ├── 2024-09-05
+│   │       ├── 2024-09-06
+│   │       │   └── A
+│   │       ├── 2024-09-07
+│   │       ├── 2024-09-08
+│   │       ├── 2024-09-09
+│   │       ├── 2024-09-10
+│   │       ├── 2024-09-11
+│   │       ├── 2024-09-12
+│   │       ├── 2024-09-13
+│   │       ├── 2024-09-14
+│   │       ├── 2024-09-15
+│   │       ├── 2024-09-16
+│   │       ├── 2024-09-17
+│   │       ├── 2024-09-18
+│   │       ├── 2024-09-19
+│   │       ├── 2024-09-20
+│   │       ├── 2024-09-21
+│   │       ├── 2024-09-22
+│   │       ├── 2024-09-23
+│   │       ├── 2024-09-24
+│   │       ├── 2024-09-25
+│   │       ├── 2024-09-28
+│   │       ├── 2024-09-29
+│   │       ├── 2024-09-30
+│   │       └── USB
+│   ├── s03-qc
+│   ├── s04-processing-flows
+│   │   └── 02-NM Project
+│   │       ├── 01_Patch Test
+│   │       │   └── IPMA - RP-C21-i07.01 - Patch Test
+│   │       │       ├── Export
+│   │       │       └── Toppings
+│   │       │           ├── WaterfallImages
+│   │       │           └── palettes
+│   │       ├── 02_Leixões
+│   │       │   └── IPMA - RP-C21-i07.01 - Leixões
+│   │       │       ├── Export
+│   │       │       └── Toppings
+│   │       │           └── palettes
+│   │       └── 03_Figueira da Foz
+│   │           ├── IPMA - RP-C21-i07.01 - Figueira da Foz
+│   │           │   ├── 0249_20240917_195928_MarioRuivo
+│   │           │   ├── Export
+│   │           │   ├── Figueira da Foz_Sound
+│   │           │   └── Toppings
+│   │           │       └── palettes
+│   │           └── Update_Exports
+│   ├── s05-processed-data
+│   │   ├── 01-NE Data Base Backups
+│   │   │   ├── 20240902
+│   │   │   ├── 20240911
+│   │   │   └── 20241001
+│   │   ├── 04-Processing Logs
+│   │   ├── s01-ungridded
+│   │   ├── s02-dtm-points
+│   │   │   ├── 20241120
+│   │   │   │   ├── FIG
+│   │   │   │   │   ├── Accepted_Soundings
+│   │   │   │   │   └── Grid_4m
+│   │   │   │   ├── LEI
+│   │   │   │   │   ├── Accepted_Soundings
+│   │   │   │   │   └── Grid_4m
+│   │   │   │   └── Tie
+│   │   │   │       ├── Accepted_Soundings
+│   │   │   │       └── Grid_4m
+│   │   │   ├── 20241218
+│   │   │   │   ├── FIG
+│   │   │   │   │   ├── Accepted_Soundings
+│   │   │   │   │   └── Grid_4m
+│   │   │   │   ├── LEI
+│   │   │   │   │   ├── Accepted_Soundings
+│   │   │   │   │   └── Grid_4m
+│   │   │   │   └── Tie
+│   │   │   │       ├── Accepted_Soundings
+│   │   │   │       └── Grid_4m
+│   │   │   └── 20241219
+│   │   │       ├── FIG
+│   │   │       │   ├── Accepted_Soundings
+│   │   │       │   └── Grid_4m
+│   │   │       ├── LEI
+│   │   │       │   ├── Accepted_Soundings
+│   │   │       │   └── Grid_4m
+│   │   │       └── Tie
+│   │   │           ├── Accepted_Soundings
+│   │   │           └── Grid_4m
+│   │   ├── s03-slope
+│   │   ├── s04-std-dev
+│   │   ├── s05-density
+│   │   └── s06-contours
+│   ├── s06-interpretation
+│   ├── s07-reports
+│   │   └── s06-reports
+│   ├── s08-gis
+│   │   ├── s01-surfaces
+│   │   ├── s02-tiff
+│   │   └── s07-gis
+│   │       ├── 05-QGIS
+│   │       │   ├── Geoid_Models
+│   │       │   ├── Line_Plan
+│   │       │   ├── Raster_DTM
+│   │       │   ├── Software
+│   │       │   └── Tiff
+│   │       ├── s01-surfaces
+│   │       │   └── MBES_2024
+│   │       └── s02-tiff
+│   ├── s09-backscatter
+│   │   ├── s01-raw-data
+│   │   ├── s02-qc
+│   │   ├── s03-processing-flows
+│   │   ├── s04-processed-data
+│   │   │   ├── s01-xyz
+│   │   │   └── s02-tiff
+│   │   ├── s05-interpretation
+│   │   ├── s06-reports
+│   │   ├── s07-gis
+│   │   │   ├── s01-surfaces
+│   │   │   └── s02-tiff
+│   │   └── s08-backscatter
+│   │       ├── s01-raw-data
+│   │       ├── s02-qc
+│   │       ├── s03-processing-flows
+│   │       ├── s04-processed-data
+│   │       │   ├── s01-xyz
+│   │       │   └── s02-tiff
+│   │       │       ├── 20241120
+│   │       │       │   ├── FIG
+│   │       │       │   │   └── GeoTIFF_RGB
+│   │       │       │   ├── LEI
+│   │       │       │   │   └── GeoTIFF_RGB
+│   │       │       │   └── Tie
+│   │       │       │       └── GeoTIFF_RGB
+│   │       │       ├── 20241218
+│   │       │       │   ├── FIG
+│   │       │       │   │   └── GeoTIFF_RGB
+│   │       │       │   ├── LEI
+│   │       │       │   │   └── GeoTIFF_RGB
+│   │       │       │   └── Tie
+│   │       │       │       └── GeoTIFF_RGB
+│   │       │       └── 20241219
+│   │       │           ├── FIG
+│   │       │           │   └── GeoTIFF_RGB
+│   │       │           ├── LEI
+│   │       │           │   └── GeoTIFF_RGB
+│   │       │           └── Tie
+│   │       │               └── GeoTIFF_RGB
+│   │       ├── s05-interpretation
+│   │       ├── s06-reports
+│   │       ├── s07-gis
+│   │       │   ├── s01-surfaces
+│   │       │   └── s02-tiff
+│   │       └── s08-tides
+│   │           ├── 20241120
+│   │           ├── 20241218
+│   │           └── 20241219
+│   ├── s10-tracklines
+│   │   └── IPMA_2024_Trackplots_P1-11
+│   └── s11-tides
+│       ├── 03-POSPac Tides
+│       │   ├── 2024-08-18
+│       │   │   └── Testing
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-08-21
+│       │   │   └── 20240821_0025-0426
+│       │   │       ├── DataArchive
+│       │   │       │   └── BaseObsValidation
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           ├── Proc
+│       │   │           └── Report
+│       │   ├── 2024-08-24
+│       │   │   └── 20240823_2355-20240824_0815
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-08-25
+│       │   │   ├── 20240824_2136-20240825_0736
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       ├── Proc
+│       │   │   │       └── Report
+│       │   │   ├── 20240824_2136-20240825_1657
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   ├── 20240825_0336-1155
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   └── 20240825_1507-1907
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-08-30
+│       │   │   └── 20240830_1724-20240831_0417
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-08-31
+│       │   │   ├── 20240831_0349-1218
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   ├── 20240831_1150-2214
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   └── 20240831_2214-20240901_0230
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-09-01
+│       │   │   ├── 20240901_0230-2055
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   └── 20240901_1901-20240902_0457
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-09-05
+│       │   │   └── 20240905_1650-1929
+│       │   │       ├── DataArchive
+│       │   │       │   └── BaseObsValidation
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-09-06
+│       │   │   ├── 20240905_2335-20240906_1441
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   └── 20240906_1055-20240907_0037
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-09-07
+│       │   │   ├── 20240907_0009-1253
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   ├── 20240907_1004-2221
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   └── 20240907_1931-20240908_0719
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           ├── Proc
+│       │   │           └── Report
+│       │   ├── 2024-09-08
+│       │   │   ├── 20240908_0430-1539
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   ├── 20240908_1356-20240909_0145
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   └── 20240908_2255-20240909_1043
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-09-09
+│       │   │   ├── 20240909_0821-2357
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   └── 20240909_1651-20240910_0904
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-09-10
+│       │   │   └── 20240910_1614-20240911_2351
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-09-14
+│       │   │   └── 20240914_0558-1456
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-09-15
+│       │   │   ├── 20240914_1138-20240915_0825
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   └── 20240915_0342-2207
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-09-16
+│       │   │   └── 20240915_1751-20240916_1438
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-09-17
+│       │   │   ├── 20240916_1216-20240917_0227
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   └── 20240916_2337-20240917_1028
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-09-18
+│       │   │   ├── 20240917_0807-20240918_0426
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   ├── 20240918_0135-1642
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   ├── 20240918_1353-20240919_0141
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   ├── 20240918_2251-20240919_1744
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   └── 20240919_1454-2353
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-09-20
+│       │   │   ├── 20240919_2103-20240920_1942
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   └── 20240920_1623-20240921_0122
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-09-21
+│       │   │   ├── 20240920_2135-20240921_1213
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   └── 20240921_0952-1947
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-09-22
+│       │   │   ├── 20240921_1725-20240922_1508
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   ├── 20240922_1122-20240923_0229
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   └── 20240922_1139-20240923_2025
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-09-23
+│       │   │   └── 20240923_1706-20240924_1240
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           ├── Proc
+│       │   │           └── Report
+│       │   ├── 2024-09-24
+│       │   │   ├── 20240923_2218-20240924_1615
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   └── 20240924_1325-20240925_0626
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           └── Proc
+│       │   ├── 2024-09-29
+│       │   │   ├── 20240928_1648-20240929_0920
+│       │   │   │   ├── DataArchive
+│       │   │   │   └── Mission 1
+│       │   │   │       ├── Export
+│       │   │   │       ├── Extract
+│       │   │   │       └── Proc
+│       │   │   └── 20240929_0727-1944
+│       │   │       ├── DataArchive
+│       │   │       └── Mission 1
+│       │   │           ├── Export
+│       │   │           ├── Extract
+│       │   │           ├── Proc
+│       │   │           └── Report
+│       │   ├── GNSS_Tide
+│       │   │   ├── DNU
+│       │   │   └── Seapath_for_Comparison
+│       │   ├── Ortho_Heights
+│       │   └── Tide_Guage_Data
+│       │       └── Cascais
+│       │           ├── C-2024-08
+│       │           └── C-2024-09
+│       │               └── Converted
+│       ├── 20241218
+│       │   └── IPMA_2024_Tides
+│       └── 20241220
+│           └── IPMA_2024_Tides_POSMV
+├── s07-sss
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   ├── s03-qc
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   ├── s01-xyz
+│   │   └── s02-tiff
+│   ├── s06-interpretation
+│   ├── s07-reports
+│   ├── s08-gis
+│   │   ├── s01-surfaces
+│   │   └── s02-tiff
+│   ├── s09-tracklines
+│   └── s10-other
+├── s08-chirp
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   ├── s03-qc
+│   ├── s04-processing-flows
+│   │   └── superceded
+│   │       └── SBP_MIG_seafloor_problems
+│   │           ├── FIG
+│   │           │   └── FIG_imagens
+│   │           └── LX
+│   │               └── LX_imagens
+│   ├── s05-processed-data
+│   │   ├── s01-twt
+│   │   │   ├── s01-mul
+│   │   │   ├── s02-mig
+│   │   │   ├── s03-figures
+│   │   │   └── s04-other
+│   │   └── s02-dpt
+│   │       ├── s01-mul
+│   │       ├── s02-mig
+│   │       ├── s03-figures
+│   │       └── s04-other
+│   ├── s06-interpretation
+│   │   ├── s01-horizons
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s02-grids
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s03-faults
+│   │   ├── s04-ks-project
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   ├── s05-logs
+│   │   └── s06-other
+│   ├── s07-reports
+│   ├── s08-gis
+│   │   ├── s01-surfaces
+│   │   └── s02-tiff
+│   ├── s09-navigation
+│   │   ├── s01-p190
+│   │   └── s02-other
+│   └── s10-photos
+├── s09-sbp-other
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   │   ├── 2024-08-16
+│   │   ├── 2024-08-17
+│   │   ├── 2024-08-18
+│   │   ├── 2024-08-19
+│   │   ├── 2024-08-20
+│   │   ├── 2024-08-21
+│   │   ├── 2024-08-22
+│   │   ├── 2024-08-23
+│   │   ├── 2024-08-24
+│   │   ├── 2024-08-25
+│   │   │   ├── CW_2kHz
+│   │   │   ├── CW_2kHz_testline_N
+│   │   │   ├── CW_4kHz
+│   │   │   ├── CW_6kHz
+│   │   │   ├── ChirpLMF_2to6
+│   │   │   └── Ricker_6kHz
+│   │   ├── 2024-08-26
+│   │   ├── 2024-08-27
+│   │   ├── 2024-08-28
+│   │   ├── 2024-08-29
+│   │   ├── 2024-08-30
+│   │   ├── 2024-08-31
+│   │   ├── 2024-09-01
+│   │   ├── 2024-09-02
+│   │   ├── 2024-09-03
+│   │   ├── 2024-09-04
+│   │   ├── 2024-09-05
+│   │   ├── 2024-09-06
+│   │   ├── 2024-09-07
+│   │   ├── 2024-09-08
+│   │   │   ├── RAW
+│   │   │   └── SEGY
+│   │   ├── 2024-09-09
+│   │   │   ├── RAW
+│   │   │   └── SEGY
+│   │   │       └── DNP
+│   │   ├── 2024-09-10
+│   │   │   ├── RAW
+│   │   │   └── SEGY
+│   │   │       └── DNP
+│   │   ├── 2024-09-11
+│   │   ├── 2024-09-12
+│   │   ├── 2024-09-13
+│   │   ├── 2024-09-14
+│   │   │   ├── RAW
+│   │   │   └── SEGY
+│   │   │       ├── DNP
+│   │   │       └── NAV
+│   │   ├── 2024-09-15
+│   │   │   ├── RAW
+│   │   │   └── SEGY
+│   │   │       ├── CoordTest
+│   │   │       ├── DNP
+│   │   │       └── NAVCheck
+│   │   ├── 2024-09-16
+│   │   │   ├── RAW
+│   │   │   │   └── MasterCopy
+│   │   │   │       ├── 20240908
+│   │   │   │       ├── 20240909
+│   │   │   │       ├── 20240910
+│   │   │   │       ├── 20240913
+│   │   │   │       ├── 20240914
+│   │   │   │       ├── 20240915
+│   │   │   │       │   └── RAW
+│   │   │   │       └── 20240916
+│   │   │   └── SEGY
+│   │   ├── 2024-09-17
+│   │   │   ├── RAW
+│   │   │   └── SEGY
+│   │   ├── 2024-09-18
+│   │   │   ├── RAW
+│   │   │   └── SEGY
+│   │   ├── 2024-09-19
+│   │   │   ├── RAW
+│   │   │   └── SEGY
+│   │   ├── 2024-09-20
+│   │   │   ├── RAW
+│   │   │   └── SEGY
+│   │   ├── 2024-09-21
+│   │   │   ├── RAW
+│   │   │   └── SEGY
+│   │   ├── 2024-09-22
+│   │   │   ├── RAW
+│   │   │   └── SEGY
+│   │   ├── 2024-09-23
+│   │   │   ├── RAW
+│   │   │   └── SEGY
+│   │   ├── 2024-09-24
+│   │   │   ├── RAW
+│   │   │   └── SEGY
+│   │   ├── 2024-09-25
+│   │   │   ├── RAW
+│   │   │   └── SEGY
+│   │   ├── 2024-09-29
+│   │   │   ├── RAW
+│   │   │   └── SEGY
+│   │   ├── ALL RAW
+│   │   │   ├── 20240908
+│   │   │   ├── 20240909
+│   │   │   ├── 20240910
+│   │   │   ├── 20240913
+│   │   │   ├── 20240914
+│   │   │   ├── 20240915
+│   │   │   │   └── RAW
+│   │   │   ├── 20240916
+│   │   │   ├── 20240917
+│   │   │   ├── 20240918
+│   │   │   ├── 20240919
+│   │   │   ├── 20240920
+│   │   │   ├── 20240921
+│   │   │   ├── 20240922
+│   │   │   ├── 20240923
+│   │   │   ├── 20240924
+│   │   │   ├── 20240925
+│   │   │   ├── 20240928
+│   │   │   └── 20240929
+│   │   ├── ALL SEGY
+│   │   │   ├── 20240823
+│   │   │   ├── 20240824
+│   │   │   ├── 20240825
+│   │   │   │   ├── CW_2kHz
+│   │   │   │   ├── CW_2kHz_testline_N
+│   │   │   │   ├── CW_4kHz
+│   │   │   │   ├── CW_6kHz
+│   │   │   │   ├── ChirpLMF_2to6
+│   │   │   │   └── Ricker_6kHz
+│   │   │   ├── 20240830
+│   │   │   ├── 20240831
+│   │   │   ├── 20240901
+│   │   │   ├── 20240905
+│   │   │   ├── 20240906
+│   │   │   ├── 20240907
+│   │   │   ├── 20240908
+│   │   │   ├── 20240909
+│   │   │   ├── 20240910
+│   │   │   ├── 20240913
+│   │   │   ├── 20240914
+│   │   │   ├── 20240915
+│   │   │   ├── 20240916
+│   │   │   ├── 20240917
+│   │   │   ├── 20240918
+│   │   │   ├── 20240919
+│   │   │   ├── 20240920
+│   │   │   ├── 20240921
+│   │   │   ├── 20240922
+│   │   │   ├── 20240923
+│   │   │   ├── 20240924
+│   │   │   ├── 20240925
+│   │   │   ├── 20240928
+│   │   │   └── 20240929
+│   │   ├── AllDataAcquired
+│   │   │   ├── 20240731
+│   │   │   ├── 20240801
+│   │   │   ├── 20240802
+│   │   │   ├── 20240803
+│   │   │   ├── 20240808
+│   │   │   ├── 20240809
+│   │   │   ├── 20240812
+│   │   │   ├── 20240823
+│   │   │   ├── 20240824
+│   │   │   ├── 20240825
+│   │   │   │   ├── CW_2kHz
+│   │   │   │   ├── CW_2kHz_testline_N
+│   │   │   │   ├── CW_4kHz
+│   │   │   │   ├── CW_6kHz
+│   │   │   │   ├── ChirpLMF_2to6
+│   │   │   │   └── Ricker_6kHz
+│   │   │   ├── 20240830
+│   │   │   ├── 20240831
+│   │   │   └── 20240901
+│   │   └── QINSYLogFiles
+│   ├── s03-qc
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   ├── Imagens
+│   │   │   ├── SBP_GS
+│   │   │   └── SBP_IPMA
+│   │   ├── s01-twt
+│   │   │   ├── oars
+│   │   │   │   ├── 2024-08-21
+│   │   │   │   │   └── Seabed
+│   │   │   │   ├── 2024-08-25
+│   │   │   │   │   ├── CW_2kHz
+│   │   │   │   │   │   ├── BlankRemove
+│   │   │   │   │   │   ├── MBES
+│   │   │   │   │   │   └── NAV
+│   │   │   │   │   ├── CW_2kHz_testline_N
+│   │   │   │   │   ├── CW_4kHz
+│   │   │   │   │   │   ├── MBES
+│   │   │   │   │   │   └── NAV
+│   │   │   │   │   ├── CW_6kHz
+│   │   │   │   │   │   ├── MBES
+│   │   │   │   │   │   └── NAV
+│   │   │   │   │   ├── ChirpLMF_2to6
+│   │   │   │   │   └── Ricker_6kHz
+│   │   │   │   ├── 2024-08-30
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   └── RawSEGY
+│   │   │   │   ├── 2024-08-31
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   │   ├── FIG_24_M140
+│   │   │   │   │   │   ├── FIG_24_M150
+│   │   │   │   │   │   └── RadexOutput
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-01
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-02
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-06
+│   │   │   │   │   ├── MBES
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-07
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-08
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   │   └── RadEx
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-09
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   │   └── QINSY
+│   │   │   │   │   ├── RAW
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-10
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-14
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-15
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   ├── NAVDeliverables
+│   │   │   │   │   │   ├── NAVAscii
+│   │   │   │   │   │   │   └── BustTest
+│   │   │   │   │   │   ├── NAVAscii - Copy
+│   │   │   │   │   │   ├── NAVBusts
+│   │   │   │   │   │   └── Work
+│   │   │   │   │   ├── NAVRVS
+│   │   │   │   │   │   ├── BustTest
+│   │   │   │   │   │   └── NAVBusts
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-16
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   │   └── NAVRVS
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-17
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   │   ├── Busts
+│   │   │   │   │   │   └── NAVRVS
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-18
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   │   ├── Busts
+│   │   │   │   │   │   ├── NAVRVS
+│   │   │   │   │   │   └── ShapeFiles
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-19
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   │   ├── Busts
+│   │   │   │   │   │   ├── NAVRVS
+│   │   │   │   │   │   └── ShapeFiles
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-20
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   │   ├── Busts
+│   │   │   │   │   │   ├── NAVRVS
+│   │   │   │   │   │   └── ShapeFiles
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-21
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   │   ├── Busts
+│   │   │   │   │   │   ├── NAVRVS
+│   │   │   │   │   │   └── ShapeFiles
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-22
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   │   ├── Busts
+│   │   │   │   │   │   ├── NAVRVS
+│   │   │   │   │   │   └── ShapeFiles
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-23
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   │   ├── Busts
+│   │   │   │   │   │   ├── NAVRVS
+│   │   │   │   │   │   └── ShapeFiles
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-24
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   │   ├── Busts
+│   │   │   │   │   │   ├── NAVRVS
+│   │   │   │   │   │   └── ShapeFiles
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-25
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   │   ├── Busts
+│   │   │   │   │   │   ├── NAVRVS
+│   │   │   │   │   │   └── ShapeFiles
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-09-29
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   │   ├── Busts
+│   │   │   │   │   │   ├── NAVRVS
+│   │   │   │   │   │   └── ShapeFiles
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── 2024-MM-DD
+│   │   │   │   │   ├── NAV
+│   │   │   │   │   │   ├── Busts
+│   │   │   │   │   │   ├── NAVRVS
+│   │   │   │   │   │   └── ShapeFiles
+│   │   │   │   │   ├── RawSEGY
+│   │   │   │   │   └── SEGYDelayRemoved
+│   │   │   │   ├── ImagesForPaul
+│   │   │   │   ├── Mobilization
+│   │   │   │   │   ├── AlongsideTest
+│   │   │   │   │   ├── Patch Test
+│   │   │   │   │   └── SouthTestArea
+│   │   │   │   ├── TEST
+│   │   │   │   │   ├── Seabed
+│   │   │   │   │   └── nav
+│   │   │   │   └── s04-other
+│   │   │   ├── s01-decon
+│   │   │   ├── s01-mul
+│   │   │   ├── s02-mig
+│   │   │   │   └── 20250107
+│   │   │   ├── s03-figures
+│   │   │   └── s04-other
+│   │   └── s02-dpt
+│   │       ├── s01-mul
+│   │       ├── s02-mig
+│   │       ├── s03-figures
+│   │       └── s04-other
+│   ├── s06-interpretation
+│   │   ├── s01-horizons
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   │   ├── LineTraceTimeDepthAmplitude
+│   │   │   │   │   └── old
+│   │   │   │   │       ├── geoquest
+│   │   │   │   │       └── linetracetimetamplitude
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       │   ├── LineTraceTimeDepthAmplitude
+│   │   │       │   └── old
+│   │   │       │       ├── geoquest
+│   │   │       │       └── linetracetimetamplitude
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s02-grids
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       │   └── old
+│   │   │       ├── s02-below-seabed
+│   │   │       │   └── old
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s03-faults
+│   │   ├── s04-ks-project
+│   │   │   ├── fig-20250404
+│   │   │   │   ├── IPMA_POEP_2D_SBP_FIG
+│   │   │   │   │   ├── DynamicDepthConversion
+│   │   │   │   │   ├── EdmxFiles
+│   │   │   │   │   ├── GS
+│   │   │   │   │   │   ├── Log
+│   │   │   │   │   │   ├── My Collections
+│   │   │   │   │   │   ├── PreferredLists
+│   │   │   │   │   │   ├── Templates
+│   │   │   │   │   │   │   └── Grid
+│   │   │   │   │   │   └── WellExplorer
+│   │   │   │   │   │       └── Workspaces
+│   │   │   │   │   ├── Log
+│   │   │   │   │   ├── My Collections
+│   │   │   │   │   ├── Old_Project_Files
+│   │   │   │   │   ├── PAKnotesTemplates
+│   │   │   │   │   ├── PreferredLists
+│   │   │   │   │   ├── ProjectDatabase
+│   │   │   │   │   ├── ProjectionSource
+│   │   │   │   │   │   └── Version7
+│   │   │   │   │   ├── Public
+│   │   │   │   │   │   └── PreferredLists
+│   │   │   │   │   ├── Templates
+│   │   │   │   │   │   └── Grid
+│   │   │   │   │   └── WellExplorer
+│   │   │   │   │       └── Workspaces
+│   │   │   │   └── SeismicDirect
+│   │   │   │       ├── APP
+│   │   │   │       │   ├── Surveys
+│   │   │   │       │   │   └── F0001001
+│   │   │   │       │   ├── Templates
+│   │   │   │       │   └── UserTemplates
+│   │   │   │       └── LOG
+│   │   │   │           └── GEOSURVEYS gmoreira
+│   │   │   ├── lei-20250404
+│   │   │   │   ├── IPMA_POEP_2D_SBP_LEI
+│   │   │   │   │   ├── DynamicDepthConversion
+│   │   │   │   │   ├── EdmxFiles
+│   │   │   │   │   ├── GS
+│   │   │   │   │   │   ├── DynamicDepthConversion
+│   │   │   │   │   │   ├── Log
+│   │   │   │   │   │   ├── My Collections
+│   │   │   │   │   │   ├── PreferredLists
+│   │   │   │   │   │   └── WellExplorer
+│   │   │   │   │   │       └── Workspaces
+│   │   │   │   │   ├── Log
+│   │   │   │   │   ├── My Collections
+│   │   │   │   │   ├── Old_Project_Files
+│   │   │   │   │   ├── PAKnotesTemplates
+│   │   │   │   │   ├── PreferredLists
+│   │   │   │   │   ├── ProjectDatabase
+│   │   │   │   │   ├── ProjectionSource
+│   │   │   │   │   │   └── Version7
+│   │   │   │   │   ├── Public
+│   │   │   │   │   │   └── PreferredLists
+│   │   │   │   │   ├── Templates
+│   │   │   │   │   │   └── Grid
+│   │   │   │   │   └── WellExplorer
+│   │   │   │   │       └── Workspaces
+│   │   │   │   └── SeismicDirect
+│   │   │   │       ├── APP
+│   │   │   │       │   ├── Surveys
+│   │   │   │       │   │   └── F0001001
+│   │   │   │       │   ├── Templates
+│   │   │   │       │   └── UserTemplates
+│   │   │   │       └── LOG
+│   │   │   │           └── GEOSURVEYS gmoreira
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   │       ├── Fig-20250214
+│   │   │       │   ├── IPMA_POEP_2D_SBP
+│   │   │       │   │   ├── DynamicDepthConversion
+│   │   │       │   │   ├── EdmxFiles
+│   │   │       │   │   ├── GS
+│   │   │       │   │   │   ├── Log
+│   │   │       │   │   │   ├── My Collections
+│   │   │       │   │   │   ├── PreferredLists
+│   │   │       │   │   │   └── WellExplorer
+│   │   │       │   │   │       └── Workspaces
+│   │   │       │   │   ├── Log
+│   │   │       │   │   ├── MontageTemplates
+│   │   │       │   │   │   └── Layout
+│   │   │       │   │   ├── My Collections
+│   │   │       │   │   ├── Old_Project_Files
+│   │   │       │   │   ├── PAKnotesTemplates
+│   │   │       │   │   ├── PreferredLists
+│   │   │       │   │   ├── ProjectDatabase
+│   │   │       │   │   ├── ProjectionSource
+│   │   │       │   │   │   ├── Version7
+│   │   │       │   │   │   └── Version8
+│   │   │       │   │   ├── Public
+│   │   │       │   │   │   └── PreferredLists
+│   │   │       │   │   ├── SE
+│   │   │       │   │   ├── SE Temp
+│   │   │       │   │   ├── Templates
+│   │   │       │   │   │   └── Grid
+│   │   │       │   │   └── WellExplorer
+│   │   │       │   │       └── Workspaces
+│   │   │       │   └── SeismicDirect
+│   │   │       │       ├── APP
+│   │   │       │       │   ├── Surveys
+│   │   │       │       │   │   └── F0001001
+│   │   │       │       │   ├── Templates
+│   │   │       │       │   └── UserTemplates
+│   │   │       │       └── LOG
+│   │   │       │           └── GEOSURVEYS gmoreira
+│   │   │       ├── lei-20250214
+│   │   │       │   ├── IPMA_POEP_2D_SBP
+│   │   │       │   │   ├── EdmxFiles
+│   │   │       │   │   ├── GS
+│   │   │       │   │   │   ├── Log
+│   │   │       │   │   │   ├── My Collections
+│   │   │       │   │   │   ├── PreferredLists
+│   │   │       │   │   │   ├── Templates
+│   │   │       │   │   │   │   └── Grid
+│   │   │       │   │   │   └── WellExplorer
+│   │   │       │   │   │       └── Workspaces
+│   │   │       │   │   ├── Log
+│   │   │       │   │   ├── My Collections
+│   │   │       │   │   ├── Old_Project_Files
+│   │   │       │   │   ├── PAKnotesTemplates
+│   │   │       │   │   ├── PreferredLists
+│   │   │       │   │   ├── ProjectDatabase
+│   │   │       │   │   ├── ProjectionSource
+│   │   │       │   │   │   └── Version7
+│   │   │       │   │   ├── Public
+│   │   │       │   │   │   └── PreferredLists
+│   │   │       │   │   └── WellExplorer
+│   │   │       │   │       └── Workspaces
+│   │   │       │   └── SeismicDirect
+│   │   │       │       ├── APP
+│   │   │       │       │   ├── Surveys
+│   │   │       │       │   │   └── F0001001
+│   │   │       │       │   ├── Templates
+│   │   │       │       │   └── UserTemplates
+│   │   │       │       └── LOG
+│   │   │       │           └── GEOSURVEYS gmoreira
+│   │   │       └── old
+│   │   │           ├── 20241222-sbp-decon
+│   │   │           └── IPMA_POEP_SBP_LEI
+│   │   │               ├── IPMA_POEP_2D_SBP
+│   │   │               │   ├── EdmxFiles
+│   │   │               │   ├── GS
+│   │   │               │   │   ├── Log
+│   │   │               │   │   ├── My Collections
+│   │   │               │   │   ├── PreferredLists
+│   │   │               │   │   ├── Templates
+│   │   │               │   │   │   └── Grid
+│   │   │               │   │   └── WellExplorer
+│   │   │               │   │       └── Workspaces
+│   │   │               │   ├── Log
+│   │   │               │   ├── My Collections
+│   │   │               │   ├── Old_Project_Files
+│   │   │               │   ├── PAKnotesTemplates
+│   │   │               │   ├── PreferredLists
+│   │   │               │   ├── ProjectDatabase
+│   │   │               │   ├── ProjectionSource
+│   │   │               │   │   └── Version7
+│   │   │               │   ├── Public
+│   │   │               │   │   └── PreferredLists
+│   │   │               │   └── WellExplorer
+│   │   │               │       └── Workspaces
+│   │   │               └── SeismicDirect
+│   │   │                   ├── APP
+│   │   │                   │   ├── Surveys
+│   │   │                   │   │   └── F0001001
+│   │   │                   │   ├── Templates
+│   │   │                   │   └── UserTemplates
+│   │   │                   └── LOG
+│   │   │                       └── GEOSURVEYS gmoreira
+│   │   ├── s05-logs
+│   │   ├── s06-other
+│   │   │   └── s01-polygons
+│   │   └── s07-old
+│   ├── s07-reports
+│   │   └── old
+│   ├── s08-gis
+│   │   ├── s01-surfaces
+│   │   └── s02-tiff
+│   ├── s09-navigation
+│   │   ├── s01-p190
+│   │   └── s02-other
+│   └── s10-photos
+├── s10-innomar
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   ├── s03-qc
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   ├── s01-twt
+│   │   │   ├── s01-mul
+│   │   │   ├── s02-mig
+│   │   │   ├── s03-figures
+│   │   │   └── s04-other
+│   │   └── s02-dpt
+│   │       ├── s01-mul
+│   │       ├── s02-mig
+│   │       ├── s03-figures
+│   │       └── s04-other
+│   ├── s06-interpretation
+│   │   ├── s01-horizons
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s02-grids
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s03-faults
+│   │   ├── s04-ks-project
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   ├── s05-logs
+│   │   └── s06-other
+│   ├── s07-reports
+│   ├── s08-gis
+│   │   ├── s01-surfaces
+│   │   └── s02-tiff
+│   ├── s09-navigation
+│   │   ├── s01-p190
+│   │   └── s02-other
+│   └── s10-photos
+├── s11-boomer
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   ├── s03-qc
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   ├── s01-twt
+│   │   │   ├── s01-mul
+│   │   │   ├── s02-mig
+│   │   │   ├── s03-figures
+│   │   │   └── s04-other
+│   │   └── s02-dpt
+│   │       ├── s01-mul
+│   │       ├── s02-mig
+│   │       ├── s03-figures
+│   │       └── s04-other
+│   ├── s06-interpretation
+│   │   ├── s01-horizons
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s02-grids
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s03-faults
+│   │   ├── s04-ks-project
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   ├── s05-logs
+│   │   └── s06-other
+│   ├── s07-reports
+│   ├── s08-gis
+│   │   ├── s01-surfaces
+│   │   └── s02-tiff
+│   ├── s09-navigation
+│   │   ├── other
+│   │   └── p190
+│   └── s10-photos
+├── s12-scs
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   ├── s03-qc
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   ├── s01-twt
+│   │   │   ├── s01-mul
+│   │   │   ├── s02-mig
+│   │   │   ├── s03-figures
+│   │   │   └── s04-other
+│   │   └── s02-dpt
+│   │       ├── s01-mul
+│   │       ├── s02-mig
+│   │       ├── s03-figures
+│   │       └── s04-other
+│   ├── s06-interpretation
+│   │   ├── s01-horizons
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s02-grids
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s03-faults
+│   │   ├── s04-ks-project
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   ├── s05-logs
+│   │   └── s06-other
+│   ├── s07-reports
+│   ├── s08-gis
+│   │   ├── s01-surfaces
+│   │   └── s02-tiff
+│   ├── s09-navigation
+│   │   ├── other
+│   │   └── p190
+│   └── s10-photos
+├── s13-uhrs
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   │   ├── BACKED UP - FIGUEIRA
+│   │   │   ├── FIG-24-M001
+│   │   │   │   ├── FIG-24-M001_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M001_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-M010
+│   │   │   │   ├── FIG-24-M010_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M010_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-M010_01
+│   │   │   │   ├── FIG-24-M010_01_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M010_01_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-M020
+│   │   │   │   ├── FIG-24-M020_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-M020_01
+│   │   │   │   ├── FIG-24-M020_01_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-M030
+│   │   │   │   ├── FIG-24-M030_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M030_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-M030_01
+│   │   │   │   ├── FIG-24-M030_01_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M030_01_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-M040
+│   │   │   │   ├── FIG-24-M040_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M040_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-M050
+│   │   │   │   ├── FIG-24-M050_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-M060
+│   │   │   │   ├── FIG-24-M060_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-M060_01
+│   │   │   │   ├── FIG-24-M060_01_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-M060_02
+│   │   │   │   ├── FIG-24-M060_02_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M060_02_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── nmea
+│   │   │   │   └── old
+│   │   │   ├── FIG-24-M070
+│   │   │   │   ├── FIG-24-M070_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M070_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── nmea
+│   │   │   │   └── old
+│   │   │   ├── FIG-24-M080
+│   │   │   │   ├── FIG-24-M080_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M080_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-M090
+│   │   │   │   ├── FIG-24-M090_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M090_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── nmea
+│   │   │   │   └── old
+│   │   │   ├── FIG-24-M100
+│   │   │   │   ├── FIG-24-M100_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── nmea
+│   │   │   │   └── old
+│   │   │   ├── FIG-24-M100_01
+│   │   │   │   ├── FIG-24-M100_01_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M100_01_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-M100_02
+│   │   │   │   ├── FIG-24-M100_02_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M100_02_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-M110
+│   │   │   │   ├── FIG-24-M110_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M110_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── nmea
+│   │   │   │   └── old
+│   │   │   ├── FIG-24-M120
+│   │   │   │   ├── FIG-24-M120_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M120_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── nmea
+│   │   │   │   └── old
+│   │   │   ├── FIG-24-M120_01
+│   │   │   │   ├── FIG-24-M120_01_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M120_01_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-M120_02
+│   │   │   │   ├── FIG-24-M120_02_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M120_02_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-M130
+│   │   │   │   ├── FIG-24-M130_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M130_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── nmea
+│   │   │   │   └── old
+│   │   │   ├── FIG-24-M130_01
+│   │   │   │   ├── FIG-24-M130_01_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M130_01_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── nmea
+│   │   │   │   └── old
+│   │   │   ├── FIG-24-M140
+│   │   │   │   ├── FIG-24-M140_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M140_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── ProcessingBackups
+│   │   │   │   │   └── FIG-24-M140_rev1
+│   │   │   │   ├── nmea
+│   │   │   │   └── old
+│   │   │   ├── FIG-24-M140_01
+│   │   │   │   ├── FIG-24-M140_01_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M140_01_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-M150
+│   │   │   │   ├── FIG-24-M150_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M150_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── nmea
+│   │   │   │   └── old
+│   │   │   ├── FIG-24-M160
+│   │   │   │   ├── FIG-24-M160_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M160_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── nmea
+│   │   │   │   └── old
+│   │   │   ├── FIG-24-M170
+│   │   │   │   ├── FIG-24-M170_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-M170_01
+│   │   │   │   ├── FIG-24-M170_01_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-M170_01_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X030
+│   │   │   │   ├── FIG-24-X030_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X030_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X040
+│   │   │   │   ├── FIG-24-X040_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X040_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X050
+│   │   │   │   ├── FIG-24-X050_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X050_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X060
+│   │   │   │   ├── FIG-24-X060_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X060_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X070
+│   │   │   │   ├── FIG-24-X070_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X070_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X080
+│   │   │   │   ├── FIG-24-X080_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X080_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X090
+│   │   │   │   ├── FIG-24-X090_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X090_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X100
+│   │   │   │   ├── FIG-24-X100_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X100_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X110
+│   │   │   │   ├── FIG-24-X110_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X110_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── nmea
+│   │   │   │   └── old
+│   │   │   ├── FIG-24-X120
+│   │   │   │   ├── FIG-24-X120_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X120_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X120_01
+│   │   │   │   ├── FIG-24-X120_01_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X120_01_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X130
+│   │   │   │   ├── FIG-24-X130_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X130_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X140
+│   │   │   │   ├── FIG-24-X140_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X140_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X150
+│   │   │   │   ├── FIG-24-X150_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X150_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X160
+│   │   │   │   └── FIG-24-X160_EOL
+│   │   │   ├── FIG-24-X170
+│   │   │   │   ├── FIG-24-X170_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X170_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X180
+│   │   │   │   ├── FIG-24-X180_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X180_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X190
+│   │   │   │   ├── FIG-24-X190_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X190_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X200
+│   │   │   │   ├── FIG-24-X200_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X200_01
+│   │   │   │   ├── FIG-24-X200_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X210
+│   │   │   │   ├── FIG-24-X210_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X210_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X220
+│   │   │   │   ├── FIG-24-X220_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X220_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── HAT
+│   │   │   │   ├── Positioning_Test
+│   │   │   │   ├── Resiliance_Test_20240817
+│   │   │   │   ├── Resiliance_Test_20240817_SPAREPPS
+│   │   │   │   ├── test_p190
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── test_string
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── test_string_01
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── test_syst
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── test_time
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── test_time_01
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── test_time_01_01
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── test_time_01_02
+│   │   │   │   │   └── nmea
+│   │   │   │   └── test_time_01_03
+│   │   │   │       └── nmea
+│   │   │   └── SAT
+│   │   │       ├── 600J_Delay_140
+│   │   │       │   └── nmea
+│   │   │       ├── 600J_Delay_180
+│   │   │       │   └── nmea
+│   │   │       ├── BOX1
+│   │   │       │   ├── nmea
+│   │   │       │   └── old
+│   │   │       ├── BOX2
+│   │   │       │   └── nmea
+│   │   │       ├── BOX3
+│   │   │       │   ├── nmea
+│   │   │       │   └── old
+│   │   │       ├── BOX4
+│   │   │       │   ├── box4
+│   │   │       │   │   └── db
+│   │   │       │   ├── nmea
+│   │   │       │   └── old
+│   │   │       ├── Delay_Test
+│   │   │       │   └── nmea
+│   │   │       ├── Delay_Test_1600J
+│   │   │       │   └── nmea
+│   │   │       ├── Delay_Test_400J
+│   │   │       │   └── nmea
+│   │   │       ├── Delay_Test_600J
+│   │   │       │   └── nmea
+│   │   │       ├── Delay_Test_800J
+│   │   │       │   └── nmea
+│   │   │       ├── Delay_Test_800J_B
+│   │   │       │   └── nmea
+│   │   │       ├── Delay_Test_800J_C
+│   │   │       │   └── nmea
+│   │   │       ├── Delay_Test_800J_D
+│   │   │       │   └── nmea
+│   │   │       ├── ML-055M
+│   │   │       │   └── nmea
+│   │   │       ├── SP-1
+│   │   │       │   └── nmea
+│   │   │       ├── Signature_1600J_BOTT
+│   │   │       │   └── nmea
+│   │   │       ├── Signature_1600J_MID
+│   │   │       │   └── nmea
+│   │   │       ├── Signature_1600J_TOP
+│   │   │       │   └── nmea
+│   │   │       ├── Signature_1600J_TOP_A
+│   │   │       │   └── nmea
+│   │   │       ├── Signature_400J
+│   │   │       │   └── nmea
+│   │   │       ├── Signature_400J_BOTT
+│   │   │       │   └── nmea
+│   │   │       ├── Signature_400J_MID
+│   │   │       │   └── nmea
+│   │   │       ├── Signature_400J_TOP
+│   │   │       │   └── nmea
+│   │   │       ├── Signature_600J_BOTT
+│   │   │       │   └── nmea
+│   │   │       ├── Signature_600J_MID
+│   │   │       │   └── nmea
+│   │   │       ├── Signature_600J_TOP
+│   │   │       │   └── nmea
+│   │   │       ├── Signature_800J_BOTT
+│   │   │       │   └── nmea
+│   │   │       ├── Signature_800J_MID
+│   │   │       │   └── nmea
+│   │   │       ├── Signature_800J_TOP
+│   │   │       │   └── nmea
+│   │   │       ├── balancing_3.5
+│   │   │       │   └── nmea
+│   │   │       ├── balancing_4.0
+│   │   │       │   └── nmea
+│   │   │       ├── balancing_4.5
+│   │   │       │   └── nmea
+│   │   │       ├── balancing_test_3.5_SOG
+│   │   │       │   └── nmea
+│   │   │       ├── noise_test_4m_Corner_20m_Layback_170_HDG
+│   │   │       │   └── nmea
+│   │   │       ├── noise_test_4m_Corner_20m_Layback_333_HDG
+│   │   │       │   └── nmea
+│   │   │       ├── noise_test_4m_Corner_40m_Layback_170_HDG
+│   │   │       │   └── nmea
+│   │   │       ├── noise_test_4m_Corner_40m_Layback_333_HDG
+│   │   │       │   └── nmea
+│   │   │       ├── noise_test_4m_Stern_20m_Layback_167_HDG
+│   │   │       │   └── nmea
+│   │   │       ├── noise_test_4m_Stern_20m_Layback_333_HDG
+│   │   │       │   └── nmea
+│   │   │       ├── noise_test_4m_Stern_40m_Layback_167_HDG
+│   │   │       │   └── nmea
+│   │   │       ├── noise_test_4m_Stern_40m_Layback_333_HDG
+│   │   │       │   └── nmea
+│   │   │       ├── noise_test_5m_Boom_20m_Layback_184_HDG
+│   │   │       │   └── nmea
+│   │   │       ├── noise_test_5m_Boom_20m_Layback_355_HDG
+│   │   │       │   └── nmea
+│   │   │       ├── noise_test_5m_Boom_40m_Layback_001_HDG
+│   │   │       │   └── nmea
+│   │   │       ├── noise_test_5m_Boom_40m_Layback_182_HDG
+│   │   │       │   └── nmea
+│   │   │       ├── noise_test_8m_Boom_20m_Layback_008_HDG
+│   │   │       │   └── nmea
+│   │   │       ├── noise_test_8m_Boom_20m_Layback_178_HDG
+│   │   │       │   └── nmea
+│   │   │       ├── noise_test_8m_Boom_40m_Layback_002_HDG
+│   │   │       │   └── nmea
+│   │   │       ├── noise_test_8m_Boom_40m_Layback_180_HDG
+│   │   │       │   └── nmea
+│   │   │       ├── working_noise_3.5
+│   │   │       │   └── nmea
+│   │   │       ├── working_noise_4.0
+│   │   │       │   └── nmea
+│   │   │       ├── working_noise_4.5
+│   │   │       │   └── nmea
+│   │   │       ├── working_noise_limit_3.5_knots
+│   │   │       │   └── nmea
+│   │   │       ├── working_noise_limit_4.0_knots
+│   │   │       │   └── nmea
+│   │   │       └── working_noise_limit_4.5_knots
+│   │   │           └── nmea
+│   │   ├── BACKED UP - FIGUEROA 2
+│   │   │   ├── FIG-24-Test-001
+│   │   │   │   ├── FIG-24-Test-001_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X001
+│   │   │   │   ├── FIG-24-X001_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X001_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X010
+│   │   │   │   ├── FIG-24-X010_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X010_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X020
+│   │   │   │   ├── FIG-24-X020_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X020_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   ├── FIG-24-X160_01
+│   │   │   │   ├── FIG-24-X160_01_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X160_01_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── nmea
+│   │   │   │   └── old
+│   │   │   ├── FIG-24-X200_02
+│   │   │   │   ├── FIG-24-X200_02_EOL
+│   │   │   │   │   └── nmea
+│   │   │   │   ├── FIG-24-X200_02_SOL
+│   │   │   │   │   └── nmea
+│   │   │   │   └── nmea
+│   │   │   └── FIG-LEI-24-T002
+│   │   │       ├── FIG-LEI-24-T002_EOL
+│   │   │       │   └── nmea
+│   │   │       ├── FIG-LEI-24-T002_SOL
+│   │   │       │   └── nmea
+│   │   │       └── nmea
+│   │   └── BACKED UP - LEIXOES
+│   │       ├── FIG-LEI-24-T001
+│   │       │   ├── FIG-LEI-24-T001_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── FIG-LEI-24-T001_01
+│   │       │   └── nmea
+│   │       ├── FIG-LEI-24-T001_02
+│   │       │   ├── FIG-LEI-24-T001_02_EOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-M001
+│   │       │   ├── LEI-24-M001_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-M001_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-M010
+│   │       │   ├── LEI-24-M010_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-M010_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-M020
+│   │       │   ├── LEI-24-M020_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-M020_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-M030
+│   │       │   ├── LEI-24-M030_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-M030_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-M050
+│   │       │   ├── LEI-24-M050_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-M050_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-M060
+│   │       │   ├── LEI-24-M060_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-M060_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-M070
+│   │       │   ├── LEI-24-M070_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-M070_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-M080
+│   │       │   ├── LEI-24-M080_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-M080_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-M090
+│   │       │   ├── LEI-24-M090_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-M090_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-M090_01
+│   │       │   ├── LEI-24-M090_01_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-M090_01_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-M100
+│   │       │   ├── LEI-24-M100_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-M100_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-M110
+│   │       │   ├── LEI-24-M110_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-M110_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-M120
+│   │       │   ├── LEI-24-M120_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-M120_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-M130
+│   │       │   ├── LEI-24-M130_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-M130_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-M140
+│   │       │   ├── LEI-24-M140_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-M140_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-M150
+│   │       │   ├── LEI-24-M150_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-M150_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-M160
+│   │       │   ├── LEI-24-M160_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-M160_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-M40
+│   │       │   ├── LEI-24-M40_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-M40_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-X010
+│   │       │   ├── LEI-24-X010_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-X010_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-X020
+│   │       │   ├── LEI-24-X020_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-X020_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-X030
+│   │       │   ├── LEI-24-X030_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-X030_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-X040
+│   │       │   ├── LEI-24-X040_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-X040_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-X050
+│   │       │   ├── LEI-24-X050_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-X050_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-X060
+│   │       │   ├── LEI-24-X060_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-X060_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-X070
+│   │       │   ├── LEI-24-X070_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-X070_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-X080
+│   │       │   ├── LEI-24-X080_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-X080_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-X090
+│   │       │   ├── LEI-24-X090_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-X090_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-X100
+│   │       │   ├── LEI-24-X100_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-X100_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-X110
+│   │       │   ├── LEI-24-X110_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-X110_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-X120
+│   │       │   ├── LEI-24-X120_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-X120_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-X130
+│   │       │   ├── LEI-24-X130_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-X130_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       ├── LEI-24-X140
+│   │       │   ├── LEI-24-X140_EOL
+│   │       │   │   └── nmea
+│   │       │   ├── LEI-24-X140_SOL
+│   │       │   │   └── nmea
+│   │       │   └── nmea
+│   │       └── LEI-24-X140_01
+│   │           ├── LEI-24-X140_01_EOL
+│   │           │   └── nmea
+│   │           └── nmea
+│   ├── s03-qc
+│   │   ├── s01-seismic-data
+│   │   ├── s02-flows
+│   │   ├── s03-bstk
+│   │   │   ├── 02_BSTK_SEGYS
+│   │   │   │   └── Superseded
+│   │   │   └── Superseded
+│   │   ├── s04-figures
+│   │   │   ├── 04_QC_Plots
+│   │   │   │   ├── 03_Source_Spectra
+│   │   │   │   ├── 04_Offset_QC
+│   │   │   │   ├── 05_Mid_Channel_QC
+│   │   │   │   │   └── Superseded
+│   │   │   │   ├── 06_Slant_QC
+│   │   │   │   │   └── Superseded
+│   │   │   │   ├── 07_IVA
+│   │   │   │   ├── 08_BSTK
+│   │   │   │   │   └── Superseded
+│   │   │   │   ├── 09_Fold_Map
+│   │   │   │   │   └── Superseded
+│   │   │   │   └── 10_Feathering
+│   │   │   └── old
+│   │   │       └── s01-20250120
+│   │   ├── s05-navigation
+│   │   │   └── 06_CDP_Trackplots
+│   │   │       └── Superseded
+│   │   ├── s06-logs
+│   │   └── s07-other
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   ├── s01-prestk
+│   │   │   ├── s01-mul
+│   │   │   ├── s02-mig
+│   │   │   ├── s03-figures
+│   │   │   └── s04-other
+│   │   ├── s02-poststk
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-mul
+│   │   │   │   ├── s02-mig
+│   │   │   │   ├── s03-figures
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-mul
+│   │   │       ├── s02-mig
+│   │   │       ├── s03-figures
+│   │   │       └── s04-other
+│   │   ├── s03-velocities
+│   │   │   ├── s01-vel-picks
+│   │   │   ├── s02-vel-rms
+│   │   │   ├── s03-vel-int
+│   │   │   ├── s04-vel-stacking
+│   │   │   └── s05-other
+│   │   ├── s04-images
+│   │   └── s05-tests
+│   ├── s06-interpretation
+│   │   ├── s01-horizons
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   │   ├── geoquest
+│   │   │   │   │   │   └── old
+│   │   │   │   │   │       └── ref-lines-20241129
+│   │   │   │   │   └── xy-line-trace-time-depth-amp
+│   │   │   │   │       └── old
+│   │   │   │   │           └── ref-lines-20241129
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       │   ├── geoquest
+│   │   │       │   │   └── old
+│   │   │       │   └── xy-line-trace-time-depth-amp
+│   │   │       │       └── old
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s02-grids
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       │   └── old
+│   │   │       │       └── jan2025
+│   │   │       ├── s02-below-seabed
+│   │   │       │   └── old
+│   │   │       ├── s03-thick
+│   │   │       │   └── old
+│   │   │       └── s04-other
+│   │   ├── s03-faults
+│   │   ├── s04-ks-project
+│   │   │   ├── s01-final
+│   │   │   │   ├── figueira mar25
+│   │   │   │   │   ├── IPMA_POEP_2D_UHRS
+│   │   │   │   │   │   ├── EdmxFiles
+│   │   │   │   │   │   ├── GS
+│   │   │   │   │   │   │   ├── DynamicDepthConversion
+│   │   │   │   │   │   │   ├── Log
+│   │   │   │   │   │   │   ├── My Collections
+│   │   │   │   │   │   │   ├── PreferredLists
+│   │   │   │   │   │   │   ├── SE
+│   │   │   │   │   │   │   ├── SE Temp
+│   │   │   │   │   │   │   ├── SEMFaultData
+│   │   │   │   │   │   │   ├── Templates
+│   │   │   │   │   │   │   │   ├── BackInterpolate
+│   │   │   │   │   │   │   │   └── Grid
+│   │   │   │   │   │   │   ├── VuPAKColorfillModels
+│   │   │   │   │   │   │   └── WellExplorer
+│   │   │   │   │   │   │       └── Workspaces
+│   │   │   │   │   │   ├── IPMA_POEP_2D_UHRS_History
+│   │   │   │   │   │   │   └── Culture_History
+│   │   │   │   │   │   │       └── Import
+│   │   │   │   │   │   ├── Layers
+│   │   │   │   │   │   ├── Log
+│   │   │   │   │   │   ├── MontageTemplates
+│   │   │   │   │   │   │   ├── Layout
+│   │   │   │   │   │   │   └── TitleBlock
+│   │   │   │   │   │   ├── My Collections
+│   │   │   │   │   │   ├── Old_Project_Files
+│   │   │   │   │   │   ├── PAKnotesTemplates
+│   │   │   │   │   │   ├── PreferredLists
+│   │   │   │   │   │   ├── ProjectDatabase
+│   │   │   │   │   │   ├── ProjectionSource
+│   │   │   │   │   │   │   ├── Version7
+│   │   │   │   │   │   │   └── Version8
+│   │   │   │   │   │   ├── Public
+│   │   │   │   │   │   │   └── PreferredLists
+│   │   │   │   │   │   └── WellExplorer
+│   │   │   │   │   │       └── Workspaces
+│   │   │   │   │   └── SeismicDirect
+│   │   │   │   │       ├── APP
+│   │   │   │   │       │   ├── Surveys
+│   │   │   │   │       │   │   └── F0001000
+│   │   │   │   │       │   ├── Templates
+│   │   │   │   │       │   └── UserTemplates
+│   │   │   │   │       └── LOG
+│   │   │   │   │           └── GEOSURVEYS gmoreira
+│   │   │   │   └── leixoes mar25
+│   │   │   │       ├── IPMA_POEP_2D_UHRS
+│   │   │   │       │   ├── EdmxFiles
+│   │   │   │       │   ├── GS
+│   │   │   │       │   │   ├── DynamicDepthConversion
+│   │   │   │       │   │   ├── Log
+│   │   │   │       │   │   ├── My Collections
+│   │   │   │       │   │   ├── PreferredLists
+│   │   │   │       │   │   ├── SE
+│   │   │   │       │   │   │   └── TKS Sessions
+│   │   │   │       │   │   ├── SE Temp
+│   │   │   │       │   │   ├── Templates
+│   │   │   │       │   │   │   └── Grid
+│   │   │   │       │   │   ├── VuPAKColorfillModels
+│   │   │   │       │   │   └── WellExplorer
+│   │   │   │       │   │       └── Workspaces
+│   │   │   │       │   ├── IPMA_POEP_2D_UHRS_History
+│   │   │   │       │   │   └── Culture_History
+│   │   │   │       │   │       └── Import
+│   │   │   │       │   ├── Layers
+│   │   │   │       │   ├── Log
+│   │   │   │       │   ├── MontageTemplates
+│   │   │   │       │   │   └── Layout
+│   │   │   │       │   ├── My Collections
+│   │   │   │       │   ├── Old_Project_Files
+│   │   │   │       │   ├── PAKnotesTemplates
+│   │   │   │       │   ├── PreferredLists
+│   │   │   │       │   ├── ProjectDatabase
+│   │   │   │       │   ├── ProjectionSource
+│   │   │   │       │   │   ├── Version7
+│   │   │   │       │   │   └── Version8
+│   │   │   │       │   ├── Public
+│   │   │   │       │   │   └── PreferredLists
+│   │   │   │       │   └── WellExplorer
+│   │   │   │       │       └── Workspaces
+│   │   │   │       ├── SeismicDirect
+│   │   │   │       │   ├── APP
+│   │   │   │       │   │   ├── Surveys
+│   │   │   │       │   │   │   └── F0001000
+│   │   │   │       │   │   ├── Templates
+│   │   │   │       │   │   └── UserTemplates
+│   │   │   │       │   └── LOG
+│   │   │   │       │       └── GEOSURVEYS gmoreira
+│   │   │   │       └── old
+│   │   │   │           ├── IPMA_POEP_2D_UHRS
+│   │   │   │           │   ├── EdmxFiles
+│   │   │   │           │   ├── GS
+│   │   │   │           │   │   ├── Log
+│   │   │   │           │   │   ├── My Collections
+│   │   │   │           │   │   ├── PreferredLists
+│   │   │   │           │   │   ├── SE
+│   │   │   │           │   │   ├── SE Temp
+│   │   │   │           │   │   └── WellExplorer
+│   │   │   │           │   │       └── Workspaces
+│   │   │   │           │   ├── Log
+│   │   │   │           │   ├── MontageTemplates
+│   │   │   │           │   │   └── Layout
+│   │   │   │           │   ├── My Collections
+│   │   │   │           │   ├── Old_Project_Files
+│   │   │   │           │   ├── PAKnotesTemplates
+│   │   │   │           │   ├── PreferredLists
+│   │   │   │           │   ├── ProjectDatabase
+│   │   │   │           │   ├── ProjectionSource
+│   │   │   │           │   │   ├── Version7
+│   │   │   │           │   │   └── Version8
+│   │   │   │           │   ├── Public
+│   │   │   │           │   │   └── PreferredLists
+│   │   │   │           │   └── WellExplorer
+│   │   │   │           │       └── Workspaces
+│   │   │   │           └── SeismicDirect
+│   │   │   │               ├── APP
+│   │   │   │               │   ├── Surveys
+│   │   │   │               │   │   └── F0001000
+│   │   │   │               │   ├── Templates
+│   │   │   │               │   └── UserTemplates
+│   │   │   │               └── LOG
+│   │   │   │                   └── GEOSURVEYS gmoreira
+│   │   │   └── s02-old
+│   │   │       ├── 20241115_IPMA_POEP_2D_Ref_Lines
+│   │   │       │   ├── 01_SEG-Ys
+│   │   │       │   │   ├── 01_MUL
+│   │   │       │   │   └── 02_MIG
+│   │   │       │   ├── 02_QC_plots
+│   │   │       │   └── 03_QC_log
+│   │   │       ├── 20241119_KSProject_RefLines
+│   │   │       │   └── IPMA_POEP_2D
+│   │   │       │       ├── 01_SeismicDirect
+│   │   │       │       │   ├── APP
+│   │   │       │       │   │   ├── Surveys
+│   │   │       │       │   │   │   └── F0001001
+│   │   │       │       │   │   ├── Templates
+│   │   │       │       │   │   └── UserTemplates
+│   │   │       │       │   └── LOG
+│   │   │       │       │       └── GEOSURVEYS Bcosta
+│   │   │       │       ├── 02_SEGYs
+│   │   │       │       │   ├── 00_TRIM_DPT
+│   │   │       │       │   ├── 01_MUL
+│   │   │       │       │   └── 02_MIG
+│   │   │       │       └── IPMA
+│   │   │       │           ├── DynamicDepthConversion
+│   │   │       │           ├── EdmxFiles
+│   │   │       │           ├── Log
+│   │   │       │           ├── MontageTemplates
+│   │   │       │           │   └── Layout
+│   │   │       │           ├── My Collections
+│   │   │       │           ├── Old_Project_Files
+│   │   │       │           ├── PAKnotesTemplates
+│   │   │       │           ├── PreferredLists
+│   │   │       │           ├── ProjectDatabase
+│   │   │       │           ├── ProjectionSource
+│   │   │       │           │   ├── Version7
+│   │   │       │           │   └── Version8
+│   │   │       │           ├── Public
+│   │   │       │           │   └── PreferredLists
+│   │   │       │           ├── SE
+│   │   │       │           ├── SE Temp
+│   │   │       │           └── WellExplorer
+│   │   │       │               └── Workspaces
+│   │   │       ├── 20241122_Horizons_RefLines
+│   │   │       ├── 20241127
+│   │   │       ├── 20241129_Reference_Lines_Delivery
+│   │   │       │   ├── 01_Data
+│   │   │       │   │   ├── 01_Kingdom_Project
+│   │   │       │   │   │   └── IPMA_POEP_2D
+│   │   │       │   │   │       ├── 01_SeismicDirect
+│   │   │       │   │   │       │   ├── APP
+│   │   │       │   │   │       │   │   ├── Surveys
+│   │   │       │   │   │       │   │   │   └── F0001001
+│   │   │       │   │   │       │   │   ├── Templates
+│   │   │       │   │   │       │   │   └── UserTemplates
+│   │   │       │   │   │       │   └── LOG
+│   │   │       │   │   │       │       ├── GEOSURVEYS Bcosta
+│   │   │       │   │   │       │       └── IPMA carlos.ribeiro
+│   │   │       │   │   │       ├── 02_SEGYs
+│   │   │       │   │   │       │   ├── 01_MUL
+│   │   │       │   │   │       │   └── 02_MIG
+│   │   │       │   │   │       └── IPMA
+│   │   │       │   │   │           ├── DynamicDepthConversion
+│   │   │       │   │   │           ├── EdmxFiles
+│   │   │       │   │   │           ├── Log
+│   │   │       │   │   │           ├── MontageTemplates
+│   │   │       │   │   │           │   └── Layout
+│   │   │       │   │   │           ├── My Collections
+│   │   │       │   │   │           ├── Old_Project_Files
+│   │   │       │   │   │           ├── PAKnotesTemplates
+│   │   │       │   │   │           ├── PreferredLists
+│   │   │       │   │   │           ├── ProjectDatabase
+│   │   │       │   │   │           ├── ProjectionSource
+│   │   │       │   │   │           │   ├── Version7
+│   │   │       │   │   │           │   └── Version8
+│   │   │       │   │   │           ├── Public
+│   │   │       │   │   │           │   └── PreferredLists
+│   │   │       │   │   │           ├── SE
+│   │   │       │   │   │           ├── SE Temp
+│   │   │       │   │   │           ├── VuPAKColorfillModels
+│   │   │       │   │   │           └── WellExplorer
+│   │   │       │   │   │               └── Workspaces
+│   │   │       │   │   ├── 02_Horizons
+│   │   │       │   │   │   ├── 01_Figueira_da_Foz
+│   │   │       │   │   │   │   ├── 01_GeoQuest-CARD_IMAGE7
+│   │   │       │   │   │   │   └── 02_XYLineTraceTime Amplitude
+│   │   │       │   │   │   ├── 02_Tie_Line
+│   │   │       │   │   │   │   ├── 01_GeoQuest-CARD_IMAGE7
+│   │   │       │   │   │   │   └── 02_XYLineTraceTime Amplitude
+│   │   │       │   │   │   └── 03_Leixões
+│   │   │       │   │   │       ├── 01_GeoQuest-CARD_IMAGE7
+│   │   │       │   │   │       └── 02_XYLineTraceTime Amplitude
+│   │   │       │   │   ├── 03_Geohazards
+│   │   │       │   │   │   ├── 01_Figueira_da_Foz
+│   │   │       │   │   │   │   ├── 01_GeoQuest-CARD_IMAGE7
+│   │   │       │   │   │   │   └── 02_XYLineTraceTime Amplitude
+│   │   │       │   │   │   ├── 02_Tie_Line
+│   │   │       │   │   │   │   ├── 01_GeoQuest-CARD_IMAGE7
+│   │   │       │   │   │   │   └── 02_XYLineTraceTime Amplitude
+│   │   │       │   │   │   └── 03_Leixões
+│   │   │       │   │   │       ├── 01_GeoQuest-CARD_IMAGE7
+│   │   │       │   │   │       └── 02_XYLineTraceTime Amplitude
+│   │   │       │   │   ├── 04_Faults
+│   │   │       │   │   └── 05_Polygons
+│   │   │       │   └── 02_Geomodel
+│   │   │       ├── 20241203_SB_TRIMs
+│   │   │       ├── 20241213_To_Vysus
+│   │   │       │   └── IPMA_POEP_2D
+│   │   │       │       ├── 01_SeismicDirect
+│   │   │       │       │   ├── APP
+│   │   │       │       │   │   ├── Surveys
+│   │   │       │       │   │   │   └── F0001001
+│   │   │       │       │   │   ├── Templates
+│   │   │       │       │   │   └── UserTemplates
+│   │   │       │       │   └── LOG
+│   │   │       │       │       └── GEOSURVEYS Bcosta
+│   │   │       │       ├── 02_SEGYs
+│   │   │       │       │   ├── 01_MUL
+│   │   │       │       │   ├── 02_MIG
+│   │   │       │       │   ├── 03_TRIM
+│   │   │       │       │   └── 04_SBP_MIG
+│   │   │       │       └── IPMA
+│   │   │       │           ├── DynamicDepthConversion
+│   │   │       │           ├── EdmxFiles
+│   │   │       │           ├── Log
+│   │   │       │           ├── MontageTemplates
+│   │   │       │           │   └── Layout
+│   │   │       │           ├── My Collections
+│   │   │       │           ├── Old_Project_Files
+│   │   │       │           ├── PAKnotesTemplates
+│   │   │       │           ├── PreferredLists
+│   │   │       │           ├── ProjectDatabase
+│   │   │       │           ├── ProjectionSource
+│   │   │       │           │   ├── Version7
+│   │   │       │           │   └── Version8
+│   │   │       │           ├── Public
+│   │   │       │           │   └── PreferredLists
+│   │   │       │           ├── SE
+│   │   │       │           ├── SE Temp
+│   │   │       │           ├── VuPAKColorfillModels
+│   │   │       │           └── WellExplorer
+│   │   │       │               └── Workspaces
+│   │   │       ├── 20241216
+│   │   │       ├── 20241230_UHRS_SGY
+│   │   │       │   ├── 04_MUL_TIDE
+│   │   │       │   └── 05_MIG_TIDE
+│   │   │       ├── Falhas_IPMA
+│   │   │       ├── Horizontes GS
+│   │   │       ├── Horizontes_IPMA
+│   │   │       │   ├── AP
+│   │   │       │   └── CR
+│   │   │       ├── IPMA_POEP_UHRS_FIG
+│   │   │       │   ├── IPMA_POEP_2D_UHRS
+│   │   │       │   │   ├── EdmxFiles
+│   │   │       │   │   ├── GS
+│   │   │       │   │   │   ├── Log
+│   │   │       │   │   │   ├── My Collections
+│   │   │       │   │   │   ├── PreferredLists
+│   │   │       │   │   │   ├── SE
+│   │   │       │   │   │   ├── SE Temp
+│   │   │       │   │   │   ├── SEMFaultData
+│   │   │       │   │   │   └── WellExplorer
+│   │   │       │   │   │       └── Workspaces
+│   │   │       │   │   ├── Log
+│   │   │       │   │   ├── MontageTemplates
+│   │   │       │   │   │   └── Layout
+│   │   │       │   │   ├── My Collections
+│   │   │       │   │   ├── Old_Project_Files
+│   │   │       │   │   ├── PAKnotesTemplates
+│   │   │       │   │   ├── PreferredLists
+│   │   │       │   │   ├── ProjectDatabase
+│   │   │       │   │   ├── ProjectionSource
+│   │   │       │   │   │   ├── Version7
+│   │   │       │   │   │   └── Version8
+│   │   │       │   │   ├── Public
+│   │   │       │   │   │   └── PreferredLists
+│   │   │       │   │   └── WellExplorer
+│   │   │       │   │       └── Workspaces
+│   │   │       │   └── SeismicDirect
+│   │   │       │       ├── APP
+│   │   │       │       │   ├── Surveys
+│   │   │       │       │   │   └── F0001000
+│   │   │       │       │   ├── Templates
+│   │   │       │       │   └── UserTemplates
+│   │   │       │       └── LOG
+│   │   │       │           └── GEOSURVEYS gmoreira
+│   │   │       └── s01-20241129-ref-lines
+│   │   │           ├── 01_SeismicDirect
+│   │   │           │   ├── APP
+│   │   │           │   │   ├── Surveys
+│   │   │           │   │   │   └── F0001001
+│   │   │           │   │   ├── Templates
+│   │   │           │   │   └── UserTemplates
+│   │   │           │   └── LOG
+│   │   │           │       ├── GEOSURVEYS Bcosta
+│   │   │           │       └── IPMA carlos.ribeiro
+│   │   │           ├── 02_SEGYs
+│   │   │           │   ├── 01_MUL
+│   │   │           │   └── 02_MIG
+│   │   │           └── IPMA
+│   │   │               ├── DynamicDepthConversion
+│   │   │               ├── EdmxFiles
+│   │   │               ├── Log
+│   │   │               ├── MontageTemplates
+│   │   │               │   └── Layout
+│   │   │               ├── My Collections
+│   │   │               ├── Old_Project_Files
+│   │   │               ├── PAKnotesTemplates
+│   │   │               ├── PreferredLists
+│   │   │               ├── ProjectDatabase
+│   │   │               ├── ProjectionSource
+│   │   │               │   ├── Version7
+│   │   │               │   └── Version8
+│   │   │               ├── Public
+│   │   │               │   └── PreferredLists
+│   │   │               ├── SE
+│   │   │               ├── SE Temp
+│   │   │               ├── VuPAKColorfillModels
+│   │   │               └── WellExplorer
+│   │   │                   └── Workspaces
+│   │   ├── s05-logs
+│   │   └── s06-other
+│   │       └── temp_export
+│   ├── s07-reports
+│   │   ├── s01-offshore-reports
+│   │   └── s02-onshore-reports
+│   │       └── old
+│   ├── s08-gis
+│   │   ├── s01-lineplan
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   ├── s02-sailed
+│   │   ├── s03-gs-deliverables
+│   │   │   ├── fig
+│   │   │   └── lei
+│   │   └── s04-old
+│   │       └── received20250307
+│   ├── s09-navigation
+│   │   ├── s01-p190
+│   │   ├── s02-cdps
+│   │   │   └── Superseded
+│   │   └── s03-other
+│   ├── s10-lineplan-uhrs
+│   └── s11-photos
+├── s14-mcs-other
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   ├── s03-qc
+│   │   ├── s01-seismic-data
+│   │   ├── s02-flows
+│   │   ├── s03-bstk
+│   │   ├── s04-figures
+│   │   └── s05-other
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   ├── s01-prestk
+│   │   │   ├── s01-mul
+│   │   │   ├── s02-mig
+│   │   │   ├── s03-figures
+│   │   │   └── s04-other
+│   │   ├── s02-poststk
+│   │   │   ├── s01-mul
+│   │   │   ├── s02-mig
+│   │   │   ├── s03-figures
+│   │   │   └── s04-other
+│   │   ├── s03-velocities
+│   │   │   ├── s01-vel-picks
+│   │   │   ├── s02-vel-rms
+│   │   │   ├── s03-vel-int
+│   │   │   ├── s04-vel-stacking
+│   │   │   └── s05-other
+│   │   ├── s04-images
+│   │   └── s05-tests
+│   ├── s06-interpretation
+│   │   ├── s01-horizons
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s02-grids
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s03-faults
+│   │   ├── s04-ks-project
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   ├── s05-logs
+│   │   └── s06-other
+│   ├── s07-reports
+│   │   ├── s01-offshore-reports
+│   │   └── s02-onshore-reports
+│   ├── s08-gis
+│   │   ├── s01-lineplan
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   └── s02-sailed
+│   ├── s09-navigation
+│   │   ├── s01-p190
+│   │   └── s02-other
+│   ├── s10-lineplan
+│   └── s11-photos
+├── s15-wide-angle-seismic
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   ├── s03-qc
+│   │   ├── s01-seismic-data
+│   │   ├── s02-flows
+│   │   ├── s03-bstk
+│   │   ├── s04-figures
+│   │   └── s05-other
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   ├── s01-prestk
+│   │   ├── s02-poststk
+│   │   ├── s03-velocities
+│   │   ├── s04-images
+│   │   └── s05-tests
+│   ├── s06-interpretation
+│   │   ├── s01-horizons
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s02-grids
+│   │   │   ├── s01-twt
+│   │   │   │   ├── s01-horizons
+│   │   │   │   ├── s02-below-seabed
+│   │   │   │   ├── s03-thick
+│   │   │   │   └── s04-other
+│   │   │   └── s02-dpt
+│   │   │       ├── s01-horizons
+│   │   │       ├── s02-below-seabed
+│   │   │       ├── s03-thick
+│   │   │       └── s04-other
+│   │   ├── s03-faults
+│   │   ├── s04-ks-project
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   ├── s05-logs
+│   │   └── s06-other
+│   ├── s07-reports
+│   │   ├── s01-offshore-reports
+│   │   └── s02-onshore-reports
+│   ├── s08-gis
+│   │   ├── s01-lineplan
+│   │   │   ├── s01-final
+│   │   │   └── s02-old
+│   │   └── s02-sailed
+│   ├── s09-navigation
+│   │   ├── s01-p190
+│   │   └── s02-other
+│   ├── s10-lineplan
+│   └── s11-photos
+├── s16-gravimetry
+├── s17-magnetometer
+│   ├── s01-mob
+│   ├── s02-raw-data
+│   ├── s03-qc
+│   ├── s04-processing-flows
+│   ├── s05-processed-data
+│   │   └── s01-grids
+│   │       ├── s01-qas
+│   │       ├── s02-res
+│   │       └── s03-tf
+│   ├── s06-interpretation
+│   ├── s07-magnetometer-tracks
+│   ├── s08-magnetometer-targets
+│   │   ├── s01-magnetometer-target-list
+│   │   └── s02-magnetometer-gis-data
+│   ├── s09-reports
+│   └── s10-photos
+├── s18-grabs
+│   ├── s01-locations
+│   ├── s02-data
+│   ├── s03-photos
+│   └── s04-interpretation
+├── s19-vibrocorer
+│   ├── s01-raw-data
+│   ├── s02-analysis
+│   ├── s03-processed-data
+│   ├── s04-interpretation
+│   ├── s05-reports
+│   └── s06-photos
+├── s20-borehole
+│   ├── s01-raw-data
+│   ├── s02-analysis
+│   ├── s03-processed-data
+│   ├── s04-interpretation
+│   ├── s05-reports
+│   └── s06-photos
+├── s21-cpt
+│   ├── s01-raw-data
+│   ├── s02-analysis
+│   ├── s03-processed-data
+│   ├── s04-interpretation
+│   ├── s05-reports
+│   └── s06-photos
+├── s22-sedimentology
+│   ├── s01-raw-data
+│   ├── s02-analysis
+│   ├── s03-psa
+│   ├── s04-processed-data
+│   ├── s05-interpretation
+│   ├── s06-reports
+│   └── s07-photos
+├── s23-environmental
+│   ├── s01-benthic
+│   ├── s02-fish
+│   ├── s03-mammals
+│   │   ├── Campanha 2024 - reports
+│   │   │   └── IPMA surveys MMO Report
+│   │   ├── MANADA_MM0_PAM
+│   │   │   ├── Daily reports
+│   │   │   │   ├── August
+│   │   │   │   └── September
+│   │   │   ├── Downloads
+│   │   │   ├── For Matt
+│   │   │   ├── Mitigation Plan
+│   │   │   ├── PAM
+│   │   │   │   ├── Depth Sensor calibration
+│   │   │   │   ├── Maps
+│   │   │   │   ├── PAM Manual
+│   │   │   │   ├── PAM deployment
+│   │   │   │   │   └── Photos
+│   │   │   │   ├── PAM station
+│   │   │   │   └── Tap Test
+│   │   │   └── PHOTOS_Sightings-Detections
+│   │   │       ├── BIRDS & Other fauna
+│   │   │       │   ├── Ardea cinerea
+│   │   │       │   ├── Calonectris diomedea
+│   │   │       │   ├── Common Tern
+│   │   │       │   ├── Great skua
+│   │   │       │   ├── Physalia physalis
+│   │   │       │   ├── Pomarine Skua
+│   │   │       │   ├── Sun fish
+│   │   │       │   └── Unidentified shark
+│   │   │       ├── DETECTIONS
+│   │   │       │   ├── 20240901
+│   │   │       │   ├── 20240902
+│   │   │       │   ├── AD-501
+│   │   │       │   │   └── 20240830
+│   │   │       │   ├── AD-502
+│   │   │       │   ├── AD-503
+│   │   │       │   ├── AD-504
+│   │   │       │   ├── AD-505
+│   │   │       │   ├── AD-506
+│   │   │       │   ├── AD-507
+│   │   │       │   ├── AD-508
+│   │   │       │   ├── AD-509
+│   │   │       │   ├── AD-510
+│   │   │       │   │   ├── 20240912_AD510_HF
+│   │   │       │   │   ├── 20240912_AD510_LF
+│   │   │       │   │   └── Screengrabs
+│   │   │       │   ├── AD-511
+│   │   │       │   └── AD-512
+│   │   │       │       ├── 20240918_AD512_HF
+│   │   │       │       ├── 20240918_AD512_LF
+│   │   │       │       └── Screengrabs
+│   │   │       └── SIGHTINGS
+│   │   │           ├── VS-002
+│   │   │           ├── VS-005
+│   │   │           ├── VS-006
+│   │   │           ├── VS-007
+│   │   │           ├── VS-008
+│   │   │           ├── VS-009
+│   │   │           ├── VS-010
+│   │   │           ├── VS-011
+│   │   │           ├── VS-013
+│   │   │           ├── VS-014
+│   │   │           ├── VS-015
+│   │   │           ├── VS-017
+│   │   │           ├── VS-021
+│   │   │           ├── VS-024
+│   │   │           ├── VS-025
+│   │   │           ├── VS-026
+│   │   │           ├── VS-028
+│   │   │           ├── VS-029
+│   │   │           ├── VS-030
+│   │   │           │   └── croped
+│   │   │           ├── VS-031
+│   │   │           ├── VS-034
+│   │   │           │   └── Croped
+│   │   │           ├── VS-036
+│   │   │           ├── VS-038
+│   │   │           ├── VS-040
+│   │   │           ├── VS-041
+│   │   │           ├── VS-045
+│   │   │           ├── VS-046
+│   │   │           ├── VS-048
+│   │   │           │   └── Cropped
+│   │   │           └── VS-051
+│   │   └── MMOs_logs
+│   ├── s04-habitat
+│   ├── s05-interpretation
+│   ├── s06-reports
+│   ├── s07-photos
+│   │   └── PHOTOS_Sightings-Detections
+│   │       ├── BIRDS & Other fauna
+│   │       │   ├── Ardea cinerea
+│   │       │   ├── Calonectris diomedea
+│   │       │   ├── Common Tern
+│   │       │   ├── Great skua
+│   │       │   ├── Physalia physalis
+│   │       │   ├── Pomarine Skua
+│   │       │   ├── Sun fish
+│   │       │   └── Unidentified shark
+│   │       ├── DETECTIONS
+│   │       │   ├── 20240901
+│   │       │   ├── 20240902
+│   │       │   ├── AD-501
+│   │       │   │   └── 20240830
+│   │       │   ├── AD-502
+│   │       │   ├── AD-503
+│   │       │   ├── AD-504
+│   │       │   ├── AD-505
+│   │       │   ├── AD-506
+│   │       │   ├── AD-507
+│   │       │   ├── AD-508
+│   │       │   ├── AD-509
+│   │       │   ├── AD-510
+│   │       │   │   ├── 20240912_AD510_HF
+│   │       │   │   ├── 20240912_AD510_LF
+│   │       │   │   └── Screengrabs
+│   │       │   ├── AD-511
+│   │       │   └── AD-512
+│   │       │       ├── 20240918_AD512_HF
+│   │       │       ├── 20240918_AD512_LF
+│   │       │       └── Screengrabs
+│   │       └── SIGHTINGS
+│   │           ├── VS-002
+│   │           ├── VS-005
+│   │           ├── VS-006
+│   │           ├── VS-007
+│   │           ├── VS-008
+│   │           ├── VS-009
+│   │           ├── VS-010
+│   │           ├── VS-011
+│   │           ├── VS-013
+│   │           ├── VS-014
+│   │           ├── VS-015
+│   │           ├── VS-017
+│   │           ├── VS-021
+│   │           ├── VS-024
+│   │           ├── VS-025
+│   │           ├── VS-026
+│   │           ├── VS-028
+│   │           ├── VS-029
+│   │           ├── VS-030
+│   │           │   └── croped
+│   │           ├── VS-031
+│   │           ├── VS-034
+│   │           │   └── Croped
+│   │           ├── VS-036
+│   │           ├── VS-038
+│   │           ├── VS-040
+│   │           ├── VS-041
+│   │           ├── VS-045
+│   │           ├── VS-046
+│   │           ├── VS-048
+│   │           │   └── Cropped
+│   │           └── VS-051
+│   └── s08-other
+├── s24-metocean
+│   ├── s01-instrument-data
+│   ├── s02-processed-data
+│   │   ├── resultspersistency_Ericeira
+│   │   ├── resultspersistency_Figueira
+│   │   ├── resultspersistency_Leixoes
+│   │   └── resultspersistency_VianaN
+│   ├── s03-statistics
+│   ├── s04-reports
+│   │   └── Report
+│   └── s05-other
+├── s25-underwater-footage
+│   ├── s01-raw-data
+│   ├── s02-lineplan
+│   ├── s03-navigation
+│   ├── s04-logs
+│   ├── s05-interpretation
+│   ├── s06-reports
+│   ├── s07-photos
+│   └── s08-other
+├── s26-logs
+├── s27-navigation
+│   ├── IPMA_2024_Tides
+│   ├── IPMA_2024_Trackplots_P1-11
+│   └── LIne_Plan_2024
+├── s28-tracks
+│   ├── s01-qc
+│   │   ├── s01-vessel
+│   │   ├── s02-rotv
+│   │   └── s03-other
+│   └── s02-final
+│       ├── s01-vessel
+│       ├── s02-usbl
+│       │   ├── s01-raw-data
+│       │   ├── s02-processed
+│       │   └── s03-reporting
+│       ├── s03-sss
+│       ├── s04-magnetometer
+│       ├── s05-mbes
+│       ├── s06-sbp
+│       ├── s07-uhrs
+│       └── s08-other
+├── s29-ground-model
+│   ├── s01-raw-data
+│   ├── s02-processed-data
+│   ├── s03-interpretation
+│   ├── s04-reports
+│   ├── s05-vintage-models
+│   ├── s06-photos
+│   └── s07-other
+├── s30-reporting
+│   ├── IPMA_2024_Reports
+│   │   ├── PD008-Mobilization Report
+│   │   ├── PD009-Operations Report
+│   │   └── PD015-Results Report
+│   ├── IPMA_2024_Tides
+│   ├── IPMA_2024_Trackplots_P1-11
+│   ├── s01-dpr
+│   │   ├── 3.Minutes_wk_meetings
+│   │   └── Daily_OWR
+│   │       └── Minutes_IPMA_OWF24
+│   ├── s02-daily
+│   ├── s03-weekly
+│   ├── s04-mmo
+│   ├── s05-vessel-logs
+│   │   └── 2.OCR
+│   ├── s06-mob
+│   │   ├── demob
+│   │   └── mob
+│   │       ├── 04. Mobilisation Results
+│   │       ├── 20241218
+│   │       │   └── PD008-Mobilization Report
+│   │       ├── 20241219
+│   │       │   └── PD008-Mobilization Report
+│   │       └── preparation
+│   │           ├── 1.Agenda_Mob
+│   │           ├── 2.Docs_p_NNIO_Tanya_leg1
+│   │           │   └── Drafts
+│   │           └── 3.Vysus_Mob_Report
+│   ├── s07-operations
+│   │   ├── 20241218
+│   │   │   └── PD009-Operations Report
+│   │   └── 20241219
+│   │       └── PD009-Operations Report
+│   ├── s08-field-report-data
+│   ├── s09-weather-forecasts
+│   ├── s10-old-reports
+│   ├── s11-drafts
+│   ├── s12-relevant-references
+│   ├── s13-final
+│   └── s14-other
+│       ├── 04-Onshore_PM_Reports
+│       │   └── Weekly_OWF
+│       ├── 05-Consultant_Reports
+│       ├── 08-Processing&interpretation
+│       │   ├── 01-From_GS
+│       │   │   └── 10.GeoSurveys_Meetings
+│       │   └── From IH
+│       │       ├── 02042025 - 3 areas
+│       │       ├── 26032025_Leixoes
+│       │       └── transfer_234984_files_f017e334
+│       ├── 4.Log_templates
+│       ├── 6.Conversion_to_ZH
+│       ├── 7.End_campaign_certificates
+│       └── MMOs_logs
+├── s31-processing-general
+│   ├── s01-deliverables
+│   ├── s02-logs
+│   └── s03-other
+├── s32-interpretation-general
+│   ├── s01-deliverables
+│   ├── s02-ks-project
+│   ├── s03-ssdm
+│   ├── s04-figures
+│   ├── s05-logs
+│   └── s06-other
+├── s33-geophys-other
+│   ├── s01-raw-data
+│   ├── s02-qc
+│   ├── s03-processed-data
+│   ├── s04-logs
+│   ├── s05-figures
+│   ├── s06-interpretation
+│   ├── s07-reports
+│   │   ├── s01-final
+│   │   └── s02-old
+│   └── s08-photos
+├── s34-geotech-other
+│   ├── s01-raw-data
+│   ├── s02-processed-data
+│   ├── s03-analysis
+│   ├── s04-interpretation
+│   ├── s05-reports
+│   ├── s06-photos
+│   ├── s07-locations
+│   └── s1raw-data
+├── s35-hydrographic-other
+│   ├── s01-raw-data
+│   ├── s02-rosette
+│   ├── s03-svp
+│   ├── s04-ctd
+│   ├── s05-qc
+│   ├── s06-processed-data
+│   ├── s07-interpretation
+│   ├── s08-reports
+│   ├── s09-photos
+│   └── s10-other
+├── s36-data-drops
+├── s37-vintage-data
+├── s38-hse
+│   ├── s01-incident-reports
+│   ├── s02-reports
+│   ├── s03-photos
+│   └── s04-other
+└── survey-projects
+
+3235 directories

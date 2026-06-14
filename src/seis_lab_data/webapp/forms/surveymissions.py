@@ -16,6 +16,7 @@ from ... import (
     schemas,
 )
 from ...db.queries import get_survey_mission_by_english_name
+from ...schemas import identifiers
 from .common import (
     BoundingBoxForm,
     NameForm,
@@ -64,8 +65,8 @@ class _SurveyMissionForm(StarletteForm):
     async def check_if_english_name_is_unique_for_project(
         self,
         session: AsyncSession,
-        project_id: schemas.ProjectId,
-        disregard_id: schemas.ProjectId | None = None,
+        project_id: identifiers.ProjectId,
+        disregard_id: identifiers.ProjectId | None = None,
     ):
         """Check if the current english name is already used by another survey mission under the same project.
 
@@ -81,7 +82,7 @@ class _SurveyMissionForm(StarletteForm):
             session, project_id, self.name.en.data
         ):
             if disregard_id:
-                if schemas.SurveyMissionId(candidate.id) != disregard_id:
+                if identifiers.SurveyMissionId(candidate.id) != disregard_id:
                     self.name.en.errors.append(error_message)
             else:
                 self.name.en.errors.append(error_message)
@@ -106,8 +107,8 @@ class _SurveyMissionForm(StarletteForm):
     async def get_validated_form_instance(
         cls,
         request: Request,
-        project_id: schemas.ProjectId,
-        disregard_id: schemas.SurveyMissionId | None = None,
+        project_id: identifiers.ProjectId,
+        disregard_id: identifiers.SurveyMissionId | None = None,
     ):
         """Performs full validation of a survey-mission-related form.
 
@@ -126,7 +127,7 @@ class _SurveyMissionForm(StarletteForm):
         # then validate the form data with our custom pydantic model
         await form_instance.validate_on_submit()
         form_instance.validate_with_schema()
-        session_maker = request.state.session_maker
+        session_maker = request.state.settings.get_db_session_maker()
         async with session_maker() as session:
             await form_instance.check_if_english_name_is_unique_for_project(
                 session, project_id=project_id, disregard_id=disregard_id
@@ -145,7 +146,7 @@ class SurveyMissionCreateForm(_SurveyMissionForm):
             schemas.SurveyMissionCreate(
                 # these are not part of the form, but we must provide something
                 id=None,
-                owner=None,
+                owner_id=None,
                 project_id=None,
                 name={
                     **get_form_field_by_name(self, "name").data,
@@ -183,7 +184,7 @@ class SurveyMissionUpdateForm(_SurveyMissionForm):
         try:
             schemas.SurveyMissionUpdate(
                 # these are not part of the form, but we must provide something
-                owner=None,
+                owner_id=None,
                 project_id=None,
                 name={
                     **get_form_field_by_name(self, "name").data,

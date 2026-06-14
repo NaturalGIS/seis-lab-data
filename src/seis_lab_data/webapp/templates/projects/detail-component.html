@@ -3,7 +3,7 @@
 {% import "macros-maps.html" as macros_maps %}
 <div
     class="row"
-    data-effect="@peek(() => @get('{{ url_for("projects:get_detail_updates", project_id=project.id) }}'))"
+    data-on-intersect__once="@get('{{ url_for("projects:detail_stream", project_id=project.id) }}')"
     data-signals:is-valid="{{ 'true' if project.validation_result.is_valid else 'false' }}"
     data-signals:status="'{{ project.status.value }}'"
 >
@@ -60,15 +60,61 @@
                                 </div>
                             </div>
                         </div>
+                        {% if project.discovery_configuration %}
+                        <details class="mt-3">
+                            <summary style="cursor: pointer;">{{ _("project discovery configuration") | capitalize }}</summary>
+                            {{ project.discovery_configuration.model_dump(exclude_none=True) | highlight_json }}
+                        </details>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
-
+        <div class="row mt-4">
+            <div class="col">
+                <h2>{{ _("survey missions") | capitalize }}</h2>
+                {% if items | length > 0 %}
+                    {{ macros.render_search_component(
+                       url_for("survey_missions:get_list_component"),
+                       _("search project survey-missions"),
+                       initial_value=search_initial_value
+                    ) }}
+                {% endif %}
+                <div id="project-survey-missions">
+                    {% with items = survey_missions %}
+                        {% include "survey-missions/list-component.html" %}
+                    {% endwith %}
+                </div>
+            </div>
+        </div>
     </div>
     <div class="col-3">
         <h5>{{ _("actions") | capitalize }}</h5>
         <div class="list-group mb-3" data-signals:deleting="false">
+            {% if permissions.can_update %}
+                <button
+                        class="list-group-item list-group-item-action list-group-item-primary"
+                        data-attr:disabled="$status !== 'draft'"
+                        data-on:click="@post('{{ url_for("projects:trigger_discovery", project_id=project.id) }}', {
+                            headers: {'X-CSRFToken': '{{ csrf_token(request) }}'}
+                        })"
+                        aria-label="discover-project"
+                >
+                    <span class="material-icons-outlined me-1">{{ icons.discover_project }}</span>
+                    {{ _("discover project contents") | capitalize }}
+                </button>
+                <button
+                        class="list-group-item list-group-item-action list-group-item-secondary"
+                        data-attr:disabled="$status !== 'draft'"
+                        data-on:click="@post('{{ url_for("projects:trigger_validation", project_id=project.id) }}', {
+                            headers: {'X-CSRFToken': '{{ csrf_token(request) }}'}
+                        })"
+                        aria-label="validate-project"
+                >
+                    <span class="material-icons-outlined me-1">{{ icons.validation_valid }}</span>
+                    {{ _("validate project") | capitalize }}
+                </button>
+            {% endif %}
             {% if permissions.can_update %}
                 {{ macros_buttons_list_items.render_update_item_button(
                 url_for("projects:get_update_form", project_id=project.id),
@@ -143,25 +189,5 @@
                 <p>{{ _("Valid projects can be published. When published, a project becomes visible for all users") }}</p>
             </li>
         </ul>
-    </div>
-</div>
-<div class="row m-5">
-    <div class="col">
-        <h2>{{ _("survey missions") | capitalize }}</h2>
-        {% if items | length > 0 %}
-            {{ macros.render_search_component(
-               url_for("survey_missions:get_list_component"),
-               _("search project survey-missions"),
-               initial_value=search_initial_value
-            ) }}
-        {% endif %}
-
-        <div class="row" aria-label="items">
-            <div class="col">
-                {% with items = survey_missions %}
-                    {% include "survey-missions/list-component.html" %}
-                {% endwith %}
-            </div>
-        </div>
     </div>
 </div>

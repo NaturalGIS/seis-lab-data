@@ -64,13 +64,13 @@
                             contentType: 'form',
                             headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
                         })"
-                    data-indicator="posting"
-                    data-attr:disabled="$posting"
-                    data-text="$posting ? '{{ _('Creating survey mission...') }}' : '{{ _('Create survey mission') }}'"
+                    data-indicator="submitting"
+                    data-attr:disabled="$submitting"
+                    data-text="$submitting ? '{{ _('Creating survey mission...') }}' : '{{ _('Create survey mission') }}'"
             >
             </button>
             <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
-                 data-attr:hidden="!$posting">
+                 data-attr:hidden="!$submitting">
                 <span class="visually-hidden">{{ _("Loading...") }}</span>
             </div>
         </div>

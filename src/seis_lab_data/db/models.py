@@ -4,6 +4,7 @@ import uuid
 import warnings
 from functools import partial
 from typing import (
+    Any,
     Annotated,
     Optional,
     TypedDict,
@@ -134,7 +135,7 @@ class SurveyRelatedRecord(SQLModel, table=True):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    owner: str = Field(max_length=100, index=True)
+    owner_id: str = Field(max_length=100, index=True, foreign_key="appuser.id")
     name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
         Field(sa_column=Column(JSONB))
     )
@@ -254,7 +255,7 @@ class SurveyMission(SQLModel, table=True):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    owner: str = Field(max_length=100, index=True)
+    owner_id: str = Field(max_length=100, index=True, foreign_key="appuser.id")
     name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
         Field(sa_column=Column(JSONB))
     )
@@ -317,7 +318,7 @@ class Project(SQLModel, table=True):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    owner: str = Field(max_length=100, index=True)
+    owner_id: str = Field(max_length=100, index=True, foreign_key="appuser.id")
     name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
         Field(sa_column=Column(JSONB))
     )
@@ -343,6 +344,7 @@ class Project(SQLModel, table=True):
             ),
         )
     )
+    discovery_configuration: dict[str, Any] | None = Field(sa_column=Column(JSONB))
     created_at: dt.datetime | None = Field(default_factory=now_)
     updated_at: dt.datetime | None = Field(
         sa_column=Column(DateTime(), onupdate=func.now())
