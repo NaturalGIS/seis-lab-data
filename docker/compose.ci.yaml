@@ -108,7 +108,7 @@ services:
       message-broker:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python -c 'import requests; import os; requests.get(\"http://auth-webapp:9000/api/v3/core/users/\", params={\"username\": \"akadmin\"}, headers={\"Authorization\": f\"Bearer {os.getenv(\"AUTHENTIK_BOOTSTRAP_TOKEN\")}\"}).json()[\"results\"][0][\"username\"] == \"akadmin\"'"]
+      test: ["CMD-SHELL", "python -c 'import requests; import os; r = requests.get(\"http://auth-webapp:9000/api/v3/core/users/\", params={\"username\": \"akadmin\"}, headers={\"Authorization\": f\"Bearer {os.getenv(\"AUTHENTIK_BOOTSTRAP_TOKEN\")}\"}); r.raise_for_status(); assert r.json()[\"results\"][0][\"username\"] == \"akadmin\"'"]
       start_period: 60s
       interval: 10s
       retries: 10
