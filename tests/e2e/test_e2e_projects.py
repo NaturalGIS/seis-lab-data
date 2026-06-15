@@ -27,7 +27,7 @@ def test_project_lifecycle(authenticated_page: Page):
 
     # navigate to the projects page and click the create new project button
     authenticated_page.get_by_role("link", name="list-projects").click()
-    authenticated_page.get_by_role("button", name="new-project").click()
+    authenticated_page.get_by_role("link", name="new-project").click()
 
     # fill out the form and submit it — use a unique suffix to avoid collisions across runs
     project_name = f"e2e test project {uuid.uuid4().hex[:8]}"
@@ -79,7 +79,7 @@ def test_project_lifecycle(authenticated_page: Page):
         "button", name="show-delete-confirmation-modal"
     ).click()
     authenticated_page.get_by_role("button", name="delete-item").click()
-    expect(authenticated_page.get_by_role("button", name="new-project")).to_be_visible()
+    expect(authenticated_page.get_by_role("link", name="new-project")).to_be_visible()
 
 
 @pytest.mark.e2e
@@ -89,7 +89,7 @@ def test_project_creation_rejects_duplicate_english_name(authenticated_page: Pag
 
     # create an initial project
     project_name = f"e2e duplicate test {uuid.uuid4().hex[:8]}"
-    authenticated_page.get_by_role("button", name="new-project").click()
+    authenticated_page.get_by_role("link", name="new-project").click()
     _fill_project_form(authenticated_page, project_name)
     authenticated_page.get_by_role("button", name="submit-create-form").click()
     expect(authenticated_page).to_have_url(
@@ -101,7 +101,7 @@ def test_project_creation_rejects_duplicate_english_name(authenticated_page: Pag
 
     # navigate to the create form and submit with the same english name
     authenticated_page.get_by_role("link", name="list-projects").click()
-    authenticated_page.get_by_role("button", name="new-project").click()
+    authenticated_page.get_by_role("link", name="new-project").click()
     _fill_project_form(authenticated_page, project_name)
     authenticated_page.get_by_role("button", name="submit-create-form").click()
 
@@ -116,4 +116,4 @@ def test_project_creation_rejects_duplicate_english_name(authenticated_page: Pag
         "button", name="show-delete-confirmation-modal"
     ).click()
     authenticated_page.get_by_role("button", name="delete-item").click()
-    expect(authenticated_page.get_by_role("button", name="new-project")).to_be_visible()
+    expect(authenticated_page.get_by_role("link", name="new-project")).to_be_visible()

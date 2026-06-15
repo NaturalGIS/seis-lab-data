@@ -38,7 +38,7 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
 
     authenticated_page.goto("/")
     authenticated_page.get_by_role("link", name="list-projects").click()
-    authenticated_page.get_by_role("button", name="new-project").click()
+    authenticated_page.get_by_role("link", name="new-project").click()
 
     project_name = f"e2e test project {uuid.uuid4().hex[:8]}"
     _fill_project_form_minimal(authenticated_page, project_name)
@@ -48,7 +48,7 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
     )
 
     # create the survey mission
-    authenticated_page.get_by_role("button", name="new-item").click()
+    authenticated_page.get_by_role("link", name="new-item").click()
     mission_name = f"e2e test survey mission {uuid.uuid4().hex[:8]}"
     _fill_survey_mission_form_minimal(authenticated_page, mission_name)
     authenticated_page.get_by_role("button", name="submit-create-form").click()
@@ -57,7 +57,7 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
     )
 
     # create the survey-related record
-    authenticated_page.get_by_role("button", name="new-item").click()
+    authenticated_page.get_by_role("link", name="new-item").click()
     record_name = f"e2e test survey-related record {uuid.uuid4().hex[:8]}"
     _fill_survey_related_record_form(authenticated_page, record_name)
 
@@ -177,19 +177,19 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
         "button", name="show-delete-confirmation-modal"
     ).click()
     authenticated_page.get_by_role("button", name="delete-item").click()
-    expect(authenticated_page.get_by_role("button", name="new-item")).to_be_visible()
+    expect(authenticated_page.get_by_role("link", name="new-item")).to_be_visible()
 
     authenticated_page.get_by_role(
         "button", name="show-delete-confirmation-modal"
     ).click()
     authenticated_page.get_by_role("button", name="delete-item").click()
-    expect(authenticated_page.get_by_role("button", name="new-item")).to_be_visible()
+    expect(authenticated_page.get_by_role("link", name="new-item")).to_be_visible()
 
     authenticated_page.get_by_role(
         "button", name="show-delete-confirmation-modal"
     ).click()
     authenticated_page.get_by_role("button", name="delete-item").click()
-    expect(authenticated_page.get_by_role("button", name="new-project")).to_be_visible()
+    expect(authenticated_page.get_by_role("link", name="new-project")).to_be_visible()
 
 
 @pytest.mark.e2e
@@ -198,7 +198,7 @@ def test_survey_related_record_creation_rejects_duplicate_english_name(
 ):
     authenticated_page.goto("/")
     authenticated_page.get_by_role("link", name="list-projects").click()
-    authenticated_page.get_by_role("button", name="new-project").click()
+    authenticated_page.get_by_role("link", name="new-project").click()
 
     project_name = f"e2e test project {uuid.uuid4().hex[:8]}"
     _fill_project_form_minimal(authenticated_page, project_name)
@@ -208,7 +208,7 @@ def test_survey_related_record_creation_rejects_duplicate_english_name(
     )
 
     # create the survey mission
-    authenticated_page.get_by_role("button", name="new-item").click()
+    authenticated_page.get_by_role("link", name="new-item").click()
     mission_name = f"e2e test survey mission {uuid.uuid4().hex[:8]}"
     _fill_survey_mission_form_minimal(authenticated_page, mission_name)
     authenticated_page.get_by_role("button", name="submit-create-form").click()
@@ -218,7 +218,7 @@ def test_survey_related_record_creation_rejects_duplicate_english_name(
     mission_detail_url = authenticated_page.url
 
     # create the initial survey-related record
-    authenticated_page.get_by_role("button", name="new-item").click()
+    authenticated_page.get_by_role("link", name="new-item").click()
     record_name = f"e2e duplicate record {uuid.uuid4().hex[:8]}"
     _fill_survey_related_record_form(authenticated_page, record_name)
     authenticated_page.get_by_role("button", name="submit-create-form").click()
@@ -229,7 +229,7 @@ def test_survey_related_record_creation_rejects_duplicate_english_name(
 
     # try to create another record with the same english name under the same mission
     authenticated_page.goto(mission_detail_url)
-    authenticated_page.get_by_role("button", name="new-item").click()
+    authenticated_page.get_by_role("link", name="new-item").click()
     _fill_survey_related_record_form(authenticated_page, record_name)
     authenticated_page.get_by_role("button", name="submit-create-form").click()
     expect(
@@ -242,16 +242,16 @@ def test_survey_related_record_creation_rejects_duplicate_english_name(
         "button", name="show-delete-confirmation-modal"
     ).click()
     authenticated_page.get_by_role("button", name="delete-item").click()
-    expect(authenticated_page.get_by_role("button", name="new-item")).to_be_visible()
+    expect(authenticated_page.get_by_role("link", name="new-item")).to_be_visible()
 
     authenticated_page.get_by_role(
         "button", name="show-delete-confirmation-modal"
     ).click()
     authenticated_page.get_by_role("button", name="delete-item").click()
-    expect(authenticated_page.get_by_role("button", name="new-item")).to_be_visible()
+    expect(authenticated_page.get_by_role("link", name="new-item")).to_be_visible()
 
     authenticated_page.get_by_role(
         "button", name="show-delete-confirmation-modal"
     ).click()
     authenticated_page.get_by_role("button", name="delete-item").click()
-    expect(authenticated_page.get_by_role("button", name="new-project")).to_be_visible()
+    expect(authenticated_page.get_by_role("link", name="new-project")).to_be_visible()
