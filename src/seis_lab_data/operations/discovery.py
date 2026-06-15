@@ -506,11 +506,12 @@ async def run_project_discovery(
         return
 
     db_project = await project_ops.change_project_status(
-        constants.ProjectStatus.UNDER_DISCOVERY,
-        project_id,
-        user,
-        session,
-        event_dispatcher,
+        request_id=request_id,
+        target_status=constants.ProjectStatus.UNDER_DISCOVERY,
+        project_id=project_id,
+        initiator=user,
+        session=session,
+        event_dispatcher=event_dispatcher,
     )
 
     async for db_survey_mission in discover_project_survey_missions(
@@ -554,9 +555,10 @@ async def run_project_discovery(
         )
 
     await project_ops.change_project_status(
-        constants.ProjectStatus.DRAFT,
-        project_id,
-        user,
-        session,
-        event_dispatcher,
+        request_id=request_id,
+        target_status=constants.ProjectStatus.DRAFT,
+        project_id=project_id,
+        initiator=user,
+        session=session,
+        event_dispatcher=event_dispatcher,
     )

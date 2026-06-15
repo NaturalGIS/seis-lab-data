@@ -15,5 +15,9 @@
 {% endblock page_title %}
 
 {% block details %}
-    {% include "survey-related-records/create-form.html" %}
+    <div
+            data-on-intersect__once="@get('{{ url_for('survey_related_records:new_stream', survey_mission_id=survey_mission_id, request_id=form.request_id.data) }}')"
+    >
+        {% include "survey-related-records/create-form.html" %}
+    </div>
 {% endblock details %}

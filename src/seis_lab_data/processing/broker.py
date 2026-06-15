@@ -26,6 +26,7 @@ from . import (
     tasks,  # noqa
     discovery,  # noqa
     projects,  # noqa
+    surveymissions,  # noqa
 )
 
 logger = logging.getLogger(__name__)

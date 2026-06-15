@@ -23,11 +23,12 @@ from starlette_wtf import csrf_protect
 
 from ... import (
     config,
+    constants,
     errors,
     geojson,
-    operations,
     permissions,
     schemas,
+    subscribers,
 )
 from ...constants import (
     PROGRESS_TOPIC_NAME_TEMPLATE,
@@ -38,12 +39,21 @@ from ...constants import (
     SURVEY_MISSION_UPDATED_TOPIC,
     SURVEY_MISSION_VALIDITY_CHANGED_TOPIC,
 )
-from ...processing import tasks
+from ...operations import (
+    projects as project_ops,
+    surveymissions as survey_mission_ops,
+    surveyrelatedrecords as survey_related_record_ops,
+)
+from ...processing import (
+    surveymissions as survey_mission_tasks,
+    tasks,
+)
 from ...schemas import identifiers
 from .. import (
     filters,
     forms,
 )
+from ..streamhandlers import surveymissions as survey_mission_handlers
 from .auth import (
     requires_auth,
 )
@@ -75,7 +85,7 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
     )
     async with settings.get_db_session_maker()() as session:
         try:
-            survey_mission = await operations.get_survey_mission(
+            survey_mission = await survey_mission_ops.get_survey_mission(
                 survey_mission_id,
                 user,
                 session,
@@ -90,7 +100,7 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
         (
             survey_related_records,
             total,
-        ) = await operations.list_survey_related_records(
+        ) = await survey_related_record_ops.list_survey_related_records(
             session,
             user,
             survey_mission_id=survey_mission_id,
@@ -213,7 +223,7 @@ async def get_survey_mission_detail_updates(request: Request):
                 "patching frontend..."
             )
             async with session_maker() as session:
-                updated_survey_mission = await operations.get_survey_mission(
+                updated_survey_mission = await survey_mission_ops.get_survey_mission(
                     survey_mission_id, user, session
                 )
                 yield ServerSentEventGenerator.patch_signals(
@@ -232,7 +242,7 @@ async def get_survey_mission_detail_updates(request: Request):
                 "patching frontend..."
             )
             async with session_maker() as session:
-                updated_survey_mission = await operations.get_survey_mission(
+                updated_survey_mission = await survey_mission_ops.get_survey_mission(
                     survey_mission_id, user, session
                 )
                 details_message = ""
@@ -286,7 +296,7 @@ async def get_survey_mission_detail_updates(request: Request):
             (
                 survey_related_records,
                 total,
-            ) = await operations.list_survey_related_records(
+            ) = await survey_related_record_ops.list_survey_related_records(
                 session,
                 user,
                 survey_mission_id=survey_mission_id,
@@ -351,10 +361,11 @@ async def get_survey_mission_creation_form(request: Request):
     user = request.user if request.user.is_authenticated else None
     project_id = identifiers.ProjectId(uuid.UUID(request.path_params["project_id"]))
     form_instance = await forms.SurveyMissionCreateForm.from_formdata(request)
+    form_instance.request_id.data = str(identifiers.RequestId(uuid.uuid4()))
 
     async with request.state.settings.get_db_session_maker()() as session:
         try:
-            project = await operations.get_project(project_id, user, session)
+            project = await project_ops.get_project(project_id, user, session)
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         if project is None:
@@ -403,7 +414,7 @@ async def get_list_component(request: Request):
     settings: config.SeisLabDataSettings = request.state.settings
     user = request.user if request.user.is_authenticated else None
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await operations.list_survey_missions(
+        items, num_total = await survey_mission_ops.list_survey_missions(
             session,
             initiator=user,
             page=current_page,
@@ -412,7 +423,7 @@ async def get_list_component(request: Request):
             **internal_filter_kwargs,
         )
         num_unfiltered_total = (
-            await operations.list_survey_missions(
+            await survey_mission_ops.list_survey_missions(
                 session, initiator=user, include_total=True
             )
         )[1]
@@ -466,7 +477,7 @@ async def get_listing_updates(request: Request):
             "refreshing missions list..."
         )
         async with settings.get_db_session_maker()() as session:
-            items, total = await operations.list_survey_missions(
+            items, total = await survey_mission_ops.list_survey_missions(
                 session,
                 initiator=user,
                 include_total=True,
@@ -518,7 +529,7 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
         settings: config.SeisLabDataSettings = request.state.settings
         user = request.user if request.user.is_authenticated else None
         async with settings.get_db_session_maker()() as session:
-            items, num_total = await operations.list_survey_missions(
+            items, num_total = await survey_mission_ops.list_survey_missions(
                 session,
                 initiator=user,
                 page=current_page,
@@ -527,7 +538,7 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
                 **list_filters.as_kwargs(),
             )
             num_unfiltered_total = (
-                await operations.list_survey_missions(
+                await survey_mission_ops.list_survey_missions(
                     session, initiator=user, include_total=True
                 )
             )[1]
@@ -609,7 +620,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         )
         async with request.state.settings.get_db_session_maker()() as session:
             if (
-                survey_mission := await operations.get_survey_mission(
+                survey_mission := await survey_mission_ops.get_survey_mission(
                     survey_mission_id, user, session
                 )
             ) is None:
@@ -741,7 +752,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 mode=ElementPatchMode.INNER,
             )
 
-            tasks.validate_survey_mission.send(
+            survey_mission_tasks.validate_survey_mission.send(
                 raw_request_id=str(request_id),
                 raw_survey_mission_id=str(survey_mission_id),
                 raw_initiator=json.dumps(dataclasses.asdict(user)),
@@ -767,7 +778,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 mode=ElementPatchMode.APPEND,
             )
 
-            enqueued_message: Message = tasks.update_survey_mission.send(
+            enqueued_message: Message = survey_mission_tasks.update_survey_mission.send(
                 raw_request_id=str(request_id),
                 raw_survey_mission_id=str(survey_mission_id),
                 raw_to_update=to_update.model_dump_json(exclude_unset=True),
@@ -997,7 +1008,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         user = request.user if request.user.is_authenticated else None
         async with request.state.settings.get_db_session_maker()() as session:
             try:
-                survey_mission = await operations.get_survey_mission(
+                survey_mission = await survey_mission_ops.get_survey_mission(
                     survey_mission_id,
                     user,
                     session,
@@ -1048,7 +1059,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 selector=schemas.selector_info.feedback_selector,
                 mode=ElementPatchMode.APPEND,
             )
-            enqueued_message: Message = tasks.delete_survey_mission.send(
+            enqueued_message: Message = survey_mission_tasks.delete_survey_mission.send(
                 raw_request_id=str(request_id),
                 raw_survey_mission_id=str(survey_mission_id),
                 raw_initiator=json.dumps(dataclasses.asdict(user)),
@@ -1077,7 +1088,7 @@ async def add_create_survey_mission_form_link(request: Request):
     project_id = identifiers.ProjectId(uuid.UUID(request.path_params["project_id"]))
     async with request.state.settings.get_db_session_maker()() as session:
         try:
-            project = await operations.get_project(
+            project = await project_ops.get_project(
                 project_id,
                 user,
                 session,
@@ -1115,7 +1126,7 @@ async def remove_create_survey_mission_form_link(request: Request):
     project_id = identifiers.ProjectId(uuid.UUID(request.path_params["project_id"]))
     async with request.state.settings.get_db_session_maker()() as session:
         try:
-            project = await operations.get_project(
+            project = await project_ops.get_project(
                 project_id,
                 user,
                 session,
@@ -1208,7 +1219,7 @@ async def get_survey_mission_update_form(request: Request):
     )
     async with request.state.settings.get_db_session_maker()() as session:
         try:
-            survey_mission = await operations.get_survey_mission(
+            survey_mission = await survey_mission_ops.get_survey_mission(
                 survey_mission_id,
                 user,
                 session,
@@ -1286,6 +1297,36 @@ async def get_survey_mission_update_form(request: Request):
     )
 
 
+@requires_auth
+async def get_survey_mission_new_updates(request: Request):
+    """Stream relevant updates for the new survey mission page."""
+    try:
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid request id") from err
+
+    subscription = subscribers.subscribe_to_topic(
+        request.state.redis_client,
+        constants.NEW_TOPIC_SURVEY_MISSIONS,
+        subscribers.HandlerContext(
+            request_id=request_id,
+            user=request.user,
+            url_resolver=request.url_for,
+            jinja_environment=request.state.templates.env,
+            db_session_factory=request.state.settings.get_db_session_maker(),
+        ),
+        {
+            "survey_mission_created": survey_mission_handlers.handle_new_page_survey_mission_creation_successful,
+        },
+    )
+
+    async def event_streamer():
+        async for sse_event in subscription:
+            yield sse_event
+
+    return DatastarResponse(event_streamer())
+
+
 routes = [
     Route(
         "/",
@@ -1310,6 +1351,12 @@ routes = [
         get_survey_mission_creation_form,
         methods=["GET"],
         name="get_creation_form",
+    ),
+    Route(
+        "/{project_id}/new/{request_id}/stream",
+        get_survey_mission_new_updates,
+        methods=["GET"],
+        name="new_stream",
     ),
     Route(
         "/{project_id}/new/add-form-link",

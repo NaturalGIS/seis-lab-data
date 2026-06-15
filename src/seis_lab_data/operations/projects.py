@@ -55,22 +55,40 @@ async def create_project(
 
 
 async def change_project_status(
+    request_id: identifiers.RequestId,
     target_status: ProjectStatus,
     project_id: identifiers.ProjectId,
     initiator: schemas.User | None,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
-) -> models.Project:
-    if (project := await queries.get_project(session, project_id)) is None:
-        raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
-    if not permissions.can_change_project_status(initiator, project):
-        raise errors.SeisLabDataError("User is not allowed to change project status.")
-    if (old_status := project.status) == target_status:
-        logger.info(f"Project status is already set to {target_status} - nothing to do")
-        return project
-    updated_project = await commands.set_project_status(
-        session, identifiers.ProjectId(project.id), target_status
-    )
+) -> models.Project | None:
+    try:
+        if (project := await queries.get_project(session, project_id)) is None:
+            raise errors.SeisLabDataError(
+                f"Project with id {project_id} does not exist."
+            )
+        if not permissions.can_change_project_status(initiator, project):
+            raise errors.SeisLabDataError(
+                "User is not allowed to change project status."
+            )
+        if (old_status := project.status) == target_status:
+            logger.info(
+                f"Project status is already set to {target_status} - nothing to do"
+            )
+            return project
+        updated_project = await commands.set_project_status(
+            session, identifiers.ProjectId(project.id), target_status
+        )
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.ProjectStatusNotChangedEvent(
+                request_id=request_id,
+                project_id=project_id,
+                initiator=initiator.id,
+                details=str(err),
+            )
+        )
+        return None
     await event_dispatcher(
         event_schemas.ProjectStatusChangedEvent(
             project_id=project_id,
@@ -107,11 +125,12 @@ async def validate_project(
     validation_errors = []
     try:
         await change_project_status(
-            ProjectStatus.UNDER_VALIDATION,
-            project_id,
-            initiator,
-            session,
-            event_dispatcher,
+            request_id=request_id,
+            target_status=ProjectStatus.UNDER_VALIDATION,
+            project_id=project_id,
+            initiator=initiator,
+            session=session,
+            event_dispatcher=event_dispatcher,
         )
         await asyncio.sleep(3)
         schemas.ValidProject.model_validate(project)
@@ -146,7 +165,12 @@ async def validate_project(
             )
         )
         await change_project_status(
-            ProjectStatus.DRAFT, project_id, initiator, session, event_dispatcher
+            request_id=request_id,
+            target_status=ProjectStatus.DRAFT,
+            project_id=project_id,
+            initiator=initiator,
+            session=session,
+            event_dispatcher=event_dispatcher,
         )
     return project
 

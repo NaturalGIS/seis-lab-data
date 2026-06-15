@@ -26,11 +26,16 @@ from starlette_wtf import csrf_protect
 
 from ... import (
     config,
+    constants,
     errors,
     geojson,
-    operations,
     permissions,
     schemas,
+    subscribers,
+)
+from ...operations import (
+    surveymissions as survey_mission_ops,
+    surveyrelatedrecords as survey_related_record_ops,
 )
 from ...constants import (
     PROGRESS_TOPIC_NAME_TEMPLATE,
@@ -51,6 +56,7 @@ from .. import (
     filters,
     forms,
 )
+from ..streamhandlers import surveyrelatedrecords as survey_related_record_handlers
 from .auth import (
     requires_auth,
 )
@@ -77,10 +83,12 @@ async def _get_survey_related_record_details(
     )
     async with request.state.settings.get_db_session_maker()() as session:
         try:
-            survey_related_record_info = await operations.get_survey_related_record(
-                survey_related_record_id,
-                user,
-                session,
+            survey_related_record_info = (
+                await survey_related_record_ops.get_survey_related_record(
+                    survey_related_record_id,
+                    user,
+                    session,
+                )
             )
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -202,10 +210,12 @@ async def get_detail_updates(request: Request):
                 "patching frontend..."
             )
             async with session_maker() as session:
-                updated_details = await operations.get_survey_related_record(
-                    survey_related_record_id,
-                    user,
-                    session,
+                updated_details = (
+                    await survey_related_record_ops.get_survey_related_record(
+                        survey_related_record_id,
+                        user,
+                        session,
+                    )
                 )
                 updated = updated_details[0]
                 yield ServerSentEventGenerator.patch_signals(
@@ -224,10 +234,12 @@ async def get_detail_updates(request: Request):
                 "patching frontend..."
             )
             async with session_maker() as session:
-                updated_details = await operations.get_survey_related_record(
-                    survey_related_record_id,
-                    user,
-                    session,
+                updated_details = (
+                    await survey_related_record_ops.get_survey_related_record(
+                        survey_related_record_id,
+                        user,
+                        session,
+                    )
                 )
                 updated = updated_details[0]
                 details_message = ""
@@ -337,7 +349,7 @@ async def get_record_parent_survey_mission_from_request(
     )
     async with request.state.settings.get_db_session_maker()() as session:
         if not (
-            survey_mission := await operations.get_survey_mission(
+            survey_mission := await survey_mission_ops.get_survey_mission(
                 parent_survey_mission_id, user, session
             )
         ):
@@ -354,6 +366,7 @@ async def get_creation_form(request: Request):
     parent_survey_mission = await get_record_parent_survey_mission_from_request(request)
     survey_mission_id = identifiers.SurveyMissionId(parent_survey_mission.id)
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
+    form_instance.request_id.data = str(identifiers.RequestId(uuid.uuid4()))
     template_processor: Jinja2Templates = request.state.templates
     return template_processor.TemplateResponse(
         request,
@@ -693,7 +706,10 @@ async def get_update_form(request: Request):
     template_processor: Jinja2Templates = request.state.templates
     user = request.user if request.user.is_authenticated else None
     async with request.state.settings.get_db_session_maker()() as session:
-        initial_related_records_list, _ = await operations.list_survey_related_records(
+        (
+            initial_related_records_list,
+            _,
+        ) = await survey_related_record_ops.list_survey_related_records(
             session,
             initiator=user,
         )
@@ -796,7 +812,10 @@ async def add_update_form_related_to_record(request: Request):
 
     user = request.user if request.user.is_authenticated else None
     async with request.state.settings.get_db_session_maker()() as session:
-        initial_related_records_list, _ = await operations.list_survey_related_records(
+        (
+            initial_related_records_list,
+            _,
+        ) = await survey_related_record_ops.list_survey_related_records(
             session,
             initiator=user,
         )
@@ -992,7 +1011,7 @@ async def list_by_name(request: Request):
     logger.debug(f"{internal_filter_kwargs=}")
     user = request.user if request.user.is_authenticated else None
     async with request.state.settings.get_db_session_maker()() as session:
-        items, _ = await operations.list_survey_related_records(
+        items, _ = await survey_related_record_ops.list_survey_related_records(
             session,
             initiator=user,
             **internal_filter_kwargs,
@@ -1033,7 +1052,7 @@ async def get_list_component(request: Request):
     user = request.user if request.user.is_authenticated else None
     settings: config.SeisLabDataSettings = request.state.settings
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await operations.list_survey_related_records(
+        items, num_total = await survey_related_record_ops.list_survey_related_records(
             session,
             initiator=user,
             page=current_page,
@@ -1042,7 +1061,7 @@ async def get_list_component(request: Request):
             **internal_filter_kwargs,
         )
         num_unfiltered_total = (
-            await operations.list_survey_related_records(
+            await survey_related_record_ops.list_survey_related_records(
                 session, initiator=user, include_total=True
             )
         )[1]
@@ -1097,7 +1116,7 @@ async def get_listing_updates(request: Request):
             "refreshing records list..."
         )
         async with settings.get_db_session_maker()() as session:
-            items, total = await operations.list_survey_related_records(
+            items, total = await survey_related_record_ops.list_survey_related_records(
                 session,
                 initiator=user,
                 include_total=True,
@@ -1147,7 +1166,10 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
         settings: config.SeisLabDataSettings = request.state.settings
         user = request.user if request.user.is_authenticated else None
         async with settings.get_db_session_maker()() as session:
-            items, num_total = await operations.list_survey_related_records(
+            (
+                items,
+                num_total,
+            ) = await survey_related_record_ops.list_survey_related_records(
                 session,
                 initiator=user,
                 page=current_page,
@@ -1156,7 +1178,7 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
                 **list_filters.as_kwargs(),
             )
             num_unfiltered_total = (
-                await operations.list_survey_related_records(
+                await survey_related_record_ops.list_survey_related_records(
                     session, initiator=user, include_total=True
                 )
             )[1]
@@ -1236,7 +1258,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         async with request.state.settings.get_db_session_maker()() as session:
             if (
                 survey_related_record_details
-                := await operations.get_survey_related_record(
+                := await survey_related_record_ops.get_survey_related_record(
                     survey_related_record_id,
                     user,
                     session,
@@ -1323,7 +1345,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         async with request.state.settings.get_db_session_maker()() as session:
             if (
                 survey_related_record_details
-                := await operations.get_survey_related_record(
+                := await survey_related_record_ops.get_survey_related_record(
                     survey_related_record_id,
                     user,
                     session,
@@ -1562,12 +1584,48 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         return DatastarResponse(event_streamer(), status_code=200)
 
 
+@requires_auth
+async def get_survey_related_record_new_updates(request: Request):
+    """Stream relevant updates for the new survey-related record page."""
+    try:
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid request id") from err
+
+    subscription = subscribers.subscribe_to_topic(
+        request.state.redis_client,
+        constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
+        subscribers.HandlerContext(
+            request_id=request_id,
+            user=request.user,
+            url_resolver=request.url_for,
+            jinja_environment=request.state.templates.env,
+            db_session_factory=request.state.settings.get_db_session_maker(),
+        ),
+        {
+            "survey_related_record_created": survey_related_record_handlers.handle_new_page_survey_related_record_creation_successful,
+        },
+    )
+
+    async def event_streamer():
+        async for sse_event in subscription:
+            yield sse_event
+
+    return DatastarResponse(event_streamer())
+
+
 routes = [
     Route(
         "/{survey_mission_id}/new",
         get_creation_form,
         methods=["GET"],
         name="get_creation_form",
+    ),
+    Route(
+        "/{survey_mission_id}/new/{request_id}/stream",
+        get_survey_related_record_new_updates,
+        methods=["GET"],
+        name="new_stream",
     ),
     Route(
         "/{survey_mission_id}/new/add-form-link",

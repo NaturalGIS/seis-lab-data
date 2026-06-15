@@ -264,6 +264,8 @@ class _SurveyRelatedRecordForm(StarletteForm):
 
 
 class SurveyRelatedRecordCreateForm(_SurveyRelatedRecordForm):
+    request_id = HiddenField()
+
     def validate_with_schema(self):
         # note: we build the schema manually and make sure to not use
         # sub-schemas, but rather provide data with lists and dicts. This is

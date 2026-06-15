@@ -191,6 +191,7 @@ async def create_survey_related_record(
     initiator: user_schemas.User | None,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
+    request_id: identifiers.RequestId | None = None,
 ):
     if not (
         survey_mission := await queries.get_survey_mission(
@@ -228,6 +229,7 @@ async def create_survey_related_record(
                 survey_record.survey_mission_id
             ),
             initiator=initiator.id,
+            request_id=request_id,
         )
     )
     return survey_record

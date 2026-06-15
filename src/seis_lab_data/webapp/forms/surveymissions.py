@@ -8,6 +8,7 @@ from starlette_wtf import StarletteForm
 from wtforms import (
     FieldList,
     FormField,
+    HiddenField,
     StringField,
 )
 
@@ -136,6 +137,8 @@ class _SurveyMissionForm(StarletteForm):
 
 
 class SurveyMissionCreateForm(_SurveyMissionForm):
+    request_id = HiddenField()
+
     def validate_with_schema(self):
         # note: we build the schema manually and make sure to not use
         # sub-schemas, but rather provide data with lists and dicts. This is

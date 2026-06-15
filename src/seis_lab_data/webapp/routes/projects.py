@@ -27,16 +27,19 @@ from ... import (
     constants,
     errors,
     geojson,
-    operations,
     permissions,
     schemas,
     subscribers,
 )
+from ...operations import (
+    projects as project_ops,
+    surveymissions as survey_mission_ops,
+)
 from ...constants import PROGRESS_TOPIC_NAME_TEMPLATE
 from ...processing import (
-    projects as project_tasks,
     discovery as discovery_tasks,
-    tasks,
+    projects as project_tasks,
+    surveymissions as survey_mission_tasks,
 )
 from ...schemas import identifiers
 from ..streamhandlers import projects as project_handlers
@@ -90,7 +93,7 @@ async def get_project_update_form(request: Request):
     project_id = get_id_from_request_path(request, "project_id", identifiers.ProjectId)
     async with session_maker() as session:
         try:
-            project = await operations.get_project(
+            project = await project_ops.get_project(
                 project_id,
                 user,
                 session,
@@ -305,7 +308,7 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
     settings: config.SeisLabDataSettings = request.state.settings
     async with settings.get_db_session_maker()() as session:
         try:
-            project = await operations.get_project(
+            project = await project_ops.get_project(
                 project_id,
                 user,
                 session,
@@ -316,7 +319,7 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
             raise HTTPException(
                 status_code=404, detail=_(f"Project {project_id!r} not found.")
             )
-        survey_missions, total = await operations.list_survey_missions(
+        survey_missions, total = await survey_mission_ops.list_survey_missions(
             session,
             user,
             project_id=project_id,
@@ -379,7 +382,7 @@ async def get_list_component(request: Request):
     settings: config.SeisLabDataSettings = request.state.settings
     user = request.user if request.user.is_authenticated else None
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await operations.list_projects(
+        items, num_total = await project_ops.list_projects(
             session,
             initiator=user,
             page=current_page,
@@ -388,7 +391,7 @@ async def get_list_component(request: Request):
             **internal_filter_kwargs,
         )
         num_unfiltered_total = (
-            await operations.list_projects(session, initiator=user, include_total=True)
+            await project_ops.list_projects(session, initiator=user, include_total=True)
         )[1]
 
     pagination_info = get_pagination_info(
@@ -438,7 +441,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             request.query_params, current_language
         )
         async with settings.get_db_session_maker()() as session:
-            items, num_total = await operations.list_projects(
+            items, num_total = await project_ops.list_projects(
                 session,
                 initiator=user,
                 page=current_page,
@@ -447,7 +450,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 **list_filters.as_kwargs(),
             )
             num_unfiltered_total = (
-                await operations.list_projects(
+                await project_ops.list_projects(
                     session, initiator=user, include_total=True
                 )
             )[1]
@@ -683,7 +686,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         )
         async with session_maker() as session:
             if (
-                project := await operations.get_project(project_id, user, session)
+                project := await project_ops.get_project(project_id, user, session)
             ) is None:
                 raise HTTPException(404, f"Project {project_id!r} not found.")
         form_instance = await forms.ProjectUpdateForm.get_validated_form_instance(
@@ -769,7 +772,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             request, "project_id", identifiers.ProjectId
         )
         async with session_maker() as session:
-            project = await operations.get_project(
+            project = await project_ops.get_project(
                 project_id,
                 user,
                 session,
@@ -798,7 +801,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         creation_form = await forms.SurveyMissionCreateForm.from_formdata(request)
         async with session_maker() as session:
             try:
-                project = await operations.get_project(project_id, user, session)
+                project = await project_ops.get_project(project_id, user, session)
             except errors.SeisLabDataError as exc:
                 raise HTTPException(status_code=404, detail=str(exc)) from exc
             if project is None:
@@ -887,7 +890,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             )
             await asyncio.sleep(1)
 
-            tasks.validate_survey_mission.send(
+            survey_mission_tasks.validate_survey_mission.send(
                 raw_request_id=str(request_id),
                 raw_survey_mission_id=str(to_create.id),
                 raw_initiator=json.dumps(dataclasses.asdict(user)),
@@ -922,7 +925,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 mode=ElementPatchMode.APPEND,
             )
 
-            enqueued_message: Message = tasks.create_survey_mission.send(
+            enqueued_message: Message = survey_mission_tasks.create_survey_mission.send(
                 raw_request_id=str(request_id),
                 raw_to_create=to_create.model_dump_json(),
                 raw_initiator=json.dumps(dataclasses.asdict(user)),

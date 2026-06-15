@@ -64,6 +64,13 @@ class ProjectStatusChangedEvent(_EventBase):
     new_status: constants.ProjectStatus
 
 
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ProjectStatusNotChangedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
+    project_id: identifiers.ProjectId
+    details: str
+
+
 # this is emitted when the validation process errors out
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class ProjectNotValidatedEvent(_EventBase):
@@ -92,36 +99,73 @@ class ProjectDiscoveryProgressEvent(_EventBase):
     details: str
 
 
-# Survey mission events
-
-
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class SurveyMissionCreatedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
     survey_mission_id: identifiers.SurveyMissionId
     project_id: identifiers.ProjectId
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
-class SurveyMissionUpdatedEvent(_EventBase):
+class SurveyMissionNotCreatedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
     survey_mission_id: identifiers.SurveyMissionId
+    details: str
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyMissionUpdatedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
+    survey_mission_id: identifiers.SurveyMissionId
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyMissionNotUpdatedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
+    survey_mission_id: identifiers.SurveyMissionId
+    details: str
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class SurveyMissionDeletedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
     survey_mission_id: identifiers.SurveyMissionId
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyMissionNotDeletedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
+    survey_mission_id: identifiers.SurveyMissionId
+    details: str
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
 class SurveyMissionStatusChangedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
     survey_mission_id: identifiers.SurveyMissionId
     old_status: constants.SurveyMissionStatus
     new_status: constants.SurveyMissionStatus
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyMissionStatusNotChangedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
+    survey_mission_id: identifiers.SurveyMissionId
+    details: str
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
 class SurveyMissionValidatedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
     survey_mission_id: identifiers.SurveyMissionId
     is_valid: bool
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyMissionNotValidatedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
+    survey_mission_id: identifiers.SurveyMissionId
+    details: str
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
@@ -138,6 +182,7 @@ class SurveyMissionDiscoveryProgressEvent(_EventBase):
 class SurveyRelatedRecordCreatedEvent(_EventBase):
     record_id: identifiers.SurveyRelatedRecordId
     survey_mission_id: identifiers.SurveyMissionId
+    request_id: identifiers.RequestId | None = None
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
@@ -204,15 +249,21 @@ SeisLabDataEvent: TypeAlias = (
     | ProjectDeletedEvent
     | ProjectNotDeletedEvent
     | ProjectStatusChangedEvent
+    | ProjectStatusNotChangedEvent
     | ProjectValidatedEvent
     | ProjectNotValidatedEvent
     | ProjectDiscoveryFailedEvent
     | ProjectDiscoveryProgressEvent
     | SurveyMissionCreatedEvent
+    | SurveyMissionNotCreatedEvent
     | SurveyMissionUpdatedEvent
+    | SurveyMissionNotUpdatedEvent
     | SurveyMissionDeletedEvent
+    | SurveyMissionNotDeletedEvent
     | SurveyMissionStatusChangedEvent
+    | SurveyMissionStatusNotChangedEvent
     | SurveyMissionValidatedEvent
+    | SurveyMissionNotValidatedEvent
     | SurveyMissionDiscoveryProgressEvent
     | SurveyRelatedRecordCreatedEvent
     | SurveyRelatedRecordUpdatedEvent

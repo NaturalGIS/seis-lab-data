@@ -101,6 +101,7 @@ class RedisEventDispatcher:
                 await self._redis.publish(
                     constants.NEW_TOPIC_SURVEY_MISSIONS,
                     message_schemas.SurveyMissionCreatedMessage(
+                        request_id=event.request_id,
                         survey_mission_id=event.survey_mission_id,
                     ).model_dump_json(),
                 )
@@ -108,6 +109,7 @@ class RedisEventDispatcher:
                 await self._redis.publish(
                     constants.NEW_TOPIC_SURVEY_MISSIONS,
                     message_schemas.SurveyMissionUpdatedMessage(
+                        request_id=event.request_id,
                         survey_mission_id=event.survey_mission_id,
                     ).model_dump_json(),
                 )
@@ -115,6 +117,7 @@ class RedisEventDispatcher:
                 await self._redis.publish(
                     constants.NEW_TOPIC_SURVEY_MISSIONS,
                     message_schemas.SurveyMissionDeletedMessage(
+                        request_id=event.request_id,
                         survey_mission_id=event.survey_mission_id,
                     ).model_dump_json(),
                 )
@@ -148,6 +151,7 @@ class RedisEventDispatcher:
                     message_schemas.SurveyRelatedRecordCreatedMessage(
                         record_id=event.record_id,
                         survey_mission_id=event.survey_mission_id,
+                        request_id=event.request_id,
                     ).model_dump_json(),
                 )
             case event_schemas.SurveyRelatedRecordUpdatedEvent():
