@@ -1,14 +1,9 @@
 {#
-This template is loaded as a GET response to the /projects/ endpoint. It is used to both:
-
-- Show a list of existing projects
-- Show a form for creating a new project (if the user has permissions to do so), when the user clicks the project
-  creation button - this is loaded via a server-sent event and patched into the already existing DOM, replacing the
-  list of projects
+This template is loaded as a GET response to the /projects/ endpoint. It shows a list of existing projects.
+Users with create permission are linked to /projects/new, which is a separate static page.
 #}
 {% extends "base.html" %}
 {% import "macros.html" as macros %}
-{% import "macros-buttons-list-items.html" as macros_buttons_list_items %}
 
 {% block head %}
     {{ super() }}
@@ -135,9 +130,13 @@ This template is loaded as a GET response to the /projects/ endpoint. It is used
             <h5>{{ _("actions") | capitalize }}</h5>
             <div class="list-group mb-3">
                 {% if user_can_create %}
-                    {{ macros_buttons_list_items.render_new_item_button(
-                        url_for("projects:get_creation_form"), _("Add new project"), colorize_with="info", aria_label="new-project"
-                    ) }}
+                    <a
+                            class="list-group-item list-group-item-action list-group-item-info"
+                            href="{{ url_for('projects:get_creation_form') }}"
+                            aria-label="new-project"
+                    >
+                        <span class="material-icons-outlined me-1">{{ icons.new_item }}</span>{{ _("Add new project") | capitalize }}
+                    </a>
                 {% endif %}
             </div>
             <h5>{{ _("info") | capitalize }}</h5>

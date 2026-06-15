@@ -65,41 +65,20 @@ async def get_project_creation_form(request: Request):
     form_instance = await forms.ProjectCreateForm.from_formdata(request)
     form_instance.request_id.data = str(identifiers.RequestId(uuid.uuid4()))
     template_processor: Jinja2Templates = request.state.templates
-    template = template_processor.get_template("projects/create-form.html")
-    rendered = template.render(
-        request=request,
-        form=form_instance,
+    return template_processor.TemplateResponse(
+        request,
+        "projects/create-form-page.html",
+        context={
+            "form": form_instance,
+            "breadcrumbs": [
+                schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
+                schemas.BreadcrumbItem(
+                    name=_("Projects"), url=request.url_for("projects:list")
+                ),
+                schemas.BreadcrumbItem(name=_("New project")),
+            ],
+        },
     )
-    breadcrumbs_template = template_processor.get_template("breadcrumbs.html")
-    rendered_breadcrumbs = breadcrumbs_template.render(
-        request=request,
-        breadcrumbs=[
-            schemas.BreadcrumbItem(name=_("Home"), url=str(request.url_for("home"))),
-            schemas.BreadcrumbItem(
-                name=_("Projects"), url=str(request.url_for("projects:list"))
-            ),
-            schemas.BreadcrumbItem(name=_("New project")),
-        ],
-    )
-
-    async def event_streamer():
-        yield ServerSentEventGenerator.patch_elements(
-            rendered,
-            selector=schemas.selector_info.main_content_selector,
-            mode=ElementPatchMode.INNER,
-        )
-        yield ServerSentEventGenerator.patch_elements(
-            rendered_breadcrumbs,
-            selector=schemas.selector_info.breadcrumbs_selector,
-            mode=ElementPatchMode.INNER,
-        )
-        yield ServerSentEventGenerator.patch_elements(
-            _("new project"),
-            selector=schemas.selector_info.page_title_selector,
-            mode=ElementPatchMode.INNER,
-        )
-
-    return DatastarResponse(event_streamer())
 
 
 @csrf_protect
@@ -169,21 +148,25 @@ async def get_project_update_form(request: Request):
         },
     )
     template_processor: Jinja2Templates = request.state.templates
-    template = template_processor.get_template("projects/update-form.html")
-    rendered = template.render(
-        request=request,
-        project=schemas.ProjectReadDetail.from_db_instance(project),
-        form=update_form,
+    return template_processor.TemplateResponse(
+        request,
+        "projects/update-form-page.html",
+        context={
+            "project": schemas.ProjectReadDetail.from_db_instance(project),
+            "form": update_form,
+            "breadcrumbs": [
+                schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
+                schemas.BreadcrumbItem(
+                    name=_("Projects"), url=request.url_for("projects:list")
+                ),
+                schemas.BreadcrumbItem(
+                    name=project.name["en"],
+                    url=request.url_for("projects:detail", project_id=project_id),
+                ),
+                schemas.BreadcrumbItem(name=_("Edit project")),
+            ],
+        },
     )
-
-    async def event_streamer():
-        yield ServerSentEventGenerator.patch_elements(
-            rendered,
-            selector=schemas.selector_info.main_content_selector,
-            mode=ElementPatchMode.INNER,
-        )
-
-    return DatastarResponse(event_streamer())
 
 
 @requires_auth

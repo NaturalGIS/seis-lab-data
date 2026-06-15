@@ -93,17 +93,25 @@
         <div class="list-group mb-3">
             {% if permissions.can_update %}
                 <div class="col">
-                    {{ macros_buttons_list_items.render_update_item_button(
-                        url_for("survey_missions:get_update_form", survey_mission_id=survey_mission.id),
-                        _("edit survey mission")
-                    ) }}
+                    <a
+                            class="list-group-item list-group-item-action list-group-item-info"
+                            href="{{ url_for('survey_missions:get_update_form', survey_mission_id=survey_mission.id) }}"
+                            aria-label="update-item"
+                            data-attr:class="$status === 'under_validation' ? 'list-group-item list-group-item-action list-group-item-info disabled' : 'list-group-item list-group-item-action list-group-item-info'"
+                            data-attr:aria-disabled="$status === 'under_validation'"
+                            data-attr:tabindex="$status === 'under_validation' ? '-1' : null"
+                    ><span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit survey mission") | capitalize }}
+                    </a>
                 </div>
             {% endif %}
             {% if permissions.can_create_children %}
-                {{ macros_buttons_list_items.render_new_item_button(
-                    url_for("survey_related_records:get_creation_form", survey_mission_id=survey_mission.id),
-                    _("add new survey-related record")
-                ) }}
+                <a
+                        class="list-group-item list-group-item-action list-group-item-info"
+                        href="{{ url_for('survey_related_records:get_creation_form', survey_mission_id=survey_mission.id) }}"
+                        aria-label="new-item"
+                >
+                    <span class="material-icons-outlined me-1">{{ icons.new_item }}</span>{{ _("add new survey-related record") | capitalize }}
+                </a>
             {% endif %}
             {% if permissions.can_delete %}
                 {{ macros_buttons_list_items.render_delete_item_button(

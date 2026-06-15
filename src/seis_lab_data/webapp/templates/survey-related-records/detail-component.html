@@ -125,10 +125,15 @@
         <div class="list-group mb-3">
             {% if permissions.can_update %}
                 <div class="col">
-                    {{ macros_buttons_list_items.render_update_item_button(
-                        url_for("survey_related_records:get_update_form", survey_related_record_id=survey_related_record.id),
-                        _("edit survey-related record")
-                    ) }}
+                    <a
+                            class="list-group-item list-group-item-action list-group-item-info"
+                            href="{{ url_for('survey_related_records:get_update_form', survey_related_record_id=survey_related_record.id) }}"
+                            aria-label="update-item"
+                            data-attr:class="$status === 'under_validation' ? 'list-group-item list-group-item-action list-group-item-info disabled' : 'list-group-item list-group-item-action list-group-item-info'"
+                            data-attr:aria-disabled="$status === 'under_validation'"
+                            data-attr:tabindex="$status === 'under_validation' ? '-1' : null"
+                    ><span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit survey-related record") | capitalize }}
+                    </a>
                 </div>
             {% endif %}
             {% if permissions.can_delete %}

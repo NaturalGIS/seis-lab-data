@@ -363,48 +363,25 @@ async def get_survey_mission_creation_form(request: Request):
             )
 
     template_processor: Jinja2Templates = request.state.templates
-    template = template_processor.get_template("survey-missions/create-form.html")
-    rendered = template.render(
-        request=request,
-        project=schemas.ProjectReadDetail.from_db_instance(project),
-        form=form_instance,
+    return template_processor.TemplateResponse(
+        request,
+        "survey-missions/create-form-page.html",
+        context={
+            "project": schemas.ProjectReadDetail.from_db_instance(project),
+            "form": form_instance,
+            "breadcrumbs": [
+                schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
+                schemas.BreadcrumbItem(
+                    name=_("Projects"), url=request.url_for("projects:list")
+                ),
+                schemas.BreadcrumbItem(
+                    name=project.name["en"],
+                    url=request.url_for("projects:detail", project_id=project.id),
+                ),
+                schemas.BreadcrumbItem(name=_("New survey mission")),
+            ],
+        },
     )
-    breadcrumbs_template = template_processor.get_template("breadcrumbs.html")
-    rendered_breadcrumbs = breadcrumbs_template.render(
-        request=request,
-        breadcrumbs=[
-            schemas.BreadcrumbItem(name=_("Home"), url=str(request.url_for("home"))),
-            schemas.BreadcrumbItem(
-                name=_("Projects"), url=str(request.url_for("projects:list"))
-            ),
-            schemas.BreadcrumbItem(
-                name=project.name["en"],
-                url=str(request.url_for("projects:detail", project_id=project.id)),
-            ),
-            schemas.BreadcrumbItem(
-                name=_("New Survey mission"),
-            ),
-        ],
-    )
-
-    async def event_streamer():
-        yield ServerSentEventGenerator.patch_elements(
-            rendered,
-            selector=schemas.selector_info.main_content_selector,
-            mode=ElementPatchMode.INNER,
-        )
-        yield ServerSentEventGenerator.patch_elements(
-            rendered_breadcrumbs,
-            selector=schemas.selector_info.breadcrumbs_selector,
-            mode=ElementPatchMode.INNER,
-        )
-        yield ServerSentEventGenerator.patch_elements(
-            _("new survey mission"),
-            selector=schemas.selector_info.page_title_selector,
-            mode=ElementPatchMode.INNER,
-        )
-
-    return DatastarResponse(event_streamer())
 
 
 async def get_list_component(request: Request):
@@ -1285,21 +1262,28 @@ async def get_survey_mission_update_form(request: Request):
         },
     )
     template_processor: Jinja2Templates = request.state.templates
-    template = template_processor.get_template("survey-missions/update-form.html")
-    rendered = template.render(
-        request=request,
-        survey_mission=survey_mission,
-        form=update_form,
+    return template_processor.TemplateResponse(
+        request,
+        "survey-missions/update-form-page.html",
+        context={
+            "survey_mission": survey_mission,
+            "form": update_form,
+            "breadcrumbs": [
+                schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
+                schemas.BreadcrumbItem(
+                    name=_("Survey missions"),
+                    url=request.url_for("survey_missions:list"),
+                ),
+                schemas.BreadcrumbItem(
+                    name=survey_mission.name["en"],
+                    url=request.url_for(
+                        "survey_missions:detail", survey_mission_id=survey_mission_id
+                    ),
+                ),
+                schemas.BreadcrumbItem(name=_("Edit survey mission")),
+            ],
+        },
     )
-
-    async def event_streamer():
-        yield ServerSentEventGenerator.patch_elements(
-            rendered,
-            selector=schemas.selector_info.main_content_selector,
-            mode=ElementPatchMode.INNER,
-        )
-
-    return DatastarResponse(event_streamer())
 
 
 routes = [

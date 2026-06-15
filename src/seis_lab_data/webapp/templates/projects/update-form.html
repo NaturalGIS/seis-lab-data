@@ -62,13 +62,12 @@
 
     <div class="row mb-3">
         <div class="col-sm-10 offset-sm-2">
-            <button
-                    type="reset"
+            <a
+                    href="{{ url_for('projects:detail', project_id=project.id) }}"
                     class="btn btn-outline-secondary"
-                    data-on:click="@get('{{ url_for("projects:get_details_component", project_id=project.id) }}')"
                     aria-label="cancel-update"
             >{{ _('cancel') | capitalize }}
-            </button>
+            </a>
             <button
                     type="submit"
                     aria-label="submit-update-form"
