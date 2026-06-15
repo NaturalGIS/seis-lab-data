@@ -80,6 +80,7 @@ async def delete_project(
 @dramatiq.actor
 @decorators.sld_settings
 async def validate_project(
+    raw_request_id: str,
     raw_project_id: str,
     raw_initiator: str,
     *,
@@ -87,6 +88,7 @@ async def validate_project(
 ):
     async with settings.get_db_session_maker()() as session:
         await project_ops.validate_project(
+            request_id=identifiers.RequestId(uuid.UUID(raw_request_id)),
             project_id=identifiers.ProjectId(uuid.UUID(raw_project_id)),
             initiator=user_schemas.User(**json.loads(raw_initiator)),
             session=session,

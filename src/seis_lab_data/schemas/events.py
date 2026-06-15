@@ -68,6 +68,7 @@ class ProjectStatusChangedEvent(_EventBase):
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class ProjectNotValidatedEvent(_EventBase):
     project_id: identifiers.ProjectId
+    request_id: identifiers.RequestId | None = None
     details: str
 
 
@@ -76,6 +77,13 @@ class ProjectValidatedEvent(_EventBase):
     project_id: identifiers.ProjectId
     is_valid: bool
     details: list[dict[str, str]]
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ProjectDiscoveryFailedEvent(_EventBase):
+    project_id: identifiers.ProjectId
+    request_id: identifiers.RequestId | None = None
+    details: str
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
@@ -198,6 +206,7 @@ SeisLabDataEvent: TypeAlias = (
     | ProjectStatusChangedEvent
     | ProjectValidatedEvent
     | ProjectNotValidatedEvent
+    | ProjectDiscoveryFailedEvent
     | ProjectDiscoveryProgressEvent
     | SurveyMissionCreatedEvent
     | SurveyMissionUpdatedEvent

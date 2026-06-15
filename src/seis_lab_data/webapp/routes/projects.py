@@ -282,6 +282,7 @@ async def get_project_detail_updates(request: Request):
             "project_updated": project_handlers.handle_edit_page_project_modification_successful,
             "project_not_updated": project_handlers.handle_edit_page_project_modification_failure,
             "project_validated": project_handlers.handle_detail_page_project_validated,
+            "project_not_validated": project_handlers.handle_detail_page_project_not_validated,
         },
     )
 
@@ -1042,6 +1043,7 @@ async def remove_update_project_form_link(request: Request):
 @requires_auth
 async def trigger_project_discovery(request: Request):
     discovery_tasks.discover_project_contents.send(
+        raw_request_id=str(uuid.uuid4()),
         raw_project_id=request.path_params["project_id"],
         raw_initiator=json.dumps(dataclasses.asdict(request.user)),
     )  # noqa
@@ -1051,24 +1053,12 @@ async def trigger_project_discovery(request: Request):
 @csrf_protect
 @requires_auth
 async def trigger_project_validation(request: Request):
-    user = request.user if request.user.is_authenticated else None
-    project_id = get_id_from_request_path(request, "project_id", identifiers.ProjectId)
-    request_id = identifiers.RequestId(uuid.uuid4())
     project_tasks.validate_project.send(
-        raw_request_id=str(request_id),
-        raw_project_id=str(project_id),
-        raw_initiator=json.dumps(dataclasses.asdict(user)),
-    )
-
-    async def event_streamer():
-        yield ServerSentEventGenerator.patch_elements(
-            "Validation started",
-            selector=schemas.selector_info.feedback_selector,
-            mode=ElementPatchMode.INNER,
-        )
-
-    # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
-    return DatastarResponse(event_streamer(), status_code=200)
+        raw_request_id=str(uuid.uuid4()),
+        raw_project_id=str(uuid.UUID(request.path_params.get("project_id"))),
+        raw_initiator=json.dumps(dataclasses.asdict(request.user)),
+    )  # noqa
+    return Response(status_code=200)
 
 
 routes = [

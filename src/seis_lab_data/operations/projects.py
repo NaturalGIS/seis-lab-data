@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 import pydantic
@@ -82,6 +83,7 @@ async def change_project_status(
 
 
 async def validate_project(
+    request_id: identifiers.RequestId,
     project_id: identifiers.ProjectId,
     initiator: schemas.User | None,
     session: AsyncSession,
@@ -111,7 +113,8 @@ async def validate_project(
             session,
             event_dispatcher,
         )
-        schemas.ValidProject.model_validate(**project.model_dump())
+        await asyncio.sleep(3)
+        schemas.ValidProject.model_validate(project)
     except pydantic.ValidationError as err:
         for error in err.errors():
             validation_errors.append(

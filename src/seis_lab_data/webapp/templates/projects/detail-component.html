@@ -93,7 +93,7 @@
         <div class="list-group mb-3" data-signals:deleting="false">
             {% if permissions.can_update %}
                 <button
-                        class="list-group-item list-group-item-action list-group-item-primary"
+                        class="list-group-item list-group-item-action list-group-item-secondary"
                         data-attr:disabled="$status !== 'draft'"
                         data-on:click="@post('{{ url_for("projects:trigger_discovery", project_id=project.id) }}', {
                             headers: {'X-CSRFToken': '{{ csrf_token(request) }}'}

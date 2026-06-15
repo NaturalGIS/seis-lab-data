@@ -31,6 +31,14 @@ class RedisEventDispatcher:
                         request_id=event.request_id,
                     ).model_dump_json(),
                 )
+            case event_schemas.ProjectNotCreatedEvent():
+                await self._redis.publish(
+                    constants.NEW_TOPIC_PROJECTS,
+                    message_schemas.ProjectNotCreatedMessage(
+                        request_id=event.request_id,
+                        details=event.details,
+                    ).model_dump_json(),
+                )
             case event_schemas.ProjectUpdatedEvent():
                 await self._redis.publish(
                     constants.NEW_TOPIC_PROJECTS,
@@ -61,6 +69,24 @@ class RedisEventDispatcher:
                     message_schemas.ProjectValidatedMessage(
                         project_id=event.project_id,
                         is_valid=event.is_valid,
+                    ).model_dump_json(),
+                )
+            case event_schemas.ProjectNotValidatedEvent():
+                await self._redis.publish(
+                    constants.NEW_TOPIC_PROJECTS,
+                    message_schemas.ProjectNotValidatedMessage(
+                        request_id=event.request_id,
+                        project_id=event.project_id,
+                        details=event.details,
+                    ).model_dump_json(),
+                )
+            case event_schemas.ProjectDiscoveryFailedEvent():
+                await self._redis.publish(
+                    constants.NEW_TOPIC_PROJECTS,
+                    message_schemas.ProjectDiscoveryFailedMessage(
+                        request_id=event.request_id,
+                        project_id=event.project_id,
+                        details=event.details,
                     ).model_dump_json(),
                 )
             case event_schemas.ProjectDiscoveryProgressEvent():

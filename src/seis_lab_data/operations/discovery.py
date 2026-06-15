@@ -10,10 +10,12 @@ from .. import (
     config,
     constants,
     errors,
+    permissions,
 )
 from ..schemas import events as event_schemas
 from ..db import models
 from ..db.queries import (
+    projects as project_queries,
     surveymissions as survey_mission_queries,
     surveyrelatedrecords as record_queries,
     recordassets as asset_queries,
@@ -476,12 +478,33 @@ async def _discover_survey_mission(
 
 async def run_project_discovery(
     *,
+    request_id: identifiers.RequestId,
     project_id: identifiers.ProjectId,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
     settings: config.SeisLabDataSettings,
-    user: User | None = None,
+    user: User,
 ) -> None:
+    try:
+        if (project := await project_queries.get_project(session, project_id)) is None:
+            raise errors.SeisLabDataError(
+                f"Project with id {project_id} does not exist."
+            )
+        if not permissions.can_discover_project(user, project):
+            raise errors.SeisLabDataError(
+                "User is not allowed to run discovery on this project."
+            )
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.ProjectDiscoveryFailedEvent(
+                request_id=request_id,
+                project_id=project_id,
+                initiator=user.id if user else "",
+                details=str(err),
+            )
+        )
+        return
+
     db_project = await project_ops.change_project_status(
         constants.ProjectStatus.UNDER_DISCOVERY,
         project_id,

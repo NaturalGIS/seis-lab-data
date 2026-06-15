@@ -10,13 +10,16 @@ from datastar_py.consts import ElementPatchMode
 from datastar_py.sse import ServerSentEventGenerator
 from datastar_py.starlette import DatastarEvent
 
+from ... import (
+    constants,
+    subscribers,
+)
 from ...schemas import (
     messages as message_schemas,
     webui as webui_schemas,
 )
 from ...operations import projects as project_ops
 from ...processing import projects as project_tasks
-from ... import subscribers
 from .common import (
     flash_ui_message_after_redirect,
     flash_ui_message_same_page,
@@ -25,17 +28,14 @@ from .common import (
 logger = logging.getLogger(__name__)
 
 ProjectModified: TypeAlias = (
-    message_schemas.ProjectCreationSuccessfulMessage
-    | message_schemas.ProjectDeletionSuccessfulMessage
-    | message_schemas.ProjectUpdateSuccessfulMessage
-    | message_schemas.ProjectCreatedMessage
+    message_schemas.ProjectCreatedMessage
     | message_schemas.ProjectUpdatedMessage
     | message_schemas.ProjectDeletedMessage
 )
 
 
 async def handle_new_page_project_creation_successful(
-    message: message_schemas.ProjectCreationSuccessfulMessage,
+    message: message_schemas.ProjectCreatedMessage,
     context: subscribers.HandlerContext,
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
@@ -73,7 +73,7 @@ async def handle_new_page_project_creation_successful(
 
 
 async def handle_new_page_project_creation_failed(
-    message: message_schemas.ProjectCreationFailedMessage,
+    message: message_schemas.ProjectNotCreatedMessage,
     context: subscribers.ProjectHandlerContext,
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
@@ -88,10 +88,7 @@ async def handle_list_page_project_modification(
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
     match message:
-        case (
-            message_schemas.ProjectDeletionSuccessfulMessage()
-            | message_schemas.ProjectDeletedMessage()
-        ):
+        case message_schemas.ProjectDeletedMessage():
             message = (
                 f"Project {message.project_id} has been deleted - Reloaded project list"
             )
@@ -172,7 +169,7 @@ async def handle_edit_page_project_modification_successful(
 
 
 async def handle_detail_page_project_deletion_success(
-    message: message_schemas.ProjectDeletionSuccessfulMessage,
+    message: message_schemas.ProjectDeletedMessage,
     context: subscribers.ProjectHandlerContext,
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
@@ -202,7 +199,7 @@ async def handle_detail_page_project_deletion_success(
 
 
 async def handle_detail_page_project_deletion_failure(
-    message: message_schemas.ProjectDeletionFailedMessage,
+    message: message_schemas.ProjectNotDeletedMessage,
     context: subscribers.ProjectHandlerContext,
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
@@ -217,30 +214,6 @@ async def handle_detail_page_project_deletion_failure(
             data_test_id="processing-failed-message",
             status="failure",
             message=f"Error: project {message.project_id} deletion failed - {message.details}",
-        ),
-        selector=webui_schemas.selector_info.feedback_selector,
-        mode=ElementPatchMode.APPEND,
-    )
-    if done is not None:
-        done.set()
-
-
-async def handle_detail_page_project_discovery_started(
-    message: message_schemas.ProjectDiscoveryStartedMessage,
-    context: subscribers.ProjectHandlerContext,
-    done: asyncio.Event | None = None,
-) -> AsyncGenerator[DatastarEvent, None]:
-    """Update project detail page when discovery starts."""
-    if message.project_id != context.project_id:
-        return
-    message_template = context.jinja_environment.get_template(
-        "processing/progress-message-list-item.html"
-    )
-    yield ServerSentEventGenerator.patch_elements(
-        message_template.render(
-            data_test_id="processing-discovery-started-message",
-            status="success",
-            message="Project discovery started",
         ),
         selector=webui_schemas.selector_info.feedback_selector,
         mode=ElementPatchMode.APPEND,
@@ -269,6 +242,37 @@ async def handle_detail_page_project_discovery_successful(
         selector=webui_schemas.selector_info.feedback_selector,
         mode=ElementPatchMode.APPEND,
     )
+    async for flash_event in flash_ui_message_same_page(
+        {
+            "message": f"Project {message.project_id} - discovery successful",
+            "category": "info",
+        }
+    ):
+        yield flash_event
+    if done is not None:
+        done.set()
+
+
+async def handle_detail_page_project_discovery_failure(
+    message: message_schemas.ProjectDiscoveryFailedMessage,
+    context: subscribers.ProjectHandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    """Update project detail page when discovery ends with a failure."""
+    if message.project_id != context.project_id:
+        return
+    message_template = context.jinja_environment.get_template(
+        "processing/progress-message-list-item.html"
+    )
+    yield ServerSentEventGenerator.patch_elements(
+        message_template.render(
+            data_test_id="processing-discovery-failed-message",
+            status="failed",
+            message="Project discovery failed",
+        ),
+        selector=webui_schemas.selector_info.feedback_selector,
+        mode=ElementPatchMode.APPEND,
+    )
     if done is not None:
         done.set()
 
@@ -279,8 +283,23 @@ async def handle_detail_page_project_status_changed(
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
     """Update the status signal on the project detail page."""
+    logger.info(f"{locals()=}")
     if message.project_id != context.project_id:
         return
+    async for flash_message in flash_ui_message_same_page(
+        {
+            "message": f"Project {message.project_id} changed status to {message.new_status.value}",
+            "category": "secondary",
+        }
+    ):
+        yield flash_message
+    match message.new_status:
+        case constants.ProjectStatus.UNDER_VALIDATION:
+            ...
+        case constants.ProjectStatus.DRAFT:
+            ...
+        case _:
+            ...
     yield ServerSentEventGenerator.patch_signals({"status": message.new_status.value})
 
 
@@ -292,12 +311,12 @@ async def handle_detail_page_project_validated(
     """Update the validation result on the project detail page."""
     if message.project_id != context.project_id:
         return
-    if context.db_session_factory is not None:
-        async with context.db_session_factory() as session:
-            project = await project_ops.get_project(
+    async with context.db_session_factory() as session:
+        if (
+            project := await project_ops.get_project(
                 message.project_id, context.user, session
             )
-        if project is not None:
+        ) is not None:
             details_html = ""
             if not project.validation_result.get("is_valid"):
                 details_html = "<ul>"
@@ -309,7 +328,36 @@ async def handle_detail_page_project_validated(
                 selector=webui_schemas.selector_info.validation_result_details_selector,
                 mode=ElementPatchMode.INNER,
             )
+            if message.is_valid:
+                flash_message = {
+                    "message": f"Project {message.project_id} is valid!",
+                    "category": "success",
+                }
+            else:
+                flash_message = {
+                    "message": f"Project {message.project_id} is not valid",
+                    "category": "danger",
+                }
+            async for event in flash_ui_message_same_page(flash_message):
+                yield event
     yield ServerSentEventGenerator.patch_signals({"isValid": message.is_valid})
+
+
+async def handle_detail_page_project_not_validated(
+    message: message_schemas.ProjectNotValidatedMessage,
+    context: subscribers.ProjectHandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    """Handle project validation failing due to an error."""
+    if message.request_id != context.request_id:
+        return
+    async for event in flash_ui_message_same_page(
+        {
+            "message": f"Project {message.project_id} could not be validated - {message}",
+            "category": "danger",
+        }
+    ):
+        yield event
 
 
 async def handle_detail_page_project_discovery_progress(

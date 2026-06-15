@@ -5,16 +5,8 @@ from .. import subscribers
 from ..schemas import messages as message_schemas
 
 
-async def handle_project_deletion_started(
-    message: message_schemas.ProjectDeletionStartedMessage,
-    context: subscribers.ProjectHandlerContext,
-    done: asyncio.Event | None = None,
-) -> AsyncGenerator[str, None]:
-    yield f"[purple]Info:[/purple] Project {message.project_id!r} deletion has started"
-
-
 async def handle_project_deletion_success(
-    message: message_schemas.ProjectDeletionSuccessfulMessage,
+    message: message_schemas.ProjectDeletedMessage,
     context: subscribers.ProjectHandlerContext,
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[str, None]:
@@ -24,7 +16,7 @@ async def handle_project_deletion_success(
 
 
 async def handle_project_deletion_failure(
-    message: message_schemas.ProjectDeletionFailedMessage,
+    message: message_schemas.ProjectNotDeletedMessage,
     context: subscribers.ProjectHandlerContext,
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[str, None]:
