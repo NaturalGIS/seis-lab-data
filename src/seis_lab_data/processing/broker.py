@@ -11,7 +11,7 @@ from .middleware import (
     SeisLabDataSettingsMiddleware,
 )
 
-# This import is needed - DO NOT REMOVE
+# These imports are needed - DO NOT REMOVE
 # Dramatiq's @actor decorator tries to eagerly connect to the global dramatiq broker
 # and this does not play well with using a factory pattern to create the worker,
 # as it means the worker is not available at import time yet.
@@ -25,6 +25,7 @@ from .middleware import (
 from . import (
     tasks,  # noqa
     discovery,  # noqa
+    projects,  # noqa
 )
 
 logger = logging.getLogger(__name__)

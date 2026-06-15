@@ -66,3 +66,10 @@ def can_change_project_status(
     project: models.Project,
 ) -> bool:
     return can_update_project(user, project)
+
+
+def can_discover_project(
+    user: schemas.User | None,
+    project: models.Project,
+) -> bool:
+    return can_update_project(user, project)

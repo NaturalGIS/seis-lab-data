@@ -71,7 +71,6 @@ class SeisLabDataSettings(BaseSettings):
     message_broker_channels: list[str] = ["demo-channel"]
     locales: list[str] = ["pt", "en"]
     translations_dir: Optional[Path] = Path(__file__).parent / "translations"
-    emit_events: bool = False
     pagination_page_size: int = 20
     webmap_base_tile_layer_url: str = (
         "https://localhost:8888/tiles/world-bathymetry/{z}/{x}/{y}.png"
@@ -130,14 +129,9 @@ class SeisLabDataSettings(BaseSettings):
 
     def get_event_dispatcher(self) -> dispatch.EventDispatcherProtocol:
         if self._event_dispatcher is None:
-            if self.emit_events:
-                self._event_dispatcher = dispatch.RedisEventDispatcher(
-                    redis_client=aioredis.from_url(
-                        self.message_broker_dsn.unicode_string()
-                    )
-                )
-            else:
-                self._event_dispatcher = dispatch.no_op_dispatcher
+            self._event_dispatcher = dispatch.RedisEventDispatcher(
+                redis_client=aioredis.from_url(self.message_broker_dsn.unicode_string())
+            )
         return self._event_dispatcher
 
 

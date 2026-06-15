@@ -93,7 +93,7 @@
         <div class="list-group mb-3" data-signals:deleting="false">
             {% if permissions.can_update %}
                 <button
-                        class="list-group-item list-group-item-action list-group-item-primary"
+                        class="list-group-item list-group-item-action list-group-item-secondary"
                         data-attr:disabled="$status !== 'draft'"
                         data-on:click="@post('{{ url_for("projects:trigger_discovery", project_id=project.id) }}', {
                             headers: {'X-CSRFToken': '{{ csrf_token(request) }}'}
@@ -116,17 +116,24 @@
                 </button>
             {% endif %}
             {% if permissions.can_update %}
-                {{ macros_buttons_list_items.render_update_item_button(
-                url_for("projects:get_update_form", project_id=project.id),
-                _("edit project")
-            ) }}
+                <a
+                        class="list-group-item list-group-item-action list-group-item-info"
+                        href="{{ url_for('projects:get_update_form', project_id=project.id) }}"
+                        aria-label="update-item"
+                        data-attr:class="$status === 'under_validation' ? 'list-group-item list-group-item-action list-group-item-info disabled' : 'list-group-item list-group-item-action list-group-item-info'"
+                        data-attr:aria-disabled="$status === 'under_validation'"
+                        data-attr:tabindex="$status === 'under_validation' ? '-1' : null"
+                ><span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit project") | capitalize }}
+                </a>
             {% endif %}
             {% if permissions.can_create_children %}
-                {{ macros_buttons_list_items.render_new_item_button(
-                url_for("survey_missions:get_creation_form", project_id=project.id),
-                _("add new survey mission"),
-                icon_name=icons.survey_missions
-            ) }}
+                <a
+                        class="list-group-item list-group-item-action list-group-item-info"
+                        href="{{ url_for('survey_missions:get_creation_form', project_id=project.id) }}"
+                        aria-label="new-item"
+                >
+                    <span class="material-icons-outlined me-1">{{ icons.survey_missions }}</span>{{ _("add new survey mission") | capitalize }}
+                </a>
             {% endif %}
             {% if permissions.can_delete %}
                 {{ macros_buttons_list_items.render_delete_item_button(

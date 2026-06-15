@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 import pydantic
@@ -25,16 +26,27 @@ logger = logging.getLogger(__name__)
 
 
 async def create_project(
+    request_id: identifiers.RequestId,
     to_create: schemas.ProjectCreate,
     initiator: schemas.User | None,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
-) -> models.Project:
-    if not permissions.can_create_project(initiator):
-        raise errors.SeisLabDataError("User is not allowed to create a project.")
-    project = await commands.create_project(session, to_create)
+) -> models.Project | None:
+    try:
+        if not permissions.can_create_project(initiator):
+            raise errors.SeisLabDataError("User is not allowed to create a project.")
+        project = await commands.create_project(session, to_create)
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.ProjectNotCreatedEvent(
+                request_id=request_id, initiator=initiator.id, details=str(err)
+            )
+        )
+        return None
+
     await event_dispatcher(
         event_schemas.ProjectCreatedEvent(
+            request_id=request_id,
             project_id=identifiers.ProjectId(project.id),
             initiator=initiator.id,
         )
@@ -71,21 +83,38 @@ async def change_project_status(
 
 
 async def validate_project(
+    request_id: identifiers.RequestId,
     project_id: identifiers.ProjectId,
     initiator: schemas.User | None,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
-) -> models.Project:
-    await change_project_status(
-        ProjectStatus.UNDER_VALIDATION, project_id, initiator, session, event_dispatcher
-    )
-    if (project := await queries.get_project(session, project_id)) is None:
-        raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
-    if not permissions.can_validate_project(initiator, project):
-        raise errors.SeisLabDataError("User is not allowed to validate project.")
+) -> models.Project | None:
+    try:
+        if (project := await queries.get_project(session, project_id)) is None:
+            raise errors.SeisLabDataError(
+                f"Project with id {project_id} does not exist."
+            )
+        if not permissions.can_validate_project(initiator, project):
+            raise errors.SeisLabDataError("User is not allowed to validate project.")
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.ProjectNotValidatedEvent(
+                initiator=initiator.id, project_id=project_id, details=str(err)
+            )
+        )
+        return None
+
     validation_errors = []
     try:
-        schemas.ValidProject(**project.model_dump())
+        await change_project_status(
+            ProjectStatus.UNDER_VALIDATION,
+            project_id,
+            initiator,
+            session,
+            event_dispatcher,
+        )
+        await asyncio.sleep(3)
+        schemas.ValidProject.model_validate(project)
     except pydantic.ValidationError as err:
         for error in err.errors():
             validation_errors.append(
@@ -107,37 +136,55 @@ async def validate_project(
         await commands.update_project_validation_result(
             session, project, validation_result={"is_valid": True, "errors": None}
         )
-    await event_dispatcher(
-        event_schemas.ProjectValidatedEvent(
-            project_id=project_id,
-            is_valid=not validation_errors,
-            initiator=initiator.id,
+    finally:
+        await event_dispatcher(
+            event_schemas.ProjectValidatedEvent(
+                project_id=project_id,
+                is_valid=not validation_errors,
+                initiator=initiator.id,
+                details=validation_errors,
+            )
         )
-    )
-    await change_project_status(
-        ProjectStatus.DRAFT, project_id, initiator, session, event_dispatcher
-    )
+        await change_project_status(
+            ProjectStatus.DRAFT, project_id, initiator, session, event_dispatcher
+        )
     return project
 
 
 async def update_project(
+    request_id: identifiers.RequestId,
     project_id: identifiers.ProjectId,
     to_update: schemas.ProjectUpdate,
     initiator: schemas.User | None,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
-) -> models.Project:
-    if (project := await queries.get_project(session, project_id)) is None:
-        raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
-    if not permissions.can_update_project(initiator, project):
-        raise errors.SeisLabDataError("User is not allowed to update project.")
-    if project.status != ProjectStatus.DRAFT:
-        raise errors.SeisLabDataError(
-            f"Cannot update project with status {project.status}."
+) -> models.Project | None:
+    try:
+        if (project := await queries.get_project(session, project_id)) is None:
+            raise errors.SeisLabDataError(
+                f"Project with id {project_id} does not exist."
+            )
+        if not permissions.can_update_project(initiator, project):
+            raise errors.SeisLabDataError("User is not allowed to update project.")
+        if project.status != ProjectStatus.DRAFT:
+            raise errors.SeisLabDataError(
+                f"Cannot update project with status {project.status}."
+            )
+        updated_project = await commands.update_project(session, project, to_update)
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.ProjectNotUpdatedEvent(
+                request_id=request_id,
+                project_id=project_id,
+                initiator=initiator.id,
+                details=str(err),
+            )
         )
-    updated_project = await commands.update_project(session, project, to_update)
+        return None
+
     await event_dispatcher(
         event_schemas.ProjectUpdatedEvent(
+            request_id=request_id,
             project_id=project_id,
             initiator=initiator.id,
         )
@@ -146,22 +193,38 @@ async def update_project(
 
 
 async def delete_project(
+    request_id: identifiers.RequestId,
     project_id: identifiers.ProjectId,
     initiator: schemas.User | None,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> None:
-    if (project := await queries.get_project(session, project_id)) is None:
-        raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
-    if not permissions.can_delete_project(initiator, project):
-        raise errors.SeisLabDataError("User is not allowed to delete projects.")
-    if project.status != ProjectStatus.DRAFT:
-        raise errors.SeisLabDataError(
-            f"Cannot delete project with status {project.status}."
+    try:
+        if (project := await queries.get_project(session, project_id)) is None:
+            raise errors.SeisLabDataError(
+                f"Project with id {project_id} does not exist."
+            )
+        if not permissions.can_delete_project(initiator, project):
+            raise errors.SeisLabDataError("User is not allowed to delete projects.")
+        if project.status != ProjectStatus.DRAFT:
+            raise errors.SeisLabDataError(
+                f"Cannot delete project with status {project.status}."
+            )
+        await commands.delete_project(session, project_id)
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.ProjectNotDeletedEvent(
+                request_id=request_id,
+                project_id=project_id,
+                initiator=initiator.id,
+                details=str(err),
+            )
         )
-    await commands.delete_project(session, project_id)
+        return None
+
     await event_dispatcher(
         event_schemas.ProjectDeletedEvent(
+            request_id=request_id,
             project_id=project_id,
             initiator=initiator.id,
         )

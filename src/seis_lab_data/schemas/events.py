@@ -22,16 +22,39 @@ class _EventBase:
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class ProjectCreatedEvent(_EventBase):
     project_id: identifiers.ProjectId
+    request_id: identifiers.RequestId | None = None
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ProjectNotCreatedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
+    details: str
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class ProjectUpdatedEvent(_EventBase):
     project_id: identifiers.ProjectId
+    request_id: identifiers.RequestId | None = None
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ProjectNotUpdatedEvent(_EventBase):
+    project_id: identifiers.ProjectId
+    request_id: identifiers.RequestId | None = None
+    details: str
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class ProjectDeletedEvent(_EventBase):
     project_id: identifiers.ProjectId
+    request_id: identifiers.RequestId | None = None
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ProjectNotDeletedEvent(_EventBase):
+    project_id: identifiers.ProjectId
+    request_id: identifiers.RequestId | None = None
+    details: str
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
@@ -41,10 +64,26 @@ class ProjectStatusChangedEvent(_EventBase):
     new_status: constants.ProjectStatus
 
 
+# this is emitted when the validation process errors out
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ProjectNotValidatedEvent(_EventBase):
+    project_id: identifiers.ProjectId
+    request_id: identifiers.RequestId | None = None
+    details: str
+
+
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class ProjectValidatedEvent(_EventBase):
     project_id: identifiers.ProjectId
     is_valid: bool
+    details: list[dict[str, str]]
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ProjectDiscoveryFailedEvent(_EventBase):
+    project_id: identifiers.ProjectId
+    request_id: identifiers.RequestId | None = None
+    details: str
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
@@ -159,10 +198,15 @@ class WorkflowStageDeletedEvent(_EventBase):
 
 SeisLabDataEvent: TypeAlias = (
     ProjectCreatedEvent
+    | ProjectNotCreatedEvent
     | ProjectUpdatedEvent
+    | ProjectNotUpdatedEvent
     | ProjectDeletedEvent
+    | ProjectNotDeletedEvent
     | ProjectStatusChangedEvent
     | ProjectValidatedEvent
+    | ProjectNotValidatedEvent
+    | ProjectDiscoveryFailedEvent
     | ProjectDiscoveryProgressEvent
     | SurveyMissionCreatedEvent
     | SurveyMissionUpdatedEvent

@@ -100,7 +100,7 @@ class ValidProject(pydantic.BaseModel):
     status: constants.ProjectStatus
     temporal_extent_begin: dt.date | None
     temporal_extent_end: dt.date | None
-    owner: identifiers.UserId
+    owner_id: identifiers.UserId
     root_path: Annotated[str, pydantic.PlainValidator(ensure_root_path_exists)]
     links: list[ValidLinkSchema] = []
     bbox_4326: Annotated[

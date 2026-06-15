@@ -355,62 +355,33 @@ async def get_creation_form(request: Request):
     survey_mission_id = identifiers.SurveyMissionId(parent_survey_mission.id)
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     template_processor: Jinja2Templates = request.state.templates
-    template = template_processor.get_template(
-        "survey-related-records/create-form.html"
-    )
-    rendered = template.render(
-        request=request,
-        form=form_instance,
-        survey_mission_id=survey_mission_id,
-    )
-    breadcrumbs_template = template_processor.get_template("breadcrumbs.html")
-    rendered_breadcrumbs = breadcrumbs_template.render(
-        request=request,
-        breadcrumbs=[
-            schemas.BreadcrumbItem(name=_("Home"), url=str(request.url_for("home"))),
-            schemas.BreadcrumbItem(
-                name=_("Projects"), url=str(request.url_for("projects:list"))
-            ),
-            schemas.BreadcrumbItem(
-                name=parent_survey_mission.project.name["en"],
-                url=str(
-                    request.url_for(
+    return template_processor.TemplateResponse(
+        request,
+        "survey-related-records/create-form-page.html",
+        context={
+            "form": form_instance,
+            "survey_mission_id": survey_mission_id,
+            "breadcrumbs": [
+                schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
+                schemas.BreadcrumbItem(
+                    name=_("Projects"), url=request.url_for("projects:list")
+                ),
+                schemas.BreadcrumbItem(
+                    name=parent_survey_mission.project.name["en"],
+                    url=request.url_for(
                         "projects:detail", project_id=parent_survey_mission.project.id
-                    )
+                    ),
                 ),
-            ),
-            schemas.BreadcrumbItem(
-                name=parent_survey_mission.name["en"],
-                url=str(
-                    request.url_for(
+                schemas.BreadcrumbItem(
+                    name=parent_survey_mission.name["en"],
+                    url=request.url_for(
                         "survey_missions:detail", survey_mission_id=survey_mission_id
-                    )
+                    ),
                 ),
-            ),
-            schemas.BreadcrumbItem(
-                name=_("New survey-related record"),
-            ),
-        ],
+                schemas.BreadcrumbItem(name=_("New survey-related record")),
+            ],
+        },
     )
-
-    async def event_streamer():
-        yield ServerSentEventGenerator.patch_elements(
-            rendered,
-            selector=schemas.selector_info.main_content_selector,
-            mode=ElementPatchMode.INNER,
-        )
-        yield ServerSentEventGenerator.patch_elements(
-            rendered_breadcrumbs,
-            selector=schemas.selector_info.breadcrumbs_selector,
-            mode=ElementPatchMode.INNER,
-        )
-        yield ServerSentEventGenerator.patch_elements(
-            _("new survey-related record"),
-            selector=schemas.selector_info.page_title_selector,
-            mode=ElementPatchMode.INNER,
-        )
-
-    return DatastarResponse(event_streamer())
 
 
 @csrf_protect
@@ -720,9 +691,6 @@ async def get_update_form(request: Request):
         },
     )
     template_processor: Jinja2Templates = request.state.templates
-    template = template_processor.get_template(
-        "survey-related-records/update-form.html"
-    )
     user = request.user if request.user.is_authenticated else None
     async with request.state.settings.get_db_session_maker()() as session:
         initial_related_records_list, _ = await operations.list_survey_related_records(
@@ -732,21 +700,30 @@ async def get_update_form(request: Request):
     initial_related_records = [
         (i.id, i.name["en"]) for i in initial_related_records_list
     ]
-    rendered = template.render(
-        request=request,
-        survey_related_record=details.item,
-        form=form_instance,
-        initial_related_records=initial_related_records,
+    return template_processor.TemplateResponse(
+        request,
+        "survey-related-records/update-form-page.html",
+        context={
+            "survey_related_record": details.item,
+            "form": form_instance,
+            "initial_related_records": initial_related_records,
+            "breadcrumbs": [
+                schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
+                schemas.BreadcrumbItem(
+                    name=_("Survey-related records"),
+                    url=request.url_for("survey_related_records:list"),
+                ),
+                schemas.BreadcrumbItem(
+                    name=details.item.name.en,
+                    url=request.url_for(
+                        "survey_related_records:detail",
+                        survey_related_record_id=details.item.id,
+                    ),
+                ),
+                schemas.BreadcrumbItem(name=_("Edit survey-related record")),
+            ],
+        },
     )
-
-    async def event_streamer():
-        yield ServerSentEventGenerator.patch_elements(
-            rendered,
-            selector=schemas.selector_info.main_content_selector,
-            mode=ElementPatchMode.INNER,
-        )
-
-    return DatastarResponse(event_streamer())
 
 
 @csrf_protect

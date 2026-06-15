@@ -25,7 +25,7 @@ from ..schemas import (
     identifiers,
     messages as message_schemas,
 )
-from ..processing import tasks
+from ..processing import projects as project_tasks
 from . import sampledata
 from .asynctyper import AsyncTyper
 from .utils import resolve_admin_user
@@ -147,15 +147,8 @@ async def load_sample_projects(ctx: typer.Context):
     projects_to_create = list(sampledata.get_projects_to_create(owner=admin_))
     remaining = len(projects_to_create)
 
-    async def handle_started(
-        message: message_schemas.ProjectCreationStartedMessage,
-        context: subscribers.HandlerContext,
-        done: asyncio.Event | None = None,
-    ) -> AsyncGenerator[str, None]:
-        yield "[purple]Info:[/purple]Project creation has started"
-
     async def handle_success(
-        message: message_schemas.ProjectCreationSuccessfulMessage,
+        message: message_schemas.ProjectCreatedMessage,
         context: subscribers.HandlerContext,
         done: asyncio.Event | None = None,
     ) -> AsyncGenerator[str, None]:
@@ -166,7 +159,7 @@ async def load_sample_projects(ctx: typer.Context):
             done.set()
 
     async def handle_failure(
-        message: message_schemas.ProjectCreationFailedMessage,
+        message: message_schemas.ProjectNotCreatedMessage,
         context: subscribers.HandlerContext,
         done: asyncio.Event | None = None,
     ) -> AsyncGenerator[str, None]:
@@ -181,9 +174,8 @@ async def load_sample_projects(ctx: typer.Context):
         topic_name=constants.NEW_TOPIC_PROJECTS,
         handler_context=subscribers.HandlerContext(),
         message_handlers={
-            "project_creation_started": handle_started,
-            "project_creation_successful": handle_success,
-            "project_creation_failed": handle_failure,
+            "project_created": handle_success,
+            "project_not_created": handle_failure,
         },
     )
 
@@ -191,7 +183,7 @@ async def load_sample_projects(ctx: typer.Context):
         ctx.obj["main"].status_console.print(
             f"Queueing project {to_create.name.en!r} for creation..."
         )
-        tasks.succinct_create_project.send(
+        project_tasks.create_project.send(
             raw_request_id=str(uuid.uuid4()),
             raw_to_create=to_create.model_dump_json(exclude_none=True),
             raw_initiator=json.dumps(dataclasses.asdict(admin_)),
