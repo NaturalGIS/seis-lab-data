@@ -50,7 +50,7 @@ from ...db import (
     models,
     queries,
 )
-from ...processing import tasks
+from ...tasks import surveyrelatedrecords as record_tasks
 from ...schemas import identifiers
 from .. import (
     filters,
@@ -1312,7 +1312,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 selector="#feedback > ul",
                 mode=ElementPatchMode.APPEND,
             )
-            enqueued_message: Message = tasks.delete_survey_related_record.send(
+            enqueued_message: Message = record_tasks.delete_survey_related_record.send(
                 raw_request_id=str(request_id),
                 raw_survey_related_record_id=str(survey_related_record_id),
                 raw_initiator=json.dumps(dataclasses.asdict(user)),
@@ -1534,7 +1534,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 mode=ElementPatchMode.INNER,
             )
 
-            tasks.validate_survey_related_record.send(
+            record_tasks.validate_survey_related_record.send(
                 raw_request_id=str(request_id),
                 raw_survey_related_record_id=str(survey_related_record_id),
                 raw_initiator=json.dumps(dataclasses.asdict(user)),
@@ -1560,7 +1560,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 mode=ElementPatchMode.APPEND,
             )
 
-            enqueued_message: Message = tasks.update_survey_related_record.send(
+            enqueued_message: Message = record_tasks.update_survey_related_record.send(
                 raw_request_id=str(request_id),
                 raw_survey_related_record_id=str(survey_related_record_id),
                 raw_to_update=to_update.model_dump_json(exclude_unset=True),

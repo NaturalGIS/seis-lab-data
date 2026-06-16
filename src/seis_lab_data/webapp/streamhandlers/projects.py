@@ -19,7 +19,7 @@ from ...schemas import (
     webui as webui_schemas,
 )
 from ...operations import projects as project_ops
-from ...processing import projects as project_tasks
+from ...tasks import projects as project_tasks
 from .common import (
     flash_ui_message_after_redirect,
     flash_ui_message_same_page,

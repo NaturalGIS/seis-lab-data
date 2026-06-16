@@ -191,7 +191,7 @@ async def create_survey_related_record(
     initiator: user_schemas.User | None,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
-    request_id: identifiers.RequestId | None = None,
+    request_id: identifiers.RequestId,
 ):
     if not (
         survey_mission := await queries.get_survey_mission(
@@ -287,6 +287,7 @@ async def change_survey_related_record_status(
 
 
 async def validate_survey_related_record(
+    request_id: identifiers.RequestId,
     survey_related_record_id: identifiers.SurveyRelatedRecordId,
     initiator: user_schemas.User | None,
     session: AsyncSession,
@@ -359,6 +360,7 @@ async def validate_survey_related_record(
 
 
 async def delete_survey_related_record(
+    request_id: identifiers.RequestId,
     survey_related_record_id: identifiers.SurveyRelatedRecordId,
     initiator: user_schemas.User | None,
     session: AsyncSession,
@@ -462,6 +464,7 @@ async def get_survey_related_record(
 
 
 async def update_survey_related_record(
+    request_id: identifiers.RequestId,
     survey_related_record_id: identifiers.SurveyRelatedRecordId,
     to_update: record_schemas.SurveyRelatedRecordUpdate,
     initiator: user_schemas.User | None,

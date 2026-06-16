@@ -19,7 +19,7 @@ from ..operations import (
     surveymissions as mission_ops,
     surveyrelatedrecords as record_ops,
 )
-from ..processing import projects as project_tasks
+from ..tasks import projects as project_tasks
 from ..db import queries
 from ..schemas import identifiers
 from .asynctyper import AsyncTyper

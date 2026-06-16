@@ -40,9 +40,9 @@ from ...operations import (
     surveymissions as survey_mission_ops,
     surveyrelatedrecords as survey_related_record_ops,
 )
-from ...processing import (
-    surveymissions as survey_mission_tasks,
-    tasks,
+from ...tasks import (
+    surveymissions as mission_tasks,
+    surveyrelatedrecords as record_tasks,
 )
 from ...schemas import identifiers
 from .. import (
@@ -591,7 +591,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             ],
         )
 
-        survey_mission_tasks.update_survey_mission.send(
+        mission_tasks.update_survey_mission.send(
             raw_request_id=str(form_instance.request_id.data),
             raw_survey_mission_id=str(survey_mission_id),
             raw_to_update=to_update.model_dump_json(exclude_unset=True),
@@ -743,7 +743,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             )
             await asyncio.sleep(1)
 
-            tasks.validate_survey_related_record.send(
+            record_tasks.validate_survey_related_record.send(
                 raw_request_id=str(request_id),
                 raw_survey_related_record_id=str(to_create.id),
                 raw_initiator=json.dumps(dataclasses.asdict(user)),
@@ -776,7 +776,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 mode=ElementPatchMode.APPEND,
             )
 
-            enqueued_message: Message = tasks.create_survey_related_record.send(
+            enqueued_message: Message = record_tasks.create_survey_related_record.send(
                 raw_request_id=str(request_id),
                 raw_to_create=to_create.model_dump_json(),
                 raw_initiator=json.dumps(dataclasses.asdict(user)),
@@ -821,7 +821,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 )
 
         request_id = identifiers.RequestId(uuid.uuid4())
-        survey_mission_tasks.delete_survey_mission.send(
+        mission_tasks.delete_survey_mission.send(
             raw_request_id=str(request_id),
             raw_survey_mission_id=str(survey_mission_id),
             raw_initiator=json.dumps(dataclasses.asdict(user)),

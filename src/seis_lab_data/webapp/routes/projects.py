@@ -30,7 +30,7 @@ from ...operations import (
     projects as project_ops,
     surveymissions as survey_mission_ops,
 )
-from ...processing import (
+from ...tasks import (
     discovery as discovery_tasks,
     projects as project_tasks,
     surveymissions as survey_mission_tasks,

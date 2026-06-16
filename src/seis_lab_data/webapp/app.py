@@ -37,7 +37,7 @@ from ..auth import (
     AuthConfig,
     get_oauth_manager,
 )
-from ..processing.broker import setup_broker
+from ..tasks.broker import setup_broker
 
 from . import jinjafilters
 from .auth_backend import OIDCAuthBackend

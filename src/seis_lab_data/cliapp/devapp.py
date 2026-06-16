@@ -25,7 +25,7 @@ from ..schemas import (
     identifiers,
     messages as message_schemas,
 )
-from ..processing import projects as project_tasks
+from ..tasks import projects as project_tasks
 from . import sampledata
 from .asynctyper import AsyncTyper
 from .utils import resolve_admin_user
