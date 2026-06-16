@@ -60,6 +60,7 @@ async def create_survey_mission(
             )
         survey_mission = await commands.create_survey_mission(session, to_create)
     except errors.SeisLabDataError as err:
+        logger.error(str(err))
         await event_dispatcher(
             event_schemas.SurveyMissionNotCreatedEvent(
                 request_id=request_id, initiator=initiator.id, details=str(err)
@@ -306,6 +307,7 @@ async def delete_survey_mission(
                 f"Cannot delete survey mission because parent project's status "
                 f"is {survey_mission.project.status}"
             )
+        project_id = identifiers.ProjectId(survey_mission.project_id)
         await commands.delete_survey_mission(session, survey_mission_id)
     except errors.SeisLabDataError as err:
         await event_dispatcher(
@@ -322,6 +324,7 @@ async def delete_survey_mission(
         event_schemas.SurveyMissionDeletedEvent(
             request_id=request_id,
             survey_mission_id=survey_mission_id,
+            project_id=project_id,
             initiator=initiator.id,
         )
     )

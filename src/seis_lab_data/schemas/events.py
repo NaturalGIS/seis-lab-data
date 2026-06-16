@@ -130,6 +130,7 @@ class SurveyMissionNotUpdatedEvent(_EventBase):
 class SurveyMissionDeletedEvent(_EventBase):
     request_id: identifiers.RequestId | None = None
     survey_mission_id: identifiers.SurveyMissionId
+    project_id: identifiers.ProjectId
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)

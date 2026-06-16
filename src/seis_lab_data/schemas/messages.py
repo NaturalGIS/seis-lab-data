@@ -4,7 +4,10 @@ from typing import (
     TypeAlias,
 )
 
-from . import identifiers
+from . import (
+    identifiers,
+    events as event_schemas,
+)
 from .. import constants
 
 import pydantic
@@ -95,6 +98,15 @@ class SurveyMissionCreatedMessage(pydantic.BaseModel):
     survey_mission_id: identifiers.SurveyMissionId
     request_id: identifiers.RequestId | None = None
 
+    @classmethod
+    def from_event(
+        cls, event: event_schemas.SurveyMissionCreatedEvent
+    ) -> "SurveyMissionCreatedMessage":
+        return cls(
+            survey_mission_id=event.survey_mission_id,
+            request_id=event.request_id,
+        )
+
 
 class SurveyMissionUpdatedMessage(pydantic.BaseModel):
     type: Literal["survey_mission_updated"] = "survey_mission_updated"
@@ -105,6 +117,7 @@ class SurveyMissionUpdatedMessage(pydantic.BaseModel):
 class SurveyMissionDeletedMessage(pydantic.BaseModel):
     type: Literal["survey_mission_deleted"] = "survey_mission_deleted"
     survey_mission_id: identifiers.SurveyMissionId
+    project_id: identifiers.ProjectId
     request_id: identifiers.RequestId | None = None
 
 

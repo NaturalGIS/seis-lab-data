@@ -23,7 +23,6 @@ class OIDCAuthBackend(AuthenticationBackend):
 
     async def authenticate(self, conn: HTTPConnection):
         token = conn.session.get("token")
-        logger.debug(f"{token=}")
         if not token:
             return AuthCredentials([]), UnauthenticatedUser()
 

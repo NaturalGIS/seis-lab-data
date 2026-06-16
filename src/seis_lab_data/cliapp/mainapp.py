@@ -11,9 +11,13 @@ import redis.asyncio as aioredis
 from .. import (
     config,
     constants,
-    operations,
     schemas,
     subscribers,
+)
+from ..operations import (
+    projects as project_ops,
+    surveymissions as mission_ops,
+    surveyrelatedrecords as record_ops,
 )
 from ..processing import projects as project_tasks
 from ..db import queries
@@ -108,7 +112,7 @@ async def create_survey_related_record(
             printer(f"workflow stage '{workflow_stage!r}' not found.")
             raise typer.Abort()
         if (
-            survey_mission := await operations.get_survey_mission(
+            survey_mission := await mission_ops.get_survey_mission(
                 identifiers.SurveyMissionId(parent_survey_mission_id),
                 ctx.obj["admin_user"],
                 session,
@@ -119,7 +123,7 @@ async def create_survey_related_record(
                 "mission does not exist."
             )
             raise typer.Abort()
-        created = await operations.create_survey_related_record(
+        created = await record_ops.create_survey_related_record(
             to_create=schemas.SurveyRelatedRecordCreate(
                 id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
                 owner_id=identifiers.UserId(owner),
@@ -153,7 +157,7 @@ async def list_survey_related_records(
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     _page_size = page_size or settings.pagination_page_size
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await operations.list_survey_related_records(
+        items, num_total = await record_ops.list_survey_related_records(
             session,
             initiator=ctx.obj["admin_user"],
             page=page,
@@ -177,7 +181,7 @@ async def get_survey_related_record(
     """Get details about a survey-related record."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        record_details = await operations.get_survey_related_record(
+        record_details = await record_ops.get_survey_related_record(
             identifiers.SurveyRelatedRecordId(survey_related_record_id),
             ctx.obj["admin_user"].id,
             session,
@@ -203,7 +207,7 @@ async def delete_survey_related_record(
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     printer = ctx.obj["main"].status_console.print
     async with settings.get_db_session_maker()() as session:
-        await operations.delete_survey_related_record(
+        await record_ops.delete_survey_related_record(
             identifiers.SurveyRelatedRecordId(survey_related_record_id),
             initiator=ctx.obj["admin_user"].id,
             session=session,
@@ -233,7 +237,7 @@ async def create_survey_mission(
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
         if (
-            project := await operations.get_project(
+            project := await project_ops.get_project(
                 identifiers.ProjectId(parent_project_id),
                 ctx.obj["admin_user"],
                 session,
@@ -243,7 +247,7 @@ async def create_survey_mission(
                 "Cannot create survey mission as the parent project does not exist."
             )
             raise typer.Abort()
-        created = await operations.create_survey_mission(
+        created = await mission_ops.create_survey_mission(
             to_create=schemas.SurveyMissionCreate(
                 id=identifiers.SurveyMissionId(uuid.uuid4()),
                 project_id=identifiers.ProjectId(project.id),
@@ -271,7 +275,7 @@ async def list_survey_missions(
     """List survey missions."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await operations.list_survey_missions(
+        items, num_total = await mission_ops.list_survey_missions(
             session,
             initiator=ctx.obj["admin_user"],
             limit=limit,
@@ -288,7 +292,7 @@ async def get_survey_mission(ctx: typer.Context, survey_mission_id: uuid.UUID):
     """Get details about a survey mission"""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        survey_mission = await operations.get_survey_mission(
+        survey_mission = await mission_ops.get_survey_mission(
             identifiers.SurveyMissionId(survey_mission_id),
             ctx.obj["admin_user"].id,
             session,
@@ -311,7 +315,7 @@ async def delete_survey_mission(
     """Delete a survey mission."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        await operations.delete_survey_mission(
+        await mission_ops.delete_survey_mission(
             identifiers.SurveyMissionId(survey_mission_id),
             initiator=ctx.obj["admin_user"].id,
             session=session,
@@ -357,7 +361,7 @@ async def create_project(
     """Create a new project."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        created = await operations.create_project(
+        created = await project_ops.create_project(
             to_create=schemas.ProjectCreate(
                 id=identifiers.ProjectId(uuid.uuid4()),
                 owner_id=identifiers.UserId(owner),
@@ -392,7 +396,7 @@ async def get_project(ctx: typer.Context, project_id: uuid.UUID):
     """Get details about a project"""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        project = await operations.get_project(
+        project = await project_ops.get_project(
             identifiers.ProjectId(project_id),
             ctx.obj["admin_user"].id,
             session,
@@ -412,7 +416,7 @@ async def list_projects(
     """List projects."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await operations.list_projects(
+        items, num_total = await project_ops.list_projects(
             session,
             initiator=ctx.obj["admin_user"],
             page=page,
@@ -457,7 +461,7 @@ async def old_delete_project(
     """Delete a project."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        await operations.delete_project(
+        await project_ops.delete_project(
             identifiers.ProjectId(project_id),
             initiator=ctx.obj["admin_user"],
             session=session,
@@ -480,7 +484,7 @@ async def create_dataset_category(
     """Create a new dataset category."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        created = await operations.create_dataset_category(
+        created = await record_ops.create_dataset_category(
             to_create=schemas.DatasetCategoryCreate(
                 id=identifiers.DatasetCategoryId(uuid.uuid4()),
                 name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
@@ -501,7 +505,7 @@ async def list_dataset_categories(
     """List dataset categories."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await operations.list_dataset_categories(
+        items, num_total = await record_ops.list_dataset_categories(
             session, limit=limit, offset=offset, include_total=True
         )
     print(f"Total records: {num_total}")
@@ -517,7 +521,7 @@ async def delete_dataset_category(
     """Delete a dataset category."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        await operations.delete_dataset_category(
+        await record_ops.delete_dataset_category(
             dataset_category_id,
             initiator=ctx.obj["admin_user"],
             session=session,
@@ -540,7 +544,7 @@ async def create_domain_type(
     """Create a new domain type."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        created = await operations.create_domain_type(
+        created = await record_ops.create_domain_type(
             to_create=schemas.DomainTypeCreate(
                 id=identifiers.DomainTypeId(uuid.uuid4()),
                 name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
@@ -561,7 +565,7 @@ async def list_domain_types(
     """List domain types."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await operations.list_domain_types(
+        items, num_total = await record_ops.list_domain_types(
             session, limit=limit, offset=offset, include_total=True
         )
     print(f"Total records: {num_total}")
@@ -577,7 +581,7 @@ async def delete_domain_type(
     """Delete a domain type."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        await operations.delete_domain_type(
+        await record_ops.delete_domain_type(
             domain_type_id,
             initiator=ctx.obj["admin_user"],
             session=session,
@@ -600,7 +604,7 @@ async def create_workflow_stage(
     """Create a new workflow stage."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        created = await operations.create_workflow_stage(
+        created = await record_ops.create_workflow_stage(
             to_create=schemas.WorkflowStageCreate(
                 id=identifiers.WorkflowStageId(uuid.uuid4()),
                 name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
@@ -621,7 +625,7 @@ async def list_workflow_stages(
     """List workflow stages."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await operations.list_workflow_stages(
+        items, num_total = await record_ops.list_workflow_stages(
             session, limit=limit, offset=offset, include_total=True
         )
     print(f"Total records: {num_total}")
@@ -637,7 +641,7 @@ async def delete_workflow_stage(
     """Delete a workflow stage."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        await operations.delete_workflow_stage(
+        await record_ops.delete_workflow_stage(
             workflow_stage_id,
             initiator=ctx.obj["admin_user"],
             session=session,
