@@ -56,7 +56,7 @@ from .. import (
     filters,
     forms,
 )
-from ..streamhandlers import surveyrelatedrecords as survey_related_record_handlers
+from ..streamhandlers import surveyrelatedrecords as record_handlers
 from .auth import (
     requires_auth,
 )
@@ -1103,7 +1103,7 @@ async def get_list_component(request: Request):
     return DatastarResponse(event_streamer())
 
 
-async def get_listing_updates(request: Request):
+async def stream_to_list_page(request: Request):
     redis_client: Redis = request.state.redis_client
     user = request.user if request.user.is_authenticated else None
     settings: config.SeisLabDataSettings = request.state.settings
@@ -1254,7 +1254,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         survey_related_record_id = get_id_from_request_path(
             request, "survey_related_record_id", identifiers.SurveyRelatedRecordId
         )
-        user = request.user if request.user.is_authenticated else None
+        user = request.user
         async with request.state.settings.get_db_session_maker()() as session:
             if (
                 survey_related_record_details
@@ -1585,7 +1585,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
 
 
 @requires_auth
-async def get_survey_related_record_new_updates(request: Request):
+async def stream_to_new_page(request: Request):
     """Stream relevant updates for the new survey-related record page."""
     try:
         request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
@@ -1603,13 +1603,88 @@ async def get_survey_related_record_new_updates(request: Request):
             db_session_factory=request.state.settings.get_db_session_maker(),
         ),
         {
-            "survey_related_record_created": survey_related_record_handlers.handle_new_page_survey_related_record_creation_successful,
+            "survey_related_record_created": record_handlers.handle_new_page_survey_related_record_creation_successful,
         },
     )
 
     async def event_streamer():
         async for sse_event in subscription:
             yield sse_event
+
+    return DatastarResponse(event_streamer())
+
+
+async def stream_to_detail_page(request: Request):
+    try:
+        record_id = identifiers.SurveyRelatedRecordId(
+            uuid.UUID(request.path_params["survey_related_record_id"])
+        )
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
+    except ValueError as err:
+        raise HTTPException(
+            status_code=400, detail="Invalid survey_related_record id"
+        ) from err
+    session_maker = request.state.settings.get_db_session_maker()
+    redis_client: Redis = request.state.redis_client
+    user = request.user if request.user.is_authenticated else None
+
+    subscription = subscribers.subscribe_to_topic(
+        redis_client,
+        constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
+        subscribers.SurveyRelatedRecordHandlerContext(
+            survey_related_record_id=record_id,
+            user=user,
+            jinja_environment=request.state.templates.env,
+            url_resolver=request.url_for,
+            db_session_factory=session_maker,
+            request_id=request_id,
+        ),
+        message_handlers={
+            "survey_related_record_deleted": record_handlers.handle_detail_page_record_deleted
+        },
+    )
+
+    async def event_streamer():
+        async for datastar_event in subscription:
+            yield datastar_event
+
+    return DatastarResponse(event_streamer())
+
+
+@requires_auth
+async def stream_to_update_page(request: Request):
+    try:
+        record_id = identifiers.SurveyRelatedRecordId(
+            uuid.UUID(request.path_params["survey_related_record_id"])
+        )
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
+    except ValueError as err:
+        raise HTTPException(
+            status_code=400, detail="Invalid survey_related_record id"
+        ) from err
+    session_maker = request.state.settings.get_db_session_maker()
+    redis_client: Redis = request.state.redis_client
+    user = request.user
+
+    subscription = subscribers.subscribe_to_topic(
+        redis_client,
+        constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
+        subscribers.SurveyRelatedRecordHandlerContext(
+            survey_related_record_id=record_id,
+            user=user,
+            jinja_environment=request.state.templates.env,
+            url_resolver=request.url_for,
+            db_session_factory=session_maker,
+            request_id=request_id,
+        ),
+        message_handlers={
+            "survey_related_record_updated": record_handlers.handle_edit_page_survey_record_updated
+        },
+    )
+
+    async def event_streamer():
+        async for datastar_event in subscription:
+            yield datastar_event
 
     return DatastarResponse(event_streamer())
 
@@ -1623,7 +1698,7 @@ routes = [
     ),
     Route(
         "/{survey_mission_id}/new/{request_id}/stream",
-        get_survey_related_record_new_updates,
+        stream_to_new_page,
         methods=["GET"],
         name="new_stream",
     ),
@@ -1688,10 +1763,10 @@ routes = [
         name="get_list_component",
     ),
     Route(
-        "/listing-updates",
-        get_listing_updates,
+        "/stream",
+        stream_to_list_page,
         methods=["GET"],
-        name="get_listing_updates",
+        name="list_stream",
     ),
     Route(
         "/filter-by-name",
@@ -1703,6 +1778,12 @@ routes = [
         "/{survey_related_record_id}",
         SurveyRelatedRecordDetailEndpoint,
         name="detail",
+    ),
+    Route(
+        "/{survey_related_record_id}/stream/{request_id}",
+        stream_to_detail_page,
+        methods=["GET"],
+        name="detail_stream",
     ),
     Route(
         "/{survey_related_record_id}/details",
@@ -1721,6 +1802,12 @@ routes = [
         get_update_form,
         methods=["GET"],
         name="get_update_form",
+    ),
+    Route(
+        "/{survey_related_record_id}/update/stream/{request_id}",
+        stream_to_update_page,
+        methods=["GET"],
+        name="update_stream",
     ),
     Route(
         "/{survey_related_record_id}/update/add-form-link",

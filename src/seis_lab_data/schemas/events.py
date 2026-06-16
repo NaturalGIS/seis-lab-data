@@ -109,7 +109,6 @@ class SurveyMissionCreatedEvent(_EventBase):
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class SurveyMissionNotCreatedEvent(_EventBase):
     request_id: identifiers.RequestId | None = None
-    survey_mission_id: identifiers.SurveyMissionId
     details: str
 
 
@@ -183,7 +182,14 @@ class SurveyMissionDiscoveryProgressEvent(_EventBase):
 class SurveyRelatedRecordCreatedEvent(_EventBase):
     record_id: identifiers.SurveyRelatedRecordId
     survey_mission_id: identifiers.SurveyMissionId
+    project_id: identifiers.ProjectId
     request_id: identifiers.RequestId | None = None
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyRelatedRecordNotCreatedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
+    details: str
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
@@ -193,20 +199,46 @@ class SurveyRelatedRecordUpdatedEvent(_EventBase):
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class SurveyRelatedRecordDeletedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
     record_id: identifiers.SurveyRelatedRecordId
+    survey_mission_id: identifiers.SurveyMissionId
+    project_id: identifiers.ProjectId
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyRelatedRecordNotDeletedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
+    record_id: identifiers.SurveyRelatedRecordId
+    details: str
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class SurveyRelatedRecordStatusChangedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
     record_id: identifiers.SurveyRelatedRecordId
     old_status: constants.SurveyRelatedRecordStatus
     new_status: constants.SurveyRelatedRecordStatus
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyRelatedRecordStatusNotChangedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
+    record_id: identifiers.SurveyRelatedRecordId
+    details: str
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
 class SurveyRelatedRecordValidatedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
     record_id: identifiers.SurveyRelatedRecordId
     is_valid: bool
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class SurveyRelatedRecordNotValidatedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
+    record_id: identifiers.SurveyRelatedRecordId
+    details: str
 
 
 # Reference data events
@@ -267,10 +299,14 @@ SeisLabDataEvent: TypeAlias = (
     | SurveyMissionNotValidatedEvent
     | SurveyMissionDiscoveryProgressEvent
     | SurveyRelatedRecordCreatedEvent
+    | SurveyRelatedRecordNotCreatedEvent
     | SurveyRelatedRecordUpdatedEvent
     | SurveyRelatedRecordDeletedEvent
+    | SurveyRelatedRecordNotDeletedEvent
     | SurveyRelatedRecordStatusChangedEvent
+    | SurveyRelatedRecordStatusNotChangedEvent
     | SurveyRelatedRecordValidatedEvent
+    | SurveyRelatedRecordNotValidatedEvent
     | DatasetCategoryCreatedEvent
     | DatasetCategoryDeletedEvent
     | DomainTypeCreatedEvent

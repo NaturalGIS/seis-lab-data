@@ -158,7 +158,9 @@ class SurveyRelatedRecordUpdatedMessage(pydantic.BaseModel):
 
 class SurveyRelatedRecordDeletedMessage(pydantic.BaseModel):
     type: Literal["survey_related_record_deleted"] = "survey_related_record_deleted"
+    request_id: identifiers.RequestId | None = None
     record_id: identifiers.SurveyRelatedRecordId
+    survey_mission_id: identifiers.SurveyMissionId
 
 
 class SurveyRelatedRecordStatusChangedMessage(pydantic.BaseModel):

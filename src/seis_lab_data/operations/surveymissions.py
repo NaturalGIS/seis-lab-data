@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 async def create_survey_mission(
     request_id: identifiers.RequestId,
     to_create: survey_mission_schemas.SurveyMissionCreate,
-    initiator: user_schemas.User | None,
+    initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.SurveyMission | None:

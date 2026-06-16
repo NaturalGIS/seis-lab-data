@@ -176,6 +176,7 @@ async def get_details_component(request: Request):
     return DatastarResponse(event_streamer())
 
 
+@requires_auth
 async def stream_to_update_page(request: Request):
     try:
         survey_mission_id = identifiers.SurveyMissionId(
@@ -1047,7 +1048,7 @@ async def get_survey_mission_update_form(request: Request):
 
 
 @requires_auth
-async def get_survey_mission_new_updates(request: Request):
+async def stream_to_new_page(request: Request):
     """Stream relevant updates for the new survey mission page."""
     try:
         request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
@@ -1103,7 +1104,7 @@ routes = [
     ),
     Route(
         "/{project_id}/new/{request_id}/stream",
-        get_survey_mission_new_updates,
+        stream_to_new_page,
         methods=["GET"],
         name="new_stream",
     ),

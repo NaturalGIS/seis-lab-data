@@ -168,7 +168,9 @@ class RedisEventDispatcher:
                 await self._redis.publish(
                     constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
                     messages.SurveyRelatedRecordDeletedMessage(
+                        request_id=event.request_id,
                         record_id=event.record_id,
+                        survey_mission_id=event.survey_mission_id,
                     ).model_dump_json(),
                 )
             case events.SurveyRelatedRecordStatusChangedEvent():
