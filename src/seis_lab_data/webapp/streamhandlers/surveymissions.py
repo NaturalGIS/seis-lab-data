@@ -1,12 +1,16 @@
 import asyncio
 import logging
+import time
 from collections.abc import AsyncGenerator
 
 from datastar_py.sse import DatastarEvent, ServerSentEventGenerator
 
 from ... import subscribers
 from ...schemas import messages as message_schemas
-from .common import flash_ui_message_after_redirect
+from .common import (
+    flash_ui_message_after_redirect,
+    flash_ui_message_same_page,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -80,4 +84,31 @@ async def handle_edit_page_survey_mission_updated(
                 survey_mission_id=message.survey_mission_id,
             )
         )
+    )
+
+
+async def handle_list_page_survey_mission_modification(
+    message: (
+        message_schemas.SurveyMissionCreatedMessage
+        | message_schemas.SurveyMissionUpdatedMessage
+        | message_schemas.SurveyMissionDeletedMessage
+    ),
+    context: subscribers.SurveyMissionHandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    match message:
+        case message_schemas.SurveyMissionDeletedMessage():
+            message = f"Survey mission {message.survey_mission_id} has been deleted - Reloaded list"
+        case _:
+            message = "Survey mission list has changed - Reloaded list"
+    async for event in flash_ui_message_same_page(
+        {
+            "message": message,
+            "category": "info",
+        }
+    ):
+        yield event
+    # update datastar signal that frontend recognizes as needing to re-fetch list of survey missions
+    yield ServerSentEventGenerator.patch_signals(
+        {"recordListingVersion": int(time.time() * 1000)}
     )

@@ -148,7 +148,7 @@ class SurveyRelatedRecordCreatedMessage(pydantic.BaseModel):
     type: Literal["survey_related_record_created"] = "survey_related_record_created"
     record_id: identifiers.SurveyRelatedRecordId
     survey_mission_id: identifiers.SurveyMissionId
-    request_id: identifiers.RequestId | None = None
+    request_id: identifiers.RequestId
 
 
 class SurveyRelatedRecordUpdatedMessage(pydantic.BaseModel):

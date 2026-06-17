@@ -189,7 +189,7 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
         "button", name="show-delete-confirmation-modal"
     ).click()
     authenticated_page.get_by_role("button", name="delete-item").click()
-    expect(authenticated_page.get_by_role("link", name="new-project")).to_be_visible()
+    expect(authenticated_page).to_have_url("/projects")
 
 
 @pytest.mark.e2e

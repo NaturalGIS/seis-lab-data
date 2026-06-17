@@ -183,12 +183,12 @@ class SurveyRelatedRecordCreatedEvent(_EventBase):
     record_id: identifiers.SurveyRelatedRecordId
     survey_mission_id: identifiers.SurveyMissionId
     project_id: identifiers.ProjectId
-    request_id: identifiers.RequestId | None = None
+    request_id: identifiers.RequestId
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class SurveyRelatedRecordNotCreatedEvent(_EventBase):
-    request_id: identifiers.RequestId | None = None
+    request_id: identifiers.RequestId
     details: str
 
 

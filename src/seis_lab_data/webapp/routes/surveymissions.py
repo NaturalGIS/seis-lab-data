@@ -1,17 +1,12 @@
-import asyncio
 import dataclasses
 import json
 import logging
 import uuid
-from typing import AsyncGenerator
 
 import shapely
 from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
-from datastar_py.sse import DatastarEvent
 from datastar_py.starlette import DatastarResponse
-from dramatiq import Message
-from jinja2 import Template
 from redis.asyncio import Redis
 from starlette_babel import gettext_lazy as _
 from starlette.endpoints import HTTPEndpoint
@@ -30,10 +25,6 @@ from ... import (
     permissions,
     schemas,
     subscribers,
-)
-from ...constants import (
-    PROGRESS_TOPIC_NAME_TEMPLATE,
-    SURVEY_MISSION_CREATED_TOPIC,
 )
 from ...operations import (
     projects as project_ops,
@@ -57,8 +48,6 @@ from .common import (
     get_id_from_request_path,
     get_page_from_request_params,
     get_pagination_info,
-    produce_event_stream_for_item_updates,
-    produce_event_stream_for_topic,
     UPDATE_BASEMAP_JS_SCRIPT,
 )
 
@@ -361,55 +350,27 @@ async def get_list_component(request: Request):
 
 
 async def stream_to_list_page(request: Request):
-    redis_client: Redis = request.state.redis_client
-    user = request.user if request.user.is_authenticated else None
-    settings: config.SeisLabDataSettings = request.state.settings
-
-    async def on_mission_created_message(
-        raw_message: str,
-    ) -> AsyncGenerator[DatastarEvent, None]:
-        logger.debug(
-            "Received message about new survey mission created, "
-            "refreshing missions list..."
-        )
-        async with settings.get_db_session_maker()() as session:
-            items, total = await survey_mission_ops.list_survey_missions(
-                session,
-                initiator=user,
-                include_total=True,
-                page=1,
-                page_size=settings.pagination_page_size,
-            )
-        pagination = get_pagination_info(
-            current_page=1,
-            page_size=settings.pagination_page_size,
-            total_filtered_items=total,
-            total_unfiltered_items=total,
-            collection_url=str(request.url_for("survey_missions:list")),
-        )
-        serialized_items = [
-            schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items
-        ]
-        rendered = request.state.templates.get_template(
-            "survey-missions/list-component.html"
-        ).render(request=request, items=serialized_items, pagination=pagination)
-        yield ServerSentEventGenerator.patch_elements(
-            rendered,
-            selector=schemas.selector_info.items_selector,
-            mode=ElementPatchMode.REPLACE,
-        )
-
-    topic_handlers = {
-        SURVEY_MISSION_CREATED_TOPIC: on_mission_created_message,
-    }
+    subscription = subscribers.subscribe_to_topic(
+        request.state.redis_client,
+        constants.NEW_TOPIC_SURVEY_MISSIONS,
+        subscribers.SurveyMissionHandlerContext(
+            jinja_environment=request.state.templates.env,
+            url_resolver=request.url_for,
+            db_session_factory=request.state.settings.get_db_session_maker(),
+            user=request.user if request.user.is_authenticated else None,
+        ),
+        {
+            "survey_mission_created": survey_mission_handlers.handle_list_page_survey_mission_modification,
+            "survey_mission_updated": survey_mission_handlers.handle_list_page_survey_mission_modification,
+            "survey_mission_deleted": survey_mission_handlers.handle_list_page_survey_mission_modification,
+        },
+    )
 
     async def event_streamer():
-        async for sse_event in produce_event_stream_for_item_updates(
-            redis_client, request, timeout_seconds=30, **topic_handlers
-        ):
+        async for sse_event in subscription:
             yield sse_event
 
-    return DatastarResponse(event_streamer())
+    return DatastarResponse(event_streamer(), status_code=200)
 
 
 class SurveyMissionCollectionEndpoint(HTTPEndpoint):
@@ -604,8 +565,8 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
     @csrf_protect
     @requires_auth
     async def post(self, request: Request):
-        """Create a new record in the survey mission's collection."""
-        user = request.user if request.user.is_authenticated else None
+        """Create a new record under the survey mission."""
+        user = request.user
         survey_mission_id = get_id_from_request_path(
             request, "survey_mission_id", identifiers.SurveyMissionId
         )
@@ -640,7 +601,6 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
             return DatastarResponse(event_streamer(), status_code=200)
 
-        request_id = identifiers.RequestId(uuid.uuid4())
         related_records = []
         for related_ in form_instance.related_records.entries:
             related_records.append(
@@ -726,78 +686,12 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             ],
             related_records=related_records,
         )
-        logger.info(f"{to_create=}")
-
-        async def handle_processing_success(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            """Handle successful processing of the survey-related record creation background task."""
-
-            yield ServerSentEventGenerator.patch_elements(
-                message_template.render(
-                    data_test_id="processing-success-message",
-                    status=final_message.status.value,
-                    message=final_message.message,
-                ),
-                selector=schemas.selector_info.main_content_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-            await asyncio.sleep(1)
-
-            record_tasks.validate_survey_related_record.send(
-                raw_request_id=str(request_id),
-                raw_survey_related_record_id=str(to_create.id),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
-            )
-            yield ServerSentEventGenerator.redirect(
-                str(
-                    request.url_for(
-                        "survey_related_records:detail",
-                        survey_related_record_id=to_create.id,
-                    )
-                )
-            )
-
-        async def handle_processing_failure(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            yield ServerSentEventGenerator.patch_elements(
-                message_template.render(
-                    status=final_message.status.value,
-                    message=f"ERROR: {final_message.message}",
-                ),
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-
-        async def stream_events():
-            yield ServerSentEventGenerator.patch_elements(
-                """<li>Creating survey-related record as a background task...</li>""",
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-
-            enqueued_message: Message = record_tasks.create_survey_related_record.send(
-                raw_request_id=str(request_id),
-                raw_to_create=to_create.model_dump_json(),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
-            )
-            logger.debug(f"{enqueued_message=}")
-            redis_client: Redis = request.state.redis_client
-            event_stream_generator = produce_event_stream_for_topic(
-                redis_client,
-                request,
-                topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
-                on_success=handle_processing_success,
-                on_failure=handle_processing_failure,
-                patch_elements_selector=schemas.selector_info.feedback_selector,
-                timeout_seconds=30,
-            )
-            async for sse_event in event_stream_generator:
-                yield sse_event
-
-        # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
-        return DatastarResponse(stream_events(), status_code=200)
+        record_tasks.create_survey_related_record.send(
+            raw_request_id=str(form_instance.request_id.data),
+            raw_to_create=to_create.model_dump_json(),
+            raw_initiator=json.dumps(dataclasses.asdict(user)),
+        )
+        return Response(status_code=200)
 
     @csrf_protect
     @requires_auth

@@ -214,7 +214,7 @@ async def stream_to_list_page(request: Request):
         async for sse_event in subscription:
             yield sse_event
 
-    return DatastarResponse(event_streamer())
+    return DatastarResponse(event_streamer(), status_code=200)
 
 
 @requires_auth

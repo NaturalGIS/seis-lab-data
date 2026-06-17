@@ -235,13 +235,13 @@ async def create_survey_related_record(
 
     await event_dispatcher(
         event_schemas.SurveyRelatedRecordCreatedEvent(
+            request_id=request_id,
             record_id=identifiers.SurveyRelatedRecordId(survey_record.id),
             survey_mission_id=identifiers.SurveyMissionId(
                 survey_record.survey_mission_id
             ),
             project_id=identifiers.ProjectId(survey_record.survey_mission.project_id),
             initiator=initiator.id,
-            request_id=request_id,
         )
     )
     return survey_record
