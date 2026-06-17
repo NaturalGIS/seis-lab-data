@@ -4,7 +4,10 @@ from typing import (
     TypeAlias,
 )
 
-from . import identifiers
+from . import (
+    identifiers,
+    events as event_schemas,
+)
 from .. import constants
 
 import pydantic
@@ -19,7 +22,7 @@ class ProjectDiscoverySuccessfulMessage(pydantic.BaseModel):
 
 class ProjectDiscoveryFailedMessage(pydantic.BaseModel):
     type: Literal["project_discovery_failed"] = "project_discovery_failed"
-    request_id: identifiers.RequestId
+    request_id: identifiers.RequestId | None = None
     project_id: identifiers.ProjectId
     details: str
 
@@ -93,16 +96,29 @@ class ProjectDiscoveryProgressMessage(pydantic.BaseModel):
 class SurveyMissionCreatedMessage(pydantic.BaseModel):
     type: Literal["survey_mission_created"] = "survey_mission_created"
     survey_mission_id: identifiers.SurveyMissionId
+    request_id: identifiers.RequestId | None = None
+
+    @classmethod
+    def from_event(
+        cls, event: event_schemas.SurveyMissionCreatedEvent
+    ) -> "SurveyMissionCreatedMessage":
+        return cls(
+            survey_mission_id=event.survey_mission_id,
+            request_id=event.request_id,
+        )
 
 
 class SurveyMissionUpdatedMessage(pydantic.BaseModel):
     type: Literal["survey_mission_updated"] = "survey_mission_updated"
     survey_mission_id: identifiers.SurveyMissionId
+    request_id: identifiers.RequestId | None = None
 
 
 class SurveyMissionDeletedMessage(pydantic.BaseModel):
     type: Literal["survey_mission_deleted"] = "survey_mission_deleted"
     survey_mission_id: identifiers.SurveyMissionId
+    project_id: identifiers.ProjectId
+    request_id: identifiers.RequestId | None = None
 
 
 class SurveyMissionStatusChangedMessage(pydantic.BaseModel):
@@ -132,6 +148,7 @@ class SurveyRelatedRecordCreatedMessage(pydantic.BaseModel):
     type: Literal["survey_related_record_created"] = "survey_related_record_created"
     record_id: identifiers.SurveyRelatedRecordId
     survey_mission_id: identifiers.SurveyMissionId
+    request_id: identifiers.RequestId
 
 
 class SurveyRelatedRecordUpdatedMessage(pydantic.BaseModel):
@@ -141,7 +158,9 @@ class SurveyRelatedRecordUpdatedMessage(pydantic.BaseModel):
 
 class SurveyRelatedRecordDeletedMessage(pydantic.BaseModel):
     type: Literal["survey_related_record_deleted"] = "survey_related_record_deleted"
+    request_id: identifiers.RequestId | None = None
     record_id: identifiers.SurveyRelatedRecordId
+    survey_mission_id: identifiers.SurveyMissionId
 
 
 class SurveyRelatedRecordStatusChangedMessage(pydantic.BaseModel):

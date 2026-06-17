@@ -19,7 +19,7 @@ from ...schemas import (
     webui as webui_schemas,
 )
 from ...operations import projects as project_ops
-from ...processing import projects as project_tasks
+from ...tasks import projects as project_tasks
 from .common import (
     flash_ui_message_after_redirect,
     flash_ui_message_same_page,
@@ -44,6 +44,7 @@ async def handle_new_page_project_creation_successful(
         return
 
     project_tasks.validate_project.send(
+        raw_request_id=str(message.request_id),
         raw_project_id=str(message.project_id),
         raw_initiator=json.dumps(dataclasses.asdict(context.user)),
     )
@@ -140,6 +141,7 @@ async def handle_edit_page_project_modification_successful(
         return
 
     project_tasks.validate_project.send(
+        raw_request_id=str(message.request_id),
         raw_project_id=str(message.project_id),
         raw_initiator=json.dumps(dataclasses.asdict(context.user)),
     )

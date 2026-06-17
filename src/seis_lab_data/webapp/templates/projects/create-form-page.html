@@ -15,5 +15,10 @@
 {% endblock page_title %}
 
 {% block details %}
-    {% include "projects/create-form.html" %}
+    <div
+            data-on-intersect__once="@get('{{ url_for('projects:new_stream', request_id=form.request_id.data) }}')"
+            data-on:datastar-fetch="evt.detail.type === 'finished' && document.querySelector('bbox-map')?.initMap()"
+    >
+        {% include "projects/create-form.html" %}
+    </div>
 {% endblock details %}

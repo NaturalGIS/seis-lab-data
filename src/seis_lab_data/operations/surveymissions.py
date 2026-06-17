@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 import pydantic
@@ -34,30 +35,41 @@ logger = logging.getLogger(__name__)
 
 
 async def create_survey_mission(
+    request_id: identifiers.RequestId,
     to_create: survey_mission_schemas.SurveyMissionCreate,
-    initiator: user_schemas.User | None,
+    initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
-) -> models.SurveyMission:
-    if not (project := await queries.get_project(session, to_create.project_id)):
-        raise errors.SeisLabDataError(
-            f"Project with id {to_create.project_id} does not exist"
+) -> models.SurveyMission | None:
+    try:
+        if not (project := await queries.get_project(session, to_create.project_id)):
+            raise errors.SeisLabDataError(
+                f"Project with id {to_create.project_id} does not exist"
+            )
+        if not permissions.can_create_survey_mission(initiator, project):
+            raise errors.SeisLabDataError(
+                f"User {initiator!r} is not allowed to create a survey mission."
+            )
+        if (project_status := project.status) not in (
+            ProjectStatus.DRAFT,
+            ProjectStatus.UNDER_DISCOVERY,
+        ):
+            raise errors.SeisLabDataError(
+                f"Cannot create survey mission because parent project's "
+                f"status is {project_status}"
+            )
+        survey_mission = await commands.create_survey_mission(session, to_create)
+    except errors.SeisLabDataError as err:
+        logger.error(str(err))
+        await event_dispatcher(
+            event_schemas.SurveyMissionNotCreatedEvent(
+                request_id=request_id, initiator=initiator.id, details=str(err)
+            )
         )
-    if not permissions.can_create_survey_mission(initiator, project):
-        raise errors.SeisLabDataError(
-            f"User {initiator!r} is not allowed to create a survey mission."
-        )
-    if (project_status := project.status) not in (
-        ProjectStatus.DRAFT,
-        ProjectStatus.UNDER_DISCOVERY,
-    ):
-        raise errors.SeisLabDataError(
-            f"Cannot create survey mission because parent project's "
-            f"status is {project_status}"
-        )
-    survey_mission = await commands.create_survey_mission(session, to_create)
+        return None
     await event_dispatcher(
         event_schemas.SurveyMissionCreatedEvent(
+            request_id=request_id,
             survey_mission_id=identifiers.SurveyMissionId(survey_mission.id),
             project_id=identifiers.ProjectId(survey_mission.project_id),
             initiator=initiator.id,
@@ -67,40 +79,56 @@ async def create_survey_mission(
 
 
 async def change_survey_mission_status(
+    request_id: identifiers.RequestId,
     target_status: SurveyMissionStatus,
     survey_mission_id: identifiers.SurveyMissionId,
     initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
-) -> models.SurveyMission:
-    if (
-        survey_mission := await queries.get_survey_mission(session, survey_mission_id)
-    ) is None:
-        raise errors.SeisLabDataError(
-            f"Survey mission with id {survey_mission_id} does not exist."
+) -> models.SurveyMission | None:
+    try:
+        if (
+            survey_mission := await queries.get_survey_mission(
+                session, survey_mission_id
+            )
+        ) is None:
+            raise errors.SeisLabDataError(
+                f"Survey mission with id {survey_mission_id} does not exist."
+            )
+        if not permissions.can_change_survey_mission_status(initiator, survey_mission):
+            raise errors.SeisLabDataError(
+                "User is not allowed to change survey mission status."
+            )
+        if (old_status := survey_mission.status) == target_status:
+            logger.info(
+                f"Survey mission status is already set to {target_status} - nothing to do"
+            )
+            return survey_mission
+        if target_status == SurveyMissionStatus.UNDER_DISCOVERY:
+            await project_ops.change_project_status(
+                request_id=request_id,
+                target_status=ProjectStatus.UNDER_DISCOVERY,
+                project_id=identifiers.ProjectId(survey_mission.project_id),
+                initiator=initiator,
+                session=session,
+                event_dispatcher=event_dispatcher,
+            )
+        updated_survey_mission = await commands.set_survey_mission_status(
+            session, identifiers.SurveyMissionId(survey_mission.id), target_status
         )
-    if not permissions.can_change_survey_mission_status(initiator, survey_mission):
-        raise errors.SeisLabDataError(
-            "User is not allowed to change survey mission status."
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.SurveyMissionStatusNotChangedEvent(
+                survey_mission_id=survey_mission_id,
+                initiator=initiator.id,
+                details=str(err),
+                request_id=request_id,
+            )
         )
-    if (old_status := survey_mission.status) == target_status:
-        logger.info(
-            f"Survey mission status is already set to {target_status} - nothing to do"
-        )
-        return survey_mission
-    if target_status == SurveyMissionStatus.UNDER_DISCOVERY:
-        await project_ops.change_project_status(
-            ProjectStatus.UNDER_DISCOVERY,
-            identifiers.ProjectId(survey_mission.project_id),
-            initiator,
-            session,
-            event_dispatcher,
-        )
-    updated_survey_mission = await commands.set_survey_mission_status(
-        session, identifiers.SurveyMissionId(survey_mission.id), target_status
-    )
+        return None
     await event_dispatcher(
         event_schemas.SurveyMissionStatusChangedEvent(
+            request_id=request_id,
             survey_mission_id=survey_mission_id,
             old_status=old_status,
             new_status=updated_survey_mission.status,
@@ -111,29 +139,48 @@ async def change_survey_mission_status(
 
 
 async def validate_survey_mission(
+    request_id: identifiers.RequestId,
     survey_mission_id: identifiers.SurveyMissionId,
     initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
-) -> models.SurveyMission:
-    await change_survey_mission_status(
-        SurveyMissionStatus.UNDER_VALIDATION,
-        survey_mission_id,
-        initiator,
-        session,
-        event_dispatcher,
-    )
-    if (
-        survey_mission := await queries.get_survey_mission(session, survey_mission_id)
-    ) is None:
-        raise errors.SeisLabDataError(
-            f"Survey mission with id {survey_mission_id} does not exist."
+) -> models.SurveyMission | None:
+    try:
+        if (
+            survey_mission := await queries.get_survey_mission(
+                session, survey_mission_id
+            )
+        ) is None:
+            raise errors.SeisLabDataError(
+                f"Survey mission with id {survey_mission_id} does not exist."
+            )
+        if not permissions.can_validate_survey_mission(initiator, survey_mission):
+            raise errors.SeisLabDataError(
+                "User is not allowed to validate survey mission."
+            )
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.SurveyMissionNotValidatedEvent(
+                request_id=request_id,
+                initiator=initiator.id,
+                survey_mission_id=survey_mission_id,
+                details=str(err),
+            )
         )
-    if not permissions.can_validate_survey_mission(initiator, survey_mission):
-        raise errors.SeisLabDataError("User is not allowed to validate survey mission.")
+        return None
+
     validation_errors = []
     try:
-        validation_schemas.ValidSurveyMission(**survey_mission.model_dump())
+        await change_survey_mission_status(
+            request_id=request_id,
+            target_status=SurveyMissionStatus.UNDER_VALIDATION,
+            survey_mission_id=survey_mission_id,
+            initiator=initiator,
+            session=session,
+            event_dispatcher=event_dispatcher,
+        )
+        await asyncio.sleep(3)
+        validation_schemas.ValidSurveyMission.model_validate(survey_mission)
     except pydantic.ValidationError as err:
         for error in err.errors():
             validation_errors.append(
@@ -157,52 +204,73 @@ async def validate_survey_mission(
             survey_mission,
             validation_result={"is_valid": True, "errors": None},
         )
-    await event_dispatcher(
-        event_schemas.SurveyMissionValidatedEvent(
-            survey_mission_id=survey_mission_id,
-            is_valid=not validation_errors,
-            initiator=initiator.id,
+    finally:
+        await event_dispatcher(
+            event_schemas.SurveyMissionValidatedEvent(
+                request_id=request_id,
+                survey_mission_id=survey_mission_id,
+                is_valid=not validation_errors,
+                initiator=initiator.id,
+            )
         )
-    )
     await change_survey_mission_status(
-        SurveyMissionStatus.DRAFT,
-        survey_mission_id,
-        initiator,
-        session,
-        event_dispatcher,
+        request_id=request_id,
+        target_status=SurveyMissionStatus.DRAFT,
+        survey_mission_id=survey_mission_id,
+        initiator=initiator,
+        session=session,
+        event_dispatcher=event_dispatcher,
     )
     return survey_mission
 
 
 async def update_survey_mission(
+    request_id: identifiers.RequestId,
     survey_mission_id: identifiers.SurveyMissionId,
     to_update: survey_mission_schemas.SurveyMissionUpdate,
-    initiator: user_schemas.User | None,
+    initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
-) -> models.SurveyMission:
-    if (
-        survey_mission := await queries.get_survey_mission(session, survey_mission_id)
-    ) is None:
-        raise errors.SeisLabDataError(
-            f"Survey mission with id {survey_mission_id} does not exist."
+) -> models.SurveyMission | None:
+    try:
+        if (
+            survey_mission := await queries.get_survey_mission(
+                session, survey_mission_id
+            )
+        ) is None:
+            raise errors.SeisLabDataError(
+                f"Survey mission with id {survey_mission_id} does not exist."
+            )
+        if not permissions.can_update_survey_mission(initiator, survey_mission):
+            raise errors.SeisLabDataError(
+                "User is not allowed to update survey mission."
+            )
+        if survey_mission.status != SurveyMissionStatus.DRAFT:
+            raise errors.SeisLabDataError(
+                f"Cannot update survey mission with status {survey_mission.status}"
+            )
+        if survey_mission.project.status != ProjectStatus.DRAFT:
+            raise errors.SeisLabDataError(
+                f"Cannot update survey mission because parent project's status "
+                f"is {survey_mission.project.status}"
+            )
+        updated_survey_mission = await commands.update_survey_mission(
+            session, survey_mission, to_update
         )
-    if not permissions.can_update_survey_mission(initiator, survey_mission):
-        raise errors.SeisLabDataError("User is not allowed to update survey mission.")
-    if survey_mission.status != SurveyMissionStatus.DRAFT:
-        raise errors.SeisLabDataError(
-            f"Cannot delete survey mission with status {survey_mission.status}"
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.SurveyMissionNotUpdatedEvent(
+                request_id=request_id,
+                survey_mission_id=survey_mission_id,
+                initiator=initiator.id,
+                details=str(err),
+            )
         )
-    if survey_mission.project.status != ProjectStatus.DRAFT:
-        raise errors.SeisLabDataError(
-            f"Cannot delete survey mission because parent project's status "
-            f"is {survey_mission.project.status}"
-        )
-    updated_survey_mission = await commands.update_survey_mission(
-        session, survey_mission, to_update
-    )
+        return None
+
     await event_dispatcher(
         event_schemas.SurveyMissionUpdatedEvent(
+            request_id=request_id,
             survey_mission_id=survey_mission_id,
             initiator=initiator.id,
         )
@@ -211,32 +279,52 @@ async def update_survey_mission(
 
 
 async def delete_survey_mission(
+    request_id: identifiers.RequestId,
     survey_mission_id: identifiers.SurveyMissionId,
-    initiator: user_schemas.User | None,
+    initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> None:
-    if (
-        survey_mission := await queries.get_survey_mission(session, survey_mission_id)
-    ) is None:
-        raise errors.SeisLabDataError(
-            f"Survey mission with id {survey_mission_id!r} does not exist."
+    try:
+        if (
+            survey_mission := await queries.get_survey_mission(
+                session, survey_mission_id
+            )
+        ) is None:
+            raise errors.SeisLabDataError(
+                f"Survey mission with id {survey_mission_id!r} does not exist."
+            )
+        if not permissions.can_delete_survey_mission(initiator, survey_mission):
+            raise errors.SeisLabDataError(
+                "User is not allowed to delete survey missions."
+            )
+        if survey_mission.status != SurveyMissionStatus.DRAFT:
+            raise errors.SeisLabDataError(
+                f"Cannot delete survey mission with status {survey_mission.status}"
+            )
+        if survey_mission.project.status != ProjectStatus.DRAFT:
+            raise errors.SeisLabDataError(
+                f"Cannot delete survey mission because parent project's status "
+                f"is {survey_mission.project.status}"
+            )
+        project_id = identifiers.ProjectId(survey_mission.project_id)
+        await commands.delete_survey_mission(session, survey_mission_id)
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.SurveyMissionNotDeletedEvent(
+                request_id=request_id,
+                survey_mission_id=survey_mission_id,
+                initiator=initiator.id,
+                details=str(err),
+            )
         )
-    if not permissions.can_delete_survey_mission(initiator, survey_mission):
-        raise errors.SeisLabDataError("User is not allowed to delete survey missions.")
-    if survey_mission.status != SurveyMissionStatus.DRAFT:
-        raise errors.SeisLabDataError(
-            f"Cannot delete survey mission with status {survey_mission.status}"
-        )
-    if survey_mission.project.status != ProjectStatus.DRAFT:
-        raise errors.SeisLabDataError(
-            f"Cannot delete survey mission because parent project's status "
-            f"is {survey_mission.project.status}"
-        )
-    await commands.delete_survey_mission(session, survey_mission_id)
+        return None
+
     await event_dispatcher(
         event_schemas.SurveyMissionDeletedEvent(
+            request_id=request_id,
             survey_mission_id=survey_mission_id,
+            project_id=project_id,
             initiator=initiator.id,
         )
     )

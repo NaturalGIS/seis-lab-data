@@ -1,17 +1,12 @@
-import asyncio
 import dataclasses
 import json
 import logging
 import uuid
-from typing import AsyncGenerator
 
 import shapely
 from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
-from datastar_py.sse import DatastarEvent
 from datastar_py.starlette import DatastarResponse
-from dramatiq import Message
-from jinja2 import Template
 from redis.asyncio import Redis
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
@@ -27,16 +22,18 @@ from ... import (
     constants,
     errors,
     geojson,
-    operations,
     permissions,
     schemas,
     subscribers,
 )
-from ...constants import PROGRESS_TOPIC_NAME_TEMPLATE
-from ...processing import (
-    projects as project_tasks,
+from ...operations import (
+    projects as project_ops,
+    surveymissions as survey_mission_ops,
+)
+from ...tasks import (
     discovery as discovery_tasks,
-    tasks,
+    projects as project_tasks,
+    surveymissions as survey_mission_tasks,
 )
 from ...schemas import identifiers
 from ..streamhandlers import projects as project_handlers
@@ -51,7 +48,6 @@ from .common import (
     get_id_from_request_path,
     get_page_from_request_params,
     get_pagination_info,
-    produce_event_stream_for_topic,
     UPDATE_BASEMAP_JS_SCRIPT,
 )
 
@@ -90,7 +86,7 @@ async def get_project_update_form(request: Request):
     project_id = get_id_from_request_path(request, "project_id", identifiers.ProjectId)
     async with session_maker() as session:
         try:
-            project = await operations.get_project(
+            project = await project_ops.get_project(
                 project_id,
                 user,
                 session,
@@ -147,6 +143,7 @@ async def get_project_update_form(request: Request):
             ),
         },
     )
+    update_form.request_id.data = uuid.uuid4()
     template_processor: Jinja2Templates = request.state.templates
     return template_processor.TemplateResponse(
         request,
@@ -192,7 +189,7 @@ async def get_project_details_component(request: Request):
     return DatastarResponse(event_streamer())
 
 
-async def get_project_list_updates(request: Request):
+async def stream_to_list_page(request: Request):
     """Stream relevant updates for the project list page."""
 
     subscription = subscribers.subscribe_to_topic(
@@ -217,7 +214,7 @@ async def get_project_list_updates(request: Request):
         async for sse_event in subscription:
             yield sse_event
 
-    return DatastarResponse(event_streamer())
+    return DatastarResponse(event_streamer(), status_code=200)
 
 
 @requires_auth
@@ -252,10 +249,11 @@ async def get_project_new_updates(request: Request):
     return DatastarResponse(event_streamer())
 
 
-async def get_project_detail_updates(request: Request):
-    """Stream relevant updates for the project details page."""
+async def stream_to_update_page(request: Request):
+    """Stream relevant updates for the project update page."""
     try:
         project_id = identifiers.ProjectId(uuid.UUID(request.path_params["project_id"]))
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
     except ValueError as err:
         raise HTTPException(
             status_code=400, detail="Invalid project or request id"
@@ -273,14 +271,54 @@ async def get_project_detail_updates(request: Request):
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
             db_session_factory=session_maker,
+            request_id=request_id,
+        ),
+        {
+            # "project_deleted": project_handlers.handle_edit_page_project_deletion_success,
+            # "project_status_changed": project_handlers.handle_edit_page_project_status_changed,
+            "project_updated": project_handlers.handle_edit_page_project_modification_successful,
+            "project_not_updated": project_handlers.handle_edit_page_project_modification_failure,
+            # "project_validated": project_handlers.handle_edit_page_project_validated,
+        },
+    )
+
+    async def event_streamer():
+        async for sse_event in subscription:
+            yield sse_event
+
+    return DatastarResponse(event_streamer())
+
+
+async def stream_to_detail_page(request: Request):
+    """Stream relevant updates for the project details page."""
+    try:
+        project_id = identifiers.ProjectId(uuid.UUID(request.path_params["project_id"]))
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
+    except ValueError as err:
+        raise HTTPException(
+            status_code=400, detail="Invalid project or request id"
+        ) from err
+    session_maker = request.state.settings.get_db_session_maker()
+    redis_client: Redis = request.state.redis_client
+    user = request.user if request.user.is_authenticated else None
+
+    subscription = subscribers.subscribe_to_topic(
+        redis_client,
+        constants.NEW_TOPIC_PROJECTS,
+        subscribers.ProjectHandlerContext(
+            project_id=project_id,
+            user=user,
+            jinja_environment=request.state.templates.env,
+            url_resolver=request.url_for,
+            db_session_factory=session_maker,
+            request_id=request_id,
         ),
         {
             "project_deleted": project_handlers.handle_detail_page_project_deletion_success,
             "project_deletion_failed": project_handlers.handle_detail_page_project_deletion_failure,
             "project_discovery_progress": project_handlers.handle_detail_page_project_discovery_progress,
             "project_status_changed": project_handlers.handle_detail_page_project_status_changed,
-            "project_updated": project_handlers.handle_edit_page_project_modification_successful,
-            "project_not_updated": project_handlers.handle_edit_page_project_modification_failure,
+            # "project_updated": project_handlers.handle_detail_page_project_modification_successful,
             "project_validated": project_handlers.handle_detail_page_project_validated,
             "project_not_validated": project_handlers.handle_detail_page_project_not_validated,
         },
@@ -305,7 +343,7 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
     settings: config.SeisLabDataSettings = request.state.settings
     async with settings.get_db_session_maker()() as session:
         try:
-            project = await operations.get_project(
+            project = await project_ops.get_project(
                 project_id,
                 user,
                 session,
@@ -316,7 +354,7 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
             raise HTTPException(
                 status_code=404, detail=_(f"Project {project_id!r} not found.")
             )
-        survey_missions, total = await operations.list_survey_missions(
+        survey_missions, total = await survey_mission_ops.list_survey_missions(
             session,
             user,
             project_id=project_id,
@@ -379,7 +417,7 @@ async def get_list_component(request: Request):
     settings: config.SeisLabDataSettings = request.state.settings
     user = request.user if request.user.is_authenticated else None
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await operations.list_projects(
+        items, num_total = await project_ops.list_projects(
             session,
             initiator=user,
             page=current_page,
@@ -388,7 +426,7 @@ async def get_list_component(request: Request):
             **internal_filter_kwargs,
         )
         num_unfiltered_total = (
-            await operations.list_projects(session, initiator=user, include_total=True)
+            await project_ops.list_projects(session, initiator=user, include_total=True)
         )[1]
 
     pagination_info = get_pagination_info(
@@ -438,7 +476,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             request.query_params, current_language
         )
         async with settings.get_db_session_maker()() as session:
-            items, num_total = await operations.list_projects(
+            items, num_total = await project_ops.list_projects(
                 session,
                 initiator=user,
                 page=current_page,
@@ -447,7 +485,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 **list_filters.as_kwargs(),
             )
             num_unfiltered_total = (
-                await operations.list_projects(
+                await project_ops.list_projects(
                     session, initiator=user, include_total=True
                 )
             )[1]
@@ -576,76 +614,6 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         )  # noqa
         return Response(status_code=200)
 
-        # tasks.create_project.send(
-        #     raw_request_id=str(request_id),
-        #     raw_to_create=to_create.model_dump_json(),
-        #     raw_initiator=json.dumps(dataclasses.asdict(user)),
-        # )
-
-        # async def handle_processing_success(
-        #     final_message: schemas.ProcessingMessage, message_template: Template
-        # ) -> AsyncGenerator[DatastarEvent, None]:
-        #     yield ServerSentEventGenerator.patch_elements(
-        #         message_template.render(
-        #             data_test_id="processing-success-message",
-        #             status=final_message.status,
-        #             message=f"{final_message.message} - you will be redirected shortly.",
-        #         ),
-        #         selector=schemas.selector_info.feedback_selector,
-        #         mode=ElementPatchMode.APPEND,
-        #     )
-        #     await asyncio.sleep(1)
-        #
-        #     tasks.validate_project.send(
-        #         raw_request_id=str(request_id),
-        #         raw_project_id=str(to_create.id),
-        #         raw_initiator=json.dumps(dataclasses.asdict(user)),
-        #     )
-        #
-        #     yield ServerSentEventGenerator.redirect(
-        #         str(request.url_for("projects:detail", project_id=to_create.id)),
-        #     )
-        #
-        # async def handle_processing_failure(
-        #     final_message: schemas.ProcessingMessage, message_template: Template
-        # ) -> AsyncGenerator[DatastarEvent, None]:
-        #     rendered = message_template.render(
-        #         status=final_message.status.value,
-        #         message=f"ERROR: {final_message.message}",
-        #     )
-        #     yield ServerSentEventGenerator.patch_elements(
-        #         rendered,
-        #         selector=schemas.selector_info.feedback_selector,
-        #         mode=ElementPatchMode.APPEND,
-        #     )
-        #
-        # async def event_streamer():
-        #     yield ServerSentEventGenerator.patch_elements(
-        #         """<li>Creating project as a background task...</li>""",
-        #         selector=schemas.selector_info.feedback_selector,
-        #         mode=ElementPatchMode.APPEND,
-        #     )
-        #
-        #     enqueued_message: Message = tasks.create_project.send(
-        #         raw_request_id=str(request_id),
-        #         raw_to_create=to_create.model_dump_json(),
-        #         raw_initiator=json.dumps(dataclasses.asdict(user)),
-        #     )
-        #     logger.debug(f"{enqueued_message=}")
-        #     event_stream_generator = produce_event_stream_for_topic(
-        #         redis_client,
-        #         request,
-        #         topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
-        #         on_success=handle_processing_success,
-        #         on_failure=handle_processing_failure,
-        #         patch_elements_selector=schemas.selector_info.feedback_selector,
-        #         timeout_seconds=30,
-        #     )
-        #     async for sse_event in event_stream_generator:
-        #         yield sse_event
-        #
-        # return DatastarResponse(event_streamer(), status_code=200)
-
 
 class ProjectDetailEndpoint(HTTPEndpoint):
     """Manage a single project and its collection of survey missions."""
@@ -662,6 +630,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             request,
             "projects/detail.html",
             context={
+                "request_id": uuid.uuid4(),
                 "project": details.item,
                 "pagination": details.pagination,
                 "survey_missions": details.children,
@@ -683,7 +652,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         )
         async with session_maker() as session:
             if (
-                project := await operations.get_project(project_id, user, session)
+                project := await project_ops.get_project(project_id, user, session)
             ) is None:
                 raise HTTPException(404, f"Project {project_id!r} not found.")
         form_instance = await forms.ProjectUpdateForm.get_validated_form_instance(
@@ -769,7 +738,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             request, "project_id", identifiers.ProjectId
         )
         async with session_maker() as session:
-            project = await operations.get_project(
+            project = await project_ops.get_project(
                 project_id,
                 user,
                 session,
@@ -789,7 +758,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
     @requires_auth
     async def post(self, request: Request):
         """Create a new survey mission belonging to the project."""
-        user = request.user if request.user.is_authenticated else None
+        user = request.user
         project_id = get_id_from_request_path(
             request, "project_id", identifiers.ProjectId
         )
@@ -798,7 +767,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         creation_form = await forms.SurveyMissionCreateForm.from_formdata(request)
         async with session_maker() as session:
             try:
-                project = await operations.get_project(project_id, user, session)
+                project = await project_ops.get_project(project_id, user, session)
             except errors.SeisLabDataError as exc:
                 raise HTTPException(status_code=404, detail=str(exc)) from exc
             if project is None:
@@ -833,7 +802,6 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
             return DatastarResponse(stream_validation_failed_events(), status_code=200)
 
-        request_id = identifiers.RequestId(uuid.uuid4())
         to_create = schemas.SurveyMissionCreate(
             id=identifiers.SurveyMissionId(uuid.uuid4()),
             project_id=project.id,
@@ -871,78 +839,13 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 for lf in creation_form.links.entries
             ],
         )
-        logger.info(f"{to_create=}")
-
-        async def handle_processing_success(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            yield ServerSentEventGenerator.patch_elements(
-                message_template.render(
-                    data_test_id="processing-success-message",
-                    status=final_message.status,
-                    message=f"{final_message.message} - you will be redirected shortly.",
-                ),
-                selector=schemas.selector_info.main_content_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-            await asyncio.sleep(1)
-
-            tasks.validate_survey_mission.send(
-                raw_request_id=str(request_id),
-                raw_survey_mission_id=str(to_create.id),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
-            )
-
-            yield ServerSentEventGenerator.redirect(
-                str(
-                    request.url_for(
-                        "survey_missions:detail",
-                        survey_mission_id=to_create.id,
-                    )
-                ),
-            )
-
-        async def handle_processing_failure(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            rendered = message_template.render(
-                status=final_message.status.value,
-                message=f"ERROR: {final_message.message}",
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                rendered,
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-
-        async def stream_events():
-            yield ServerSentEventGenerator.patch_elements(
-                """<li>Creating survey mission as a background task...</li>""",
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-
-            enqueued_message: Message = tasks.create_survey_mission.send(
-                raw_request_id=str(request_id),
-                raw_to_create=to_create.model_dump_json(),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
-            )
-            logger.debug(f"{enqueued_message=}")
-            redis_client: Redis = request.state.redis_client
-            event_stream_generator = produce_event_stream_for_topic(
-                redis_client,
-                request,
-                topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
-                on_success=handle_processing_success,
-                on_failure=handle_processing_failure,
-                patch_elements_selector=schemas.selector_info.feedback_selector,
-                timeout_seconds=30,
-            )
-            async for sse_event in event_stream_generator:
-                yield sse_event
-
-        # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
-        return DatastarResponse(stream_events(), status_code=200)
+        request_id = identifiers.RequestId(uuid.UUID(creation_form.request_id.data))
+        survey_mission_tasks.create_survey_mission.send(
+            raw_request_id=str(request_id),
+            raw_to_create=to_create.model_dump_json(),
+            raw_initiator=json.dumps(dataclasses.asdict(user)),
+        )  # noqa
+        return Response(status_code=200)
 
 
 @csrf_protect
@@ -1063,7 +966,7 @@ async def trigger_project_validation(request: Request):
 
 routes = [
     Route("/", ProjectCollectionEndpoint, name="list"),
-    Route("/stream", get_project_list_updates, name="list_stream"),
+    Route("/stream", stream_to_list_page, name="list_stream"),
     Route("/search", get_list_component, name="get_list_component"),
     Route(
         "/new/add-form-link",
@@ -1096,6 +999,12 @@ routes = [
         name="get_update_form",
     ),
     Route(
+        "/{project_id}/update/stream/{request_id}",
+        stream_to_update_page,
+        methods=["GET"],
+        name="update_stream",
+    ),
+    Route(
         "/{project_id}/add-update-form-link",
         add_update_project_form_link,
         methods=["POST"],
@@ -1114,8 +1023,8 @@ routes = [
         name="get_details_component",
     ),
     Route(
-        "/{project_id}/stream",
-        get_project_detail_updates,
+        "/{project_id}/stream/{request_id}",
+        stream_to_detail_page,
         methods=["GET"],
         name="detail_stream",
     ),

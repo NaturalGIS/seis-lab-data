@@ -1,56 +1,48 @@
-import asyncio
 import dataclasses
 import json
 import logging
-from typing import (
-    AsyncGenerator,
-    TypeVar,
-)
+from typing import TypeVar
 import uuid
 
 import shapely
 from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
-from datastar_py.sse import DatastarEvent
 from datastar_py.starlette import DatastarResponse
-from dramatiq import Message
-from jinja2 import Template
 from redis.asyncio import Redis
 from starlette_babel import gettext_lazy as _
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
+from starlette.responses import Response
 from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 from starlette_wtf import csrf_protect
 
 from ... import (
     config,
+    constants,
     errors,
     geojson,
-    operations,
     permissions,
     schemas,
+    subscribers,
 )
-from ...constants import (
-    PROGRESS_TOPIC_NAME_TEMPLATE,
-    SURVEY_RELATED_RECORD_CREATED_TOPIC,
-    SURVEY_RELATED_RECORD_DELETED_TOPIC,
-    SURVEY_RELATED_RECORD_MAX_RELATED,
-    SURVEY_RELATED_RECORD_STATUS_CHANGED_TOPIC,
-    SURVEY_RELATED_RECORD_UPDATED_TOPIC,
-    SURVEY_RELATED_RECORD_VALIDITY_CHANGED_TOPIC,
+from ...operations import (
+    surveymissions as survey_mission_ops,
+    surveyrelatedrecords as survey_related_record_ops,
 )
+from ...constants import SURVEY_RELATED_RECORD_MAX_RELATED
 from ...db import (
     models,
     queries,
 )
-from ...processing import tasks
+from ...tasks import surveyrelatedrecords as record_tasks
 from ...schemas import identifiers
 from .. import (
     filters,
     forms,
 )
+from ..streamhandlers import surveyrelatedrecords as record_handlers
 from .auth import (
     requires_auth,
 )
@@ -59,8 +51,6 @@ from .common import (
     get_id_from_request_path,
     get_page_from_request_params,
     get_pagination_info,
-    produce_event_stream_for_item_updates,
-    produce_event_stream_for_topic,
     UPDATE_BASEMAP_JS_SCRIPT,
 )
 
@@ -77,10 +67,12 @@ async def _get_survey_related_record_details(
     )
     async with request.state.settings.get_db_session_maker()() as session:
         try:
-            survey_related_record_info = await operations.get_survey_related_record(
-                survey_related_record_id,
-                user,
-                session,
+            survey_related_record_info = (
+                await survey_related_record_ops.get_survey_related_record(
+                    survey_related_record_id,
+                    user,
+                    session,
+                )
             )
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -160,138 +152,6 @@ async def get_details_component(request: Request):
     return DatastarResponse(event_streamer())
 
 
-async def get_detail_updates(request: Request):
-    try:
-        survey_related_record_id = identifiers.SurveyRelatedRecordId(
-            uuid.UUID(request.path_params["survey_related_record_id"])
-        )
-    except ValueError as err:
-        raise HTTPException(
-            status_code=400, detail="Invalid survey_related_record id"
-        ) from err
-    session_maker = request.state.settings.get_db_session_maker()
-    redis_client: Redis = request.state.redis_client
-    user = request.user if request.user.is_authenticated else None
-
-    async def on_deleted_message(
-        raw_message: str,
-    ) -> AsyncGenerator[DatastarEvent, None]:
-        message = schemas.SurveyRelatedRecordEvent(**json.loads(raw_message))
-        if message.survey_related_record_id == survey_related_record_id:
-            logger.debug(
-                "Received message about recent survey_related_record deletion, "
-                "redirecting frontend..."
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                "Survey-related record has been deleted",
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.INNER,
-            )
-            await asyncio.sleep(1)
-            yield ServerSentEventGenerator.redirect(
-                str(request.url_for("survey_related_records:list"))
-            )
-
-    async def on_status_update_message(
-        raw_message: str,
-    ) -> AsyncGenerator[DatastarEvent, None]:
-        message = schemas.SurveyRelatedRecordEvent(**json.loads(raw_message))
-        if message.survey_related_record_id == survey_related_record_id:
-            logger.debug(
-                "Received message about recent survey_related_record status update, "
-                "patching frontend..."
-            )
-            async with session_maker() as session:
-                updated_details = await operations.get_survey_related_record(
-                    survey_related_record_id,
-                    user,
-                    session,
-                )
-                updated = updated_details[0]
-                yield ServerSentEventGenerator.patch_signals(
-                    {
-                        "status": updated.status.value,
-                    },
-                )
-
-    async def on_validation_update_message(
-        raw_message: str,
-    ) -> AsyncGenerator[DatastarEvent, None]:
-        message = schemas.SurveyRelatedRecordEvent(**json.loads(raw_message))
-        if message.survey_related_record_id == survey_related_record_id:
-            logger.debug(
-                "Received message about recent survey_related_record validation update, "
-                "patching frontend..."
-            )
-            async with session_maker() as session:
-                updated_details = await operations.get_survey_related_record(
-                    survey_related_record_id,
-                    user,
-                    session,
-                )
-                updated = updated_details[0]
-                details_message = ""
-                if not updated.validation_result.get("is_valid"):
-                    details_message += "<ul>"
-                    for err in updated.validation_result.get("errors", []):
-                        detail = f"{err['name']}: {err['message']}"
-                        details_message += f"<li>{detail}</li>"
-                yield ServerSentEventGenerator.patch_elements(
-                    details_message,
-                    selector=schemas.selector_info.validation_result_details_selector,
-                    mode=ElementPatchMode.INNER,
-                )
-                yield ServerSentEventGenerator.patch_signals(
-                    {
-                        "isValid": updated.validation_result["is_valid"],
-                    },
-                )
-
-    async def on_update_message(
-        raw_message: str,
-    ) -> AsyncGenerator[DatastarEvent, None]:
-        message = schemas.SurveyRelatedRecordEvent(**json.loads(raw_message))
-        if message.survey_related_record_id == survey_related_record_id:
-            logger.debug("Received message about recent survey_related_record update")
-            yield ServerSentEventGenerator.patch_elements(
-                "Survey-related record has been updated - refreshing the page shortly",
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.INNER,
-            )
-            await asyncio.sleep(1)
-            yield ServerSentEventGenerator.redirect(
-                str(
-                    request.url_for(
-                        "survey_related_records:detail",
-                        survey_related_record_id=survey_related_record_id,
-                    )
-                ),
-            )
-
-    topic_handlers = {
-        SURVEY_RELATED_RECORD_DELETED_TOPIC.format(
-            survey_related_record_id=survey_related_record_id
-        ): on_deleted_message,
-        SURVEY_RELATED_RECORD_VALIDITY_CHANGED_TOPIC.format(
-            survey_related_record_id=survey_related_record_id
-        ): on_validation_update_message,
-        SURVEY_RELATED_RECORD_STATUS_CHANGED_TOPIC.format(
-            survey_related_record_id=survey_related_record_id
-        ): on_status_update_message,
-        SURVEY_RELATED_RECORD_UPDATED_TOPIC.format(
-            survey_related_record_id=survey_related_record_id
-        ): on_update_message,
-    }
-
-    async def event_streamer():
-        async for sse_event in produce_event_stream_for_item_updates(
-            redis_client, request, timeout_seconds=30, **topic_handlers
-        ):
-            yield sse_event
-
-    return DatastarResponse(event_streamer())
-
-
 FormType = TypeVar(
     "FormType",
     bound=forms.FormProtocol,
@@ -337,7 +197,7 @@ async def get_record_parent_survey_mission_from_request(
     )
     async with request.state.settings.get_db_session_maker()() as session:
         if not (
-            survey_mission := await operations.get_survey_mission(
+            survey_mission := await survey_mission_ops.get_survey_mission(
                 parent_survey_mission_id, user, session
             )
         ):
@@ -354,6 +214,7 @@ async def get_creation_form(request: Request):
     parent_survey_mission = await get_record_parent_survey_mission_from_request(request)
     survey_mission_id = identifiers.SurveyMissionId(parent_survey_mission.id)
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
+    form_instance.request_id.data = str(identifiers.RequestId(uuid.uuid4()))
     template_processor: Jinja2Templates = request.state.templates
     return template_processor.TemplateResponse(
         request,
@@ -693,7 +554,10 @@ async def get_update_form(request: Request):
     template_processor: Jinja2Templates = request.state.templates
     user = request.user if request.user.is_authenticated else None
     async with request.state.settings.get_db_session_maker()() as session:
-        initial_related_records_list, _ = await operations.list_survey_related_records(
+        (
+            initial_related_records_list,
+            _,
+        ) = await survey_related_record_ops.list_survey_related_records(
             session,
             initiator=user,
         )
@@ -796,7 +660,10 @@ async def add_update_form_related_to_record(request: Request):
 
     user = request.user if request.user.is_authenticated else None
     async with request.state.settings.get_db_session_maker()() as session:
-        initial_related_records_list, _ = await operations.list_survey_related_records(
+        (
+            initial_related_records_list,
+            _,
+        ) = await survey_related_record_ops.list_survey_related_records(
             session,
             initiator=user,
         )
@@ -992,7 +859,7 @@ async def list_by_name(request: Request):
     logger.debug(f"{internal_filter_kwargs=}")
     user = request.user if request.user.is_authenticated else None
     async with request.state.settings.get_db_session_maker()() as session:
-        items, _ = await operations.list_survey_related_records(
+        items, _ = await survey_related_record_ops.list_survey_related_records(
             session,
             initiator=user,
             **internal_filter_kwargs,
@@ -1033,7 +900,7 @@ async def get_list_component(request: Request):
     user = request.user if request.user.is_authenticated else None
     settings: config.SeisLabDataSettings = request.state.settings
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await operations.list_survey_related_records(
+        items, num_total = await survey_related_record_ops.list_survey_related_records(
             session,
             initiator=user,
             page=current_page,
@@ -1042,7 +909,7 @@ async def get_list_component(request: Request):
             **internal_filter_kwargs,
         )
         num_unfiltered_total = (
-            await operations.list_survey_related_records(
+            await survey_related_record_ops.list_survey_related_records(
                 session, initiator=user, include_total=True
             )
         )[1]
@@ -1084,56 +951,28 @@ async def get_list_component(request: Request):
     return DatastarResponse(event_streamer())
 
 
-async def get_listing_updates(request: Request):
-    redis_client: Redis = request.state.redis_client
-    user = request.user if request.user.is_authenticated else None
-    settings: config.SeisLabDataSettings = request.state.settings
-
-    async def on_record_created_message(
-        raw_message: str,
-    ) -> AsyncGenerator[DatastarEvent, None]:
-        logger.debug(
-            "Received message about new survey-related record created, "
-            "refreshing records list..."
-        )
-        async with settings.get_db_session_maker()() as session:
-            items, total = await operations.list_survey_related_records(
-                session,
-                initiator=user,
-                include_total=True,
-                page=1,
-                page_size=settings.pagination_page_size,
-            )
-        pagination = get_pagination_info(
-            current_page=1,
-            page_size=settings.pagination_page_size,
-            total_filtered_items=total,
-            total_unfiltered_items=total,
-            collection_url=str(request.url_for("survey_related_records:list")),
-        )
-        serialized_items = [
-            schemas.SurveyRelatedRecordReadListItem.from_db_instance(i) for i in items
-        ]
-        rendered = request.state.templates.get_template(
-            "survey-related-records/list-component.html"
-        ).render(request=request, items=serialized_items, pagination=pagination)
-        yield ServerSentEventGenerator.patch_elements(
-            rendered,
-            selector=schemas.selector_info.items_selector,
-            mode=ElementPatchMode.REPLACE,
-        )
-
-    topic_handlers = {
-        SURVEY_RELATED_RECORD_CREATED_TOPIC: on_record_created_message,
-    }
+async def stream_to_list_page(request: Request):
+    subscription = subscribers.subscribe_to_topic(
+        request.state.redis_client,
+        constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
+        subscribers.SurveyRelatedRecordHandlerContext(
+            jinja_environment=request.state.templates.env,
+            url_resolver=request.url_for,
+            db_session_factory=request.state.settings.get_db_session_maker(),
+            user=request.user if request.user.is_authenticated else None,
+        ),
+        {
+            "survey_related_record_created": record_handlers.handle_list_page_record_modification,
+            "survey_related_record_updated": record_handlers.handle_list_page_record_modification,
+            "survey_related_record_deleted": record_handlers.handle_list_page_record_modification,
+        },
+    )
 
     async def event_streamer():
-        async for sse_event in produce_event_stream_for_item_updates(
-            redis_client, request, timeout_seconds=30, **topic_handlers
-        ):
+        async for sse_event in subscription:
             yield sse_event
 
-    return DatastarResponse(event_streamer())
+    return DatastarResponse(event_streamer(), status_code=200)
 
 
 class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
@@ -1147,7 +986,10 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
         settings: config.SeisLabDataSettings = request.state.settings
         user = request.user if request.user.is_authenticated else None
         async with settings.get_db_session_maker()() as session:
-            items, num_total = await operations.list_survey_related_records(
+            (
+                items,
+                num_total,
+            ) = await survey_related_record_ops.list_survey_related_records(
                 session,
                 initiator=user,
                 page=current_page,
@@ -1156,7 +998,7 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
                 **list_filters.as_kwargs(),
             )
             num_unfiltered_total = (
-                await operations.list_survey_related_records(
+                await survey_related_record_ops.list_survey_related_records(
                     session, initiator=user, include_total=True
                 )
             )[1]
@@ -1220,6 +1062,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
             request,
             "survey-related-records/detail.html",
             context={
+                "request_id": uuid.uuid4(),
                 "survey_related_record": details.item,
                 "permissions": details.permissions,
                 "breadcrumbs": details.breadcrumbs,
@@ -1232,11 +1075,10 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         survey_related_record_id = get_id_from_request_path(
             request, "survey_related_record_id", identifiers.SurveyRelatedRecordId
         )
-        user = request.user if request.user.is_authenticated else None
+        user = request.user
         async with request.state.settings.get_db_session_maker()() as session:
             if (
-                survey_related_record_details
-                := await operations.get_survey_related_record(
+                await survey_related_record_ops.get_survey_related_record(
                     survey_related_record_id,
                     user,
                     session,
@@ -1249,81 +1091,26 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                     ),
                 )
 
-        survey_related_record = survey_related_record_details[0]
-        request_id = identifiers.RequestId(uuid.uuid4())
-        logger.debug(f"{survey_related_record=}")
-
-        async def handle_processing_success(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            yield ServerSentEventGenerator.patch_elements(
-                message_template.render(
-                    status=final_message.status.value, message=final_message.message
-                ),
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-            yield ServerSentEventGenerator.redirect(
-                str(
-                    request.url_for(
-                        "survey_missions:detail",
-                        survey_mission_id=survey_related_record.survey_mission_id,
-                    )
-                )
-            )
-
-        async def handle_processing_failure(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            yield ServerSentEventGenerator.patch_elements(
-                message_template.render(
-                    status=final_message.status.value,
-                    message=f"ERROR: {final_message.message}",
-                ),
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-
-        async def stream_events():
-            yield ServerSentEventGenerator.patch_elements(
-                """<li>Deleting survey-related record as a background task...</li>""",
-                selector="#feedback > ul",
-                mode=ElementPatchMode.APPEND,
-            )
-            enqueued_message: Message = tasks.delete_survey_related_record.send(
-                raw_request_id=str(request_id),
-                raw_survey_related_record_id=str(survey_related_record_id),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
-            )
-            logger.debug(f"{enqueued_message=}")
-            redis_client: Redis = request.state.redis_client
-            event_stream_generator = produce_event_stream_for_topic(
-                redis_client,
-                request,
-                topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
-                on_success=handle_processing_success,
-                on_failure=handle_processing_failure,
-                patch_elements_selector=schemas.selector_info.feedback_selector,
-                timeout_seconds=30,
-            )
-            async for sse_event in event_stream_generator:
-                yield sse_event
-
-        return DatastarResponse(stream_events())
+        record_tasks.delete_survey_related_record.send(
+            raw_request_id=str(uuid.uuid4()),
+            raw_survey_related_record_id=str(survey_related_record_id),
+            raw_initiator=json.dumps(dataclasses.asdict(user)),
+        )
+        return Response(status_code=200)
 
     @csrf_protect
     @requires_auth
     async def put(self, request: Request):
         """Update an existing survey-related record."""
         template_processor: Jinja2Templates = request.state.templates
-        user = request.user if request.user.is_authenticated else None
+        user = request.user
         survey_related_record_id = get_id_from_request_path(
             request, "survey_related_record_id", identifiers.SurveyRelatedRecordId
         )
         async with request.state.settings.get_db_session_maker()() as session:
             if (
                 survey_related_record_details
-                := await operations.get_survey_related_record(
+                := await survey_related_record_ops.get_survey_related_record(
                     survey_related_record_id,
                     user,
                     session,
@@ -1458,108 +1245,118 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
             related_records=related_records,
         )
 
-        async def handle_processing_success(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            """Handle successful processing of the survey-related record update background task.
+        record_tasks.update_survey_related_record.send(
+            raw_request_id=str(request_id),
+            raw_survey_related_record_id=str(survey_related_record_id),
+            raw_to_update=to_update.model_dump_json(exclude_unset=True),
+            raw_initiator=json.dumps(dataclasses.asdict(user)),
+        )
+        return Response(status_code=200)
 
-            After receiving the final message with a success status, update the
-            UI to reflect the changes.
-            """
-            details = await _get_survey_related_record_details(request)
-            rendered_message = message_template.render(
-                status=final_message.status.value,
-                message=final_message.message,
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                rendered_message,
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-            template = template_processor.get_template(
-                "survey-related-records/detail-component.html"
-            )
-            # need to update:
-            # - survey-related record details section (name, description, links, ...)
-            # - breadcrumbs (record's name may have changed)
-            # - page title (record's name may have changed)
-            # - clear the feedback section
-            breadcrumbs_template = template_processor.get_template("breadcrumbs.html")
-            yield ServerSentEventGenerator.patch_elements(
-                breadcrumbs_template.render(
-                    request=request, breadcrumbs=details.breadcrumbs
-                ),
-                selector=schemas.selector_info.breadcrumbs_selector,
-                mode=ElementPatchMode.INNER,
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                template.render(
-                    request=request,
-                    survey_related_record=details.item,
-                    permissions=details.permissions,
-                ),
-                selector=schemas.selector_info.main_content_selector,
-                mode=ElementPatchMode.INNER,
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                details.item.name.en,
-                selector=schemas.selector_info.page_title_selector,
-                mode=ElementPatchMode.INNER,
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                "",
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.INNER,
-            )
 
-            tasks.validate_survey_related_record.send(
-                raw_request_id=str(request_id),
-                raw_survey_related_record_id=str(survey_related_record_id),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
-            )
+@requires_auth
+async def stream_to_new_page(request: Request):
+    """Stream relevant updates for the new survey-related record page."""
+    try:
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid request id") from err
 
-        async def handle_processing_failure(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            rendered = message_template.render(
-                status=final_message.status.value,
-                message=f"ERROR: {final_message.message}",
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                rendered,
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
+    subscription = subscribers.subscribe_to_topic(
+        request.state.redis_client,
+        constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
+        subscribers.HandlerContext(
+            request_id=request_id,
+            user=request.user,
+            url_resolver=request.url_for,
+            jinja_environment=request.state.templates.env,
+            db_session_factory=request.state.settings.get_db_session_maker(),
+        ),
+        {
+            "survey_related_record_created": record_handlers.handle_new_page_record_created,
+        },
+    )
 
-        async def event_streamer():
-            yield ServerSentEventGenerator.patch_elements(
-                """<li>Updating survey-related record as a background task...</li>""",
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
+    async def event_streamer():
+        async for sse_event in subscription:
+            yield sse_event
 
-            enqueued_message: Message = tasks.update_survey_related_record.send(
-                raw_request_id=str(request_id),
-                raw_survey_related_record_id=str(survey_related_record_id),
-                raw_to_update=to_update.model_dump_json(exclude_unset=True),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
-            )
-            logger.debug(f"{enqueued_message=}")
-            redis_client: Redis = request.state.redis_client
-            event_stream_generator = produce_event_stream_for_topic(
-                redis_client,
-                request,
-                topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
-                on_success=handle_processing_success,
-                on_failure=handle_processing_failure,
-                patch_elements_selector=schemas.selector_info.feedback_selector,
-                timeout_seconds=30,
-            )
-            async for sse_event in event_stream_generator:
-                yield sse_event
+    return DatastarResponse(event_streamer())
 
-        # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
-        return DatastarResponse(event_streamer(), status_code=200)
+
+async def stream_to_detail_page(request: Request):
+    try:
+        record_id = identifiers.SurveyRelatedRecordId(
+            uuid.UUID(request.path_params["survey_related_record_id"])
+        )
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
+    except ValueError as err:
+        raise HTTPException(
+            status_code=400, detail="Invalid survey_related_record id"
+        ) from err
+    session_maker = request.state.settings.get_db_session_maker()
+    redis_client: Redis = request.state.redis_client
+    user = request.user if request.user.is_authenticated else None
+
+    subscription = subscribers.subscribe_to_topic(
+        redis_client,
+        constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
+        subscribers.SurveyRelatedRecordHandlerContext(
+            survey_related_record_id=record_id,
+            user=user,
+            jinja_environment=request.state.templates.env,
+            url_resolver=request.url_for,
+            db_session_factory=session_maker,
+            request_id=request_id,
+        ),
+        message_handlers={
+            "survey_related_record_deleted": record_handlers.handle_detail_page_record_deleted
+        },
+    )
+
+    async def event_streamer():
+        async for datastar_event in subscription:
+            yield datastar_event
+
+    return DatastarResponse(event_streamer())
+
+
+@requires_auth
+async def stream_to_update_page(request: Request):
+    try:
+        record_id = identifiers.SurveyRelatedRecordId(
+            uuid.UUID(request.path_params["survey_related_record_id"])
+        )
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
+    except ValueError as err:
+        raise HTTPException(
+            status_code=400, detail="Invalid survey_related_record id"
+        ) from err
+    session_maker = request.state.settings.get_db_session_maker()
+    redis_client: Redis = request.state.redis_client
+    user = request.user
+
+    subscription = subscribers.subscribe_to_topic(
+        redis_client,
+        constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
+        subscribers.SurveyRelatedRecordHandlerContext(
+            survey_related_record_id=record_id,
+            user=user,
+            jinja_environment=request.state.templates.env,
+            url_resolver=request.url_for,
+            db_session_factory=session_maker,
+            request_id=request_id,
+        ),
+        message_handlers={
+            "survey_related_record_updated": record_handlers.handle_edit_page_survey_record_updated
+        },
+    )
+
+    async def event_streamer():
+        async for datastar_event in subscription:
+            yield datastar_event
+
+    return DatastarResponse(event_streamer())
 
 
 routes = [
@@ -1568,6 +1365,12 @@ routes = [
         get_creation_form,
         methods=["GET"],
         name="get_creation_form",
+    ),
+    Route(
+        "/{survey_mission_id}/new/{request_id}/stream",
+        stream_to_new_page,
+        methods=["GET"],
+        name="new_stream",
     ),
     Route(
         "/{survey_mission_id}/new/add-form-link",
@@ -1630,10 +1433,10 @@ routes = [
         name="get_list_component",
     ),
     Route(
-        "/listing-updates",
-        get_listing_updates,
+        "/stream",
+        stream_to_list_page,
         methods=["GET"],
-        name="get_listing_updates",
+        name="list_stream",
     ),
     Route(
         "/filter-by-name",
@@ -1647,22 +1450,28 @@ routes = [
         name="detail",
     ),
     Route(
+        "/{survey_related_record_id}/stream/{request_id}",
+        stream_to_detail_page,
+        methods=["GET"],
+        name="detail_stream",
+    ),
+    Route(
         "/{survey_related_record_id}/details",
         get_details_component,
         methods=["GET"],
         name="get_details_component",
     ),
     Route(
-        "/{survey_related_record_id}/detail-updates",
-        get_detail_updates,
-        methods=["GET"],
-        name="get_detail_updates",
-    ),
-    Route(
         "/{survey_related_record_id}/update",
         get_update_form,
         methods=["GET"],
         name="get_update_form",
+    ),
+    Route(
+        "/{survey_related_record_id}/update/stream/{request_id}",
+        stream_to_update_page,
+        methods=["GET"],
+        name="update_stream",
     ),
     Route(
         "/{survey_related_record_id}/update/add-form-link",

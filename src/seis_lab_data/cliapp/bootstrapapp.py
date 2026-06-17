@@ -5,9 +5,9 @@ from sqlalchemy.exc import IntegrityError
 
 from .. import (
     config,
-    operations,
     schemas,
 )
+from ..operations import surveyrelatedrecords as record_ops
 from . import bootstrapdata
 from .asynctyper import AsyncTyper
 from .utils import resolve_admin_user
@@ -54,7 +54,7 @@ async def bootstrap_dataset_categories(ctx: typer.Context):
         for to_create in bootstrapdata.DATASET_CATEGORIES_TO_CREATE.values():
             try:
                 created.append(
-                    await operations.create_dataset_category(
+                    await record_ops.create_dataset_category(
                         to_create,
                         initiator=ctx.obj["admin_user"],
                         session=session,
@@ -80,7 +80,7 @@ async def bootstrap_domain_types(ctx: typer.Context):
         for to_create in bootstrapdata.DOMAIN_TYPES_TO_CREATE.values():
             try:
                 created.append(
-                    await operations.create_domain_type(
+                    await record_ops.create_domain_type(
                         to_create,
                         initiator=ctx.obj["admin_user"],
                         session=session,
@@ -106,7 +106,7 @@ async def bootstrap_workflow_stages(ctx: typer.Context):
         for to_create in bootstrapdata.WORKFLOW_STAGES_TO_CREATE.values():
             try:
                 created.append(
-                    await operations.create_workflow_stage(
+                    await record_ops.create_workflow_stage(
                         to_create,
                         initiator=ctx.obj["admin_user"],
                         session=session,

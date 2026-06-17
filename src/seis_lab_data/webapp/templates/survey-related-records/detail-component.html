@@ -3,7 +3,6 @@
 {% import "macros-buttons-list-items.html" as macros_buttons_list_items %}
 {% import "macros-maps.html" as macros_maps %}
 <div class="row"
-     data-on-intersect__once="@get('{{ url_for("survey_related_records:get_detail_updates", survey_related_record_id=survey_related_record.id) }}')"
      data-signals:is-valid="{{ survey_related_record.validation_result.is_valid | default(False, True) | tojson }}"
      data-signals:status="'{{ survey_related_record.status.value }}'"
      data-signals:deleting="false"

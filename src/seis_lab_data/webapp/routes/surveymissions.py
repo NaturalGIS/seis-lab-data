@@ -1,49 +1,46 @@
-import asyncio
 import dataclasses
 import json
 import logging
 import uuid
-from typing import AsyncGenerator
 
 import shapely
 from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
-from datastar_py.sse import DatastarEvent
 from datastar_py.starlette import DatastarResponse
-from dramatiq import Message
-from jinja2 import Template
 from redis.asyncio import Redis
 from starlette_babel import gettext_lazy as _
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
+from starlette.responses import Response
 from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 from starlette_wtf import csrf_protect
 
 from ... import (
     config,
+    constants,
     errors,
     geojson,
-    operations,
     permissions,
     schemas,
+    subscribers,
 )
-from ...constants import (
-    PROGRESS_TOPIC_NAME_TEMPLATE,
-    SURVEY_MISSION_CREATED_TOPIC,
-    SURVEY_MISSION_DELETED_TOPIC,
-    SURVEY_MISSION_DISCOVERY_TOPIC,
-    SURVEY_MISSION_STATUS_CHANGED_TOPIC,
-    SURVEY_MISSION_UPDATED_TOPIC,
-    SURVEY_MISSION_VALIDITY_CHANGED_TOPIC,
+from ...operations import (
+    projects as project_ops,
+    surveymissions as survey_mission_ops,
+    surveyrelatedrecords as survey_related_record_ops,
 )
-from ...processing import tasks
+from ...tasks import (
+    surveymissions as mission_tasks,
+    surveyrelatedrecords as record_tasks,
+)
 from ...schemas import identifiers
 from .. import (
     filters,
     forms,
 )
+from ..streamhandlers import surveymissions as survey_mission_handlers
 from .auth import (
     requires_auth,
 )
@@ -51,8 +48,6 @@ from .common import (
     get_id_from_request_path,
     get_page_from_request_params,
     get_pagination_info,
-    produce_event_stream_for_item_updates,
-    produce_event_stream_for_topic,
     UPDATE_BASEMAP_JS_SCRIPT,
 )
 
@@ -75,7 +70,7 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
     )
     async with settings.get_db_session_maker()() as session:
         try:
-            survey_mission = await operations.get_survey_mission(
+            survey_mission = await survey_mission_ops.get_survey_mission(
                 survey_mission_id,
                 user,
                 session,
@@ -90,7 +85,7 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
         (
             survey_related_records,
             total,
-        ) = await operations.list_survey_related_records(
+        ) = await survey_related_record_ops.list_survey_related_records(
             session,
             user,
             survey_mission_id=survey_mission_id,
@@ -170,11 +165,13 @@ async def get_details_component(request: Request):
     return DatastarResponse(event_streamer())
 
 
-async def get_survey_mission_detail_updates(request: Request):
+@requires_auth
+async def stream_to_update_page(request: Request):
     try:
         survey_mission_id = identifiers.SurveyMissionId(
             uuid.UUID(request.path_params["survey_mission_id"])
         )
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
     except ValueError as err:
         raise HTTPException(
             status_code=400, detail="Invalid survey_mission id"
@@ -183,164 +180,62 @@ async def get_survey_mission_detail_updates(request: Request):
     redis_client: Redis = request.state.redis_client
     user = request.user if request.user.is_authenticated else None
 
-    async def on_deleted_message(
-        raw_message: str,
-    ) -> AsyncGenerator[DatastarEvent, None]:
-        message = schemas.SurveyMissionEvent(**json.loads(raw_message))
-        deleted_id = message.survey_mission_id
-        if deleted_id == survey_mission_id:
-            logger.debug(
-                "Received message about recent survey_mission deletion, "
-                "redirecting frontend..."
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                "Survey mission has been deleted",
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.INNER,
-            )
-            await asyncio.sleep(1)
-            yield ServerSentEventGenerator.redirect(
-                str(request.url_for("survey_missions:list"))
-            )
-
-    async def on_status_update_message(
-        raw_message: str,
-    ) -> AsyncGenerator[DatastarEvent, None]:
-        message = schemas.SurveyMissionEvent(**json.loads(raw_message))
-        if message.survey_mission_id == survey_mission_id:
-            logger.debug(
-                "Received message about recent survey_mission status update, "
-                "patching frontend..."
-            )
-            async with session_maker() as session:
-                updated_survey_mission = await operations.get_survey_mission(
-                    survey_mission_id, user, session
-                )
-                yield ServerSentEventGenerator.patch_signals(
-                    {
-                        "status": updated_survey_mission.status.value,
-                    },
-                )
-
-    async def on_validation_update_message(
-        raw_message: str,
-    ) -> AsyncGenerator[DatastarEvent, None]:
-        message = schemas.SurveyMissionEvent(**json.loads(raw_message))
-        if message.survey_mission_id == survey_mission_id:
-            logger.debug(
-                "Received message about recent survey_mission validation update, "
-                "patching frontend..."
-            )
-            async with session_maker() as session:
-                updated_survey_mission = await operations.get_survey_mission(
-                    survey_mission_id, user, session
-                )
-                details_message = ""
-                if not updated_survey_mission.validation_result.get("is_valid"):
-                    details_message += "<ul>"
-                    for err in updated_survey_mission.validation_result.get(
-                        "errors", []
-                    ):
-                        detail = f"{err['name']}: {err['message']}"
-                        details_message += f"<li>{detail}</li>"
-                yield ServerSentEventGenerator.patch_elements(
-                    details_message,
-                    selector=schemas.selector_info.validation_result_details_selector,
-                    mode=ElementPatchMode.INNER,
-                )
-                yield ServerSentEventGenerator.patch_signals(
-                    {
-                        "isValid": updated_survey_mission.validation_result["is_valid"],
-                    },
-                )
-
-    async def on_update_message(
-        raw_message: str,
-    ) -> AsyncGenerator[DatastarEvent, None]:
-        message = schemas.SurveyMissionEvent(**json.loads(raw_message))
-        if message.survey_mission_id == survey_mission_id:
-            logger.debug("Received message about recent survey_mission update")
-            yield ServerSentEventGenerator.patch_elements(
-                "Survey mission has been updated - refreshing the page shortly",
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.INNER,
-            )
-            await asyncio.sleep(1)
-            yield ServerSentEventGenerator.redirect(
-                str(
-                    request.url_for(
-                        "survey_missions:detail", survey_mission_id=survey_mission_id
-                    )
-                ),
-            )
-
-    async def on_discovery_message(
-        raw_message: str,
-    ) -> AsyncGenerator[DatastarEvent, None]:
-        logger.debug(
-            "Received message about survey mission discovery update, "
-            "refreshing records list..."
-        )
-        settings: config.SeisLabDataSettings = request.state.settings
-        async with session_maker() as session:
-            (
-                survey_related_records,
-                total,
-            ) = await operations.list_survey_related_records(
-                session,
-                user,
-                survey_mission_id=survey_mission_id,
-                include_total=True,
-                page=1,
-                page_size=settings.pagination_page_size,
-            )
-        pagination = get_pagination_info(
-            current_page=1,
-            page_size=settings.pagination_page_size,
-            total_filtered_items=total,
-            total_unfiltered_items=total,
-            collection_url=str(
-                request.url_for(
-                    "survey_missions:detail", survey_mission_id=survey_mission_id
-                )
-            ),
-        )
-        serialized_records = [
-            schemas.SurveyRelatedRecordReadListItem.from_db_instance(r)
-            for r in survey_related_records
-        ]
-        rendered = request.state.templates.get_template(
-            "survey-related-records/list-component.html"
-        ).render(request=request, items=serialized_records, pagination=pagination)
-        yield ServerSentEventGenerator.patch_elements(
-            rendered,
-            selector=schemas.selector_info.survey_mission_records_selector,
-            mode=ElementPatchMode.INNER,
-        )
-
-    topic_handlers = {
-        SURVEY_MISSION_DELETED_TOPIC.format(
-            survey_mission_id=survey_mission_id
-        ): on_deleted_message,
-        SURVEY_MISSION_DISCOVERY_TOPIC.format(
-            survey_mission_id=survey_mission_id
-        ): on_discovery_message,
-        SURVEY_MISSION_VALIDITY_CHANGED_TOPIC.format(
-            survey_mission_id=survey_mission_id
-        ): on_validation_update_message,
-        SURVEY_MISSION_STATUS_CHANGED_TOPIC.format(
-            survey_mission_id=survey_mission_id
-        ): on_status_update_message,
-        SURVEY_MISSION_UPDATED_TOPIC.format(
-            survey_mission_id=survey_mission_id
-        ): on_update_message,
-    }
+    subscription = subscribers.subscribe_to_topic(
+        redis_client,
+        constants.NEW_TOPIC_SURVEY_MISSIONS,
+        subscribers.SurveyMissionHandlerContext(
+            survey_mission_id=survey_mission_id,
+            user=user,
+            jinja_environment=request.state.templates.env,
+            url_resolver=request.url_for,
+            db_session_factory=session_maker,
+            request_id=request_id,
+        ),
+        message_handlers={
+            "survey_mission_updated": survey_mission_handlers.handle_edit_page_survey_mission_updated
+        },
+    )
 
     async def event_streamer():
-        async for sse_event in produce_event_stream_for_item_updates(
-            redis_client, request, timeout_seconds=30, **topic_handlers
-        ):
-            yield sse_event
+        async for datastar_event in subscription:
+            yield datastar_event
+
+    return DatastarResponse(event_streamer())
+
+
+async def stream_to_detail_page(request: Request):
+    try:
+        survey_mission_id = identifiers.SurveyMissionId(
+            uuid.UUID(request.path_params["survey_mission_id"])
+        )
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
+    except ValueError as err:
+        raise HTTPException(
+            status_code=400, detail="Invalid survey_mission id"
+        ) from err
+    session_maker = request.state.settings.get_db_session_maker()
+    redis_client: Redis = request.state.redis_client
+    user = request.user if request.user.is_authenticated else None
+
+    subscription = subscribers.subscribe_to_topic(
+        redis_client,
+        constants.NEW_TOPIC_SURVEY_MISSIONS,
+        subscribers.SurveyMissionHandlerContext(
+            survey_mission_id=survey_mission_id,
+            user=user,
+            jinja_environment=request.state.templates.env,
+            url_resolver=request.url_for,
+            db_session_factory=session_maker,
+            request_id=request_id,
+        ),
+        message_handlers={
+            "survey_mission_deleted": survey_mission_handlers.handle_detail_page_survey_mission_deleted
+        },
+    )
+
+    async def event_streamer():
+        async for datastar_event in subscription:
+            yield datastar_event
 
     return DatastarResponse(event_streamer())
 
@@ -351,10 +246,11 @@ async def get_survey_mission_creation_form(request: Request):
     user = request.user if request.user.is_authenticated else None
     project_id = identifiers.ProjectId(uuid.UUID(request.path_params["project_id"]))
     form_instance = await forms.SurveyMissionCreateForm.from_formdata(request)
+    form_instance.request_id.data = str(identifiers.RequestId(uuid.uuid4()))
 
     async with request.state.settings.get_db_session_maker()() as session:
         try:
-            project = await operations.get_project(project_id, user, session)
+            project = await project_ops.get_project(project_id, user, session)
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         if project is None:
@@ -403,7 +299,7 @@ async def get_list_component(request: Request):
     settings: config.SeisLabDataSettings = request.state.settings
     user = request.user if request.user.is_authenticated else None
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await operations.list_survey_missions(
+        items, num_total = await survey_mission_ops.list_survey_missions(
             session,
             initiator=user,
             page=current_page,
@@ -412,7 +308,7 @@ async def get_list_component(request: Request):
             **internal_filter_kwargs,
         )
         num_unfiltered_total = (
-            await operations.list_survey_missions(
+            await survey_mission_ops.list_survey_missions(
                 session, initiator=user, include_total=True
             )
         )[1]
@@ -453,56 +349,28 @@ async def get_list_component(request: Request):
     return DatastarResponse(event_streamer())
 
 
-async def get_listing_updates(request: Request):
-    redis_client: Redis = request.state.redis_client
-    user = request.user if request.user.is_authenticated else None
-    settings: config.SeisLabDataSettings = request.state.settings
-
-    async def on_mission_created_message(
-        raw_message: str,
-    ) -> AsyncGenerator[DatastarEvent, None]:
-        logger.debug(
-            "Received message about new survey mission created, "
-            "refreshing missions list..."
-        )
-        async with settings.get_db_session_maker()() as session:
-            items, total = await operations.list_survey_missions(
-                session,
-                initiator=user,
-                include_total=True,
-                page=1,
-                page_size=settings.pagination_page_size,
-            )
-        pagination = get_pagination_info(
-            current_page=1,
-            page_size=settings.pagination_page_size,
-            total_filtered_items=total,
-            total_unfiltered_items=total,
-            collection_url=str(request.url_for("survey_missions:list")),
-        )
-        serialized_items = [
-            schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items
-        ]
-        rendered = request.state.templates.get_template(
-            "survey-missions/list-component.html"
-        ).render(request=request, items=serialized_items, pagination=pagination)
-        yield ServerSentEventGenerator.patch_elements(
-            rendered,
-            selector=schemas.selector_info.items_selector,
-            mode=ElementPatchMode.REPLACE,
-        )
-
-    topic_handlers = {
-        SURVEY_MISSION_CREATED_TOPIC: on_mission_created_message,
-    }
+async def stream_to_list_page(request: Request):
+    subscription = subscribers.subscribe_to_topic(
+        request.state.redis_client,
+        constants.NEW_TOPIC_SURVEY_MISSIONS,
+        subscribers.SurveyMissionHandlerContext(
+            jinja_environment=request.state.templates.env,
+            url_resolver=request.url_for,
+            db_session_factory=request.state.settings.get_db_session_maker(),
+            user=request.user if request.user.is_authenticated else None,
+        ),
+        {
+            "survey_mission_created": survey_mission_handlers.handle_list_page_survey_mission_modification,
+            "survey_mission_updated": survey_mission_handlers.handle_list_page_survey_mission_modification,
+            "survey_mission_deleted": survey_mission_handlers.handle_list_page_survey_mission_modification,
+        },
+    )
 
     async def event_streamer():
-        async for sse_event in produce_event_stream_for_item_updates(
-            redis_client, request, timeout_seconds=30, **topic_handlers
-        ):
+        async for sse_event in subscription:
             yield sse_event
 
-    return DatastarResponse(event_streamer())
+    return DatastarResponse(event_streamer(), status_code=200)
 
 
 class SurveyMissionCollectionEndpoint(HTTPEndpoint):
@@ -518,7 +386,7 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
         settings: config.SeisLabDataSettings = request.state.settings
         user = request.user if request.user.is_authenticated else None
         async with settings.get_db_session_maker()() as session:
-            items, num_total = await operations.list_survey_missions(
+            items, num_total = await survey_mission_ops.list_survey_missions(
                 session,
                 initiator=user,
                 page=current_page,
@@ -527,7 +395,7 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
                 **list_filters.as_kwargs(),
             )
             num_unfiltered_total = (
-                await operations.list_survey_missions(
+                await survey_mission_ops.list_survey_missions(
                     session, initiator=user, include_total=True
                 )
             )[1]
@@ -589,6 +457,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             request,
             "survey-missions/detail.html",
             context={
+                "request_id": uuid.uuid4(),
                 "survey_mission": details.item,
                 "pagination": details.pagination,
                 "survey_related_records": details.children,
@@ -603,13 +472,13 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
     async def put(self, request: Request):
         """Update an existing survey mission."""
         template_processor: Jinja2Templates = request.state.templates
-        user = request.user if request.user.is_authenticated else None
+        user = request.user
         survey_mission_id = get_id_from_request_path(
             request, "survey_mission_id", identifiers.SurveyMissionId
         )
         async with request.state.settings.get_db_session_maker()() as session:
             if (
-                survey_mission := await operations.get_survey_mission(
+                survey_mission := await survey_mission_ops.get_survey_mission(
                     survey_mission_id, user, session
                 )
             ) is None:
@@ -648,7 +517,6 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
             return DatastarResponse(stream_validation_failed_events(), status_code=200)
 
-        request_id = identifiers.RequestId(uuid.uuid4())
         to_update = schemas.SurveyMissionUpdate(
             owner_id=user.id,
             name=schemas.LocalizableDraftName(
@@ -685,116 +553,20 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             ],
         )
 
-        async def handle_processing_success(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            """Handle successful processing of the project update background task.
+        mission_tasks.update_survey_mission.send(
+            raw_request_id=str(form_instance.request_id.data),
+            raw_survey_mission_id=str(survey_mission_id),
+            raw_to_update=to_update.model_dump_json(exclude_unset=True),
+            raw_initiator=json.dumps(dataclasses.asdict(user)),
+        )
 
-            After receiving the final message with a success status, update the
-            UI to reflect the changes.
-            """
-            details = await _get_survey_mission_details(request)
-            rendered_message = message_template.render(
-                status=final_message.status.value,
-                message=final_message.message,
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                rendered_message,
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-            template = template_processor.get_template(
-                "survey-missions/detail-component.html"
-            )
-            # need to update:
-            # - project details section (name, description, links, ...)
-            # - breadcrumbs (project name may have changed)
-            # - page title (project name may have changed)
-            # - clear the feedback section
-            breadcrumbs_template = template_processor.get_template("breadcrumbs.html")
-            yield ServerSentEventGenerator.patch_elements(
-                breadcrumbs_template.render(
-                    request=request, breadcrumbs=details.breadcrumbs
-                ),
-                selector=schemas.selector_info.breadcrumbs_selector,
-                mode=ElementPatchMode.INNER,
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                template.render(
-                    request=request,
-                    survey_mission=details.item,
-                    pagination=details.pagination,
-                    items=details.children,
-                    permissions=details.permissions,
-                ),
-                selector=schemas.selector_info.main_content_selector,
-                mode=ElementPatchMode.INNER,
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                details.item.name.en,
-                selector=schemas.selector_info.page_title_selector,
-                mode=ElementPatchMode.INNER,
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                "",
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.INNER,
-            )
-
-            tasks.validate_survey_mission.send(
-                raw_request_id=str(request_id),
-                raw_survey_mission_id=str(survey_mission_id),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
-            )
-
-        async def handle_processing_failure(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            rendered = message_template.render(
-                status=final_message.status.value,
-                message=f"ERROR: {final_message.message}",
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                rendered,
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-
-        async def event_streamer():
-            yield ServerSentEventGenerator.patch_elements(
-                """<li>Updating survey mission as a background task...</li>""",
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-
-            enqueued_message: Message = tasks.update_survey_mission.send(
-                raw_request_id=str(request_id),
-                raw_survey_mission_id=str(survey_mission_id),
-                raw_to_update=to_update.model_dump_json(exclude_unset=True),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
-            )
-            logger.debug(f"{enqueued_message=}")
-            redis_client: Redis = request.state.redis_client
-            event_stream_generator = produce_event_stream_for_topic(
-                redis_client,
-                request,
-                topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
-                on_success=handle_processing_success,
-                on_failure=handle_processing_failure,
-                patch_elements_selector=schemas.selector_info.feedback_selector,
-                timeout_seconds=30,
-            )
-            async for sse_event in event_stream_generator:
-                yield sse_event
-
-        # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
-        return DatastarResponse(event_streamer(), status_code=200)
+        return Response(status_code=200)
 
     @csrf_protect
     @requires_auth
     async def post(self, request: Request):
-        """Create a new record in the survey mission's collection."""
-        user = request.user if request.user.is_authenticated else None
+        """Create a new record under the survey mission."""
+        user = request.user
         survey_mission_id = get_id_from_request_path(
             request, "survey_mission_id", identifiers.SurveyMissionId
         )
@@ -829,7 +601,6 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
             return DatastarResponse(event_streamer(), status_code=200)
 
-        request_id = identifiers.RequestId(uuid.uuid4())
         related_records = []
         for related_ in form_instance.related_records.entries:
             related_records.append(
@@ -915,78 +686,12 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             ],
             related_records=related_records,
         )
-        logger.info(f"{to_create=}")
-
-        async def handle_processing_success(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            """Handle successful processing of the survey-related record creation background task."""
-
-            yield ServerSentEventGenerator.patch_elements(
-                message_template.render(
-                    data_test_id="processing-success-message",
-                    status=final_message.status.value,
-                    message=final_message.message,
-                ),
-                selector=schemas.selector_info.main_content_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-            await asyncio.sleep(1)
-
-            tasks.validate_survey_related_record.send(
-                raw_request_id=str(request_id),
-                raw_survey_related_record_id=str(to_create.id),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
-            )
-            yield ServerSentEventGenerator.redirect(
-                str(
-                    request.url_for(
-                        "survey_related_records:detail",
-                        survey_related_record_id=to_create.id,
-                    )
-                )
-            )
-
-        async def handle_processing_failure(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            yield ServerSentEventGenerator.patch_elements(
-                message_template.render(
-                    status=final_message.status.value,
-                    message=f"ERROR: {final_message.message}",
-                ),
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-
-        async def stream_events():
-            yield ServerSentEventGenerator.patch_elements(
-                """<li>Creating survey-related record as a background task...</li>""",
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-
-            enqueued_message: Message = tasks.create_survey_related_record.send(
-                raw_request_id=str(request_id),
-                raw_to_create=to_create.model_dump_json(),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
-            )
-            logger.debug(f"{enqueued_message=}")
-            redis_client: Redis = request.state.redis_client
-            event_stream_generator = produce_event_stream_for_topic(
-                redis_client,
-                request,
-                topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
-                on_success=handle_processing_success,
-                on_failure=handle_processing_failure,
-                patch_elements_selector=schemas.selector_info.feedback_selector,
-                timeout_seconds=30,
-            )
-            async for sse_event in event_stream_generator:
-                yield sse_event
-
-        # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
-        return DatastarResponse(stream_events(), status_code=200)
+        record_tasks.create_survey_related_record.send(
+            raw_request_id=str(form_instance.request_id.data),
+            raw_to_create=to_create.model_dump_json(),
+            raw_initiator=json.dumps(dataclasses.asdict(user)),
+        )
+        return Response(status_code=200)
 
     @csrf_protect
     @requires_auth
@@ -994,10 +699,10 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         survey_mission_id = get_id_from_request_path(
             request, "survey_mission_id", identifiers.SurveyMissionId
         )
-        user = request.user if request.user.is_authenticated else None
+        user = request.user
         async with request.state.settings.get_db_session_maker()() as session:
             try:
-                survey_mission = await operations.get_survey_mission(
+                survey_mission = await survey_mission_ops.get_survey_mission(
                     survey_mission_id,
                     user,
                     session,
@@ -1011,63 +716,12 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 )
 
         request_id = identifiers.RequestId(uuid.uuid4())
-
-        async def handle_processing_success(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            yield ServerSentEventGenerator.patch_elements(
-                message_template.render(
-                    status=final_message.status.value, message=final_message.message
-                ),
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-            yield ServerSentEventGenerator.redirect(
-                str(
-                    request.url_for(
-                        "projects:detail", project_id=survey_mission.project_id
-                    )
-                )
-            )
-
-        async def handle_processing_failure(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            yield ServerSentEventGenerator.patch_elements(
-                message_template.render(
-                    status=final_message.status.value,
-                    message=f"ERROR: {final_message.message}",
-                ),
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-
-        async def stream_events():
-            yield ServerSentEventGenerator.patch_elements(
-                """<li>Deleting survey mission as a background task...</li>""",
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-            enqueued_message: Message = tasks.delete_survey_mission.send(
-                raw_request_id=str(request_id),
-                raw_survey_mission_id=str(survey_mission_id),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
-            )
-            logger.debug(f"{enqueued_message=}")
-            redis_client: Redis = request.state.redis_client
-            event_stream_generator = produce_event_stream_for_topic(
-                redis_client,
-                request,
-                topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
-                on_success=handle_processing_success,
-                on_failure=handle_processing_failure,
-                patch_elements_selector=schemas.selector_info.feedback_selector,
-                timeout_seconds=30,
-            )
-            async for sse_event in event_stream_generator:
-                yield sse_event
-
-        return DatastarResponse(stream_events())
+        mission_tasks.delete_survey_mission.send(
+            raw_request_id=str(request_id),
+            raw_survey_mission_id=str(survey_mission_id),
+            raw_initiator=json.dumps(dataclasses.asdict(user)),
+        )  # noqa
+        return Response(status_code=200)
 
 
 @csrf_protect
@@ -1077,7 +731,7 @@ async def add_create_survey_mission_form_link(request: Request):
     project_id = identifiers.ProjectId(uuid.UUID(request.path_params["project_id"]))
     async with request.state.settings.get_db_session_maker()() as session:
         try:
-            project = await operations.get_project(
+            project = await project_ops.get_project(
                 project_id,
                 user,
                 session,
@@ -1115,7 +769,7 @@ async def remove_create_survey_mission_form_link(request: Request):
     project_id = identifiers.ProjectId(uuid.UUID(request.path_params["project_id"]))
     async with request.state.settings.get_db_session_maker()() as session:
         try:
-            project = await operations.get_project(
+            project = await project_ops.get_project(
                 project_id,
                 user,
                 session,
@@ -1208,7 +862,7 @@ async def get_survey_mission_update_form(request: Request):
     )
     async with request.state.settings.get_db_session_maker()() as session:
         try:
-            survey_mission = await operations.get_survey_mission(
+            survey_mission = await survey_mission_ops.get_survey_mission(
                 survey_mission_id,
                 user,
                 session,
@@ -1261,6 +915,7 @@ async def get_survey_mission_update_form(request: Request):
             ],
         },
     )
+    update_form.request_id.data = uuid.uuid4()
     template_processor: Jinja2Templates = request.state.templates
     return template_processor.TemplateResponse(
         request,
@@ -1286,6 +941,36 @@ async def get_survey_mission_update_form(request: Request):
     )
 
 
+@requires_auth
+async def stream_to_new_page(request: Request):
+    """Stream relevant updates for the new survey mission page."""
+    try:
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid request id") from err
+
+    subscription = subscribers.subscribe_to_topic(
+        request.state.redis_client,
+        constants.NEW_TOPIC_SURVEY_MISSIONS,
+        subscribers.HandlerContext(
+            request_id=request_id,
+            user=request.user,
+            url_resolver=request.url_for,
+            jinja_environment=request.state.templates.env,
+            db_session_factory=request.state.settings.get_db_session_maker(),
+        ),
+        {
+            "survey_mission_created": survey_mission_handlers.handle_new_page_survey_mission_created,
+        },
+    )
+
+    async def event_streamer():
+        async for sse_event in subscription:
+            yield sse_event
+
+    return DatastarResponse(event_streamer())
+
+
 routes = [
     Route(
         "/",
@@ -1300,16 +985,22 @@ routes = [
         name="get_list_component",
     ),
     Route(
-        "/listing-updates",
-        get_listing_updates,
+        "/stream",
+        stream_to_list_page,
         methods=["GET"],
-        name="get_listing_updates",
+        name="list_stream",
     ),
     Route(
         "/{project_id}/new",
         get_survey_mission_creation_form,
         methods=["GET"],
         name="get_creation_form",
+    ),
+    Route(
+        "/{project_id}/new/{request_id}/stream",
+        stream_to_new_page,
+        methods=["GET"],
+        name="new_stream",
     ),
     Route(
         "/{project_id}/new/add-form-link",
@@ -1342,16 +1033,22 @@ routes = [
         name="get_details_component",
     ),
     Route(
-        "/{survey_mission_id}/detail-updates",
-        get_survey_mission_detail_updates,
+        "/{survey_mission_id}/stream/{request_id}",
+        stream_to_detail_page,
         methods=["GET"],
-        name="get_detail_updates",
+        name="detail_stream",
     ),
     Route(
         "/{survey_mission_id}/update",
         get_survey_mission_update_form,
         methods=["GET"],
         name="get_update_form",
+    ),
+    Route(
+        "/{survey_mission_id}/update/stream/{request_id}",
+        stream_to_update_page,
+        methods=["GET"],
+        name="update_stream",
     ),
     Route(
         "/{survey_mission_id}",

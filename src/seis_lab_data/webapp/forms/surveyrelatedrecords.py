@@ -112,6 +112,7 @@ class _SurveyRelatedRecordForm(StarletteForm):
     inputs and their uniqueness.
     """
 
+    request_id = HiddenField()
     name = FormField(NameForm)
     description = FormField(DescriptionForm)
     dataset_category_id = SelectField(_("Dataset category"))

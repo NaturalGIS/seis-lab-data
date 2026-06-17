@@ -8,6 +8,7 @@ from starlette_wtf import StarletteForm
 from wtforms import (
     FieldList,
     FormField,
+    HiddenField,
     StringField,
 )
 
@@ -43,6 +44,7 @@ class _SurveyMissionForm(StarletteForm):
     inputs.
     """
 
+    request_id = HiddenField()
     name = FormField(NameForm)
     description = FormField(DescriptionForm)
     relative_path = StringField(
