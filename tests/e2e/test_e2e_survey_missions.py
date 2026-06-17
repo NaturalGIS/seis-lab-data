@@ -88,7 +88,9 @@ def test_survey_mission_lifecycle(authenticated_page: Page):
         "button", name="show-delete-confirmation-modal"
     ).click()
     authenticated_page.get_by_role("button", name="delete-item").click()
-    expect(authenticated_page.get_by_role("link", name="new-item")).to_be_visible()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=15_000
+    )
 
     authenticated_page.get_by_role(
         "button", name="show-delete-confirmation-modal"
@@ -138,7 +140,9 @@ def test_survey_mission_creation_rejects_duplicate_english_name(
         "button", name="show-delete-confirmation-modal"
     ).click()
     authenticated_page.get_by_role("button", name="delete-item").click()
-    expect(authenticated_page.get_by_role("link", name="new-item")).to_be_visible()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=15_000
+    )
 
     authenticated_page.get_by_role(
         "button", name="show-delete-confirmation-modal"
