@@ -1,9 +1,5 @@
 # System administration guide
 
-<span class="no-pdf">
-    [ :material-file-pdf-box: Download PDF version](assets/documents/seis-lab-data-administration-guide.pdf){ .md-button .no-pdf }
-</span>
-
 This document contains a short guide for the operational maintenance of the SeisLabData system.
 
 
@@ -35,11 +31,11 @@ The system is mainly composed of files located in the `/opt/seis-lab-data` direc
 ├── secrets/                           # system credentials and other sensitive data
 ├── certs/                             # TLS certificates
 ├── keys/                              # TLS private keys
-├── Caddyfile                          # Web server component configuration
+├── Caddyfile                          # HTTP file server component configuration
 ├── compose-deployment.env             # docker compose environment variables
 ├── compose.prod-env.yaml              # docker compose stack
 ├── image-url.env                      # URL of the docker image to be used to deploy the system
-├── sld-auth-blueprint-prod-env.yaml   # authentication service configuration
+├── sld-auth-blueprint-prod-env.yaml   # authentication component configuration
 ├── traefik-prod-config.toml           # reverse-proxy component configuration
 └── traefik-tls-config.toml            # reverse-proxy component TLS configuration
 ```
@@ -192,42 +188,6 @@ sudo journalctl ...
 ```
 
 
-### seis-lab-data CLI tool
-
-The application includes a command-line tool, accessible inside the `webapp` container:
-
-```bash
-docker compose -f compose.prod-env.yaml exec webapp seis-lab-data --help
-```
-
-Available commands:
-
-| Command                               | Description                                            |
-|---------------------------------------|--------------------------------------------------------|
-| `seis-lab-data db upgrade`            | Runs pending database migrations                       |
-| `seis-lab-data bootstrap all`         | Initialises the system base data                       |
-| `seis-lab-data run-web-server`        | Starts the web server (invoked by Docker)              |
-| `seis-lab-data run-processing-worker` | Starts the processing worker (invoked by Docker)       |
-
-
-### Updating the application
-
-1. Edit the `image-url.env` file and update `IMAGE_URL` to the new image version.
-2. Apply the update:
-
-```bash
-docker compose \
-    -f compose.prod-env.yaml \
-    --env-file compose-deployment.env \
-    --env-file image-url.env \
-    up -d webapp processing-worker
-```
-
-3. If the new version includes database migrations, run after the previous step:
-
-```bash
-docker compose -f compose.prod-env.yaml exec webapp seis-lab-data db upgrade
-```
 
 
 ## System components
@@ -289,8 +249,8 @@ and routes them to the appropriate service, according to the rules in the table 
 
 #### 2. `web application` component
 
-This is the main component of the system, implemented in Python. It consists of a web application
-that serves the graphical interface and the API that allows interaction with the catalogue.
+This is the main component of the system. It consists of a web application that serves the graphical
+interface and the API that allows interaction with the catalogue.
 
 
 ##### Relevant configuration files
@@ -309,7 +269,6 @@ catalogue records.
 ##### Relevant configuration files
 
 - `compose.prod-env.yaml` - `db` service
--
 
 
 ##### Accessing the database
@@ -330,9 +289,9 @@ docker compose \
 
 #### 4. `processing worker` component
 
-[Dramatiq](https://dramatiq.io/) application that executes background tasks, namely the creation
+[Dramatiq](https://dramatiq.io/) application that executes background tasks, like the creation
 and processing of records in the system. Communicates with the web application through the
-`message broker`.
+`message broker` component.
 
 
 #### 5. `http file server` component
@@ -461,5 +420,36 @@ The sequence is:
     4.  Pull the previously built docker image of the system from the docker registry
     5.  Restart the docker compose stack
     6.  Send a notification to the dev team when the deployment is done
+
+
+### Performing manual deployments
+
+The preferred deployment workflow is the semi-atomated procedure described above. It is also possible
+to perform manual deployments:
+
+1.  Create a git tag with a naming pattern of `vX.Y.Z` and pushes this tag to the central
+    Github-hosted source code repository
+
+2.  Edit the `/opt/seis-lab-data/image-url.env` file and update `IMAGE_URL` to the new image version.
+
+3.  Perform the deployment:
+
+```bash
+docker compose \
+    -f compose.prod-env.yaml \
+    --env-file compose-deployment.env \
+    --env-file image-url.env \
+    up -d --force-recreate webapp processing-worker
+```
+
+4. If the new version includes database migrations, run after the previous step:
+
+```bash
+docker compose \
+    -f compose.prod-env.yaml \
+    --env-file compose-deployment.env \
+    --env-file image-url.env \
+    exec webapp uv run seis-lab-data db upgrade
+```
 
 [woodpecker CI]: https://woodpecker-ci.org/
