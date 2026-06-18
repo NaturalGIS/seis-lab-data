@@ -5,11 +5,13 @@ on:
   push:
     paths-ignore:
       - 'docs/**'
+      - 'mkdocs/**'
       - 'mkdocs.yml'
 
   pull_request:
     paths-ignore:
       - 'docs/**'
+      - 'mkdocs/**'
       - 'mkdocs.yml'
 
 env:
