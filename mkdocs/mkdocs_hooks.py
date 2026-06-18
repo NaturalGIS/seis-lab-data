@@ -20,12 +20,12 @@ class PdfResourceConfig:
 PDF_RESOURCES = (
     PdfResourceConfig(
         pdf_name="seis-lab-data-development-guide.pdf",
-        mkdocs_conf="mkdocs-pdf-dev-guide.yml",
+        mkdocs_conf="mkdocs/mkdocs-pdf-dev-guide.yml",
         build_dir_name="site-dev-guide-pdf",
     ),
     PdfResourceConfig(
         pdf_name="seis-lab-data-administration-guide.pdf",
-        mkdocs_conf="mkdocs-pdf-admin-guide.yml",
+        mkdocs_conf="mkdocs/mkdocs-pdf-admin-guide.yml",
         build_dir_name="site-admin-guide-pdf",
     ),
 )
@@ -33,6 +33,8 @@ PDF_RESOURCES = (
 
 _DESTINATION_RELATIVE_PATH = "assets/documents"
 _pdfs_already_generated = False
+
+_PROJECT_ROOT = Path(__file__).parent.parent
 
 
 def on_config(config):
@@ -48,7 +50,7 @@ def on_config(config):
 
     print("Generating PDFs...")
     for pdf_resource_conf in PDF_RESOURCES:
-        build_dir = Path(__file__).parent / pdf_resource_conf.build_dir_name
+        build_dir = _PROJECT_ROOT / pdf_resource_conf.build_dir_name
         try:
             subprocess.run(
                 shlex.split(
@@ -62,7 +64,7 @@ def on_config(config):
             print(f"Error generating PDF {pdf_resource_conf.pdf_name}: {str(err)}")
         else:
             src_pdf_path = build_dir / f"pdf/{pdf_resource_conf.pdf_name}"
-            dest_dir = Path(__file__).parent / f"docs/{_DESTINATION_RELATIVE_PATH}"
+            dest_dir = _PROJECT_ROOT / f"docs/{_DESTINATION_RELATIVE_PATH}"
             dest_pdf_path = dest_dir / pdf_resource_conf.pdf_name
 
             dest_dir.mkdir(parents=True, exist_ok=True)
@@ -86,7 +88,7 @@ def on_files(files, config):
 
     for pdf_resource in PDF_RESOURCES:
         pdf_path = "/".join((_DESTINATION_RELATIVE_PATH, pdf_resource.pdf_name))
-        if (Path(__file__).parent / pdf_path).exists():
+        if (_PROJECT_ROOT / pdf_path).exists():
             # Only add it if it's not already in the files list
             if not any(f.src_path == pdf_path for f in files):
                 new_file = File(
