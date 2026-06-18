@@ -4,8 +4,12 @@
     [ :material-file-pdf-box: Descarregar versão PDF](assets/documents/seis-lab-data-development-guide.pdf){ .md-button .no-pdf }
 </span>
 
+Este documento é o entregável de projeto _D03 - Documentação orientada ao programador sobre como configurar o projeto_.
+Contém informação sobre como configurar um ambiente de desenvolvimento local adequado para trabalhar no projeto
+SeisLabData.
+
 Este projeto é composto por múltiplos serviços, que são orquestrados com `docker compose`.
-O ficheiro `docker/compose.dev.yaml` contem as instruções adequadas para desenvolvimento.
+O ficheiro `docker/compose.dev.yaml` contém as instruções adequadas para desenvolvimento.
 
 !!! tip "Dica"
     Quando a _stack_ de desenvolvimento do Docker estiver ativa e em execução, execute os comandos docker compose
@@ -20,7 +24,7 @@ O ficheiro `docker/compose.dev.yaml` contem as instruções adequadas para desen
 Os serviços mais relevantes são:
 
 - `webapp` – a aplicação web principal, implementada com [starlette], [sqlmodel], [jinja] e [datastar].
-- `processing-worker` – serviço executa a maior parte do processamento. É um _worker_ [dramatiq].
+- `processing-worker` – serviço que executa a maior parte do processamento e das modificações à BD. É um _worker_ [dramatiq].
 - `message-broker` – uma instância [redis] que gere a passagem de mensagens entre a webapp e o processing worker.
 - `web-gateway` – uma instância [traefik] que atua como _reverse proxy_ para o sistema.
 - `auth-webapp` – uma instância [authentik] que trata da autenticação de utilizadores.
@@ -40,11 +44,14 @@ Os serviços mais relevantes são:
 ## Configuração do ambiente
 
 Comece por obter os datasets de exemplo que foram disponibilizados pelo cliente. Estes encontram-se no
-ficheiro `ipma/2025-marine-data-catalog/sample-data/20251125_datasample01_restored_data.tar.gz`, que está disponível
-na plataforma interna de base de conhecimento.
+ficheiro
 
-Crie uma diretoria base para os datasets do projeto (por exemplo em `~/data/seis-lab-data`), obtenha o arquivo
-e extraia-o dentro desta diretoria:
+```ipma/2025-marine-data-catalog/sample-data/20251125_datasample01_restored_data.tar.gz```
+
+que está disponível na plataforma interna de base de conhecimento.
+
+Crie uma diretoria base para os datasets do projeto (por exemplo em `~/data/seis-lab-data`),
+obtenha o arquivo e extraia-o dentro desta diretoria:
 
 ```shell
 mkdir -p ~/data/seis-lab-data
@@ -73,12 +80,12 @@ Agora, clone este repositório localmente:
 ```shell
 cd ~/dev  # ou onde preferir guardar o código
 
-git clone [https://github.com/NaturalGIS/seis-lab-data.git](https://github.com/NaturalGIS/seis-lab-data.git)
+git clone https://github.com/NaturalGIS/seis-lab-data.git
 cd seis-lab-data
 ```
 
 Para simplificar a montagem da diretoria de dados dentro dos serviços docker, o projeto assume que existe uma
-diretoria `sample-data` na raiz do repositório. Como tal, crie um link simbólico (symlink) a apontar para a
+diretoria `sample-data` na raiz do repositório. Como tal, crie um link simbólico a apontar para a
 diretoria de dados que criou acima:
 
 ```shell
@@ -86,20 +93,22 @@ diretoria de dados que criou acima:
 ln -s ~/data/seis-lab-data sample-data
 ```
 
-Certifique-se de que tem o [docker] e o [uv] instalados na sua máquina. Utilize o uv para
-instalar o projeto localmente:
+Certifique-se de que tem o [docker] e o [uv] instalados na sua máquina.
+
+Utilize o `uv` para instalar o projeto localmente:
 
 ```shell
 uv sync --group dev --locked
 ```
 
-Instale os hooks de pre-commit incluídos:
+Instale os hooks de [pre-commit] incluídos:
 
 ```shell
 uv run pre-commit install
 ```
 
-Efetue o _pull_ das imagens docker do projeto dos respetivos registos (poderá precisar de fazer login em ghcr.io):
+Efetue o _pull_ das imagens docker do projeto dos respetivos registos (poderá precisar de fazer login
+em `ghcr.io`):
 
 ```shell
 docker compose -f docker/compose.dev.yaml pull
@@ -111,25 +120,23 @@ De seguida, lance a stack:
 docker compose -f docker/compose.dev.yaml up -d
 ```
 
-Deverá agora conseguir aceder à webapp em http://localhost:8888. Continue para a secção de arranque de uma
-instalação nova.
+Deverá agora conseguir aceder à webapp em
 
-Pode fazer login no sistema usando as credenciais:
+    http://localhost:8888
 
-- utilizador: `akadmin@email.com`
-- password: `admin123`
+Continue para a secção de [arranque de uma instalação nova](#arranque-de-uma-instalacao-nova).
 
 
 ## Arranque de uma instalação nova
 
-O processo de arranque (_bootstrapping_) consiste em :
+O processo de arranque (_bootstrapping_) consiste em:
 
-- Criar/atualizar a base de dados,
-- Carregar as variáveis predefinidas
-- Opcionalmente, adicionar dados de exemplo.
+- Criar/atualizar a base de dados;
+- Carregar as variáveis predefinidas nas tabelas apropriadas da BD;
+- Opcionalmente, adicionar alguns projetos, missões de levantamento e registos de exemplo.
 
-O _bootstrapping_ é feito utilizando a aplicação de linha de comandos (CLI) `seis-lab-data`, que está
-disponível no serviço docker compose chamado `webapp`:
+O _bootstrapping_ é feito utilizando a CLI `seis-lab-data`, que está disponível no serviço
+`webapp`. Contém muitos comandos e pode ser invocada assim:
 
 ```shell
 docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data --help
@@ -147,26 +154,30 @@ docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data b
 # opcionalmente, carregar registos de exemplo
 docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data dev load-all-samples
 
-# opcionalmente, gerar registos sintéticos (útil para a UI)
+# opcionalmente, gerar um grande número de registos sintéticos
+# (mais útil quando se trabalha na interface web)
 docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data dev generate-many-projects --num-projects=50
 ```
 
 
 ## Notas adicionais
 
-A imagem docker de desenvolvimento usa a tag `latest` e é reconstruída em cada commit no ramo chamado `main` do
-repositório. Assim sendo, sempre que houver modificações no código, antes de iniciar a stack de serviços, é
-aconselhável puxar a versão mais recente da imagem docker:
+A imagem docker de desenvolvimento usa a tag `latest` e é reconstruída em cada commit no ramo `main`
+do repositório. Assim sendo, deverá executar
 
 ```shell
 docker compose -f docker/compose.dev.yaml pull webapp
 docker compose -f docker/compose.dev.yaml up -d
 ```
 
+sempre que souber que houve _merges_ recentes.
+
 
 !!! note "Criar a imagem docker localmente"
 
-    Se adicionar uma nova dependência Python, deverá criar a imagem localmente:
+    Na maior parte das vezes irá utilizar uma imagem docker pré-construída. No entanto, existe um caso
+    especial em que será necessário criá-la localmente: quando adicionar uma nova dependência Python ao
+    projeto. Nesse caso, crie a imagem com:
 
     ```shell
     docker build \
@@ -175,35 +186,58 @@ docker compose -f docker/compose.dev.yaml up -d
       .
     ```
 
-    Depois, reinicie a stack:
+    Depois, reinicie a stack com:
 
     ```shell
     CURRENT_GIT_BRANCH=$(git branch --show-current) docker compose -f docker/compose.dev.yaml up -d --force-recreate
     ```
 
-!!! note "Traduções"
 
-    Como a diretoria `src` é montada via usando um [bind mount](https://docs.docker.com/engine/storage/bind-mounts/),
-    ficheiros `*.mo` da imagem são mascarados pelos que estiverem presentes no disco local. Como tal, de modo a que
-    as traduções funcionem corretamente, será necessário correr o commando:
+!!! note "Traduções no ambiente de desenvolvimento local"
 
-    ```shell
-    seis-lab-data translations compile
-    ```
+    Como o ficheiro docker compose de desenvolvimento monta a diretoria `src` inteira via
+    [bind mount](https://docs.docker.com/engine/storage/bind-mounts/), os ficheiros `*.mo` compilados
+    do contentor são mascarados pelos ficheiros presentes no disco local. Isto significa que após
+    executar `seis-lab-data translations compile` é necessário reiniciar o serviço `webapp` para as
+    alterações terem efeito.
 
-    Em seguida, reinicie o serviço `webapp`.
+
+## Serviços auxiliares de desenvolvimento
+
+A stack de desenvolvimento inclui alguns serviços adicionais relevantes:
+
+
+##### dozzle
+
+Instância [dozzle](https://dozzle.dev/), útil para monitorizar os _logs_ dos vários serviços da
+stack. Acessível em http://localhost:8888/monitoring
+
+
+##### jupyter
+
+Instância [jupyter](https://jupyter.org/), útil para escrever notebooks ou interagir com um REPL
+Python. Acessível em http://localhost:5002
+
+
+##### pg-admin
+
+Instância [pg-admin](https://www.pgadmin.org/), útil para inspecionar as bases de dados da stack.
+Acessível em http://pgadmin.localhost:8888 com as credenciais:
+
+- utilizador: `dev@dev.dev`
+- password: `dev`
 
 
 # Execução de testes
 
-Os testes normais correm dentro do contentor webapp:
+Os testes normais correm dentro do contentor `webapp`, após instalar as dependências necessárias:
 
 ```shell
-docker compose --file docker/compose.dev.yaml exec webapp uv sync --locked --group gdal --group dev
-docker compose --file docker/compose.dev.yaml exec webapp uv run pytest
+docker compose --file docker/compose.dev.yaml exec -ti webapp uv sync --locked --group gdal --group dev
+docker compose --file docker/compose.dev.yaml exec -ti webapp uv run pytest
 ```
 
-Testes de integração:
+Os testes de integração correm com:
 
 ```shell
 docker compose --file docker/compose.dev.yaml exec webapp uv run pytest -m integration
@@ -211,17 +245,17 @@ docker compose --file docker/compose.dev.yaml exec webapp uv run pytest -m integ
 
 ## Testes end-to-end (E2E)
 
-A execução dos testes E2E utiliza o [playwright](https://playwright.dev/python/). Como tal, a sua execução requer
-a instalação de dependências adicionais:
+Os testes E2E correm fora da stack docker e requerem a instalação do [playwright] localmente:
 
 ```shell
 uv run playwright install --with-deps chromium
 ```
 
-Os testes podem ser executados com o comando:
+Os testes podem então ser executados com:
 
 ```shell
-uv run pytest tests/e2e/ \
+uv run pytest \
+    tests/e2e/ \
     -m e2e \
     --confcutdir tests/e2e \
     --user-email akadmin@email.com \
@@ -229,25 +263,25 @@ uv run pytest tests/e2e/ \
     --base-url http://localhost:8888
 ```
 
-!!! TIP "Dica"
+A incantação anterior executa todos os testes E2E em modo _headless_.
+Para os executar em modo _headed_:
 
-    Para correr os tests E2E no modo _headed_ (_i.e._ com execução de uma interface gráfica), adicione os
-    parâmetros `--headed` e `--slowmo 1500`.
-
-    ```shell
-    uv run pytest tests/e2e/ \
-        -m e2e \
-        --confcutdir tests/e2e \
-        --user-email akadmin@email.com \
-        --user-password admin123 \
-        --base-url http://localhost:8888 \
-        --headed \
-        --slowmo 1500
-    ```
+```shell
+uv run pytest \
+    tests/e2e/ \
+    -m e2e \
+    --confcutdir tests/e2e \
+    --user-email akadmin@email.com \
+    --user-password admin123 \
+    --base-url http://localhost:8888 \
+    --headed \
+    --slowmo 1500
+```
 
 
 [docker]: https://www.docker.com/
 [IPMA]: https://www.ipma.pt/pt/index.html
+[playwright]: https://playwright.dev/python/
 [pre-commit]: https://pre-commit.com/
 [uv]: https://docs.astral.sh/uv/
 [woodpecker]: https://woodpecker-ci.org/

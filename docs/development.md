@@ -1,5 +1,8 @@
 # Development
 
+This document is project deliverable _D03 - Developer-oriented documentation on how to stand up the project_. It
+contains information on how to set up a local development environment suitable for working on the SeisLabData project.
+
 This project is composed of a set of multiple services which are deployed with `docker compose`. The
 `docker/compose.dev.yaml` file is a compose file suitable for development
 
