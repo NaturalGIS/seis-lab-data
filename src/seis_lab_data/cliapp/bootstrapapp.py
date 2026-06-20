@@ -3,11 +3,9 @@ import asyncio
 import typer
 from sqlalchemy.exc import IntegrityError
 
-from .. import (
-    config,
-    schemas,
-)
+from .. import config
 from ..operations import surveyrelatedrecords as record_ops
+from ..schemas import surveyrelatedrecords as record_schemas
 from . import bootstrapdata
 from .asynctyper import AsyncTyper
 from .utils import resolve_admin_user
@@ -67,7 +65,7 @@ async def bootstrap_dataset_categories(ctx: typer.Context):
                 )
                 await session.rollback()
     for created_category in created:
-        to_show = schemas.DatasetCategoryRead(**created_category.model_dump())
+        to_show = record_schemas.DatasetCategoryRead(**created_category.model_dump())
         ctx.obj["main"].status_console.print(to_show)
 
 
@@ -93,7 +91,7 @@ async def bootstrap_domain_types(ctx: typer.Context):
                 )
                 await session.rollback()
     for created_domain_type in created:
-        to_show = schemas.DomainTypeRead(**created_domain_type.model_dump())
+        to_show = record_schemas.DomainTypeRead(**created_domain_type.model_dump())
         ctx.obj["main"].status_console.print(to_show)
 
 
@@ -119,5 +117,7 @@ async def bootstrap_workflow_stages(ctx: typer.Context):
                 )
                 await session.rollback()
     for created_workflow_stage in created:
-        to_show = schemas.WorkflowStageRead(**created_workflow_stage.model_dump())
+        to_show = record_schemas.WorkflowStageRead(
+            **created_workflow_stage.model_dump()
+        )
         ctx.obj["main"].status_console.print(to_show)

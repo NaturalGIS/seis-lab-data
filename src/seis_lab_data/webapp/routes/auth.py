@@ -8,10 +8,12 @@ from datastar_py.starlette import DatastarResponse
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
-from ... import schemas
 from ...constants import AUTH_CLIENT_NAME
 from ...db import commands
-from ...schemas import identifiers
+from ...schemas import (
+    identifiers,
+    user as user_schemas,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -84,11 +86,11 @@ async def logout(request: Request):
 
 def get_user(
     user_info: dict,
-) -> schemas.User | None:
+) -> user_schemas.User | None:
     id_ = user_info.get("sub")
     if id_ is None:
         return None
-    return schemas.User(
+    return user_schemas.User(
         id=identifiers.UserId(id_),
         email=user_info.get("email"),
         username=user_info.get("preferred_username"),

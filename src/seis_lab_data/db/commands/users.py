@@ -2,13 +2,13 @@ import logging
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from ... import schemas
+from ...schemas.user import User
 from .. import models
 
 logger = logging.getLogger(__name__)
 
 
-async def upsert_user(session: AsyncSession, user: schemas.User) -> None:
+async def upsert_user(session: AsyncSession, user: User) -> None:
     existing = await session.get(models.User, user.id)
     if existing:
         existing.username = user.username

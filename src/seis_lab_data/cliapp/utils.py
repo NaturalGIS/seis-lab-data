@@ -1,20 +1,24 @@
 import httpx
 
-from .. import authentik, config, schemas
+from .. import (
+    authentik,
+    config,
+)
 from ..db import commands as db_commands
-from ..schemas import identifiers
+from ..schemas.identifiers import UserId
+from ..schemas.user import User
 
 
 async def resolve_admin_user(
     settings: config.SeisLabDataSettings,
     admin_username: str | None = None,
     admin_user_id: str | None = None,
-) -> schemas.User:
+) -> User:
     async with httpx.AsyncClient() as client:
         if admin_user_id:
             user = await authentik.get_user_by_uuid(
                 admin_token=settings.auth_admin_token,
-                user_id=identifiers.UserId(admin_user_id),
+                user_id=UserId(admin_user_id),
                 web_client=client,
                 authentik_base_url=settings.auth_internal_base_url,
             )

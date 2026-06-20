@@ -10,10 +10,12 @@ from sqlmodel import (
     select,
 )
 
-from ... import schemas
 from ...constants import SurveyRelatedRecordStatus
 from ...db import models
-from ...schemas import identifiers
+from ...schemas import (
+    identifiers,
+    filters as filter_schemas,
+)
 from .common import _get_total_num_records
 
 logger = logging.getLogger(__name__)
@@ -24,7 +26,7 @@ def _build_survey_related_record_statement(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ):
     statement = (
         select(models.SurveyRelatedRecord)
@@ -97,7 +99,7 @@ async def list_published_survey_related_records(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     statement = _build_survey_related_record_statement(
         survey_mission_id,
@@ -123,7 +125,7 @@ async def list_accessible_survey_related_records(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     statement = (
         _build_survey_related_record_statement(
@@ -164,7 +166,7 @@ async def list_survey_related_records(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     """Return all records regardless of status. Intended for admin use."""
     statement = _build_survey_related_record_statement(

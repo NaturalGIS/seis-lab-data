@@ -2,12 +2,12 @@ import logging
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from ... import (
-    errors,
-    schemas,
-)
+from ... import errors
 from ...constants import ProjectStatus
-from ...schemas import identifiers
+from ...schemas import (
+    identifiers,
+    projects as project_schemas,
+)
 from .. import (
     models,
     queries,
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 async def create_project(
-    session: AsyncSession, to_create: schemas.ProjectCreate
+    session: AsyncSession, to_create: project_schemas.ProjectCreate
 ) -> models.Project:
     project = models.Project(
         **to_create.model_dump(
@@ -59,7 +59,7 @@ async def delete_project(
 async def update_project(
     session: AsyncSession,
     project: models.Project,
-    to_update: schemas.ProjectUpdate,
+    to_update: project_schemas.ProjectUpdate,
 ) -> models.Project:
     for key, value in to_update.model_dump(
         exclude={"bbox_4326"}, exclude_unset=True

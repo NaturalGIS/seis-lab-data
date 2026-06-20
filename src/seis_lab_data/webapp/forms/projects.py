@@ -14,12 +14,13 @@ from wtforms import (
     TextAreaField,
 )
 
-from ... import (
-    constants,
-    schemas,
-)
+from ... import constants
 from ...db.queries import get_project_by_english_name
-from ...schemas import identifiers
+from ...schemas import (
+    discovery as discovery_schemas,
+    identifiers,
+    projects as project_schemas,
+)
 from .common import (
     BoundingBoxForm,
     DescriptionForm,
@@ -70,7 +71,7 @@ class _ProjectForm(StarletteForm):
             return None
         try:
             parsed = json.loads(raw_json)
-            schemas.ProjectDiscoveryConfiguration.model_validate(parsed)
+            discovery_schemas.ProjectDiscoveryConfiguration.model_validate(parsed)
             return parsed
         except json.JSONDecodeError:
             self.discovery_configuration.errors.append(_("Invalid JSON"))
@@ -154,7 +155,7 @@ class ProjectCreateForm(_ProjectForm):
         # pydantic validation errors with wtforms field errors
         discovery_configuration = self._parse_discovery_configuration()
         try:
-            schemas.ProjectCreate(
+            project_schemas.ProjectCreate(
                 # these are not part of the form, but we must provide something
                 id=None,
                 owner_id=None,
@@ -193,7 +194,7 @@ class ProjectUpdateForm(_ProjectForm):
         # pydantic validation errors with wtforms field errors
         discovery_configuration = self._parse_discovery_configuration()
         try:
-            schemas.ProjectUpdate(
+            project_schemas.ProjectUpdate(
                 owner_id=None,
                 name={
                     **get_form_field_by_name(self, "name").data,

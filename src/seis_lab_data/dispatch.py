@@ -50,6 +50,16 @@ class RedisEventDispatcher:
                         request_id=event.request_id,
                     ).model_dump_json(),
                 )
+            case events.ProjectNotUpdatedEvent():
+                logger.debug(f"{event=}")
+                await self._redis.publish(
+                    constants.NEW_TOPIC_PROJECTS,
+                    messages.ProjectNotUpdatedMessage(
+                        project_id=event.project_id,
+                        request_id=event.request_id,
+                        details=event.details,
+                    ).model_dump_json(),
+                )
             case events.ProjectDeletedEvent():
                 await self._redis.publish(
                     constants.NEW_TOPIC_PROJECTS,

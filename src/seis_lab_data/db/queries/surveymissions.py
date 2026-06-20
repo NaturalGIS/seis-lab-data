@@ -7,10 +7,12 @@ from sqlmodel import (
     select,
 )
 
-from ... import schemas
 from ...constants import SurveyMissionStatus
 from ...db import models
-from ...schemas import identifiers
+from ...schemas import (
+    identifiers,
+    filters as filter_schemas,
+)
 from .common import _get_total_num_records
 
 
@@ -19,7 +21,7 @@ def _build_survey_mission_statement(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ):
     statement = select(models.SurveyMission).options(
         selectinload(models.SurveyMission.project)
@@ -81,7 +83,7 @@ async def list_published_survey_missions(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.SurveyMission], int | None]:
     statement = _build_survey_mission_statement(
         project_id, en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
@@ -103,7 +105,7 @@ async def list_accessible_survey_missions(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.SurveyMission], int | None]:
     statement = (
         _build_survey_mission_statement(
@@ -138,7 +140,7 @@ async def list_survey_missions(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.SurveyMission], int | None]:
     """Return all survey missions regardless of status. Intended for admin use."""
     statement = _build_survey_mission_statement(
