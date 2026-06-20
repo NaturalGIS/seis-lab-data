@@ -3,12 +3,12 @@ import uuid
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from ... import (
-    errors,
-    schemas,
-)
+from ... import errors
 from ...constants import SurveyRelatedRecordStatus
-from ...schemas import identifiers
+from ...schemas import (
+    identifiers,
+    surveyrelatedrecords as record_schemas,
+)
 from .. import (
     models,
     queries,
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 async def create_dataset_category(
     session: AsyncSession,
-    to_create: schemas.DatasetCategoryCreate,
+    to_create: record_schemas.DatasetCategoryCreate,
 ) -> models.DatasetCategory:
     category = models.DatasetCategory(
         **to_create.model_dump(),
@@ -47,7 +47,7 @@ async def delete_dataset_category(
 
 async def create_domain_type(
     session: AsyncSession,
-    to_create: schemas.DomainTypeCreate,
+    to_create: record_schemas.DomainTypeCreate,
 ) -> models.DomainType:
     domain_type = models.DomainType(
         **to_create.model_dump(),
@@ -72,7 +72,7 @@ async def delete_domain_type(
 
 async def create_workflow_stage(
     session: AsyncSession,
-    to_create: schemas.WorkflowStageCreate,
+    to_create: record_schemas.WorkflowStageCreate,
 ) -> models.WorkflowStage:
     workflow_stage = models.WorkflowStage(
         **to_create.model_dump(),
@@ -97,7 +97,7 @@ async def delete_workflow_stage(
 
 async def create_survey_related_record(
     session: AsyncSession,
-    to_create: schemas.SurveyRelatedRecordCreate,
+    to_create: record_schemas.SurveyRelatedRecordCreate,
 ) -> models.SurveyRelatedRecord:
     survey_record = models.SurveyRelatedRecord(
         **to_create.model_dump(exclude={"assets", "bbox_4326", "related_records"}),
@@ -154,7 +154,7 @@ async def delete_survey_related_record(
 async def update_survey_related_record(
     session: AsyncSession,
     survey_related_record: models.SurveyRelatedRecord,
-    to_update: schemas.SurveyRelatedRecordUpdate,
+    to_update: record_schemas.SurveyRelatedRecordUpdate,
 ):
     """Update a survey-related record and its assets.
 

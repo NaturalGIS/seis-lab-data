@@ -24,7 +24,6 @@ from ... import (
     errors,
     geojson,
     permissions,
-    schemas,
     subscribers,
 )
 from ...operations import (
@@ -37,7 +36,12 @@ from ...db import (
     queries,
 )
 from ...tasks import surveyrelatedrecords as record_tasks
-from ...schemas import identifiers
+from ...schemas import (
+    common as common_schemas,
+    identifiers,
+    surveyrelatedrecords as record_schemas,
+    webui as webui_schemas,
+)
 from .. import (
     filters,
     forms,
@@ -59,7 +63,7 @@ logger = logging.getLogger(__name__)
 
 async def _get_survey_related_record_details(
     request: Request,
-) -> schemas.SurveyRelatedRecordDetails:
+) -> webui_schemas.SurveyRelatedRecordDetails:
     """Utility function to get survey-related record details and its assets."""
     user = request.user if request.user.is_authenticated else None
     survey_related_record_id = get_id_from_request_path(
@@ -84,15 +88,15 @@ async def _get_survey_related_record_details(
                 ),
             )
     survey_related_record, related_to, subject_for = survey_related_record_info
-    serialized = schemas.SurveyRelatedRecordReadDetail.from_db_instance(
+    serialized = webui_schemas.SurveyRelatedRecordReadDetail.from_db_instance(
         survey_related_record, related_to, subject_for
     )
     can_update = permissions.can_update_survey_related_record(
         user, survey_related_record
     )
-    return schemas.SurveyRelatedRecordDetails(
+    return webui_schemas.SurveyRelatedRecordDetails(
         item=serialized,
-        permissions=schemas.UserPermissionDetails(
+        permissions=webui_schemas.UserPermissionDetails(
             can_create_children=can_update,
             can_update=can_update,
             can_delete=permissions.can_delete_survey_related_record(
@@ -100,11 +104,13 @@ async def _get_survey_related_record_details(
             ),
         ),
         breadcrumbs=[
-            schemas.BreadcrumbItem(name=_("Home"), url=str(request.url_for("home"))),
-            schemas.BreadcrumbItem(
+            webui_schemas.BreadcrumbItem(
+                name=_("Home"), url=str(request.url_for("home"))
+            ),
+            webui_schemas.BreadcrumbItem(
                 name=_("Projects"), url=str(request.url_for("projects:list"))
             ),
-            schemas.BreadcrumbItem(
+            webui_schemas.BreadcrumbItem(
                 name=str(survey_related_record.survey_mission.project.name["en"]),
                 url=str(
                     request.url_for(
@@ -113,7 +119,7 @@ async def _get_survey_related_record_details(
                     )
                 ),
             ),
-            schemas.BreadcrumbItem(
+            webui_schemas.BreadcrumbItem(
                 name=str(survey_related_record.survey_mission.name["en"]),
                 url=str(
                     request.url_for(
@@ -122,7 +128,7 @@ async def _get_survey_related_record_details(
                     )
                 ),
             ),
-            schemas.BreadcrumbItem(
+            webui_schemas.BreadcrumbItem(
                 name=str(survey_related_record.name["en"]),
             ),
         ],
@@ -145,7 +151,7 @@ async def get_details_component(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -223,23 +229,25 @@ async def get_creation_form(request: Request):
             "form": form_instance,
             "survey_mission_id": survey_mission_id,
             "breadcrumbs": [
-                schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
-                schemas.BreadcrumbItem(
+                webui_schemas.BreadcrumbItem(
+                    name=_("Home"), url=request.url_for("home")
+                ),
+                webui_schemas.BreadcrumbItem(
                     name=_("Projects"), url=request.url_for("projects:list")
                 ),
-                schemas.BreadcrumbItem(
+                webui_schemas.BreadcrumbItem(
                     name=parent_survey_mission.project.name["en"],
                     url=request.url_for(
                         "projects:detail", project_id=parent_survey_mission.project.id
                     ),
                 ),
-                schemas.BreadcrumbItem(
+                webui_schemas.BreadcrumbItem(
                     name=parent_survey_mission.name["en"],
                     url=request.url_for(
                         "survey_missions:detail", survey_mission_id=survey_mission_id
                     ),
                 ),
-                schemas.BreadcrumbItem(name=_("New survey-related record")),
+                webui_schemas.BreadcrumbItem(name=_("New survey-related record")),
             ],
         },
     )
@@ -265,7 +273,7 @@ async def add_creation_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -293,7 +301,7 @@ async def remove_creation_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -320,7 +328,7 @@ async def add_creation_form_asset(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -348,7 +356,7 @@ async def remove_creation_form_asset(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -376,7 +384,7 @@ async def add_creation_form_asset_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -408,7 +416,7 @@ async def remove_creation_form_asset_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -435,7 +443,7 @@ async def add_creation_form_related_record(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -463,7 +471,7 @@ async def remove_creation_form_related_record(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -572,19 +580,21 @@ async def get_update_form(request: Request):
             "form": form_instance,
             "initial_related_records": initial_related_records,
             "breadcrumbs": [
-                schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
-                schemas.BreadcrumbItem(
+                webui_schemas.BreadcrumbItem(
+                    name=_("Home"), url=request.url_for("home")
+                ),
+                webui_schemas.BreadcrumbItem(
                     name=_("Survey-related records"),
                     url=request.url_for("survey_related_records:list"),
                 ),
-                schemas.BreadcrumbItem(
+                webui_schemas.BreadcrumbItem(
                     name=details.item.name.en,
                     url=request.url_for(
                         "survey_related_records:detail",
                         survey_related_record_id=details.item.id,
                     ),
                 ),
-                schemas.BreadcrumbItem(name=_("Edit survey-related record")),
+                webui_schemas.BreadcrumbItem(name=_("Edit survey-related record")),
             ],
         },
     )
@@ -609,7 +619,7 @@ async def add_update_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -636,7 +646,7 @@ async def remove_update_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -680,7 +690,7 @@ async def add_update_form_related_to_record(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -707,7 +717,7 @@ async def remove_update_form_related_to_record(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -733,7 +743,7 @@ async def add_update_form_asset(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -760,7 +770,7 @@ async def remove_update_form_asset(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -788,7 +798,7 @@ async def add_update_form_asset_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -828,7 +838,7 @@ async def remove_update_form_asset_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -865,7 +875,8 @@ async def list_by_name(request: Request):
             **internal_filter_kwargs,
         )
     serialized_items = [  # noqa
-        schemas.SurveyRelatedRecordReadListItem.from_db_instance(item) for item in items
+        webui_schemas.SurveyRelatedRecordReadListItem.from_db_instance(item)
+        for item in items
     ]
 
     rendered_items = []
@@ -921,7 +932,8 @@ async def get_list_component(request: Request):
         collection_url=str(request.url_for("survey_related_records:list")),
     )
     serialized_items = [
-        schemas.SurveyRelatedRecordReadListItem.from_db_instance(item) for item in items
+        webui_schemas.SurveyRelatedRecordReadListItem.from_db_instance(item)
+        for item in items
     ]
     template_processor = request.state.templates
     template = template_processor.get_template(
@@ -937,7 +949,7 @@ async def get_list_component(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.items_selector,
+            selector=webui_schemas.selector_info.items_selector,
             mode=ElementPatchMode.REPLACE,
         )
         yield ServerSentEventGenerator.execute_script(
@@ -1016,7 +1028,7 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
             default_bbox = shapely.from_wkt(settings.webmap_default_bbox_wkt)
             min_lon, min_lat, max_lon, max_lat = default_bbox.bounds
         serialized_items = [
-            schemas.SurveyRelatedRecordReadListItem.from_db_instance(item)
+            webui_schemas.SurveyRelatedRecordReadListItem.from_db_instance(item)
             for item in items
         ]
         geojson_features = geojson.to_feature_collection(serialized_items)
@@ -1038,8 +1050,10 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
                     "end": settings.default_temporal_extent_end,
                 },
                 "breadcrumbs": [
-                    schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
-                    schemas.BreadcrumbItem(name=_("Survey-related records")),
+                    webui_schemas.BreadcrumbItem(
+                        name=_("Home"), url=request.url_for("home")
+                    ),
+                    webui_schemas.BreadcrumbItem(name=_("Survey-related records")),
                 ],
                 "search_initial_value": list_filters.get_text_search_filter(
                     current_language
@@ -1149,7 +1163,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 )
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
-                    selector=schemas.selector_info.main_content_selector,
+                    selector=webui_schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
                 yield ServerSentEventGenerator.execute_script(
@@ -1163,7 +1177,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         related_records = []
         for related_ in form_instance.related_records.entries:
             related_records.append(
-                schemas.RelatedRecordCreate(
+                record_schemas.RelatedRecordCreate(
                     related_record_id=identifiers.SurveyRelatedRecordId(
                         uuid.UUID(
                             form_instance.parse_related_record_compound_name(
@@ -1171,20 +1185,20 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                             )
                         )
                     ),
-                    relationship=schemas.LocalizableDraftRelationship(
+                    relationship=common_schemas.LocalizableDraftRelationship(
                         en=related_.relationship.en.data,
                         pt=related_.relationship.pt.data,
                     ),
                 )
             )
-        to_update = schemas.SurveyRelatedRecordUpdate(
+        to_update = record_schemas.SurveyRelatedRecordUpdate(
             owner_id=user.id,
             survey_mission_id=parent_survey_mission_id,
-            name=schemas.LocalizableDraftName(
+            name=common_schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,
             ),
-            description=schemas.LocalizableDraftDescription(
+            description=common_schemas.LocalizableDraftDescription(
                 en=form_instance.description.en.data,
                 pt=form_instance.description.pt.data,
             ),
@@ -1204,11 +1218,11 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
             temporal_extent_begin=form_instance.temporal_extent_begin.data,
             temporal_extent_end=form_instance.temporal_extent_end.data,
             links=[
-                schemas.LinkSchema(
+                common_schemas.LinkSchema(
                     url=lf.url.data,
                     media_type=lf.media_type.data,
                     relation=lf.relation.data,
-                    link_description=schemas.LocalizableDraftDescription(
+                    link_description=common_schemas.LocalizableDraftDescription(
                         en=lf.link_description.en.data,
                         pt=lf.link_description.pt.data,
                     ),
@@ -1216,23 +1230,23 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 for lf in form_instance.links.entries
             ],
             assets=[
-                schemas.RecordAssetUpdate(
+                record_schemas.RecordAssetUpdate(
                     id=identifiers.RecordAssetId(uuid.UUID(af.asset_id.data)),
-                    name=schemas.LocalizableDraftName(
+                    name=common_schemas.LocalizableDraftName(
                         en=af.asset_name.en.data,
                         pt=af.asset_name.pt.data,
                     ),
-                    description=schemas.LocalizableDraftDescription(
+                    description=common_schemas.LocalizableDraftDescription(
                         en=af.asset_description.en.data,
                         pt=af.asset_description.pt.data,
                     ),
                     relative_path=af.relative_path.data,
                     links=[
-                        schemas.LinkSchema(
+                        common_schemas.LinkSchema(
                             url=afl.url.data,
                             media_type=afl.media_type.data,
                             relation=afl.relation.data,
-                            link_description=schemas.LocalizableDraftDescription(
+                            link_description=common_schemas.LocalizableDraftDescription(
                                 en=afl.link_description.en.data,
                                 pt=afl.link_description.pt.data,
                             ),

@@ -2,11 +2,11 @@ import logging
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from ... import (
-    errors,
-    schemas,
+from ... import errors
+from ...schemas import (
+    identifiers,
+    surveymissions as mission_schemas,
 )
-from ...schemas import identifiers
 from .. import (
     models,
     queries,
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 async def create_survey_mission(
     session: AsyncSession,
-    to_create: schemas.SurveyMissionCreate,
+    to_create: mission_schemas.SurveyMissionCreate,
 ) -> models.SurveyMission:
     survey_mission = models.SurveyMission(
         **to_create.model_dump(exclude={"bbox_4326"}),
@@ -60,7 +60,7 @@ async def delete_survey_mission(
 async def update_survey_mission(
     session: AsyncSession,
     survey_mission: models.SurveyMission,
-    to_update: schemas.SurveyMissionUpdate,
+    to_update: mission_schemas.SurveyMissionUpdate,
 ) -> models.SurveyMission:
     logger.debug(f"{to_update.model_dump()=}")
     for key, value in to_update.model_dump(

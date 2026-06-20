@@ -16,15 +16,15 @@ from wtforms import (
     validators,
 )
 
-from ... import (
-    constants,
-    schemas,
-)
+from ... import constants
 from ...db import (
     models,
     queries,
 )
-from ...schemas import identifiers
+from ...schemas import (
+    identifiers,
+    surveyrelatedrecords as record_schemas,
+)
 from .common import (
     BoundingBoxForm,
     DescriptionForm,
@@ -287,7 +287,7 @@ class SurveyRelatedRecordCreateForm(_SurveyRelatedRecordForm):
                 }
             )
         try:
-            schemas.SurveyRelatedRecordCreate(
+            record_schemas.SurveyRelatedRecordCreate(
                 # these are not part of the form, but we must provide something
                 id=None,
                 owner_id=None,
@@ -360,7 +360,7 @@ class SurveyRelatedRecordUpdateForm(_SurveyRelatedRecordForm):
                 }
             )
         try:
-            schemas.SurveyRelatedRecordUpdate(
+            record_schemas.SurveyRelatedRecordUpdate(
                 # these are not part of the form, but we must provide something
                 owner_id=None,
                 survey_mission_id=None,

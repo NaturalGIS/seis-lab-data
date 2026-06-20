@@ -1,6 +1,6 @@
 import logging
 
-from .. import schemas
+from ..schemas.user import User
 from ..constants import (
     ROLE_ADMIN,
     ROLE_EDITOR,
@@ -13,43 +13,55 @@ logger = logging.getLogger(__name__)
 
 
 def can_create_dataset_category(
-    user: schemas.User | None,
+    user: User | None,
 ) -> bool:
-    return user and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles)
+    return user is not None and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(
+        user.roles
+    )
 
 
 def can_delete_dataset_category(
-    user: schemas.User | None,
+    user: User | None,
 ) -> bool:
-    return user and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles)
+    return user is not None and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(
+        user.roles
+    )
 
 
 def can_create_domain_type(
-    user: schemas.User | None,
+    user: User | None,
 ) -> bool:
-    return user and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles)
+    return user is not None and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(
+        user.roles
+    )
 
 
 def can_delete_domain_type(
-    user: schemas.User | None,
+    user: User | None,
 ) -> bool:
-    return user and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles)
+    return user is not None and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(
+        user.roles
+    )
 
 
 def can_create_workflow_stage(
-    user: schemas.User | None,
+    user: User | None,
 ) -> bool:
-    return user and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles)
+    return user is not None and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(
+        user.roles
+    )
 
 
 def can_delete_workflow_stage(
-    user: schemas.User | None,
+    user: User | None,
 ) -> bool:
-    return user and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles)
+    return user is not None and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(
+        user.roles
+    )
 
 
 def can_read_survey_related_record(
-    user: schemas.User | None,
+    user: User | None,
     record: models.SurveyRelatedRecord,
 ) -> bool:
     if user and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles):
@@ -66,7 +78,7 @@ def can_read_survey_related_record(
 
 
 def can_create_survey_related_record(
-    user: schemas.User | None,
+    user: User | None,
     mission: models.SurveyMission,
 ) -> bool:
     if not user:
@@ -81,7 +93,7 @@ def can_create_survey_related_record(
 
 
 def can_update_survey_related_record(
-    user: schemas.User | None,
+    user: User | None,
     record: models.SurveyRelatedRecord,
 ) -> bool:
     if not user:
@@ -98,21 +110,21 @@ def can_update_survey_related_record(
 
 
 def can_delete_survey_related_record(
-    user: schemas.User | None,
+    user: User | None,
     record: models.SurveyRelatedRecord,
 ) -> bool:
     return can_update_survey_related_record(user, record)
 
 
 def can_validate_survey_related_record(
-    user: schemas.User | None,
+    user: User | None,
     record: models.SurveyRelatedRecord,
 ) -> bool:
     return can_update_survey_related_record(user, record)
 
 
 def can_change_survey_related_record_status(
-    user: schemas.User | None,
+    user: User | None,
     record: models.SurveyRelatedRecord,
 ) -> bool:
     return can_update_survey_related_record(user, record)

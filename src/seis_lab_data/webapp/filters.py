@@ -11,7 +11,7 @@ from typing_extensions import Self
 
 import shapely
 
-from ..schemas import TemporalExtentFilterValue
+from ..schemas.filters import TemporalExtentFilterValue
 
 logger = logging.getLogger(__name__)
 

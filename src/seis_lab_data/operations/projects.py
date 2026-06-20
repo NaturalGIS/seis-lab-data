@@ -9,7 +9,6 @@ from .. import (
     dispatch,
     errors,
     permissions,
-    schemas,
 )
 from ..constants import ROLE_ADMIN, ROLE_SYSTEM_ADMIN, ProjectStatus
 from ..db import (
@@ -20,6 +19,10 @@ from ..db import (
 from ..schemas import (
     events as event_schemas,
     identifiers,
+    filters as filter_schemas,
+    projects as project_schemas,
+    user as user_schemas,
+    validation as validation_schemas,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,8 +30,8 @@ logger = logging.getLogger(__name__)
 
 async def create_project(
     request_id: identifiers.RequestId,
-    to_create: schemas.ProjectCreate,
-    initiator: schemas.User | None,
+    to_create: project_schemas.ProjectCreate,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.Project | None:
@@ -58,7 +61,7 @@ async def change_project_status(
     request_id: identifiers.RequestId,
     target_status: ProjectStatus,
     project_id: identifiers.ProjectId,
-    initiator: schemas.User | None,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.Project | None:
@@ -103,7 +106,7 @@ async def change_project_status(
 async def validate_project(
     request_id: identifiers.RequestId,
     project_id: identifiers.ProjectId,
-    initiator: schemas.User | None,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.Project | None:
@@ -133,7 +136,7 @@ async def validate_project(
             event_dispatcher=event_dispatcher,
         )
         await asyncio.sleep(3)
-        schemas.ValidProject.model_validate(project)
+        validation_schemas.ValidProject.model_validate(project)
     except pydantic.ValidationError as err:
         for error in err.errors():
             validation_errors.append(
@@ -178,8 +181,8 @@ async def validate_project(
 async def update_project(
     request_id: identifiers.RequestId,
     project_id: identifiers.ProjectId,
-    to_update: schemas.ProjectUpdate,
-    initiator: schemas.User | None,
+    to_update: project_schemas.ProjectUpdate,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.Project | None:
@@ -219,7 +222,7 @@ async def update_project(
 async def delete_project(
     request_id: identifiers.RequestId,
     project_id: identifiers.ProjectId,
-    initiator: schemas.User | None,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> None:
@@ -257,14 +260,14 @@ async def delete_project(
 
 async def list_projects(
     session: AsyncSession,
-    initiator: schemas.User | None,
+    initiator: user_schemas.User | None,
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.Project], int | None]:
     kwargs = dict(
         page=page,
@@ -285,7 +288,7 @@ async def list_projects(
 
 async def get_project(
     project_id: identifiers.ProjectId,
-    initiator: schemas.User | None,
+    initiator: user_schemas.User | None,
     session: AsyncSession,
 ) -> models.Project | None:
     project = await queries.get_project(session, project_id)

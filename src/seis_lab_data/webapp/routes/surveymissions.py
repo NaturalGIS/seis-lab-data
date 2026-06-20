@@ -23,7 +23,6 @@ from ... import (
     errors,
     geojson,
     permissions,
-    schemas,
     subscribers,
 )
 from ...operations import (
@@ -35,7 +34,13 @@ from ...tasks import (
     surveymissions as mission_tasks,
     surveyrelatedrecords as record_tasks,
 )
-from ...schemas import identifiers
+from ...schemas import (
+    common as common_schemas,
+    identifiers,
+    surveymissions as mission_schemas,
+    surveyrelatedrecords as record_schemas,
+    webui as webui_schemas,
+)
 from .. import (
     filters,
     forms,
@@ -54,7 +59,9 @@ from .common import (
 logger = logging.getLogger(__name__)
 
 
-async def _get_survey_mission_details(request: Request) -> schemas.SurveyMissionDetails:
+async def _get_survey_mission_details(
+    request: Request,
+) -> webui_schemas.SurveyMissionDetails:
     """utility function to get survey mission details and its survey-related records."""
     records_current_page = get_page_from_request_params(request)
     current_language = request.state.language
@@ -94,10 +101,10 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
             page_size=settings.pagination_page_size,
             **survey_related_records_list_filters.as_kwargs(),
         )
-    return schemas.SurveyMissionDetails(
-        item=schemas.SurveyMissionReadDetail.from_db_instance(survey_mission),
+    return webui_schemas.SurveyMissionDetails(
+        item=webui_schemas.SurveyMissionReadDetail.from_db_instance(survey_mission),
         children=[
-            schemas.SurveyRelatedRecordReadListItem.from_db_instance(srr)
+            webui_schemas.SurveyRelatedRecordReadListItem.from_db_instance(srr)
             for srr in survey_related_records
         ],
         children_filter=survey_related_records_list_filters.get_text_search_filter(
@@ -114,7 +121,7 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
                 )
             ),
         ),
-        permissions=schemas.UserPermissionDetails(
+        permissions=webui_schemas.UserPermissionDetails(
             can_create_children=permissions.can_create_survey_related_record(
                 user, survey_mission
             ),
@@ -122,11 +129,13 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
             can_delete=permissions.can_delete_survey_mission(user, survey_mission),
         ),
         breadcrumbs=[
-            schemas.BreadcrumbItem(name=_("Home"), url=str(request.url_for("home"))),
-            schemas.BreadcrumbItem(
+            webui_schemas.BreadcrumbItem(
+                name=_("Home"), url=str(request.url_for("home"))
+            ),
+            webui_schemas.BreadcrumbItem(
                 name=_("Projects"), url=str(request.url_for("projects:list"))
             ),
-            schemas.BreadcrumbItem(
+            webui_schemas.BreadcrumbItem(
                 name=str(survey_mission.project.name["en"]),
                 url=str(
                     request.url_for(
@@ -135,7 +144,7 @@ async def _get_survey_mission_details(request: Request) -> schemas.SurveyMission
                     )
                 ),
             ),
-            schemas.BreadcrumbItem(
+            webui_schemas.BreadcrumbItem(
                 name=str(survey_mission.name["en"]),
             ),
         ],
@@ -158,7 +167,7 @@ async def get_details_component(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -263,18 +272,20 @@ async def get_survey_mission_creation_form(request: Request):
         request,
         "survey-missions/create-form-page.html",
         context={
-            "project": schemas.ProjectReadDetail.from_db_instance(project),
+            "project": webui_schemas.ProjectReadDetail.from_db_instance(project),
             "form": form_instance,
             "breadcrumbs": [
-                schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
-                schemas.BreadcrumbItem(
+                webui_schemas.BreadcrumbItem(
+                    name=_("Home"), url=request.url_for("home")
+                ),
+                webui_schemas.BreadcrumbItem(
                     name=_("Projects"), url=request.url_for("projects:list")
                 ),
-                schemas.BreadcrumbItem(
+                webui_schemas.BreadcrumbItem(
                     name=project.name["en"],
                     url=request.url_for("projects:detail", project_id=project.id),
                 ),
-                schemas.BreadcrumbItem(name=_("New survey mission")),
+                webui_schemas.BreadcrumbItem(name=_("New survey mission")),
             ],
         },
     )
@@ -321,7 +332,7 @@ async def get_list_component(request: Request):
         collection_url=str(request.url_for("survey_missions:list")),
     )
     serialized_items = [
-        schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items
+        webui_schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items
     ]
     template_processor = request.state.templates
     template = template_processor.get_template("survey-missions/list-component.html")
@@ -335,7 +346,7 @@ async def get_list_component(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.items_selector,
+            selector=webui_schemas.selector_info.items_selector,
             mode=ElementPatchMode.REPLACE,
         )
         yield ServerSentEventGenerator.execute_script(
@@ -413,7 +424,7 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
             default_bbox = shapely.from_wkt(settings.webmap_default_bbox_wkt)
             min_lon, min_lat, max_lon, max_lat = default_bbox.bounds
         serialized_items = [
-            schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items
+            webui_schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items
         ]
         geojson_features = geojson.to_feature_collection(serialized_items)
         return template_processor.TemplateResponse(
@@ -434,8 +445,10 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
                     "end": settings.default_temporal_extent_end,
                 },
                 "breadcrumbs": [
-                    schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
-                    schemas.BreadcrumbItem(name=_("Survey Missions")),
+                    webui_schemas.BreadcrumbItem(
+                        name=_("Home"), url=request.url_for("home")
+                    ),
+                    webui_schemas.BreadcrumbItem(name=_("Survey Missions")),
                 ],
                 "search_initial_value": list_filters.get_text_search_filter(
                     current_language
@@ -507,7 +520,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 )
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
-                    selector=schemas.selector_info.main_content_selector,
+                    selector=webui_schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
                 yield ServerSentEventGenerator.execute_script(
@@ -517,13 +530,13 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
             return DatastarResponse(stream_validation_failed_events(), status_code=200)
 
-        to_update = schemas.SurveyMissionUpdate(
+        to_update = mission_schemas.SurveyMissionUpdate(
             owner_id=user.id,
-            name=schemas.LocalizableDraftName(
+            name=common_schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,
             ),
-            description=schemas.LocalizableDraftDescription(
+            description=common_schemas.LocalizableDraftDescription(
                 en=form_instance.description.en.data,
                 pt=form_instance.description.pt.data,
             ),
@@ -540,11 +553,11 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             temporal_extent_begin=form_instance.temporal_extent_begin.data,
             temporal_extent_end=form_instance.temporal_extent_end.data,
             links=[
-                schemas.LinkSchema(
+                common_schemas.LinkSchema(
                     url=lf.url.data,
                     media_type=lf.media_type.data,
                     relation=lf.relation.data,
-                    link_description=schemas.LocalizableDraftDescription(
+                    link_description=common_schemas.LocalizableDraftDescription(
                         en=lf.link_description.en.data,
                         pt=lf.link_description.pt.data,
                     ),
@@ -591,7 +604,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             async def event_streamer():
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
-                    selector=schemas.selector_info.main_content_selector,
+                    selector=webui_schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
                 yield ServerSentEventGenerator.execute_script(
@@ -604,7 +617,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         related_records = []
         for related_ in form_instance.related_records.entries:
             related_records.append(
-                schemas.RelatedRecordCreate(
+                record_schemas.RelatedRecordCreate(
                     related_record_id=identifiers.SurveyRelatedRecordId(
                         uuid.UUID(
                             form_instance.parse_related_record_compound_name(
@@ -612,21 +625,21 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                             )
                         )
                     ),
-                    relationship=schemas.LocalizableDraftRelationship(
+                    relationship=common_schemas.LocalizableDraftRelationship(
                         en=related_.relationship.en.data,
                         pt=related_.relationship.pt.data,
                     ),
                 )
             )
-        to_create = schemas.SurveyRelatedRecordCreate(
+        to_create = record_schemas.SurveyRelatedRecordCreate(
             id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
             survey_mission_id=survey_mission_id,
             owner_id=user.id,
-            name=schemas.LocalizableDraftName(
+            name=common_schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,
             ),
-            description=schemas.LocalizableDraftDescription(
+            description=common_schemas.LocalizableDraftDescription(
                 en=form_instance.description.en.data,
                 pt=form_instance.description.pt.data,
             ),
@@ -646,11 +659,11 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             temporal_extent_begin=form_instance.temporal_extent_begin.data,
             temporal_extent_end=form_instance.temporal_extent_end.data,
             links=[
-                schemas.LinkSchema(
+                common_schemas.LinkSchema(
                     url=lf.url.data,
                     media_type=lf.media_type.data,
                     relation=lf.relation.data,
-                    link_description=schemas.LocalizableDraftDescription(
+                    link_description=common_schemas.LocalizableDraftDescription(
                         en=lf.link_description.en.data,
                         pt=lf.link_description.pt.data,
                     ),
@@ -658,23 +671,23 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 for lf in form_instance.links.entries
             ],
             assets=[
-                schemas.RecordAssetCreate(
+                record_schemas.RecordAssetCreate(
                     id=identifiers.RecordAssetId(uuid.uuid4()),
-                    name=schemas.LocalizableDraftName(
+                    name=common_schemas.LocalizableDraftName(
                         en=af.asset_name.en.data,
                         pt=af.asset_name.pt.data,
                     ),
-                    description=schemas.LocalizableDraftDescription(
+                    description=common_schemas.LocalizableDraftDescription(
                         en=af.asset_description.en.data,
                         pt=af.asset_description.pt.data,
                     ),
                     relative_path=af.relative_path.data,
                     links=[
-                        schemas.LinkSchema(
+                        common_schemas.LinkSchema(
                             url=afl.url.data,
                             media_type=afl.media_type.data,
                             relation=afl.relation.data,
-                            link_description=schemas.LocalizableDraftDescription(
+                            link_description=common_schemas.LocalizableDraftDescription(
                                 en=afl.link_description.en.data,
                                 pt=afl.link_description.pt.data,
                             ),
@@ -749,13 +762,13 @@ async def add_create_survey_mission_form_link(request: Request):
     rendered = template.render(
         form=creation_form,
         request=request,
-        project=schemas.ProjectReadDetail.from_db_instance(project),
+        project=webui_schemas.ProjectReadDetail.from_db_instance(project),
     )
 
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -790,13 +803,13 @@ async def remove_create_survey_mission_form_link(request: Request):
     rendered = template.render(
         form=create_survey_mission_form,
         request=request,
-        project=schemas.ProjectReadDetail.from_db_instance(project),
+        project=webui_schemas.ProjectReadDetail.from_db_instance(project),
     )
 
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -820,7 +833,7 @@ async def add_update_survey_mission_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -845,7 +858,7 @@ async def remove_update_survey_mission_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -924,18 +937,20 @@ async def get_survey_mission_update_form(request: Request):
             "survey_mission": survey_mission,
             "form": update_form,
             "breadcrumbs": [
-                schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
-                schemas.BreadcrumbItem(
+                webui_schemas.BreadcrumbItem(
+                    name=_("Home"), url=request.url_for("home")
+                ),
+                webui_schemas.BreadcrumbItem(
                     name=_("Survey missions"),
                     url=request.url_for("survey_missions:list"),
                 ),
-                schemas.BreadcrumbItem(
+                webui_schemas.BreadcrumbItem(
                     name=survey_mission.name["en"],
                     url=request.url_for(
                         "survey_missions:detail", survey_mission_id=survey_mission_id
                     ),
                 ),
-                schemas.BreadcrumbItem(name=_("Edit survey mission")),
+                webui_schemas.BreadcrumbItem(name=_("Edit survey mission")),
             ],
         },
     )

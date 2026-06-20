@@ -1,6 +1,6 @@
 import logging
 
-from .. import schemas
+from ..schemas.user import User
 from ..constants import (
     ROLE_ADMIN,
     ROLE_EDITOR,
@@ -13,18 +13,20 @@ logger = logging.getLogger(__name__)
 
 
 def can_read_survey_mission(
-    user: schemas.User | None,
+    user: User | None,
     mission: models.SurveyMission,
 ) -> bool:
     if user and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles):
         return True
     if mission.status == SurveyMissionStatus.PUBLISHED:
         return True
-    return user and (mission.owner_id == user.id or mission.project.owner_id == user.id)
+    return user is not None and (
+        mission.owner_id == user.id or mission.project.owner_id == user.id
+    )
 
 
 def can_create_survey_mission(
-    user: schemas.User | None,
+    user: User | None,
     project: models.Project,
 ) -> bool:
     if user is None:
@@ -35,7 +37,7 @@ def can_create_survey_mission(
 
 
 def can_update_survey_mission(
-    user: schemas.User | None,
+    user: User | None,
     mission: models.SurveyMission,
 ) -> bool:
     if not user:
@@ -50,21 +52,21 @@ def can_update_survey_mission(
 
 
 def can_delete_survey_mission(
-    user: schemas.User | None,
+    user: User | None,
     mission: models.SurveyMission,
 ) -> bool:
     return can_update_survey_mission(user, mission)
 
 
 def can_validate_survey_mission(
-    user: schemas.User | None,
+    user: User | None,
     mission: models.SurveyMission,
 ) -> bool:
     return can_update_survey_mission(user, mission)
 
 
 def can_change_survey_mission_status(
-    user: schemas.User | None,
+    user: User | None,
     mission: models.SurveyMission,
 ) -> bool:
     return can_update_survey_mission(user, mission)

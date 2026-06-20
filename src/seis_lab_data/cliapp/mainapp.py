@@ -11,7 +11,6 @@ import redis.asyncio as aioredis
 from .. import (
     config,
     constants,
-    schemas,
     subscribers,
 )
 from ..operations import (
@@ -21,7 +20,13 @@ from ..operations import (
 )
 from ..tasks import projects as project_tasks
 from ..db import queries
-from ..schemas import identifiers
+from ..schemas import (
+    common as common_schemas,
+    identifiers,
+    projects as project_schemas,
+    surveymissions as mission_schemas,
+    surveyrelatedrecords as record_schemas,
+)
 from .asynctyper import AsyncTyper
 from .utils import resolve_admin_user
 from . import handlers
@@ -124,11 +129,11 @@ async def create_survey_related_record(
             )
             raise typer.Abort()
         created = await record_ops.create_survey_related_record(
-            to_create=schemas.SurveyRelatedRecordCreate(
+            to_create=record_schemas.SurveyRelatedRecordCreate(
                 id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
                 owner_id=identifiers.UserId(owner),
-                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
-                description=schemas.LocalizableDraftDescription(
+                name=common_schemas.LocalizableDraftName(en=name_en, pt=name_pt),
+                description=common_schemas.LocalizableDraftDescription(
                     en=description_en, pt=description_pt
                 ),
                 survey_mission_id=identifiers.SurveyMissionId(survey_mission.id),
@@ -138,13 +143,13 @@ async def create_survey_related_record(
                 domain_type_id=identifiers.DomainTypeId(db_domain_type.id),
                 workflow_stage_id=identifiers.WorkflowStageId(db_workflow_stage.id),
                 relative_path=relative_path,
-                links=[schemas.LinkSchema(**li) for li in link],
+                links=[common_schemas.LinkSchema(**li) for li in link],
             ),
             initiator=ctx.obj["admin_user"],
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
         )
-        print(schemas.SurveyRelatedRecordReadDetail(**created.model_dump()))
+        print(record_schemas.SurveyRelatedRecordReadDetail(**created.model_dump()))
 
 
 @survey_related_records_app.async_command(name="list")
@@ -168,7 +173,7 @@ async def list_survey_related_records(
     for item in items:
         # ctx.obj["main"].status_console.print_json(item.model_dump_json())
         print(
-            schemas.SurveyRelatedRecordReadListItem.from_db_instance(
+            record_schemas.SurveyRelatedRecordReadListItem.from_db_instance(
                 item
             ).model_dump_json()
         )
@@ -192,7 +197,7 @@ async def get_survey_related_record(
             )
         else:
             print(
-                schemas.SurveyRelatedRecordReadDetail.from_db_instance(
+                record_schemas.SurveyRelatedRecordReadDetail.from_db_instance(
                     *record_details
                 ).model_dump_json()
             )
@@ -248,22 +253,22 @@ async def create_survey_mission(
             )
             raise typer.Abort()
         created = await mission_ops.create_survey_mission(
-            to_create=schemas.SurveyMissionCreate(
+            to_create=mission_schemas.SurveyMissionCreate(
                 id=identifiers.SurveyMissionId(uuid.uuid4()),
                 project_id=identifiers.ProjectId(project.id),
                 owner_id=identifiers.UserId(owner),
-                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
-                description=schemas.LocalizableDraftDescription(
+                name=common_schemas.LocalizableDraftName(en=name_en, pt=name_pt),
+                description=common_schemas.LocalizableDraftDescription(
                     en=description_en, pt=description_pt
                 ),
                 relative_path=relative_path,
-                links=[schemas.LinkSchema(**li) for li in link],
+                links=[common_schemas.LinkSchema(**li) for li in link],
             ),
             initiator=ctx.obj["admin_user"],
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
         )
-        print(schemas.SurveyMissionReadDetail(**created.model_dump()))
+        print(mission_schemas.SurveyMissionReadDetail(**created.model_dump()))
 
 
 @survey_missions_app.async_command(name="list")
@@ -284,7 +289,7 @@ async def list_survey_missions(
         )
     print(f"Total records: {num_total}")
     for item in items:
-        print(schemas.SurveyMissionReadListItem(**item.model_dump()))
+        print(mission_schemas.SurveyMissionReadListItem(**item.model_dump()))
 
 
 @survey_missions_app.async_command(name="get")
@@ -301,7 +306,7 @@ async def get_survey_mission(ctx: typer.Context, survey_mission_id: uuid.UUID):
             print(f"Survey mission {survey_mission_id!r} not found")
         else:
             print(
-                schemas.SurveyMissionReadDetail.from_db_instance(
+                mission_schemas.SurveyMissionReadDetail.from_db_instance(
                     survey_mission
                 ).model_dump_json()
             )
@@ -362,19 +367,19 @@ async def create_project(
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
         created = await project_ops.create_project(
-            to_create=schemas.ProjectCreate(
+            to_create=project_schemas.ProjectCreate(
                 id=identifiers.ProjectId(uuid.uuid4()),
                 owner_id=identifiers.UserId(owner),
-                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
-                description=schemas.LocalizableDraftDescription(
+                name=common_schemas.LocalizableDraftName(en=name_en, pt=name_pt),
+                description=common_schemas.LocalizableDraftDescription(
                     en=description_en, pt=description_pt
                 ),
                 root_path=root_path,
                 bbox_4326=bbox_4326.wkt,
                 links=[
-                    schemas.LinkSchema(
+                    common_schemas.LinkSchema(
                         url=li["url"],
-                        link_description=schemas.LocalizableDraftDescription(
+                        link_description=common_schemas.LocalizableDraftDescription(
                             en=li.get("link_description", {}).get("en", ""),
                             pt=li.get("link_description", {}).get("pt", ""),
                         ),
@@ -388,7 +393,7 @@ async def create_project(
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
         )
-        print(schemas.ProjectReadDetail(**created.model_dump()))
+        print(project_schemas.ProjectReadDetail(**created.model_dump()))
 
 
 @projects_app.async_command(name="get")
@@ -404,7 +409,11 @@ async def get_project(ctx: typer.Context, project_id: uuid.UUID):
         if project is None:
             print(f"Project {project_id!r} not found")
         else:
-            print(schemas.ProjectReadDetail.from_db_instance(project).model_dump_json())
+            print(
+                project_schemas.ProjectReadDetail.from_db_instance(
+                    project
+                ).model_dump_json()
+            )
 
 
 @projects_app.async_command(name="list")
@@ -425,7 +434,7 @@ async def list_projects(
         )
     print(f"Total records: {num_total}")
     for item in items:
-        print(schemas.ProjectReadListItem(**item.model_dump()))
+        print(project_schemas.ProjectReadListItem(**item.model_dump()))
 
 
 @projects_app.async_command(name="delete")
@@ -485,15 +494,15 @@ async def create_dataset_category(
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
         created = await record_ops.create_dataset_category(
-            to_create=schemas.DatasetCategoryCreate(
+            to_create=record_schemas.DatasetCategoryCreate(
                 id=identifiers.DatasetCategoryId(uuid.uuid4()),
-                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
+                name=common_schemas.LocalizableDraftName(en=name_en, pt=name_pt),
             ),
             initiator=ctx.obj["admin_user"],
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
         )
-        print(schemas.DatasetCategoryRead(**created.model_dump()))
+        print(record_schemas.DatasetCategoryRead(**created.model_dump()))
 
 
 @dataset_categories_app.async_command(name="list")
@@ -510,7 +519,7 @@ async def list_dataset_categories(
         )
     print(f"Total records: {num_total}")
     for item in items:
-        print(schemas.DatasetCategoryRead(**item.model_dump()))
+        print(record_schemas.DatasetCategoryRead(**item.model_dump()))
 
 
 @dataset_categories_app.async_command(name="delete")
@@ -545,15 +554,15 @@ async def create_domain_type(
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
         created = await record_ops.create_domain_type(
-            to_create=schemas.DomainTypeCreate(
+            to_create=record_schemas.DomainTypeCreate(
                 id=identifiers.DomainTypeId(uuid.uuid4()),
-                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
+                name=common_schemas.LocalizableDraftName(en=name_en, pt=name_pt),
             ),
             initiator=ctx.obj["admin_user"],
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
         )
-        print(schemas.DomainTypeRead(**created.model_dump()))
+        print(record_schemas.DomainTypeRead(**created.model_dump()))
 
 
 @domain_types_app.async_command(name="list")
@@ -570,7 +579,7 @@ async def list_domain_types(
         )
     print(f"Total records: {num_total}")
     for item in items:
-        print(schemas.DomainTypeRead(**item.model_dump()))
+        print(record_schemas.DomainTypeRead(**item.model_dump()))
 
 
 @domain_types_app.async_command(name="delete")
@@ -605,15 +614,15 @@ async def create_workflow_stage(
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
         created = await record_ops.create_workflow_stage(
-            to_create=schemas.WorkflowStageCreate(
+            to_create=record_schemas.WorkflowStageCreate(
                 id=identifiers.WorkflowStageId(uuid.uuid4()),
-                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
+                name=common_schemas.LocalizableDraftName(en=name_en, pt=name_pt),
             ),
             initiator=ctx.obj["admin_user"],
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
         )
-        print(schemas.WorkflowStageRead(**created.model_dump()))
+        print(record_schemas.WorkflowStageRead(**created.model_dump()))
 
 
 @workflow_stages_app.async_command(name="list")
@@ -630,7 +639,7 @@ async def list_workflow_stages(
         )
     print(f"Total records: {num_total}")
     for item in items:
-        print(schemas.WorkflowStageRead(**item.model_dump()))
+        print(record_schemas.WorkflowStageRead(**item.model_dump()))
 
 
 @workflow_stages_app.async_command(name="delete")

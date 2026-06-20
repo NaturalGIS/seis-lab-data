@@ -23,7 +23,6 @@ from ... import (
     errors,
     geojson,
     permissions,
-    schemas,
     subscribers,
 )
 from ...operations import (
@@ -35,7 +34,12 @@ from ...tasks import (
     projects as project_tasks,
     surveymissions as survey_mission_tasks,
 )
-from ...schemas import identifiers
+from ...schemas import (
+    common as common_schemas,
+    identifiers,
+    projects as project_schemas,
+    webui as webui_schemas,
+)
 from ..streamhandlers import projects as project_handlers
 from .. import (
     filters,
@@ -67,11 +71,13 @@ async def get_project_creation_form(request: Request):
         context={
             "form": form_instance,
             "breadcrumbs": [
-                schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
-                schemas.BreadcrumbItem(
+                webui_schemas.BreadcrumbItem(
+                    name=_("Home"), url=request.url_for("home")
+                ),
+                webui_schemas.BreadcrumbItem(
                     name=_("Projects"), url=request.url_for("projects:list")
                 ),
-                schemas.BreadcrumbItem(name=_("New project")),
+                webui_schemas.BreadcrumbItem(name=_("New project")),
             ],
         },
     )
@@ -149,18 +155,20 @@ async def get_project_update_form(request: Request):
         request,
         "projects/update-form-page.html",
         context={
-            "project": schemas.ProjectReadDetail.from_db_instance(project),
+            "project": webui_schemas.ProjectReadDetail.from_db_instance(project),
             "form": update_form,
             "breadcrumbs": [
-                schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
-                schemas.BreadcrumbItem(
+                webui_schemas.BreadcrumbItem(
+                    name=_("Home"), url=request.url_for("home")
+                ),
+                webui_schemas.BreadcrumbItem(
                     name=_("Projects"), url=request.url_for("projects:list")
                 ),
-                schemas.BreadcrumbItem(
+                webui_schemas.BreadcrumbItem(
                     name=project.name["en"],
                     url=request.url_for("projects:detail", project_id=project_id),
                 ),
-                schemas.BreadcrumbItem(name=_("Edit project")),
+                webui_schemas.BreadcrumbItem(name=_("Edit project")),
             ],
         },
     )
@@ -182,7 +190,7 @@ async def get_project_details_component(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -331,7 +339,7 @@ async def stream_to_detail_page(request: Request):
     return DatastarResponse(event_streamer())
 
 
-async def _get_project_details(request: Request) -> schemas.ProjectDetails:
+async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails:
     """utility function to get project details and its survey missions."""
     survey_mission_current_page = get_page_from_request_params(request)
     current_language = request.state.language
@@ -363,10 +371,10 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
             page_size=settings.pagination_page_size,
             **survey_mission_list_filters.as_kwargs(),
         )
-    return schemas.ProjectDetails(
-        item=schemas.ProjectReadDetail.from_db_instance(project),
+    return webui_schemas.ProjectDetails(
+        item=webui_schemas.ProjectReadDetail.from_db_instance(project),
         children=[
-            schemas.SurveyMissionReadListItem.from_db_instance(sm)
+            webui_schemas.SurveyMissionReadListItem.from_db_instance(sm)
             for sm in survey_missions
         ],
         children_filter=survey_mission_list_filters.get_text_search_filter(
@@ -381,18 +389,20 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
                 request.url_for("projects:detail", project_id=project_id)
             ),
         ),
-        permissions=schemas.UserPermissionDetails(
+        permissions=webui_schemas.UserPermissionDetails(
             can_delete=permissions.can_delete_project(user, project),
             can_update=permissions.can_update_project(user, project),
             can_create_children=permissions.can_create_survey_mission(user, project),
         ),
         breadcrumbs=[
-            schemas.BreadcrumbItem(name=_("Home"), url=str(request.url_for("home"))),
-            schemas.BreadcrumbItem(
+            webui_schemas.BreadcrumbItem(
+                name=_("Home"), url=str(request.url_for("home"))
+            ),
+            webui_schemas.BreadcrumbItem(
                 name=_("Projects"),
                 url=request.url_for("projects:list"),
             ),
-            schemas.BreadcrumbItem(
+            webui_schemas.BreadcrumbItem(
                 name=project.name["en"],
             ),
         ],
@@ -436,7 +446,9 @@ async def get_list_component(request: Request):
         num_unfiltered_total,
         collection_url=str(request.url_for("projects:list")),
     )
-    serialized_items = [schemas.ProjectReadListItem.from_db_instance(i) for i in items]
+    serialized_items = [
+        project_schemas.ProjectReadListItem.from_db_instance(i) for i in items
+    ]
     template_processor = request.state.templates
     template = template_processor.get_template("projects/list-component.html")
     rendered = template.render(
@@ -449,7 +461,7 @@ async def get_list_component(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.items_selector,
+            selector=webui_schemas.selector_info.items_selector,
             mode=ElementPatchMode.REPLACE,
         )
         yield ServerSentEventGenerator.execute_script(
@@ -504,7 +516,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             min_lon, min_lat, max_lon, max_lat = default_bbox.bounds
 
         serialized_items = [
-            schemas.ProjectReadListItem.from_db_instance(i) for i in items
+            project_schemas.ProjectReadListItem.from_db_instance(i) for i in items
         ]
         geojson_features = geojson.to_feature_collection(serialized_items)
         return template_processor.TemplateResponse(
@@ -525,8 +537,10 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                     "end": settings.default_temporal_extent_end,
                 },
                 "breadcrumbs": [
-                    schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
-                    schemas.BreadcrumbItem(name=_("Projects")),
+                    webui_schemas.BreadcrumbItem(
+                        name=_("Home"), url=request.url_for("home")
+                    ),
+                    webui_schemas.BreadcrumbItem(name=_("Projects")),
                 ],
                 "user_can_create": permissions.can_create_project(user),
                 "search_initial_value": list_filters.get_text_search_filter(
@@ -558,7 +572,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 )
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
-                    selector=schemas.selector_info.main_content_selector,
+                    selector=webui_schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
                 yield ServerSentEventGenerator.execute_script(
@@ -568,14 +582,14 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
             return DatastarResponse(event_streamer(), status_code=200)
 
-        to_create = schemas.ProjectCreate(
+        to_create = project_schemas.ProjectCreate(
             id=identifiers.ProjectId(uuid.uuid4()),
             owner_id=user.id,
-            name=schemas.LocalizableDraftName(
+            name=common_schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,
             ),
-            description=schemas.LocalizableDraftDescription(
+            description=common_schemas.LocalizableDraftDescription(
                 en=form_instance.description.en.data,
                 pt=form_instance.description.pt.data,
             ),
@@ -593,11 +607,11 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             temporal_extent_begin=form_instance.temporal_extent_begin.data,
             temporal_extent_end=form_instance.temporal_extent_end.data,
             links=[
-                schemas.LinkSchema(
+                common_schemas.LinkSchema(
                     url=lf.url.data,
                     media_type=lf.media_type.data,
                     relation=lf.relation.data,
-                    link_description=schemas.LocalizableDraftDescription(
+                    link_description=common_schemas.LocalizableDraftDescription(
                         en=lf.link_description.en.data,
                         pt=lf.link_description.pt.data,
                     ),
@@ -667,12 +681,12 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 template = template_processor.get_template("projects/update-form.html")
                 rendered = template.render(
                     request=request,
-                    project=schemas.ProjectReadDetail.from_db_instance(project),
+                    project=webui_schemas.ProjectReadDetail.from_db_instance(project),
                     form=form_instance,
                 )
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
-                    selector=schemas.selector_info.main_content_selector,
+                    selector=webui_schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
                 yield ServerSentEventGenerator.execute_script(
@@ -683,13 +697,13 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             return DatastarResponse(event_streamer(), status_code=200)
 
         raw_dc = form_instance.discovery_configuration.data
-        to_update = schemas.ProjectUpdate(
+        to_update = project_schemas.ProjectUpdate(
             owner_id=user.id,
-            name=schemas.LocalizableDraftName(
+            name=common_schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,
             ),
-            description=schemas.LocalizableDraftDescription(
+            description=common_schemas.LocalizableDraftDescription(
                 en=form_instance.description.en.data,
                 pt=form_instance.description.pt.data,
             ),
@@ -706,11 +720,11 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             temporal_extent_begin=form_instance.temporal_extent_begin.data,
             temporal_extent_end=form_instance.temporal_extent_end.data,
             links=[
-                schemas.LinkSchema(
+                common_schemas.LinkSchema(
                     url=lf.url.data,
                     media_type=lf.media_type.data,
                     relation=lf.relation.data,
-                    link_description=schemas.LocalizableDraftDescription(
+                    link_description=common_schemas.LocalizableDraftDescription(
                         en=lf.link_description.en.data,
                         pt=lf.link_description.pt.data,
                     ),
@@ -795,22 +809,22 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 )
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
-                    selector=schemas.selector_info.main_content_selector,
+                    selector=webui_schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
 
             # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
             return DatastarResponse(stream_validation_failed_events(), status_code=200)
 
-        to_create = schemas.SurveyMissionCreate(
+        to_create = project_schemas.SurveyMissionCreate(
             id=identifiers.SurveyMissionId(uuid.uuid4()),
             project_id=project.id,
             owner_id=user.id,
-            name=schemas.LocalizableDraftName(
+            name=common_schemas.LocalizableDraftName(
                 en=creation_form.name.en.data,
                 pt=creation_form.name.pt.data,
             ),
-            description=schemas.LocalizableDraftDescription(
+            description=common_schemas.LocalizableDraftDescription(
                 en=creation_form.description.en.data,
                 pt=creation_form.description.pt.data,
             ),
@@ -827,11 +841,11 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             temporal_extent_begin=creation_form.temporal_extent_begin.data,
             temporal_extent_end=creation_form.temporal_extent_end.data,
             links=[
-                schemas.LinkSchema(
+                common_schemas.LinkSchema(
                     url=lf.url.data,
                     media_type=lf.media_type.data,
                     relation=lf.relation.data,
-                    link_description=schemas.LocalizableDraftDescription(
+                    link_description=common_schemas.LocalizableDraftDescription(
                         en=lf.link_description.en.data,
                         pt=lf.link_description.pt.data,
                     ),
@@ -863,7 +877,7 @@ async def add_create_project_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -886,7 +900,7 @@ async def remove_create_project_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -910,7 +924,7 @@ async def add_update_project_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -935,7 +949,7 @@ async def remove_update_project_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
