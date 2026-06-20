@@ -38,6 +38,7 @@ from ...schemas import (
     common as common_schemas,
     identifiers,
     projects as project_schemas,
+    surveymissions as mission_schemas,
     webui as webui_schemas,
 )
 from ..streamhandlers import projects as project_handlers
@@ -816,9 +817,9 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
             return DatastarResponse(stream_validation_failed_events(), status_code=200)
 
-        to_create = project_schemas.SurveyMissionCreate(
+        to_create = mission_schemas.SurveyMissionCreate(
             id=identifiers.SurveyMissionId(uuid.uuid4()),
-            project_id=project.id,
+            project_id=identifiers.ProjectId(project.id),
             owner_id=user.id,
             name=common_schemas.LocalizableDraftName(
                 en=creation_form.name.en.data,
