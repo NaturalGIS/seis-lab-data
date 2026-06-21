@@ -18,6 +18,10 @@ from ..constants import (
 from ..schemas.common import Localizable
 from ..localization import translate_localizable
 
+if typing.TYPE_CHECKING:
+    from ..config import SeisLabDataSettings
+    from ..schemas import surveyrelatedrecords as record_schemas
+
 logger = logging.getLogger(__name__)
 
 
@@ -51,3 +55,20 @@ def get_polygon_bounds(polygon_wkt: str) -> tuple[float, float, float, float]:
 def highlight_json(value: dict) -> Markup:
     json_str = json.dumps(value, indent=2, ensure_ascii=False)
     return Markup(highlight(json_str, JsonLexer(), HtmlFormatter()))
+
+
+@pass_context
+def get_url_for_asset(
+    context: dict[str, typing.Any],
+    asset: "record_schemas.RecordAssetReadDetailEmbedded",
+    survey_related_record: "record_schemas.SurveyRelatedRecordReadDetail",
+) -> str:
+    settings: SeisLabDataSettings = context.get("settings")
+    return "/".join(
+        (
+            settings.public_url,
+            survey_related_record.survey_mission.project.root_path,
+            survey_related_record.survey_mission.relative_path,
+            asset.relative_path,
+        )
+    )

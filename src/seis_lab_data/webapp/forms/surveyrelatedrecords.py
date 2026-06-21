@@ -118,13 +118,6 @@ class _SurveyRelatedRecordForm(StarletteForm):
     dataset_category_id = SelectField(_("Dataset category"))
     domain_type_id = SelectField(_("Domain type"))
     workflow_stage_id = SelectField(_("Workflow stage"))
-    relative_path = StringField(
-        _("Relative path"),
-        description=_(
-            "Path for the survey-related record in the archive file system, "
-            "relative to its parent survey mission root path"
-        ),
-    )
     links = FieldList(
         FormField(LinkForm),
         label=_("Links"),
@@ -297,7 +290,6 @@ class SurveyRelatedRecordCreateForm(_SurveyRelatedRecordForm):
                 dataset_category_id=self.dataset_category_id.data,
                 domain_type_id=self.domain_type_id.data,
                 workflow_stage_id=self.workflow_stage_id.data,
-                relative_path=self.relative_path.data,
                 temporal_extent_begin=self.temporal_extent_begin.data or None,
                 temporal_extent_end=self.temporal_extent_end.data or None,
                 links=[
@@ -369,7 +361,6 @@ class SurveyRelatedRecordUpdateForm(_SurveyRelatedRecordForm):
                 dataset_category_id=self.dataset_category_id.data,
                 domain_type_id=self.domain_type_id.data,
                 workflow_stage_id=self.workflow_stage_id.data,
-                relative_path=self.relative_path.data,
                 temporal_extent_begin=self.temporal_extent_begin.data or None,
                 temporal_extent_end=self.temporal_extent_end.data or None,
                 links=[

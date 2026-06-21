@@ -87,12 +87,6 @@ class RecordAssetReadDetailEmbedded(RecordAssetReadListItem):
     relative_path: str
     links: list[LinkSchema] = []
 
-    @classmethod
-    def from_db_instance(cls, instance: models.RecordAsset) -> "RecordAssetReadDetail":
-        return cls(
-            **instance.model_dump(),
-        )
-
 
 class SurveyRelatedRecordReadEmbedded(pydantic.BaseModel):
     id: Annotated[SurveyRelatedRecordId, pydantic.PlainSerializer(serialize_id)]
@@ -116,22 +110,6 @@ class SurveyRelatedRecordReadEmbedded(pydantic.BaseModel):
             **instance.model_dump(),
             survey_mission=SurveyMissionReadEmbedded.from_db_instance(
                 instance.survey_mission
-            ),
-        )
-
-
-class RecordAssetReadDetail(RecordAssetReadListItem):
-    survey_related_record: SurveyRelatedRecordReadEmbedded
-    description: LocalizableDraftDescription
-    relative_path: str
-    links: list[LinkSchema] = []
-
-    @classmethod
-    def from_db_instance(cls, instance: models.RecordAsset) -> "RecordAssetReadDetail":
-        return cls(
-            **instance.model_dump(),
-            survey_related_record=SurveyRelatedRecordReadEmbedded.from_db_instance(
-                instance.survey_related_record
             ),
         )
 
@@ -183,7 +161,6 @@ class SurveyRelatedRecordUpdate(pydantic.BaseModel):
     dataset_category_id: DatasetCategoryId | None = None
     domain_type_id: DomainTypeId | None = None
     workflow_stage_id: WorkflowStageId | None = None
-    relative_path: str | None = None
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
     temporal_extent_end: dt.date | None = None
@@ -224,7 +201,6 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
 
 class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
     owner_id: UserId
-    relative_path: str
     links: list[LinkSchema] = []
     survey_mission: SurveyMissionReadEmbedded
     dataset_category: DatasetCategoryRead
@@ -238,16 +214,6 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
         tuple[LocalizableDraftDescription, SurveyRelatedRecordReadEmbedded]
     ]
 
-    @pydantic.computed_field()
-    def archive_url(self) -> str:
-        return "/".join(
-            (
-                self.survey_mission.project.root_path,
-                self.survey_mission.relative_path,
-                self.relative_path,
-            )
-        )
-
     @classmethod
     def from_db_instance(
         cls,
@@ -260,13 +226,20 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
             survey_mission=SurveyMissionReadEmbedded.from_db_instance(
                 instance.survey_mission
             ),
-            dataset_category=DatasetCategoryRead(
-                **instance.dataset_category.model_dump()
+            dataset_category=DatasetCategoryRead.model_validate(
+                instance.dataset_category, from_attributes=True
             ),
-            domain_type=DomainTypeRead(**instance.domain_type.model_dump()),
-            workflow_stage=WorkflowStageRead(**instance.workflow_stage.model_dump()),
+            domain_type=DomainTypeRead.model_validate(
+                instance.domain_type, from_attributes=True
+            ),
+            workflow_stage=WorkflowStageRead.model_validate(
+                instance.workflow_stage, from_attributes=True
+            ),
             record_assets=[
-                RecordAssetReadDetailEmbedded(**a.model_dump()) for a in instance.assets
+                RecordAssetReadDetailEmbedded.model_validate(
+                    db_asset, from_attributes=True
+                )
+                for db_asset in instance.assets
             ],
             related_to_records=[
                 (relation, SurveyRelatedRecordReadEmbedded.from_db_instance(record))

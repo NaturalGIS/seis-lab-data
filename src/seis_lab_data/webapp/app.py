@@ -119,6 +119,7 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
     jinja_env.filters["translate_enum"] = jinjafilters.translate_enum
     jinja_env.filters["get_status_icon_name"] = jinjafilters.get_status_icon_name
     jinja_env.filters["highlight_json"] = jinjafilters.highlight_json
+    jinja_env.filters["asset_url"] = jinjafilters.get_url_for_asset
     configure_jinja_env(jinja_env)
     templates = Jinja2Templates(env=jinja_env)
     yield State(

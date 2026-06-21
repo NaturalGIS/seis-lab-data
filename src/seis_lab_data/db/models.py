@@ -164,7 +164,6 @@ class SurveyRelatedRecord(SQLModel, table=True):
     links: Annotated[list[Link], PlainSerializer(serialize_localizable_field)] = Field(
         sa_column=Column(JSONB), default_factory=list
     )
-    relative_path: str = ""
     survey_mission: "SurveyMission" = Relationship(
         back_populates="survey_related_records"
     )
