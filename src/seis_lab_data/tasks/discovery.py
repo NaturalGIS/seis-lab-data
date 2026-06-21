@@ -4,12 +4,18 @@ import uuid
 
 import dramatiq
 
-from .. import config
+from .. import (
+    config,
+    constants,
+)
 from ..schemas import (
     identifiers,
     user as user_schemas,
 )
-from ..operations import discovery as discovery_ops
+from ..operations import (
+    discovery as discovery_ops,
+    projects as project_ops,
+)
 from . import decorators
 from .stub import sld_stub_broker
 
@@ -41,3 +47,12 @@ async def discover_project_contents(
             )
         except Exception:
             logger.exception("Task failed")
+            await session.rollback()
+            await project_ops.change_project_status(
+                request_id=request_id,
+                project_id=project_id,
+                target_status=constants.ProjectStatus.DRAFT,
+                initiator=initiator,
+                session=session,
+                event_dispatcher=settings.get_event_dispatcher(),
+            )

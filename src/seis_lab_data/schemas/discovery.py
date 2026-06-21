@@ -192,12 +192,12 @@ class SurveyRecordDiscoveryConfiguration(pydantic.BaseModel):
                         else None
                     ),
                     discovery_patterns=list(a["discovery_patterns"]),
-                    links=[LinkSchema(**li) for li in a.get("links", [])],
+                    links=[LinkSchema(**li) for li in a.get("links") or []],
                     extra_properties=asset_extra_props,
                 )
                 for a in raw_config["assets"]
             ],
-            links=[LinkSchema(**li) for li in raw_config.get("links", [])],
+            links=[LinkSchema(**li) for li in raw_config.get("links") or []],
             extra_properties=record_extra_props if record_extra_props else None,
         )
 
@@ -219,7 +219,7 @@ class SurveyMissionDiscoveryConfiguration(pydantic.BaseModel):
             name=TranslatableString(dict(raw_config.get("name"))),
             description=TranslatableString(dict(raw_config.get("description"))),
             relative_path=raw_config.get("relative_path", "/").strip("/"),
-            links=[LinkSchema(**li) for li in raw_config.get("links", [])],
+            links=[LinkSchema(**li) for li in raw_config.get("links") or []],
             record_configuration_ids=raw_config.get("record_configuration_ids", []),
         )
 

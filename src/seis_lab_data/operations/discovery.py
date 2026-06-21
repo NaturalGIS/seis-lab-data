@@ -12,7 +12,15 @@ from .. import (
     errors,
     permissions,
 )
-from ..schemas import events as event_schemas
+from ..schemas import (
+    common,
+    events as event_schemas,
+    discovery as discovery_schemas,
+    identifiers,
+    surveymissions as mission_schemas,
+    surveyrelatedrecords as record_schemas,
+    user as user_schemas,
+)
 from ..db import models
 from ..db.queries import (
     projects as project_queries,
@@ -21,17 +29,6 @@ from ..db.queries import (
     recordassets as asset_queries,
 )
 from .. import dispatch
-from ..schemas import (
-    common,
-    discovery as discovery_schemas,
-)
-from ..schemas.user import User
-from ..schemas.surveymissions import SurveyMissionCreate
-from ..schemas.surveyrelatedrecords import (
-    RecordAssetCreate,
-    SurveyRelatedRecordCreate,
-)
-from ..schemas import identifiers
 
 from . import (
     projects as project_ops,
@@ -63,11 +60,12 @@ def _get_survey_mission_discovery_conf(
 
 async def discover_survey_mission_records(
     *,
+    request_id: identifiers.RequestId,
     session: AsyncSession,
     archive_root: str,
     survey_mission: models.SurveyMission,
     event_dispatcher: dispatch.EventDispatcherProtocol,
-    user: User | None = None,
+    user: user_schemas.User,
 ) -> AsyncIterator[models.SurveyRelatedRecord]:
     if (
         mission_discovery_conf := _get_survey_mission_discovery_conf(survey_mission)
@@ -117,7 +115,8 @@ async def discover_survey_mission_records(
         )
         for new_record in new_records:
             created_record = await record_ops.create_survey_related_record(
-                new_record,
+                request_id=request_id,
+                to_create=new_record,
                 initiator=user,
                 session=session,
                 event_dispatcher=event_dispatcher,
@@ -133,7 +132,7 @@ async def discover_records(
     record_discovery_config: discovery_schemas.SurveyRecordDiscoveryConfiguration,
     survey_mission: models.SurveyMission,
     owner_id: identifiers.UserId | None = None,
-) -> list[SurveyRelatedRecordCreate]:
+) -> list[record_schemas.SurveyRelatedRecordCreate]:
     """Discover survey-related record instances and their assets in the filesystem.
 
     Each returned item represents one record instance (a group of matched assets
@@ -202,7 +201,7 @@ async def discover_records(
                 already_catalogued = True
                 break
             instance_assets.append(
-                RecordAssetCreate(
+                record_schemas.RecordAssetCreate(
                     id=identifiers.RecordAssetId(uuid.uuid4()),
                     name=asset_conf.name,
                     description=asset_conf.description or {},
@@ -219,7 +218,7 @@ async def discover_records(
         logger.debug(f"{da_name=}")
         if not already_catalogued and instance_assets:
             results.append(
-                SurveyRelatedRecordCreate(
+                record_schemas.SurveyRelatedRecordCreate(
                     id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
                     owner_id=owner_id or identifiers.UserId(survey_mission.owner_id),
                     survey_mission_id=identifiers.SurveyMissionId(survey_mission.id),
@@ -398,12 +397,13 @@ def _build_pattern_regex(
 
 async def discover_project_survey_missions(
     *,
+    request_id: identifiers.RequestId,
     session: AsyncSession,
     project: models.Project,
     event_dispatcher: dispatch.EventDispatcherProtocol,
     settings: config.SeisLabDataSettings,
-    user: User | None = None,
-) -> AsyncIterator[models.SurveyMission]:
+    user: user_schemas.User,
+) -> AsyncIterator[models.SurveyMission | None]:
     """Discover and save a project's survey missions.
 
     Survey missions become owned by the input user, if provided. Otherwise, they
@@ -413,7 +413,7 @@ async def discover_project_survey_missions(
     survey missions, it just creates the missions.
     """
     discovery_configuration = (
-        discovery_schemas.ProjectDiscoveryConfiguration.from_raw_config(
+        discovery_schemas.ProjectDiscoveryConfiguration.model_validate(
             project.discovery_configuration
         )
     )
@@ -425,6 +425,7 @@ async def discover_project_survey_missions(
         ) is None:
             continue
         db_survey_mission = await survey_mission_ops.create_survey_mission(
+            request_id=request_id,
             to_create=mission_to_create,
             initiator=user,
             session=session,
@@ -438,8 +439,8 @@ async def _discover_survey_mission(
     project: models.Project,
     survey_mission_discovery_conf: discovery_schemas.SurveyMissionDiscoveryConfiguration,
     settings: config.SeisLabDataSettings,
-    owner: User | None = None,
-) -> SurveyMissionCreate | None:
+    owner: user_schemas.User | None = None,
+) -> mission_schemas.SurveyMissionCreate | None:
     mission_path = Path(
         "/".join(
             (
@@ -464,7 +465,7 @@ async def _discover_survey_mission(
             f"path ({existing_survey_mission.id!r}), skipping..."
         )
         return None
-    return SurveyMissionCreate(  # noqa
+    return mission_schemas.SurveyMissionCreate(  # noqa
         id=identifiers.SurveyMissionId(uuid.uuid4()),
         owner_id=identifiers.UserId(owner.id if owner else project.owner_id),
         project_id=project_id,
@@ -483,7 +484,7 @@ async def run_project_discovery(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
     settings: config.SeisLabDataSettings,
-    user: User,
+    user: user_schemas.User,
 ) -> None:
     try:
         if (project := await project_queries.get_project(session, project_id)) is None:
@@ -514,51 +515,57 @@ async def run_project_discovery(
         event_dispatcher=event_dispatcher,
     )
 
-    async for db_survey_mission in discover_project_survey_missions(
-        session=session,
-        project=db_project,
-        event_dispatcher=event_dispatcher,
-        settings=settings,
-        user=user,
-    ):
-        survey_mission_id = identifiers.SurveyMissionId(db_survey_mission.id)
-        await event_dispatcher(
-            event_schemas.ProjectDiscoveryProgressEvent(
-                project_id=project_id,
-                details=f"Discovered survey mission {db_survey_mission.id}",
-                initiator=user.id if user else "",
-            )
-        )
-        await survey_mission_ops.change_survey_mission_status(
-            constants.SurveyMissionStatus.UNDER_DISCOVERY,
-            survey_mission_id,
-            user,
-            session,
-            event_dispatcher,
-        )
-
-        async for _ in discover_survey_mission_records(
+    try:
+        async for db_survey_mission in discover_project_survey_missions(
+            request_id=request_id,
             session=session,
-            archive_root=str(settings.readonly_archive_root_directory),
-            survey_mission=db_survey_mission,
+            project=db_project,
             event_dispatcher=event_dispatcher,
+            settings=settings,
             user=user,
         ):
-            pass
+            survey_mission_id = identifiers.SurveyMissionId(db_survey_mission.id)
+            await event_dispatcher(
+                event_schemas.ProjectDiscoveryProgressEvent(
+                    project_id=project_id,
+                    details=f"Discovered survey mission {db_survey_mission.id}",
+                    initiator=user.id if user else "",
+                )
+            )
+            await survey_mission_ops.change_survey_mission_status(
+                request_id=request_id,
+                target_status=constants.SurveyMissionStatus.UNDER_DISCOVERY,
+                survey_mission_id=survey_mission_id,
+                initiator=user,
+                session=session,
+                event_dispatcher=event_dispatcher,
+            )
 
-        await survey_mission_ops.change_survey_mission_status(
-            constants.SurveyMissionStatus.DRAFT,
-            survey_mission_id,
-            user,
-            session,
-            event_dispatcher,
+            try:
+                async for _ in discover_survey_mission_records(
+                    request_id=request_id,
+                    session=session,
+                    archive_root=str(settings.readonly_archive_root_directory),
+                    survey_mission=db_survey_mission,
+                    event_dispatcher=event_dispatcher,
+                    user=user,
+                ):
+                    pass
+            finally:
+                await survey_mission_ops.change_survey_mission_status(
+                    request_id=request_id,
+                    target_status=constants.SurveyMissionStatus.DRAFT,
+                    survey_mission_id=survey_mission_id,
+                    initiator=user,
+                    session=session,
+                    event_dispatcher=event_dispatcher,
+                )
+    finally:
+        await project_ops.change_project_status(
+            request_id=request_id,
+            target_status=constants.ProjectStatus.DRAFT,
+            project_id=project_id,
+            initiator=user,
+            session=session,
+            event_dispatcher=event_dispatcher,
         )
-
-    await project_ops.change_project_status(
-        request_id=request_id,
-        target_status=constants.ProjectStatus.DRAFT,
-        project_id=project_id,
-        initiator=user,
-        session=session,
-        event_dispatcher=event_dispatcher,
-    )
