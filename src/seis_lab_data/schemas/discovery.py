@@ -166,9 +166,17 @@ class SurveyRecordDiscoveryConfiguration(pydantic.BaseModel):
         raw_config: dict,
     ) -> "SurveyRecordDiscoveryConfiguration":
         # Parse extra_properties from the {extractor, matcher} JSON format
-        asset_extra_props: dict[str, PropertyHandler] = {}
-        record_extra_props: list[RecordProperty] = []
-        for extra_prop in raw_config.get("extra_properties"):
+        index_prop = ConstantProperty(pattern=r"\d+_\d+")
+        asset_extra_props: dict[str, PropertyHandler] = {
+            "index": index_prop,
+        }
+        record_extra_props: list[RecordProperty] = [
+            RecordProperty(
+                identifier="index",
+                handler=index_prop,
+            )
+        ]
+        for extra_prop in raw_config.get("extra_properties") or []:
             record_property = RecordProperty.model_validate(extra_prop)
             asset_extra_props[record_property.identifier] = record_property.handler
             record_extra_props.append(record_property)

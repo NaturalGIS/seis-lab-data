@@ -333,19 +333,28 @@ async def discover_files(
         _build_pattern_regex(p, asset_config.properties)
         for p in asset_config.discovery_patterns
     ]
+    logger.debug(f"{root=}")
+    for pat_idx, pattern in enumerate(compiled_patterns):
+        last_dir, fname = pattern.pattern.rpartition("/")[::2]
+        logger.debug(f"{last_dir=}")
+        logger.debug(f"{fname=}")
+        pattern_root = root / last_dir
+        idx = 0
+        async for path in pattern_root.rglob("*"):
+            idx += 1
+            if not await path.is_file():
+                continue
 
-    async for path in root.rglob("*"):
-        if not await path.is_file():
-            continue
-
-        relative = path.relative_to(root).as_posix()
-
-        for pattern in compiled_patterns:
+            relative = path.relative_to(root).as_posix()
+            logger.debug(f"{relative=}")
+            logger.debug(f"{pattern.pattern=}")
             m = pattern.search(relative)
             if not m:
                 continue
-
-            extracted = {}
+            logger.debug(f"Found file {relative=}")
+            extracted = {
+                "index": f"{pat_idx}_{idx}",
+            }
             valid = True
 
             for name, prop in asset_config.properties.items():
@@ -367,11 +376,53 @@ async def discover_files(
                 extracted[name] = value
 
             if valid:
+                logger.debug(f"Yielding path {str(path)=} properties {extracted=}")
                 yield discovery_schemas.DiscoveredFile(
                     path=str(path), properties=extracted
                 )
 
             break  # matched a pattern, don't try others
+
+    # async for path in root.rglob("*"):
+    #     if not await path.is_file():
+    #         continue
+    #
+    #     relative = path.relative_to(root).as_posix()
+    #
+    #     for pattern in compiled_patterns:
+    #         m = pattern.search(relative)
+    #         if not m:
+    #             continue
+    #
+    #         logger.debug(f"Found file {relative=}")
+    #
+    #         extracted = {}
+    #         valid = True
+    #
+    #         for name, prop in asset_config.properties.items():
+    #             try:
+    #                 raw = m.group(name)
+    #             except IndexError:
+    #                 continue  # This placeholder isn't in this pattern — skip
+    #
+    #             try:
+    #                 value = prop.convert(raw)
+    #             except Exception:
+    #                 valid = False
+    #                 break
+    #
+    #             if not prop.validate_value(value):
+    #                 valid = False
+    #                 break
+    #
+    #             extracted[name] = value
+    #
+    #         if valid:
+    #             yield discovery_schemas.DiscoveredFile(
+    #                 path=str(path), properties=extracted
+    #             )
+    #
+    #         break  # matched a pattern, don't try others
 
 
 def _build_pattern_regex(

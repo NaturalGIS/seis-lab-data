@@ -27,6 +27,14 @@ from ..db import models
 _FAKE_EN = Faker("en_US")
 _FAKE_PT = Faker("pt_PT")
 
+
+_real_owf_seism_2024_project_id = identifiers.ProjectId(
+    uuid.UUID("8f931331-15c3-4899-846c-38470f6bcb5a")
+)
+_real_raw_bathy_record_discovery_conf_id = identifiers.RecordDiscoveryConfId(
+    "real_raw_bathy"
+)
+
 _raw_bathy_record_discovery_conf_id = identifiers.RecordDiscoveryConfId("raw_bathy")
 _processed_bathy_record_discovery_conf_id = identifiers.RecordDiscoveryConfId(
     "processed_bathy"
@@ -65,6 +73,80 @@ def get_projects_to_create(
     owner_id = identifiers.UserId(owner.id)
     return [
         project_schemas.ProjectCreate(
+            id=_real_owf_seism_2024_project_id,
+            owner_id=owner_id,
+            name=common_schemas.LocalizableDraftName(
+                en="Offshore wind farms",
+                pt="Offshore wind farms",
+            ),
+            description=common_schemas.LocalizableDraftDescription(
+                en="A description about the offshore wind farms project",
+                pt="Uma descrição sobre o projeto offshore wind farms",
+            ),
+            root_path="production_archive/surveys",
+            discovery_configuration=discovery_schemas.ProjectDiscoveryConfiguration(
+                survey_missions=[
+                    discovery_schemas.SurveyMissionDiscoveryConfiguration(
+                        name=discovery_schemas.TranslatableString(
+                            {
+                                "en": discovery_schemas.TemplatedString(
+                                    "owf-seism-2024-mission"
+                                )
+                            }
+                        ),
+                        description=discovery_schemas.TranslatableString(
+                            {
+                                "en": discovery_schemas.TemplatedString(
+                                    "Some description about the owf-seism-2024 survey mission"
+                                )
+                            }
+                        ),
+                        relative_path="owf-seism-2024",
+                        record_configuration_ids=[
+                            _real_raw_bathy_record_discovery_conf_id,
+                        ],
+                    ),
+                ],
+                records={
+                    str(
+                        _real_raw_bathy_record_discovery_conf_id
+                    ): discovery_schemas.SurveyRecordDiscoveryConfiguration(
+                        id_=_real_raw_bathy_record_discovery_conf_id,
+                        dataset_category="bathymetry",
+                        domain_type="geophysical",
+                        workflow_stage="raw data",
+                        name=discovery_schemas.TranslatableString(
+                            {
+                                "en": discovery_schemas.TemplatedString(
+                                    "Raw bathymetry {index}"
+                                ),
+                                "pt": discovery_schemas.TemplatedString(
+                                    "Batimetria em bruto {index}"
+                                ),
+                            }
+                        ),
+                        assets=[
+                            discovery_schemas.RecordAssetDiscoveryConfiguration(
+                                name=discovery_schemas.TranslatableString(
+                                    {
+                                        "en": discovery_schemas.TemplatedString(
+                                            "kmall file"
+                                        )
+                                    }
+                                ),
+                                discovery_patterns=[
+                                    discovery_schemas.TemplatedString(
+                                        r"s06-mbes/s02-raw-data/.*\.kmall"
+                                    )
+                                ],
+                            )
+                        ],
+                    ),
+                },
+                record_relations=[],
+            ),
+        ),
+        project_schemas.ProjectCreate(
             id=_prr_eolicas_project_id,
             owner_id=owner_id,
             name=common_schemas.LocalizableDraftName(
@@ -74,7 +156,7 @@ def get_projects_to_create(
                 en="A description about the PRR windfarms project",
                 pt="Uma descrição sobre o projeto PRR Eólicas",
             ),
-            root_path="surveys",
+            root_path="simulated_archive/surveys",
             discovery_configuration=discovery_schemas.ProjectDiscoveryConfiguration(
                 survey_missions=[
                     discovery_schemas.SurveyMissionDiscoveryConfiguration(
