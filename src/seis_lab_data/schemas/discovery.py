@@ -10,7 +10,10 @@ import pydantic
 from typing_extensions import Self
 
 from .common import LinkSchema
-from .identifiers import RecordDiscoveryConfId
+from .identifiers import (
+    AssetDiscoveryConfId,
+    RecordDiscoveryConfId,
+)
 
 
 TemplatedString = typing.NewType("TemplatedString", str)
@@ -259,3 +262,10 @@ class ProjectDiscoveryConfiguration(pydantic.BaseModel):
                 for rel_conf in raw_config.get("record_relations", [])
             ],
         )
+
+
+class NewAssetDiscoveryConfiguration(pydantic.BaseModel):
+    identifier: AssetDiscoveryConfId
+    relative_path_regexp: str
+    workflow_stage: str
+    category: str

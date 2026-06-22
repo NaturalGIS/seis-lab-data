@@ -2,6 +2,7 @@ import logging
 import re
 import uuid
 from collections.abc import AsyncIterator
+from typing import AsyncGenerator
 
 from anyio import Path
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -620,3 +621,68 @@ async def run_project_discovery(
             session=session,
             event_dispatcher=event_dispatcher,
         )
+
+
+async def new_discover_records(
+    base_path: Path,
+    asset_discovery_configuration: discovery_schemas.NewAssetDiscoveryConfiguration,
+) -> AsyncGenerator[Path, None]:
+    """Discover assets for a particular asset discovery configuration.
+
+    Discovery assumptions:
+
+    - One record only holds one asset. Although generally we support multiple assets per record,
+      for discovery the only supported use case is a 1:1 mapping between record and asset.
+    """
+    full_path_regexp = str(
+        base_path / asset_discovery_configuration.relative_path_regexp
+    )
+    root, pattern = split_pattern_path(full_path_regexp)
+    if not pattern:
+        if await root.is_file():
+            yield root
+        return
+
+    pattern_parts = Path(pattern).parts
+    async for matched_path in walk_pattern(root, pattern_parts):
+        yield matched_path
+
+
+async def walk_pattern(
+    current: Path, remaining: tuple[str, ...]
+) -> AsyncIterator[Path]:
+    if not remaining:
+        if await current.is_file():
+            yield current
+        return
+
+    head, *tail = remaining
+    tail = tuple(tail)
+    regex = re.compile(f"^{head}$")
+    try:
+        async for entry in current.iterdir():
+            if await entry.is_dir():
+                async for matched in walk_pattern(entry, remaining):
+                    yield matched
+            if regex.match(entry.name):
+                if tail:
+                    async for matched in walk_pattern(entry, tail):
+                        yield matched
+                else:
+                    if await entry.is_file():
+                        yield entry
+    except (PermissionError, NotADirectoryError):
+        return
+
+
+def split_pattern_path(regexp_path: str) -> tuple[Path, str]:
+    """Split a regexp path into a Path component and a regexp pattern"""
+    _re_meta = re.compile(r"[.*+?^${}()\[\]|\\]")
+    parts = Path(regexp_path).parts
+    plain_parts = []
+    for i, part in enumerate(parts):
+        if _re_meta.search(part):
+            pattern = str(Path(*parts[i:])) if parts[i:] else ""
+            return Path(*plain_parts) if plain_parts else Path("."), pattern
+        plain_parts.append(part)
+    return Path(regexp_path), ""
