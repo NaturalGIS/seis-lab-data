@@ -36,7 +36,6 @@ def _build_survey_related_record_statement(
             )
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
-        .options(selectinload(models.SurveyRelatedRecord.domain_type))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
     )
     if en_name_filter:
@@ -196,7 +195,6 @@ async def get_survey_related_record(
             )
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
-        .options(selectinload(models.SurveyRelatedRecord.domain_type))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
         # adding all assets too, since they will always be a small list
         .options(selectinload(models.SurveyRelatedRecord.assets))
@@ -222,7 +220,6 @@ async def get_survey_related_record_by_english_name(
             )
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
-        .options(selectinload(models.SurveyRelatedRecord.domain_type))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
         # adding all assets too, since they will always be a small list
         .options(selectinload(models.SurveyRelatedRecord.assets))
@@ -262,7 +259,6 @@ async def list_survey_related_record_related_to_records(
             )
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
-        .options(selectinload(models.SurveyRelatedRecord.domain_type))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
     )
     return (await session.exec(statement.offset(offset).limit(limit))).all()
@@ -297,7 +293,6 @@ async def list_survey_related_record_subject_records(
             )
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
-        .options(selectinload(models.SurveyRelatedRecord.domain_type))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
     )
     return (await session.exec(statement.offset(offset).limit(limit))).all()
@@ -348,55 +343,6 @@ async def get_dataset_category_by_english_name(
 ) -> models.DatasetCategory | None:
     statement = select(models.DatasetCategory).where(
         models.DatasetCategory.name["en"].astext == name
-    )
-    return (await session.exec(statement)).first()
-
-
-async def list_domain_types(
-    session: AsyncSession,
-    limit: int = 20,
-    offset: int = 0,
-    include_total: bool = False,
-    order_by_clause=models.DomainType.name["en"].astext,
-) -> tuple[list[models.DomainType], int | None]:
-    statement = select(models.DomainType)
-
-    # NOTE: limit, offset and order_by are applied only when asking the
-    # session to exec because we want to reuse the statement later, to count
-    # total number of records
-    items = (
-        await session.exec(
-            statement.offset(offset).limit(limit).order_by(order_by_clause)
-        )
-    ).all()
-    num_total = (
-        await _get_total_num_records(session, statement) if include_total else None
-    )
-    return items, num_total
-
-
-async def collect_all_domain_types(
-    session: AsyncSession, order_by_clause=models.DomainType.name["en"].astext
-) -> list[models.DomainType]:
-    _, num_total = await list_domain_types(session, limit=1, include_total=True)
-    items, _ = await list_domain_types(
-        session, limit=num_total, include_total=False, order_by_clause=order_by_clause
-    )
-    return items
-
-
-async def get_domain_type(
-    session: AsyncSession,
-    domain_type_id: uuid.UUID,
-) -> models.DomainType | None:
-    return await session.get(models.DomainType, domain_type_id)
-
-
-async def get_domain_type_by_english_name(
-    session: AsyncSession, name: str
-) -> models.DomainType | None:
-    statement = select(models.DomainType).where(
-        models.DomainType.name["en"].astext == name
     )
     return (await session.exec(statement)).first()
 

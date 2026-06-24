@@ -43,15 +43,6 @@ from seis_lab_data.webapp import filters
             "dataset_category=cat1",
         ),
         pytest.param(
-            filters.DomainTypeFilter,
-            "dt1",
-            "dt1",
-            "domain_type_filter",
-            "domain_type",
-            {"domain_type_filter": "dt1"},
-            "domain_type=dt1",
-        ),
-        pytest.param(
             filters.WorkflowStageFilter,
             "ws1",
             "ws1",

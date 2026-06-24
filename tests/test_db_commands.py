@@ -2,9 +2,15 @@ import uuid
 
 import pytest
 
-from seis_lab_data.db import (
-    commands,
-    queries,
+from seis_lab_data.db.commands import (
+    projects as project_commands,
+    surveymissions as mission_commands,
+    surveyrelatedrecords as record_commands,
+)
+from seis_lab_data.db.queries import (
+    projects as project_queries,
+    surveymissions as mission_queries,
+    surveyrelatedrecords as record_queries,
 )
 from seis_lab_data.schemas import (
     common as common_schemas,
@@ -25,7 +31,7 @@ async def test_create_dataset_category(db, db_session_maker):
         name=common_schemas.LocalizableDraftName(en="A fake category"),
     )
     async with db_session_maker() as session:
-        created = await commands.create_dataset_category(session, to_create)
+        created = await record_commands.create_dataset_category(session, to_create)
         assert created.id == to_create.id
         assert created.name["en"] == to_create.name.en
 
@@ -40,37 +46,12 @@ async def test_delete_dataset_category(db, db_session_maker):
         name=common_schemas.LocalizableDraftName(en="A fake category"),
     )
     async with db_session_maker() as session:
-        await commands.create_dataset_category(session, to_create)
-        assert await queries.get_dataset_category(session, to_create.id) is not None
-        await commands.delete_dataset_category(session, to_create.id)
-        assert await queries.get_dataset_category(session, to_create.id) is None
-
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_create_domain_type(db, db_session_maker):
-    to_create = record_schemas.DomainTypeCreate(
-        id=identifiers.DomainTypeId(uuid.UUID("28105b9e-03fb-40d2-96c3-6e449b1848ed")),
-        name=common_schemas.LocalizableDraftName(en="A fake domain type"),
-    )
-    async with db_session_maker() as session:
-        created = await commands.create_domain_type(session, to_create)
-        assert created.id == to_create.id
-        assert created.name["en"] == to_create.name.en
-
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_delete_domain_type(db, db_session_maker):
-    to_create = record_schemas.DomainTypeCreate(
-        id=identifiers.DomainTypeId(uuid.UUID("d54bb541-a070-483d-8a5b-ac82f6f27a2b")),
-        name=common_schemas.LocalizableDraftName(en="A fake domain type"),
-    )
-    async with db_session_maker() as session:
-        await commands.create_domain_type(session, to_create)
-        assert await queries.get_domain_type(session, to_create.id) is not None
-        await commands.delete_domain_type(session, to_create.id)
-        assert await queries.get_domain_type(session, to_create.id) is None
+        await record_commands.create_dataset_category(session, to_create)
+        assert (
+            await record_queries.get_dataset_category(session, to_create.id) is not None
+        )
+        await record_commands.delete_dataset_category(session, to_create.id)
+        assert await record_queries.get_dataset_category(session, to_create.id) is None
 
 
 @pytest.mark.integration
@@ -83,7 +64,7 @@ async def test_create_workflow_stage(db, db_session_maker):
         name=common_schemas.LocalizableDraftName(en="A fake workflow stage"),
     )
     async with db_session_maker() as session:
-        created = await commands.create_workflow_stage(session, to_create)
+        created = await record_commands.create_workflow_stage(session, to_create)
         assert created.id == to_create.id
         assert created.name["en"] == to_create.name.en
 
@@ -98,10 +79,12 @@ async def test_delete_workflow_stage(db, db_session_maker):
         name=common_schemas.LocalizableDraftName(en="A fake workflow stage"),
     )
     async with db_session_maker() as session:
-        await commands.create_workflow_stage(session, to_create)
-        assert await queries.get_workflow_stage(session, to_create.id) is not None
-        await commands.delete_workflow_stage(session, to_create.id)
-        assert await queries.get_workflow_stage(session, to_create.id) is None
+        await record_commands.create_workflow_stage(session, to_create)
+        assert (
+            await record_queries.get_workflow_stage(session, to_create.id) is not None
+        )
+        await record_commands.delete_workflow_stage(session, to_create.id)
+        assert await record_queries.get_workflow_stage(session, to_create.id) is None
 
 
 @pytest.mark.integration
@@ -120,7 +103,7 @@ async def test_create_project(db, db_session_maker, admin_user):
         root_path="/fake-path/to/fake-project/",
     )
     async with db_session_maker() as session:
-        created = await commands.create_project(session, to_create)
+        created = await project_commands.create_project(session, to_create)
         assert created.id == to_create.id
         assert created.owner_id == to_create.owner_id
         assert created.id == to_create.id
@@ -144,10 +127,10 @@ async def test_delete_project(db, db_session_maker, admin_user):
         root_path="/fake-path/to/fake-project/",
     )
     async with db_session_maker() as session:
-        await commands.create_project(session, to_create)
-        assert await queries.get_project(session, to_create.id) is not None
-        await commands.delete_project(session, to_create.id)
-        assert await queries.get_project(session, to_create.id) is None
+        await project_commands.create_project(session, to_create)
+        assert await project_queries.get_project(session, to_create.id) is not None
+        await project_commands.delete_project(session, to_create.id)
+        assert await project_queries.get_project(session, to_create.id) is None
 
 
 @pytest.mark.integration
@@ -169,7 +152,7 @@ async def test_create_survey_mission(db, db_session_maker, sample_projects, admi
         relative_path="fake-mission",
     )
     async with db_session_maker() as session:
-        created = await commands.create_survey_mission(session, to_create)
+        created = await mission_commands.create_survey_mission(session, to_create)
         assert created.id == to_create.id
         assert created.owner_id == to_create.owner_id
         assert created.id == to_create.id
@@ -196,10 +179,12 @@ async def test_delete_survey_mission(db, db_session_maker, sample_projects, admi
         relative_path="fake-mission",
     )
     async with db_session_maker() as session:
-        await commands.create_survey_mission(session, to_create)
-        assert await queries.get_survey_mission(session, to_create.id) is not None
-        await commands.delete_survey_mission(session, to_create.id)
-        assert await queries.get_survey_mission(session, to_create.id) is None
+        await mission_commands.create_survey_mission(session, to_create)
+        assert (
+            await mission_queries.get_survey_mission(session, to_create.id) is not None
+        )
+        await mission_commands.delete_survey_mission(session, to_create.id)
+        assert await mission_queries.get_survey_mission(session, to_create.id) is None
 
 
 @pytest.mark.integration
@@ -209,16 +194,12 @@ async def test_create_survey_related_record(
     db_session_maker,
     sample_survey_missions,
     bootstrap_dataset_categories,
-    bootstrap_domain_types,
     bootstrap_workflow_stages,
     admin_user,
 ):
     dataset_category = [
         c for c in bootstrap_dataset_categories if c.name["en"] == "bathymetry"
     ][0]
-    domain_type = [d for d in bootstrap_domain_types if d.name["en"] == "geophysical"][
-        0
-    ]
     workflow_stage = [
         w for w in bootstrap_workflow_stages if w.name["en"] == "raw data"
     ][0]
@@ -236,7 +217,6 @@ async def test_create_survey_related_record(
             pt="Uma descrição para o registo falso",
         ),
         dataset_category_id=identifiers.DatasetCategoryId(dataset_category.id),
-        domain_type_id=identifiers.DomainTypeId(domain_type.id),
         workflow_stage_id=identifiers.WorkflowStageId(workflow_stage.id),
         relative_path="fake-record",
         assets=[
@@ -271,7 +251,7 @@ async def test_create_survey_related_record(
         ],
     )
     async with db_session_maker() as session:
-        created = await commands.create_survey_related_record(session, to_create)
+        created = await record_commands.create_survey_related_record(session, to_create)
         assert created.id == to_create.id
         assert created.owner_id == to_create.owner_id
         assert created.id == to_create.id
@@ -286,16 +266,12 @@ async def test_delete_survey_related_record(
     db_session_maker,
     sample_survey_missions,
     bootstrap_dataset_categories,
-    bootstrap_domain_types,
     bootstrap_workflow_stages,
     admin_user,
 ):
     dataset_category = [
         c for c in bootstrap_dataset_categories if c.name["en"] == "bathymetry"
     ][0]
-    domain_type = [d for d in bootstrap_domain_types if d.name["en"] == "geophysical"][
-        0
-    ]
     workflow_stage = [
         w for w in bootstrap_workflow_stages if w.name["en"] == "raw data"
     ][0]
@@ -313,14 +289,17 @@ async def test_delete_survey_related_record(
             pt="Uma descrição para o registo falso",
         ),
         dataset_category_id=identifiers.DatasetCategoryId(dataset_category.id),
-        domain_type_id=identifiers.DomainTypeId(domain_type.id),
         workflow_stage_id=identifiers.WorkflowStageId(workflow_stage.id),
         relative_path="fake-record",
     )
     async with db_session_maker() as session:
-        await commands.create_survey_related_record(session, to_create)
+        await record_commands.create_survey_related_record(session, to_create)
         assert (
-            await queries.get_survey_related_record(session, to_create.id) is not None
+            await record_queries.get_survey_related_record(session, to_create.id)
+            is not None
         )
-        await commands.delete_survey_related_record(session, to_create.id)
-        assert await queries.get_survey_related_record(session, to_create.id) is None
+        await record_commands.delete_survey_related_record(session, to_create.id)
+        assert (
+            await record_queries.get_survey_related_record(session, to_create.id)
+            is None
+        )

@@ -9,8 +9,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from .. import (
     dispatch,
     errors,
-    permissions,
 )
+from ..permissions import surveyrelatedrecords as record_permissions
 from ..constants import (
     ROLE_ADMIN,
     ROLE_SYSTEM_ADMIN,
@@ -18,10 +18,11 @@ from ..constants import (
     SurveyMissionStatus,
     SurveyRelatedRecordStatus,
 )
-from ..db import (
-    commands,
-    queries,
-    models,
+from ..db import models
+from ..db.commands import surveyrelatedrecords as record_commands
+from ..db.queries import (
+    surveymissions as mission_queries,
+    surveyrelatedrecords as record_queries,
 )
 from ..schemas import (
     events as event_schemas,
@@ -37,16 +38,18 @@ logger = logging.getLogger(__name__)
 
 
 async def create_dataset_category(
+    *,
+    request_id: identifiers.RequestId,
     to_create: record_schemas.DatasetCategoryCreate,
     initiator: user_schemas.User | None,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.DatasetCategory:
-    if not permissions.can_create_dataset_category(initiator):
+    if not record_permissions.can_create_dataset_category(initiator):
         raise errors.SeisLabDataError(
             "User is not allowed to create a dataset category."
         )
-    dataset_category = await commands.create_dataset_category(session, to_create)
+    dataset_category = await record_commands.create_dataset_category(session, to_create)
     await event_dispatcher(
         event_schemas.DatasetCategoryCreatedEvent(
             category_id=identifiers.DatasetCategoryId(dataset_category.id),
@@ -57,21 +60,25 @@ async def create_dataset_category(
 
 
 async def delete_dataset_category(
+    *,
+    request_id: identifiers.RequestId,
     dataset_category_id: uuid.UUID,
     initiator: user_schemas.User | None,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> None:
-    if not permissions.can_delete_dataset_category(initiator):
+    if not record_permissions.can_delete_dataset_category(initiator):
         raise errors.SeisLabDataError(
             "User is not allowed to delete dataset categories."
         )
-    dataset_category = await queries.get_dataset_category(session, dataset_category_id)
+    dataset_category = await record_queries.get_dataset_category(
+        session, dataset_category_id
+    )
     if dataset_category is None:
         raise errors.SeisLabDataError(
             f"Dataset category with id {dataset_category_id} does not exist."
         )
-    await commands.delete_dataset_category(session, dataset_category_id)
+    await record_commands.delete_dataset_category(session, dataset_category_id)
     await event_dispatcher(
         event_schemas.DatasetCategoryDeletedEvent(
             category_id=identifiers.DatasetCategoryId(dataset_category.id),
@@ -86,67 +93,22 @@ async def list_dataset_categories(
     offset: int = 0,
     include_total: bool = False,
 ) -> tuple[list[models.DatasetCategory], int | None]:
-    return await queries.list_dataset_categories(session, limit, offset, include_total)
-
-
-async def create_domain_type(
-    to_create: record_schemas.DomainTypeCreate,
-    initiator: user_schemas.User | None,
-    session: AsyncSession,
-    event_dispatcher: dispatch.EventDispatcherProtocol,
-) -> models.DomainType:
-    if not permissions.can_create_domain_type(initiator):
-        raise errors.SeisLabDataError("User is not allowed to create a domain type.")
-    domain_type = await commands.create_domain_type(session, to_create)
-    await event_dispatcher(
-        event_schemas.DomainTypeCreatedEvent(
-            domain_type_id=identifiers.DomainTypeId(domain_type.id),
-            initiator=initiator.id,
-        )
+    return await record_queries.list_dataset_categories(
+        session, limit, offset, include_total
     )
-    return domain_type
-
-
-async def delete_domain_type(
-    domain_type_id: uuid.UUID,
-    initiator: user_schemas.User | None,
-    session: AsyncSession,
-    event_dispatcher: dispatch.EventDispatcherProtocol,
-) -> None:
-    if not permissions.can_delete_domain_type(initiator):
-        raise errors.SeisLabDataError("User is not allowed to delete domain types.")
-    domain_type = await queries.get_domain_type(session, domain_type_id)
-    if domain_type is None:
-        raise errors.SeisLabDataError(
-            f"Domain type with id {domain_type_id} does not exist."
-        )
-    await commands.delete_domain_type(session, domain_type_id)
-    await event_dispatcher(
-        event_schemas.DomainTypeDeletedEvent(
-            domain_type_id=identifiers.DomainTypeId(domain_type.id),
-            initiator=initiator.id,
-        )
-    )
-
-
-async def list_domain_types(
-    session: AsyncSession,
-    limit: int = 20,
-    offset: int = 0,
-    include_total: bool = False,
-) -> tuple[list[models.DomainType], int | None]:
-    return await queries.list_domain_types(session, limit, offset, include_total)
 
 
 async def create_workflow_stage(
+    *,
+    request_id: identifiers.RequestId,
     to_create: record_schemas.WorkflowStageCreate,
     initiator: user_schemas.User | None,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.WorkflowStage:
-    if not permissions.can_create_workflow_stage(initiator):
+    if not record_permissions.can_create_workflow_stage(initiator):
         raise errors.SeisLabDataError("User is not allowed to create a workflow stage.")
-    workflow_stage = await commands.create_workflow_stage(session, to_create)
+    workflow_stage = await record_commands.create_workflow_stage(session, to_create)
     await event_dispatcher(
         event_schemas.WorkflowStageCreatedEvent(
             stage_id=identifiers.WorkflowStageId(workflow_stage.id),
@@ -162,14 +124,14 @@ async def delete_workflow_stage(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> None:
-    if not permissions.can_delete_workflow_stage(initiator):
+    if not record_permissions.can_delete_workflow_stage(initiator):
         raise errors.SeisLabDataError("User is not allowed to delete workflow stages.")
-    workflow_stage = await queries.get_workflow_stage(session, workflow_stage_id)
+    workflow_stage = await record_queries.get_workflow_stage(session, workflow_stage_id)
     if workflow_stage is None:
         raise errors.SeisLabDataError(
             f"Workflow stage with id {workflow_stage_id} does not exist."
         )
-    await commands.delete_workflow_stage(session, workflow_stage_id)
+    await record_commands.delete_workflow_stage(session, workflow_stage_id)
     await event_dispatcher(
         event_schemas.WorkflowStageDeletedEvent(
             stage_id=identifiers.WorkflowStageId(workflow_stage.id),
@@ -184,7 +146,9 @@ async def list_workflow_stages(
     offset: int = 0,
     include_total: bool = False,
 ) -> tuple[list[models.WorkflowStage], int | None]:
-    return await queries.list_workflow_stages(session, limit, offset, include_total)
+    return await record_queries.list_workflow_stages(
+        session, limit, offset, include_total
+    )
 
 
 async def create_survey_related_record(
@@ -197,14 +161,16 @@ async def create_survey_related_record(
 ):
     try:
         if not (
-            survey_mission := await queries.get_survey_mission(
+            survey_mission := await mission_queries.get_survey_mission(
                 session, to_create.survey_mission_id
             )
         ):
             raise errors.SeisLabDataError(
                 f"Survey mission with id {to_create.survey_mission_id} does not exist"
             )
-        if not permissions.can_create_survey_related_record(initiator, survey_mission):
+        if not record_permissions.can_create_survey_related_record(
+            initiator, survey_mission
+        ):
             raise errors.SeisLabDataError(
                 "User is not allowed to create a survey-related record."
             )
@@ -224,7 +190,9 @@ async def create_survey_related_record(
                 f"Cannot create survey-related record because parent project's "
                 f"status is {project_status}"
             )
-        survey_record = await commands.create_survey_related_record(session, to_create)
+        survey_record = await record_commands.create_survey_related_record(
+            session, to_create
+        )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
             event_schemas.SurveyRelatedRecordNotCreatedEvent(
@@ -258,7 +226,7 @@ async def change_survey_related_record_status(
 ) -> models.SurveyRelatedRecord | None:
     try:
         if (
-            survey_related_record := await queries.get_survey_related_record(
+            survey_related_record := await record_queries.get_survey_related_record(
                 session, survey_related_record_id
             )
         ) is None:
@@ -271,7 +239,7 @@ async def change_survey_related_record_status(
                 f"set to {target_status} - nothing to do"
             )
             return survey_related_record
-        if not permissions.can_change_survey_related_record_status(
+        if not record_permissions.can_change_survey_related_record_status(
             initiator, survey_related_record
         ):
             raise errors.SeisLabDataError(
@@ -288,10 +256,12 @@ async def change_survey_related_record_status(
                 session=session,
                 event_dispatcher=event_dispatcher,
             )
-        updated_survey_related_record = await commands.set_survey_related_record_status(
-            session,
-            identifiers.SurveyRelatedRecordId(survey_related_record.id),
-            target_status,
+        updated_survey_related_record = (
+            await record_commands.set_survey_related_record_status(
+                session,
+                identifiers.SurveyRelatedRecordId(survey_related_record.id),
+                target_status,
+            )
         )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
@@ -324,14 +294,14 @@ async def validate_survey_related_record(
 ) -> models.SurveyRelatedRecord | None:
     try:
         if (
-            survey_related_record := await queries.get_survey_related_record(
+            survey_related_record := await record_queries.get_survey_related_record(
                 session, survey_related_record_id
             )
         ) is None:
             raise errors.SeisLabDataError(
                 f"Survey-related record with id {survey_related_record_id} does not exist."
             )
-        if not permissions.can_validate_survey_related_record(
+        if not record_permissions.can_validate_survey_related_record(
             initiator, survey_related_record
         ):
             raise errors.SeisLabDataError(
@@ -371,7 +341,7 @@ async def validate_survey_related_record(
                     "type_": error["type"],
                 }
             )
-        await commands.update_survey_related_record_validation_result(
+        await record_commands.update_survey_related_record_validation_result(
             session,
             survey_related_record,
             validation_result={
@@ -380,7 +350,7 @@ async def validate_survey_related_record(
             },
         )
     else:
-        await commands.update_survey_related_record_validation_result(
+        await record_commands.update_survey_related_record_validation_result(
             session,
             survey_related_record,
             validation_result={"is_valid": True, "errors": None},
@@ -406,6 +376,7 @@ async def validate_survey_related_record(
 
 
 async def delete_survey_related_record(
+    *,
     request_id: identifiers.RequestId,
     survey_related_record_id: identifiers.SurveyRelatedRecordId,
     initiator: user_schemas.User,
@@ -414,7 +385,7 @@ async def delete_survey_related_record(
 ) -> None:
     try:
         if (
-            survey_record := await queries.get_survey_related_record(
+            survey_record := await record_queries.get_survey_related_record(
                 session, survey_related_record_id
             )
         ) is None:
@@ -423,7 +394,9 @@ async def delete_survey_related_record(
             )
         survey_mission_id = identifiers.SurveyMissionId(survey_record.survey_mission_id)
         project_id = identifiers.ProjectId(survey_record.survey_mission.project_id)
-        if not permissions.can_delete_survey_related_record(initiator, survey_record):
+        if not record_permissions.can_delete_survey_related_record(
+            initiator, survey_record
+        ):
             raise errors.SeisLabDataError(
                 "User is not allowed to delete survey-related record."
             )
@@ -441,7 +414,9 @@ async def delete_survey_related_record(
                 f"Cannot update survey-related record because parent project's "
                 f"status is {project_status}"
             )
-        await commands.delete_survey_related_record(session, survey_related_record_id)
+        await record_commands.delete_survey_related_record(
+            session, survey_related_record_id
+        )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
             event_schemas.SurveyRelatedRecordNotDeletedEvent(
@@ -486,11 +461,13 @@ async def list_survey_related_records(
         temporal_extent=temporal_extent,
     )
     if initiator is None:
-        return await queries.list_published_survey_related_records(session, **kwargs)
+        return await record_queries.list_published_survey_related_records(
+            session, **kwargs
+        )
     elif not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(initiator.roles):
-        return await queries.list_survey_related_records(session, **kwargs)
+        return await record_queries.list_survey_related_records(session, **kwargs)
     else:
-        return await queries.list_accessible_survey_related_records(
+        return await record_queries.list_accessible_survey_related_records(
             session, initiator.id, **kwargs
         )
 
@@ -507,20 +484,26 @@ async def get_survey_related_record(
     ]
     | None
 ):
-    record = await queries.get_survey_related_record(session, survey_related_record_id)
+    record = await record_queries.get_survey_related_record(
+        session, survey_related_record_id
+    )
     if record is None:
         return None
-    if not permissions.can_read_survey_related_record(initiator, record):
+    if not record_permissions.can_read_survey_related_record(initiator, record):
         raise errors.SeisLabDataError(
             f"User is not allowed to read survey-related "
             f"record {survey_related_record_id!r}."
         )
     record_id: identifiers.SurveyRelatedRecordId = record.id
-    records_related_to = await queries.list_survey_related_record_related_to_records(
-        session, record_id
+    records_related_to = (
+        await record_queries.list_survey_related_record_related_to_records(
+            session, record_id
+        )
     )
-    records_subject_for = await queries.list_survey_related_record_subject_records(
-        session, record_id
+    records_subject_for = (
+        await record_queries.list_survey_related_record_subject_records(
+            session, record_id
+        )
     )
     return record, records_related_to, records_subject_for
 
@@ -534,14 +517,14 @@ async def update_survey_related_record(
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.SurveyRelatedRecord:
     if (
-        survey_related_record := await queries.get_survey_related_record(
+        survey_related_record := await record_queries.get_survey_related_record(
             session, survey_related_record_id
         )
     ) is None:
         raise errors.SeisLabDataError(
             f"Survey-related record with id {survey_related_record_id} does not exist."
         )
-    if not permissions.can_update_survey_related_record(
+    if not record_permissions.can_update_survey_related_record(
         initiator, survey_related_record
     ):
         raise errors.SeisLabDataError(
@@ -561,7 +544,7 @@ async def update_survey_related_record(
             f"Cannot update survey-related record because parent project's "
             f"status is {project_status}"
         )
-    updated_survey_related_record = await commands.update_survey_related_record(
+    updated_survey_related_record = await record_commands.update_survey_related_record(
         session, survey_related_record, to_update
     )
     await event_dispatcher(

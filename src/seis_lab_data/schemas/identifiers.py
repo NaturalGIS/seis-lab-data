@@ -1,9 +1,8 @@
 import uuid
 from typing import NewType
 
-AssetDiscoveryConfId = NewType("AssetDiscoveryConfId", str)
+AssetDiscoveryConfId = NewType("AssetDiscoveryConfId", uuid.UUID)
 DatasetCategoryId = NewType("DatasetCategoryId", uuid.UUID)
-DomainTypeId = NewType("DomainTypeId", uuid.UUID)
 RecordAssetId = NewType("RecordAssetId", uuid.UUID)
 RecordDiscoveryConfId = NewType("RecordDiscoveryConfId", str)
 RequestId = NewType("RequestId", uuid.UUID)

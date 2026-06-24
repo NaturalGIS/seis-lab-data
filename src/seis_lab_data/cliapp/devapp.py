@@ -14,16 +14,22 @@ from redis import asyncio as aioredis
 from .. import (
     config,
     constants,
-    operations,
-    schemas,
     subscribers,
 )
-from ..db import queries
+from ..operations import (
+    projects as project_ops,
+    surveymissions as mission_ops,
+    surveyrelatedrecords as record_ops,
+)
+from ..db.queries import surveyrelatedrecords as record_queries
 from ..errors import SeisLabDataError
 from ..dispatch import no_op_dispatcher
 from ..schemas import (
     identifiers,
     messages as message_schemas,
+    projects as project_schemas,
+    surveymissions as mission_schemas,
+    surveyrelatedrecords as record_schemas,
 )
 from ..tasks import projects as project_tasks
 from . import sampledata
@@ -79,15 +85,15 @@ async def generate_many_projects(
         else no_op_dispatcher
     )
     async with settings.get_db_session_maker()() as session:
-        dataset_categories = await queries.collect_all_dataset_categories(session)
-        workflow_stages = await queries.collect_all_workflow_stages(session)
-        domain_types = await queries.collect_all_domain_types(session)
+        dataset_categories = await record_queries.collect_all_dataset_categories(
+            session
+        )
+        workflow_stages = await record_queries.collect_all_workflow_stages(session)
         project_generator = sampledata.generate_sample_projects(
             owners=[admin_],
             dataset_categories=[
                 identifiers.DatasetCategoryId(dc.id) for dc in dataset_categories
             ],
-            domain_types=[identifiers.DomainTypeId(dt.id) for dt in domain_types],
             workflow_stages=[
                 identifiers.WorkflowStageId(ws.id) for ws in workflow_stages
             ],
@@ -97,9 +103,11 @@ async def generate_many_projects(
                 f"Creating project {i + 1}/{num_projects}..."
             )
             project_to_create, missions_info = next(project_generator)
+            request_id = identifiers.RequestId(uuid.uuid4())
             created.append(
-                await operations.create_project(
-                    project_to_create,
+                await project_ops.create_project(
+                    request_id=request_id,
+                    to_create=project_to_create,
                     initiator=admin_,
                     session=session,
                     event_dispatcher=emitter,
@@ -111,18 +119,17 @@ async def generate_many_projects(
                 ctx.obj["main"].status_console.print(
                     f"\tCreating mission ({mission_index + 1}/{len(missions_info)}) for project with {len(records_to_create)} records..."
                 )
-                await operations.create_survey_mission(
-                    mission_to_create,
+                await mission_ops.create_survey_mission(
+                    request_id=request_id,
+                    to_create=mission_to_create,
                     initiator=admin_,
                     session=session,
                     event_dispatcher=emitter,
                 )
                 for record_index, record_to_create in enumerate(records_to_create):
-                    # ctx.obj["main"].status_console.print(
-                    #     f"\t\tCreating record ({record_index + 1}/{len(records_to_create)}) for mission..."
-                    # )
-                    await operations.create_survey_related_record(
-                        record_to_create,
+                    await record_ops.create_survey_related_record(
+                        request_id=request_id,
+                        to_create=record_to_create,
                         initiator=admin_,
                         session=session,
                         event_dispatcher=emitter,
@@ -206,8 +213,9 @@ async def old_load_sample_projects(ctx: typer.Context):
             )
             try:
                 created.append(
-                    await operations.create_project(
-                        to_create,
+                    await project_ops.create_project(
+                        request_id=identifiers.RequestId(uuid.uuid4()),
+                        to_create=to_create,
                         initiator=admin_,
                         session=session,
                         event_dispatcher=settings.get_event_dispatcher(),
@@ -225,7 +233,7 @@ async def old_load_sample_projects(ctx: typer.Context):
                 else:
                     raise RuntimeError from err
     for created_project in created:
-        to_show = schemas.ProjectReadListItem(**created_project.model_dump())
+        to_show = project_schemas.ProjectReadListItem(**created_project.model_dump())
         ctx.obj["main"].status_console.print(to_show)
 
 
@@ -239,8 +247,9 @@ async def load_sample_survey_missions(ctx: typer.Context):
         for to_create in sampledata.get_survey_missions_to_create(admin_):
             try:
                 created.append(
-                    await operations.create_survey_mission(
-                        to_create,
+                    await mission_ops.create_survey_mission(
+                        request_id=identifiers.RequestId(uuid.uuid4()),
+                        to_create=to_create,
                         initiator=admin_,
                         session=session,
                         event_dispatcher=settings.get_event_dispatcher(),
@@ -255,7 +264,7 @@ async def load_sample_survey_missions(ctx: typer.Context):
                 else:
                     raise RuntimeError from err
     for created_survey_mission in created:
-        to_show = schemas.SurveyMissionReadListItem.from_db_instance(
+        to_show = mission_schemas.SurveyMissionReadListItem.from_db_instance(
             created_survey_mission
         )
         ctx.obj["main"].status_console.print(to_show)
@@ -268,19 +277,20 @@ async def load_sample_survey_related_records(ctx: typer.Context):
     admin_ = ctx.obj["admin_user"]
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        all_dataset_categories = await queries.collect_all_dataset_categories(session)
-        all_domain_types = await queries.collect_all_domain_types(session)
-        all_workflow_stages = await queries.collect_all_workflow_stages(session)
+        all_dataset_categories = await record_queries.collect_all_dataset_categories(
+            session
+        )
+        all_workflow_stages = await record_queries.collect_all_workflow_stages(session)
         for to_create in sampledata.get_survey_related_records_to_create(
             owner=admin_,
             dataset_categories={c.name["en"]: c for c in all_dataset_categories},
-            domain_types={d.name["en"]: d for d in all_domain_types},
             workflow_stages={w.name["en"]: w for w in all_workflow_stages},
         ):
             try:
                 created.append(
-                    await operations.create_survey_related_record(
-                        to_create,
+                    await record_ops.create_survey_related_record(
+                        request_id=identifiers.RequestId(uuid.uuid4()),
+                        to_create=to_create,
                         initiator=admin_,
                         session=session,
                         event_dispatcher=settings.get_event_dispatcher(),
@@ -295,7 +305,7 @@ async def load_sample_survey_related_records(ctx: typer.Context):
                 else:
                     raise RuntimeError from err
     for created_survey_record in created:
-        to_show = schemas.SurveyRelatedRecordReadListItem.from_db_instance(
+        to_show = record_schemas.SurveyRelatedRecordReadListItem.from_db_instance(
             created_survey_record
         )
         ctx.obj["main"].status_console.print(to_show)

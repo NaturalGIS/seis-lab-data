@@ -2,16 +2,32 @@ import logging
 import re
 import uuid
 from collections.abc import AsyncIterator
-from typing import AsyncGenerator
+from typing import (
+    AsyncGenerator,
+    cast,
+)
 
 from anyio import Path
 from sqlmodel.ext.asyncio.session import AsyncSession
+from pylnk3 import parse as pylnk3_parse
 
 from .. import (
     config,
     constants,
     errors,
-    permissions,
+)
+from ..db import models
+from ..db.queries import (
+    discovery as discovery_queries,
+    projects as project_queries,
+    surveymissions as mission_queries,
+    surveyrelatedrecords as record_queries,
+    recordassets as asset_queries,
+)
+from ..db.commands import discovery as discovery_commands
+from ..permissions import (
+    discovery as discovery_permissions,
+    projects as project_permissions,
 )
 from ..schemas import (
     common,
@@ -22,22 +38,151 @@ from ..schemas import (
     surveyrelatedrecords as record_schemas,
     user as user_schemas,
 )
-from ..db import models
-from ..db.queries import (
-    projects as project_queries,
-    surveymissions as survey_mission_queries,
-    surveyrelatedrecords as record_queries,
-    recordassets as asset_queries,
-)
 from .. import dispatch
 
 from . import (
     projects as project_ops,
-    surveymissions as survey_mission_ops,
+    surveymissions as mission_ops,
     surveyrelatedrecords as record_ops,
 )
 
 logger = logging.getLogger(__name__)
+
+
+async def create_asset_discovery_configuration(
+    *,
+    request_id: identifiers.RequestId,
+    to_create: discovery_schemas.AssetDiscoveryConfigurationCreate,
+    initiator: user_schemas.User,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+) -> models.AssetDiscoveryConfiguration | None:
+    try:
+        if not discovery_permissions.can_create_asset_discovery_configuration(
+            initiator
+        ):
+            raise errors.SeisLabDataError(
+                "User is not allowed to create an asset discovery configuration."
+            )
+        asset_discovery_configuration = (
+            await discovery_commands.create_asset_discovery_configuration(
+                session, to_create
+            )
+        )
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.AssetDiscoveryConfigurationNotCreatedEvent(
+                request_id=request_id, initiator=initiator.id, details=str(err)
+            )
+        )
+        return None
+
+    await event_dispatcher(
+        event_schemas.AssetDiscoveryConfigurationCreatedEvent(
+            request_id=request_id,
+            asset_discovery_configuration_id=identifiers.AssetDiscoveryConfId(
+                asset_discovery_configuration.id
+            ),
+            initiator=initiator.id,
+        )
+    )
+    return asset_discovery_configuration
+
+
+async def update_asset_discovery_configuration(
+    request_id: identifiers.RequestId,
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId,
+    to_update: discovery_schemas.AssetDiscoveryConfigurationUpdate,
+    initiator: user_schemas.User,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+) -> models.AssetDiscoveryConfiguration | None:
+    try:
+        if (
+            asset_discovery_conf
+            := await discovery_queries.get_asset_discovery_configuration(
+                session, asset_discovery_configuration_id
+            )
+        ) is None:
+            raise errors.SeisLabDataError(
+                f"asset discovery configuration with id {asset_discovery_configuration_id} does not exist."
+            )
+        if not discovery_permissions.can_update_asset_discovery_configuration(
+            initiator
+        ):
+            raise errors.SeisLabDataError(
+                "User is not allowed to update asset discovery configuration."
+            )
+        updated_asset_discovery_conf = (
+            await discovery_commands.update_asset_discovery_configuration(
+                session, asset_discovery_conf, to_update
+            )
+        )
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.AssetDiscoveryConfigurationNotUpdatedEvent(
+                request_id=request_id,
+                asset_discovery_configuration_id=asset_discovery_configuration_id,
+                initiator=initiator.id,
+                details=str(err),
+            )
+        )
+        return None
+
+    await event_dispatcher(
+        event_schemas.AssetDiscoveryConfigurationUpdatedEvent(
+            request_id=request_id,
+            asset_discovery_configuration_id=asset_discovery_configuration_id,
+            initiator=initiator.id,
+        )
+    )
+    return updated_asset_discovery_conf
+
+
+async def delete_asset_discovery_configuration(
+    *,
+    request_id: identifiers.RequestId,
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId,
+    initiator: user_schemas.User,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+) -> None:
+    try:
+        if (
+            await discovery_queries.get_asset_discovery_configuration(
+                session, asset_discovery_configuration_id
+            )
+        ) is None:
+            raise errors.SeisLabDataError(
+                f"asset discovery configuration with id {asset_discovery_configuration_id} does not exist."
+            )
+        if not discovery_permissions.can_delete_asset_discovery_configuration(
+            initiator
+        ):
+            raise errors.SeisLabDataError(
+                "User is not allowed to delete asset discovery configuration."
+            )
+        await discovery_commands.delete_asset_discovery_configuration(
+            session, asset_discovery_configuration_id
+        )
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.AssetDiscoveryConfigurationNotDeletedEvent(
+                request_id=request_id,
+                asset_discovery_configuration_id=asset_discovery_configuration_id,
+                initiator=initiator.id,
+                details=str(err),
+            )
+        )
+        return None
+
+    await event_dispatcher(
+        event_schemas.AssetDiscoveryConfigurationDeletedEvent(
+            request_id=request_id,
+            asset_discovery_configuration_id=asset_discovery_configuration_id,
+            initiator=initiator.id,
+        )
+    )
 
 
 def _get_survey_mission_discovery_conf(
@@ -149,14 +294,6 @@ async def discover_records(
             f"Unknown dataset category: {record_discovery_config.dataset_category!r}"
         )
     if (
-        domain_type := await record_queries.get_domain_type_by_english_name(
-            session, record_discovery_config.domain_type
-        )
-    ) is None:
-        raise errors.SeisLabDataError(
-            f"Unknown domain type: {record_discovery_config.domain_type!r}"
-        )
-    if (
         workflow_stage := await record_queries.get_workflow_stage_by_english_name(
             session, record_discovery_config.workflow_stage
         )
@@ -231,7 +368,6 @@ async def discover_records(
                     dataset_category_id=identifiers.DatasetCategoryId(
                         dataset_category.id
                     ),
-                    domain_type_id=identifiers.DomainTypeId(domain_type.id),
                     workflow_stage_id=identifiers.WorkflowStageId(workflow_stage.id),
                     bbox_4326=None,
                     temporal_extent_begin=None,
@@ -476,7 +612,7 @@ async def discover_project_survey_missions(
             )
         ) is None:
             continue
-        db_survey_mission = await survey_mission_ops.create_survey_mission(
+        db_survey_mission = await mission_ops.create_survey_mission(
             request_id=request_id,
             to_create=mission_to_create,
             initiator=user,
@@ -507,8 +643,7 @@ async def _discover_survey_mission(
         return None
     project_id = identifiers.ProjectId(project.id)
     if (
-        existing_survey_mission
-        := await survey_mission_queries.get_survey_mission_by_path(
+        existing_survey_mission := await mission_queries.get_survey_mission_by_path(
             session, project_id, survey_mission_discovery_conf.relative_path
         )
     ) is not None:
@@ -543,7 +678,7 @@ async def run_project_discovery(
             raise errors.SeisLabDataError(
                 f"Project with id {project_id} does not exist."
             )
-        if not permissions.can_discover_project(user, project):
+        if not project_permissions.can_discover_project(user, project):
             raise errors.SeisLabDataError(
                 "User is not allowed to run discovery on this project."
             )
@@ -584,7 +719,7 @@ async def run_project_discovery(
                     initiator=user.id if user else "",
                 )
             )
-            await survey_mission_ops.change_survey_mission_status(
+            await mission_ops.change_survey_mission_status(
                 request_id=request_id,
                 target_status=constants.SurveyMissionStatus.UNDER_DISCOVERY,
                 survey_mission_id=survey_mission_id,
@@ -604,7 +739,7 @@ async def run_project_discovery(
                 ):
                     pass
             finally:
-                await survey_mission_ops.change_survey_mission_status(
+                await mission_ops.change_survey_mission_status(
                     request_id=request_id,
                     target_status=constants.SurveyMissionStatus.DRAFT,
                     survey_mission_id=survey_mission_id,
@@ -623,9 +758,264 @@ async def run_project_discovery(
         )
 
 
-async def new_discover_records(
-    base_path: Path,
-    asset_discovery_configuration: discovery_schemas.NewAssetDiscoveryConfiguration,
+async def new_run_project_discovery(
+    *,
+    request_id: identifiers.RequestId,
+    project_id: identifiers.ProjectId,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+    settings: config.SeisLabDataSettings,
+    user: user_schemas.User,
+) -> None:
+    try:
+        if (project := await project_queries.get_project(session, project_id)) is None:
+            raise errors.SeisLabDataError(
+                f"Project with id {project_id} does not exist."
+            )
+        if not project_permissions.can_discover_project(user, project):
+            raise errors.SeisLabDataError(
+                "User is not allowed to run disovery on this project."
+            )
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.ProjectDiscoveryFailedEvent(
+                request_id=request_id,
+                project_id=project_id,
+                initiator=user.id if user else "",
+                details=str(err),
+            )
+        )
+        return
+
+    db_project = await project_ops.change_project_status(
+        request_id=request_id,
+        target_status=constants.ProjectStatus.UNDER_DISCOVERY,
+        project_id=project_id,
+        initiator=user,
+        session=session,
+        event_dispatcher=event_dispatcher,
+    )
+    try:
+        discovered_missions = await _new_discover_project_missions(
+            request_id=request_id,
+            project=cast(models.Project, db_project),
+            session=session,
+            event_dispatcher=event_dispatcher,
+            settings=settings,
+            user=user,
+        )
+        asset_discovery_configs = (
+            await discovery_queries.collect_all_asset_discovery_configurations(session)
+        )
+        for mission in discovered_missions:
+            survey_mission_id = identifiers.SurveyMissionId(mission.id)
+            await mission_ops.change_survey_mission_status(
+                request_id=request_id,
+                target_status=constants.SurveyMissionStatus.UNDER_DISCOVERY,
+                survey_mission_id=survey_mission_id,
+                initiator=user,
+                session=session,
+                event_dispatcher=event_dispatcher,
+            )
+            try:
+                await new_discover_mission_records(
+                    request_id=request_id,
+                    mission=mission,
+                    session=session,
+                    event_dispatcher=event_dispatcher,
+                    settings=settings,
+                    user=user,
+                    asset_discovery_configs=asset_discovery_configs,
+                )
+            finally:
+                await mission_ops.change_survey_mission_status(
+                    request_id=request_id,
+                    target_status=constants.SurveyMissionStatus.DRAFT,
+                    survey_mission_id=survey_mission_id,
+                    initiator=user,
+                    session=session,
+                    event_dispatcher=event_dispatcher,
+                )
+
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.ProjectDiscoveryFailedEvent(
+                request_id=request_id,
+                project_id=project_id,
+                initiator=user.id,
+                details=str(err),
+            )
+        )
+    finally:
+        await project_ops.change_project_status(
+            request_id=request_id,
+            target_status=constants.ProjectStatus.DRAFT,
+            project_id=project_id,
+            initiator=user,
+            session=session,
+            event_dispatcher=event_dispatcher,
+        )
+        await event_dispatcher(
+            event_schemas.ProjectDiscoverySucceededEvent(
+                request_id=request_id, project_id=project_id, initiator=user.id
+            )
+        )
+
+
+async def _new_discover_project_missions(
+    *,
+    request_id: identifiers.RequestId,
+    project: models.Project,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+    settings: config.SeisLabDataSettings,
+    user: user_schemas.User,
+) -> list[models.SurveyMission]:
+    """Discover project missions.
+
+    A project's `root_dir` is expected to have standardized contents. Among them is a 'project-surveys'
+    subdirectory which will either contain the survey missions themselves, or a set of MS Windows shortcuts
+    that have the location of survey missions.
+    """
+    project_id = identifiers.ProjectId(project.id)
+    discovered_missions = []
+    archive_root = Path(str(settings.readonly_archive_root_directory))
+    project_root = archive_root / project.root_path
+    missions_root = project_root / "project-surveys"
+    logger.debug(f"{missions_root=}")
+    if not (await missions_root.is_dir()):
+        raise errors.SeisLabDataError(
+            f"Project's survey missions root {missions_root=} is not a valid directory"
+        )
+
+    async for item in missions_root.iterdir():
+        logger.debug(f"Processing {item=}...")
+        if await item.is_dir():
+            mission_relative_path = str(item.relative_to(project_root))
+        elif await item.is_file():
+            if (
+                mission_path := await scan_ms_windows_shortcut_file(item, archive_root)
+            ) is None:
+                logger.debug(f"Path {item} is not a valid mission path - ignoring")
+                continue
+            else:
+                mission_relative_path = str(mission_path.relative_to(archive_root))
+        else:
+            continue
+
+        if (
+            db_mission := await mission_queries.get_survey_mission_by_path(
+                session, project_id, mission_relative_path
+            )
+        ) is None:
+            db_mission = await mission_ops.create_survey_mission(
+                request_id=request_id,
+                to_create=mission_schemas.SurveyMissionCreate(
+                    id=identifiers.SurveyMissionId(uuid.uuid4()),
+                    owner_id=identifiers.UserId(user.id),
+                    project_id=project_id,
+                    name=common.LocalizableDraftName(
+                        en=Path(mission_relative_path).stem
+                    ),
+                    description=common.LocalizableDraftDescription(en=""),
+                    relative_path=mission_relative_path,
+                ),
+                initiator=user,
+                session=session,
+                event_dispatcher=event_dispatcher,
+            )
+            discovered_missions.append(db_mission)
+            await event_dispatcher(
+                event_schemas.ProjectDiscoveryProgressEvent(
+                    project_id=project_id,
+                    details=f"Discovered survey mission {db_mission.id}",
+                    initiator=user.id,
+                )
+            )
+        else:
+            logger.info(
+                f"A survey_mission with path {mission_relative_path!r} already exists - skipping creation"
+            )
+            discovered_missions.append(db_mission)
+    return discovered_missions
+
+
+async def scan_ms_windows_shortcut_file(path: Path, archive_root: Path) -> Path | None:
+    logger.debug(f"scanning {path=}...")
+    result = pylnk3_parse(str(path))
+    base_name = result._link_info.base_name
+    logger.debug(f"{base_name=}")
+    relative_to_root = base_name.replace("\\", "/")
+    if await (candidate := archive_root / relative_to_root).is_dir():
+        return candidate
+    else:
+        return None
+
+
+async def new_discover_mission_records(
+    *,
+    request_id: identifiers.RequestId,
+    mission: models.SurveyMission,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+    settings: config.SeisLabDataSettings,
+    user: user_schemas.User,
+    asset_discovery_configs: list[models.AssetDiscoveryConfiguration],
+) -> None:
+    for asset_discovery_conf in asset_discovery_configs:
+        full_path_regexp = "/".join(
+            (
+                str(settings.readonly_archive_root_directory),
+                mission.project.root_path,
+                mission.relative_path,
+                asset_discovery_conf.relative_path_regexp,
+            )
+        )
+        logger.debug(f"{full_path_regexp=}")
+        async for found_path in new_discover_asset_paths(full_path_regexp):
+            # each found_path is to become a record with a single asset
+            relative_file_path = str(found_path.relative_to(mission.relative_path))
+            if (
+                await asset_queries.get_record_asset_by_file_path(
+                    session, relative_file_path
+                )
+            ) is None:
+                # create a new record and a new asset
+                await record_ops.create_survey_related_record(
+                    request_id=request_id,
+                    to_create=record_schemas.SurveyRelatedRecordCreate(
+                        id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
+                        owner_id=identifiers.UserId(user.id),
+                        survey_mission_id=identifiers.SurveyMissionId(mission.id),
+                        name=common.LocalizableDraftName(en=found_path.name),
+                        description=common.LocalizableDraftDescription(en=""),
+                        dataset_category_id=identifiers.DatasetCategoryId(
+                            asset_discovery_conf.dataset_category_id
+                        ),
+                        workflow_stage_id=identifiers.WorkflowStageId(
+                            asset_discovery_conf.workflow_stage_id
+                        ),
+                        assets=[
+                            record_schemas.RecordAssetCreate(
+                                id=identifiers.RecordAssetId(uuid.uuid4()),
+                                name=common.LocalizableDraftName(en=found_path.stem),
+                                description=common.LocalizableDraftDescription(en=""),
+                                relative_path=relative_file_path,
+                            )
+                        ],
+                    ),
+                    initiator=user,
+                    session=session,
+                    event_dispatcher=event_dispatcher,
+                )
+            else:
+                logger.debug(
+                    f"file {found_path!r} is already tracked in the DB - ignoring..."
+                )
+
+
+async def new_discover_asset_paths(
+    full_path_regexp: str,
 ) -> AsyncGenerator[Path, None]:
     """Discover assets for a particular asset discovery configuration.
 
@@ -634,9 +1024,6 @@ async def new_discover_records(
     - One record only holds one asset. Although generally we support multiple assets per record,
       for discovery the only supported use case is a 1:1 mapping between record and asset.
     """
-    full_path_regexp = str(
-        base_path / asset_discovery_configuration.relative_path_regexp
-    )
     root, pattern = split_pattern_path(full_path_regexp)
     if not pattern:
         if await root.is_file():

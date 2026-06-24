@@ -48,6 +48,7 @@ from .routes import (
 from .routes.projects import routes as projects_routes
 from .routes.surveymissions import routes as missions_routes
 from .routes.surveyrelatedrecords import routes as records_routes
+from .routes.discovery import routes as discovery_routes
 
 
 class State(TypedDict):
@@ -148,6 +149,11 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                 "/survey-related-records",
                 name="survey_related_records",
                 routes=records_routes,
+            ),
+            Mount(
+                "/asset-discovery-configurations",
+                name="asset_discovery_configurations",
+                routes=discovery_routes,
             ),
         ],
         lifespan=lifespan,

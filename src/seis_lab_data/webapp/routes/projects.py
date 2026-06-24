@@ -22,12 +22,15 @@ from ... import (
     constants,
     errors,
     geojson,
-    permissions,
     subscribers,
 )
 from ...operations import (
     projects as project_ops,
     surveymissions as survey_mission_ops,
+)
+from ...permissions import (
+    projects as project_permissions,
+    surveymissions as mission_permissions,
 )
 from ...tasks import (
     discovery as discovery_tasks,
@@ -258,6 +261,7 @@ async def get_project_new_updates(request: Request):
     return DatastarResponse(event_streamer())
 
 
+@requires_auth
 async def stream_to_update_page(request: Request):
     """Stream relevant updates for the project update page."""
     try:
@@ -391,9 +395,11 @@ async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails
             ),
         ),
         permissions=webui_schemas.UserPermissionDetails(
-            can_delete=permissions.can_delete_project(user, project),
-            can_update=permissions.can_update_project(user, project),
-            can_create_children=permissions.can_create_survey_mission(user, project),
+            can_delete=project_permissions.can_delete_project(user, project),
+            can_update=project_permissions.can_update_project(user, project),
+            can_create_children=mission_permissions.can_create_survey_mission(
+                user, project
+            ),
         ),
         breadcrumbs=[
             webui_schemas.BreadcrumbItem(
@@ -543,7 +549,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                     ),
                     webui_schemas.BreadcrumbItem(name=_("Projects")),
                 ],
-                "user_can_create": permissions.can_create_project(user),
+                "user_can_create": project_permissions.can_create_project(user),
                 "search_initial_value": list_filters.get_text_search_filter(
                     current_language
                 ),

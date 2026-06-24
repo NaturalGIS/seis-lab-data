@@ -9,7 +9,7 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
 from ...constants import AUTH_CLIENT_NAME
-from ...db import commands
+from ...db.commands.users import upsert_user
 from ...schemas import (
     identifiers,
     user as user_schemas,
@@ -54,7 +54,7 @@ async def auth_callback(request: Request):
             session_maker = request.state.settings.get_db_session_maker()
             try:
                 async with session_maker() as session:
-                    await commands.upsert_user(session, user)
+                    await upsert_user(session, user)
             except Exception:
                 logger.warning("Failed to upsert user to local DB", exc_info=True)
         response = RedirectResponse(url=request.url_for("home"), status_code=302)

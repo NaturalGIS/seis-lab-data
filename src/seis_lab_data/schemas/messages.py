@@ -13,11 +13,60 @@ from .. import constants
 import pydantic
 
 
-class ProjectDiscoverySuccessfulMessage(pydantic.BaseModel):
+class AssetDiscoveryConfigurationCreatedMessage(pydantic.BaseModel):
+    type: Literal["asset_discovery_configuration_created"] = (
+        "asset_discovery_configuration_created"
+    )
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId
+    request_id: identifiers.RequestId | None = None
+
+
+class AssetDiscoveryConfigurationNotCreatedMessage(pydantic.BaseModel):
+    type: Literal["asset_discovery_configuration_not_created"] = (
+        "asset_discovery_configuration_not_created"
+    )
+    request_id: identifiers.RequestId | None = None
+    details: str
+
+
+class AssetDiscoveryConfigurationUpdatedMessage(pydantic.BaseModel):
+    type: Literal["asset_discovery_configuration_updated"] = (
+        "asset_discovery_configuration_updated"
+    )
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId
+    request_id: identifiers.RequestId | None = None
+
+
+class AssetDiscoveryConfigurationNotUpdatedMessage(pydantic.BaseModel):
+    type: Literal["asset_discovery_configuration_not_updated"] = (
+        "asset_discovery_configuration_not_updated"
+    )
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId
+    request_id: identifiers.RequestId | None = None
+    details: str
+
+
+class AssetDiscoveryConfigurationDeletedMessage(pydantic.BaseModel):
+    type: Literal["asset_discovery_configuration_deleted"] = (
+        "asset_discovery_configuration_deleted"
+    )
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId
+    request_id: identifiers.RequestId | None = None
+
+
+class AssetDiscoveryConfigurationNotDeletedMessage(pydantic.BaseModel):
+    type: Literal["asset_discovery_configuration_not_deleted"] = (
+        "asset_discovery_configuration_not_deleted"
+    )
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId
+    request_id: identifiers.RequestId | None = None
+    details: str
+
+
+class ProjectDiscoverySucceededMessage(pydantic.BaseModel):
     type: Literal["project_discovery_successful"] = "project_discovery_successful"
     request_id: identifiers.RequestId
     project_id: identifiers.ProjectId
-    details: str | None = None
 
 
 class ProjectDiscoveryFailedMessage(pydantic.BaseModel):
@@ -178,7 +227,13 @@ class SurveyRelatedRecordValidatedMessage(pydantic.BaseModel):
 
 
 SldPubSubMessage: TypeAlias = Annotated[
-    ProjectDiscoverySuccessfulMessage
+    AssetDiscoveryConfigurationCreatedMessage
+    | AssetDiscoveryConfigurationNotCreatedMessage
+    | AssetDiscoveryConfigurationUpdatedMessage
+    | AssetDiscoveryConfigurationNotUpdatedMessage
+    | AssetDiscoveryConfigurationDeletedMessage
+    | AssetDiscoveryConfigurationNotDeletedMessage
+    | ProjectDiscoverySucceededMessage
     | ProjectDiscoveryFailedMessage
     | ProjectCreatedMessage
     | ProjectNotCreatedMessage

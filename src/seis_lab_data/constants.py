@@ -23,6 +23,9 @@ SURVEY_RELATED_RECORD_MAX_RELATED: typing.Final[int] = 5
 NEW_TOPIC_PROJECTS: typing.Final[str] = "projects"
 NEW_TOPIC_SURVEY_MISSIONS: typing.Final[str] = "survey_missions"
 NEW_TOPIC_SURVEY_RELATED_RECORDS: typing.Final[str] = "survey_related_records"
+NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS: typing.Final[str] = (
+    "asset_discovery_conigurations"
+)
 
 PROGRESS_TOPIC_NAME_TEMPLATE: typing.Final[str] = "progress:{request_id}"
 

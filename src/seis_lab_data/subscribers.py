@@ -33,6 +33,11 @@ class HandlerContext:
 
 
 @dataclasses.dataclass(frozen=True)
+class AssetDiscoveryConfigurationHandlerContext(HandlerContext):
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId | None = None
+
+
+@dataclasses.dataclass(frozen=True)
 class ProjectHandlerContext(HandlerContext):
     project_id: identifiers.ProjectId | None = None
 

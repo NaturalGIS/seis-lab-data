@@ -104,16 +104,8 @@ class DatasetCategory(SQLModel, table=True):
     survey_related_records: list["SurveyRelatedRecord"] = Relationship(
         back_populates="dataset_category",
     )
-
-
-class DomainType(SQLModel, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
-        Field(sa_column=Column(JSONB))
-    )
-
-    survey_related_records: list["SurveyRelatedRecord"] = Relationship(
-        back_populates="domain_type",
+    asset_discovery_configurations: list["AssetDiscoveryConfiguration"] = Relationship(
+        back_populates="dataset_category"
     )
 
 
@@ -125,6 +117,27 @@ class WorkflowStage(SQLModel, table=True):
 
     survey_related_records: list["SurveyRelatedRecord"] = Relationship(
         back_populates="workflow_stage",
+    )
+    asset_discovery_configurations: list["AssetDiscoveryConfiguration"] = Relationship(
+        back_populates="workflow_stage"
+    )
+
+
+class AssetDiscoveryConfiguration(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    name: str = Field(unique=True)
+    relative_path_regexp: str
+    workflow_stage_id: uuid.UUID | None = Field(
+        foreign_key="workflowstage.id", ondelete="CASCADE", index=True
+    )
+    dataset_category_id: uuid.UUID | None = Field(
+        foreign_key="datasetcategory.id", ondelete="CASCADE", index=True
+    )
+    dataset_category: DatasetCategory = Relationship(
+        back_populates="asset_discovery_configurations"
+    )
+    workflow_stage: WorkflowStage = Relationship(
+        back_populates="asset_discovery_configurations"
     )
 
 
@@ -155,9 +168,6 @@ class SurveyRelatedRecord(SQLModel, table=True):
     dataset_category_id: uuid.UUID | None = Field(
         foreign_key="datasetcategory.id", default=None, ondelete="SET NULL"
     )
-    domain_type_id: uuid.UUID | None = Field(
-        foreign_key="domaintype.id", default=None, ondelete="SET NULL"
-    )
     workflow_stage_id: uuid.UUID | None = Field(
         foreign_key="workflowstage.id", default=None, ondelete="SET NULL"
     )
@@ -170,7 +180,6 @@ class SurveyRelatedRecord(SQLModel, table=True):
     dataset_category: DatasetCategory = Relationship(
         back_populates="survey_related_records"
     )
-    domain_type: DomainType = Relationship(back_populates="survey_related_records")
     workflow_stage: WorkflowStage = Relationship(
         back_populates="survey_related_records"
     )

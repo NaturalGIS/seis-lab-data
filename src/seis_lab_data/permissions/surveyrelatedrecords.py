@@ -28,22 +28,6 @@ def can_delete_dataset_category(
     )
 
 
-def can_create_domain_type(
-    user: User | None,
-) -> bool:
-    return user is not None and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(
-        user.roles
-    )
-
-
-def can_delete_domain_type(
-    user: User | None,
-) -> bool:
-    return user is not None and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(
-        user.roles
-    )
-
-
 def can_create_workflow_stage(
     user: User | None,
 ) -> bool:

@@ -22,13 +22,16 @@ from ... import (
     constants,
     errors,
     geojson,
-    permissions,
     subscribers,
 )
 from ...operations import (
     projects as project_ops,
     surveymissions as survey_mission_ops,
     surveyrelatedrecords as survey_related_record_ops,
+)
+from ...permissions import (
+    surveymissions as mission_permissions,
+    surveyrelatedrecords as record_permissions,
 )
 from ...tasks import (
     surveymissions as mission_tasks,
@@ -122,11 +125,15 @@ async def _get_survey_mission_details(
             ),
         ),
         permissions=webui_schemas.UserPermissionDetails(
-            can_create_children=permissions.can_create_survey_related_record(
+            can_create_children=record_permissions.can_create_survey_related_record(
                 user, survey_mission
             ),
-            can_update=permissions.can_update_survey_mission(user, survey_mission),
-            can_delete=permissions.can_delete_survey_mission(user, survey_mission),
+            can_update=mission_permissions.can_update_survey_mission(
+                user, survey_mission
+            ),
+            can_delete=mission_permissions.can_delete_survey_mission(
+                user, survey_mission
+            ),
         ),
         breadcrumbs=[
             webui_schemas.BreadcrumbItem(
@@ -645,7 +652,6 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             ),
             relative_path=form_instance.relative_path.data,
             dataset_category_id=form_instance.dataset_category_id.data,
-            domain_type_id=form_instance.domain_type_id.data,
             workflow_stage_id=form_instance.workflow_stage_id.data,
             bbox_4326=(
                 f"POLYGON(("

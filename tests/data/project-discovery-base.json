@@ -20,7 +20,6 @@
   "records": {
     "raw_bathy": {
       "dataset_category": "bathymetry",
-      "domain_type": "geophysical",
       "workflow_stage": "raw data",
       "metadata_extractor": "seis_lab_data.extractors.bathymetry.extractor_default_or_customizable",
       "name": {"pt": "Batimetria em bruto", "en": "Raw bathymetry"},
@@ -38,7 +37,6 @@
     },
     "processed_bathy": {
       "dataset_category": "bathymetry",
-      "domain_type": "geophysical",
       "workflow_stage": "processed data",
       "metadata_extractor": "seis_lab_data.extractors.bathymetry.extractor_default_or_customizable",
       "name": {"pt": "Batimetria processada", "en": "Processed bathymetry"},
@@ -54,7 +52,6 @@
     },
     "raw_uhrs_line": {
       "dataset_category": "seismic",
-      "domain_type": "geophysical",
       "workflow_stage": "raw data",
       "metadata_extractor": "seis_lab_data.extractors.bathymetry.extractor_default_or_customizable",
       "name": {"pt": "Sísmica UHRS raw", "en": "UHRS raw"},

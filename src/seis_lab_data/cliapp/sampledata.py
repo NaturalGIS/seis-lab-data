@@ -113,7 +113,6 @@ def get_projects_to_create(
                     ): discovery_schemas.SurveyRecordDiscoveryConfiguration(
                         id_=_real_raw_bathy_record_discovery_conf_id,
                         dataset_category="bathymetry",
-                        domain_type="geophysical",
                         workflow_stage="raw data",
                         name=discovery_schemas.TranslatableString(
                             {
@@ -183,7 +182,6 @@ def get_projects_to_create(
                     ): discovery_schemas.SurveyRecordDiscoveryConfiguration(
                         id_=_raw_bathy_record_discovery_conf_id,
                         dataset_category="bathymetry",
-                        domain_type="geophysical",
                         workflow_stage="raw data",
                         name=discovery_schemas.TranslatableString(
                             {
@@ -242,7 +240,6 @@ def get_projects_to_create(
                     ): discovery_schemas.SurveyRecordDiscoveryConfiguration(
                         id_=_processed_bathy_record_discovery_conf_id,
                         dataset_category="bathymetry",
-                        domain_type="geophysical",
                         workflow_stage="processed data",
                         name=discovery_schemas.TranslatableString(
                             {
@@ -510,7 +507,6 @@ def get_survey_missions_to_create(
 def get_survey_related_records_to_create(
     owner: user_schemas.User,
     dataset_categories: dict[str, models.DatasetCategory],
-    domain_types: dict[str, models.DomainType],
     workflow_stages: dict[str, models.WorkflowStage],
 ) -> list[record_schemas.SurveyRelatedRecordCreate]:
     return [
@@ -531,7 +527,6 @@ def get_survey_related_records_to_create(
             dataset_category_id=identifiers.DatasetCategoryId(
                 dataset_categories["bathymetry"].id
             ),
-            domain_type_id=identifiers.DomainTypeId(domain_types["geophysical"].id),
             workflow_stage_id=identifiers.WorkflowStageId(
                 workflow_stages["raw data"].id
             ),
@@ -587,7 +582,6 @@ def get_survey_related_records_to_create(
             dataset_category_id=identifiers.DatasetCategoryId(
                 dataset_categories["bathymetry"].id
             ),
-            domain_type_id=identifiers.DomainTypeId(domain_types["geophysical"].id),
             workflow_stage_id=identifiers.WorkflowStageId(
                 workflow_stages["raw data"].id
             ),
@@ -632,7 +626,6 @@ def get_survey_related_records_to_create(
 def generate_sample_projects(
     owners: Sequence[user_schemas.User],
     dataset_categories: Sequence[identifiers.DatasetCategoryId],
-    domain_types: Sequence[identifiers.DomainTypeId],
     workflow_stages: Sequence[identifiers.WorkflowStageId],
     root_path: str = "/archive",
 ) -> Iterator[
@@ -684,7 +677,7 @@ def generate_sample_projects(
             links=links,
         )
         mission_generator = generate_sample_survey_missions(
-            owners, project.id, dataset_categories, domain_types, workflow_stages
+            owners, project.id, dataset_categories, workflow_stages
         )
         missions = [next(mission_generator) for _ in range(_FAKE_EN.random_int(1, 10))]
         yield project, missions
@@ -694,7 +687,6 @@ def generate_sample_survey_missions(
     owners: Sequence[user_schemas.User],
     project_id: identifiers.ProjectId,
     dataset_categories: Sequence[identifiers.DatasetCategoryId],
-    domain_types: Sequence[identifiers.DomainTypeId],
     workflow_stages: Sequence[identifiers.WorkflowStageId],
 ) -> Iterator[
     tuple[
@@ -741,7 +733,7 @@ def generate_sample_survey_missions(
             links=links,
         )
         record_generator = generate_sample_survey_related_records(
-            owners, mission.id, dataset_categories, domain_types, workflow_stages
+            owners, mission.id, dataset_categories, workflow_stages
         )
         records = [next(record_generator) for _ in range(_FAKE_EN.random_int(1, 100))]
         yield mission, records
@@ -751,7 +743,6 @@ def generate_sample_survey_related_records(
     owners: Sequence[user_schemas.User],
     survey_mission_id: identifiers.SurveyMissionId,
     dataset_categories: Sequence[identifiers.DatasetCategoryId],
-    domain_types: Sequence[identifiers.DomainTypeId],
     workflow_stages: Sequence[identifiers.WorkflowStageId],
 ) -> Iterator[record_schemas.SurveyRelatedRecordCreate]:
     temporal_extent = _generate_sample_temporal_extent()
@@ -789,7 +780,6 @@ def generate_sample_survey_related_records(
             ),
             survey_mission_id=survey_mission_id,
             dataset_category_id=random.choice(dataset_categories),
-            domain_type_id=random.choice(domain_types),
             workflow_stage_id=random.choice(workflow_stages),
             relative_path=_FAKE_EN.file_path(
                 depth=_FAKE_EN.random_int(1, 8), absolute=False

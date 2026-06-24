@@ -16,6 +16,44 @@ class _EventBase:
     timestamp: dt.datetime = dataclasses.field(default_factory=get_utc_now)
 
 
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class AssetDiscoveryConfigurationCreatedEvent(_EventBase):
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId
+    request_id: identifiers.RequestId | None = None
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class AssetDiscoveryConfigurationNotCreatedEvent(_EventBase):
+    request_id: identifiers.RequestId | None = None
+    details: str
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class AssetDiscoveryConfigurationUpdatedEvent(_EventBase):
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId
+    request_id: identifiers.RequestId | None = None
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class AssetDiscoveryConfigurationNotUpdatedEvent(_EventBase):
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId
+    request_id: identifiers.RequestId | None = None
+    details: str
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class AssetDiscoveryConfigurationDeletedEvent(_EventBase):
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId
+    request_id: identifiers.RequestId | None = None
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class AssetDiscoveryConfigurationNotDeletedEvent(_EventBase):
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId
+    request_id: identifiers.RequestId | None = None
+    details: str
+
+
 # Project events
 
 
@@ -84,6 +122,12 @@ class ProjectValidatedEvent(_EventBase):
     project_id: identifiers.ProjectId
     is_valid: bool
     details: list[dict[str, str]]
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ProjectDiscoverySucceededEvent(_EventBase):
+    project_id: identifiers.ProjectId
+    request_id: identifiers.RequestId
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
@@ -255,16 +299,6 @@ class DatasetCategoryDeletedEvent(_EventBase):
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
-class DomainTypeCreatedEvent(_EventBase):
-    domain_type_id: identifiers.DomainTypeId
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class DomainTypeDeletedEvent(_EventBase):
-    domain_type_id: identifiers.DomainTypeId
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
 class WorkflowStageCreatedEvent(_EventBase):
     stage_id: identifiers.WorkflowStageId
 
@@ -275,7 +309,13 @@ class WorkflowStageDeletedEvent(_EventBase):
 
 
 SeisLabDataEvent: TypeAlias = (
-    ProjectCreatedEvent
+    AssetDiscoveryConfigurationCreatedEvent
+    | AssetDiscoveryConfigurationNotCreatedEvent
+    | AssetDiscoveryConfigurationUpdatedEvent
+    | AssetDiscoveryConfigurationNotUpdatedEvent
+    | AssetDiscoveryConfigurationDeletedEvent
+    | AssetDiscoveryConfigurationNotDeletedEvent
+    | ProjectCreatedEvent
     | ProjectNotCreatedEvent
     | ProjectUpdatedEvent
     | ProjectNotUpdatedEvent
@@ -285,6 +325,7 @@ SeisLabDataEvent: TypeAlias = (
     | ProjectStatusNotChangedEvent
     | ProjectValidatedEvent
     | ProjectNotValidatedEvent
+    | ProjectDiscoverySucceededEvent
     | ProjectDiscoveryFailedEvent
     | ProjectDiscoveryProgressEvent
     | SurveyMissionCreatedEvent
@@ -309,8 +350,6 @@ SeisLabDataEvent: TypeAlias = (
     | SurveyRelatedRecordNotValidatedEvent
     | DatasetCategoryCreatedEvent
     | DatasetCategoryDeletedEvent
-    | DomainTypeCreatedEvent
-    | DomainTypeDeletedEvent
     | WorkflowStageCreatedEvent
     | WorkflowStageDeletedEvent
 )

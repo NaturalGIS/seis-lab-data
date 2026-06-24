@@ -15,7 +15,7 @@ from wtforms import (
 )
 
 from ... import constants
-from ...db.queries import get_project_by_english_name
+from ...db.queries.projects import get_project_by_english_name
 from ...schemas import (
     discovery as discovery_schemas,
     identifiers,

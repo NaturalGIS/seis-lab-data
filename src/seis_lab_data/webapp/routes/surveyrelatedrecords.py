@@ -23,14 +23,14 @@ from ... import (
     constants,
     errors,
     geojson,
-    permissions,
     subscribers,
 )
+from ...constants import SURVEY_RELATED_RECORD_MAX_RELATED
 from ...operations import (
     surveymissions as survey_mission_ops,
     surveyrelatedrecords as survey_related_record_ops,
 )
-from ...constants import SURVEY_RELATED_RECORD_MAX_RELATED
+from ...permissions import surveyrelatedrecords as record_permissions
 from ...db import (
     models,
     queries,
@@ -91,7 +91,7 @@ async def _get_survey_related_record_details(
     serialized = webui_schemas.SurveyRelatedRecordReadDetail.from_db_instance(
         survey_related_record, related_to, subject_for
     )
-    can_update = permissions.can_update_survey_related_record(
+    can_update = record_permissions.can_update_survey_related_record(
         user, survey_related_record
     )
     return webui_schemas.SurveyRelatedRecordDetails(
@@ -99,7 +99,7 @@ async def _get_survey_related_record_details(
         permissions=webui_schemas.UserPermissionDetails(
             can_create_children=can_update,
             can_update=can_update,
-            can_delete=permissions.can_delete_survey_related_record(
+            can_delete=record_permissions.can_delete_survey_related_record(
                 user, survey_related_record
             ),
         ),
@@ -175,13 +175,6 @@ async def build_survey_related_record_form_instance(
             for dc in await queries.collect_all_dataset_categories(
                 session,
                 order_by_clause=models.DatasetCategory.name[current_language].astext,
-            )
-        ]
-        form_instance.domain_type_id.choices = [
-            (dt.id, dt.name.get(current_language, dt.name["en"]))
-            for dt in await queries.collect_all_domain_types(
-                session,
-                order_by_clause=models.DomainType.name[current_language].astext,
             )
         ]
         form_instance.workflow_stage_id.choices = [
@@ -495,7 +488,6 @@ async def get_update_form(request: Request):
                 "pt": details.item.description.pt,
             },
             "dataset_category_id": details.item.dataset_category.id,
-            "domain_type_id": details.item.domain_type.id,
             "workflow_stage_id": details.item.workflow_stage.id,
             "relative_path": details.item.relative_path,
             "bounding_box": {
@@ -1203,7 +1195,6 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 pt=form_instance.description.pt.data,
             ),
             dataset_category_id=form_instance.dataset_category_id.data,
-            domain_type_id=form_instance.domain_type_id.data,
             workflow_stage_id=form_instance.workflow_stage_id.data,
             relative_path=form_instance.relative_path.data,
             bbox_4326=(

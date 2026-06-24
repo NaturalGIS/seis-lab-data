@@ -1,0 +1,38 @@
+{% set id_ = item.id | string | replace('-', '') %}
+<div class="col">
+    <div class="card mb-3">
+        <div class="row g-0">
+            <div class="col-md-4">
+                <div class="placeholder-rectangle bg-secondary"></div>
+            </div>
+            <div class="col-md-8">
+                <div class="card-body">
+                    <div class="row justify-content-between">
+                        <div class="col-4">
+                            <h5 class="card-title">{{ item.name|default(_("name not available"), True) }}</h5>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <ul class="list-unstyled">
+                                <li class="card-text text-truncate">
+                                    {{ item.workflow_stage.name.en }}
+                                </li>
+                            </ul>
+                            <ul class="list-unstyled">
+                                <li class="card-text text-truncate">
+                                    {{ item.dataset_category.name.en }}
+                                </li>
+                            </ul>
+                            <ul class="list-unstyled">
+                                <li class="card-text text-truncate">
+                                    {{ item.relative_path_regexp }}
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

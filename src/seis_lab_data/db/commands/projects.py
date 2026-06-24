@@ -8,10 +8,8 @@ from ...schemas import (
     identifiers,
     projects as project_schemas,
 )
-from .. import (
-    models,
-    queries,
-)
+from .. import models
+from ..queries import projects as project_queries
 from .common import get_bbox_4326_for_db
 
 logger = logging.getLogger(__name__)
@@ -32,7 +30,7 @@ async def create_project(
         ),
     )
     if (
-        existing_project := await queries.get_project_by_english_name(
+        existing_project := await project_queries.get_project_by_english_name(
             session, to_create.name.en
         )
     ) is not None:
@@ -42,14 +40,14 @@ async def create_project(
     session.add(project)
     await session.commit()
     await session.refresh(project)
-    return await queries.get_project(session, to_create.id)
+    return await project_queries.get_project(session, to_create.id)
 
 
 async def delete_project(
     session: AsyncSession,
     project_id: identifiers.ProjectId,
 ) -> None:
-    if project := (await queries.get_project(session, project_id)):
+    if project := (await project_queries.get_project(session, project_id)):
         await session.delete(project)
         await session.commit()
     else:
@@ -87,17 +85,17 @@ async def update_project_validation_result(
     session.add(project)
     await session.commit()
     await session.refresh(project)
-    return await queries.get_project(session, identifiers.ProjectId(project.id))
+    return await project_queries.get_project(session, identifiers.ProjectId(project.id))
 
 
 async def set_project_status(
     session: AsyncSession, project_id: identifiers.ProjectId, status: ProjectStatus
 ) -> models.Project:
     """Unconditionally sets the project's status."""
-    if (project := (await queries.get_project(session, project_id))) is None:
+    if (project := (await project_queries.get_project(session, project_id))) is None:
         raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
     project.status = status
     session.add(project)
     await session.commit()
     await session.refresh(project)
-    return await queries.get_project(session, identifiers.ProjectId(project_id))
+    return await project_queries.get_project(session, identifiers.ProjectId(project_id))

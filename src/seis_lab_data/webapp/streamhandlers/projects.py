@@ -225,7 +225,7 @@ async def handle_detail_page_project_deletion_failure(
 
 
 async def handle_detail_page_project_discovery_successful(
-    message: message_schemas.ProjectDiscoverySuccessfulMessage,
+    message: message_schemas.ProjectDiscoverySucceededMessage,
     context: subscribers.ProjectHandlerContext,
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:

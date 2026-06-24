@@ -26,6 +26,56 @@ class RedisEventDispatcher:
 
     async def __call__(self, event: events.SeisLabDataEvent) -> None:
         match event:
+            case events.AssetDiscoveryConfigurationCreatedEvent():
+                await self._redis.publish(
+                    constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS,
+                    messages.AssetDiscoveryConfigurationCreatedMessage(
+                        asset_discovery_configuration_id=event.asset_discovery_configuration_id,
+                        request_id=event.request_id,
+                    ).model_dump_json(),
+                )
+            case events.AssetDiscoveryConfigurationNotCreatedEvent():
+                await self._redis.publish(
+                    constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS,
+                    messages.AssetDiscoveryConfigurationNotCreatedMessage(
+                        request_id=event.request_id,
+                        details=event.details,
+                    ).model_dump_json(),
+                )
+            case events.AssetDiscoveryConfigurationUpdatedEvent():
+                await self._redis.publish(
+                    constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS,
+                    messages.AssetDiscoveryConfigurationUpdatedMessage(
+                        asset_discovery_configuration_id=event.asset_discovery_configuration_id,
+                        request_id=event.request_id,
+                    ).model_dump_json(),
+                )
+            case events.AssetDiscoveryConfigurationNotUpdatedEvent():
+                await self._redis.publish(
+                    constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS,
+                    messages.AssetDiscoveryConfigurationNotUpdatedMessage(
+                        asset_discovery_configuration_id=event.asset_discovery_configuration_id,
+                        request_id=event.request_id,
+                        details=event.details,
+                    ).model_dump_json(),
+                )
+            case events.AssetDiscoveryConfigurationDeletedEvent():
+                await self._redis.publish(
+                    constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS,
+                    messages.AssetDiscoveryConfigurationDeletedMessage(
+                        asset_discovery_configuration_id=event.asset_discovery_configuration_id,
+                        request_id=event.request_id,
+                    ).model_dump_json(),
+                )
+            case events.AssetDiscoveryConfigurationNotDeletedEvent():
+                await self._redis.publish(
+                    constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS,
+                    messages.AssetDiscoveryConfigurationNotDeletedMessage(
+                        asset_discovery_configuration_id=event.asset_discovery_configuration_id,
+                        request_id=event.request_id,
+                        details=event.details,
+                    ).model_dump_json(),
+                )
             case events.ProjectCreatedEvent():
                 await self._redis.publish(
                     constants.NEW_TOPIC_PROJECTS,
@@ -91,6 +141,13 @@ class RedisEventDispatcher:
                         request_id=event.request_id,
                         project_id=event.project_id,
                         details=event.details,
+                    ).model_dump_json(),
+                )
+            case events.ProjectDiscoverySucceededEvent():
+                await self._redis.publish(
+                    constants.NEW_TOPIC_PROJECTS,
+                    messages.ProjectDiscoverySucceededMessage(
+                        request_id=event.request_id, project_id=event.project_id
                     ).model_dump_json(),
                 )
             case events.ProjectDiscoveryFailedEvent():

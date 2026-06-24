@@ -9,11 +9,8 @@ from typing import (
 import pydantic
 from typing_extensions import Self
 
-from .common import LinkSchema
-from .identifiers import (
-    AssetDiscoveryConfId,
-    RecordDiscoveryConfId,
-)
+from ..db import models
+from . import common, identifiers, surveyrelatedrecords as record_schemas
 
 
 TemplatedString = typing.NewType("TemplatedString", str)
@@ -109,7 +106,7 @@ class RecordAssetDiscoveryConfiguration(pydantic.BaseModel):
     name: TranslatableString
     description: TranslatableString | None = None
     discovery_patterns: list[TemplatedString]
-    links: list[LinkSchema] | None = None
+    links: list[common.LinkSchema] | None = None
     extra_properties: dict[str, PropertyHandler] | None = None
     _properties: dict[str, RecordProperty]
 
@@ -145,21 +142,20 @@ class DiscoveredRecord(pydantic.BaseModel):
 
 
 class RecordRelationDiscoveryConfiguration(pydantic.BaseModel):
-    subject_record_id: RecordDiscoveryConfId
-    related_record_id: RecordDiscoveryConfId
+    subject_record_id: identifiers.RecordDiscoveryConfId
+    related_record_id: identifiers.RecordDiscoveryConfId
     relation_name: str
 
 
 class SurveyRecordDiscoveryConfiguration(pydantic.BaseModel):
-    id_: RecordDiscoveryConfId
+    id_: identifiers.RecordDiscoveryConfId
     dataset_category: str
-    domain_type: str
     workflow_stage: str
     name: TranslatableString
     description: TranslatableString | None = None
     metadata_extractor: str | None = None
     assets: list[RecordAssetDiscoveryConfiguration]
-    links: list[LinkSchema] | None = None
+    links: list[common.LinkSchema] | None = None
     extra_properties: list[RecordProperty] | None = None
 
     @classmethod
@@ -184,9 +180,8 @@ class SurveyRecordDiscoveryConfiguration(pydantic.BaseModel):
             asset_extra_props[record_property.identifier] = record_property.handler
             record_extra_props.append(record_property)
         return cls(
-            id_=RecordDiscoveryConfId(raw_identifier),
+            id_=identifiers.RecordDiscoveryConfId(raw_identifier),
             dataset_category=raw_config["dataset_category"],
-            domain_type=raw_config["domain_type"],
             workflow_stage=raw_config["workflow_stage"],
             name=TranslatableString(dict(raw_config["name"])),
             description=(
@@ -203,12 +198,12 @@ class SurveyRecordDiscoveryConfiguration(pydantic.BaseModel):
                         else None
                     ),
                     discovery_patterns=list(a["discovery_patterns"]),
-                    links=[LinkSchema(**li) for li in a.get("links") or []],
+                    links=[common.LinkSchema(**li) for li in a.get("links") or []],
                     extra_properties=asset_extra_props,
                 )
                 for a in raw_config["assets"]
             ],
-            links=[LinkSchema(**li) for li in raw_config.get("links") or []],
+            links=[common.LinkSchema(**li) for li in raw_config.get("links") or []],
             extra_properties=record_extra_props if record_extra_props else None,
         )
 
@@ -218,8 +213,8 @@ class SurveyMissionDiscoveryConfiguration(pydantic.BaseModel):
     # survey mission config's path is not supposed to be a pattern, but rather a simple string
     relative_path: str
     description: TranslatableString | None = None
-    links: list[LinkSchema] | None = None
-    record_configuration_ids: list[RecordDiscoveryConfId]
+    links: list[common.LinkSchema] | None = None
+    record_configuration_ids: list[identifiers.RecordDiscoveryConfId]
 
     @classmethod
     def from_raw_config(
@@ -230,14 +225,14 @@ class SurveyMissionDiscoveryConfiguration(pydantic.BaseModel):
             name=TranslatableString(dict(raw_config.get("name"))),
             description=TranslatableString(dict(raw_config.get("description"))),
             relative_path=raw_config.get("relative_path", "/").strip("/"),
-            links=[LinkSchema(**li) for li in raw_config.get("links") or []],
+            links=[common.LinkSchema(**li) for li in raw_config.get("links") or []],
             record_configuration_ids=raw_config.get("record_configuration_ids", []),
         )
 
 
 class ProjectDiscoveryConfiguration(pydantic.BaseModel):
     survey_missions: list[SurveyMissionDiscoveryConfiguration]
-    records: dict[RecordDiscoveryConfId, SurveyRecordDiscoveryConfiguration]
+    records: dict[identifiers.RecordDiscoveryConfId, SurveyRecordDiscoveryConfiguration]
     record_relations: list[RecordRelationDiscoveryConfiguration]
 
     @classmethod
@@ -255,8 +250,8 @@ class ProjectDiscoveryConfiguration(pydantic.BaseModel):
             },
             record_relations=[
                 RecordRelationDiscoveryConfiguration(
-                    subject_record_id=RecordDiscoveryConfId(rel_conf[0]),
-                    related_record_id=RecordDiscoveryConfId(rel_conf[1]),
+                    subject_record_id=identifiers.RecordDiscoveryConfId(rel_conf[0]),
+                    related_record_id=identifiers.RecordDiscoveryConfId(rel_conf[1]),
                     relation_name=rel_conf[2],
                 )
                 for rel_conf in raw_config.get("record_relations", [])
@@ -265,7 +260,43 @@ class ProjectDiscoveryConfiguration(pydantic.BaseModel):
 
 
 class NewAssetDiscoveryConfiguration(pydantic.BaseModel):
-    identifier: AssetDiscoveryConfId
+    identifier: identifiers.AssetDiscoveryConfId
     relative_path_regexp: str
     workflow_stage: str
     category: str
+
+
+class AssetDiscoveryConfigurationCreate(pydantic.BaseModel):
+    id: identifiers.AssetDiscoveryConfId
+    name: str
+    relative_path_regexp: str
+    workflow_stage_id: identifiers.WorkflowStageId
+    dataset_category_id: identifiers.DatasetCategoryId
+
+
+class AssetDiscoveryConfigurationUpdate(pydantic.BaseModel):
+    name: str | None = None
+    relative_path_regexp: str | None = None
+    workflow_stage_id: identifiers.WorkflowStageId | None = None
+    dataset_category_id: identifiers.DatasetCategoryId | None = None
+
+
+class AssetDiscoveryConfigurationReadListItem(pydantic.BaseModel):
+    name: str
+    relative_path_regexp: str
+    workflow_stage: record_schemas.WorkflowStageRead
+    dataset_category: record_schemas.DatasetCategoryRead
+
+    @classmethod
+    def from_db_instance(
+        cls, instance: models.AssetDiscoveryConfiguration
+    ) -> "AssetDiscoveryConfigurationReadListItem":
+        return cls.model_validate(instance, from_attributes=True)
+
+
+class AssetDiscoveryConfigurationReadDetail(AssetDiscoveryConfigurationReadListItem):
+    @classmethod
+    def from_db_instance(
+        cls, instance: models.AssetDiscoveryConfiguration
+    ) -> "AssetDiscoveryConfigurationReadDetail":
+        return cls.model_validate(instance, from_attributes=True)
