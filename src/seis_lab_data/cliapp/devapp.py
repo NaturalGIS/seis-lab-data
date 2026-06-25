@@ -22,16 +22,16 @@ from ..operations import (
     surveyrelatedrecords as record_ops,
 )
 from ..db.queries import surveyrelatedrecords as record_queries
-from ..errors import SeisLabDataError
 from ..dispatch import no_op_dispatcher
 from ..schemas import (
     identifiers,
     messages as message_schemas,
-    projects as project_schemas,
-    surveymissions as mission_schemas,
     surveyrelatedrecords as record_schemas,
 )
-from ..tasks import projects as project_tasks
+from ..tasks import (
+    projects as project_tasks,
+    surveymissions as mission_tasks,
+)
 from . import sampledata
 from .asynctyper import AsyncTyper
 from .utils import resolve_admin_user
@@ -201,73 +201,58 @@ async def load_sample_projects(ctx: typer.Context):
 
 
 @app.async_command()
-async def old_load_sample_projects(ctx: typer.Context):
-    """Load sample projects into the database."""
-    created = []
-    admin_ = ctx.obj["admin_user"]
-    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
-    async with settings.get_db_session_maker()() as session:
-        for to_create in sampledata.get_projects_to_create(owner=admin_):
-            ctx.obj["main"].status_console.print(
-                f"Creating project {to_create.name.en!r}..."
-            )
-            try:
-                created.append(
-                    await project_ops.create_project(
-                        request_id=identifiers.RequestId(uuid.uuid4()),
-                        to_create=to_create,
-                        initiator=admin_,
-                        session=session,
-                        event_dispatcher=settings.get_event_dispatcher(),
-                    )
-                )
-            except SeisLabDataError as err:
-                ctx.obj["main"].status_console.print(f"[red]{err}[/red]")
-                continue
-            except IntegrityError as err:
-                await session.rollback()
-                if isinstance(err.orig, UniqueViolation):
-                    ctx.obj["main"].status_console.print(
-                        f"Project {to_create.id!r} already exists, skipping..."
-                    )
-                else:
-                    raise RuntimeError from err
-    for created_project in created:
-        to_show = project_schemas.ProjectReadListItem(**created_project.model_dump())
-        ctx.obj["main"].status_console.print(to_show)
-
-
-@app.async_command()
 async def load_sample_survey_missions(ctx: typer.Context):
     """Load sample survey missions into the database."""
-    created = []
+    redis_client: aioredis.Redis = ctx.obj["main"].redis_client
     admin_ = ctx.obj["admin_user"]
-    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
-    async with settings.get_db_session_maker()() as session:
-        for to_create in sampledata.get_survey_missions_to_create(admin_):
-            try:
-                created.append(
-                    await mission_ops.create_survey_mission(
-                        request_id=identifiers.RequestId(uuid.uuid4()),
-                        to_create=to_create,
-                        initiator=admin_,
-                        session=session,
-                        event_dispatcher=settings.get_event_dispatcher(),
-                    )
-                )
-            except IntegrityError as err:
-                await session.rollback()
-                if isinstance(err.orig, UniqueViolation):
-                    ctx.obj["main"].status_console.print(
-                        f"Survey mission {to_create.id!r} already exists, skipping..."
-                    )
-                else:
-                    raise RuntimeError from err
-    for created_survey_mission in created:
-        to_show = mission_schemas.SurveyMissionReadListItem.from_db_instance(
-            created_survey_mission
+
+    missions_to_create = list(sampledata.get_survey_missions_to_create(owner=admin_))
+    remaining = len(missions_to_create)
+
+    async def handle_success(
+        message: message_schemas.SurveyMissionCreatedMessage,
+        context: subscribers.SurveyMissionHandlerContext,
+        done: asyncio.Event | None = None,
+    ) -> AsyncGenerator[str, None]:
+        nonlocal remaining
+        yield f"[green]Success:[/green] Mission {message.survey_mission_id!r} created successfully!"
+        remaining -= 1
+        if remaining == 0 and done is not None:
+            done.set()
+
+    async def handle_failure(
+        message: message_schemas.SurveyMissionNotCreatedMessage,
+        context: subscribers.SurveyMissionHandlerContext,
+        done: asyncio.Event | None = None,
+    ) -> AsyncGenerator[str, None]:
+        nonlocal remaining
+        yield f"[red]Error:[/red] Mission creation failed with {message.details!r}"
+        remaining -= 1
+        if remaining == 0 and done is not None:
+            done.set()
+
+    subscription = subscribers.subscribe_to_topic(
+        redis_client,
+        topic_name=constants.NEW_TOPIC_SURVEY_MISSIONS,
+        handler_context=subscribers.SurveyMissionHandlerContext(),
+        message_handlers={
+            "survey_mission_created": handle_success,
+            "survey_mission_not_created": handle_failure,
+        },
+    )
+
+    for to_create in missions_to_create:
+        ctx.obj["main"].status_console.print(
+            f"Queueing survey mission {to_create.name.en!r} for creation..."
         )
-        ctx.obj["main"].status_console.print(to_show)
+        mission_tasks.create_survey_mission.send(
+            raw_request_id=str(uuid.uuid4()),
+            raw_to_create=to_create.model_dump_json(exclude_none=True),
+            raw_initiator=json.dumps(dataclasses.asdict(admin_)),
+        )  # noqa
+
+    async for chunk in subscription:
+        ctx.obj["main"].status_console.print(chunk)
 
 
 @app.async_command()

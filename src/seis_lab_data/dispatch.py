@@ -170,8 +170,17 @@ class RedisEventDispatcher:
             case events.SurveyMissionCreatedEvent():
                 await self._redis.publish(
                     constants.NEW_TOPIC_SURVEY_MISSIONS,
-                    messages.SurveyMissionCreatedMessage.from_event(
-                        event
+                    messages.SurveyMissionCreatedMessage(
+                        request_id=event.request_id,
+                        survey_mission_id=event.survey_mission_id,
+                    ).model_dump_json(),
+                )
+            case events.SurveyMissionNotCreatedEvent():
+                await self._redis.publish(
+                    constants.NEW_TOPIC_SURVEY_MISSIONS,
+                    messages.SurveyMissionNotCreatedMessage(
+                        request_id=event.request_id,
+                        details=event.details,
                     ).model_dump_json(),
                 )
             case events.SurveyMissionUpdatedEvent():

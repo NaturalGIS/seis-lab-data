@@ -2,14 +2,10 @@ import logging
 import re
 import uuid
 from collections.abc import AsyncIterator
-from typing import (
-    AsyncGenerator,
-    cast,
-)
+from typing import AsyncGenerator
 
 from anyio import Path
 from sqlmodel.ext.asyncio.session import AsyncSession
-from pylnk3 import parse as pylnk3_parse
 
 from .. import (
     config,
@@ -787,7 +783,7 @@ async def new_run_project_discovery(
         )
         return
 
-    db_project = await project_ops.change_project_status(
+    await project_ops.change_project_status(
         request_id=request_id,
         target_status=constants.ProjectStatus.UNDER_DISCOVERY,
         project_id=project_id,
@@ -796,19 +792,14 @@ async def new_run_project_discovery(
         event_dispatcher=event_dispatcher,
     )
     try:
-        discovered_missions = await _new_discover_project_missions(
-            request_id=request_id,
-            project=cast(models.Project, db_project),
-            session=session,
-            event_dispatcher=event_dispatcher,
-            settings=settings,
-            user=user,
-        )
         asset_discovery_configs = (
             await discovery_queries.collect_all_asset_discovery_configurations(session)
         )
-        for mission in discovered_missions:
+        for mission in await mission_queries.collect_all_project_survey_missions(
+            session, project_id
+        ):
             survey_mission_id = identifiers.SurveyMissionId(mission.id)
+            logger.debug(f"Discovering contents of mission {mission.name['en']!r}...")
             await mission_ops.change_survey_mission_status(
                 request_id=request_id,
                 target_status=constants.SurveyMissionStatus.UNDER_DISCOVERY,
@@ -862,96 +853,6 @@ async def new_run_project_discovery(
         )
 
 
-async def _new_discover_project_missions(
-    *,
-    request_id: identifiers.RequestId,
-    project: models.Project,
-    session: AsyncSession,
-    event_dispatcher: dispatch.EventDispatcherProtocol,
-    settings: config.SeisLabDataSettings,
-    user: user_schemas.User,
-) -> list[models.SurveyMission]:
-    """Discover project missions.
-
-    A project's `root_dir` is expected to have standardized contents. Among them is a 'project-surveys'
-    subdirectory which will either contain the survey missions themselves, or a set of MS Windows shortcuts
-    that have the location of survey missions.
-    """
-    project_id = identifiers.ProjectId(project.id)
-    discovered_missions = []
-    archive_root = Path(str(settings.readonly_archive_root_directory))
-    project_root = archive_root / project.root_path
-    missions_root = project_root / "project-surveys"
-    logger.debug(f"{missions_root=}")
-    if not (await missions_root.is_dir()):
-        raise errors.SeisLabDataError(
-            f"Project's survey missions root {missions_root=} is not a valid directory"
-        )
-
-    async for item in missions_root.iterdir():
-        logger.debug(f"Processing {item=}...")
-        if await item.is_dir():
-            mission_relative_path = str(item.relative_to(project_root))
-        elif await item.is_file():
-            if (
-                mission_path := await scan_ms_windows_shortcut_file(item, archive_root)
-            ) is None:
-                logger.debug(f"Path {item} is not a valid mission path - ignoring")
-                continue
-            else:
-                mission_relative_path = str(mission_path.relative_to(archive_root))
-        else:
-            continue
-
-        if (
-            db_mission := await mission_queries.get_survey_mission_by_path(
-                session, project_id, mission_relative_path
-            )
-        ) is None:
-            db_mission = await mission_ops.create_survey_mission(
-                request_id=request_id,
-                to_create=mission_schemas.SurveyMissionCreate(
-                    id=identifiers.SurveyMissionId(uuid.uuid4()),
-                    owner_id=identifiers.UserId(user.id),
-                    project_id=project_id,
-                    name=common.LocalizableDraftName(
-                        en=Path(mission_relative_path).stem
-                    ),
-                    description=common.LocalizableDraftDescription(en=""),
-                    relative_path=mission_relative_path,
-                ),
-                initiator=user,
-                session=session,
-                event_dispatcher=event_dispatcher,
-            )
-            discovered_missions.append(db_mission)
-            await event_dispatcher(
-                event_schemas.ProjectDiscoveryProgressEvent(
-                    project_id=project_id,
-                    details=f"Discovered survey mission {db_mission.id}",
-                    initiator=user.id,
-                )
-            )
-        else:
-            logger.info(
-                f"A survey_mission with path {mission_relative_path!r} already exists - skipping creation"
-            )
-            discovered_missions.append(db_mission)
-    return discovered_missions
-
-
-async def scan_ms_windows_shortcut_file(path: Path, archive_root: Path) -> Path | None:
-    logger.debug(f"scanning {path=}...")
-    result = pylnk3_parse(str(path))
-    base_name = result._link_info.base_name
-    logger.debug(f"{base_name=}")
-    relative_to_root = base_name.replace("\\", "/")
-    if await (candidate := archive_root / relative_to_root).is_dir():
-        return candidate
-    else:
-        return None
-
-
 async def new_discover_mission_records(
     *,
     request_id: identifiers.RequestId,
@@ -962,19 +863,27 @@ async def new_discover_mission_records(
     user: user_schemas.User,
     asset_discovery_configs: list[models.AssetDiscoveryConfiguration],
 ) -> None:
-    for asset_discovery_conf in asset_discovery_configs:
-        full_path_regexp = "/".join(
+    mission_root_path = Path(
+        "/".join(
             (
                 str(settings.readonly_archive_root_directory),
-                mission.project.root_path,
                 mission.relative_path,
+            )
+        )
+    )
+    logger.debug(f"{mission_root_path=}")
+    for asset_discovery_conf in asset_discovery_configs:
+        logger.debug(f"Searching for asset {asset_discovery_conf=}...")
+        full_path_regexp = "/".join(
+            (
+                str(mission_root_path),
                 asset_discovery_conf.relative_path_regexp,
             )
         )
         logger.debug(f"{full_path_regexp=}")
         async for found_path in new_discover_asset_paths(full_path_regexp):
             # each found_path is to become a record with a single asset
-            relative_file_path = str(found_path.relative_to(mission.relative_path))
+            relative_file_path = str(found_path.relative_to(mission_root_path))
             if (
                 await asset_queries.get_record_asset_by_file_path(
                     session, relative_file_path

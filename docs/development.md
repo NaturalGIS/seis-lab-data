@@ -205,10 +205,14 @@ apt install sshfs
 
 # now edit /etc/fuse.conf and uncomment the line that has `user_allow_other`
 
-sudo mkdir <your-data-root>/production-archive
+mkdir <your-data-root>/production-archive
 
 # this mounts the archive
-sshfs <name-of-your-ssh-alias>:/mnt/seislab_data <your-data-root>/production-archive -o allow_other -o reconnect -o ServerAliveInterval=15
+sshfs <name-of-your-ssh-alias>:/mnt/seislab_data \
+    <your-data-root>/production-archive \
+    -o allow_other \
+    -o reconnect \
+    -o ServerAliveInterval=15
 
 # now you must restart the docker compose stack in order for docker to be able to see the mount
 docker compose -f docker/compose.dev.yaml up -d --force-recreate

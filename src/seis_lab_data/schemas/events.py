@@ -152,7 +152,7 @@ class SurveyMissionCreatedEvent(_EventBase):
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class SurveyMissionNotCreatedEvent(_EventBase):
-    request_id: identifiers.RequestId | None = None
+    request_id: identifiers.RequestId
     details: str
 
 

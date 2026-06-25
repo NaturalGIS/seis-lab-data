@@ -224,7 +224,7 @@ async def delete_project(
     *,
     request_id: identifiers.RequestId,
     project_id: identifiers.ProjectId,
-    initiator: user_schemas.User | None,
+    initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> None:

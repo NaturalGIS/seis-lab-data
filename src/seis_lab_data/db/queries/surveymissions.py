@@ -153,6 +153,14 @@ async def list_survey_missions(
     )
 
 
+async def collect_all_project_survey_missions(
+    session: AsyncSession,
+    project_id: identifiers.ProjectId,
+) -> list[models.SurveyMission]:
+    statement = _build_survey_mission_statement(project_id=project_id)
+    return (await session.exec(statement)).all()
+
+
 async def get_survey_mission(
     session: AsyncSession,
     survey_mission_id: identifiers.SurveyMissionId,
