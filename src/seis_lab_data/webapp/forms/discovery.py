@@ -47,6 +47,11 @@ class _AssetDiscoveryConfigurationForm(StarletteForm):
         # Make 'name' field required
         self.name.flags.backend_required = True
 
+    def has_validation_errors(self) -> bool:
+        all_form_validation_errors = {**self.errors}
+        logger.debug(f"{all_form_validation_errors=}")
+        return bool(all_form_validation_errors)
+
     def validate_with_schema(self) -> None:
         raise NotImplementedError()
 
@@ -94,7 +99,7 @@ class _AssetDiscoveryConfigurationForm(StarletteForm):
         The already validated form instance is returned.
         """
 
-        form_instance = await cls.from_formdata(request)
+        form_instance = await cls.from_request(request)
         # first validate the form with WTForms' validation logic
         # then validate the form data with our custom pydantic model
         await form_instance.validate_on_submit()

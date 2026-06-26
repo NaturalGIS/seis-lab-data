@@ -10,7 +10,10 @@ from ... import subscribers
 from ...schemas import (
     messages as message_schemas,
 )
-from .common import flash_ui_message_same_page
+from .common import (
+    flash_ui_message_same_page,
+    flash_ui_message_after_redirect,
+)
 
 AssetDiscoveryConfigurationModified: TypeAlias = (
     message_schemas.AssetDiscoveryConfigurationCreatedMessage
@@ -46,3 +49,39 @@ async def handle_list_page_asset_discovery_configuration_modification(
     yield ServerSentEventGenerator.patch_signals(
         {"listingVersion": int(time.time() * 1000)}
     )
+
+
+async def handle_new_page_asset_discovery_configuration_creation_successful(
+    message: message_schemas.AssetDiscoveryConfigurationCreatedMessage,
+    context: subscribers.AssetDiscoveryConfigurationHandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    """Redirect to detail page after creation."""
+    if message.request_id != context.request_id:
+        return
+
+    async for event in flash_ui_message_after_redirect(
+        {
+            "message": f"Asset discovery configuration {message.asset_discovery_configuration_id} created successfully!",
+            "category": "success",
+        }
+    ):
+        yield event
+    yield ServerSentEventGenerator.redirect(
+        str(
+            context.url_resolver(
+                "asset_discovery_configurations:detail",
+                asset_discovery_configuration_id=message.asset_discovery_configuration_id,
+            )
+        )
+    )
+
+
+async def handle_new_page_asset_discovery_configuration_creation_failed(
+    message: message_schemas.AssetDiscoveryConfigurationNotCreatedMessage,
+    context: subscribers.AssetDiscoveryConfigurationHandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    if message.request_id != context.request_id:
+        return
+    raise NotImplementedError

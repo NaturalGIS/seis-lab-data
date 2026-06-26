@@ -122,7 +122,7 @@ def requires_auth(route_function: Callable):
                         str(request.url_for("login"))
                     )
 
-                return DatastarResponse(event_streamer(), status_code=302)
+                return DatastarResponse(event_streamer(), status_code=200)
             else:
                 return RedirectResponse(url=request.url_for("login"), status_code=302)
 

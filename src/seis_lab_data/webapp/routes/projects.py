@@ -230,7 +230,7 @@ async def stream_to_list_page(request: Request):
 
 
 @requires_auth
-async def get_project_new_updates(request: Request):
+async def stream_to_new_page(request: Request):
     """Stream relevant updates for the new project page."""
     try:
         request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
@@ -1009,7 +1009,7 @@ routes = [
     ),
     Route(
         "/new/{request_id}/stream",
-        get_project_new_updates,
+        stream_to_new_page,
         methods=["GET"],
         name="new_stream",
     ),
