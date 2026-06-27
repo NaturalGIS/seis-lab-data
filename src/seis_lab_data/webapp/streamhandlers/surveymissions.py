@@ -6,7 +6,10 @@ from collections.abc import AsyncGenerator
 from datastar_py.sse import DatastarEvent, ServerSentEventGenerator
 
 from ... import subscribers
-from ...schemas import messages as message_schemas
+from ...schemas import (
+    messages as message_schemas,
+    webui as webui_schemas,
+)
 from .common import (
     flash_ui_message_after_redirect,
     flash_ui_message_same_page,
@@ -23,10 +26,10 @@ async def handle_new_page_survey_mission_created(
     if message.request_id != context.request_id:
         return
     async for event in flash_ui_message_after_redirect(
-        {
-            "message": f"Survey mission {message.survey_mission_id} created successfully!",
-            "category": "success",
-        }
+        webui_schemas.Notification(
+            message=f"Survey mission {message.survey_mission_id} created successfully!",
+            category="success",
+        )
     ):
         yield event
     yield ServerSentEventGenerator.redirect(
@@ -41,16 +44,16 @@ async def handle_new_page_survey_mission_created(
 
 async def handle_detail_page_survey_mission_deleted(
     message: message_schemas.SurveyMissionDeletedMessage,
-    context: subscribers.SurveyMissionHandlerContext,
+    context: subscribers.HandlerContext,
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
-    if message.survey_mission_id != context.survey_mission_id:
+    if message.survey_mission_id != context.resource_id:
         return
     async for event in flash_ui_message_after_redirect(
-        {
-            "message": f"Survey mission {message.survey_mission_id} deleted successfully!",
-            "category": "success",
-        }
+        webui_schemas.Notification(
+            message=f"Survey mission {message.survey_mission_id} deleted successfully!",
+            category="success",
+        )
     ):
         yield event
     yield ServerSentEventGenerator.redirect(
@@ -65,16 +68,16 @@ async def handle_detail_page_survey_mission_deleted(
 
 async def handle_edit_page_survey_mission_updated(
     message: message_schemas.SurveyMissionUpdatedMessage,
-    context: subscribers.SurveyMissionHandlerContext,
+    context: subscribers.HandlerContext,
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
-    if message.survey_mission_id != context.survey_mission_id:
+    if message.survey_mission_id != context.resource_id:
         return
     async for event in flash_ui_message_after_redirect(
-        {
-            "message": f"Survey mission {message.survey_mission_id} updated successfully!",
-            "category": "success",
-        }
+        webui_schemas.Notification(
+            message=f"Survey mission {message.survey_mission_id} updated successfully!",
+            category="success",
+        )
     ):
         yield event
     yield ServerSentEventGenerator.redirect(
@@ -93,7 +96,7 @@ async def handle_list_page_survey_mission_modification(
         | message_schemas.SurveyMissionUpdatedMessage
         | message_schemas.SurveyMissionDeletedMessage
     ),
-    context: subscribers.SurveyMissionHandlerContext,
+    context: subscribers.HandlerContext,
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
     match message:
@@ -102,10 +105,7 @@ async def handle_list_page_survey_mission_modification(
         case _:
             message = "Survey mission list has changed - Reloaded list"
     async for event in flash_ui_message_same_page(
-        {
-            "message": message,
-            "category": "info",
-        }
+        webui_schemas.Notification(message=message)
     ):
         yield event
     # update datastar signal that frontend recognizes as needing to re-fetch list of survey missions

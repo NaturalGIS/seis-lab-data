@@ -9,8 +9,13 @@ from typing import (
 import pydantic
 from typing_extensions import Self
 
+from .. import constants
 from ..db import models
-from . import common, identifiers, surveyrelatedrecords as record_schemas
+from . import (
+    common,
+    identifiers,
+    surveyrelatedrecords as record_schemas,
+)
 
 
 TemplatedString = typing.NewType("TemplatedString", str)
@@ -268,7 +273,9 @@ class NewAssetDiscoveryConfiguration(pydantic.BaseModel):
 
 class AssetDiscoveryConfigurationCreate(pydantic.BaseModel):
     id: identifiers.AssetDiscoveryConfId
-    name: str
+    name: Annotated[
+        str, pydantic.Field(min_length=1, max_length=constants.NAME_MAX_LENGTH)
+    ]
     relative_path_regexp: str
     workflow_stage_id: identifiers.WorkflowStageId
     dataset_category_id: identifiers.DatasetCategoryId
@@ -282,6 +289,9 @@ class AssetDiscoveryConfigurationUpdate(pydantic.BaseModel):
 
 
 class AssetDiscoveryConfigurationReadListItem(pydantic.BaseModel):
+    id: Annotated[
+        identifiers.AssetDiscoveryConfId, pydantic.PlainSerializer(common.serialize_id)
+    ]
     name: str
     relative_path_regexp: str
     workflow_stage: record_schemas.WorkflowStageRead

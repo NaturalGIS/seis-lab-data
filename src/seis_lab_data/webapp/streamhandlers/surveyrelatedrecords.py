@@ -6,7 +6,10 @@ from collections.abc import AsyncGenerator
 from datastar_py.sse import DatastarEvent, ServerSentEventGenerator
 
 from ... import subscribers
-from ...schemas import messages as message_schemas
+from ...schemas import (
+    messages as message_schemas,
+    webui as webui_schemas,
+)
 from .common import (
     flash_ui_message_after_redirect,
     flash_ui_message_same_page,
@@ -24,10 +27,10 @@ async def handle_new_page_record_created(
     if message.request_id != context.request_id:
         return
     async for event in flash_ui_message_after_redirect(
-        {
-            "message": f"Survey-related record {message.record_id} created successfully!",
-            "category": "success",
-        }
+        webui_schemas.Notification(
+            message=f"Survey-related record {message.record_id} created successfully!",
+            category="success",
+        )
     ):
         yield event
     yield ServerSentEventGenerator.redirect(
@@ -42,16 +45,16 @@ async def handle_new_page_record_created(
 
 async def handle_detail_page_record_deleted(
     message: message_schemas.SurveyRelatedRecordDeletedMessage,
-    context: subscribers.SurveyRelatedRecordHandlerContext,
+    context: subscribers.HandlerContext,
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
-    if message.record_id != context.survey_related_record_id:
+    if message.record_id != context.resource_id:
         return
     async for event in flash_ui_message_after_redirect(
-        {
-            "message": f"Survey-related record {message.record_id} deleted successfully!",
-            "category": "success",
-        }
+        webui_schemas.Notification(
+            message=f"Survey-related record {message.record_id} deleted successfully!",
+            category="success",
+        )
     ):
         yield event
     yield ServerSentEventGenerator.redirect(
@@ -66,16 +69,16 @@ async def handle_detail_page_record_deleted(
 
 async def handle_edit_page_survey_record_updated(
     message: message_schemas.SurveyRelatedRecordUpdatedMessage,
-    context: subscribers.SurveyRelatedRecordHandlerContext,
+    context: subscribers.HandlerContext,
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
-    if message.record_id != context.survey_related_record_id:
+    if message.record_id != context.resource_id:
         return
     async for event in flash_ui_message_after_redirect(
-        {
-            "message": f"Survey-related record {message.record_id} updated successfully!",
-            "category": "success",
-        }
+        webui_schemas.Notification(
+            message=f"Survey-related record {message.record_id} updated successfully!",
+            category="success",
+        )
     ):
         yield event
     yield ServerSentEventGenerator.redirect(
@@ -94,7 +97,7 @@ async def handle_list_page_record_modification(
         | message_schemas.SurveyRelatedRecordUpdatedMessage
         | message_schemas.SurveyRelatedRecordDeletedMessage
     ),
-    context: subscribers.SurveyRelatedRecordHandlerContext,
+    context: subscribers.HandlerContext,
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
     match message:
@@ -103,10 +106,7 @@ async def handle_list_page_record_modification(
         case _:
             message = "Record list has changed - Reloaded records"
     async for event in flash_ui_message_same_page(
-        {
-            "message": message,
-            "category": "info",
-        }
+        webui_schemas.Notification(message=message)
     ):
         yield event
     # update datastar signal that frontend recognizes as needing to re-fetch list of records

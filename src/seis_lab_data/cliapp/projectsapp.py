@@ -194,14 +194,14 @@ async def discover_project_contents(
 
     async def handle_progress(
         message: message_schemas.ProjectDiscoveryProgressMessage,
-        context: subscribers.ProjectHandlerContext,
+        context: subscribers.HandlerContext,
         done: asyncio.Event | None = None,
     ) -> AsyncGenerator[str, None]:
         yield f"[blue]Progress:[/blue] {message.details}"
 
     async def handle_success(
         message: message_schemas.ProjectDiscoverySucceededMessage,
-        context: subscribers.ProjectHandlerContext,
+        context: subscribers.HandlerContext,
         done: asyncio.Event | None = None,
     ) -> AsyncGenerator[str, None]:
         yield f"[green]Success:[/green] Project {message.project_id!r} discovery completed successfully!"
@@ -209,7 +209,7 @@ async def discover_project_contents(
 
     async def handle_failure(
         message: message_schemas.ProjectDiscoveryFailedMessage,
-        context: subscribers.ProjectHandlerContext,
+        context: subscribers.HandlerContext,
         done: asyncio.Event | None = None,
     ) -> AsyncGenerator[str, None]:
         yield f"[red]Error:[/red] Project discovery failed with {message.details!r}"
@@ -218,9 +218,7 @@ async def discover_project_contents(
     subscription = subscribers.subscribe_to_topic(
         redis_client,
         topic_name=constants.NEW_TOPIC_PROJECTS,
-        handler_context=subscribers.ProjectHandlerContext(
-            project_id=identifiers.ProjectId(project_id)
-        ),
+        handler_context=subscribers.HandlerContext(resource_id=str(project_id)),
         message_handlers={
             "project_discovery_progress": handle_progress,
             "project_discovery_successful": handle_success,

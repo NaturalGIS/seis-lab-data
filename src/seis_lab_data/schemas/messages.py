@@ -2,12 +2,63 @@ from typing import (
     Annotated,
     Literal,
     TypeAlias,
+    TypeVar,
 )
 
 from . import identifiers
 from .. import constants
 
 import pydantic
+
+
+IdType = TypeVar("IdType")
+
+
+class ResourceModificationMessage(pydantic.BaseModel):
+    type: Literal["resource_modified"] = "resource_modified"
+    request_id: identifiers.RequestId
+    resource_type: constants.ResourceType
+    resource_id: str | None
+    parent_id: str | None = None
+    modification: constants.ResourceModification
+    succeeded: bool
+    details: str | None = None
+
+
+class ResourceStatusChangedMessage(pydantic.BaseModel):
+    type: Literal["resource_status_changed"] = "resource_status_changed"
+    resource_type: constants.ResourceType
+    resource_id: str | None
+    succeeded: bool
+    new_status: str | None
+    details: str | None = None
+
+
+class DiscoveryMessage(pydantic.BaseModel):
+    type: Literal["discovery"] = "discovery"
+    resource_type: constants.ResourceType
+    resource_id: str
+    request_id: identifiers.RequestId
+    modification: constants.DiscoveryStage
+    succeeded: bool
+    details: str | None = None
+
+
+class ValidationMessage(pydantic.BaseModel):
+    type: Literal["validation"] = "validation"
+    resource_type: constants.ResourceType
+    resource_id: str
+    request_id: identifiers.RequestId
+    modification: constants.ValidationStage
+    succeeded: bool
+    is_valid: bool
+    details: str | None = None
+
+
+SldPubSubMessage: TypeAlias = Annotated[
+    ResourceModificationMessage | DiscoveryMessage,
+    pydantic.Field(discriminator="type"),
+]
 
 
 class AssetDiscoveryConfigurationCreatedMessage(pydantic.BaseModel):
@@ -220,7 +271,7 @@ class SurveyRelatedRecordValidatedMessage(pydantic.BaseModel):
     is_valid: bool
 
 
-SldPubSubMessage: TypeAlias = Annotated[
+OldSldPubSubMessage: TypeAlias = Annotated[
     AssetDiscoveryConfigurationCreatedMessage
     | AssetDiscoveryConfigurationNotCreatedMessage
     | AssetDiscoveryConfigurationUpdatedMessage

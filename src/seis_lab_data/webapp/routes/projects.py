@@ -44,7 +44,7 @@ from ...schemas import (
     surveymissions as mission_schemas,
     webui as webui_schemas,
 )
-from ..streamhandlers import projects as project_handlers
+from ..streamhandlers import common as common_handlers
 from .. import (
     filters,
     forms,
@@ -207,18 +207,21 @@ async def stream_to_list_page(request: Request):
     subscription = subscribers.subscribe_to_topic(
         request.state.redis_client,
         constants.NEW_TOPIC_PROJECTS,
-        subscribers.ProjectHandlerContext(
+        subscribers.HandlerContext(
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
             db_session_factory=request.state.settings.get_db_session_maker(),
+            target_page=constants.PageType.RESOURCE_LIST,
+            resource_type=constants.ResourceType.PROJECT,
         ),
         {
-            "project_creation_successful": project_handlers.handle_list_page_project_modification,
-            "project_deletion_successful": project_handlers.handle_list_page_project_modification,
-            "project_update_successful": project_handlers.handle_list_page_project_modification,
-            "project_created": project_handlers.handle_list_page_project_modification,
-            "project_updated": project_handlers.handle_list_page_project_modification,
-            "project_deleted": project_handlers.handle_list_page_project_modification,
+            "resource_modified": common_handlers.handle_resource_modification_list_page,
+            # "project_creation_successful": project_handlers.handle_list_page_project_modification,
+            # "project_deletion_successful": project_handlers.handle_list_page_project_modification,
+            # "project_update_successful": project_handlers.handle_list_page_project_modification,
+            # "project_created": project_handlers.handle_list_page_project_modification,
+            # "project_updated": project_handlers.handle_list_page_project_modification,
+            # "project_deleted": project_handlers.handle_list_page_project_modification,
         },
     )
 
@@ -249,8 +252,7 @@ async def stream_to_new_page(request: Request):
             db_session_factory=request.state.settings.get_db_session_maker(),
         ),
         {
-            "project_created": project_handlers.handle_new_page_project_creation_successful,
-            "project_not_created": project_handlers.handle_new_page_project_creation_failed,
+            "resource_modified": common_handlers.handle_resource_modification_new_page,
         },
     )
 
@@ -278,8 +280,8 @@ async def stream_to_update_page(request: Request):
     subscription = subscribers.subscribe_to_topic(
         redis_client,
         constants.NEW_TOPIC_PROJECTS,
-        subscribers.ProjectHandlerContext(
-            project_id=project_id,
+        subscribers.HandlerContext(
+            resource_id=str(project_id),
             user=user,
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
@@ -287,11 +289,7 @@ async def stream_to_update_page(request: Request):
             request_id=request_id,
         ),
         {
-            # "project_deleted": project_handlers.handle_edit_page_project_deletion_success,
-            # "project_status_changed": project_handlers.handle_edit_page_project_status_changed,
-            "project_updated": project_handlers.handle_edit_page_project_modification_successful,
-            "project_not_updated": project_handlers.handle_edit_page_project_modification_failure,
-            # "project_validated": project_handlers.handle_edit_page_project_validated,
+            "resource_modified": common_handlers.handle_resource_modification_edit_page,
         },
     )
 
@@ -318,8 +316,8 @@ async def stream_to_detail_page(request: Request):
     subscription = subscribers.subscribe_to_topic(
         redis_client,
         constants.NEW_TOPIC_PROJECTS,
-        subscribers.ProjectHandlerContext(
-            project_id=project_id,
+        subscribers.HandlerContext(
+            resource_id=str(project_id),
             user=user,
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
@@ -327,13 +325,7 @@ async def stream_to_detail_page(request: Request):
             request_id=request_id,
         ),
         {
-            "project_deleted": project_handlers.handle_detail_page_project_deletion_success,
-            "project_deletion_failed": project_handlers.handle_detail_page_project_deletion_failure,
-            "project_discovery_progress": project_handlers.handle_detail_page_project_discovery_progress,
-            "project_status_changed": project_handlers.handle_detail_page_project_status_changed,
-            # "project_updated": project_handlers.handle_detail_page_project_modification_successful,
-            "project_validated": project_handlers.handle_detail_page_project_validated,
-            "project_not_validated": project_handlers.handle_detail_page_project_not_validated,
+            "resource_modified": common_handlers.handle_resource_modification_detail_page,
         },
     )
 

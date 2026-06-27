@@ -7,17 +7,11 @@ import shapely
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from .. import (
+    constants,
     dispatch,
     errors,
 )
 from ..permissions import surveyrelatedrecords as record_permissions
-from ..constants import (
-    ROLE_ADMIN,
-    ROLE_SYSTEM_ADMIN,
-    ProjectStatus,
-    SurveyMissionStatus,
-    SurveyRelatedRecordStatus,
-)
 from ..db import models
 from ..db.commands import surveyrelatedrecords as record_commands
 from ..db.queries import (
@@ -41,7 +35,7 @@ async def create_dataset_category(
     *,
     request_id: identifiers.RequestId,
     to_create: record_schemas.DatasetCategoryCreate,
-    initiator: user_schemas.User | None,
+    initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.DatasetCategory:
@@ -51,8 +45,12 @@ async def create_dataset_category(
         )
     dataset_category = await record_commands.create_dataset_category(session, to_create)
     await event_dispatcher(
-        event_schemas.DatasetCategoryCreatedEvent(
-            category_id=identifiers.DatasetCategoryId(dataset_category.id),
+        event_schemas.ResourceModificationEvent(
+            resource_type=constants.ResourceType.CATEGORY,
+            resource_id=str(dataset_category.id),
+            request_id=request_id,
+            modification=constants.ResourceModification.CREATED,
+            succeeded=True,
             initiator=initiator.id,
         )
     )
@@ -80,8 +78,12 @@ async def delete_dataset_category(
         )
     await record_commands.delete_dataset_category(session, dataset_category_id)
     await event_dispatcher(
-        event_schemas.DatasetCategoryDeletedEvent(
-            category_id=identifiers.DatasetCategoryId(dataset_category.id),
+        event_schemas.ResourceModificationEvent(
+            resource_type=constants.ResourceType.CATEGORY,
+            resource_id=str(dataset_category_id),
+            request_id=request_id,
+            modification=constants.ResourceModification.DELETED,
+            succeeded=True,
             initiator=initiator.id,
         )
     )
@@ -102,7 +104,7 @@ async def create_workflow_stage(
     *,
     request_id: identifiers.RequestId,
     to_create: record_schemas.WorkflowStageCreate,
-    initiator: user_schemas.User | None,
+    initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.WorkflowStage:
@@ -110,8 +112,12 @@ async def create_workflow_stage(
         raise errors.SeisLabDataError("User is not allowed to create a workflow stage.")
     workflow_stage = await record_commands.create_workflow_stage(session, to_create)
     await event_dispatcher(
-        event_schemas.WorkflowStageCreatedEvent(
-            stage_id=identifiers.WorkflowStageId(workflow_stage.id),
+        event_schemas.ResourceModificationEvent(
+            resource_type=constants.ResourceType.WORKFLOW_STAGE,
+            resource_id=str(workflow_stage.id),
+            request_id=request_id,
+            modification=constants.ResourceModification.CREATED,
+            succeeded=True,
             initiator=initiator.id,
         )
     )
@@ -119,8 +125,10 @@ async def create_workflow_stage(
 
 
 async def delete_workflow_stage(
+    *,
+    request_id: identifiers.RequestId,
     workflow_stage_id: uuid.UUID,
-    initiator: user_schemas.User | None,
+    initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> None:
@@ -133,8 +141,12 @@ async def delete_workflow_stage(
         )
     await record_commands.delete_workflow_stage(session, workflow_stage_id)
     await event_dispatcher(
-        event_schemas.WorkflowStageDeletedEvent(
-            stage_id=identifiers.WorkflowStageId(workflow_stage.id),
+        event_schemas.ResourceModificationEvent(
+            resource_type=constants.ResourceType.WORKFLOW_STAGE,
+            resource_id=str(workflow_stage.id),
+            request_id=request_id,
+            modification=constants.ResourceModification.DELETED,
+            succeeded=True,
             initiator=initiator.id,
         )
     )
@@ -175,16 +187,16 @@ async def create_survey_related_record(
                 "User is not allowed to create a survey-related record."
             )
         if (mission_status := survey_mission.status) not in (
-            SurveyMissionStatus.DRAFT,
-            SurveyMissionStatus.UNDER_DISCOVERY,
+            constants.SurveyMissionStatus.DRAFT,
+            constants.SurveyMissionStatus.UNDER_DISCOVERY,
         ):
             raise errors.SeisLabDataError(
                 f"Cannot create survey-related record because parent survey "
                 f"mission's status is {mission_status}"
             )
         if (project_status := survey_mission.project.status) not in (
-            ProjectStatus.DRAFT,
-            ProjectStatus.UNDER_DISCOVERY,
+            constants.ProjectStatus.DRAFT,
+            constants.ProjectStatus.UNDER_DISCOVERY,
         ):
             raise errors.SeisLabDataError(
                 f"Cannot create survey-related record because parent project's "
@@ -195,20 +207,25 @@ async def create_survey_related_record(
         )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
-            event_schemas.SurveyRelatedRecordNotCreatedEvent(
-                initiator=initiator.id, request_id=request_id, details=str(err)
+            event_schemas.ResourceModificationEvent(
+                resource_type=constants.ResourceType.RECORD,
+                resource_id=None,
+                request_id=request_id,
+                modification=constants.ResourceModification.CREATED,
+                succeeded=False,
+                initiator=initiator.id,
+                details=str(err),
             )
         )
         return None
 
     await event_dispatcher(
-        event_schemas.SurveyRelatedRecordCreatedEvent(
+        event_schemas.ResourceModificationEvent(
+            resource_type=constants.ResourceType.RECORD,
+            resource_id=str(survey_record.id),
             request_id=request_id,
-            record_id=identifiers.SurveyRelatedRecordId(survey_record.id),
-            survey_mission_id=identifiers.SurveyMissionId(
-                survey_record.survey_mission_id
-            ),
-            project_id=identifiers.ProjectId(survey_record.survey_mission.project_id),
+            modification=constants.ResourceModification.CREATED,
+            succeeded=True,
             initiator=initiator.id,
         )
     )
@@ -218,7 +235,7 @@ async def create_survey_related_record(
 async def change_survey_related_record_status(
     *,
     request_id: identifiers.RequestId,
-    target_status: SurveyRelatedRecordStatus,
+    target_status: constants.SurveyRelatedRecordStatus,
     survey_related_record_id: identifiers.SurveyRelatedRecordId,
     initiator: user_schemas.User,
     session: AsyncSession,
@@ -233,7 +250,7 @@ async def change_survey_related_record_status(
             raise errors.SeisLabDataError(
                 f"Survey-related record with id {survey_related_record_id} does not exist."
             )
-        if (old_status := survey_related_record.status) == target_status:
+        if survey_related_record.status == target_status:
             logger.info(
                 f"Survey-related record status is already "
                 f"set to {target_status} - nothing to do"
@@ -245,10 +262,10 @@ async def change_survey_related_record_status(
             raise errors.SeisLabDataError(
                 "User is not allowed to change survey-related record's status."
             )
-        if target_status == SurveyRelatedRecordStatus.UNDER_DISCOVERY:
+        if target_status == constants.SurveyRelatedRecordStatus.UNDER_DISCOVERY:
             await survey_mission_ops.change_survey_mission_status(
                 request_id=request_id,
-                target_status=SurveyMissionStatus.UNDER_DISCOVERY,
+                target_status=constants.SurveyMissionStatus.UNDER_DISCOVERY,
                 survey_mission_id=identifiers.SurveyMissionId(
                     survey_related_record.survey_mission_id
                 ),
@@ -265,21 +282,23 @@ async def change_survey_related_record_status(
         )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
-            event_schemas.SurveyRelatedRecordStatusNotChangedEvent(
-                record_id=survey_related_record_id,
-                request_id=request_id,
+            event_schemas.ResourceStatusChangedEvent(
                 initiator=initiator.id,
+                resource_type=constants.ResourceType.RECORD,
+                resource_id=str(survey_related_record_id),
+                succeeded=False,
+                new_status=None,
                 details=str(err),
             )
         )
         return None
     await event_dispatcher(
-        event_schemas.SurveyRelatedRecordStatusChangedEvent(
-            request_id=request_id,
-            record_id=survey_related_record_id,
-            old_status=old_status,
-            new_status=updated_survey_related_record.status,
+        event_schemas.ResourceStatusChangedEvent(
             initiator=initiator.id,
+            resource_type=constants.ResourceType.RECORD,
+            resource_id=str(survey_related_record_id),
+            succeeded=True,
+            new_status=updated_survey_related_record.status,
         )
     )
     return updated_survey_related_record
@@ -309,10 +328,14 @@ async def validate_survey_related_record(
             )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
-            event_schemas.SurveyRelatedRecordNotValidatedEvent(
+            event_schemas.ValidationEvent(
+                resource_type=constants.ResourceType.RECORD,
+                resource_id=str(survey_related_record_id),
                 request_id=request_id,
+                modification=constants.ValidationStage.ENDED,
+                succeeded=False,
+                is_valid=False,
                 initiator=initiator.id,
-                record_id=survey_related_record_id,
                 details=str(err),
             )
         )
@@ -322,7 +345,7 @@ async def validate_survey_related_record(
     try:
         await change_survey_related_record_status(
             request_id=request_id,
-            target_status=SurveyRelatedRecordStatus.UNDER_VALIDATION,
+            target_status=constants.SurveyRelatedRecordStatus.UNDER_VALIDATION,
             survey_related_record_id=survey_related_record_id,
             initiator=initiator,
             session=session,
@@ -357,16 +380,20 @@ async def validate_survey_related_record(
         )
     finally:
         await event_dispatcher(
-            event_schemas.SurveyRelatedRecordValidatedEvent(
+            event_schemas.ValidationEvent(
+                resource_type=constants.ResourceType.RECORD,
+                resource_id=str(survey_related_record_id),
                 request_id=request_id,
-                record_id=survey_related_record_id,
+                modification=constants.ValidationStage.ENDED,
+                succeeded=True,
                 is_valid=not validation_errors,
                 initiator=initiator.id,
+                details=str(validation_errors),
             )
         )
     await change_survey_related_record_status(
         request_id=request_id,
-        target_status=SurveyRelatedRecordStatus.DRAFT,
+        target_status=constants.SurveyRelatedRecordStatus.DRAFT,
         survey_related_record_id=survey_related_record_id,
         initiator=initiator,
         session=session,
@@ -392,8 +419,6 @@ async def delete_survey_related_record(
             raise errors.SeisLabDataError(
                 f"Survey-related record with id {survey_related_record_id!r} does not exist."
             )
-        survey_mission_id = identifiers.SurveyMissionId(survey_record.survey_mission_id)
-        project_id = identifiers.ProjectId(survey_record.survey_mission.project_id)
         if not record_permissions.can_delete_survey_related_record(
             initiator, survey_record
         ):
@@ -402,14 +427,14 @@ async def delete_survey_related_record(
             )
         if (
             mission_status := survey_record.survey_mission.status
-        ) != SurveyMissionStatus.DRAFT:
+        ) != constants.SurveyMissionStatus.DRAFT:
             raise errors.SeisLabDataError(
                 f"Cannot update survey-related record because parent survey "
                 f"mission's status is {mission_status}"
             )
         if (
             project_status := survey_record.survey_mission.project.status
-        ) != ProjectStatus.DRAFT:
+        ) != constants.ProjectStatus.DRAFT:
             raise errors.SeisLabDataError(
                 f"Cannot update survey-related record because parent project's "
                 f"status is {project_status}"
@@ -419,21 +444,25 @@ async def delete_survey_related_record(
         )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
-            event_schemas.SurveyRelatedRecordNotDeletedEvent(
-                request_id=request_id,
-                record_id=survey_related_record_id,
+            event_schemas.ResourceModificationEvent(
                 initiator=initiator.id,
+                resource_type=constants.ResourceType.RECORD,
+                resource_id=str(survey_related_record_id),
+                request_id=request_id,
+                modification=constants.ResourceModification.DELETED,
+                succeeded=False,
                 details=str(err),
             )
         )
         return None
     await event_dispatcher(
-        event_schemas.SurveyRelatedRecordDeletedEvent(
-            request_id=request_id,
-            record_id=survey_related_record_id,
-            survey_mission_id=survey_mission_id,
-            project_id=project_id,
+        event_schemas.ResourceModificationEvent(
             initiator=initiator.id,
+            resource_type=constants.ResourceType.RECORD,
+            resource_id=str(survey_related_record_id),
+            request_id=request_id,
+            modification=constants.ResourceModification.DELETED,
+            succeeded=True,
         )
     )
 
@@ -464,7 +493,9 @@ async def list_survey_related_records(
         return await record_queries.list_published_survey_related_records(
             session, **kwargs
         )
-    elif not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(initiator.roles):
+    elif not {constants.ROLE_ADMIN, constants.ROLE_SYSTEM_ADMIN}.isdisjoint(
+        initiator.roles
+    ):
         return await record_queries.list_survey_related_records(session, **kwargs)
     else:
         return await record_queries.list_accessible_survey_related_records(
@@ -512,7 +543,7 @@ async def update_survey_related_record(
     request_id: identifiers.RequestId,
     survey_related_record_id: identifiers.SurveyRelatedRecordId,
     to_update: record_schemas.SurveyRelatedRecordUpdate,
-    initiator: user_schemas.User | None,
+    initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.SurveyRelatedRecord:
@@ -532,14 +563,14 @@ async def update_survey_related_record(
         )
     if (
         mission_status := survey_related_record.survey_mission.status
-    ) != SurveyMissionStatus.DRAFT:
+    ) != constants.SurveyMissionStatus.DRAFT:
         raise errors.SeisLabDataError(
             f"Cannot update survey-related record because parent survey "
             f"mission's status is {mission_status}"
         )
     if (
         project_status := survey_related_record.survey_mission.project.status
-    ) != ProjectStatus.DRAFT:
+    ) != constants.ProjectStatus.DRAFT:
         raise errors.SeisLabDataError(
             f"Cannot update survey-related record because parent project's "
             f"status is {project_status}"
@@ -548,9 +579,13 @@ async def update_survey_related_record(
         session, survey_related_record, to_update
     )
     await event_dispatcher(
-        event_schemas.SurveyRelatedRecordUpdatedEvent(
-            record_id=survey_related_record_id,
+        event_schemas.ResourceModificationEvent(
             initiator=initiator.id,
+            resource_type=constants.ResourceType.RECORD,
+            resource_id=str(survey_related_record_id),
+            request_id=request_id,
+            modification=constants.ResourceModification.UPDATED,
+            succeeded=True,
         )
     )
     return updated_survey_related_record

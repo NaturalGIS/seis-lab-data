@@ -59,7 +59,7 @@ Users with create permission are linked to /asset-discovery-configurations/new, 
         <div class="col-3">
             <h5>{{ _("actions") | capitalize }}</h5>
             <div class="list-group mb-3">
-                {% if user_can_create %}
+                {% if permissions.can_create %}
                     <a
                             class="list-group-item list-group-item-action list-group-item-info"
                             href="{{ url_for('asset_discovery_configurations:get_creation_form') }}"

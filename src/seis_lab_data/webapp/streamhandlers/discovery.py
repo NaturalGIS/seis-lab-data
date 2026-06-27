@@ -9,6 +9,7 @@ from datastar_py.starlette import DatastarEvent
 from ... import subscribers
 from ...schemas import (
     messages as message_schemas,
+    webui as webui_schemas,
 )
 from .common import (
     flash_ui_message_same_page,
@@ -39,10 +40,7 @@ async def handle_list_page_asset_discovery_configuration_modification(
         case _:
             message = "Asset discovery configuration list has changed"
     async for event in flash_ui_message_same_page(
-        {
-            "message": message,
-            "category": "info",
-        }
+        webui_schemas.Notification(message=message)
     ):
         yield event
     # update datastar signal that frontend recognizes as needing to re-fetch listing
@@ -61,17 +59,16 @@ async def handle_new_page_asset_discovery_configuration_creation_successful(
         return
 
     async for event in flash_ui_message_after_redirect(
-        {
-            "message": f"Asset discovery configuration {message.asset_discovery_configuration_id} created successfully!",
-            "category": "success",
-        }
+        webui_schemas.Notification(
+            message=f"Asset discovery configuration {message.asset_discovery_configuration_id} created successfully!",
+            category="success",
+        )
     ):
         yield event
     yield ServerSentEventGenerator.redirect(
         str(
             context.url_resolver(
-                "asset_discovery_configurations:detail",
-                asset_discovery_configuration_id=message.asset_discovery_configuration_id,
+                "asset_discovery_configurations:list",
             )
         )
     )

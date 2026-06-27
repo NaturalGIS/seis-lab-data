@@ -7,10 +7,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from .. import (
     dispatch,
+    constants,
     errors,
 )
 from ..permissions import projects as project_permissions
-from ..constants import ROLE_ADMIN, ROLE_SYSTEM_ADMIN, ProjectStatus
 from ..db import models
 from ..db.commands import projects as project_commands
 from ..db.queries import projects as project_queries
@@ -40,17 +40,26 @@ async def create_project(
         project = await project_commands.create_project(session, to_create)
     except errors.SeisLabDataError as err:
         await event_dispatcher(
-            event_schemas.ProjectNotCreatedEvent(
-                request_id=request_id, initiator=initiator.id, details=str(err)
+            event_schemas.ResourceModificationEvent(
+                initiator=initiator.id,
+                request_id=request_id,
+                resource_type=constants.ResourceType.PROJECT,
+                resource_id=None,
+                modification=constants.ResourceModification.CREATED,
+                succeeded=False,
+                details=str(err),
             )
         )
         return None
 
     await event_dispatcher(
-        event_schemas.ProjectCreatedEvent(
-            request_id=request_id,
-            project_id=identifiers.ProjectId(project.id),
+        event_schemas.ResourceModificationEvent(
             initiator=initiator.id,
+            request_id=request_id,
+            resource_type=constants.ResourceType.PROJECT,
+            resource_id=str(project.id),
+            modification=constants.ResourceModification.CREATED,
+            succeeded=True,
         )
     )
     return project
@@ -58,7 +67,7 @@ async def create_project(
 
 async def change_project_status(
     request_id: identifiers.RequestId,
-    target_status: ProjectStatus,
+    target_status: constants.ProjectStatus,
     project_id: identifiers.ProjectId,
     initiator: user_schemas.User | None,
     session: AsyncSession,
@@ -73,7 +82,7 @@ async def change_project_status(
             raise errors.SeisLabDataError(
                 "User is not allowed to change project status."
             )
-        if (old_status := project.status) == target_status:
+        if project.status == target_status:
             logger.info(
                 f"Project status is already set to {target_status} - nothing to do"
             )
@@ -83,20 +92,23 @@ async def change_project_status(
         )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
-            event_schemas.ProjectStatusNotChangedEvent(
-                request_id=request_id,
-                project_id=project_id,
+            event_schemas.ResourceStatusChangedEvent(
                 initiator=initiator.id,
+                resource_type=constants.ResourceType.PROJECT,
+                resource_id=str(project_id),
+                succeeded=False,
                 details=str(err),
+                new_status=None,
             )
         )
         return None
     await event_dispatcher(
-        event_schemas.ProjectStatusChangedEvent(
-            project_id=project_id,
-            old_status=old_status,
-            new_status=updated_project.status,
+        event_schemas.ResourceStatusChangedEvent(
             initiator=initiator.id,
+            resource_type=constants.ResourceType.PROJECT,
+            resource_id=str(project_id),
+            succeeded=True,
+            new_status=updated_project.status,
         )
     )
     return updated_project
@@ -105,7 +117,7 @@ async def change_project_status(
 async def validate_project(
     request_id: identifiers.RequestId,
     project_id: identifiers.ProjectId,
-    initiator: user_schemas.User | None,
+    initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.Project | None:
@@ -118,8 +130,15 @@ async def validate_project(
             raise errors.SeisLabDataError("User is not allowed to validate project.")
     except errors.SeisLabDataError as err:
         await event_dispatcher(
-            event_schemas.ProjectNotValidatedEvent(
-                initiator=initiator.id, project_id=project_id, details=str(err)
+            event_schemas.ValidationEvent(
+                initiator=initiator.id,
+                resource_type=constants.ResourceType.PROJECT,
+                resource_id=str(project_id),
+                request_id=request_id,
+                modification=constants.ValidationStage.ENDED,
+                succeeded=False,
+                is_valid=False,
+                details=str(err),
             )
         )
         return None
@@ -128,7 +147,7 @@ async def validate_project(
     try:
         await change_project_status(
             request_id=request_id,
-            target_status=ProjectStatus.UNDER_VALIDATION,
+            target_status=constants.ProjectStatus.UNDER_VALIDATION,
             project_id=project_id,
             initiator=initiator,
             session=session,
@@ -159,16 +178,20 @@ async def validate_project(
         )
     finally:
         await event_dispatcher(
-            event_schemas.ProjectValidatedEvent(
-                project_id=project_id,
-                is_valid=not validation_errors,
+            event_schemas.ValidationEvent(
                 initiator=initiator.id,
-                details=validation_errors,
+                resource_type=constants.ResourceType.PROJECT,
+                resource_id=str(project_id),
+                request_id=request_id,
+                modification=constants.ValidationStage.ENDED,
+                succeeded=True,
+                is_valid=not validation_errors,
+                details=str(validation_errors),
             )
         )
         await change_project_status(
             request_id=request_id,
-            target_status=ProjectStatus.DRAFT,
+            target_status=constants.ProjectStatus.DRAFT,
             project_id=project_id,
             initiator=initiator,
             session=session,
@@ -181,7 +204,7 @@ async def update_project(
     request_id: identifiers.RequestId,
     project_id: identifiers.ProjectId,
     to_update: project_schemas.ProjectUpdate,
-    initiator: user_schemas.User | None,
+    initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.Project | None:
@@ -192,7 +215,7 @@ async def update_project(
             )
         if not project_permissions.can_update_project(initiator, project):
             raise errors.SeisLabDataError("User is not allowed to update project.")
-        if project.status != ProjectStatus.DRAFT:
+        if project.status != constants.ProjectStatus.DRAFT:
             raise errors.SeisLabDataError(
                 f"Cannot update project with status {project.status}."
             )
@@ -201,20 +224,26 @@ async def update_project(
         )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
-            event_schemas.ProjectNotUpdatedEvent(
-                request_id=request_id,
-                project_id=project_id,
+            event_schemas.ResourceModificationEvent(
                 initiator=initiator.id,
+                resource_type=constants.ResourceType.PROJECT,
+                resource_id=str(project_id),
+                request_id=request_id,
+                modification=constants.ResourceModification.UPDATED,
+                succeeded=False,
                 details=str(err),
             )
         )
         return None
 
     await event_dispatcher(
-        event_schemas.ProjectUpdatedEvent(
-            request_id=request_id,
-            project_id=project_id,
+        event_schemas.ResourceModificationEvent(
             initiator=initiator.id,
+            resource_type=constants.ResourceType.PROJECT,
+            resource_id=str(project_id),
+            request_id=request_id,
+            modification=constants.ResourceModification.UPDATED,
+            succeeded=True,
         )
     )
     return updated_project
@@ -235,16 +264,19 @@ async def delete_project(
             )
         if not project_permissions.can_delete_project(initiator, project):
             raise errors.SeisLabDataError("User is not allowed to delete projects.")
-        if project.status != ProjectStatus.DRAFT:
+        if project.status != constants.ProjectStatus.DRAFT:
             raise errors.SeisLabDataError(
                 f"Cannot delete project with status {project.status}."
             )
         await project_commands.delete_project(session, project_id)
     except errors.SeisLabDataError as err:
         await event_dispatcher(
-            event_schemas.ProjectNotDeletedEvent(
+            event_schemas.ResourceModificationEvent(
+                resource_type=constants.ResourceType.PROJECT,
+                resource_id=str(project_id),
                 request_id=request_id,
-                project_id=project_id,
+                modification=constants.ResourceModification.DELETED,
+                succeeded=False,
                 initiator=initiator.id,
                 details=str(err),
             )
@@ -252,9 +284,12 @@ async def delete_project(
         return None
 
     await event_dispatcher(
-        event_schemas.ProjectDeletedEvent(
+        event_schemas.ResourceModificationEvent(
+            resource_type=constants.ResourceType.PROJECT,
+            resource_id=str(project_id),
             request_id=request_id,
-            project_id=project_id,
+            modification=constants.ResourceModification.DELETED,
+            succeeded=True,
             initiator=initiator.id,
         )
     )
@@ -282,7 +317,9 @@ async def list_projects(
     )
     if initiator is None:
         return await project_queries.list_published_projects(session, **kwargs)
-    elif not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(initiator.roles):
+    elif not {constants.ROLE_ADMIN, constants.ROLE_SYSTEM_ADMIN}.isdisjoint(
+        initiator.roles
+    ):
         return await project_queries.list_projects(session, **kwargs)
     else:
         return await project_queries.list_accessible_projects(

@@ -9,6 +9,7 @@ from ..operations import discovery as discovery_ops
 from ..schemas import (
     discovery as discovery_schemas,
     identifiers,
+    projects as project_schemas,
     user as user_schemas,
 )
 from . import decorators
@@ -32,6 +33,50 @@ async def create_asset_discovery_configuration(
             request_id=identifiers.RequestId(uuid.UUID(raw_request_id)),
             to_create=discovery_schemas.AssetDiscoveryConfigurationCreate.model_validate_json(
                 raw_to_create
+            ),
+            initiator=user_schemas.User(**json.loads(raw_initiator)),
+            session=session,
+            event_dispatcher=settings.get_event_dispatcher(),
+        )
+
+
+@dramatiq.actor
+@decorators.sld_settings
+async def update_asset_discovery_configuration(
+    raw_request_id: str,
+    raw_resource_id: str,
+    raw_to_update: str,
+    raw_initiator: str,
+    *,
+    settings: config.SeisLabDataSettings,
+) -> None:
+    async with settings.get_db_session_maker()() as session:
+        await discovery_ops.update_asset_discovery_configuration(
+            request_id=identifiers.RequestId(uuid.UUID(raw_request_id)),
+            asset_discovery_configuration_id=identifiers.AssetDiscoveryConfId(
+                uuid.UUID(raw_resource_id)
+            ),
+            to_update=project_schemas.ProjectUpdate.model_validate_json(raw_to_update),
+            initiator=user_schemas.User(**json.loads(raw_initiator)),
+            session=session,
+            event_dispatcher=settings.get_event_dispatcher(),
+        )
+
+
+@dramatiq.actor
+@decorators.sld_settings
+async def delete_asset_discovery_configuration(
+    raw_request_id: str,
+    raw_resource_id: str,
+    raw_initiator: str,
+    *,
+    settings: config.SeisLabDataSettings,
+) -> None:
+    async with settings.get_db_session_maker()() as session:
+        await discovery_ops.delete_asset_discovery_configuration(
+            request_id=identifiers.RequestId(uuid.UUID(raw_request_id)),
+            asset_discovery_configuration_id=identifiers.AssetDiscoveryConfId(
+                uuid.UUID(raw_resource_id)
             ),
             initiator=user_schemas.User(**json.loads(raw_initiator)),
             session=session,

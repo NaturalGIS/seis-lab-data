@@ -17,6 +17,54 @@ class _EventBase:
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
+class ResourceModificationEvent(_EventBase):
+    request_id: identifiers.RequestId
+    resource_type: constants.ResourceType
+    resource_id: str | None
+    modification: constants.ResourceModification
+    succeeded: bool
+    details: str | None = None
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ResourceStatusChangedEvent(_EventBase):
+    resource_type: constants.ResourceType
+    resource_id: str | None
+    succeeded: bool
+    new_status: str | None
+    details: str | None = None
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class DiscoveryEvent(_EventBase):
+    resource_type: constants.ResourceType
+    resource_id: str
+    request_id: identifiers.RequestId
+    modification: constants.DiscoveryStage
+    succeeded: bool
+    details: str | None = None
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ValidationEvent(_EventBase):
+    resource_type: constants.ResourceType
+    resource_id: str
+    request_id: identifiers.RequestId
+    modification: constants.ValidationStage
+    succeeded: bool
+    is_valid: bool
+    details: str | None = None
+
+
+SeisLabDataEvent: TypeAlias = (
+    ResourceModificationEvent
+    | ResourceStatusChangedEvent
+    | DiscoveryEvent
+    | ValidationEvent
+)
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
 class AssetDiscoveryConfigurationCreatedEvent(_EventBase):
     asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId
     request_id: identifiers.RequestId | None = None
@@ -308,7 +356,7 @@ class WorkflowStageDeletedEvent(_EventBase):
     stage_id: identifiers.WorkflowStageId
 
 
-SeisLabDataEvent: TypeAlias = (
+OldSeisLabDataEvent: TypeAlias = (
     AssetDiscoveryConfigurationCreatedEvent
     | AssetDiscoveryConfigurationNotCreatedEvent
     | AssetDiscoveryConfigurationUpdatedEvent

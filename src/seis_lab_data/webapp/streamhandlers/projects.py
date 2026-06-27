@@ -62,10 +62,10 @@ async def handle_new_page_project_creation_successful(
         mode=ElementPatchMode.APPEND,
     )
     async for event in flash_ui_message_after_redirect(
-        {
-            "message": f"Project {message.project_id} created successfully!",
-            "category": "success",
-        }
+        webui_schemas.Notification(
+            message=f"Project {message.project_id} created successfully!",
+            category="success",
+        )
     ):
         yield event
     yield ServerSentEventGenerator.redirect(
@@ -96,10 +96,7 @@ async def handle_list_page_project_modification(
         case _:
             message = "Project list has changed - Reloaded projects"
     async for event in flash_ui_message_same_page(
-        {
-            "message": message,
-            "category": "info",
-        }
+        notification=webui_schemas.Notification(message=message)
     ):
         yield event
     # update datastar signal that frontend recognizes as needing to re-fetch list of projects
@@ -118,10 +115,10 @@ async def handle_edit_page_project_modification_failure(
         return
 
     async for event in flash_ui_message_after_redirect(
-        {
-            "message": f"Project {message.project_id} failed to update - {message.details}",
-            "category": "warning",
-        }
+        webui_schemas.Notification(
+            message=f"Project {message.project_id} failed to update - {message.details}",
+            category="error",
+        )
     ):
         yield event
     yield ServerSentEventGenerator.redirect(
@@ -159,10 +156,10 @@ async def handle_edit_page_project_modification_successful(
         mode=ElementPatchMode.APPEND,
     )
     async for event in flash_ui_message_after_redirect(
-        {
-            "message": f"Project {message.project_id} updated successfully!",
-            "category": "success",
-        }
+        webui_schemas.Notification(
+            message=f"Project {message.project_id} updated successfully!",
+            category="success",
+        )
     ):
         yield event
     yield ServerSentEventGenerator.redirect(
@@ -191,10 +188,10 @@ async def handle_detail_page_project_deletion_success(
         mode=ElementPatchMode.APPEND,
     )
     async for event in flash_ui_message_after_redirect(
-        {
-            "message": f"Project {message.project_id} deleted successfully!",
-            "category": "success",
-        }
+        webui_schemas.Notification(
+            message=f"Project {message.project_id} deleted successfully!",
+            category="success",
+        )
     ):
         yield event
     yield ServerSentEventGenerator.redirect(str(context.url_resolver("projects:list")))
@@ -245,10 +242,9 @@ async def handle_detail_page_project_discovery_successful(
         mode=ElementPatchMode.APPEND,
     )
     async for flash_event in flash_ui_message_same_page(
-        {
-            "message": f"Project {message.project_id} - discovery successful",
-            "category": "info",
-        }
+        webui_schemas.Notification(
+            message=f"Project {message.project_id} - discovery successful"
+        )
     ):
         yield flash_event
     if done is not None:
@@ -289,10 +285,9 @@ async def handle_detail_page_project_status_changed(
     if message.project_id != context.project_id:
         return
     async for flash_message in flash_ui_message_same_page(
-        {
-            "message": f"Project {message.project_id} changed status to {message.new_status.value}",
-            "category": "secondary",
-        }
+        webui_schemas.Notification(
+            message=f"Project {message.project_id} changed status to {message.new_status.value}",
+        )
     ):
         yield flash_message
     match message.new_status:
@@ -331,15 +326,15 @@ async def handle_detail_page_project_validated(
                 mode=ElementPatchMode.INNER,
             )
             if message.is_valid:
-                flash_message = {
-                    "message": f"Project {message.project_id} is valid!",
-                    "category": "success",
-                }
+                flash_message = webui_schemas.Notification(
+                    message=f"Project {message.project_id} is valid!",
+                    category="success",
+                )
             else:
-                flash_message = {
-                    "message": f"Project {message.project_id} is not valid",
-                    "category": "danger",
-                }
+                flash_message = webui_schemas.Notification(
+                    message=f"Project {message.project_id} is not valid!",
+                    category="error",
+                )
             async for event in flash_ui_message_same_page(flash_message):
                 yield event
     yield ServerSentEventGenerator.patch_signals({"isValid": message.is_valid})
@@ -354,10 +349,10 @@ async def handle_detail_page_project_not_validated(
     if message.request_id != context.request_id:
         return
     async for event in flash_ui_message_same_page(
-        {
-            "message": f"Project {message.project_id} could not be validated - {message}",
-            "category": "danger",
-        }
+        webui_schemas.Notification(
+            message=f"Project {message.project_id} could not be validated - {message}",
+            category="error",
+        )
     ):
         yield event
 

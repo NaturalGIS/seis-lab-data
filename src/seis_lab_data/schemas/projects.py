@@ -80,3 +80,6 @@ class ProjectReadDetail(ProjectReadListItem):
     @classmethod
     def from_db_instance(cls, instance: models.Project) -> "ProjectReadDetail":
         return cls.model_validate(instance, from_attributes=True)
+
+
+class AssetDiscoveryConfigurationReadListItem(pydantic.BaseModel): ...

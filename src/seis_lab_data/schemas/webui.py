@@ -16,6 +16,11 @@ from .surveyrelatedrecords import (
 )
 
 
+class Notification(pydantic.BaseModel):
+    message: str
+    category: typing.Literal["info", "success", "error"] = "info"
+
+
 class BreadcrumbItem(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
