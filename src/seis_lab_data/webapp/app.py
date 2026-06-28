@@ -76,6 +76,7 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
             "csrf_token": csrf_token,
             "icons": {
                 "delete_item": "delete",
+                "discover_contents": "travel_explore",
                 "edit_item": "edit",
                 "new_item": "add_circle_outline",
                 "open_link": "open_in_new",
@@ -84,7 +85,6 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
                 "search": "search",
                 "expand_less": "expand_less",
                 "expand_more": "expand_more",
-                "discover_project": "travel_explore",
                 "status_draft": "design_services",
                 "status_published": "public",
                 "status_under_validation": "sync",

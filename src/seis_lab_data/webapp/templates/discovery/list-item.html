@@ -35,7 +35,7 @@
                     {% if permissions.can_update %}
                         <a
                                 class="btn btn-outline-primary"
-                                href="{{ url_for("asset_discovery_configurations:detail", asset_discovery_configuration_id=item.id) }}"
+                                href="{{ url_for("asset_discovery_configurations:get_update_form", asset_discovery_configuration_id=item.id) }}"
                         >
                             <span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit") | capitalize }}
                         </a>

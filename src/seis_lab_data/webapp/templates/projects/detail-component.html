@@ -100,7 +100,7 @@
                         })"
                         aria-label="discover-project"
                 >
-                    <span class="material-icons-outlined me-1">{{ icons.discover_project }}</span>
+                    <span class="material-icons-outlined me-1">{{ icons.discover_contents }}</span>
                     {{ _("discover project contents") | capitalize }}
                 </button>
                 <button
@@ -137,7 +137,7 @@
             {% endif %}
             {% if permissions.can_delete %}
                 {{ macros_buttons_list_items.render_delete_item_button(
-                deletion_url=url_for("projects:detail", project_id=project.id),
+                deletion_url=url_for("projects:detail", project_id=project.id) ~ "?request_id=" ~ request_id,
                 signal_name="deleting",
                 idle_message="delete project",
                 running_message="deleting project...",

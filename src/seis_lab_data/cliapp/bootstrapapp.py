@@ -15,6 +15,7 @@ from .. import (
 )
 from ..operations import surveyrelatedrecords as record_ops
 from ..schemas import (
+    identifiers,
     messages as message_schemas,
     surveyrelatedrecords as record_schemas,
 )
@@ -63,36 +64,35 @@ async def bootstrap_asset_discovery_configurations(ctx: typer.Context):
 
     remaining = len(bootstrapdata.ASSET_DISCOVERY_CONFIGURATIONS_TO_CREATE)
 
-    async def handle_success(
-        message: message_schemas.AssetDiscoveryConfigurationCreatedMessage,
-        context: subscribers.AssetDiscoveryConfigurationHandlerContext,
+    async def handle_message(
+        message: message_schemas.ResourceModificationMessage,
+        context: subscribers.HandlerContext,
         done: asyncio.Event | None = None,
     ) -> AsyncGenerator[str, None]:
         nonlocal remaining
-        yield f"[green]Success:[/green] Asset discovery configuration {message.asset_discovery_configuration_id!r} created successfully!"
-        remaining -= 1
-        if remaining == 0 and done is not None:
-            done.set()
 
-    async def handle_failure(
-        message: message_schemas.AssetDiscoveryConfigurationNotCreatedMessage,
-        context: subscribers.AssetDiscoveryConfigurationHandlerContext,
-        done: asyncio.Event | None = None,
-    ) -> AsyncGenerator[str, None]:
-        nonlocal remaining
-        yield f"[red]Error:[/red] Asset discovery configuration creation failed with {message.details!r}"
-        remaining -= 1
-        if remaining == 0 and done is not None:
-            done.set()
+        if message.request_id != context.request_id:
+            return
 
+        if message.succeeded:
+            yield f"[green]Success:[/green] Asset discovery configuration {message.resource_id!r} created successfully!"
+            remaining -= 1
+            if remaining == 0 and done is not None:
+                done.set()
+        else:
+            yield f"[red]Error:[/red] Asset discovery configuration creation failed with {message.details!r}"
+            remaining -= 1
+            if remaining == 0 and done is not None:
+                done.set()
+
+    request_id = identifiers.RequestId(uuid.uuid4())
     subscription = subscribers.subscribe_to_topic(
         redis_client,
         topic_name=constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS,
-        handler_context=subscribers.AssetDiscoveryConfigurationHandlerContext(),
-        message_handlers={
-            "asset_discovery_configuration_created": handle_success,
-            "asset_discovery_configuration_not_created": handle_failure,
-        },
+        handler_context=subscribers.HandlerContext(
+            request_id=request_id,
+        ),
+        message_handlers={"resource_modified": handle_message},
     )
 
     for to_create in bootstrapdata.ASSET_DISCOVERY_CONFIGURATIONS_TO_CREATE.values():
@@ -100,7 +100,7 @@ async def bootstrap_asset_discovery_configurations(ctx: typer.Context):
             f"Queueing asset_discovery_configuration {to_create.name!r} for creation..."
         )
         discovery_tasks.create_asset_discovery_configuration.send(
-            raw_request_id=str(uuid.uuid4()),
+            raw_request_id=str(request_id),
             raw_to_create=to_create.model_dump_json(exclude_none=True),
             raw_initiator=json.dumps(dataclasses.asdict(admin_)),
         )  # noqa

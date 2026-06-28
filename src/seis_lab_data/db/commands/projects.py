@@ -10,7 +10,7 @@ from ...schemas import (
 )
 from .. import models
 from ..queries import projects as project_queries
-from .common import get_bbox_4326_for_db
+from . import common
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ async def create_project(
             exclude_none=True,
         ),
         bbox_4326=(
-            get_bbox_4326_for_db(bbox)
+            common.get_bbox_4326_for_db(bbox)
             if (bbox := to_create.bbox_4326) is not None
             else bbox
         ),
@@ -64,7 +64,7 @@ async def update_project(
     ).items():
         setattr(project, key, value)
     updated_bbox_4326 = (
-        get_bbox_4326_for_db(bbox)
+        common.get_bbox_4326_for_db(bbox)
         if (bbox := to_update.bbox_4326) is not None
         else None
     )

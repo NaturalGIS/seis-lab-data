@@ -74,6 +74,8 @@ class UserPermissionDetails:
     can_create_children: bool
     can_update: bool
     can_delete: bool
+    can_validate: bool = False
+    can_discover: bool = False
 
 
 ItemWithDetails = typing.TypeVar(

@@ -37,16 +37,21 @@ async def flash_ui_message_after_redirect(
     }
     logger.debug(f"{payload=}")
     yield ServerSentEventGenerator.execute_script(
-        f"localStorage.setItem('sld:flash', '{notification.model_dump_json(exclude_none=True)}');"
+        f"localStorage.setItem('sld:flash', '{json.dumps(payload)}');"
     )
 
 
 async def flash_ui_message_same_page(
     notification: webui_schemas.Notification,
 ) -> AsyncGenerator[DatastarEvent, None]:
-    yield ServerSentEventGenerator.execute_script(
-        f"showFlash({notification.model_dump_json(exclude_none=True)})"
-    )
+    payload = {
+        "message": notification.message,
+        "category": {
+            "success": "primary",
+            "error": "danger",
+        }.get(notification.category, "info"),
+    }
+    yield ServerSentEventGenerator.execute_script(f"showFlash({json.dumps(payload)})")
 
 
 async def handle_resource_modification_new_page(
@@ -246,6 +251,8 @@ async def handle_resource_modification_detail_page(
     context: subscribers.HandlerContext,
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
+    logger.debug(f"{context=}")
+    logger.debug(f"{message=}")
     if message.resource_id != context.resource_id:
         return
     if not message.succeeded:  # if same request_id, show a notification

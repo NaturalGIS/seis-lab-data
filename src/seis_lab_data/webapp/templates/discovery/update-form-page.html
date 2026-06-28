@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+    {{ _("edit asset_discovery_configuration") | capitalize }}
+{% endblock page_title %}
+
+{% block details %}
+    <div data-on-intersect__once="@get('{{ url_for("asset_discovery_configurations:update_stream", asset_discovery_configuration_id=item.id, request_id=form.request_id.data) }}')">
+        {% include "discovery/update-form.html" %}
+    </div>
+{% endblock details %}

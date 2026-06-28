@@ -45,9 +45,10 @@ from ...schemas import (
     webui as webui_schemas,
 )
 from ..streamhandlers import common as common_handlers
-from .. import (
-    filters,
-    forms,
+from .. import filters
+from ..forms import (
+    projects as project_forms,
+    surveymissions as mission_forms,
 )
 from .auth import (
     requires_auth,
@@ -66,7 +67,7 @@ logger = logging.getLogger(__name__)
 @requires_auth
 async def get_project_creation_form(request: Request):
     """Return a form suitable for creating a new project."""
-    form_instance = await forms.ProjectCreateForm.from_formdata(request)
+    form_instance = await project_forms.ProjectCreateForm.from_formdata(request)
     form_instance.request_id.data = str(identifiers.RequestId(uuid.uuid4()))
     template_processor: Jinja2Templates = request.state.templates
     return template_processor.TemplateResponse(
@@ -112,7 +113,7 @@ async def get_project_update_form(request: Request):
         if project.bbox_4326 is not None
         else None
     )
-    update_form = forms.ProjectUpdateForm(
+    update_form = project_forms.ProjectUpdateForm(
         request=request,
         data={
             "name": {
@@ -387,11 +388,23 @@ async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails
             ),
         ),
         permissions=webui_schemas.UserPermissionDetails(
-            can_delete=project_permissions.can_delete_project(user, project),
-            can_update=project_permissions.can_update_project(user, project),
+            can_delete=project_permissions.can_delete_project(user, project)
+            if user
+            else False,
+            can_update=project_permissions.can_update_project(user, project)
+            if user
+            else False,
             can_create_children=mission_permissions.can_create_survey_mission(
                 user, project
-            ),
+            )
+            if user
+            else False,
+            can_validate=project_permissions.can_validate_project(user, project)
+            if user
+            else False,
+            can_discover=project_permissions.can_discover_project(user, project)
+            if user
+            else False,
         ),
         breadcrumbs=[
             webui_schemas.BreadcrumbItem(
@@ -557,8 +570,8 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         """Create a new project."""
         template_processor: Jinja2Templates = request.state.templates
         user = request.user
-        form_instance = await forms.ProjectCreateForm.get_validated_form_instance(
-            request
+        form_instance = (
+            await project_forms.ProjectCreateForm.get_validated_form_instance(request)
         )
         if form_instance.has_validation_errors():
             logger.debug("form did not validate")
@@ -668,8 +681,10 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 project := await project_ops.get_project(project_id, user, session)
             ) is None:
                 raise HTTPException(404, f"Project {project_id!r} not found.")
-        form_instance = await forms.ProjectUpdateForm.get_validated_form_instance(
-            request, disregard_id=project_id
+        form_instance = (
+            await project_forms.ProjectUpdateForm.get_validated_form_instance(
+                request, disregard_id=project_id
+            )
         )
 
         if form_instance.has_validation_errors():
@@ -744,7 +759,9 @@ class ProjectDetailEndpoint(HTTPEndpoint):
     @requires_auth
     async def delete(self, request: Request):
         """Delete a project."""
-        request_id = identifiers.RequestId(uuid.uuid4())
+        request_id = identifiers.RequestId(
+            uuid.UUID(request.query_params["request_id"])
+        )
         user = request.user
         session_maker = request.state.settings.get_db_session_maker()
         project_id = get_id_from_request_path(
@@ -777,7 +794,9 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         )
         session_maker = request.state.settings.get_db_session_maker()
         template_processor: Jinja2Templates = request.state.templates
-        creation_form = await forms.SurveyMissionCreateForm.from_formdata(request)
+        creation_form = await mission_forms.SurveyMissionCreateForm.from_formdata(
+            request
+        )
         async with session_maker() as session:
             try:
                 project = await project_ops.get_project(project_id, user, session)
@@ -864,7 +883,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
 @csrf_protect
 async def add_create_project_form_link(request: Request):
     """Add a form link to a create_project form."""
-    creation_form = await forms.ProjectCreateForm.from_formdata(request)
+    creation_form = await project_forms.ProjectCreateForm.from_formdata(request)
     creation_form.links.append_entry()
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template("projects/create-form.html")
@@ -886,7 +905,7 @@ async def add_create_project_form_link(request: Request):
 @csrf_protect
 async def remove_create_project_form_link(request: Request):
     """Remove a form link from a create_project form."""
-    creation_form = await forms.ProjectCreateForm.from_formdata(request)
+    creation_form = await project_forms.ProjectCreateForm.from_formdata(request)
     link_index = int(request.query_params["link_index"])
     creation_form.links.entries.pop(link_index)
     template_processor: Jinja2Templates = request.state.templates
@@ -910,7 +929,7 @@ async def remove_create_project_form_link(request: Request):
 async def add_update_project_form_link(request: Request):
     """Add a form link to an update_project form."""
     details = await _get_project_details(request)
-    form_ = await forms.ProjectUpdateForm.from_formdata(request)
+    form_ = await project_forms.ProjectUpdateForm.from_formdata(request)
     form_.links.append_entry()
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template("projects/update-form.html")
@@ -934,7 +953,7 @@ async def add_update_project_form_link(request: Request):
 async def remove_update_project_form_link(request: Request):
     """Remove a form link from an update_project form."""
     details = await _get_project_details(request)
-    form_ = await forms.ProjectUpdateForm.from_formdata(request)
+    form_ = await project_forms.ProjectUpdateForm.from_formdata(request)
     link_index = int(request.query_params["link_index"])
     form_.links.entries.pop(link_index)
     template_processor: Jinja2Templates = request.state.templates

@@ -34,6 +34,7 @@ from ...permissions import (
     surveyrelatedrecords as record_permissions,
 )
 from ...tasks import (
+    discovery as discovery_tasks,
     surveymissions as mission_tasks,
     surveyrelatedrecords as record_tasks,
 )
@@ -48,7 +49,7 @@ from .. import (
     filters,
     forms,
 )
-from ..streamhandlers import surveymissions as survey_mission_handlers
+from ..streamhandlers import common as common_handlers
 from .auth import (
     requires_auth,
 )
@@ -127,13 +128,29 @@ async def _get_survey_mission_details(
         permissions=webui_schemas.UserPermissionDetails(
             can_create_children=record_permissions.can_create_survey_related_record(
                 user, survey_mission
-            ),
+            )
+            if user
+            else False,
             can_update=mission_permissions.can_update_survey_mission(
                 user, survey_mission
-            ),
+            )
+            if user
+            else False,
             can_delete=mission_permissions.can_delete_survey_mission(
                 user, survey_mission
-            ),
+            )
+            if user
+            else False,
+            can_validate=mission_permissions.can_validate_survey_mission(
+                user, survey_mission
+            )
+            if user
+            else False,
+            can_discover=mission_permissions.can_discover_survey_mission(
+                user, survey_mission
+            )
+            if user
+            else False,
         ),
         breadcrumbs=[
             webui_schemas.BreadcrumbItem(
@@ -199,8 +216,9 @@ async def stream_to_update_page(request: Request):
     subscription = subscribers.subscribe_to_topic(
         redis_client,
         constants.NEW_TOPIC_SURVEY_MISSIONS,
-        subscribers.SurveyMissionHandlerContext(
-            survey_mission_id=survey_mission_id,
+        subscribers.HandlerContext(
+            resource_id=str(survey_mission_id),
+            resource_type=constants.ResourceType.MISSION,
             user=user,
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
@@ -208,7 +226,7 @@ async def stream_to_update_page(request: Request):
             request_id=request_id,
         ),
         message_handlers={
-            "survey_mission_updated": survey_mission_handlers.handle_edit_page_survey_mission_updated
+            "resource_modified": common_handlers.handle_resource_modification_edit_page,
         },
     )
 
@@ -236,8 +254,9 @@ async def stream_to_detail_page(request: Request):
     subscription = subscribers.subscribe_to_topic(
         redis_client,
         constants.NEW_TOPIC_SURVEY_MISSIONS,
-        subscribers.SurveyMissionHandlerContext(
-            survey_mission_id=survey_mission_id,
+        subscribers.HandlerContext(
+            resource_id=str(survey_mission_id),
+            resource_type=constants.ResourceType.MISSION,
             user=user,
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
@@ -245,7 +264,7 @@ async def stream_to_detail_page(request: Request):
             request_id=request_id,
         ),
         message_handlers={
-            "survey_mission_deleted": survey_mission_handlers.handle_detail_page_survey_mission_deleted
+            "resource_modified": common_handlers.handle_resource_modification_detail_page,
         },
     )
 
@@ -371,16 +390,15 @@ async def stream_to_list_page(request: Request):
     subscription = subscribers.subscribe_to_topic(
         request.state.redis_client,
         constants.NEW_TOPIC_SURVEY_MISSIONS,
-        subscribers.SurveyMissionHandlerContext(
+        subscribers.HandlerContext(
+            resource_type=constants.ResourceType.MISSION,
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
             db_session_factory=request.state.settings.get_db_session_maker(),
             user=request.user if request.user.is_authenticated else None,
         ),
         {
-            "survey_mission_created": survey_mission_handlers.handle_list_page_survey_mission_modification,
-            "survey_mission_updated": survey_mission_handlers.handle_list_page_survey_mission_modification,
-            "survey_mission_deleted": survey_mission_handlers.handle_list_page_survey_mission_modification,
+            "resource_modified": common_handlers.handle_resource_modification_list_page,
         },
     )
 
@@ -962,6 +980,17 @@ async def get_survey_mission_update_form(request: Request):
     )
 
 
+@csrf_protect
+@requires_auth
+async def trigger_discovery(request: Request):
+    discovery_tasks.discover_survey_mission_contents.send(
+        raw_request_id=str(uuid.uuid4()),
+        raw_survey_mission_id=request.path_params["survey_mission_id"],
+        raw_initiator=json.dumps(dataclasses.asdict(request.user)),
+    )  # noqa
+    return Response(status_code=200)
+
+
 @requires_auth
 async def stream_to_new_page(request: Request):
     """Stream relevant updates for the new survey mission page."""
@@ -975,13 +1004,14 @@ async def stream_to_new_page(request: Request):
         constants.NEW_TOPIC_SURVEY_MISSIONS,
         subscribers.HandlerContext(
             request_id=request_id,
+            resource_type=constants.ResourceType.MISSION,
             user=request.user,
             url_resolver=request.url_for,
             jinja_environment=request.state.templates.env,
             db_session_factory=request.state.settings.get_db_session_maker(),
         ),
         {
-            "survey_mission_created": survey_mission_handlers.handle_new_page_survey_mission_created,
+            "resource_modified": common_handlers.handle_resource_modification_new_page,
         },
     )
 
@@ -1070,6 +1100,12 @@ routes = [
         stream_to_update_page,
         methods=["GET"],
         name="update_stream",
+    ),
+    Route(
+        "/{survey_mission_id}/discover",
+        trigger_discovery,
+        methods=["POST"],
+        name="trigger_discovery",
     ),
     Route(
         "/{survey_mission_id}",

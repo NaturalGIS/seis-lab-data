@@ -18,6 +18,7 @@ from starlette_wtf import csrf_protect
 from ... import (
     config,
     constants,
+    errors,
     subscribers,
 )
 from ...db.queries import discovery as discovery_queries
@@ -152,7 +153,69 @@ async def get_creation_form(request: Request):
 
 @csrf_protect
 @requires_auth
-async def get_update_form(request: Request): ...
+async def get_update_form(request: Request):
+    """Return a form suitable for updating an existing asset discovery configuration."""
+    session_maker = request.state.settings.get_db_session_maker()
+    try:
+        asset_discovery_configuration_id = identifiers.AssetDiscoveryConfId(
+            uuid.UUID(request.path_params["asset_discovery_configuration_id"])
+        )
+    except (KeyError, ValueError) as err:
+        raise HTTPException(status_code=404, detail=str(err))
+    async with session_maker() as session:
+        try:
+            db_asset_discovery_configuration = (
+                await discovery_queries.get_asset_discovery_configuration(
+                    session,
+                    asset_discovery_configuration_id,
+                )
+            )
+        except errors.SeisLabDataError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        if db_asset_discovery_configuration is None:
+            raise HTTPException(
+                status_code=404,
+                detail=_(
+                    f"Asset discovery configuration {asset_discovery_configuration_id!r} not found."
+                ),
+            )
+    update_form = (
+        await discovery_forms.AssetDiscoveryConfigurationUpdateForm.from_request(
+            request=request,
+            data=db_asset_discovery_configuration.model_dump(exclude_none=True),
+        )
+    )
+    update_form.request_id.data = uuid.uuid4()
+    template_processor: Jinja2Templates = request.state.templates
+    return template_processor.TemplateResponse(
+        request,
+        "discovery/update-form-page.html",
+        context={
+            "item": discovery_schemas.AssetDiscoveryConfigurationReadListItem.from_db_instance(
+                db_asset_discovery_configuration
+            ),
+            "form": update_form,
+            "breadcrumbs": [
+                webui_schemas.BreadcrumbItem(
+                    name=_("Home"), url=request.url_for("home")
+                ),
+                webui_schemas.BreadcrumbItem(
+                    name=_("Asset discovery configurations"),
+                    url=request.url_for("asset_discovery_configurations:list"),
+                ),
+                webui_schemas.BreadcrumbItem(
+                    name=db_asset_discovery_configuration.name,
+                    url=request.url_for(
+                        "asset_discovery_configurations:detail",
+                        asset_discovery_configuration_id=asset_discovery_configuration_id,
+                    ),
+                ),
+                webui_schemas.BreadcrumbItem(
+                    name=_("Edit asset_discovery_configuration")
+                ),
+            ],
+        },
+    )
 
 
 async def stream_to_list_page(request: Request):
@@ -212,7 +275,42 @@ async def stream_to_new_page(request: Request):
 
 
 @requires_auth
-async def stream_to_update_page(request: Request): ...
+async def stream_to_update_page(request: Request):
+    """Stream relevant updates for the update asset_discovery_configuration page."""
+    try:
+        resource_id = request.path_params["asset_discovery_configuration_id"]
+    except (KeyError, ValueError) as err:
+        raise HTTPException(status_code=400, detail="Invalid resource id") from err
+
+    try:
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
+    except (KeyError, ValueError) as err:
+        raise HTTPException(status_code=400, detail="Invalid request id") from err
+
+    # TODO: should we update the form fields with handlers too?
+    subscription = subscribers.subscribe_to_topic(
+        request.state.redis_client,
+        constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS,
+        subscribers.HandlerContext(
+            request_id=request_id,
+            user=request.user,
+            url_resolver=request.url_for,
+            jinja_environment=request.state.templates.env,
+            db_session_factory=request.state.settings.get_db_session_maker(),
+            target_page=constants.PageType.RESOURCE_UPDATE,
+            resource_type=constants.ResourceType.ASSET_DISCOVERY_CONFIG,
+            resource_id=resource_id,
+        ),
+        {
+            "resource_modified": common_handlers.handle_resource_modification_edit_page,
+        },
+    )
+
+    async def event_streamer():
+        async for sse_event in subscription:
+            yield sse_event
+
+    return DatastarResponse(event_streamer())
 
 
 class AssetDiscoveryConfigurationCollectionEndpoint(HTTPEndpoint):
@@ -369,7 +467,7 @@ class AssetDiscoveryConfigurationDetailEndpoint(HTTPEndpoint):
             logger.debug(f"{form_instance.errors=}")
 
             async def event_streamer():
-                template = template_processor.get_template("projects/update-form.html")
+                template = template_processor.get_template("discovery/update-form.html")
                 rendered = template.render(
                     request=request,
                     project=discovery_schemas.AssetDiscoveryConfigurationReadListItem.from_db_instance(
@@ -389,16 +487,15 @@ class AssetDiscoveryConfigurationDetailEndpoint(HTTPEndpoint):
             # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
             return DatastarResponse(event_streamer(), status_code=200)
 
-        to_update = discovery_schemas.AssetDiscoveryConfigurationUpdate(
-            name=form_instance.name.data,
-            relative_path_regexp=form_instance.relative_path_regexp.data,
-            dataset_category_id=form_instance.dataset_category_id,
-            workflow_stage_id=form_instance.workflow_stage_id,
-        )
         discovery_tasks.update_asset_discovery_configuration.send(
-            raw_request_id=str(identifiers.RequestId(uuid.uuid4())),
+            raw_request_id=str(form_instance.request_id.data),
             raw_resource_id=str(asset_discovery_configuration_id),
-            raw_to_update=to_update.model_dump_json(),
+            raw_to_update=discovery_schemas.AssetDiscoveryConfigurationUpdate(
+                name=form_instance.name.data,
+                relative_path_regexp=form_instance.relative_path_regexp.data,
+                dataset_category_id=form_instance.dataset_category_id.data,
+                workflow_stage_id=form_instance.workflow_stage_id.data,
+            ).model_dump_json(),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
         )  # noqa
         return Response(status_code=200)

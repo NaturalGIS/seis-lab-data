@@ -166,24 +166,6 @@ async def delete_project(
         ctx.obj["main"].status_console.print(chunk)
 
 
-@app.async_command(name="old-delete")
-async def old_delete_project(
-    ctx: typer.Context,
-    project_id: uuid.UUID,
-):
-    """Delete a project."""
-    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
-    async with settings.get_db_session_maker()() as session:
-        await project_ops.delete_project(
-            request_id=identifiers.RequestId(uuid.uuid4()),
-            project_id=identifiers.ProjectId(project_id),
-            initiator=ctx.obj["admin_user"],
-            session=session,
-            event_dispatcher=settings.get_event_dispatcher(),
-        )
-    print(f"Deleted project with id {project_id!r}")
-
-
 @app.async_command(name="discover-contents")
 async def discover_project_contents(
     ctx: typer.Context,

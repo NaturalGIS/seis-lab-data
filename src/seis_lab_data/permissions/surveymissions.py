@@ -65,6 +65,10 @@ def can_validate_survey_mission(
     return can_update_survey_mission(user, mission)
 
 
+def can_discover_survey_mission(user: User, mission: models.SurveyMission) -> bool:
+    return can_update_survey_mission(user, mission)
+
+
 def can_change_survey_mission_status(
     user: User | None,
     mission: models.SurveyMission,

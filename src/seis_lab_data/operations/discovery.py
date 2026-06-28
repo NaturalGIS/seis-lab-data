@@ -23,6 +23,7 @@ from ..db.commands import discovery as discovery_commands
 from ..permissions import (
     discovery as discovery_permissions,
     projects as project_permissions,
+    surveymissions as mission_permissions,
 )
 from ..schemas import (
     common,
@@ -69,6 +70,7 @@ async def create_asset_discovery_configuration(
                 initiator=initiator.id,
                 request_id=request_id,
                 resource_type=constants.ResourceType.ASSET_DISCOVERY_CONFIG,
+                resource_id=None,
                 modification=constants.ResourceModification.CREATED,
                 succeeded=False,
                 details=str(err),
@@ -828,7 +830,7 @@ async def new_run_project_discovery(
                 event_dispatcher=event_dispatcher,
             )
             try:
-                await new_discover_mission_records(
+                await _new_discover_mission_records(
                     request_id=request_id,
                     mission=mission,
                     session=session,
@@ -880,7 +882,94 @@ async def new_run_project_discovery(
         )
 
 
-async def new_discover_mission_records(
+async def run_mission_discovery(
+    *,
+    request_id: identifiers.RequestId,
+    mission_id: identifiers.SurveyMissionId,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+    settings: config.SeisLabDataSettings,
+    user: user_schemas.User,
+) -> None:
+    try:
+        if (
+            mission := await mission_queries.get_survey_mission(session, mission_id)
+        ) is None:
+            raise errors.SeisLabDataError(
+                f"Survey mission with id {mission_id} does not exist."
+            )
+        if not mission_permissions.can_discover_survey_mission(user, mission):
+            raise errors.SeisLabDataError(
+                "User is not allowed to run discovery on this survey mission."
+            )
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.DiscoveryEvent(
+                initiator=user.id,
+                resource_type=constants.ResourceType.MISSION,
+                resource_id=str(mission_id),
+                request_id=request_id,
+                modification=constants.DiscoveryStage.ENDED,
+                succeeded=False,
+                details=str(err),
+            )
+        )
+        return
+
+    logger.debug(f"Discovering contents of mission {mission.name['en']!r}...")
+    asset_discovery_configs = (
+        await discovery_queries.collect_all_asset_discovery_configurations(session)
+    )
+    await mission_ops.change_survey_mission_status(
+        request_id=request_id,
+        target_status=constants.SurveyMissionStatus.UNDER_DISCOVERY,
+        survey_mission_id=mission_id,
+        initiator=user,
+        session=session,
+        event_dispatcher=event_dispatcher,
+    )
+    await event_dispatcher(
+        event_schemas.DiscoveryEvent(
+            initiator=user.id,
+            resource_type=constants.ResourceType.MISSION,
+            resource_id=str(mission_id),
+            request_id=request_id,
+            modification=constants.DiscoveryStage.STARTED,
+            succeeded=True,
+        )
+    )
+    try:
+        await _new_discover_mission_records(
+            request_id=request_id,
+            mission=mission,
+            session=session,
+            event_dispatcher=event_dispatcher,
+            settings=settings,
+            user=user,
+            asset_discovery_configs=asset_discovery_configs,
+        )
+    finally:
+        await mission_ops.change_survey_mission_status(
+            request_id=request_id,
+            target_status=constants.SurveyMissionStatus.DRAFT,
+            survey_mission_id=mission_id,
+            initiator=user,
+            session=session,
+            event_dispatcher=event_dispatcher,
+        )
+        await event_dispatcher(
+            event_schemas.DiscoveryEvent(
+                initiator=user.id,
+                resource_type=constants.ResourceType.MISSION,
+                resource_id=str(mission_id),
+                request_id=request_id,
+                modification=constants.DiscoveryStage.ENDED,
+                succeeded=True,
+            )
+        )
+
+
+async def _new_discover_mission_records(
     *,
     request_id: identifiers.RequestId,
     mission: models.SurveyMission,
