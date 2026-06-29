@@ -85,6 +85,16 @@
                                         "{{ current_temporal_extent.begin }}",
                                         "{{ current_temporal_extent.end }}"
                                     ) }}
+                        <div class="mb-3">
+                            <label for="path-fragment">{{ _("Path") }}</label>
+                            <input
+                                    id="path-fragment"
+                                    class="form-control"
+                                    data-bind="assetPathFragment"
+                                    data-on:input__debounce.200ms="@get('{{ url_for("survey_related_records:get_list_component") }}')"
+                                    value=""
+                            >
+                        </div>
                     </div>
                     <div
                             class="col"

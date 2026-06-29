@@ -466,6 +466,7 @@ async def list_survey_related_records(
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    asset_path_fragment_filter: str | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     kwargs = dict(
         survey_mission_id=survey_mission_id,
@@ -476,6 +477,7 @@ async def list_survey_related_records(
         pt_name_filter=pt_name_filter,
         spatial_intersect=spatial_intersect,
         temporal_extent=temporal_extent,
+        asset_path_fragment_filter=asset_path_fragment_filter,
     )
     if initiator is None:
         return await record_queries.list_published_survey_related_records(

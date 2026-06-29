@@ -5,6 +5,7 @@ import shapely
 from sqlalchemy.orm import selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import (
+    exists,
     func,
     or_,
     select,
@@ -27,6 +28,7 @@ def _build_survey_related_record_statement(
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    asset_path_fragment_filter: str | None = None,
 ):
     statement = (
         select(models.SurveyRelatedRecord)
@@ -70,6 +72,21 @@ def _build_survey_related_record_statement(
             statement = statement.where(
                 models.SurveyRelatedRecord.temporal_extent_end <= temporal_extent.end
             )
+    if asset_path_fragment_filter is not None:
+        statement = statement.where(
+            exists(
+                select(models.RecordAsset)
+                .where(
+                    models.RecordAsset.survey_related_record_id
+                    == models.SurveyRelatedRecord.id
+                )
+                .where(
+                    models.RecordAsset.relative_path.ilike(
+                        f"%{asset_path_fragment_filter}%"
+                    )
+                )
+            )
+        )
     return statement.order_by(
         models.SurveyRelatedRecord.temporal_extent_end.desc().nullslast()
     ).order_by(models.SurveyRelatedRecord.temporal_extent_begin.desc().nullslast())
@@ -99,6 +116,7 @@ async def list_published_survey_related_records(
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    asset_path_fragment_filter: str | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     statement = _build_survey_related_record_statement(
         survey_mission_id,
@@ -106,6 +124,7 @@ async def list_published_survey_related_records(
         pt_name_filter,
         spatial_intersect,
         temporal_extent,
+        asset_path_fragment_filter,
     ).where(models.SurveyRelatedRecord.status == SurveyRelatedRecordStatus.PUBLISHED)
     limit = page_size
     offset = page_size * (page - 1)
@@ -125,6 +144,7 @@ async def list_accessible_survey_related_records(
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    asset_path_fragment_filter: str | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     statement = (
         _build_survey_related_record_statement(
@@ -133,6 +153,7 @@ async def list_accessible_survey_related_records(
             pt_name_filter,
             spatial_intersect,
             temporal_extent,
+            asset_path_fragment_filter,
         )
         .join(
             models.SurveyMission,
@@ -166,6 +187,7 @@ async def list_survey_related_records(
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    asset_path_fragment_filter: str | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     """Return all records regardless of status. Intended for admin use."""
     statement = _build_survey_related_record_statement(
@@ -174,6 +196,7 @@ async def list_survey_related_records(
         pt_name_filter,
         spatial_intersect,
         temporal_extent,
+        asset_path_fragment_filter,
     )
     limit = page_size
     offset = page_size * (page - 1)

@@ -165,6 +165,12 @@ class WorkflowStageFilter(_StringFilter):
 
 
 @dataclasses.dataclass
+class PathFragmentFilter(_StringFilter):
+    internal_name: str = "asset_path_fragment_filter"
+    public_name: str = "assetPathFragment"
+
+
+@dataclasses.dataclass
 class ProjectIdFilter(_StringFilter):
     internal_name: str = "project_id"
     public_name: str = "projectId"
@@ -323,6 +329,7 @@ class SurveyRelatedRecordListFilters(ItemListFilters):
             DatasetCategoryFilter,
             WorkflowStageFilter,
             SurveyMissionIdFilter,
+            PathFragmentFilter,
         ):
             try:
                 filter_: SimpleListFilter = simple_type.from_params(params)
