@@ -25,7 +25,6 @@ from ..schemas import (
     user as user_schemas,
     validation as validation_schemas,
 )
-from . import projects as project_ops
 
 logger = logging.getLogger(__name__)
 
@@ -115,15 +114,6 @@ async def change_survey_mission_status(
                 f"Survey mission status is already set to {target_status} - nothing to do"
             )
             return survey_mission
-        if target_status == constants.SurveyMissionStatus.UNDER_DISCOVERY:
-            await project_ops.change_project_status(
-                request_id=request_id,
-                target_status=constants.ProjectStatus.UNDER_DISCOVERY,
-                project_id=identifiers.ProjectId(survey_mission.project_id),
-                initiator=initiator,
-                session=session,
-                event_dispatcher=event_dispatcher,
-            )
         updated_survey_mission = await mission_commands.set_survey_mission_status(
             session, identifiers.SurveyMissionId(survey_mission.id), target_status
         )

@@ -26,7 +26,6 @@ from ..schemas import (
     user as user_schemas,
     validation as validation_schemas,
 )
-from . import surveymissions as survey_mission_ops
 
 logger = logging.getLogger(__name__)
 
@@ -261,17 +260,6 @@ async def change_survey_related_record_status(
         ):
             raise errors.SeisLabDataError(
                 "User is not allowed to change survey-related record's status."
-            )
-        if target_status == constants.SurveyRelatedRecordStatus.UNDER_DISCOVERY:
-            await survey_mission_ops.change_survey_mission_status(
-                request_id=request_id,
-                target_status=constants.SurveyMissionStatus.UNDER_DISCOVERY,
-                survey_mission_id=identifiers.SurveyMissionId(
-                    survey_related_record.survey_mission_id
-                ),
-                initiator=initiator,
-                session=session,
-                event_dispatcher=event_dispatcher,
             )
         updated_survey_related_record = (
             await record_commands.set_survey_related_record_status(
