@@ -6,6 +6,7 @@ from typing import (
     Any,
     Callable,
     Protocol,
+    Sequence,
     TypeVar,
 )
 
@@ -38,26 +39,6 @@ class HandlerContext:
     resource_id: str | None = None
 
 
-# @dataclasses.dataclass(frozen=True)
-# class AssetDiscoveryConfigurationHandlerContext(HandlerContext):
-#     asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId | None = None
-#
-#
-# @dataclasses.dataclass(frozen=True)
-# class ProjectHandlerContext(HandlerContext):
-#     project_id: identifiers.ProjectId | None = None
-#
-#
-# @dataclasses.dataclass(frozen=True)
-# class SurveyMissionHandlerContext(HandlerContext):
-#     survey_mission_id: identifiers.SurveyMissionId | None = None
-#
-#
-# @dataclasses.dataclass(frozen=True)
-# class SurveyRelatedRecordHandlerContext(HandlerContext):
-#     survey_related_record_id: identifiers.SurveyRelatedRecordId | None = None
-
-
 class MessageHandlerProtocol[T_co, TContext: HandlerContext](Protocol):
     def __call__(
         self,
@@ -73,59 +54,9 @@ class MessageHandlerProtocol[T_co, TContext: HandlerContext](Protocol):
         ...
 
 
-# async def old_subscribe_to_topic[T, TContext: HandlerContext](
-#     redis_client: Redis,
-#     topic_name: str,
-#     handler_context: TContext,
-#     message_handlers: dict[str, MessageHandlerProtocol[T, TContext]],
-# ) -> AsyncGenerator[T, None]:
-#     """
-#     Subscribe to a pubsub topic and dispatch incoming messages to relevant handlers.
-#     """
-#     done_event = asyncio.Event()
-#     async with redis_client.pubsub() as pubsub:
-#         await pubsub.subscribe(topic_name)
-#         try:
-#             async for message in pubsub.listen():
-#                 if done_event.is_set():
-#                     break
-#                 if message["type"] != "message":
-#                     continue
-#
-#                 try:
-#                     parsed = pydantic.TypeAdapter(message_schemas.SldPubSubMessage).validate_json(
-#                         message["data"]
-#                     )
-#                 except pydantic.ValidationError as err:
-#                     logger.warning(err)
-#                     logger.warning(
-#                         f"Unrecognised message {message['data']!r} "
-#                         f"on {topic_name!r}, skipping"
-#                     )
-#                     continue
-#
-#                 handler = message_handlers.get(parsed.type)
-#                 if handler is None:
-#                     logger.debug(f"No handler for {parsed.type!r}, ignoring")
-#                     continue
-#
-#                 async for chunk in handler(
-#                     parsed, context=handler_context, done=done_event
-#                 ):
-#                     yield chunk
-#
-#                 if done_event.is_set():
-#                     break
-#
-#         except asyncio.CancelledError:
-#             logger.info(f"pubsub listener for {topic_name!r} cancelled")
-#         finally:
-#             await pubsub.unsubscribe(topic_name)
-
-
 async def subscribe_to_topic[T, TContext: HandlerContext](
     redis_client: Redis,
-    topic_name: str,
+    topic_names: Sequence[str],
     handler_context: TContext,
     message_handlers: dict[str, MessageHandlerProtocol[T, TContext]],
 ) -> AsyncGenerator[T, None]:
@@ -134,7 +65,8 @@ async def subscribe_to_topic[T, TContext: HandlerContext](
     """
     done_event = asyncio.Event()
     async with redis_client.pubsub() as pubsub:
-        await pubsub.subscribe(topic_name)
+        logger.debug(f"Subscribing to {topic_names}")
+        await pubsub.subscribe(*topic_names)
         try:
             async for message in pubsub.listen():
                 if done_event.is_set():
@@ -150,7 +82,7 @@ async def subscribe_to_topic[T, TContext: HandlerContext](
                     logger.warning(err)
                     logger.warning(
                         f"Unrecognised message {message['data']!r} "
-                        f"on {topic_name!r}, skipping"
+                        f"on {topic_names!r}, skipping"
                     )
                     continue
 
@@ -168,6 +100,6 @@ async def subscribe_to_topic[T, TContext: HandlerContext](
                     break
 
         except asyncio.CancelledError:
-            logger.info(f"pubsub listener for {topic_name!r} cancelled")
+            logger.info(f"pubsub listener for {topic_names!r} cancelled")
         finally:
-            await pubsub.unsubscribe(topic_name)
+            await pubsub.unsubscribe(topic_names)

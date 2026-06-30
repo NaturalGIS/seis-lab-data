@@ -178,7 +178,7 @@ async def load_sample_projects(ctx: typer.Context):
 
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        topic_name=constants.NEW_TOPIC_PROJECTS,
+        topic_names=[constants.NEW_TOPIC_PROJECTS],
         handler_context=subscribers.HandlerContext(),
         message_handlers={
             "project_created": handle_success,
@@ -231,10 +231,14 @@ async def load_sample_survey_missions(ctx: typer.Context):
         if remaining == 0 and done is not None:
             done.set()
 
+    request_id = identifiers.RequestId(uuid.uuid4())
+
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        topic_name=constants.NEW_TOPIC_SURVEY_MISSIONS,
-        handler_context=subscribers.SurveyMissionHandlerContext(),
+        topic_names=[constants.NEW_TOPIC_SURVEY_MISSIONS],
+        handler_context=subscribers.HandlerContext(
+            request_id=request_id,
+        ),
         message_handlers={
             "survey_mission_created": handle_success,
             "survey_mission_not_created": handle_failure,
@@ -246,7 +250,7 @@ async def load_sample_survey_missions(ctx: typer.Context):
             f"Queueing survey mission {to_create.name.en!r} for creation..."
         )
         mission_tasks.create_survey_mission.send(
-            raw_request_id=str(uuid.uuid4()),
+            raw_request_id=str(request_id),
             raw_to_create=to_create.model_dump_json(exclude_none=True),
             raw_initiator=json.dumps(dataclasses.asdict(admin_)),
         )  # noqa

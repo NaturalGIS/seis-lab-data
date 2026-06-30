@@ -221,7 +221,7 @@ async def get_update_form(request: Request):
 async def stream_to_list_page(request: Request):
     subscription = subscribers.subscribe_to_topic(
         request.state.redis_client,
-        constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS,
+        [constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS],
         subscribers.HandlerContext(
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
@@ -252,7 +252,7 @@ async def stream_to_new_page(request: Request):
     # TODO: should we update the form fields with handlers too?
     subscription = subscribers.subscribe_to_topic(
         request.state.redis_client,
-        constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS,
+        [constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS],
         subscribers.HandlerContext(
             request_id=request_id,
             user=request.user,
@@ -290,7 +290,7 @@ async def stream_to_update_page(request: Request):
     # TODO: should we update the form fields with handlers too?
     subscription = subscribers.subscribe_to_topic(
         request.state.redis_client,
-        constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS,
+        [constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS],
         subscribers.HandlerContext(
             request_id=request_id,
             user=request.user,

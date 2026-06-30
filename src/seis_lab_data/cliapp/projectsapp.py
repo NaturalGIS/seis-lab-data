@@ -150,7 +150,7 @@ async def delete_project(
     redis_client: aioredis.Redis = ctx.obj["main"].redis_client
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        topic_name=constants.NEW_TOPIC_PROJECTS,
+        topic_names=[constants.NEW_TOPIC_PROJECTS],
         handler_context=subscribers.HandlerContext(),
         message_handlers={
             "project_deleted": handlers.handle_project_deletion_success,
@@ -199,7 +199,7 @@ async def discover_project_contents(
 
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        topic_name=constants.NEW_TOPIC_PROJECTS,
+        topic_names=[constants.NEW_TOPIC_PROJECTS],
         handler_context=subscribers.HandlerContext(resource_id=str(project_id)),
         message_handlers={
             "project_discovery_progress": handle_progress,

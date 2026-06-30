@@ -168,7 +168,7 @@ async def discover_survey_mission_contents(
 
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        topic_name=constants.NEW_TOPIC_SURVEY_MISSIONS,
+        topic_names=[constants.NEW_TOPIC_SURVEY_MISSIONS],
         handler_context=subscribers.HandlerContext(resource_id=str(survey_mission_id)),
         message_handlers={"discovery": handle_message},
     )

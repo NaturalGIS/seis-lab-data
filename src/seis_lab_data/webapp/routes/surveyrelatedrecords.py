@@ -958,8 +958,8 @@ async def get_list_component(request: Request):
 async def stream_to_list_page(request: Request):
     subscription = subscribers.subscribe_to_topic(
         request.state.redis_client,
-        constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
-        subscribers.SurveyRelatedRecordHandlerContext(
+        [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS],
+        subscribers.HandlerContext(
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
             db_session_factory=request.state.settings.get_db_session_maker(),
@@ -1269,7 +1269,7 @@ async def stream_to_new_page(request: Request):
 
     subscription = subscribers.subscribe_to_topic(
         request.state.redis_client,
-        constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
+        [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS],
         subscribers.HandlerContext(
             request_id=request_id,
             user=request.user,
@@ -1305,9 +1305,9 @@ async def stream_to_detail_page(request: Request):
 
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
-        subscribers.SurveyRelatedRecordHandlerContext(
-            survey_related_record_id=record_id,
+        [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS],
+        subscribers.HandlerContext(
+            resource_id=str(record_id),
             user=user,
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
@@ -1343,9 +1343,9 @@ async def stream_to_update_page(request: Request):
 
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
-        subscribers.SurveyRelatedRecordHandlerContext(
-            survey_related_record_id=record_id,
+        [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS],
+        subscribers.HandlerContext(
+            resource_id=str(record_id),
             user=user,
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,

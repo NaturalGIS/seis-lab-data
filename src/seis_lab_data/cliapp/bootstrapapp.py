@@ -88,7 +88,7 @@ async def bootstrap_asset_discovery_configurations(ctx: typer.Context):
     request_id = identifiers.RequestId(uuid.uuid4())
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        topic_name=constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS,
+        topic_names=[constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS],
         handler_context=subscribers.HandlerContext(
             request_id=request_id,
         ),

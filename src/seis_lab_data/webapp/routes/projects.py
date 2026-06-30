@@ -207,7 +207,7 @@ async def stream_to_list_page(request: Request):
 
     subscription = subscribers.subscribe_to_topic(
         request.state.redis_client,
-        constants.NEW_TOPIC_PROJECTS,
+        [constants.NEW_TOPIC_PROJECTS],
         subscribers.HandlerContext(
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
@@ -244,7 +244,7 @@ async def stream_to_new_page(request: Request):
     # TODO: should we update the form fields with handlers too?
     subscription = subscribers.subscribe_to_topic(
         request.state.redis_client,
-        constants.NEW_TOPIC_PROJECTS,
+        [constants.NEW_TOPIC_PROJECTS],
         subscribers.HandlerContext(
             request_id=request_id,
             user=request.user,
@@ -280,7 +280,7 @@ async def stream_to_update_page(request: Request):
 
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        constants.NEW_TOPIC_PROJECTS,
+        [constants.NEW_TOPIC_PROJECTS],
         subscribers.HandlerContext(
             resource_id=str(project_id),
             user=user,
@@ -316,7 +316,7 @@ async def stream_to_detail_page(request: Request):
 
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        constants.NEW_TOPIC_PROJECTS,
+        [constants.NEW_TOPIC_PROJECTS],
         subscribers.HandlerContext(
             resource_id=str(project_id),
             user=user,

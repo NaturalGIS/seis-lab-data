@@ -215,7 +215,7 @@ async def stream_to_update_page(request: Request):
 
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        constants.NEW_TOPIC_SURVEY_MISSIONS,
+        [constants.NEW_TOPIC_SURVEY_MISSIONS],
         subscribers.HandlerContext(
             resource_id=str(survey_mission_id),
             resource_type=constants.ResourceType.MISSION,
@@ -253,7 +253,7 @@ async def stream_to_detail_page(request: Request):
 
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        constants.NEW_TOPIC_SURVEY_MISSIONS,
+        [constants.NEW_TOPIC_SURVEY_MISSIONS],
         subscribers.HandlerContext(
             resource_id=str(survey_mission_id),
             resource_type=constants.ResourceType.MISSION,
@@ -389,7 +389,7 @@ async def get_list_component(request: Request):
 async def stream_to_list_page(request: Request):
     subscription = subscribers.subscribe_to_topic(
         request.state.redis_client,
-        constants.NEW_TOPIC_SURVEY_MISSIONS,
+        [constants.NEW_TOPIC_SURVEY_MISSIONS],
         subscribers.HandlerContext(
             resource_type=constants.ResourceType.MISSION,
             jinja_environment=request.state.templates.env,
@@ -1001,7 +1001,7 @@ async def stream_to_new_page(request: Request):
 
     subscription = subscribers.subscribe_to_topic(
         request.state.redis_client,
-        constants.NEW_TOPIC_SURVEY_MISSIONS,
+        [constants.NEW_TOPIC_SURVEY_MISSIONS],
         subscribers.HandlerContext(
             request_id=request_id,
             resource_type=constants.ResourceType.MISSION,
