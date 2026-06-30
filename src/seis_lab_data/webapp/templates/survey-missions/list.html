@@ -29,6 +29,7 @@
                     data-signals:search='{{ search_initial_value }}'
                     data-signals:advanced-search-panel-open="false"
                     data-signals:searching="false"
+                    data-effect="$listingVersion > 0 && @get('{{ url_for('survey_missions:get_list_component') }}')"
             >
                 <div class="col-8">
                     <search class="form-floating">

@@ -46,7 +46,7 @@ from .. import (
     filters,
     forms,
 )
-from ..streamhandlers import surveyrelatedrecords as record_handlers
+from ..streamhandlers import common as common_handlers
 from .auth import (
     requires_auth,
 )
@@ -966,9 +966,7 @@ async def stream_to_list_page(request: Request):
             user=request.user if request.user.is_authenticated else None,
         ),
         {
-            "survey_related_record_created": record_handlers.handle_list_page_record_modification,
-            "survey_related_record_updated": record_handlers.handle_list_page_record_modification,
-            "survey_related_record_deleted": record_handlers.handle_list_page_record_modification,
+            "resource_modified": common_handlers.handle_resource_modification_list_page,
         },
     )
 
@@ -1278,7 +1276,7 @@ async def stream_to_new_page(request: Request):
             db_session_factory=request.state.settings.get_db_session_maker(),
         ),
         {
-            "survey_related_record_created": record_handlers.handle_new_page_record_created,
+            "resource_modified": common_handlers.handle_resource_modification_new_page,
         },
     )
 
@@ -1315,7 +1313,7 @@ async def stream_to_detail_page(request: Request):
             request_id=request_id,
         ),
         message_handlers={
-            "survey_related_record_deleted": record_handlers.handle_detail_page_record_deleted
+            "resource_modified": common_handlers.handle_resource_modification_detail_page,
         },
     )
 
@@ -1353,7 +1351,7 @@ async def stream_to_update_page(request: Request):
             request_id=request_id,
         ),
         message_handlers={
-            "survey_related_record_updated": record_handlers.handle_edit_page_survey_record_updated
+            "resource_modified": common_handlers.handle_resource_modification_edit_page,
         },
     )
 

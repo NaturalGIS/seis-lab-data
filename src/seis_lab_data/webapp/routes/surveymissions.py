@@ -253,7 +253,10 @@ async def stream_to_detail_page(request: Request):
 
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        [constants.NEW_TOPIC_SURVEY_MISSIONS],
+        [
+            constants.NEW_TOPIC_SURVEY_MISSIONS,
+            constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
+        ],
         subscribers.HandlerContext(
             resource_id=str(survey_mission_id),
             resource_type=constants.ResourceType.MISSION,
@@ -668,7 +671,6 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 en=form_instance.description.en.data,
                 pt=form_instance.description.pt.data,
             ),
-            relative_path=form_instance.relative_path.data,
             dataset_category_id=form_instance.dataset_category_id.data,
             workflow_stage_id=form_instance.workflow_stage_id.data,
             bbox_4326=(
