@@ -5,6 +5,7 @@ import pydantic
 from starlette_babel import LazyString
 from starlette.datastructures import URL
 
+from . import common
 from .projects import ProjectReadDetail
 from .surveymissions import (
     SurveyMissionReadDetail,
@@ -14,6 +15,11 @@ from .surveyrelatedrecords import (
     SurveyRelatedRecordReadDetail,
     SurveyRelatedRecordReadListItem,
 )
+
+
+class Notification(pydantic.BaseModel):
+    message: str
+    category: typing.Literal["info", "success", "error"] = "info"
 
 
 class BreadcrumbItem(pydantic.BaseModel):
@@ -49,26 +55,13 @@ class ItemSelectorInfo:
     breadcrumbs: str
 
 
-@dataclasses.dataclass
-class PaginationInfo:
-    current_page: int
-    page_size: int
-    total_filtered_items: int
-    total_unfiltered_items: int
-    total_filtered_pages: int
-    total_unfiltered_pages: int
-    next_page: int | None
-    previous_page: int | None
-    collection_url: str
-    next_page_url: str | None
-    previous_page_url: str | None
-
-
 @dataclasses.dataclass(frozen=True)
 class UserPermissionDetails:
     can_create_children: bool
     can_update: bool
     can_delete: bool
+    can_validate: bool = False
+    can_discover: bool = False
 
 
 ItemWithDetails = typing.TypeVar(
@@ -89,7 +82,7 @@ class ItemDetails(typing.Generic[ItemWithDetails, ItemChildSummary]):
     item: ItemWithDetails
     children: list[ItemChildSummary]
     children_filter: str
-    pagination: PaginationInfo
+    pagination: common.PaginationInfo
     permissions: UserPermissionDetails
     breadcrumbs: list[BreadcrumbItem]
 

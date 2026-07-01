@@ -9,9 +9,9 @@ from ...schemas import (
     identifiers,
     surveyrelatedrecords as record_schemas,
 )
-from .. import (
-    models,
-    queries,
+from .. import models
+from ..queries import (
+    surveyrelatedrecords as record_queries,
 )
 from .common import get_bbox_4326_for_db
 
@@ -27,7 +27,7 @@ async def create_dataset_category(
     )
     session.add(category)
     await session.commit()
-    return await queries.get_dataset_category(session, to_create.id)
+    return await record_queries.get_dataset_category(session, to_create.id)
 
 
 async def delete_dataset_category(
@@ -35,38 +35,13 @@ async def delete_dataset_category(
     dataset_category_id: uuid.UUID,
 ) -> None:
     if dataset_category := (
-        await queries.get_dataset_category(session, dataset_category_id)
+        await record_queries.get_dataset_category(session, dataset_category_id)
     ):
         await session.delete(dataset_category)
         await session.commit()
     else:
         raise errors.SeisLabDataError(
             f"Dataset category with id {dataset_category_id} does not exist."
-        )
-
-
-async def create_domain_type(
-    session: AsyncSession,
-    to_create: record_schemas.DomainTypeCreate,
-) -> models.DomainType:
-    domain_type = models.DomainType(
-        **to_create.model_dump(),
-    )
-    session.add(domain_type)
-    await session.commit()
-    return await queries.get_domain_type(session, to_create.id)
-
-
-async def delete_domain_type(
-    session: AsyncSession,
-    domain_type_id: uuid.UUID,
-) -> None:
-    if domain_type := (await queries.get_domain_type(session, domain_type_id)):
-        await session.delete(domain_type)
-        await session.commit()
-    else:
-        raise errors.SeisLabDataError(
-            f"Domain type with id {domain_type_id} does not exist."
         )
 
 
@@ -79,14 +54,16 @@ async def create_workflow_stage(
     )
     session.add(workflow_stage)
     await session.commit()
-    return await queries.get_workflow_stage(session, to_create.id)
+    return await record_queries.get_workflow_stage(session, to_create.id)
 
 
 async def delete_workflow_stage(
     session: AsyncSession,
     workflow_stage_id: uuid.UUID,
 ) -> None:
-    if workflow_stage := (await queries.get_workflow_stage(session, workflow_stage_id)):
+    if workflow_stage := (
+        await record_queries.get_workflow_stage(session, workflow_stage_id)
+    ):
         await session.delete(workflow_stage)
         await session.commit()
     else:
@@ -108,7 +85,7 @@ async def create_survey_related_record(
         ),
     )
     # need to ensure english name is unique for combination of mission and record
-    if await queries.get_survey_related_record_by_english_name(
+    if await record_queries.get_survey_related_record_by_english_name(
         session,
         identifiers.SurveyMissionId(to_create.survey_mission_id),
         to_create.name.en,
@@ -133,7 +110,7 @@ async def create_survey_related_record(
         session.add(db_related)
     await session.commit()
     await session.refresh(survey_record)
-    return await queries.get_survey_related_record(session, to_create.id)
+    return await record_queries.get_survey_related_record(session, to_create.id)
 
 
 async def delete_survey_related_record(
@@ -141,7 +118,9 @@ async def delete_survey_related_record(
     survey_related_record_id: identifiers.SurveyRelatedRecordId,
 ) -> None:
     if survey_record := (
-        await queries.get_survey_related_record(session, survey_related_record_id)
+        await record_queries.get_survey_related_record(
+            session, survey_related_record_id
+        )
     ):
         await session.delete(survey_record)
         await session.commit()
@@ -197,8 +176,10 @@ async def update_survey_related_record(
         if identifiers.RecordAssetId(existing_asset.id) not in proposed_asset_ids:
             await session.delete(existing_asset)
 
-    already_related_to = await queries.list_survey_related_record_related_to_records(
-        session, identifiers.SurveyRelatedRecordId(survey_related_record.id)
+    already_related_to = (
+        await record_queries.list_survey_related_record_related_to_records(
+            session, identifiers.SurveyRelatedRecordId(survey_related_record.id)
+        )
     )
     logger.debug(f"{already_related_to=}")
     for proposed_related_to in to_update.related_records:
@@ -232,7 +213,7 @@ async def update_survey_related_record(
 
     await session.commit()
     await session.refresh(survey_related_record)
-    return await queries.get_survey_related_record(
+    return await record_queries.get_survey_related_record(
         session, identifiers.SurveyRelatedRecordId(survey_related_record.id)
     )
 
@@ -247,7 +228,7 @@ async def update_survey_related_record_validation_result(
     session.add(survey_related_record)
     await session.commit()
     await session.refresh(survey_related_record)
-    return await queries.get_survey_related_record(
+    return await record_queries.get_survey_related_record(
         session, identifiers.SurveyRelatedRecordId(survey_related_record.id)
     )
 
@@ -260,7 +241,9 @@ async def set_survey_related_record_status(
     """Unconditionally sets the survey-related record's status."""
     if (
         survey_related_record := (
-            await queries.get_survey_related_record(session, survey_related_record_id)
+            await record_queries.get_survey_related_record(
+                session, survey_related_record_id
+            )
         )
     ) is None:
         raise errors.SeisLabDataError(
@@ -270,6 +253,6 @@ async def set_survey_related_record_status(
     session.add(survey_related_record)
     await session.commit()
     await session.refresh(survey_related_record)
-    return await queries.get_survey_related_record(
+    return await record_queries.get_survey_related_record(
         session, identifiers.SurveyRelatedRecordId(survey_related_record_id)
     )

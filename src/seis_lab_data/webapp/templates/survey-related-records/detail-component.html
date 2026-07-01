@@ -25,8 +25,6 @@
                                 <dl class="row">
                                     <dt class="col-sm-3">{{ _("dataset category") | capitalize }}</dt>
                                     <dd class="col-sm-9">{{ survey_related_record.dataset_category.name|translate_localizable_string }}</dd>
-                                    <dt class="col-sm-3">{{ _("domain type") | capitalize }}</dt>
-                                    <dd class="col-sm-9">{{ survey_related_record.domain_type.name|translate_localizable_string }}</dd>
                                     <dt class="col-sm-3">{{ _("workflow stage") | capitalize }}</dt>
                                     <dd class="col-sm-9">{{ survey_related_record.workflow_stage.name|translate_localizable_string }}</dd>
                                     <dt class="col-sm-3">{{ _("survey mission") | capitalize }}</dt>
@@ -135,7 +133,7 @@
             {% endif %}
             {% if permissions.can_delete %}
                 {{ macros_buttons_list_items.render_delete_item_button(
-                    deletion_url=url_for("survey_related_records:detail", survey_related_record_id=survey_related_record.id),
+                    deletion_url=url_for("survey_related_records:detail", survey_related_record_id=survey_related_record.id) ~ "?request_id=" ~ request_id,
                     signal_name="deleting",
                     idle_message="delete survey-related record",
                     running_message="deleting survey-related record...",

@@ -5,9 +5,9 @@ from ..schemas.common import (
 )
 from ..schemas.surveyrelatedrecords import (
     DatasetCategoryCreate,
-    DomainTypeCreate,
     WorkflowStageCreate,
 )
+from ..schemas.discovery import AssetDiscoveryConfigurationCreate
 from ..schemas import identifiers
 
 DATASET_CATEGORIES_TO_CREATE: dict[str, DatasetCategoryCreate] = {
@@ -65,23 +65,6 @@ DATASET_CATEGORIES_TO_CREATE: dict[str, DatasetCategoryCreate] = {
     ),
 }
 
-DOMAIN_TYPES_TO_CREATE: dict[str, DomainTypeCreate] = {
-    "geophysical": DomainTypeCreate(
-        id=identifiers.DomainTypeId(uuid.UUID("b06335e1-e8c2-4d27-9b20-5c3530fd4576")),
-        name=LocalizableDraftName(
-            en="geophysical",
-            pt="geofísica",
-        ),
-    ),
-    "geotechnical": DomainTypeCreate(
-        id=identifiers.DomainTypeId(uuid.UUID("474a9110-b8d5-4269-91a7-d8a307bd01c2")),
-        name=LocalizableDraftName(
-            en="geotechnical",
-            pt="geotécnica",
-        ),
-    ),
-}
-
 WORKFLOW_STAGES_TO_CREATE: dict[str, WorkflowStageCreate] = {
     "raw data": WorkflowStageCreate(
         id=identifiers.WorkflowStageId(
@@ -119,4 +102,25 @@ WORKFLOW_STAGES_TO_CREATE: dict[str, WorkflowStageCreate] = {
             pt="dados interpretados",
         ),
     ),
+}
+
+ASSET_DISCOVERY_CONFIGURATIONS_TO_CREATE: dict[
+    str, AssetDiscoveryConfigurationCreate
+] = {
+    "raw_kmall": AssetDiscoveryConfigurationCreate(
+        id=identifiers.AssetDiscoveryConfId(
+            uuid.UUID("3128b241-73a0-4f6f-88d0-75bb9424de25")
+        ),
+        name="raw_kmall",
+        relative_path_regexp="s06-mbes/s02-raw-data/.*\\.kmall",
+        workflow_stage_id=WORKFLOW_STAGES_TO_CREATE["raw data"].id,
+        dataset_category_id=DATASET_CATEGORIES_TO_CREATE["bathymetry"].id,
+    ),
+    # "raw_uhrs_segy": AssetDiscoveryConfigurationCreate(
+    #     id=identifiers.AssetDiscoveryConfId(uuid.UUID("57e5866c-b5d7-4e16-9e4c-411d7b1196bc")),
+    #     name="raw_uhrs_segy",
+    #     relative_path_regexp="s13-uhrs/s02-raw-data/.*\\.segy",
+    #     workflow_stage_id=WORKFLOW_STAGES_TO_CREATE["raw data"].id,
+    #     dataset_category_id=DATASET_CATEGORIES_TO_CREATE["uhrs"].id,
+    # )
 }

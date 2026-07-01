@@ -3,16 +3,14 @@ import logging
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import errors
+from ...constants import SurveyMissionStatus
 from ...schemas import (
     identifiers,
     surveymissions as mission_schemas,
 )
-from .. import (
-    models,
-    queries,
-)
+from .. import models
+from ..queries import surveymissions as mission_queries
 from .common import get_bbox_4326_for_db
-from ...constants import SurveyMissionStatus
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +28,7 @@ async def create_survey_mission(
         ),
     )
     # need to ensure english name is unique for combination of project and survey mission
-    if await queries.get_survey_mission_by_english_name(
+    if await mission_queries.get_survey_mission_by_english_name(
         session, identifiers.ProjectId(to_create.project_id), to_create.name.en
     ):
         raise errors.SeisLabDataError(
@@ -41,14 +39,16 @@ async def create_survey_mission(
     session.add(survey_mission)
     await session.commit()
     await session.refresh(survey_mission)
-    return await queries.get_survey_mission(session, to_create.id)
+    return await mission_queries.get_survey_mission(session, to_create.id)
 
 
 async def delete_survey_mission(
     session: AsyncSession,
     survey_mission_id: identifiers.SurveyMissionId,
 ) -> None:
-    if survey_mission := (await queries.get_survey_mission(session, survey_mission_id)):
+    if survey_mission := (
+        await mission_queries.get_survey_mission(session, survey_mission_id)
+    ):
         await session.delete(survey_mission)
         await session.commit()
     else:
@@ -89,7 +89,7 @@ async def update_survey_mission_validation_result(
     session.add(survey_mission)
     await session.commit()
     await session.refresh(survey_mission)
-    return await queries.get_survey_mission(
+    return await mission_queries.get_survey_mission(
         session, identifiers.SurveyMissionId(survey_mission.id)
     )
 
@@ -101,7 +101,9 @@ async def set_survey_mission_status(
 ) -> models.SurveyMission:
     """Unconditionally sets the survey mission's status."""
     if (
-        survey_mission := (await queries.get_survey_mission(session, survey_mission_id))
+        survey_mission := (
+            await mission_queries.get_survey_mission(session, survey_mission_id)
+        )
     ) is None:
         raise errors.SeisLabDataError(
             f"Survey mission with id {survey_mission_id} does not exist."
@@ -110,6 +112,6 @@ async def set_survey_mission_status(
     session.add(survey_mission)
     await session.commit()
     await session.refresh(survey_mission)
-    return await queries.get_survey_mission(
+    return await mission_queries.get_survey_mission(
         session, identifiers.SurveyMissionId(survey_mission_id)
     )

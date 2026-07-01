@@ -1,11 +1,25 @@
 import asyncio
+import dataclasses
+import json
+import uuid
+from collections.abc import AsyncGenerator
 
 import typer
+from redis import asyncio as aioredis
 from sqlalchemy.exc import IntegrityError
 
-from .. import config
+from .. import (
+    config,
+    constants,
+    subscribers,
+)
 from ..operations import surveyrelatedrecords as record_ops
-from ..schemas import surveyrelatedrecords as record_schemas
+from ..schemas import (
+    identifiers,
+    messages as message_schemas,
+    surveyrelatedrecords as record_schemas,
+)
+from ..tasks import discovery as discovery_tasks
 from . import bootstrapdata
 from .asynctyper import AsyncTyper
 from .utils import resolve_admin_user
@@ -39,8 +53,60 @@ def bootstrap_app_callback(
 async def bootstrap_all(ctx: typer.Context):
     """Create all default data."""
     await ctx.invoke(bootstrap_dataset_categories, ctx=ctx)
-    await ctx.invoke(bootstrap_domain_types, ctx=ctx)
     await ctx.invoke(bootstrap_workflow_stages, ctx=ctx)
+
+
+@app.async_command(name="asset-discovery-configurations")
+async def bootstrap_asset_discovery_configurations(ctx: typer.Context):
+    """Create default asset discovery configurations."""
+    redis_client: aioredis.Redis = ctx.obj["main"].redis_client
+    admin_ = ctx.obj["admin_user"]
+
+    remaining = len(bootstrapdata.ASSET_DISCOVERY_CONFIGURATIONS_TO_CREATE)
+
+    async def handle_message(
+        message: message_schemas.ResourceModificationMessage,
+        context: subscribers.HandlerContext,
+        done: asyncio.Event | None = None,
+    ) -> AsyncGenerator[str, None]:
+        nonlocal remaining
+
+        if message.request_id != context.request_id:
+            return
+
+        if message.succeeded:
+            yield f"[green]Success:[/green] Asset discovery configuration {message.resource_id!r} created successfully!"
+            remaining -= 1
+            if remaining == 0 and done is not None:
+                done.set()
+        else:
+            yield f"[red]Error:[/red] Asset discovery configuration creation failed with {message.details!r}"
+            remaining -= 1
+            if remaining == 0 and done is not None:
+                done.set()
+
+    request_id = identifiers.RequestId(uuid.uuid4())
+    subscription = subscribers.subscribe_to_topic(
+        redis_client,
+        topic_names=[constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS],
+        handler_context=subscribers.HandlerContext(
+            request_id=request_id,
+        ),
+        message_handlers={"resource_modified": handle_message},
+    )
+
+    for to_create in bootstrapdata.ASSET_DISCOVERY_CONFIGURATIONS_TO_CREATE.values():
+        ctx.obj["main"].status_console.print(
+            f"Queueing asset_discovery_configuration {to_create.name!r} for creation..."
+        )
+        discovery_tasks.create_asset_discovery_configuration.send(
+            raw_request_id=str(request_id),
+            raw_to_create=to_create.model_dump_json(exclude_none=True),
+            raw_initiator=json.dumps(dataclasses.asdict(admin_)),
+        )  # noqa
+
+    async for chunk in subscription:
+        ctx.obj["main"].status_console.print(chunk)
 
 
 @app.async_command(name="dataset-categories")
@@ -53,7 +119,8 @@ async def bootstrap_dataset_categories(ctx: typer.Context):
             try:
                 created.append(
                     await record_ops.create_dataset_category(
-                        to_create,
+                        request_id=identifiers.RequestId(uuid.uuid4()),
+                        to_create=to_create,
                         initiator=ctx.obj["admin_user"],
                         session=session,
                         event_dispatcher=settings.get_event_dispatcher(),
@@ -69,32 +136,6 @@ async def bootstrap_dataset_categories(ctx: typer.Context):
         ctx.obj["main"].status_console.print(to_show)
 
 
-@app.async_command(name="domain-types")
-async def bootstrap_domain_types(ctx: typer.Context):
-    """Create default domain types."""
-    created = []
-    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
-    async with settings.get_db_session_maker()() as session:
-        for to_create in bootstrapdata.DOMAIN_TYPES_TO_CREATE.values():
-            try:
-                created.append(
-                    await record_ops.create_domain_type(
-                        to_create,
-                        initiator=ctx.obj["admin_user"],
-                        session=session,
-                        event_dispatcher=settings.get_event_dispatcher(),
-                    )
-                )
-            except IntegrityError:
-                ctx.obj["main"].status_console.print(
-                    f"Domain type {to_create.name['en']!r} already exists, skipping..."
-                )
-                await session.rollback()
-    for created_domain_type in created:
-        to_show = record_schemas.DomainTypeRead(**created_domain_type.model_dump())
-        ctx.obj["main"].status_console.print(to_show)
-
-
 @app.async_command(name="workflow-stages")
 async def bootstrap_workflow_stages(ctx: typer.Context):
     """Create default workflow stages."""
@@ -105,7 +146,8 @@ async def bootstrap_workflow_stages(ctx: typer.Context):
             try:
                 created.append(
                     await record_ops.create_workflow_stage(
-                        to_create,
+                        request_id=identifiers.RequestId(uuid.uuid4()),
+                        to_create=to_create,
                         initiator=ctx.obj["admin_user"],
                         session=session,
                         event_dispatcher=settings.get_event_dispatcher(),

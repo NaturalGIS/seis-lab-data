@@ -5,6 +5,7 @@ import shapely
 from sqlalchemy.orm import selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import (
+    exists,
     func,
     or_,
     select,
@@ -27,6 +28,7 @@ def _build_survey_related_record_statement(
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    asset_path_fragment_filter: str | None = None,
 ):
     statement = (
         select(models.SurveyRelatedRecord)
@@ -36,7 +38,6 @@ def _build_survey_related_record_statement(
             )
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
-        .options(selectinload(models.SurveyRelatedRecord.domain_type))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
     )
     if en_name_filter:
@@ -71,6 +72,21 @@ def _build_survey_related_record_statement(
             statement = statement.where(
                 models.SurveyRelatedRecord.temporal_extent_end <= temporal_extent.end
             )
+    if asset_path_fragment_filter is not None:
+        statement = statement.where(
+            exists(
+                select(models.RecordAsset)
+                .where(
+                    models.RecordAsset.survey_related_record_id
+                    == models.SurveyRelatedRecord.id
+                )
+                .where(
+                    models.RecordAsset.relative_path.ilike(
+                        f"%{asset_path_fragment_filter}%"
+                    )
+                )
+            )
+        )
     return statement.order_by(
         models.SurveyRelatedRecord.temporal_extent_end.desc().nullslast()
     ).order_by(models.SurveyRelatedRecord.temporal_extent_begin.desc().nullslast())
@@ -100,6 +116,7 @@ async def list_published_survey_related_records(
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    asset_path_fragment_filter: str | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     statement = _build_survey_related_record_statement(
         survey_mission_id,
@@ -107,6 +124,7 @@ async def list_published_survey_related_records(
         pt_name_filter,
         spatial_intersect,
         temporal_extent,
+        asset_path_fragment_filter,
     ).where(models.SurveyRelatedRecord.status == SurveyRelatedRecordStatus.PUBLISHED)
     limit = page_size
     offset = page_size * (page - 1)
@@ -126,6 +144,7 @@ async def list_accessible_survey_related_records(
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    asset_path_fragment_filter: str | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     statement = (
         _build_survey_related_record_statement(
@@ -134,6 +153,7 @@ async def list_accessible_survey_related_records(
             pt_name_filter,
             spatial_intersect,
             temporal_extent,
+            asset_path_fragment_filter,
         )
         .join(
             models.SurveyMission,
@@ -167,6 +187,7 @@ async def list_survey_related_records(
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    asset_path_fragment_filter: str | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     """Return all records regardless of status. Intended for admin use."""
     statement = _build_survey_related_record_statement(
@@ -175,6 +196,7 @@ async def list_survey_related_records(
         pt_name_filter,
         spatial_intersect,
         temporal_extent,
+        asset_path_fragment_filter,
     )
     limit = page_size
     offset = page_size * (page - 1)
@@ -196,7 +218,6 @@ async def get_survey_related_record(
             )
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
-        .options(selectinload(models.SurveyRelatedRecord.domain_type))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
         # adding all assets too, since they will always be a small list
         .options(selectinload(models.SurveyRelatedRecord.assets))
@@ -222,7 +243,6 @@ async def get_survey_related_record_by_english_name(
             )
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
-        .options(selectinload(models.SurveyRelatedRecord.domain_type))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
         # adding all assets too, since they will always be a small list
         .options(selectinload(models.SurveyRelatedRecord.assets))
@@ -262,7 +282,6 @@ async def list_survey_related_record_related_to_records(
             )
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
-        .options(selectinload(models.SurveyRelatedRecord.domain_type))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
     )
     return (await session.exec(statement.offset(offset).limit(limit))).all()
@@ -297,7 +316,6 @@ async def list_survey_related_record_subject_records(
             )
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
-        .options(selectinload(models.SurveyRelatedRecord.domain_type))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
     )
     return (await session.exec(statement.offset(offset).limit(limit))).all()
@@ -348,55 +366,6 @@ async def get_dataset_category_by_english_name(
 ) -> models.DatasetCategory | None:
     statement = select(models.DatasetCategory).where(
         models.DatasetCategory.name["en"].astext == name
-    )
-    return (await session.exec(statement)).first()
-
-
-async def list_domain_types(
-    session: AsyncSession,
-    limit: int = 20,
-    offset: int = 0,
-    include_total: bool = False,
-    order_by_clause=models.DomainType.name["en"].astext,
-) -> tuple[list[models.DomainType], int | None]:
-    statement = select(models.DomainType)
-
-    # NOTE: limit, offset and order_by are applied only when asking the
-    # session to exec because we want to reuse the statement later, to count
-    # total number of records
-    items = (
-        await session.exec(
-            statement.offset(offset).limit(limit).order_by(order_by_clause)
-        )
-    ).all()
-    num_total = (
-        await _get_total_num_records(session, statement) if include_total else None
-    )
-    return items, num_total
-
-
-async def collect_all_domain_types(
-    session: AsyncSession, order_by_clause=models.DomainType.name["en"].astext
-) -> list[models.DomainType]:
-    _, num_total = await list_domain_types(session, limit=1, include_total=True)
-    items, _ = await list_domain_types(
-        session, limit=num_total, include_total=False, order_by_clause=order_by_clause
-    )
-    return items
-
-
-async def get_domain_type(
-    session: AsyncSession,
-    domain_type_id: uuid.UUID,
-) -> models.DomainType | None:
-    return await session.get(models.DomainType, domain_type_id)
-
-
-async def get_domain_type_by_english_name(
-    session: AsyncSession, name: str
-) -> models.DomainType | None:
-    statement = select(models.DomainType).where(
-        models.DomainType.name["en"].astext == name
     )
     return (await session.exec(statement)).first()
 

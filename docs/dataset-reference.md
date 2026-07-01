@@ -2,13 +2,6 @@
 
 Quick reference for the data model dimensions used to classify datasets in the archive.
 
-## Domain types
-
-| Code | Domain type | Description |
-|------|-------------|-------------|
-| D1 | Geophysical | Remote sensing and acoustic survey data (bathymetry, backscatter, seismic, magnetometer/gradiometer) |
-| D2 | Geotechnical | Physical sampling and in-situ testing data (superficial sediment samples, cores, CPT tests) |
-
 ## Dataset categories
 
 | Code | Category | Domain |

@@ -48,6 +48,7 @@ from .routes import (
 from .routes.projects import routes as projects_routes
 from .routes.surveymissions import routes as missions_routes
 from .routes.surveyrelatedrecords import routes as records_routes
+from .routes.discovery import routes as discovery_routes
 
 
 class State(TypedDict):
@@ -75,6 +76,7 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
             "csrf_token": csrf_token,
             "icons": {
                 "delete_item": "delete",
+                "discover_contents": "travel_explore",
                 "edit_item": "edit",
                 "new_item": "add_circle_outline",
                 "open_link": "open_in_new",
@@ -83,7 +85,6 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
                 "search": "search",
                 "expand_less": "expand_less",
                 "expand_more": "expand_more",
-                "discover_project": "travel_explore",
                 "status_draft": "design_services",
                 "status_published": "public",
                 "status_under_validation": "sync",
@@ -136,7 +137,7 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
     app = Starlette(
         debug=settings.debug,
         routes=[
-            Route("/", base.home),
+            Route("/", base.home, name="home"),
             Route("/login", auth.login),
             Route("/oauth2/callback", auth.auth_callback),
             Route("/logout", auth.logout),
@@ -148,6 +149,11 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                 "/survey-related-records",
                 name="survey_related_records",
                 routes=records_routes,
+            ),
+            Mount(
+                "/asset-discovery-configurations",
+                name="asset_discovery_configurations",
+                routes=discovery_routes,
             ),
         ],
         lifespan=lifespan,

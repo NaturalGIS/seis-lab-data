@@ -14,18 +14,24 @@ from redis import asyncio as aioredis
 from .. import (
     config,
     constants,
-    operations,
-    schemas,
     subscribers,
 )
-from ..db import queries
-from ..errors import SeisLabDataError
+from ..operations import (
+    projects as project_ops,
+    surveymissions as mission_ops,
+    surveyrelatedrecords as record_ops,
+)
+from ..db.queries import surveyrelatedrecords as record_queries
 from ..dispatch import no_op_dispatcher
 from ..schemas import (
     identifiers,
     messages as message_schemas,
+    surveyrelatedrecords as record_schemas,
 )
-from ..tasks import projects as project_tasks
+from ..tasks import (
+    projects as project_tasks,
+    surveymissions as mission_tasks,
+)
 from . import sampledata
 from .asynctyper import AsyncTyper
 from .utils import resolve_admin_user
@@ -79,15 +85,15 @@ async def generate_many_projects(
         else no_op_dispatcher
     )
     async with settings.get_db_session_maker()() as session:
-        dataset_categories = await queries.collect_all_dataset_categories(session)
-        workflow_stages = await queries.collect_all_workflow_stages(session)
-        domain_types = await queries.collect_all_domain_types(session)
+        dataset_categories = await record_queries.collect_all_dataset_categories(
+            session
+        )
+        workflow_stages = await record_queries.collect_all_workflow_stages(session)
         project_generator = sampledata.generate_sample_projects(
             owners=[admin_],
             dataset_categories=[
                 identifiers.DatasetCategoryId(dc.id) for dc in dataset_categories
             ],
-            domain_types=[identifiers.DomainTypeId(dt.id) for dt in domain_types],
             workflow_stages=[
                 identifiers.WorkflowStageId(ws.id) for ws in workflow_stages
             ],
@@ -97,9 +103,11 @@ async def generate_many_projects(
                 f"Creating project {i + 1}/{num_projects}..."
             )
             project_to_create, missions_info = next(project_generator)
+            request_id = identifiers.RequestId(uuid.uuid4())
             created.append(
-                await operations.create_project(
-                    project_to_create,
+                await project_ops.create_project(
+                    request_id=request_id,
+                    to_create=project_to_create,
                     initiator=admin_,
                     session=session,
                     event_dispatcher=emitter,
@@ -111,18 +119,17 @@ async def generate_many_projects(
                 ctx.obj["main"].status_console.print(
                     f"\tCreating mission ({mission_index + 1}/{len(missions_info)}) for project with {len(records_to_create)} records..."
                 )
-                await operations.create_survey_mission(
-                    mission_to_create,
+                await mission_ops.create_survey_mission(
+                    request_id=request_id,
+                    to_create=mission_to_create,
                     initiator=admin_,
                     session=session,
                     event_dispatcher=emitter,
                 )
                 for record_index, record_to_create in enumerate(records_to_create):
-                    # ctx.obj["main"].status_console.print(
-                    #     f"\t\tCreating record ({record_index + 1}/{len(records_to_create)}) for mission..."
-                    # )
-                    await operations.create_survey_related_record(
-                        record_to_create,
+                    await record_ops.create_survey_related_record(
+                        request_id=request_id,
+                        to_create=record_to_create,
                         initiator=admin_,
                         session=session,
                         event_dispatcher=emitter,
@@ -147,35 +154,31 @@ async def load_sample_projects(ctx: typer.Context):
     projects_to_create = list(sampledata.get_projects_to_create(owner=admin_))
     remaining = len(projects_to_create)
 
-    async def handle_success(
-        message: message_schemas.ProjectCreatedMessage,
+    async def handle_message(
+        message: message_schemas.ResourceModificationMessage,
         context: subscribers.HandlerContext,
         done: asyncio.Event | None = None,
     ) -> AsyncGenerator[str, None]:
         nonlocal remaining
-        yield f"[green]Success:[/green] Project {message.project_id!r} created successfully!"
+        if message.request_id != context.request_id:
+            return
+        if message.succeeded:
+            yield f"[green]Success:[/green] Project {message.resource_id!r} created successfully!"
+        else:
+            yield f"[red]Error:[/red] Project creation failed with {message.details!r}"
         remaining -= 1
         if remaining == 0 and done is not None:
             done.set()
 
-    async def handle_failure(
-        message: message_schemas.ProjectNotCreatedMessage,
-        context: subscribers.HandlerContext,
-        done: asyncio.Event | None = None,
-    ) -> AsyncGenerator[str, None]:
-        nonlocal remaining
-        yield f"[red]Error:[/red] Project creation failed with {message.details!r}"
-        remaining -= 1
-        if remaining == 0 and done is not None:
-            done.set()
-
+    request_id = identifiers.RequestId(uuid.uuid4())
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        topic_name=constants.NEW_TOPIC_PROJECTS,
-        handler_context=subscribers.HandlerContext(),
+        topic_names=[constants.NEW_TOPIC_PROJECTS],
+        handler_context=subscribers.HandlerContext(
+            request_id=request_id,
+        ),
         message_handlers={
-            "project_created": handle_success,
-            "project_not_created": handle_failure,
+            "resource_modified": handle_message,
         },
     )
 
@@ -184,7 +187,7 @@ async def load_sample_projects(ctx: typer.Context):
             f"Queueing project {to_create.name.en!r} for creation..."
         )
         project_tasks.create_project.send(
-            raw_request_id=str(uuid.uuid4()),
+            raw_request_id=str(request_id),
             raw_to_create=to_create.model_dump_json(exclude_none=True),
             raw_initiator=json.dumps(dataclasses.asdict(admin_)),
         )  # noqa
@@ -194,71 +197,55 @@ async def load_sample_projects(ctx: typer.Context):
 
 
 @app.async_command()
-async def old_load_sample_projects(ctx: typer.Context):
-    """Load sample projects into the database."""
-    created = []
-    admin_ = ctx.obj["admin_user"]
-    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
-    async with settings.get_db_session_maker()() as session:
-        for to_create in sampledata.get_projects_to_create(owner=admin_):
-            ctx.obj["main"].status_console.print(
-                f"Creating project {to_create.name.en!r}..."
-            )
-            try:
-                created.append(
-                    await operations.create_project(
-                        to_create,
-                        initiator=admin_,
-                        session=session,
-                        event_dispatcher=settings.get_event_dispatcher(),
-                    )
-                )
-            except SeisLabDataError as err:
-                ctx.obj["main"].status_console.print(f"[red]{err}[/red]")
-                continue
-            except IntegrityError as err:
-                await session.rollback()
-                if isinstance(err.orig, UniqueViolation):
-                    ctx.obj["main"].status_console.print(
-                        f"Project {to_create.id!r} already exists, skipping..."
-                    )
-                else:
-                    raise RuntimeError from err
-    for created_project in created:
-        to_show = schemas.ProjectReadListItem(**created_project.model_dump())
-        ctx.obj["main"].status_console.print(to_show)
-
-
-@app.async_command()
 async def load_sample_survey_missions(ctx: typer.Context):
     """Load sample survey missions into the database."""
-    created = []
+    redis_client: aioredis.Redis = ctx.obj["main"].redis_client
     admin_ = ctx.obj["admin_user"]
-    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
-    async with settings.get_db_session_maker()() as session:
-        for to_create in sampledata.get_survey_missions_to_create(admin_):
-            try:
-                created.append(
-                    await operations.create_survey_mission(
-                        to_create,
-                        initiator=admin_,
-                        session=session,
-                        event_dispatcher=settings.get_event_dispatcher(),
-                    )
-                )
-            except IntegrityError as err:
-                await session.rollback()
-                if isinstance(err.orig, UniqueViolation):
-                    ctx.obj["main"].status_console.print(
-                        f"Survey mission {to_create.id!r} already exists, skipping..."
-                    )
-                else:
-                    raise RuntimeError from err
-    for created_survey_mission in created:
-        to_show = schemas.SurveyMissionReadListItem.from_db_instance(
-            created_survey_mission
+
+    missions_to_create = list(sampledata.get_survey_missions_to_create(owner=admin_))
+    remaining = len(missions_to_create)
+
+    async def handle_message(
+        message: message_schemas.ResourceModificationMessage,
+        context: subscribers.HandlerContext,
+        done: asyncio.Event | None = None,
+    ) -> AsyncGenerator[str, None]:
+        nonlocal remaining
+        if message.request_id != context.request_id:
+            return
+        if message.succeeded:
+            yield f"[green]Success:[/green] {message.resource_type.value} {message.resource_id!r} {message.modification.value} successfully!"
+        else:
+            yield f"[red]Error:[/red] {message.resource_type.value} {message.modification.value} failed with {message.details!r}"
+        remaining -= 1
+        if remaining == 0 and done is not None:
+            done.set()
+
+    request_id = identifiers.RequestId(uuid.uuid4())
+
+    subscription = subscribers.subscribe_to_topic(
+        redis_client,
+        topic_names=[constants.NEW_TOPIC_SURVEY_MISSIONS],
+        handler_context=subscribers.HandlerContext(
+            request_id=request_id,
+        ),
+        message_handlers={
+            "resource_modified": handle_message,
+        },
+    )
+
+    for to_create in missions_to_create:
+        ctx.obj["main"].status_console.print(
+            f"Queueing survey mission {to_create.name.en!r} for creation..."
         )
-        ctx.obj["main"].status_console.print(to_show)
+        mission_tasks.create_survey_mission.send(
+            raw_request_id=str(request_id),
+            raw_to_create=to_create.model_dump_json(exclude_none=True),
+            raw_initiator=json.dumps(dataclasses.asdict(admin_)),
+        )  # noqa
+
+    async for chunk in subscription:
+        ctx.obj["main"].status_console.print(chunk)
 
 
 @app.async_command()
@@ -268,19 +255,20 @@ async def load_sample_survey_related_records(ctx: typer.Context):
     admin_ = ctx.obj["admin_user"]
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        all_dataset_categories = await queries.collect_all_dataset_categories(session)
-        all_domain_types = await queries.collect_all_domain_types(session)
-        all_workflow_stages = await queries.collect_all_workflow_stages(session)
+        all_dataset_categories = await record_queries.collect_all_dataset_categories(
+            session
+        )
+        all_workflow_stages = await record_queries.collect_all_workflow_stages(session)
         for to_create in sampledata.get_survey_related_records_to_create(
             owner=admin_,
             dataset_categories={c.name["en"]: c for c in all_dataset_categories},
-            domain_types={d.name["en"]: d for d in all_domain_types},
             workflow_stages={w.name["en"]: w for w in all_workflow_stages},
         ):
             try:
                 created.append(
-                    await operations.create_survey_related_record(
-                        to_create,
+                    await record_ops.create_survey_related_record(
+                        request_id=identifiers.RequestId(uuid.uuid4()),
+                        to_create=to_create,
                         initiator=admin_,
                         session=session,
                         event_dispatcher=settings.get_event_dispatcher(),
@@ -295,7 +283,7 @@ async def load_sample_survey_related_records(ctx: typer.Context):
                 else:
                     raise RuntimeError from err
     for created_survey_record in created:
-        to_show = schemas.SurveyRelatedRecordReadListItem.from_db_instance(
+        to_show = record_schemas.SurveyRelatedRecordReadListItem.from_db_instance(
             created_survey_record
         )
         ctx.obj["main"].status_console.print(to_show)

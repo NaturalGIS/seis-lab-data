@@ -17,7 +17,7 @@ from wtforms import (
     FormField,
 )
 
-from seis_lab_data import constants
+from ... import constants
 
 logger = logging.getLogger(__name__)
 

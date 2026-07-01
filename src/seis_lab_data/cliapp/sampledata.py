@@ -15,7 +15,6 @@ from .. import constants
 from ..schemas import (
     common as common_schemas,
     identifiers,
-    discovery as discovery_schemas,
     projects as project_schemas,
     surveymissions as mission_schemas,
     surveyrelatedrecords as record_schemas,
@@ -26,6 +25,14 @@ from ..db import models
 
 _FAKE_EN = Faker("en_US")
 _FAKE_PT = Faker("pt_PT")
+
+
+_real_owf_seism_2024_project_id = identifiers.ProjectId(
+    uuid.UUID("8f931331-15c3-4899-846c-38470f6bcb5a")
+)
+_real_raw_bathy_record_discovery_conf_id = identifiers.RecordDiscoveryConfId(
+    "real_raw_bathy"
+)
 
 _raw_bathy_record_discovery_conf_id = identifiers.RecordDiscoveryConfId("raw_bathy")
 _processed_bathy_record_discovery_conf_id = identifiers.RecordDiscoveryConfId(
@@ -40,6 +47,10 @@ _my_first_project_id = identifiers.ProjectId(
 )
 _my_second_project_id = identifiers.ProjectId(
     uuid.UUID("9a877fbe-da98-45ab-af70-711879c6fc01")
+)
+
+_owf_seism_2024_mission_id = identifiers.SurveyMissionId(
+    uuid.UUID("73315036-c34a-4e14-a373-697dbb94db3c")
 )
 
 _my_first_survey_mission_id = identifiers.SurveyMissionId(
@@ -65,145 +76,154 @@ def get_projects_to_create(
     owner_id = identifiers.UserId(owner.id)
     return [
         project_schemas.ProjectCreate(
-            id=_prr_eolicas_project_id,
+            id=_real_owf_seism_2024_project_id,
             owner_id=owner_id,
             name=common_schemas.LocalizableDraftName(
-                en="PRR windfarms", pt="PRR Eólicas"
+                en="prr eolicas",
             ),
             description=common_schemas.LocalizableDraftDescription(
-                en="A description about the PRR windfarms project",
-                pt="Uma descrição sobre o projeto PRR Eólicas",
+                en="A description about the prr eolicas project",
             ),
-            root_path="surveys",
-            discovery_configuration=discovery_schemas.ProjectDiscoveryConfiguration(
-                survey_missions=[
-                    discovery_schemas.SurveyMissionDiscoveryConfiguration(
-                        name=discovery_schemas.TranslatableString(
-                            {"en": discovery_schemas.TemplatedString("seism-2024")}
-                        ),
-                        description=discovery_schemas.TranslatableString(
-                            {
-                                "en": discovery_schemas.TemplatedString(
-                                    "Some description about the seism-2024 survey"
-                                )
-                            }
-                        ),
-                        relative_path="owf-seism-2024",
-                        record_configuration_ids=[
-                            _raw_bathy_record_discovery_conf_id,
-                            _processed_bathy_record_discovery_conf_id,
-                        ],
-                    ),
-                ],
-                records={
-                    str(
-                        _raw_bathy_record_discovery_conf_id
-                    ): discovery_schemas.SurveyRecordDiscoveryConfiguration(
-                        id_=_raw_bathy_record_discovery_conf_id,
-                        dataset_category="bathymetry",
-                        domain_type="geophysical",
-                        workflow_stage="raw data",
-                        name=discovery_schemas.TranslatableString(
-                            {
-                                "en": discovery_schemas.TemplatedString(
-                                    "Raw bathymetry {date_dashed} - pathway #{pathway}"
-                                ),
-                                "pt": discovery_schemas.TemplatedString(
-                                    "Batimetria em bruto {date_dashed} - pathway #{pathway}"
-                                ),
-                            }
-                        ),
-                        extra_properties=[
-                            discovery_schemas.RecordProperty(
-                                identifier="date",
-                                handler=discovery_schemas.DateYmdProperty(),
-                            ),
-                            discovery_schemas.RecordProperty(
-                                identifier="date_dashed",
-                                handler=discovery_schemas.DateYmdDashedProperty(),
-                            ),
-                            discovery_schemas.RecordProperty(
-                                identifier="pathway",
-                                handler=discovery_schemas.ConstantProperty(
-                                    pattern=r"\d{4}"
-                                ),
-                            ),
-                            discovery_schemas.RecordProperty(
-                                identifier="ship",
-                                handler=discovery_schemas.ConstantProperty(
-                                    pattern=r"\w+"
-                                ),
-                            ),
-                        ],
-                        assets=[
-                            discovery_schemas.RecordAssetDiscoveryConfiguration(
-                                name=discovery_schemas.TranslatableString(
-                                    {
-                                        "en": discovery_schemas.TemplatedString(
-                                            "kmall file"
-                                        ),
-                                        "pt": discovery_schemas.TemplatedString(
-                                            "Ficheiro kmall"
-                                        ),
-                                    }
-                                ),
-                                discovery_patterns=[
-                                    discovery_schemas.TemplatedString(
-                                        r"s06-mbes/s02-raw-data/01-EM712/{{date_dashed}}/{{pathway}}_{{date}}_\d{6}_{{ship}}.kmall"
-                                    )
-                                ],
-                            )
-                        ],
-                    ),
-                    str(
-                        _processed_bathy_record_discovery_conf_id
-                    ): discovery_schemas.SurveyRecordDiscoveryConfiguration(
-                        id_=_processed_bathy_record_discovery_conf_id,
-                        dataset_category="bathymetry",
-                        domain_type="geophysical",
-                        workflow_stage="processed data",
-                        name=discovery_schemas.TranslatableString(
-                            {
-                                "en": discovery_schemas.TemplatedString(
-                                    "{region} - Processed bathymetry"
-                                ),
-                                "pt": discovery_schemas.TemplatedString(
-                                    "Batimetria processada - {region}"
-                                ),
-                            }
-                        ),
-                        extra_properties=[
-                            discovery_schemas.RecordProperty(
-                                identifier="region",
-                                handler=discovery_schemas.ConstantProperty(
-                                    pattern=r"[A-Z]{3}"
-                                ),
-                            ),
-                        ],
-                        assets=[
-                            discovery_schemas.RecordAssetDiscoveryConfiguration(
-                                name=discovery_schemas.TranslatableString(
-                                    {
-                                        "en": discovery_schemas.TemplatedString(
-                                            "XYZ file"
-                                        ),
-                                        "pt": discovery_schemas.TemplatedString(
-                                            "Ficheiro XYZ"
-                                        ),
-                                    }
-                                ),
-                                discovery_patterns=[
-                                    discovery_schemas.TemplatedString(
-                                        r"s06-mbes/s05-processed-data/{{region}}_All_Mainlines?_and_Xlines?_MBES_Grid_4m.xyz"
-                                    )
-                                ],
-                            )
-                        ],
-                    ),
-                },
-                record_relations=[],
-            ),
+            root_path="projects/prr-eolicas",
         ),
+        # project_schemas.ProjectCreate(
+        #     id=_prr_eolicas_project_id,
+        #     owner_id=owner_id,
+        #     name=common_schemas.LocalizableDraftName(
+        #         en="PRR windfarms", pt="PRR Eólicas"
+        #     ),
+        #     description=common_schemas.LocalizableDraftDescription(
+        #         en="A description about the PRR windfarms project",
+        #         pt="Uma descrição sobre o projeto PRR Eólicas",
+        #     ),
+        #     root_path="simulated_archive/surveys",
+        #     discovery_configuration=discovery_schemas.ProjectDiscoveryConfiguration(
+        #         survey_missions=[
+        #             discovery_schemas.SurveyMissionDiscoveryConfiguration(
+        #                 name=discovery_schemas.TranslatableString(
+        #                     {"en": discovery_schemas.TemplatedString("seism-2024")}
+        #                 ),
+        #                 description=discovery_schemas.TranslatableString(
+        #                     {
+        #                         "en": discovery_schemas.TemplatedString(
+        #                             "Some description about the seism-2024 survey"
+        #                         )
+        #                     }
+        #                 ),
+        #                 relative_path="owf-seism-2024",
+        #                 record_configuration_ids=[
+        #                     _raw_bathy_record_discovery_conf_id,
+        #                     _processed_bathy_record_discovery_conf_id,
+        #                 ],
+        #             ),
+        #         ],
+        #         records={
+        #             str(
+        #                 _raw_bathy_record_discovery_conf_id
+        #             ): discovery_schemas.SurveyRecordDiscoveryConfiguration(
+        #                 id_=_raw_bathy_record_discovery_conf_id,
+        #                 dataset_category="bathymetry",
+        #                 workflow_stage="raw data",
+        #                 name=discovery_schemas.TranslatableString(
+        #                     {
+        #                         "en": discovery_schemas.TemplatedString(
+        #                             "Raw bathymetry {date_dashed} - pathway #{pathway}"
+        #                         ),
+        #                         "pt": discovery_schemas.TemplatedString(
+        #                             "Batimetria em bruto {date_dashed} - pathway #{pathway}"
+        #                         ),
+        #                     }
+        #                 ),
+        #                 extra_properties=[
+        #                     discovery_schemas.RecordProperty(
+        #                         identifier="date",
+        #                         handler=discovery_schemas.DateYmdProperty(),
+        #                     ),
+        #                     discovery_schemas.RecordProperty(
+        #                         identifier="date_dashed",
+        #                         handler=discovery_schemas.DateYmdDashedProperty(),
+        #                     ),
+        #                     discovery_schemas.RecordProperty(
+        #                         identifier="pathway",
+        #                         handler=discovery_schemas.ConstantProperty(
+        #                             pattern=r"\d{4}"
+        #                         ),
+        #                     ),
+        #                     discovery_schemas.RecordProperty(
+        #                         identifier="ship",
+        #                         handler=discovery_schemas.ConstantProperty(
+        #                             pattern=r"\w+"
+        #                         ),
+        #                     ),
+        #                 ],
+        #                 assets=[
+        #                     discovery_schemas.RecordAssetDiscoveryConfiguration(
+        #                         name=discovery_schemas.TranslatableString(
+        #                             {
+        #                                 "en": discovery_schemas.TemplatedString(
+        #                                     "kmall file"
+        #                                 ),
+        #                                 "pt": discovery_schemas.TemplatedString(
+        #                                     "Ficheiro kmall"
+        #                                 ),
+        #                             }
+        #                         ),
+        #                         discovery_patterns=[
+        #                             discovery_schemas.TemplatedString(
+        #                                 r"s06-mbes/s02-raw-data/01-EM712/{{date_dashed}}/{{pathway}}_{{date}}_\d{6}_{{ship}}.kmall"
+        #                             )
+        #                         ],
+        #                     )
+        #                 ],
+        #             ),
+        #             str(
+        #                 _processed_bathy_record_discovery_conf_id
+        #             ): discovery_schemas.SurveyRecordDiscoveryConfiguration(
+        #                 id_=_processed_bathy_record_discovery_conf_id,
+        #                 dataset_category="bathymetry",
+        #                 workflow_stage="processed data",
+        #                 name=discovery_schemas.TranslatableString(
+        #                     {
+        #                         "en": discovery_schemas.TemplatedString(
+        #                             "{region} - Processed bathymetry"
+        #                         ),
+        #                         "pt": discovery_schemas.TemplatedString(
+        #                             "Batimetria processada - {region}"
+        #                         ),
+        #                     }
+        #                 ),
+        #                 extra_properties=[
+        #                     discovery_schemas.RecordProperty(
+        #                         identifier="region",
+        #                         handler=discovery_schemas.ConstantProperty(
+        #                             pattern=r"[A-Z]{3}"
+        #                         ),
+        #                     ),
+        #                 ],
+        #                 assets=[
+        #                     discovery_schemas.RecordAssetDiscoveryConfiguration(
+        #                         name=discovery_schemas.TranslatableString(
+        #                             {
+        #                                 "en": discovery_schemas.TemplatedString(
+        #                                     "XYZ file"
+        #                                 ),
+        #                                 "pt": discovery_schemas.TemplatedString(
+        #                                     "Ficheiro XYZ"
+        #                                 ),
+        #                             }
+        #                         ),
+        #                         discovery_patterns=[
+        #                             discovery_schemas.TemplatedString(
+        #                                 r"s06-mbes/s05-processed-data/{{region}}_All_Mainlines?_and_Xlines?_MBES_Grid_4m.xyz"
+        #                             )
+        #                         ],
+        #                     )
+        #                 ],
+        #             ),
+        #         },
+        #         record_relations=[],
+        #     ),
+        # ),
         project_schemas.ProjectCreate(
             id=_my_first_project_id,
             owner_id=owner_id,
@@ -257,6 +277,14 @@ def get_survey_missions_to_create(
     owner: user_schemas.User,
 ) -> list[mission_schemas.SurveyMissionCreate]:
     return [
+        mission_schemas.SurveyMissionCreate(
+            id=_owf_seism_2024_mission_id,
+            owner_id=identifiers.UserId(owner.id),
+            project_id=_real_owf_seism_2024_project_id,
+            name=common_schemas.LocalizableDraftName(en="owf-seism-2024"),
+            description=common_schemas.LocalizableDraftDescription(en=""),
+            relative_path="surveys/owf-seism-2024",
+        ),
         mission_schemas.SurveyMissionCreate(
             id=_my_first_survey_mission_id,
             owner_id=identifiers.UserId(owner.id),
@@ -428,7 +456,6 @@ def get_survey_missions_to_create(
 def get_survey_related_records_to_create(
     owner: user_schemas.User,
     dataset_categories: dict[str, models.DatasetCategory],
-    domain_types: dict[str, models.DomainType],
     workflow_stages: dict[str, models.WorkflowStage],
 ) -> list[record_schemas.SurveyRelatedRecordCreate]:
     return [
@@ -449,7 +476,6 @@ def get_survey_related_records_to_create(
             dataset_category_id=identifiers.DatasetCategoryId(
                 dataset_categories["bathymetry"].id
             ),
-            domain_type_id=identifiers.DomainTypeId(domain_types["geophysical"].id),
             workflow_stage_id=identifiers.WorkflowStageId(
                 workflow_stages["raw data"].id
             ),
@@ -505,7 +531,6 @@ def get_survey_related_records_to_create(
             dataset_category_id=identifiers.DatasetCategoryId(
                 dataset_categories["bathymetry"].id
             ),
-            domain_type_id=identifiers.DomainTypeId(domain_types["geophysical"].id),
             workflow_stage_id=identifiers.WorkflowStageId(
                 workflow_stages["raw data"].id
             ),
@@ -550,7 +575,6 @@ def get_survey_related_records_to_create(
 def generate_sample_projects(
     owners: Sequence[user_schemas.User],
     dataset_categories: Sequence[identifiers.DatasetCategoryId],
-    domain_types: Sequence[identifiers.DomainTypeId],
     workflow_stages: Sequence[identifiers.WorkflowStageId],
     root_path: str = "/archive",
 ) -> Iterator[
@@ -602,7 +626,7 @@ def generate_sample_projects(
             links=links,
         )
         mission_generator = generate_sample_survey_missions(
-            owners, project.id, dataset_categories, domain_types, workflow_stages
+            owners, project.id, dataset_categories, workflow_stages
         )
         missions = [next(mission_generator) for _ in range(_FAKE_EN.random_int(1, 10))]
         yield project, missions
@@ -612,7 +636,6 @@ def generate_sample_survey_missions(
     owners: Sequence[user_schemas.User],
     project_id: identifiers.ProjectId,
     dataset_categories: Sequence[identifiers.DatasetCategoryId],
-    domain_types: Sequence[identifiers.DomainTypeId],
     workflow_stages: Sequence[identifiers.WorkflowStageId],
 ) -> Iterator[
     tuple[
@@ -659,7 +682,7 @@ def generate_sample_survey_missions(
             links=links,
         )
         record_generator = generate_sample_survey_related_records(
-            owners, mission.id, dataset_categories, domain_types, workflow_stages
+            owners, mission.id, dataset_categories, workflow_stages
         )
         records = [next(record_generator) for _ in range(_FAKE_EN.random_int(1, 100))]
         yield mission, records
@@ -669,7 +692,6 @@ def generate_sample_survey_related_records(
     owners: Sequence[user_schemas.User],
     survey_mission_id: identifiers.SurveyMissionId,
     dataset_categories: Sequence[identifiers.DatasetCategoryId],
-    domain_types: Sequence[identifiers.DomainTypeId],
     workflow_stages: Sequence[identifiers.WorkflowStageId],
 ) -> Iterator[record_schemas.SurveyRelatedRecordCreate]:
     temporal_extent = _generate_sample_temporal_extent()
@@ -707,7 +729,6 @@ def generate_sample_survey_related_records(
             ),
             survey_mission_id=survey_mission_id,
             dataset_category_id=random.choice(dataset_categories),
-            domain_type_id=random.choice(domain_types),
             workflow_stage_id=random.choice(workflow_stages),
             relative_path=_FAKE_EN.file_path(
                 depth=_FAKE_EN.random_int(1, 8), absolute=False

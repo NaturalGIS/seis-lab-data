@@ -135,6 +135,12 @@ class _StringFilter(SimpleListFilter):
 
 
 @dataclasses.dataclass
+class NameFilter(_StringFilter):
+    internal_name = "name_filter"
+    public_name = "name"
+
+
+@dataclasses.dataclass
 class EnNameFilter(_StringFilter):
     internal_name: str = "en_name_filter"
     public_name: str = "en_name"
@@ -153,15 +159,15 @@ class DatasetCategoryFilter(_StringFilter):
 
 
 @dataclasses.dataclass
-class DomainTypeFilter(_StringFilter):
-    internal_name: str = "domain_type_filter"
-    public_name: str = "domain_type"
-
-
-@dataclasses.dataclass
 class WorkflowStageFilter(_StringFilter):
     internal_name: str = "workflow_stage_filter"
     public_name: str = "workflow_stage"
+
+
+@dataclasses.dataclass
+class PathFragmentFilter(_StringFilter):
+    internal_name: str = "asset_path_fragment_filter"
+    public_name: str = "assetPathFragment"
 
 
 @dataclasses.dataclass
@@ -235,6 +241,21 @@ class ItemListFilters(Protocol):
 
 
 @dataclasses.dataclass
+class AssetDiscoveryConfigurationListFilters(ItemListFilters):
+    filters: dict[str, ListFilter]
+
+    @classmethod
+    def from_params(cls, params: Mapping[str, str], current_language: str) -> Self:
+        filters: dict[str, SimpleListFilter | LanguageDependantListFilter] = {}
+        try:
+            name_filter = NameFilter.from_params(params)
+            filters[name_filter.internal_name] = name_filter
+        except ValueError as err:
+            logger.info(str(err))
+        return cls(filters)
+
+
+@dataclasses.dataclass
 class ProjectListFilters(ItemListFilters):
     filters: dict[str, ListFilter]
 
@@ -275,7 +296,6 @@ class SurveyMissionListFilters(ItemListFilters):
             EnNameFilter,
             PtNameFilter,
             DatasetCategoryFilter,
-            DomainTypeFilter,
             WorkflowStageFilter,
             ProjectIdFilter,
         ):
@@ -307,9 +327,9 @@ class SurveyRelatedRecordListFilters(ItemListFilters):
             EnNameFilter,
             PtNameFilter,
             DatasetCategoryFilter,
-            DomainTypeFilter,
             WorkflowStageFilter,
             SurveyMissionIdFilter,
+            PathFragmentFilter,
         ):
             try:
                 filter_: SimpleListFilter = simple_type.from_params(params)

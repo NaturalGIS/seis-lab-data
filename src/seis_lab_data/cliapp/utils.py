@@ -4,7 +4,7 @@ from .. import (
     authentik,
     config,
 )
-from ..db import commands as db_commands
+from ..db.commands import users as user_commands
 from ..schemas.identifiers import UserId
 from ..schemas.user import User
 
@@ -36,5 +36,5 @@ async def resolve_admin_user(
     if user is None:
         raise ValueError(f"User {identifier!r} not found in Authentik.")
     async with settings.get_db_session_maker()() as session:
-        await db_commands.upsert_user(session, user)
+        await user_commands.upsert_user(session, user)
     return user

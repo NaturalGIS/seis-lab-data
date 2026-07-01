@@ -70,16 +70,18 @@
                 </div>
             </div>
         </div>
-        <div class="row mt-4">
+        <div
+            class="row mt-4"
+            data-signals:listing-version="0"
+            data-effect="$listingVersion > 0 && @get('{{ url_for('survey_missions:get_mission_records_list_component', survey_mission_id=survey_mission.id) }}')"
+        >
             <div class="col">
                 <h2>{{ _("survey-related-records") | capitalize }}</h2>
-                {% if items | length > 0 %}
-                    {{ macros.render_search_component(
-                       url_for("survey_related_records:get_list_component"),
-                       _("search survey-related records"),
-                       initial_value=search_initial_value
-                    ) }}
-                {% endif %}
+                {{ macros.render_search_component(
+                   url_for("survey_missions:get_mission_records_list_component", survey_mission_id=survey_mission.id),
+                   _("search survey-related records"),
+                   initial_value=search_initial_value | default("", true)
+                ) }}
                 <div id="survey-mission-records">
                     {% with items = survey_related_records %}
                         {% include "survey-related-records/list-component.html" %}
@@ -91,6 +93,17 @@
     <div class="col-3">
         <h5>{{ _("actions") | capitalize }}</h5>
         <div class="list-group mb-3">
+            {% if permissions.can_discover %}
+                <button
+                        class="list-group-item list-group-item-action list-group-item-secondary"
+                        aria-label="discover-mission"
+                        data-on:click="@post('{{ url_for("survey_missions:trigger_discovery", survey_mission_id=survey_mission.id) }}', {
+                            headers: {'X-CSRFToken': '{{ csrf_token(request) }}'}
+                        })"
+                >
+                <span class="material-icons-outlined me-1">{{ icons.discover_contents }}</span>{{ _("discover survey mission resources") | capitalize }}
+                </button>
+            {% endif %}
             {% if permissions.can_update %}
                 <div class="col">
                     <a
@@ -115,7 +128,7 @@
             {% endif %}
             {% if permissions.can_delete %}
                 {{ macros_buttons_list_items.render_delete_item_button(
-                    deletion_url=url_for("survey_missions:detail", survey_mission_id=survey_mission.id),
+                    deletion_url=url_for("survey_missions:detail", survey_mission_id=survey_mission.id) ~ "?request_id=" ~ request_id,
                     signal_name="deleting",
                     idle_message="delete survey mission",
                     running_message="deleting survey mission...",

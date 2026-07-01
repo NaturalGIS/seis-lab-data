@@ -1,0 +1,58 @@
+{% import "macros-buttons.html" as macros_buttons %}
+{% set id_ = item.id | string | replace('-', '') %}
+<div class="col">
+    <div class="card mb-3">
+        <div class="row g-0">
+            <div class="col-md-4">
+                <div class="placeholder-rectangle bg-secondary"></div>
+            </div>
+            <div class="col-md-8">
+                <div class="card-body">
+                    <div class="row justify-content-between">
+                        <div class="col-4">
+                            <h5 class="card-title">{{ item.name|default(_("name not available"), True) }}</h5>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <ul class="list-unstyled">
+                                <li class="card-text text-truncate">
+                                    {{ item.workflow_stage.name.en }}
+                                </li>
+                            </ul>
+                            <ul class="list-unstyled">
+                                <li class="card-text text-truncate">
+                                    {{ item.dataset_category.name.en }}
+                                </li>
+                            </ul>
+                            <ul class="list-unstyled">
+                                <li class="card-text text-truncate">
+                                    {{ item.relative_path_regexp }}
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    {% if permissions.can_update %}
+                        <a
+                                class="btn btn-outline-primary"
+                                href="{{ url_for("asset_discovery_configurations:get_update_form", asset_discovery_configuration_id=item.id) }}"
+                        >
+                            <span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit") | capitalize }}
+                        </a>
+                    {% endif %}
+                    {% if permissions.can_delete %}
+                        {{ macros_buttons.render_delete_item_button(
+                            deletion_url=url_for("asset_discovery_configurations:detail", asset_discovery_configuration_id=item.id),
+                            signal_name="deleting" ~ id_,
+                            idle_message="delete",
+                            running_message="deleting...",
+                            generated_csrf_token=csrf_token(request),
+                            modal_dialog_title=_("delete"),
+                            modal_dialog_confirmation_text=_("are you sure you want to delete this item?")
+                        ) }}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

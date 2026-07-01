@@ -3,7 +3,6 @@ from typing import Protocol
 
 from redis import asyncio as aioredis
 
-from . import constants
 from .schemas import (
     events,
     messages,
@@ -26,177 +25,53 @@ class RedisEventDispatcher:
 
     async def __call__(self, event: events.SeisLabDataEvent) -> None:
         match event:
-            case events.ProjectCreatedEvent():
+            case events.ResourceModificationEvent():
                 await self._redis.publish(
-                    constants.NEW_TOPIC_PROJECTS,
-                    messages.ProjectCreatedMessage(
-                        project_id=event.project_id,
+                    channel=event.resource_type.get_topic_name(),
+                    message=messages.ResourceModificationMessage(
+                        resource_type=event.resource_type,
                         request_id=event.request_id,
-                    ).model_dump_json(),
-                )
-            case events.ProjectNotCreatedEvent():
-                await self._redis.publish(
-                    constants.NEW_TOPIC_PROJECTS,
-                    messages.ProjectNotCreatedMessage(
-                        request_id=event.request_id,
+                        resource_id=event.resource_id,
+                        parent_resource_id=event.parent_resource_id,
+                        modification=event.modification,
+                        succeeded=event.succeeded,
                         details=event.details,
                     ).model_dump_json(),
                 )
-            case events.ProjectUpdatedEvent():
+            case events.ResourceStatusChangedEvent():
                 await self._redis.publish(
-                    constants.NEW_TOPIC_PROJECTS,
-                    messages.ProjectUpdatedMessage(
-                        project_id=event.project_id,
-                        request_id=event.request_id,
-                    ).model_dump_json(),
-                )
-            case events.ProjectNotUpdatedEvent():
-                logger.debug(f"{event=}")
-                await self._redis.publish(
-                    constants.NEW_TOPIC_PROJECTS,
-                    messages.ProjectNotUpdatedMessage(
-                        project_id=event.project_id,
-                        request_id=event.request_id,
-                        details=event.details,
-                    ).model_dump_json(),
-                )
-            case events.ProjectDeletedEvent():
-                await self._redis.publish(
-                    constants.NEW_TOPIC_PROJECTS,
-                    messages.ProjectDeletedMessage(
-                        project_id=event.project_id,
-                        request_id=event.request_id,
-                    ).model_dump_json(),
-                )
-            case events.ProjectStatusChangedEvent():
-                await self._redis.publish(
-                    constants.NEW_TOPIC_PROJECTS,
-                    messages.ProjectStatusChangedMessage(
-                        project_id=event.project_id,
+                    channel=event.resource_type.get_topic_name(),
+                    message=messages.ResourceStatusChangedMessage(
+                        resource_type=event.resource_type,
+                        resource_id=event.resource_id,
+                        succeeded=event.succeeded,
                         new_status=event.new_status,
+                        details=event.details,
                     ).model_dump_json(),
                 )
-            case events.ProjectValidatedEvent():
+            case events.DiscoveryEvent():
                 await self._redis.publish(
-                    constants.NEW_TOPIC_PROJECTS,
-                    messages.ProjectValidatedMessage(
-                        project_id=event.project_id,
+                    channel=event.resource_type.get_topic_name(),
+                    message=messages.DiscoveryMessage(
+                        resource_type=event.resource_type,
+                        resource_id=event.resource_id,
+                        request_id=event.request_id,
+                        modification=event.modification,
+                        succeeded=event.succeeded,
+                        details=event.details,
+                    ).model_dump_json(),
+                )
+            case events.ValidationEvent():
+                await self._redis.publish(
+                    channel=event.resource_type.get_topic_name(),
+                    message=messages.ValidationMessage(
+                        resource_type=event.resource_type,
+                        resource_id=event.resource_id,
+                        request_id=event.request_id,
+                        modification=event.modification,
+                        succeeded=event.succeeded,
                         is_valid=event.is_valid,
-                    ).model_dump_json(),
-                )
-            case events.ProjectNotValidatedEvent():
-                await self._redis.publish(
-                    constants.NEW_TOPIC_PROJECTS,
-                    messages.ProjectNotValidatedMessage(
-                        request_id=event.request_id,
-                        project_id=event.project_id,
                         details=event.details,
-                    ).model_dump_json(),
-                )
-            case events.ProjectDiscoveryFailedEvent():
-                await self._redis.publish(
-                    constants.NEW_TOPIC_PROJECTS,
-                    messages.ProjectDiscoveryFailedMessage(
-                        request_id=event.request_id,
-                        project_id=event.project_id,
-                        details=event.details,
-                    ).model_dump_json(),
-                )
-            case events.ProjectDiscoveryProgressEvent():
-                await self._redis.publish(
-                    constants.NEW_TOPIC_PROJECTS,
-                    messages.ProjectDiscoveryProgressMessage(
-                        project_id=event.project_id,
-                        details=event.details,
-                    ).model_dump_json(),
-                )
-            case events.SurveyMissionCreatedEvent():
-                await self._redis.publish(
-                    constants.NEW_TOPIC_SURVEY_MISSIONS,
-                    messages.SurveyMissionCreatedMessage.from_event(
-                        event
-                    ).model_dump_json(),
-                )
-            case events.SurveyMissionUpdatedEvent():
-                await self._redis.publish(
-                    constants.NEW_TOPIC_SURVEY_MISSIONS,
-                    messages.SurveyMissionUpdatedMessage(
-                        request_id=event.request_id,
-                        survey_mission_id=event.survey_mission_id,
-                    ).model_dump_json(),
-                )
-            case events.SurveyMissionDeletedEvent():
-                await self._redis.publish(
-                    constants.NEW_TOPIC_SURVEY_MISSIONS,
-                    messages.SurveyMissionDeletedMessage(
-                        request_id=event.request_id,
-                        survey_mission_id=event.survey_mission_id,
-                        project_id=event.project_id,
-                    ).model_dump_json(),
-                )
-            case events.SurveyMissionStatusChangedEvent():
-                await self._redis.publish(
-                    constants.NEW_TOPIC_SURVEY_MISSIONS,
-                    messages.SurveyMissionStatusChangedMessage(
-                        survey_mission_id=event.survey_mission_id,
-                        new_status=event.new_status,
-                    ).model_dump_json(),
-                )
-            case events.SurveyMissionValidatedEvent():
-                await self._redis.publish(
-                    constants.NEW_TOPIC_SURVEY_MISSIONS,
-                    messages.SurveyMissionValidatedMessage(
-                        survey_mission_id=event.survey_mission_id,
-                        is_valid=event.is_valid,
-                    ).model_dump_json(),
-                )
-            case events.SurveyMissionDiscoveryProgressEvent():
-                await self._redis.publish(
-                    constants.NEW_TOPIC_SURVEY_MISSIONS,
-                    messages.SurveyMissionDiscoveryProgressMessage(
-                        survey_mission_id=event.survey_mission_id,
-                        details=event.details,
-                    ).model_dump_json(),
-                )
-            case events.SurveyRelatedRecordCreatedEvent():
-                await self._redis.publish(
-                    constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
-                    messages.SurveyRelatedRecordCreatedMessage(
-                        record_id=event.record_id,
-                        survey_mission_id=event.survey_mission_id,
-                        request_id=event.request_id,
-                    ).model_dump_json(),
-                )
-            case events.SurveyRelatedRecordUpdatedEvent():
-                await self._redis.publish(
-                    constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
-                    messages.SurveyRelatedRecordUpdatedMessage(
-                        record_id=event.record_id,
-                    ).model_dump_json(),
-                )
-            case events.SurveyRelatedRecordDeletedEvent():
-                await self._redis.publish(
-                    constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
-                    messages.SurveyRelatedRecordDeletedMessage(
-                        request_id=event.request_id,
-                        record_id=event.record_id,
-                        survey_mission_id=event.survey_mission_id,
-                    ).model_dump_json(),
-                )
-            case events.SurveyRelatedRecordStatusChangedEvent():
-                await self._redis.publish(
-                    constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
-                    messages.SurveyRelatedRecordStatusChangedMessage(
-                        record_id=event.record_id,
-                        new_status=event.new_status,
-                    ).model_dump_json(),
-                )
-            case events.SurveyRelatedRecordValidatedEvent():
-                await self._redis.publish(
-                    constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
-                    messages.SurveyRelatedRecordValidatedMessage(
-                        record_id=event.record_id,
-                        is_valid=event.is_valid,
                     ).model_dump_json(),
                 )
             case _:

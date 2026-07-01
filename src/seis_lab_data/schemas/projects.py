@@ -15,7 +15,6 @@ from .common import (
     serialize_possibly_empty_date,
 )
 from .identifiers import ProjectId, UserId
-from .discovery import ProjectDiscoveryConfiguration
 
 
 class ProjectCreate(pydantic.BaseModel):
@@ -28,7 +27,7 @@ class ProjectCreate(pydantic.BaseModel):
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
     temporal_extent_end: dt.date | None = None
-    discovery_configuration: ProjectDiscoveryConfiguration | None = None
+    # discovery_configuration: "ProjectDiscoveryConfiguration | None" = None
 
 
 class ProjectUpdate(pydantic.BaseModel):
@@ -40,7 +39,7 @@ class ProjectUpdate(pydantic.BaseModel):
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
     temporal_extent_end: dt.date | None = None
-    discovery_configuration: ProjectDiscoveryConfiguration | None = None
+    # discovery_configuration: "ProjectDiscoveryConfiguration | None" = None
 
 
 class ProjectReadEmbedded(pydantic.BaseModel):
@@ -76,8 +75,11 @@ class ProjectReadDetail(ProjectReadListItem):
     owner_id: UserId
     links: list[LinkSchema] = []
     bbox_4326: PolygonOut | None
-    discovery_configuration: ProjectDiscoveryConfiguration | None
+    # discovery_configuration: "ProjectDiscoveryConfiguration | None"
 
     @classmethod
     def from_db_instance(cls, instance: models.Project) -> "ProjectReadDetail":
         return cls.model_validate(instance, from_attributes=True)
+
+
+class AssetDiscoveryConfigurationReadListItem(pydantic.BaseModel): ...

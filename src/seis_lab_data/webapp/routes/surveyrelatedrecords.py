@@ -23,14 +23,14 @@ from ... import (
     constants,
     errors,
     geojson,
-    permissions,
     subscribers,
 )
+from ...constants import SURVEY_RELATED_RECORD_MAX_RELATED
 from ...operations import (
     surveymissions as survey_mission_ops,
     surveyrelatedrecords as survey_related_record_ops,
 )
-from ...constants import SURVEY_RELATED_RECORD_MAX_RELATED
+from ...permissions import surveyrelatedrecords as record_permissions
 from ...db import (
     models,
     queries,
@@ -46,7 +46,7 @@ from .. import (
     filters,
     forms,
 )
-from ..streamhandlers import surveyrelatedrecords as record_handlers
+from ..streamhandlers import common as common_handlers
 from .auth import (
     requires_auth,
 )
@@ -91,7 +91,7 @@ async def _get_survey_related_record_details(
     serialized = webui_schemas.SurveyRelatedRecordReadDetail.from_db_instance(
         survey_related_record, related_to, subject_for
     )
-    can_update = permissions.can_update_survey_related_record(
+    can_update = record_permissions.can_update_survey_related_record(
         user, survey_related_record
     )
     return webui_schemas.SurveyRelatedRecordDetails(
@@ -99,7 +99,7 @@ async def _get_survey_related_record_details(
         permissions=webui_schemas.UserPermissionDetails(
             can_create_children=can_update,
             can_update=can_update,
-            can_delete=permissions.can_delete_survey_related_record(
+            can_delete=record_permissions.can_delete_survey_related_record(
                 user, survey_related_record
             ),
         ),
@@ -175,13 +175,6 @@ async def build_survey_related_record_form_instance(
             for dc in await queries.collect_all_dataset_categories(
                 session,
                 order_by_clause=models.DatasetCategory.name[current_language].astext,
-            )
-        ]
-        form_instance.domain_type_id.choices = [
-            (dt.id, dt.name.get(current_language, dt.name["en"]))
-            for dt in await queries.collect_all_domain_types(
-                session,
-                order_by_clause=models.DomainType.name[current_language].astext,
             )
         ]
         form_instance.workflow_stage_id.choices = [
@@ -495,7 +488,6 @@ async def get_update_form(request: Request):
                 "pt": details.item.description.pt,
             },
             "dataset_category_id": details.item.dataset_category.id,
-            "domain_type_id": details.item.domain_type.id,
             "workflow_stage_id": details.item.workflow_stage.id,
             "relative_path": details.item.relative_path,
             "bounding_box": {
@@ -966,17 +958,15 @@ async def get_list_component(request: Request):
 async def stream_to_list_page(request: Request):
     subscription = subscribers.subscribe_to_topic(
         request.state.redis_client,
-        constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
-        subscribers.SurveyRelatedRecordHandlerContext(
+        [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS],
+        subscribers.HandlerContext(
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
             db_session_factory=request.state.settings.get_db_session_maker(),
             user=request.user if request.user.is_authenticated else None,
         ),
         {
-            "survey_related_record_created": record_handlers.handle_list_page_record_modification,
-            "survey_related_record_updated": record_handlers.handle_list_page_record_modification,
-            "survey_related_record_deleted": record_handlers.handle_list_page_record_modification,
+            "resource_modified": common_handlers.handle_resource_modification_list_page,
         },
     )
 
@@ -1089,6 +1079,9 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         survey_related_record_id = get_id_from_request_path(
             request, "survey_related_record_id", identifiers.SurveyRelatedRecordId
         )
+        request_id = identifiers.RequestId(
+            uuid.UUID(request.query_params["request_id"])
+        )
         user = request.user
         async with request.state.settings.get_db_session_maker()() as session:
             if (
@@ -1106,7 +1099,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 )
 
         record_tasks.delete_survey_related_record.send(
-            raw_request_id=str(uuid.uuid4()),
+            raw_request_id=str(request_id),
             raw_survey_related_record_id=str(survey_related_record_id),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
         )
@@ -1203,7 +1196,6 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 pt=form_instance.description.pt.data,
             ),
             dataset_category_id=form_instance.dataset_category_id.data,
-            domain_type_id=form_instance.domain_type_id.data,
             workflow_stage_id=form_instance.workflow_stage_id.data,
             relative_path=form_instance.relative_path.data,
             bbox_4326=(
@@ -1278,16 +1270,18 @@ async def stream_to_new_page(request: Request):
 
     subscription = subscribers.subscribe_to_topic(
         request.state.redis_client,
-        constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
+        [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS],
         subscribers.HandlerContext(
             request_id=request_id,
             user=request.user,
             url_resolver=request.url_for,
             jinja_environment=request.state.templates.env,
             db_session_factory=request.state.settings.get_db_session_maker(),
+            target_page=constants.PageType.RESOURCE_NEW,
+            resource_type=constants.ResourceType.RECORD,
         ),
         {
-            "survey_related_record_created": record_handlers.handle_new_page_record_created,
+            "resource_modified": common_handlers.handle_resource_modification_new_page,
         },
     )
 
@@ -1314,17 +1308,19 @@ async def stream_to_detail_page(request: Request):
 
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
-        subscribers.SurveyRelatedRecordHandlerContext(
-            survey_related_record_id=record_id,
+        [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS],
+        subscribers.HandlerContext(
+            resource_id=str(record_id),
             user=user,
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
             db_session_factory=session_maker,
             request_id=request_id,
+            resource_type=constants.ResourceType.RECORD,
+            target_page=constants.PageType.RESOURCE_DETAIL,
         ),
         message_handlers={
-            "survey_related_record_deleted": record_handlers.handle_detail_page_record_deleted
+            "resource_modified": common_handlers.handle_resource_modification_detail_page,
         },
     )
 
@@ -1352,9 +1348,9 @@ async def stream_to_update_page(request: Request):
 
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
-        subscribers.SurveyRelatedRecordHandlerContext(
-            survey_related_record_id=record_id,
+        [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS],
+        subscribers.HandlerContext(
+            resource_id=str(record_id),
             user=user,
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
@@ -1362,7 +1358,7 @@ async def stream_to_update_page(request: Request):
             request_id=request_id,
         ),
         message_handlers={
-            "survey_related_record_updated": record_handlers.handle_edit_page_survey_record_updated
+            "resource_modified": common_handlers.handle_resource_modification_edit_page,
         },
     )
 

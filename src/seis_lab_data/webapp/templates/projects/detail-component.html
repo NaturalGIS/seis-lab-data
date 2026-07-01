@@ -70,16 +70,18 @@
                 </div>
             </div>
         </div>
-        <div class="row mt-4">
+        <div
+            class="row mt-4"
+            data-signals:listing-version="0"
+            data-effect="$listingVersion > 0 && @get('{{ url_for('projects:get_project_missions_list_component', project_id=project.id) }}')"
+        >
             <div class="col">
                 <h2>{{ _("survey missions") | capitalize }}</h2>
-                {% if items | length > 0 %}
-                    {{ macros.render_search_component(
-                       url_for("survey_missions:get_list_component"),
-                       _("search project survey-missions"),
-                       initial_value=search_initial_value
-                    ) }}
-                {% endif %}
+                {{ macros.render_search_component(
+                   url_for("projects:get_project_missions_list_component", project_id=project.id),
+                   _("search project survey-missions"),
+                   initial_value=search_initial_value | default("", true)
+                ) }}
                 <div id="project-survey-missions">
                     {% with items = survey_missions %}
                         {% include "survey-missions/list-component.html" %}
@@ -92,17 +94,6 @@
         <h5>{{ _("actions") | capitalize }}</h5>
         <div class="list-group mb-3" data-signals:deleting="false">
             {% if permissions.can_update %}
-                <button
-                        class="list-group-item list-group-item-action list-group-item-secondary"
-                        data-attr:disabled="$status !== 'draft'"
-                        data-on:click="@post('{{ url_for("projects:trigger_discovery", project_id=project.id) }}', {
-                            headers: {'X-CSRFToken': '{{ csrf_token(request) }}'}
-                        })"
-                        aria-label="discover-project"
-                >
-                    <span class="material-icons-outlined me-1">{{ icons.discover_project }}</span>
-                    {{ _("discover project contents") | capitalize }}
-                </button>
                 <button
                         class="list-group-item list-group-item-action list-group-item-secondary"
                         data-attr:disabled="$status !== 'draft'"
@@ -137,7 +128,7 @@
             {% endif %}
             {% if permissions.can_delete %}
                 {{ macros_buttons_list_items.render_delete_item_button(
-                deletion_url=url_for("projects:detail", project_id=project.id),
+                deletion_url=url_for("projects:detail", project_id=project.id) ~ "?request_id=" ~ request_id,
                 signal_name="deleting",
                 idle_message="delete project",
                 running_message="deleting project...",

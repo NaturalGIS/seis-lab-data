@@ -1,3 +1,4 @@
+import dataclasses
 import datetime as dt
 import uuid
 from typing import (
@@ -61,6 +62,21 @@ class LinkSchema(pydantic.BaseModel):
         self, url: pydantic.AnyHttpUrl, _info: pydantic.FieldSerializationInfo
     ) -> str:
         return str(url)
+
+
+@dataclasses.dataclass
+class PaginationInfo:
+    current_page: int
+    page_size: int
+    total_filtered_items: int
+    total_unfiltered_items: int
+    total_filtered_pages: int
+    total_unfiltered_pages: int
+    next_page: int | None
+    previous_page: int | None
+    collection_url: str
+    next_page_url: str | None
+    previous_page_url: str | None
 
 
 def parse_wkt_polygon_into_geom(value: str) -> shapely.Polygon:

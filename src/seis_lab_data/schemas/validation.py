@@ -133,7 +133,6 @@ class ValidSurveyRelatedRecord(pydantic.BaseModel):
     id: identifiers.SurveyRelatedRecordId
     name: LocalizableValidName
     dataset_category_id: identifiers.DatasetCategoryId
-    domain_type_id: identifiers.DomainTypeId
     workflow_stage_id: identifiers.WorkflowStageId
     description: LocalizableValidDescription
     status: constants.SurveyMissionStatus

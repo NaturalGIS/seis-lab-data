@@ -18,7 +18,6 @@ from .common import (
 )
 from .identifiers import (
     DatasetCategoryId,
-    DomainTypeId,
     RecordAssetId,
     SurveyRelatedRecordId,
     SurveyMissionId,
@@ -37,16 +36,6 @@ class DatasetCategoryCreate(pydantic.BaseModel):
 
 class DatasetCategoryRead(pydantic.BaseModel):
     id: DatasetCategoryId
-    name: LocalizableDraftName
-
-
-class DomainTypeCreate(pydantic.BaseModel):
-    id: DomainTypeId
-    name: LocalizableDraftName
-
-
-class DomainTypeRead(pydantic.BaseModel):
-    id: DomainTypeId
     name: LocalizableDraftName
 
 
@@ -138,7 +127,6 @@ class SurveyRelatedRecordCreate(pydantic.BaseModel):
     name: LocalizableDraftName
     description: LocalizableDraftDescription
     dataset_category_id: DatasetCategoryId
-    domain_type_id: DomainTypeId
     workflow_stage_id: WorkflowStageId
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
@@ -159,7 +147,6 @@ class SurveyRelatedRecordUpdate(pydantic.BaseModel):
     name: LocalizableDraftName | None = None
     description: LocalizableDraftDescription | None = None
     dataset_category_id: DatasetCategoryId | None = None
-    domain_type_id: DomainTypeId | None = None
     workflow_stage_id: WorkflowStageId | None = None
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
@@ -204,7 +191,6 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
     links: list[LinkSchema] = []
     survey_mission: SurveyMissionReadEmbedded
     dataset_category: DatasetCategoryRead
-    domain_type: DomainTypeRead
     workflow_stage: WorkflowStageRead
     record_assets: list[RecordAssetReadDetailEmbedded]
     related_to_records: list[
@@ -228,9 +214,6 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
             ),
             dataset_category=DatasetCategoryRead.model_validate(
                 instance.dataset_category, from_attributes=True
-            ),
-            domain_type=DomainTypeRead.model_validate(
-                instance.domain_type, from_attributes=True
             ),
             workflow_stage=WorkflowStageRead.model_validate(
                 instance.workflow_stage, from_attributes=True

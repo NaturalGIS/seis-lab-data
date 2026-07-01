@@ -25,9 +25,6 @@ def _fill_survey_related_record_form(page: Page, english_name: str):
     page.get_by_role("textbox", name="field-description-pt").fill(
         "descrição do registo de teste"
     )
-    page.get_by_role("textbox", name="field-relative_path").fill(
-        "/somewhere/survey/related/record"
-    )
 
 
 @pytest.mark.e2e

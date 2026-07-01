@@ -17,10 +17,8 @@ from wtforms import (
 )
 
 from ... import constants
-from ...db import (
-    models,
-    queries,
-)
+from ...db import models
+from ...db.queries import surveyrelatedrecords as record_queries
 from ...schemas import (
     identifiers,
     surveyrelatedrecords as record_schemas,
@@ -116,7 +114,6 @@ class _SurveyRelatedRecordForm(StarletteForm):
     name = FormField(NameForm)
     description = FormField(DescriptionForm)
     dataset_category_id = SelectField(_("Dataset category"))
-    domain_type_id = SelectField(_("Domain type"))
     workflow_stage_id = SelectField(_("Workflow stage"))
     links = FieldList(
         FormField(LinkForm),
@@ -155,7 +152,7 @@ class _SurveyRelatedRecordForm(StarletteForm):
         error_message = _(
             "There is already a survey-related record with this english name under the same survey mission"
         )
-        if candidate := await queries.get_survey_related_record_by_english_name(
+        if candidate := await record_queries.get_survey_related_record_by_english_name(
             session, survey_mission_id, self.name.en.data
         ):
             if disregard_id:
@@ -200,23 +197,16 @@ class _SurveyRelatedRecordForm(StarletteForm):
         async with request.state.settings.get_db_session_maker()() as session:
             form_instance.dataset_category_id.choices = [
                 (dc.id, dc.name.get(current_language, dc.name["en"]))
-                for dc in await queries.collect_all_dataset_categories(
+                for dc in await record_queries.collect_all_dataset_categories(
                     session,
                     order_by_clause=models.DatasetCategory.name[
                         current_language
                     ].astext,
                 )
             ]
-            form_instance.domain_type_id.choices = [
-                (dt.id, dt.name.get(current_language, dt.name["en"]))
-                for dt in await queries.collect_all_domain_types(
-                    session,
-                    order_by_clause=models.DomainType.name[current_language].astext,
-                )
-            ]
             form_instance.workflow_stage_id.choices = [
                 (ws.id, ws.name.get(current_language, ws.name["en"]))
-                for ws in await queries.collect_all_workflow_stages(
+                for ws in await record_queries.collect_all_workflow_stages(
                     session,
                     order_by_clause=models.WorkflowStage.name[current_language].astext,
                 )
@@ -288,7 +278,6 @@ class SurveyRelatedRecordCreateForm(_SurveyRelatedRecordForm):
                 name={**get_form_field_by_name(self, "name").data},
                 description={**get_form_field_by_name(self, "description").data},
                 dataset_category_id=self.dataset_category_id.data,
-                domain_type_id=self.domain_type_id.data,
                 workflow_stage_id=self.workflow_stage_id.data,
                 temporal_extent_begin=self.temporal_extent_begin.data or None,
                 temporal_extent_end=self.temporal_extent_end.data or None,
@@ -359,7 +348,6 @@ class SurveyRelatedRecordUpdateForm(_SurveyRelatedRecordForm):
                 name={**get_form_field_by_name(self, "name").data},
                 description={**get_form_field_by_name(self, "description").data},
                 dataset_category_id=self.dataset_category_id.data,
-                domain_type_id=self.domain_type_id.data,
                 workflow_stage_id=self.workflow_stage_id.data,
                 temporal_extent_begin=self.temporal_extent_begin.data or None,
                 temporal_extent_end=self.temporal_extent_end.data or None,

@@ -22,7 +22,6 @@ from ... import (
     constants,
     errors,
     geojson,
-    permissions,
     subscribers,
 )
 from ...operations import (
@@ -30,7 +29,12 @@ from ...operations import (
     surveymissions as survey_mission_ops,
     surveyrelatedrecords as survey_related_record_ops,
 )
+from ...permissions import (
+    surveymissions as mission_permissions,
+    surveyrelatedrecords as record_permissions,
+)
 from ...tasks import (
+    discovery as discovery_tasks,
     surveymissions as mission_tasks,
     surveyrelatedrecords as record_tasks,
 )
@@ -45,7 +49,7 @@ from .. import (
     filters,
     forms,
 )
-from ..streamhandlers import surveymissions as survey_mission_handlers
+from ..streamhandlers import common as common_handlers
 from .auth import (
     requires_auth,
 )
@@ -122,11 +126,31 @@ async def _get_survey_mission_details(
             ),
         ),
         permissions=webui_schemas.UserPermissionDetails(
-            can_create_children=permissions.can_create_survey_related_record(
+            can_create_children=record_permissions.can_create_survey_related_record(
                 user, survey_mission
-            ),
-            can_update=permissions.can_update_survey_mission(user, survey_mission),
-            can_delete=permissions.can_delete_survey_mission(user, survey_mission),
+            )
+            if user
+            else False,
+            can_update=mission_permissions.can_update_survey_mission(
+                user, survey_mission
+            )
+            if user
+            else False,
+            can_delete=mission_permissions.can_delete_survey_mission(
+                user, survey_mission
+            )
+            if user
+            else False,
+            can_validate=mission_permissions.can_validate_survey_mission(
+                user, survey_mission
+            )
+            if user
+            else False,
+            can_discover=mission_permissions.can_discover_survey_mission(
+                user, survey_mission
+            )
+            if user
+            else False,
         ),
         breadcrumbs=[
             webui_schemas.BreadcrumbItem(
@@ -161,6 +185,7 @@ async def get_details_component(request: Request):
         survey_mission=details.item,
         pagination=details.pagination,
         survey_related_records=details.children,
+        search_initial_value=details.children_filter,
         permissions=details.permissions,
     )
 
@@ -191,9 +216,10 @@ async def stream_to_update_page(request: Request):
 
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        constants.NEW_TOPIC_SURVEY_MISSIONS,
-        subscribers.SurveyMissionHandlerContext(
-            survey_mission_id=survey_mission_id,
+        [constants.NEW_TOPIC_SURVEY_MISSIONS],
+        subscribers.HandlerContext(
+            resource_id=str(survey_mission_id),
+            resource_type=constants.ResourceType.MISSION,
             user=user,
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
@@ -201,7 +227,7 @@ async def stream_to_update_page(request: Request):
             request_id=request_id,
         ),
         message_handlers={
-            "survey_mission_updated": survey_mission_handlers.handle_edit_page_survey_mission_updated
+            "resource_modified": common_handlers.handle_resource_modification_edit_page,
         },
     )
 
@@ -228,17 +254,23 @@ async def stream_to_detail_page(request: Request):
 
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        constants.NEW_TOPIC_SURVEY_MISSIONS,
-        subscribers.SurveyMissionHandlerContext(
-            survey_mission_id=survey_mission_id,
+        [
+            constants.NEW_TOPIC_SURVEY_MISSIONS,
+            constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
+        ],
+        subscribers.HandlerContext(
+            resource_id=str(survey_mission_id),
             user=user,
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
             db_session_factory=session_maker,
             request_id=request_id,
+            resource_type=constants.ResourceType.MISSION,
+            target_page=constants.PageType.RESOURCE_DETAIL,
         ),
         message_handlers={
-            "survey_mission_deleted": survey_mission_handlers.handle_detail_page_survey_mission_deleted
+            "resource_modified": common_handlers.handle_resource_modification_detail_page,
+            "discovery": common_handlers.handle_discovery_detail_page,
         },
     )
 
@@ -289,6 +321,80 @@ async def get_survey_mission_creation_form(request: Request):
             ],
         },
     )
+
+
+async def get_mission_records_list_component(request: Request):
+    """Return a paginated, filtered list of records belonging to a survey mission."""
+    survey_mission_id = get_id_from_request_path(
+        request, "survey_mission_id", identifiers.SurveyMissionId
+    )
+    if (raw_search_params := request.query_params.get("datastar")) is not None:
+        try:
+            list_filters = filters.SurveyRelatedRecordListFilters.from_json(
+                raw_search_params, request.state.language
+            )
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid search params")
+        else:
+            internal_filter_kwargs = list_filters.as_kwargs()
+            filter_query_string = list_filters.serialize_to_query_string()
+    else:
+        internal_filter_kwargs = {}
+        filter_query_string = ""
+    current_page = get_page_from_request_params(request)
+    settings: config.SeisLabDataSettings = request.state.settings
+    user = request.user if request.user.is_authenticated else None
+    async with settings.get_db_session_maker()() as session:
+        items, num_total = await survey_related_record_ops.list_survey_related_records(
+            session,
+            initiator=user,
+            survey_mission_id=survey_mission_id,
+            page=current_page,
+            page_size=settings.pagination_page_size,
+            include_total=True,
+            **internal_filter_kwargs,
+        )
+        num_unfiltered_total = (
+            await survey_related_record_ops.list_survey_related_records(
+                session,
+                initiator=user,
+                survey_mission_id=survey_mission_id,
+                include_total=True,
+            )
+        )[1]
+    pagination_info = get_pagination_info(
+        current_page,
+        settings.pagination_page_size,
+        num_total,
+        num_unfiltered_total,
+        collection_url=str(
+            request.url_for(
+                "survey_missions:detail", survey_mission_id=survey_mission_id
+            )
+        ),
+    )
+    serialized_items = [
+        webui_schemas.SurveyRelatedRecordReadListItem.from_db_instance(i) for i in items
+    ]
+    template_processor = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/list-component.html"
+    )
+    rendered = template.render(
+        request=request,
+        items=serialized_items,
+        update_current_url_with=filter_query_string,
+        pagination=pagination_info,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=webui_schemas.selector_info.items_selector,
+            mode=ElementPatchMode.REPLACE,
+        )
+
+    return DatastarResponse(event_streamer())
 
 
 async def get_list_component(request: Request):
@@ -363,17 +469,16 @@ async def get_list_component(request: Request):
 async def stream_to_list_page(request: Request):
     subscription = subscribers.subscribe_to_topic(
         request.state.redis_client,
-        constants.NEW_TOPIC_SURVEY_MISSIONS,
-        subscribers.SurveyMissionHandlerContext(
+        [constants.NEW_TOPIC_SURVEY_MISSIONS],
+        subscribers.HandlerContext(
+            resource_type=constants.ResourceType.MISSION,
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
             db_session_factory=request.state.settings.get_db_session_maker(),
             user=request.user if request.user.is_authenticated else None,
         ),
         {
-            "survey_mission_created": survey_mission_handlers.handle_list_page_survey_mission_modification,
-            "survey_mission_updated": survey_mission_handlers.handle_list_page_survey_mission_modification,
-            "survey_mission_deleted": survey_mission_handlers.handle_list_page_survey_mission_modification,
+            "resource_modified": common_handlers.handle_resource_modification_list_page,
         },
     )
 
@@ -643,9 +748,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 en=form_instance.description.en.data,
                 pt=form_instance.description.pt.data,
             ),
-            relative_path=form_instance.relative_path.data,
             dataset_category_id=form_instance.dataset_category_id.data,
-            domain_type_id=form_instance.domain_type_id.data,
             workflow_stage_id=form_instance.workflow_stage_id.data,
             bbox_4326=(
                 f"POLYGON(("
@@ -712,6 +815,9 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         survey_mission_id = get_id_from_request_path(
             request, "survey_mission_id", identifiers.SurveyMissionId
         )
+        request_id = identifiers.RequestId(
+            uuid.UUID(request.query_params["request_id"])
+        )
         user = request.user
         async with request.state.settings.get_db_session_maker()() as session:
             try:
@@ -728,7 +834,6 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                     detail=_(f"Survey mission {survey_mission_id!r} not found."),
                 )
 
-        request_id = identifiers.RequestId(uuid.uuid4())
         mission_tasks.delete_survey_mission.send(
             raw_request_id=str(request_id),
             raw_survey_mission_id=str(survey_mission_id),
@@ -956,6 +1061,17 @@ async def get_survey_mission_update_form(request: Request):
     )
 
 
+@csrf_protect
+@requires_auth
+async def trigger_discovery(request: Request):
+    discovery_tasks.discover_survey_mission_contents.send(
+        raw_request_id=str(uuid.uuid4()),
+        raw_survey_mission_id=request.path_params["survey_mission_id"],
+        raw_initiator=json.dumps(dataclasses.asdict(request.user)),
+    )  # noqa
+    return Response(status_code=200)
+
+
 @requires_auth
 async def stream_to_new_page(request: Request):
     """Stream relevant updates for the new survey mission page."""
@@ -966,16 +1082,17 @@ async def stream_to_new_page(request: Request):
 
     subscription = subscribers.subscribe_to_topic(
         request.state.redis_client,
-        constants.NEW_TOPIC_SURVEY_MISSIONS,
+        [constants.NEW_TOPIC_SURVEY_MISSIONS],
         subscribers.HandlerContext(
             request_id=request_id,
+            resource_type=constants.ResourceType.MISSION,
             user=request.user,
             url_resolver=request.url_for,
             jinja_environment=request.state.templates.env,
             db_session_factory=request.state.settings.get_db_session_maker(),
         ),
         {
-            "survey_mission_created": survey_mission_handlers.handle_new_page_survey_mission_created,
+            "resource_modified": common_handlers.handle_resource_modification_new_page,
         },
     )
 
@@ -1048,6 +1165,12 @@ routes = [
         name="get_details_component",
     ),
     Route(
+        "/{survey_mission_id}/records",
+        get_mission_records_list_component,
+        methods=["GET"],
+        name="get_mission_records_list_component",
+    ),
+    Route(
         "/{survey_mission_id}/stream/{request_id}",
         stream_to_detail_page,
         methods=["GET"],
@@ -1064,6 +1187,12 @@ routes = [
         stream_to_update_page,
         methods=["GET"],
         name="update_stream",
+    ),
+    Route(
+        "/{survey_mission_id}/discover",
+        trigger_discovery,
+        methods=["POST"],
+        name="trigger_discovery",
     ),
     Route(
         "/{survey_mission_id}",

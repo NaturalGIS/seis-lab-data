@@ -28,8 +28,8 @@
                 data-signals:search='{{ search_initial_value }}'
                 data-signals:advanced-search-panel-open="false"
                 data-signals:searching="false"
-                data-signals:record-listing-version="0"
-                data-effect="$recordListingVersion > 0 && @get('{{ url_for('survey_related_records:get_list_component') }}')"
+                data-signals:listing-version="0"
+                data-effect="$listingVersion > 0 && @get('{{ url_for('survey_related_records:get_list_component') }}')"
         >
             <div class="col-8">
                 <search class="form-floating">
@@ -85,6 +85,16 @@
                                         "{{ current_temporal_extent.begin }}",
                                         "{{ current_temporal_extent.end }}"
                                     ) }}
+                        <div class="mb-3">
+                            <label for="path-fragment">{{ _("Path") }}</label>
+                            <input
+                                    id="path-fragment"
+                                    class="form-control"
+                                    data-bind="assetPathFragment"
+                                    data-on:input__debounce.200ms="@get('{{ url_for("survey_related_records:get_list_component") }}')"
+                                    value=""
+                            >
+                        </div>
                     </div>
                     <div
                             class="col"
@@ -116,7 +126,7 @@
         </div>
     </div>
     <div class="row"
-         data-on-intersect__once="@get('{{ url_for("survey_related_records:get_listing_updates") }}')"
+         data-on-intersect__once="@get('{{ url_for("survey_related_records:list_stream") }}')"
     >
         <div class="col-9">
             {% include "survey-related-records/list-component.html" %}

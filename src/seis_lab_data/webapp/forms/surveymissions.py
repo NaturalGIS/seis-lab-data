@@ -13,7 +13,7 @@ from wtforms import (
 )
 
 from ... import constants
-from ...db.queries import get_survey_mission_by_english_name
+from ...db.queries.surveymissions import get_survey_mission_by_english_name
 from ...schemas import (
     identifiers,
     surveymissions as survey_mission_schemas,
