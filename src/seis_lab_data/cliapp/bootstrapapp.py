@@ -108,29 +108,6 @@ async def bootstrap_asset_discovery_configurations(ctx: typer.Context):
     async for chunk in subscription:
         ctx.obj["main"].status_console.print(chunk)
 
-    # created = []
-    # settings: config.SeisLabDataSettings = ctx.obj["main"].settings
-    # async with settings.get_db_session_maker()() as session:
-    #     for to_create in bootstrapdata.ASSET_DISCOVERY_CONFIGURATIONS_TO_CREATE.values():
-    #         try:
-    #             created.append(
-    #                 await discovery_ops.create_asset_discovery_configuration(
-    #                     request_id=identifiers.RequestId(uuid.uuid4()),
-    #                     to_create=to_create,
-    #                     initiator=ctx.obj["admin_user"],
-    #                     session=session,
-    #                     event_dispatcher=settings.get_event_dispatcher(),
-    #                 )
-    #             )
-    #         except IntegrityError as err:
-    #             ctx.obj["main"].status_console.print(
-    #                 f"Asset discovery configuration could not be created: {str(err)}"
-    #             )
-    #             await session.rollback()
-    # for created_item in created:
-    #     to_show = discovery_schemas.AssetDiscoveryReadDetail.model_validate(created_item, from_attributes=True)
-    #     ctx.obj["main"].status_console.print(to_show)
-
 
 @app.async_command(name="dataset-categories")
 async def bootstrap_dataset_categories(ctx: typer.Context):
@@ -142,7 +119,8 @@ async def bootstrap_dataset_categories(ctx: typer.Context):
             try:
                 created.append(
                     await record_ops.create_dataset_category(
-                        to_create,
+                        request_id=identifiers.RequestId(uuid.uuid4()),
+                        to_create=to_create,
                         initiator=ctx.obj["admin_user"],
                         session=session,
                         event_dispatcher=settings.get_event_dispatcher(),
@@ -168,7 +146,8 @@ async def bootstrap_workflow_stages(ctx: typer.Context):
             try:
                 created.append(
                     await record_ops.create_workflow_stage(
-                        to_create,
+                        request_id=identifiers.RequestId(uuid.uuid4()),
+                        to_create=to_create,
                         initiator=ctx.obj["admin_user"],
                         session=session,
                         event_dispatcher=settings.get_event_dispatcher(),
