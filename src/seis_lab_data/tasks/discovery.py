@@ -87,29 +87,6 @@ async def delete_asset_discovery_configuration(
 
 @dramatiq.actor
 @decorators.sld_settings
-async def discover_project_contents(
-    raw_request_id: str,
-    raw_project_id: str,
-    raw_initiator: str,
-    *,
-    settings: config.SeisLabDataSettings,
-):
-    request_id = identifiers.RequestId(uuid.UUID(raw_request_id))
-    project_id = identifiers.ProjectId(uuid.UUID(raw_project_id))
-    initiator = user_schemas.User(**json.loads(raw_initiator))
-    async with settings.get_db_session_maker()() as session:
-        await discovery_ops.new_run_project_discovery(
-            request_id=request_id,
-            project_id=project_id,
-            session=session,
-            event_dispatcher=settings.get_event_dispatcher(),
-            settings=settings,
-            user=initiator,
-        )
-
-
-@dramatiq.actor
-@decorators.sld_settings
 async def discover_survey_mission_contents(
     raw_request_id: str,
     raw_survey_mission_id: str,

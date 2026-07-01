@@ -33,7 +33,6 @@ from ...permissions import (
     surveymissions as mission_permissions,
 )
 from ...tasks import (
-    discovery as discovery_tasks,
     projects as project_tasks,
     surveymissions as survey_mission_tasks,
 )
@@ -1045,17 +1044,6 @@ async def remove_update_project_form_link(request: Request):
 
 @csrf_protect
 @requires_auth
-async def trigger_project_discovery(request: Request):
-    discovery_tasks.discover_project_contents.send(
-        raw_request_id=str(uuid.uuid4()),
-        raw_project_id=request.path_params["project_id"],
-        raw_initiator=json.dumps(dataclasses.asdict(request.user)),
-    )  # noqa
-    return Response(status_code=200)
-
-
-@csrf_protect
-@requires_auth
 async def trigger_project_validation(request: Request):
     project_tasks.validate_project.send(
         raw_request_id=str(uuid.uuid4()),
@@ -1134,12 +1122,6 @@ routes = [
         stream_to_detail_page,
         methods=["GET"],
         name="detail_stream",
-    ),
-    Route(
-        "/{project_id}/discover",
-        trigger_project_discovery,
-        methods=["POST"],
-        name="trigger_discovery",
     ),
     Route(
         "/{project_id}/validate",

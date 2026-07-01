@@ -1,8 +1,6 @@
-import asyncio
 import dataclasses
 import json
 import uuid
-from collections.abc import AsyncGenerator
 from typing import Annotated
 
 import shapely
@@ -15,14 +13,10 @@ from .. import (
     subscribers,
 )
 from ..operations import projects as project_ops
-from ..tasks import (
-    discovery as discovery_tasks,
-    projects as project_tasks,
-)
+from ..tasks import projects as project_tasks
 from ..schemas import (
     common as common_schemas,
     identifiers,
-    messages as message_schemas,
     projects as project_schemas,
 )
 from .asynctyper import AsyncTyper
@@ -157,56 +151,6 @@ async def delete_project(
         },
     )
     project_tasks.delete_project.send(
-        raw_request_id=str(uuid.uuid4()),
-        raw_project_id=str(identifiers.ProjectId(project_id)),
-        raw_initiator=json.dumps(dataclasses.asdict(ctx.obj["admin_user"])),
-    )  # noqa
-    async for chunk in subscription:
-        ctx.obj["main"].status_console.print(chunk)
-
-
-@app.async_command(name="discover-contents")
-async def discover_project_contents(
-    ctx: typer.Context,
-    project_id: uuid.UUID,
-):
-    """Discover contents of a project automatically."""
-    redis_client: aioredis.Redis = ctx.obj["main"].redis_client
-
-    async def handle_progress(
-        message: message_schemas.ProjectDiscoveryProgressMessage,
-        context: subscribers.HandlerContext,
-        done: asyncio.Event | None = None,
-    ) -> AsyncGenerator[str, None]:
-        yield f"[blue]Progress:[/blue] {message.details}"
-
-    async def handle_success(
-        message: message_schemas.ProjectDiscoverySucceededMessage,
-        context: subscribers.HandlerContext,
-        done: asyncio.Event | None = None,
-    ) -> AsyncGenerator[str, None]:
-        yield f"[green]Success:[/green] Project {message.project_id!r} discovery completed successfully!"
-        done.set()
-
-    async def handle_failure(
-        message: message_schemas.ProjectDiscoveryFailedMessage,
-        context: subscribers.HandlerContext,
-        done: asyncio.Event | None = None,
-    ) -> AsyncGenerator[str, None]:
-        yield f"[red]Error:[/red] Project discovery failed with {message.details!r}"
-        done.set()
-
-    subscription = subscribers.subscribe_to_topic(
-        redis_client,
-        topic_names=[constants.NEW_TOPIC_PROJECTS],
-        handler_context=subscribers.HandlerContext(resource_id=str(project_id)),
-        message_handlers={
-            "project_discovery_progress": handle_progress,
-            "project_discovery_successful": handle_success,
-            "project_discovery_failed": handle_failure,
-        },
-    )
-    discovery_tasks.discover_project_contents.send(
         raw_request_id=str(uuid.uuid4()),
         raw_project_id=str(identifiers.ProjectId(project_id)),
         raw_initiator=json.dumps(dataclasses.asdict(ctx.obj["admin_user"])),
