@@ -137,7 +137,7 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
     app = Starlette(
         debug=settings.debug,
         routes=[
-            Route("/", base.home),
+            Route("/", base.home, name="home"),
             Route("/login", auth.login),
             Route("/oauth2/callback", auth.auth_callback),
             Route("/logout", auth.logout),

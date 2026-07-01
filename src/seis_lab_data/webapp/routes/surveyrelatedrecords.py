@@ -1079,6 +1079,9 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         survey_related_record_id = get_id_from_request_path(
             request, "survey_related_record_id", identifiers.SurveyRelatedRecordId
         )
+        request_id = identifiers.RequestId(
+            uuid.UUID(request.query_params["request_id"])
+        )
         user = request.user
         async with request.state.settings.get_db_session_maker()() as session:
             if (
@@ -1096,7 +1099,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                 )
 
         record_tasks.delete_survey_related_record.send(
-            raw_request_id=str(uuid.uuid4()),
+            raw_request_id=str(request_id),
             raw_survey_related_record_id=str(survey_related_record_id),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
         )
@@ -1274,6 +1277,8 @@ async def stream_to_new_page(request: Request):
             url_resolver=request.url_for,
             jinja_environment=request.state.templates.env,
             db_session_factory=request.state.settings.get_db_session_maker(),
+            target_page=constants.PageType.RESOURCE_NEW,
+            resource_type=constants.ResourceType.RECORD,
         ),
         {
             "resource_modified": common_handlers.handle_resource_modification_new_page,
@@ -1311,6 +1316,8 @@ async def stream_to_detail_page(request: Request):
             url_resolver=request.url_for,
             db_session_factory=session_maker,
             request_id=request_id,
+            resource_type=constants.ResourceType.RECORD,
+            target_page=constants.PageType.RESOURCE_DETAIL,
         ),
         message_handlers={
             "resource_modified": common_handlers.handle_resource_modification_detail_page,

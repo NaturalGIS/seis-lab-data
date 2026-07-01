@@ -99,43 +99,26 @@ async def handle_resource_modification_new_page(
             )
         case constants.ResourceType.PROJECT:
             yield ServerSentEventGenerator.redirect(
-                str(context.url_resolver("projects:list"))
-            )
-        case constants.ResourceType.MISSION:
-            mission_id = identifiers.SurveyMissionId(uuid.UUID(message.resource_id))
-            async with context.db_session_factory() as session:
-                if (
-                    db_mission := await mission_ops.get_survey_mission(
-                        mission_id, context.user, session
-                    )
-                ) is None:
-                    logger.debug(f"survey_mission {mission_id!r} not found in DB")
-                    return
-                yield ServerSentEventGenerator.redirect(
-                    str(
-                        context.url_resolver(
-                            "projects:detail", project_id=db_mission.project_id
-                        )
+                str(
+                    context.url_resolver(
+                        "projects:detail", project_id=message.resource_id
                     )
                 )
-        case constants.ResourceType.RECORD:
-            record_id = identifiers.SurveyRelatedRecordId(
-                uuid.UUID(message.resource_id)
             )
-            async with context.db_session_factory() as session:
-                if (
-                    record_info := await record_ops.get_survey_related_record(
-                        record_id, context.user, session
-                    )
-                ) is None:
-                    logger.debug(f"survey_related_record {record_id!r} not found in DB")
-                    return
-            db_record = record_info[0]
+        case constants.ResourceType.MISSION:
             yield ServerSentEventGenerator.redirect(
                 str(
                     context.url_resolver(
-                        "survey_missions:detail",
-                        survey_mission_id=db_record.survey_mission_id,
+                        "survey_missions:detail", survey_mission_id=message.resource_id
+                    )
+                )
+            )
+        case constants.ResourceType.RECORD:
+            yield ServerSentEventGenerator.redirect(
+                str(
+                    context.url_resolver(
+                        "survey_related_records:detail",
+                        survey_related_record_id=message.resource_id,
                     )
                 )
             )
@@ -504,7 +487,7 @@ async def handle_resource_modification_detail_page(
                     else:
                         listing_page_alias = {
                             constants.ResourceType.ASSET_DISCOVERY_CONFIG: "asset_discovery_configurations:list",
-                        }.get(message.resource_type, "landing_page")
+                        }.get(message.resource_type, "home")
                         redirect_to = context.url_resolver(listing_page_alias)
                     async for event in flash_ui_message_after_redirect(
                         webui_schemas.Notification(
@@ -513,9 +496,7 @@ async def handle_resource_modification_detail_page(
                     ):
                         yield event
                     if redirect_to:
-                        yield ServerSentEventGenerator.redirect(
-                            str(context.url_resolver(redirect_to))
-                        )
+                        yield ServerSentEventGenerator.redirect(str(redirect_to))
 
 
 async def handle_discovery_detail_page(

@@ -133,7 +133,7 @@
             {% endif %}
             {% if permissions.can_delete %}
                 {{ macros_buttons_list_items.render_delete_item_button(
-                    deletion_url=url_for("survey_related_records:detail", survey_related_record_id=survey_related_record.id),
+                    deletion_url=url_for("survey_related_records:detail", survey_related_record_id=survey_related_record.id) ~ "?request_id=" ~ request_id,
                     signal_name="deleting",
                     idle_message="delete survey-related record",
                     running_message="deleting survey-related record...",

@@ -23,7 +23,7 @@ async def test_list_projects(sample_projects, db_session_maker):
 @pytest.mark.parametrize(
     "project_id_filter, expected_total",
     [
-        pytest.param(None, 5),
+        pytest.param(None, 6),
         pytest.param(
             identifiers.ProjectId(uuid.UUID("74f07051-1aa9-4c08-bc27-3ecf101ab5b3")), 3
         ),

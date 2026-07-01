@@ -815,6 +815,9 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         survey_mission_id = get_id_from_request_path(
             request, "survey_mission_id", identifiers.SurveyMissionId
         )
+        request_id = identifiers.RequestId(
+            uuid.UUID(request.query_params["request_id"])
+        )
         user = request.user
         async with request.state.settings.get_db_session_maker()() as session:
             try:
@@ -831,7 +834,6 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                     detail=_(f"Survey mission {survey_mission_id!r} not found."),
                 )
 
-        request_id = identifiers.RequestId(uuid.uuid4())
         mission_tasks.delete_survey_mission.send(
             raw_request_id=str(request_id),
             raw_survey_mission_id=str(survey_mission_id),
