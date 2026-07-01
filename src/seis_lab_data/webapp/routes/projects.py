@@ -189,6 +189,7 @@ async def get_project_details_component(request: Request):
         project=details.item,
         pagination=details.pagination,
         survey_missions=details.children,
+        search_initial_value=details.children_filter,
         permissions=details.permissions,
     )
 
@@ -316,7 +317,10 @@ async def stream_to_detail_page(request: Request):
 
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        [constants.NEW_TOPIC_PROJECTS],
+        [
+            constants.NEW_TOPIC_PROJECTS,
+            constants.NEW_TOPIC_SURVEY_MISSIONS,
+        ],
         subscribers.HandlerContext(
             resource_id=str(project_id),
             user=user,
@@ -324,6 +328,8 @@ async def stream_to_detail_page(request: Request):
             url_resolver=request.url_for,
             db_session_factory=session_maker,
             request_id=request_id,
+            resource_type=constants.ResourceType.PROJECT,
+            target_page=constants.PageType.RESOURCE_DETAIL,
         ),
         {
             "resource_modified": common_handlers.handle_resource_modification_detail_page,
@@ -880,6 +886,69 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         return Response(status_code=200)
 
 
+async def get_project_missions_list_component(request: Request):
+    """Return a paginated, filtered list of survey missions belonging to a project."""
+    project_id = get_id_from_request_path(request, "project_id", identifiers.ProjectId)
+    if (raw_search_params := request.query_params.get("datastar")) is not None:
+        try:
+            list_filters = filters.SurveyMissionListFilters.from_json(
+                raw_search_params, request.state.language
+            )
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid search params")
+        else:
+            internal_filter_kwargs = list_filters.as_kwargs()
+            filter_query_string = list_filters.serialize_to_query_string()
+    else:
+        internal_filter_kwargs = {}
+        filter_query_string = ""
+    current_page = get_page_from_request_params(request)
+    settings: config.SeisLabDataSettings = request.state.settings
+    user = request.user if request.user.is_authenticated else None
+    async with settings.get_db_session_maker()() as session:
+        items, num_total = await survey_mission_ops.list_survey_missions(
+            session,
+            initiator=user,
+            project_id=project_id,
+            page=current_page,
+            page_size=settings.pagination_page_size,
+            include_total=True,
+            **internal_filter_kwargs,
+        )
+        num_unfiltered_total = (
+            await survey_mission_ops.list_survey_missions(
+                session, initiator=user, project_id=project_id, include_total=True
+            )
+        )[1]
+    pagination_info = get_pagination_info(
+        current_page,
+        settings.pagination_page_size,
+        num_total,
+        num_unfiltered_total,
+        collection_url=str(request.url_for("projects:detail", project_id=project_id)),
+    )
+    serialized_items = [
+        webui_schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items
+    ]
+    template_processor = request.state.templates
+    template = template_processor.get_template("survey-missions/list-component.html")
+    rendered = template.render(
+        request=request,
+        items=serialized_items,
+        update_current_url_with=filter_query_string,
+        pagination=pagination_info,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=webui_schemas.selector_info.items_selector,
+            mode=ElementPatchMode.REPLACE,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
 @csrf_protect
 async def add_create_project_form_link(request: Request):
     """Add a form link to a create_project form."""
@@ -1053,6 +1122,12 @@ routes = [
         get_project_details_component,
         methods=["GET"],
         name="get_details_component",
+    ),
+    Route(
+        "/{project_id}/missions",
+        get_project_missions_list_component,
+        methods=["GET"],
+        name="get_project_missions_list_component",
     ),
     Route(
         "/{project_id}/stream/{request_id}",

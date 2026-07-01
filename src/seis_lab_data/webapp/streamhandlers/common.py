@@ -160,7 +160,7 @@ async def handle_resource_modification_list_page(
     else:
         async for event in flash_ui_message_same_page(
             webui_schemas.Notification(
-                message=f"{message.resource_type.capitalize()} was {message.modification} successfully!"
+                message=f"{message.resource_type.capitalize()} {message.resource_id} was {message.modification.value}",
             )
         ):
             yield event
@@ -286,7 +286,7 @@ async def _handle_project_modification_detail_page(
                 case constants.ResourceModification.DELETED:
                     async for event in flash_ui_message_after_redirect(
                         webui_schemas.Notification(
-                            message=f"{message.resource_type.capitalize()} was deleted",
+                            message=f"{message.resource_type.capitalize()} {message.resource_id} was deleted",
                         )
                     ):
                         yield event
@@ -397,28 +397,18 @@ async def _handle_survey_mission_modification_detail_page(
                 case constants.ResourceModification.DELETED:
                     async for event in flash_ui_message_after_redirect(
                         webui_schemas.Notification(
-                            message=f"{message.resource_type.capitalize()} was deleted",
+                            message=f"{message.resource_type.capitalize()} {message.resource_id} was deleted",
                         )
                     ):
                         yield event
-
-                    async with context.db_session_factory() as session:
-                        if (
-                            db_mission := await mission_ops.get_survey_mission(
-                                mission_id, context.user, session
-                            )
-                        ) is None:
-                            logger.debug(
-                                f"Could not find survey_mission with id {mission_id!r} in the DB"
-                            )
-                            return
-                        yield ServerSentEventGenerator.redirect(
-                            str(
-                                context.url_resolver(
-                                    "projects:detail", project_id=db_mission.project_id
-                                )
-                            )
+                    if (project_id := message.parent_resource_id) is not None:
+                        redirect_to = context.url_resolver(
+                            "projects:detail", project_id=project_id
                         )
+                    else:
+                        redirect_to = context.url_resolver("survey_missions:list")
+
+                    yield ServerSentEventGenerator.redirect(str(redirect_to))
                 case _:
                     logger.debug(
                         f"Don't know how to handle modification {message.modification!r}, skipping..."
@@ -502,33 +492,23 @@ async def handle_resource_modification_detail_page(
             match message.modification:
                 case constants.ResourceModification.DELETED:
                     if context.resource_type == constants.ResourceType.RECORD:
-                        record_id = identifiers.SurveyRelatedRecordId(
-                            uuid.UUID(context.resource_id)
-                        )
-                        # need to retrieve the parent mission's id in order to redirect to its detail page
-                        async with context.db_session_factory() as session:
-                            if (
-                                record_info
-                                := await record_ops.get_survey_related_record(
-                                    record_id, context.user, session
-                                )
-                            ) is None:
-                                logger.debug(
-                                    f"Could not find survey_related_record with id {context.resource_id!r} in the DB"
-                                )
-                                return
-                            db_record = record_info[0]
+                        if (mission_id := message.parent_resource_id) is not None:
                             redirect_to = context.url_resolver(
                                 "survey_missions:detail",
-                                survey_mission_id=db_record.survey_mission_id,
+                                survey_mission_id=mission_id,
+                            )
+                        else:
+                            redirect_to = context.url_resolver(
+                                "survey_related_records:list"
                             )
                     else:
-                        redirect_to = {
+                        listing_page_alias = {
                             constants.ResourceType.ASSET_DISCOVERY_CONFIG: "asset_discovery_configurations:list",
-                        }.get(message.resource_type)
+                        }.get(message.resource_type, "landing_page")
+                        redirect_to = context.url_resolver(listing_page_alias)
                     async for event in flash_ui_message_after_redirect(
                         webui_schemas.Notification(
-                            message=f"{message.resource_type.capitalize()} was deleted",
+                            message=f"{message.resource_type.capitalize()} {message.resource_id} was deleted",
                         )
                     ):
                         yield event
@@ -536,3 +516,30 @@ async def handle_resource_modification_detail_page(
                         yield ServerSentEventGenerator.redirect(
                             str(context.url_resolver(redirect_to))
                         )
+
+
+async def handle_discovery_detail_page(
+    message: message_schemas.DiscoveryMessage,
+    context: subscribers.HandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    # - have had its discovery progressed - only applies to SurveyMission: need to update the discovery-related fields
+    if message.resource_id != context.resource_id:
+        return
+    if not message.succeeded:
+        if message.request_id == context.request_id:
+            async for event in flash_ui_message_same_page(
+                webui_schemas.Notification(
+                    message=f"{message.resource_type.capitalize()} discovery failed: {message.details}",
+                    category="error",
+                )
+            ):
+                yield event
+    else:
+        notification_msg = f"{message.resource_type.capitalize()} discovery {message.modification.value}"
+        if message.details:
+            notification_msg += f": {message.details}"
+        async for event in flash_ui_message_same_page(
+            webui_schemas.Notification(message=notification_msg)
+        ):
+            yield event

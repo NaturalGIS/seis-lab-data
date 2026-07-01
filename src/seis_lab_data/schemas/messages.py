@@ -19,7 +19,9 @@ class ResourceModificationMessage(pydantic.BaseModel):
     request_id: identifiers.RequestId
     resource_type: constants.ResourceType
     resource_id: str | None
-    parent_id: str | None = None
+    parent_resource_id: str | None = (
+        None  # mostly useful for when resource is deleted to figure out where to redirect
+    )
     modification: constants.ResourceModification
     succeeded: bool
     details: str | None = None

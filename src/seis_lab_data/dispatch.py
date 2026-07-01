@@ -32,6 +32,7 @@ class RedisEventDispatcher:
                         resource_type=event.resource_type,
                         request_id=event.request_id,
                         resource_id=event.resource_id,
+                        parent_resource_id=event.parent_resource_id,
                         modification=event.modification,
                         succeeded=event.succeeded,
                         details=event.details,

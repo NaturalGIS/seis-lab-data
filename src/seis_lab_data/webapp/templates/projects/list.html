@@ -33,8 +33,8 @@ Users with create permission are linked to /projects/new, which is a separate st
                     data-signals:search='{{ search_initial_value }}'
                     data-signals:advanced-search-panel-open="false"
                     data-signals:searching="false"
-                    data-signals:project-listing-version="0"
-                    data-effect="$projectListingVersion > 0 && @get('{{ url_for('projects:get_list_component') }}')"
+                    data-signals:listing-version="0"
+                    data-effect="$listingVersion > 0 && @get('{{ url_for('projects:get_list_component') }}')"
             >
                 <div class="col-8">
                     <search class="form-floating">

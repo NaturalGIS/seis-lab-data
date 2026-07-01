@@ -185,6 +185,7 @@ async def get_details_component(request: Request):
         survey_mission=details.item,
         pagination=details.pagination,
         survey_related_records=details.children,
+        search_initial_value=details.children_filter,
         permissions=details.permissions,
     )
 
@@ -259,15 +260,17 @@ async def stream_to_detail_page(request: Request):
         ],
         subscribers.HandlerContext(
             resource_id=str(survey_mission_id),
-            resource_type=constants.ResourceType.MISSION,
             user=user,
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
             db_session_factory=session_maker,
             request_id=request_id,
+            resource_type=constants.ResourceType.MISSION,
+            target_page=constants.PageType.RESOURCE_DETAIL,
         ),
         message_handlers={
             "resource_modified": common_handlers.handle_resource_modification_detail_page,
+            "discovery": common_handlers.handle_discovery_detail_page,
         },
     )
 
@@ -318,6 +321,80 @@ async def get_survey_mission_creation_form(request: Request):
             ],
         },
     )
+
+
+async def get_mission_records_list_component(request: Request):
+    """Return a paginated, filtered list of records belonging to a survey mission."""
+    survey_mission_id = get_id_from_request_path(
+        request, "survey_mission_id", identifiers.SurveyMissionId
+    )
+    if (raw_search_params := request.query_params.get("datastar")) is not None:
+        try:
+            list_filters = filters.SurveyRelatedRecordListFilters.from_json(
+                raw_search_params, request.state.language
+            )
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid search params")
+        else:
+            internal_filter_kwargs = list_filters.as_kwargs()
+            filter_query_string = list_filters.serialize_to_query_string()
+    else:
+        internal_filter_kwargs = {}
+        filter_query_string = ""
+    current_page = get_page_from_request_params(request)
+    settings: config.SeisLabDataSettings = request.state.settings
+    user = request.user if request.user.is_authenticated else None
+    async with settings.get_db_session_maker()() as session:
+        items, num_total = await survey_related_record_ops.list_survey_related_records(
+            session,
+            initiator=user,
+            survey_mission_id=survey_mission_id,
+            page=current_page,
+            page_size=settings.pagination_page_size,
+            include_total=True,
+            **internal_filter_kwargs,
+        )
+        num_unfiltered_total = (
+            await survey_related_record_ops.list_survey_related_records(
+                session,
+                initiator=user,
+                survey_mission_id=survey_mission_id,
+                include_total=True,
+            )
+        )[1]
+    pagination_info = get_pagination_info(
+        current_page,
+        settings.pagination_page_size,
+        num_total,
+        num_unfiltered_total,
+        collection_url=str(
+            request.url_for(
+                "survey_missions:detail", survey_mission_id=survey_mission_id
+            )
+        ),
+    )
+    serialized_items = [
+        webui_schemas.SurveyRelatedRecordReadListItem.from_db_instance(i) for i in items
+    ]
+    template_processor = request.state.templates
+    template = template_processor.get_template(
+        "survey-related-records/list-component.html"
+    )
+    rendered = template.render(
+        request=request,
+        items=serialized_items,
+        update_current_url_with=filter_query_string,
+        pagination=pagination_info,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=webui_schemas.selector_info.items_selector,
+            mode=ElementPatchMode.REPLACE,
+        )
+
+    return DatastarResponse(event_streamer())
 
 
 async def get_list_component(request: Request):
@@ -1084,6 +1161,12 @@ routes = [
         get_details_component,
         methods=["GET"],
         name="get_details_component",
+    ),
+    Route(
+        "/{survey_mission_id}/records",
+        get_mission_records_list_component,
+        methods=["GET"],
+        name="get_mission_records_list_component",
     ),
     Route(
         "/{survey_mission_id}/stream/{request_id}",

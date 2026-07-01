@@ -70,16 +70,18 @@
                 </div>
             </div>
         </div>
-        <div class="row mt-4">
+        <div
+            class="row mt-4"
+            data-signals:listing-version="0"
+            data-effect="$listingVersion > 0 && @get('{{ url_for('projects:get_project_missions_list_component', project_id=project.id) }}')"
+        >
             <div class="col">
                 <h2>{{ _("survey missions") | capitalize }}</h2>
-                {% if items | length > 0 %}
-                    {{ macros.render_search_component(
-                       url_for("survey_missions:get_list_component"),
-                       _("search project survey-missions"),
-                       initial_value=search_initial_value
-                    ) }}
-                {% endif %}
+                {{ macros.render_search_component(
+                   url_for("projects:get_project_missions_list_component", project_id=project.id),
+                   _("search project survey-missions"),
+                   initial_value=search_initial_value | default("", true)
+                ) }}
                 <div id="project-survey-missions">
                     {% with items = survey_missions %}
                         {% include "survey-missions/list-component.html" %}

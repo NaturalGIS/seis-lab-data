@@ -154,35 +154,31 @@ async def load_sample_projects(ctx: typer.Context):
     projects_to_create = list(sampledata.get_projects_to_create(owner=admin_))
     remaining = len(projects_to_create)
 
-    async def handle_success(
-        message: message_schemas.ProjectCreatedMessage,
+    async def handle_message(
+        message: message_schemas.ResourceModificationMessage,
         context: subscribers.HandlerContext,
         done: asyncio.Event | None = None,
     ) -> AsyncGenerator[str, None]:
         nonlocal remaining
-        yield f"[green]Success:[/green] Project {message.project_id!r} created successfully!"
+        if message.request_id != context.request_id:
+            return
+        if message.succeeded:
+            yield f"[green]Success:[/green] Project {message.resource_id!r} created successfully!"
+        else:
+            yield f"[red]Error:[/red] Project creation failed with {message.details!r}"
         remaining -= 1
         if remaining == 0 and done is not None:
             done.set()
 
-    async def handle_failure(
-        message: message_schemas.ProjectNotCreatedMessage,
-        context: subscribers.HandlerContext,
-        done: asyncio.Event | None = None,
-    ) -> AsyncGenerator[str, None]:
-        nonlocal remaining
-        yield f"[red]Error:[/red] Project creation failed with {message.details!r}"
-        remaining -= 1
-        if remaining == 0 and done is not None:
-            done.set()
-
+    request_id = identifiers.RequestId(uuid.uuid4())
     subscription = subscribers.subscribe_to_topic(
         redis_client,
         topic_names=[constants.NEW_TOPIC_PROJECTS],
-        handler_context=subscribers.HandlerContext(),
+        handler_context=subscribers.HandlerContext(
+            request_id=request_id,
+        ),
         message_handlers={
-            "project_created": handle_success,
-            "project_not_created": handle_failure,
+            "resource_modified": handle_message,
         },
     )
 
@@ -191,7 +187,7 @@ async def load_sample_projects(ctx: typer.Context):
             f"Queueing project {to_create.name.en!r} for creation..."
         )
         project_tasks.create_project.send(
-            raw_request_id=str(uuid.uuid4()),
+            raw_request_id=str(request_id),
             raw_to_create=to_create.model_dump_json(exclude_none=True),
             raw_initiator=json.dumps(dataclasses.asdict(admin_)),
         )  # noqa
@@ -209,24 +205,18 @@ async def load_sample_survey_missions(ctx: typer.Context):
     missions_to_create = list(sampledata.get_survey_missions_to_create(owner=admin_))
     remaining = len(missions_to_create)
 
-    async def handle_success(
-        message: message_schemas.SurveyMissionCreatedMessage,
-        context: subscribers.SurveyMissionHandlerContext,
+    async def handle_message(
+        message: message_schemas.ResourceModificationMessage,
+        context: subscribers.HandlerContext,
         done: asyncio.Event | None = None,
     ) -> AsyncGenerator[str, None]:
         nonlocal remaining
-        yield f"[green]Success:[/green] Mission {message.survey_mission_id!r} created successfully!"
-        remaining -= 1
-        if remaining == 0 and done is not None:
-            done.set()
-
-    async def handle_failure(
-        message: message_schemas.SurveyMissionNotCreatedMessage,
-        context: subscribers.SurveyMissionHandlerContext,
-        done: asyncio.Event | None = None,
-    ) -> AsyncGenerator[str, None]:
-        nonlocal remaining
-        yield f"[red]Error:[/red] Mission creation failed with {message.details!r}"
+        if message.request_id != context.request_id:
+            return
+        if message.succeeded:
+            yield f"[green]Success:[/green] {message.resource_type.value} {message.resource_id!r} {message.modification.value} successfully!"
+        else:
+            yield f"[red]Error:[/red] {message.resource_type.value} {message.modification.value} failed with {message.details!r}"
         remaining -= 1
         if remaining == 0 and done is not None:
             done.set()
@@ -240,8 +230,7 @@ async def load_sample_survey_missions(ctx: typer.Context):
             request_id=request_id,
         ),
         message_handlers={
-            "survey_mission_created": handle_success,
-            "survey_mission_not_created": handle_failure,
+            "resource_modified": handle_message,
         },
     )
 

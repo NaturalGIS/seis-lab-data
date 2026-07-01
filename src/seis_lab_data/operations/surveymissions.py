@@ -327,6 +327,7 @@ async def delete_survey_mission(
                 f"Cannot delete survey mission because parent project's status "
                 f"is {survey_mission.project.status}"
             )
+        parent_id = survey_mission.project_id
         await mission_commands.delete_survey_mission(session, survey_mission_id)
     except errors.SeisLabDataError as err:
         await event_dispatcher(
@@ -346,6 +347,7 @@ async def delete_survey_mission(
         event_schemas.ResourceModificationEvent(
             resource_type=constants.ResourceType.MISSION,
             resource_id=str(survey_mission_id),
+            parent_resource_id=str(parent_id),
             request_id=request_id,
             modification=constants.ResourceModification.DELETED,
             succeeded=True,

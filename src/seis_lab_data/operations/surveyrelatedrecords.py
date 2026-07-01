@@ -427,6 +427,7 @@ async def delete_survey_related_record(
                 f"Cannot update survey-related record because parent project's "
                 f"status is {project_status}"
             )
+        parent_id = survey_record.survey_mission_id
         await record_commands.delete_survey_related_record(
             session, survey_related_record_id
         )
@@ -448,6 +449,7 @@ async def delete_survey_related_record(
             initiator=initiator.id,
             resource_type=constants.ResourceType.RECORD,
             resource_id=str(survey_related_record_id),
+            parent_resource_id=str(parent_id),
             request_id=request_id,
             modification=constants.ResourceModification.DELETED,
             succeeded=True,

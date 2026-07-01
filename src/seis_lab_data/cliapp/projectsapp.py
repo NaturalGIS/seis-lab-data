@@ -153,8 +153,7 @@ async def delete_project(
         topic_names=[constants.NEW_TOPIC_PROJECTS],
         handler_context=subscribers.HandlerContext(),
         message_handlers={
-            "project_deleted": handlers.handle_project_deletion_success,
-            "project_not_deleted": handlers.handle_project_deletion_failure,
+            "resource_modified": handlers.handle_resource_modified,
         },
     )
     project_tasks.delete_project.send(
