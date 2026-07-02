@@ -17,6 +17,8 @@ from ..db.commands import surveyrelatedrecords as record_commands
 from ..db.queries import (
     surveymissions as mission_queries,
     surveyrelatedrecords as record_queries,
+    datasetcategories as category_queries,
+    workflowstages as stage_queries,
 )
 from ..schemas import (
     events as event_schemas,
@@ -68,7 +70,7 @@ async def delete_dataset_category(
         raise errors.SeisLabDataError(
             "User is not allowed to delete dataset categories."
         )
-    dataset_category = await record_queries.get_dataset_category(
+    dataset_category = await category_queries.get_dataset_category(
         session, dataset_category_id
     )
     if dataset_category is None:
@@ -94,7 +96,7 @@ async def list_dataset_categories(
     offset: int = 0,
     include_total: bool = False,
 ) -> tuple[list[models.DatasetCategory], int | None]:
-    return await record_queries.list_dataset_categories(
+    return await category_queries.list_dataset_categories(
         session, limit, offset, include_total
     )
 
@@ -133,7 +135,7 @@ async def delete_workflow_stage(
 ) -> None:
     if not record_permissions.can_delete_workflow_stage(initiator):
         raise errors.SeisLabDataError("User is not allowed to delete workflow stages.")
-    workflow_stage = await record_queries.get_workflow_stage(session, workflow_stage_id)
+    workflow_stage = await stage_queries.get_workflow_stage(session, workflow_stage_id)
     if workflow_stage is None:
         raise errors.SeisLabDataError(
             f"Workflow stage with id {workflow_stage_id} does not exist."
@@ -157,7 +159,7 @@ async def list_workflow_stages(
     offset: int = 0,
     include_total: bool = False,
 ) -> tuple[list[models.WorkflowStage], int | None]:
-    return await record_queries.list_workflow_stages(
+    return await stage_queries.list_workflow_stages(
         session, limit, offset, include_total
     )
 

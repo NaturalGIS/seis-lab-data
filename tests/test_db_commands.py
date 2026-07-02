@@ -11,6 +11,8 @@ from seis_lab_data.db.queries import (
     projects as project_queries,
     surveymissions as mission_queries,
     surveyrelatedrecords as record_queries,
+    datasetcategories as category_queries,
+    workflowstages as stage_queries,
 )
 from seis_lab_data.schemas import (
     common as common_schemas,
@@ -48,10 +50,13 @@ async def test_delete_dataset_category(db, db_session_maker):
     async with db_session_maker() as session:
         await record_commands.create_dataset_category(session, to_create)
         assert (
-            await record_queries.get_dataset_category(session, to_create.id) is not None
+            await category_queries.get_dataset_category(session, to_create.id)
+            is not None
         )
         await record_commands.delete_dataset_category(session, to_create.id)
-        assert await record_queries.get_dataset_category(session, to_create.id) is None
+        assert (
+            await category_queries.get_dataset_category(session, to_create.id) is None
+        )
 
 
 @pytest.mark.integration
@@ -80,11 +85,9 @@ async def test_delete_workflow_stage(db, db_session_maker):
     )
     async with db_session_maker() as session:
         await record_commands.create_workflow_stage(session, to_create)
-        assert (
-            await record_queries.get_workflow_stage(session, to_create.id) is not None
-        )
+        assert await stage_queries.get_workflow_stage(session, to_create.id) is not None
         await record_commands.delete_workflow_stage(session, to_create.id)
-        assert await record_queries.get_workflow_stage(session, to_create.id) is None
+        assert await stage_queries.get_workflow_stage(session, to_create.id) is None
 
 
 @pytest.mark.integration

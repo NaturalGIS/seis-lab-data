@@ -12,6 +12,8 @@ from ...schemas import (
 from .. import models
 from ..queries import (
     surveyrelatedrecords as record_queries,
+    datasetcategories as category_queries,
+    workflowstages as stage_queries,
 )
 from .common import get_bbox_4326_for_db
 
@@ -27,7 +29,7 @@ async def create_dataset_category(
     )
     session.add(category)
     await session.commit()
-    return await record_queries.get_dataset_category(session, to_create.id)
+    return await category_queries.get_dataset_category(session, to_create.id)
 
 
 async def delete_dataset_category(
@@ -35,7 +37,7 @@ async def delete_dataset_category(
     dataset_category_id: uuid.UUID,
 ) -> None:
     if dataset_category := (
-        await record_queries.get_dataset_category(session, dataset_category_id)
+        await category_queries.get_dataset_category(session, dataset_category_id)
     ):
         await session.delete(dataset_category)
         await session.commit()
@@ -54,7 +56,7 @@ async def create_workflow_stage(
     )
     session.add(workflow_stage)
     await session.commit()
-    return await record_queries.get_workflow_stage(session, to_create.id)
+    return await stage_queries.get_workflow_stage(session, to_create.id)
 
 
 async def delete_workflow_stage(
@@ -62,7 +64,7 @@ async def delete_workflow_stage(
     workflow_stage_id: uuid.UUID,
 ) -> None:
     if workflow_stage := (
-        await record_queries.get_workflow_stage(session, workflow_stage_id)
+        await stage_queries.get_workflow_stage(session, workflow_stage_id)
     ):
         await session.delete(workflow_stage)
         await session.commit()

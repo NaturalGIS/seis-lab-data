@@ -11,7 +11,10 @@ from ..operations import (
     surveymissions as mission_ops,
     surveyrelatedrecords as record_ops,
 )
-from ..db.queries import surveyrelatedrecords as record_queries
+from ..db.queries import (
+    datasetcategories as category_queries,
+    workflowstages as stage_queries,
+)
 from ..schemas import (
     common as common_schemas,
     identifiers,
@@ -83,15 +86,14 @@ async def create_survey_related_record(
     async with settings.get_db_session_maker()() as session:
         if (
             db_dataset_category
-            := await record_queries.get_dataset_category_by_english_name(
+            := await category_queries.get_dataset_category_by_english_name(
                 session, dataset_category
             )
         ) is None:
             printer(f"dataset category '{dataset_category!r}' not found.")
             raise typer.Abort()
         if (
-            db_workflow_stage
-            := await record_queries.get_workflow_stage_by_english_name(
+            db_workflow_stage := await stage_queries.get_workflow_stage_by_english_name(
                 session, workflow_stage
             )
         ) is None:
