@@ -3,12 +3,10 @@ import uuid
 from ..schemas.common import (
     LocalizableDraftName,
 )
-from ..schemas.surveyrelatedrecords import (
-    DatasetCategoryCreate,
-    WorkflowStageCreate,
-)
-from ..schemas.discovery import AssetDiscoveryConfigurationCreate
 from ..schemas import identifiers
+from ..schemas.datasetcategories import DatasetCategoryCreate
+from ..schemas.discovery import AssetDiscoveryConfigurationCreate
+from ..schemas.workflowstages import WorkflowStageCreate
 
 DATASET_CATEGORIES_TO_CREATE: dict[str, DatasetCategoryCreate] = {
     "bathymetry": DatasetCategoryCreate(

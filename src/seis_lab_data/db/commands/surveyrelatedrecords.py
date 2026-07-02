@@ -1,5 +1,4 @@
 import logging
-import uuid
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -10,68 +9,10 @@ from ...schemas import (
     surveyrelatedrecords as record_schemas,
 )
 from .. import models
-from ..queries import (
-    surveyrelatedrecords as record_queries,
-    datasetcategories as category_queries,
-    workflowstages as stage_queries,
-)
+from ..queries import surveyrelatedrecords as record_queries
 from .common import get_bbox_4326_for_db
 
 logger = logging.getLogger(__name__)
-
-
-async def create_dataset_category(
-    session: AsyncSession,
-    to_create: record_schemas.DatasetCategoryCreate,
-) -> models.DatasetCategory:
-    category = models.DatasetCategory(
-        **to_create.model_dump(),
-    )
-    session.add(category)
-    await session.commit()
-    return await category_queries.get_dataset_category(session, to_create.id)
-
-
-async def delete_dataset_category(
-    session: AsyncSession,
-    dataset_category_id: uuid.UUID,
-) -> None:
-    if dataset_category := (
-        await category_queries.get_dataset_category(session, dataset_category_id)
-    ):
-        await session.delete(dataset_category)
-        await session.commit()
-    else:
-        raise errors.SeisLabDataError(
-            f"Dataset category with id {dataset_category_id} does not exist."
-        )
-
-
-async def create_workflow_stage(
-    session: AsyncSession,
-    to_create: record_schemas.WorkflowStageCreate,
-) -> models.WorkflowStage:
-    workflow_stage = models.WorkflowStage(
-        **to_create.model_dump(),
-    )
-    session.add(workflow_stage)
-    await session.commit()
-    return await stage_queries.get_workflow_stage(session, to_create.id)
-
-
-async def delete_workflow_stage(
-    session: AsyncSession,
-    workflow_stage_id: uuid.UUID,
-) -> None:
-    if workflow_stage := (
-        await stage_queries.get_workflow_stage(session, workflow_stage_id)
-    ):
-        await session.delete(workflow_stage)
-        await session.commit()
-    else:
-        raise errors.SeisLabDataError(
-            f"Workflow stage with id {workflow_stage_id} does not exist."
-        )
 
 
 async def create_survey_related_record(

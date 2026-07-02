@@ -13,10 +13,12 @@ from seis_lab_data.cliapp import (
     sampledata,
 )
 from seis_lab_data.db.commands import (
+    datasetcategories as category_commands,
     projects as project_commands,
     surveymissions as mission_commands,
     surveyrelatedrecords as record_commands,
     users as user_commands,
+    workflowstages as stage_commands,
 )
 from seis_lab_data.db.engine import (
     get_engine,
@@ -89,7 +91,7 @@ async def bootstrap_dataset_categories(db, db_session_maker):
     async with db_session_maker() as session:
         for category_to_create in bootstrapdata.DATASET_CATEGORIES_TO_CREATE.values():
             created.append(
-                await record_commands.create_dataset_category(
+                await category_commands.create_dataset_category(
                     session, category_to_create
                 )
             )
@@ -102,7 +104,7 @@ async def bootstrap_workflow_stages(db, db_session_maker):
     async with db_session_maker() as session:
         for stage_to_create in bootstrapdata.WORKFLOW_STAGES_TO_CREATE.values():
             created.append(
-                await record_commands.create_workflow_stage(session, stage_to_create)
+                await stage_commands.create_workflow_stage(session, stage_to_create)
             )
     yield created
 
