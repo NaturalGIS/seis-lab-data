@@ -1,5 +1,6 @@
 import logging
 import uuid
+from typing import Literal
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
@@ -45,10 +46,13 @@ async def collect_all_workflow_stages(
     session: AsyncSession,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
+    order_by: Literal["name_en", "name_pt"] = "name_en",
 ) -> list[models.WorkflowStage]:
-    statement = select(models.WorkflowStage).order_by(
-        models.WorkflowStage.name["en"].astext.desc()
-    )
+    order_by_clause = {
+        "name_pt": models.WorkflowStage.name["pt"].astext.desc(),
+    }.get(order_by, models.WorkflowStage.name["en"].astext.desc())
+
+    statement = select(models.WorkflowStage).order_by(order_by_clause)
     if en_name_filter is not None:
         statement = statement.where(
             models.WorkflowStage.name["en"].astext.ilike(f"%{en_name_filter}%")

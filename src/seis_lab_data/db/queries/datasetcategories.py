@@ -1,5 +1,6 @@
 import logging
 import uuid
+from typing import Literal
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
@@ -45,10 +46,13 @@ async def collect_all_dataset_categories(
     session: AsyncSession,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
+    order_by: Literal["name_en", "name_pt"] = "name_en",
 ) -> list[models.DatasetCategory]:
-    statement = select(models.DatasetCategory).order_by(
-        models.DatasetCategory.name["en"].astext.desc()
-    )
+    order_by_clause = {
+        "name_pt": models.DatasetCategory.name["pt"].astext.desc(),
+    }.get(order_by, models.DatasetCategory.name["en"].astext.desc())
+
+    statement = select(models.DatasetCategory).order_by(order_by_clause)
     if en_name_filter is not None:
         statement = statement.where(
             models.DatasetCategory.name["en"].astext.ilike(f"%{en_name_filter}%")

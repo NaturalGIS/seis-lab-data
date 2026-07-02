@@ -1065,7 +1065,7 @@ async def get_survey_mission_update_form(request: Request):
 @requires_auth
 async def trigger_discovery(request: Request):
     discovery_tasks.discover_survey_mission_contents.send(
-        raw_request_id=str(uuid.uuid4()),
+        raw_request_id=request.path_params["request_id"],
         raw_survey_mission_id=request.path_params["survey_mission_id"],
         raw_initiator=json.dumps(dataclasses.asdict(request.user)),
     )  # noqa
@@ -1189,7 +1189,7 @@ routes = [
         name="update_stream",
     ),
     Route(
-        "/{survey_mission_id}/discover",
+        "/{survey_mission_id}/discover/{request_id}",
         trigger_discovery,
         methods=["POST"],
         name="trigger_discovery",

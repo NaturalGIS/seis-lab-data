@@ -2,7 +2,10 @@
 {% import "macros.html" as macros %}
 
 {% block page_title %}
-    <span class="material-icons-outlined" aria-hidden="true">{{ icons.dataset_category }}</span>{{ _("Dataset categories") }}
+    <span class="icon-stack" aria-hidden="true">
+        <span class="material-icons-outlined">{{ icons.dataset_category }}</span>
+        <span class="material-icons-outlined icon-stack-badge">{{ icons.list }}</span>
+    </span>{{ _("Dataset categories") }}
 {% endblock page_title %}
 
 {% block details %}
@@ -55,7 +58,7 @@
         <div class="col-3">
             <h5>{{ _("actions") | capitalize }}</h5>
             <div class="list-group mb-3">
-                {% if user_can_create %}
+                {% if permissions.can_create %}
                     <a
                             class="list-group-item list-group-item-action list-group-item-info"
                             href="{{ url_for('dataset_categories:get_creation_form') }}"

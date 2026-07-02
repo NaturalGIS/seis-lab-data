@@ -114,23 +114,32 @@ async def get_list_component(request: Request):
 @requires_auth
 async def get_creation_form(request: Request):
     """Return a form suitable for creating a new dataset category."""
-    form_instance = await category_forms.DatasetCategoryCreateForm.from_request(request)
+    form_instance = await category_forms.DatasetCategoryCreateForm.from_formdata(
+        request
+    )
     form_instance.request_id.data = str(identifiers.RequestId(uuid.uuid4()))
     template_processor: Jinja2Templates = request.state.templates
+    settings: config.SeisLabDataSettings = request.state.settings
     return template_processor.TemplateResponse(
         request,
-        "dataset_categories/create-form-page.html",
+        "datasetcategories/create-form-page.html",
         context={
             "form": form_instance,
             "breadcrumbs": [
                 webui_schemas.BreadcrumbItem(
-                    name=_("Home"), url=request.url_for("home")
+                    name=_("Home"),
+                    icon=settings.icons.home,
+                    url=request.url_for("home"),
                 ),
                 webui_schemas.BreadcrumbItem(
                     name=_("Dataset categories"),
+                    icon=settings.icons.dataset_category,
                     url=request.url_for("dataset_categories:list"),
                 ),
-                webui_schemas.BreadcrumbItem(name=_("New dataset category")),
+                webui_schemas.BreadcrumbItem(
+                    name=_("New dataset category"),
+                    icon=settings.icons.new_item,
+                ),
             ],
         },
     )
@@ -163,6 +172,7 @@ async def get_update_form(request: Request):
     )
     update_form.request_id.data = uuid.uuid4()
     template_processor: Jinja2Templates = request.state.templates
+    settings: config.SeisLabDataSettings = request.state.settings
     return template_processor.TemplateResponse(
         request,
         "dataset_categories/update-form-page.html",
@@ -173,13 +183,19 @@ async def get_update_form(request: Request):
             "form": update_form,
             "breadcrumbs": [
                 webui_schemas.BreadcrumbItem(
-                    name=_("Home"), url=request.url_for("home")
+                    name=_("Home"),
+                    icon=settings.icons.home,
+                    url=request.url_for("home"),
                 ),
                 webui_schemas.BreadcrumbItem(
                     name=_("Dataset categories"),
+                    icon=settings.icons.dataset_category,
                     url=request.url_for("dataset_categories:list"),
                 ),
-                webui_schemas.BreadcrumbItem(name=_("Edit dataset category")),
+                webui_schemas.BreadcrumbItem(
+                    name=_("Edit dataset category"),
+                    icon=settings.icons.edit_item,
+                ),
             ],
         },
     )
@@ -326,9 +342,14 @@ class DatasetCategoryCollectionEndpoint(HTTPEndpoint):
                 "pagination": pagination_info,
                 "breadcrumbs": [
                     webui_schemas.BreadcrumbItem(
-                        name=_("Home"), url=request.url_for("home")
+                        name=_("Home"),
+                        icon=settings.icons.home,
+                        url=request.url_for("home"),
                     ),
-                    webui_schemas.BreadcrumbItem(name=_("Dataset categories")),
+                    webui_schemas.BreadcrumbItem(
+                        name=_("Dataset categories"),
+                        icon=settings.icons.dataset_category,
+                    ),
                 ],
                 "permissions": {
                     "can_create": category_permissions.can_create_dataset_category(

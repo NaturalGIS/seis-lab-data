@@ -413,14 +413,18 @@ async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails
         ),
         breadcrumbs=[
             webui_schemas.BreadcrumbItem(
-                name=_("Home"), url=str(request.url_for("home"))
+                name=_("Home"),
+                # icon=settings.icons.home,
+                url=str(request.url_for("home")),
             ),
             webui_schemas.BreadcrumbItem(
                 name=_("Projects"),
+                # icon=settings.icons.list,
                 url=request.url_for("projects:list"),
             ),
             webui_schemas.BreadcrumbItem(
                 name=project.name["en"],
+                icon=settings.icons.projects,
             ),
         ],
     )
@@ -555,9 +559,14 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 },
                 "breadcrumbs": [
                     webui_schemas.BreadcrumbItem(
-                        name=_("Home"), url=request.url_for("home")
+                        name=_("Home"),
+                        # icon=settings.icons.home,
+                        url=request.url_for("home"),
                     ),
-                    webui_schemas.BreadcrumbItem(name=_("Projects")),
+                    webui_schemas.BreadcrumbItem(
+                        name=_("Projects"),
+                        icon=settings.icons.projects,
+                    ),
                 ],
                 "user_can_create": project_permissions.can_create_project(user),
                 "search_initial_value": list_filters.get_text_search_filter(
