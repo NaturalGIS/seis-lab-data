@@ -36,11 +36,12 @@
     running_message,
     generated_csrf_token,
     modal_dialog_title=_("delete item"),
-    modal_dialog_confirmation_text=_("Are you sure you want to delete this item?")
+    modal_dialog_confirmation_text=_("Are you sure you want to delete this item?"),
+    size_css_class=None
 ) %}
 
     <button
-            class="btn btn-outline-danger"
+            class="btn btn-outline-danger{% if size_css_class %} {{ size_css_class }}{% endif %}"
             aria-label="show-delete-confirmation-modal"
             data-bs-toggle="modal"
             data-bs-target="#delete-item-modal"

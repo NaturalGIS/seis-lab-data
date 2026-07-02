@@ -166,7 +166,7 @@ async def get_update_form(request: Request):
                 status_code=404,
                 detail=_(f"Dataset category {resource_id!r} not found."),
             )
-    update_form = await category_forms.DatasetCategoryUpdateForm.from_request(
+    update_form = await category_forms.DatasetCategoryUpdateForm.from_formdata(
         request=request,
         data=resource.model_dump(exclude_none=True),
     )
@@ -175,7 +175,7 @@ async def get_update_form(request: Request):
     settings: config.SeisLabDataSettings = request.state.settings
     return template_processor.TemplateResponse(
         request,
-        "dataset_categories/update-form-page.html",
+        "datasetcategories/update-form-page.html",
         context={
             "item": category_schemas.DatasetCategoryReadListItem.from_db_instance(
                 resource
@@ -184,16 +184,14 @@ async def get_update_form(request: Request):
             "breadcrumbs": [
                 webui_schemas.BreadcrumbItem(
                     name=_("Home"),
-                    icon=settings.icons.home,
                     url=request.url_for("home"),
                 ),
                 webui_schemas.BreadcrumbItem(
                     name=_("Dataset categories"),
-                    icon=settings.icons.dataset_category,
                     url=request.url_for("dataset_categories:list"),
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=_("Edit dataset category"),
+                    name=_("edit"),
                     icon=settings.icons.edit_item,
                 ),
             ],
@@ -343,7 +341,6 @@ class DatasetCategoryCollectionEndpoint(HTTPEndpoint):
                 "breadcrumbs": [
                     webui_schemas.BreadcrumbItem(
                         name=_("Home"),
-                        icon=settings.icons.home,
                         url=request.url_for("home"),
                     ),
                     webui_schemas.BreadcrumbItem(

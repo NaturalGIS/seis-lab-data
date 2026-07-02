@@ -6,10 +6,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.requests import Request
 from starlette_babel import gettext_lazy as _
 from starlette_wtf import StarletteForm
-from wtforms import (
-    HiddenField,
-    TextAreaField,
-)
+from wtforms import HiddenField
 
 from ...db.queries.datasetcategories import get_dataset_category_by_english_name
 from ...schemas import (
@@ -17,6 +14,7 @@ from ...schemas import (
     identifiers,
 )
 from .common import incorporate_schema_validation_errors_into_form
+from .fields import JsonEditorField
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +23,10 @@ class _BaseForm(StarletteForm):
     """Base form for dataset categories."""
 
     request_id = HiddenField()
-    name = TextAreaField(_("Name"))
+    name = JsonEditorField(
+        label=_("name"),
+        default_structure={"en": "", "pt": ""},
+    )
 
     def _parse_name(self) -> dict | None:
         raw_json = self.name.data

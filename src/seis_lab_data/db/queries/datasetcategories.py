@@ -1,11 +1,11 @@
 import logging
-import uuid
 from typing import Literal
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 
 from ...db import models
+from ...schemas import identifiers
 from .common import _get_total_num_records
 
 logger = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ async def collect_all_dataset_categories(
 
 async def get_dataset_category(
     session: AsyncSession,
-    dataset_category_id: uuid.UUID,
+    dataset_category_id: identifiers.DatasetCategoryId,
 ) -> models.DatasetCategory | None:
     return await session.get(models.DatasetCategory, dataset_category_id)
 
