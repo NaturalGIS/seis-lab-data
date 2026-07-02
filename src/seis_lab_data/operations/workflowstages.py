@@ -7,7 +7,7 @@ from .. import (
     dispatch,
     errors,
 )
-from ..permissions import surveyrelatedrecords as record_permissions
+from ..permissions import workflowstages as stage_permissions
 from ..db import models
 from ..db.commands import workflowstages as stage_commands
 from ..db.queries import workflowstages as stage_queries
@@ -28,46 +28,123 @@ async def create_workflow_stage(
     initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
-) -> models.WorkflowStage:
-    if not record_permissions.can_create_workflow_stage(initiator):
-        raise errors.SeisLabDataError("User is not allowed to create a workflow stage.")
-    workflow_stage = await stage_commands.create_workflow_stage(session, to_create)
+) -> models.WorkflowStage | None:
+    try:
+        if not stage_permissions.can_create_workflow_stage(initiator):
+            raise errors.SeisLabDataError(
+                "User is not allowed to create a workflow stage."
+            )
+        resource = await stage_commands.create_workflow_stage(session, to_create)
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.ResourceModificationEvent(
+                initiator=initiator.id,
+                request_id=request_id,
+                resource_type=constants.ResourceType.WORKFLOW_STAGE,
+                resource_id=None,
+                modification=constants.ResourceModification.CREATED,
+                succeeded=False,
+                details=str(err),
+            )
+        )
+        return None
     await event_dispatcher(
         event_schemas.ResourceModificationEvent(
-            resource_type=constants.ResourceType.WORKFLOW_STAGE,
-            resource_id=str(workflow_stage.id),
+            initiator=initiator.id,
             request_id=request_id,
+            resource_type=constants.ResourceType.WORKFLOW_STAGE,
+            resource_id=str(resource.id),
             modification=constants.ResourceModification.CREATED,
             succeeded=True,
-            initiator=initiator.id,
         )
     )
-    return workflow_stage
+    return resource
+
+
+async def update_workflow_stage(
+    *,
+    request_id: identifiers.RequestId,
+    resource_id: identifiers.WorkflowStageId,
+    to_update: stage_schemas.WorkflowStageUpdate,
+    initiator: user_schemas.User,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+) -> models.WorkflowStage | None:
+    try:
+        if (
+            resource := await stage_queries.get_workflow_stage(session, resource_id)
+        ) is None:
+            raise errors.SeisLabDataError(
+                f"Workflow stage {resource_id!r} does not exist."
+            )
+        if not stage_permissions.can_update_workflow_stage(initiator):
+            raise errors.SeisLabDataError("User not allowed to update workflow stage.")
+        updated_resource = await stage_commands.update_workflow_stage(
+            session, resource, to_update
+        )
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.ResourceModificationEvent(
+                initiator=initiator.id,
+                request_id=request_id,
+                resource_type=constants.ResourceType.WORKFLOW_STAGE,
+                resource_id=str(resource_id),
+                modification=constants.ResourceModification.UPDATED,
+                succeeded=False,
+                details=str(err),
+            )
+        )
+        return None
+
+    await event_dispatcher(
+        event_schemas.ResourceModificationEvent(
+            initiator=initiator.id,
+            request_id=request_id,
+            resource_type=constants.ResourceType.WORKFLOW_STAGE,
+            resource_id=str(resource_id),
+            modification=constants.ResourceModification.UPDATED,
+            succeeded=True,
+        )
+    )
+    return updated_resource
 
 
 async def delete_workflow_stage(
     *,
     request_id: identifiers.RequestId,
-    workflow_stage_id: identifiers.WorkflowStageId,
+    resource_id: identifiers.WorkflowStageId,
     initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> None:
-    if not record_permissions.can_delete_workflow_stage(initiator):
-        raise errors.SeisLabDataError("User is not allowed to delete workflow stages.")
-    workflow_stage = await stage_queries.get_workflow_stage(session, workflow_stage_id)
-    if workflow_stage is None:
-        raise errors.SeisLabDataError(
-            f"Workflow stage with id {workflow_stage_id} does not exist."
+    try:
+        if (await stage_queries.get_workflow_stage(session, resource_id)) is None:
+            raise errors.SeisLabDataError(
+                f"Workflow stage {resource_id!r} does not exist."
+            )
+        if not stage_permissions.can_delete_workflow_stage(initiator):
+            raise errors.SeisLabDataError("User not allowed to delete workflow stages.")
+        await stage_commands.delete_workflow_stage(session, resource_id)
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.ResourceModificationEvent(
+                initiator=initiator.id,
+                request_id=request_id,
+                resource_type=constants.ResourceType.WORKFLOW_STAGE,
+                resource_id=str(resource_id),
+                modification=constants.ResourceModification.DELETED,
+                succeeded=False,
+                details=str(err),
+            )
         )
-    await stage_commands.delete_workflow_stage(session, workflow_stage_id)
+        return None
     await event_dispatcher(
         event_schemas.ResourceModificationEvent(
-            resource_type=constants.ResourceType.WORKFLOW_STAGE,
-            resource_id=str(workflow_stage.id),
+            initiator=initiator.id,
             request_id=request_id,
+            resource_type=constants.ResourceType.WORKFLOW_STAGE,
+            resource_id=str(resource_id),
             modification=constants.ResourceModification.DELETED,
             succeeded=True,
-            initiator=initiator.id,
         )
     )

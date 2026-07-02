@@ -12,38 +12,6 @@ from ..db import models
 logger = logging.getLogger(__name__)
 
 
-def can_create_dataset_category(
-    user: User | None,
-) -> bool:
-    return user is not None and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(
-        user.roles
-    )
-
-
-def can_delete_dataset_category(
-    user: User | None,
-) -> bool:
-    return user is not None and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(
-        user.roles
-    )
-
-
-def can_create_workflow_stage(
-    user: User | None,
-) -> bool:
-    return user is not None and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(
-        user.roles
-    )
-
-
-def can_delete_workflow_stage(
-    user: User | None,
-) -> bool:
-    return user is not None and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(
-        user.roles
-    )
-
-
 def can_read_survey_related_record(
     user: User | None,
     record: models.SurveyRelatedRecord,

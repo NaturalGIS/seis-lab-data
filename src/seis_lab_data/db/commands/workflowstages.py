@@ -40,7 +40,7 @@ async def delete_workflow_stage(
 
 async def update_workflow_stage(
     session: AsyncSession,
-    resource: models.DatasetCategory,
+    resource: models.WorkflowStage,
     to_update: stage_schemas.WorkflowStageUpdate,
 ) -> models.WorkflowStage:
     for key, value in to_update.model_dump(exclude_unset=True).items():
