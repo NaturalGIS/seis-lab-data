@@ -12,21 +12,29 @@ logger = logging.getLogger(__name__)
 
 async def list_dataset_categories(
     session: AsyncSession,
-    limit: int = 20,
-    offset: int = 0,
+    page: int = 1,
+    page_size: int = 20,
     include_total: bool = False,
-    order_by_clause=models.DatasetCategory.name["en"].astext,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
 ) -> tuple[list[models.DatasetCategory], int | None]:
-    # NOTE: limit, offset and order_by are applied only when asking the
-    # session to exec because we want to reuse the statement later, to count
-    # total number of records
-    statement = select(models.DatasetCategory)
-    items = (
-        await session.exec(
-            statement.limit(limit).offset(offset).order_by(order_by_clause)
+    limit = page_size
+    offset = page_size * (page - 1)
+    statement = (
+        select(models.DatasetCategory)
+        .order_by(models.DatasetCategory.name["en"].astext.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    if en_name_filter is not None:
+        statement = statement.where(
+            models.DatasetCategory.name["en"].astext.ilike(f"%{en_name_filter}%")
         )
-    ).all()
-
+    if pt_name_filter is not None:
+        statement = statement.where(
+            models.DatasetCategory.name["pt"].astext.ilike(f"%{pt_name_filter}%")
+        )
+    items = (await session.exec(statement)).all()
     num_total = (
         await _get_total_num_records(session, statement) if include_total else None
     )
@@ -34,13 +42,22 @@ async def list_dataset_categories(
 
 
 async def collect_all_dataset_categories(
-    session: AsyncSession, order_by_clause=models.DatasetCategory.name["en"].astext
+    session: AsyncSession,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
 ) -> list[models.DatasetCategory]:
-    _, num_total = await list_dataset_categories(session, limit=1, include_total=True)
-    items, _ = await list_dataset_categories(
-        session, limit=num_total, include_total=False, order_by_clause=order_by_clause
+    statement = select(models.DatasetCategory).order_by(
+        models.DatasetCategory.name["en"].astext.desc()
     )
-    return items
+    if en_name_filter is not None:
+        statement = statement.where(
+            models.DatasetCategory.name["en"].astext.ilike(f"%{en_name_filter}%")
+        )
+    if pt_name_filter is not None:
+        statement = statement.where(
+            models.DatasetCategory.name["pt"].astext.ilike(f"%{pt_name_filter}%")
+        )
+    return (await session.exec(statement)).all()
 
 
 async def get_dataset_category(

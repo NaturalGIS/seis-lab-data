@@ -49,6 +49,7 @@ from .routes.projects import routes as projects_routes
 from .routes.surveymissions import routes as missions_routes
 from .routes.surveyrelatedrecords import routes as records_routes
 from .routes.discovery import routes as discovery_routes
+from .routes.datasetcategories import routes as dataset_category_routes
 
 
 class State(TypedDict):
@@ -75,6 +76,8 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
         {
             "csrf_token": csrf_token,
             "icons": {
+                "asset_discovery_configuration": "insert_drive_file",
+                "dataset_category": "category",
                 "delete_item": "delete",
                 "discover_contents": "travel_explore",
                 "edit_item": "edit",
@@ -83,6 +86,7 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
                 "projects": "view_timeline",
                 "publish_item": "publish",
                 "search": "search",
+                "settings": "settings",
                 "expand_less": "expand_less",
                 "expand_more": "expand_more",
                 "status_draft": "design_services",
@@ -154,6 +158,11 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                 "/asset-discovery-configurations",
                 name="asset_discovery_configurations",
                 routes=discovery_routes,
+            ),
+            Mount(
+                "/dataset-categories",
+                name="dataset_categories",
+                routes=dataset_category_routes,
             ),
         ],
         lifespan=lifespan,

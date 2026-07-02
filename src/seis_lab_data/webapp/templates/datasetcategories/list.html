@@ -1,13 +1,8 @@
-{#
-This template is loaded as a GET response to the /asset-discovery-configurations/ endpoint. It shows a list of
-existing asset discovery configurations.
-Users with create permission are linked to /asset-discovery-configurations/new, which is a separate static page.
-#}
 {% extends "base.html" %}
 {% import "macros.html" as macros %}
 
 {% block page_title %}
-    <span class="material-icons-outlined" aria-hidden="true">{{ icons.asset_discovery_configuration }}</span>{{ _("Asset discovery configurations") }}
+    <span class="material-icons-outlined" aria-hidden="true">{{ icons.dataset_category }}</span>{{ _("Dataset categories") }}
 {% endblock page_title %}
 
 {% block details %}
@@ -15,14 +10,15 @@ Users with create permission are linked to /asset-discovery-configurations/new, 
         window.iconNames = JSON.parse('{{ icons | tojson }}')
     </script>
 
-    <div class="row" data-on-intersect__once="@get('{{ url_for("asset_discovery_configurations:list_stream") }}')">
+    <div class="row" data-on-intersect__once="@get('{{ url_for("dataset_categories:list_stream") }}')">
         <div class="col">
             <div
                     class="row justify-content-center m-5"
                     data-signals:search='{{ search_initial_value }}'
+                    data-signals:advanced-search-panel-open="false"
                     data-signals:searching="false"
                     data-signals:listing-version="0"
-                    data-effect="$listingVersion > 0 && @get('{{ url_for('asset_discovery_configurations:get_list_component') }}')"
+                    data-effect="$listingVersion > 0 && @get('{{ url_for('dataset_categories:get_list_component') }}')"
             >
                 <div class="col-8">
                     <search class="form-floating">
@@ -32,12 +28,12 @@ Users with create permission are linked to /asset-discovery-configurations/new, 
                                 id="search"
                                 placeholder="Search"
                                 data-bind:search
-                                data-on:input__debounce.200ms="@get('{{ url_for("asset_discovery_configurations:get_list_component") }}')"
+                                data-on:input__debounce.200ms="@get('{{ url_for("dataset_categories:get_list_component") }}')"
                                 data-indicator:searching
                         />
                         <label class="form-label" for="search">
                             <span class="material-icons-outlined">{{ icons.search }}</span>
-                            {{ _("search asset discovery configurations") | capitalize }}
+                            {{ _("search dataset categories") | capitalize }}
                         </label>
                     </search>
                     <div
@@ -54,25 +50,25 @@ Users with create permission are linked to /asset-discovery-configurations/new, 
     </div>
     <div class="row">
         <div class="col-9">
-            {% include "discovery/list-component.html" %}
+            {% include "datasetcategories/list-component.html" %}
         </div>
         <div class="col-3">
             <h5>{{ _("actions") | capitalize }}</h5>
             <div class="list-group mb-3">
-                {% if permissions.can_create %}
+                {% if user_can_create %}
                     <a
                             class="list-group-item list-group-item-action list-group-item-info"
-                            href="{{ url_for('asset_discovery_configurations:get_creation_form') }}"
-                            aria-label="new-asset-discovery-configuration"
+                            href="{{ url_for('dataset_categories:get_creation_form') }}"
+                            aria-label="new-dataset-category"
                     >
-                        <span class="material-icons-outlined me-1">{{ icons.new_item }}</span>{{ _("Add new asset_discovery_configuration") | capitalize }}
+                        <span class="material-icons-outlined me-1">{{ icons.new_item }}</span>{{ _("Add new dataset category") | capitalize }}
                     </a>
                 {% endif %}
             </div>
             <h5>{{ _("info") | capitalize }}</h5>
             <ul class="list-group">
                 <li class="list-group-item">
-                    <p>{{ _("Asset discovery configurations are used in the discovery process...") }}</p>
+                    <p>{{ _("Dataset categories are metadata about survey-related records") }}</p>
                 </li>
             </ul>
         </div>

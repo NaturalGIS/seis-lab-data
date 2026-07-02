@@ -351,16 +351,12 @@ async def create_dataset_category(
 @dataset_categories_app.async_command(name="list")
 async def list_dataset_categories(
     ctx: typer.Context,
-    limit: int = 20,
-    offset: int = 0,
 ):
     """List dataset categories."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await category_queries.list_dataset_categories(
-            session, limit=limit, offset=offset, include_total=True
-        )
-    print(f"Total records: {num_total}")
+        items = await category_queries.collect_all_dataset_categories(session)
+    print(f"Total records: {len(items)}")
     for item in items:
         print(category_schemas.DatasetCategoryReadListItem(**item.model_dump()))
 
@@ -412,16 +408,12 @@ async def create_workflow_stage(
 @workflow_stages_app.async_command(name="list")
 async def list_workflow_stages(
     ctx: typer.Context,
-    limit: int = 20,
-    offset: int = 0,
 ):
     """List workflow stages."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await stage_queries.list_workflow_stages(
-            session, limit=limit, offset=offset, include_total=True
-        )
-    print(f"Total records: {num_total}")
+        items = await stage_queries.collect_all_workflow_stages(session)
+    print(f"Total records: {len(items)}")
     for item in items:
         print(stage_schemas.WorkflowStageReadListItem(**item.model_dump()))
 
