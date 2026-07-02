@@ -21,18 +21,18 @@ from ... import (
     errors,
     subscribers,
 )
-from ...db.queries import discovery as discovery_queries
-from ...permissions import discovery as discovery_permissions
+from ...db.queries import datasetcategories as category_queries
+from ...permissions import datasetcategories as category_permissions
 from ...schemas import (
-    discovery as discovery_schemas,
+    datasetcategories as category_schemas,
     identifiers,
     webui as webui_schemas,
 )
-from ...tasks import discovery as discovery_tasks
+from ...tasks import datasetcategories as category_tasks
 from .. import (
     filters,
 )
-from ..forms import discovery as discovery_forms
+from ..forms import datasetcategories as category_forms
 from ..streamhandlers import common as common_handlers
 from .auth import requires_auth
 from .common import (
@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 async def get_list_component(request: Request):
     if (raw_search_params := request.query_params.get("datastar")) is not None:
         try:
-            list_filters = filters.AssetDiscoveryConfigurationListFilters.from_json(
+            list_filters = filters.DatasetCategoryListFilters.from_json(
                 raw_search_params, request.state.language
             )
         except json.JSONDecodeError:
@@ -61,7 +61,7 @@ async def get_list_component(request: Request):
     settings: config.SeisLabDataSettings = request.state.settings
     user = request.user if request.user.is_authenticated else None
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await discovery_queries.list_asset_discovery_configurations(
+        items, num_total = await category_queries.list_dataset_categories(
             session,
             page=current_page,
             page_size=settings.pagination_page_size,
@@ -69,38 +69,29 @@ async def get_list_component(request: Request):
             **internal_filter_kwargs,
         )
         num_unfiltered_total = (
-            await discovery_queries.list_asset_discovery_configurations(
-                session, include_total=True
-            )
+            await category_queries.list_dataset_categories(session, include_total=True)
         )[1]
     pagination_info = get_pagination_info(
         current_page,
         settings.pagination_page_size,
         num_total,
         num_unfiltered_total,
-        collection_url=str(request.url_for("asset_discovery_configurations:list")),
+        collection_url=str(request.url_for("dataset_categories:list")),
     )
     serialized_items = [
-        discovery_schemas.AssetDiscoveryConfigurationReadDetail.from_db_instance(i)
-        for i in items
+        category_schemas.DatasetCategoryReadListItem.from_db_instance(i) for i in items
     ]
     template_processor = request.state.templates
-    template = template_processor.get_template("discovery/list-component.html")
+    template = template_processor.get_template("dataset_categories/list-component.html")
     rendered = template.render(
         request=request,
         items=serialized_items,
         update_current_url_with=filter_query_string,
         pagination=pagination_info,
         permissions={
-            "can_create": discovery_permissions.can_create_asset_discovery_configuration(
-                user
-            ),
-            "can_update": discovery_permissions.can_update_asset_discovery_configuration(
-                user
-            ),
-            "can_delete": discovery_permissions.can_delete_asset_discovery_configuration(
-                user
-            ),
+            "can_create": category_permissions.can_create_dataset_category(user),
+            "can_update": category_permissions.can_update_dataset_category(user),
+            "can_delete": category_permissions.can_delete_dataset_category(user),
         }
         if user is not None
         else {"can_create": False, "can_update": False, "can_delete": False},
@@ -122,18 +113,16 @@ async def get_list_component(request: Request):
 @csrf_protect
 @requires_auth
 async def get_creation_form(request: Request):
-    """Return a form suitable for creating a new asset_discovery_configuration."""
-    form_instance = (
-        await discovery_forms.AssetDiscoveryConfigurationCreateForm.from_request(
-            request
-        )
+    """Return a form suitable for creating a new dataset category."""
+    form_instance = await category_forms.DatasetCategoryCreateForm.from_formdata(
+        request
     )
     form_instance.request_id.data = str(identifiers.RequestId(uuid.uuid4()))
     template_processor: Jinja2Templates = request.state.templates
     settings: config.SeisLabDataSettings = request.state.settings
     return template_processor.TemplateResponse(
         request,
-        "discovery/create-form-page.html",
+        "datasetcategories/create-form-page.html",
         context={
             "form": form_instance,
             "breadcrumbs": [
@@ -143,12 +132,13 @@ async def get_creation_form(request: Request):
                     url=request.url_for("home"),
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=_("Asset discovery configurations"),
-                    icon=settings.icons.asset_discovery_configuration,
-                    url=request.url_for("asset_discovery_configurations:list"),
+                    name=_("Dataset categories"),
+                    icon=settings.icons.dataset_category,
+                    url=request.url_for("dataset_categories:list"),
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=_("New"), icon=settings.icons.new_item
+                    name=_("New dataset category"),
+                    icon=settings.icons.new_item,
                 ),
             ],
         },
@@ -158,46 +148,37 @@ async def get_creation_form(request: Request):
 @csrf_protect
 @requires_auth
 async def get_update_form(request: Request):
-    """Return a form suitable for updating an existing asset discovery configuration."""
+    """Return a form suitable for updating an existing dataset category."""
     session_maker = request.state.settings.get_db_session_maker()
     try:
-        asset_discovery_configuration_id = identifiers.AssetDiscoveryConfId(
-            uuid.UUID(request.path_params["asset_discovery_configuration_id"])
+        resource_id = identifiers.DatasetCategoryId(
+            uuid.UUID(request.path_params["dataset_category_id"])
         )
     except (KeyError, ValueError) as err:
         raise HTTPException(status_code=404, detail=str(err))
     async with session_maker() as session:
         try:
-            db_asset_discovery_configuration = (
-                await discovery_queries.get_asset_discovery_configuration(
-                    session,
-                    asset_discovery_configuration_id,
-                )
-            )
+            resource = await category_queries.get_dataset_category(session, resource_id)
         except errors.SeisLabDataError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
-        if db_asset_discovery_configuration is None:
+        if resource is None:
             raise HTTPException(
                 status_code=404,
-                detail=_(
-                    f"Asset discovery configuration {asset_discovery_configuration_id!r} not found."
-                ),
+                detail=_(f"Dataset category {resource_id!r} not found."),
             )
-    update_form = (
-        await discovery_forms.AssetDiscoveryConfigurationUpdateForm.from_request(
-            request=request,
-            data=db_asset_discovery_configuration.model_dump(exclude_none=True),
-        )
+    update_form = await category_forms.DatasetCategoryUpdateForm.from_request(
+        request=request,
+        data=resource.model_dump(exclude_none=True),
     )
     update_form.request_id.data = uuid.uuid4()
     template_processor: Jinja2Templates = request.state.templates
     settings: config.SeisLabDataSettings = request.state.settings
     return template_processor.TemplateResponse(
         request,
-        "discovery/update-form-page.html",
+        "dataset_categories/update-form-page.html",
         context={
-            "item": discovery_schemas.AssetDiscoveryConfigurationReadListItem.from_db_instance(
-                db_asset_discovery_configuration
+            "item": category_schemas.DatasetCategoryReadListItem.from_db_instance(
+                resource
             ),
             "form": update_form,
             "breadcrumbs": [
@@ -207,12 +188,12 @@ async def get_update_form(request: Request):
                     url=request.url_for("home"),
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=_("Asset discovery configurations"),
-                    icon=settings.icons.asset_discovery_configuration,
-                    url=request.url_for("asset_discovery_configurations:list"),
+                    name=_("Dataset categories"),
+                    icon=settings.icons.dataset_category,
+                    url=request.url_for("dataset_categories:list"),
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=_("Edit"),
+                    name=_("Edit dataset category"),
                     icon=settings.icons.edit_item,
                 ),
             ],
@@ -223,13 +204,13 @@ async def get_update_form(request: Request):
 async def stream_to_list_page(request: Request):
     subscription = subscribers.subscribe_to_topic(
         request.state.redis_client,
-        [constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS],
+        [constants.NEW_TOPIC_DATASET_CATEGORIES],
         subscribers.HandlerContext(
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
             db_session_factory=request.state.settings.get_db_session_maker(),
             target_page=constants.PageType.RESOURCE_LIST,
-            resource_type=constants.ResourceType.ASSET_DISCOVERY_CONFIG,
+            resource_type=constants.ResourceType.CATEGORY,
         ),
         {
             "resource_modified": common_handlers.handle_resource_modification_list_page,
@@ -245,7 +226,7 @@ async def stream_to_list_page(request: Request):
 
 @requires_auth
 async def stream_to_new_page(request: Request):
-    """Stream relevant updates for the new asset_discovery_configuration page."""
+    """Stream relevant updates for the new dataset category page."""
     try:
         request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
     except ValueError as err:
@@ -254,7 +235,7 @@ async def stream_to_new_page(request: Request):
     # TODO: should we update the form fields with handlers too?
     subscription = subscribers.subscribe_to_topic(
         request.state.redis_client,
-        [constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS],
+        [constants.NEW_TOPIC_DATASET_CATEGORIES],
         subscribers.HandlerContext(
             request_id=request_id,
             user=request.user,
@@ -262,7 +243,7 @@ async def stream_to_new_page(request: Request):
             jinja_environment=request.state.templates.env,
             db_session_factory=request.state.settings.get_db_session_maker(),
             target_page=constants.PageType.RESOURCE_NEW,
-            resource_type=constants.ResourceType.ASSET_DISCOVERY_CONFIG,
+            resource_type=constants.ResourceType.CATEGORY,
         ),
         {
             "resource_modified": common_handlers.handle_resource_modification_new_page,
@@ -278,9 +259,9 @@ async def stream_to_new_page(request: Request):
 
 @requires_auth
 async def stream_to_update_page(request: Request):
-    """Stream relevant updates for the update asset_discovery_configuration page."""
+    """Stream relevant updates for the update dataset category page."""
     try:
-        resource_id = request.path_params["asset_discovery_configuration_id"]
+        resource_id = request.path_params["dataset_category_id"]
     except (KeyError, ValueError) as err:
         raise HTTPException(status_code=400, detail="Invalid resource id") from err
 
@@ -292,7 +273,7 @@ async def stream_to_update_page(request: Request):
     # TODO: should we update the form fields with handlers too?
     subscription = subscribers.subscribe_to_topic(
         request.state.redis_client,
-        [constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS],
+        [constants.NEW_TOPIC_DATASET_CATEGORIES],
         subscribers.HandlerContext(
             request_id=request_id,
             user=request.user,
@@ -300,7 +281,7 @@ async def stream_to_update_page(request: Request):
             jinja_environment=request.state.templates.env,
             db_session_factory=request.state.settings.get_db_session_maker(),
             target_page=constants.PageType.RESOURCE_UPDATE,
-            resource_type=constants.ResourceType.ASSET_DISCOVERY_CONFIG,
+            resource_type=constants.ResourceType.CATEGORY,
             resource_id=resource_id,
         ),
         {
@@ -315,20 +296,20 @@ async def stream_to_update_page(request: Request):
     return DatastarResponse(event_streamer())
 
 
-class AssetDiscoveryConfigurationCollectionEndpoint(HTTPEndpoint):
+class DatasetCategoryCollectionEndpoint(HTTPEndpoint):
     async def get(self, request: Request):
         settings: config.SeisLabDataSettings = request.state.settings
         user = request.user if request.user.is_authenticated else None
         current_page = get_page_from_request_params(request)
         current_language = request.state.language
-        list_filters = filters.AssetDiscoveryConfigurationListFilters.from_params(
+        list_filters = filters.DatasetCategoryListFilters.from_params(
             request.query_params, current_language
         )
         async with settings.get_db_session_maker()() as session:
             (
                 items,
                 num_total,
-            ) = await discovery_queries.list_asset_discovery_configurations(
+            ) = await category_queries.list_dataset_categories(
                 session,
                 page=current_page,
                 page_size=settings.pagination_page_size,
@@ -336,7 +317,7 @@ class AssetDiscoveryConfigurationCollectionEndpoint(HTTPEndpoint):
                 **list_filters.as_kwargs(),
             )
             num_unfiltered_total = (
-                await discovery_queries.list_asset_discovery_configurations(
+                await category_queries.list_dataset_categories(
                     session, include_total=True
                 )
             )[1]
@@ -346,16 +327,16 @@ class AssetDiscoveryConfigurationCollectionEndpoint(HTTPEndpoint):
             page_size=settings.pagination_page_size,
             total_filtered_items=num_total,
             total_unfiltered_items=num_unfiltered_total,
-            collection_url=str(request.url_for("asset_discovery_configurations:list")),
+            collection_url=str(request.url_for("dataset_categories:list")),
         )
 
         serialized_items = [
-            discovery_schemas.AssetDiscoveryConfigurationReadDetail.from_db_instance(i)
+            category_schemas.DatasetCategoryReadListItem.from_db_instance(i)
             for i in items
         ]
         return template_processor.TemplateResponse(
             request,
-            "discovery/list.html",
+            "datasetcategories/list.html",
             context={
                 "items": serialized_items,
                 "pagination": pagination_info,
@@ -366,18 +347,18 @@ class AssetDiscoveryConfigurationCollectionEndpoint(HTTPEndpoint):
                         url=request.url_for("home"),
                     ),
                     webui_schemas.BreadcrumbItem(
-                        name=_("Asset Discovery Configurations"),
-                        icon=settings.icons.asset_discovery_configuration,
+                        name=_("Dataset categories"),
+                        icon=settings.icons.dataset_category,
                     ),
                 ],
                 "permissions": {
-                    "can_create": discovery_permissions.can_create_asset_discovery_configuration(
+                    "can_create": category_permissions.can_create_dataset_category(
                         user
                     ),
-                    "can_update": discovery_permissions.can_update_asset_discovery_configuration(
+                    "can_update": category_permissions.can_update_dataset_category(
                         user
                     ),
-                    "can_delete": discovery_permissions.can_delete_asset_discovery_configuration(
+                    "can_delete": category_permissions.can_delete_dataset_category(
                         user
                     ),
                 }
@@ -392,17 +373,21 @@ class AssetDiscoveryConfigurationCollectionEndpoint(HTTPEndpoint):
     @csrf_protect
     @requires_auth
     async def post(self, request: Request):
-        """Create a new asset_discovery_configuration."""
+        """Create a new dataset category."""
         template_processor: Jinja2Templates = request.state.templates
         user = request.user
-        form_instance = await discovery_forms.AssetDiscoveryConfigurationCreateForm.get_validated_form_instance(
-            request
+        form_instance = (
+            await category_forms.DatasetCategoryCreateForm.get_validated_form_instance(
+                request
+            )
         )
         if form_instance.has_validation_errors():
             logger.debug("form did not validate")
 
             async def validation_event_streamer():
-                template = template_processor.get_template("discovery/create-form.html")
+                template = template_processor.get_template(
+                    "dataset_categories/create-form.html"
+                )
                 rendered = template.render(
                     request=request,
                     form=form_instance,
@@ -419,15 +404,12 @@ class AssetDiscoveryConfigurationCollectionEndpoint(HTTPEndpoint):
             # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
             return DatastarResponse(validation_event_streamer(), status_code=200)
 
-        to_create = discovery_schemas.AssetDiscoveryConfigurationCreate(
-            id=identifiers.AssetDiscoveryConfId(uuid.uuid4()),
+        to_create = category_schemas.DatasetCategoryCreate(
+            id=identifiers.DatasetCategoryId(uuid.uuid4()),
             name=form_instance.name.data,
-            relative_path_regexp=form_instance.relative_path_regexp.data,
-            dataset_category_id=form_instance.dataset_category_id.data,
-            workflow_stage_id=form_instance.workflow_stage_id.data,
         )
         request_id = identifiers.RequestId(uuid.UUID(form_instance.request_id.data))
-        discovery_tasks.create_asset_discovery_configuration.send(
+        category_tasks.create_dataset_category.send(
             raw_request_id=str(request_id),
             raw_to_create=to_create.model_dump_json(),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
@@ -435,36 +417,37 @@ class AssetDiscoveryConfigurationCollectionEndpoint(HTTPEndpoint):
         return Response(status_code=200)
 
 
-class AssetDiscoveryConfigurationDetailEndpoint(HTTPEndpoint):
-    """Manage a single asset_discovery_configuration."""
+class DatasetCategoryDetailEndpoint(HTTPEndpoint):
+    """Manage a single dataset category."""
 
     @csrf_protect
     @requires_auth
     async def put(self, request: Request):
-        """Update an existing asset_discovery_configuration."""
+        """Update an existing dataset category."""
         template_processor: Jinja2Templates = request.state.templates
         user = request.user
         session_maker = request.state.settings.get_db_session_maker()
         try:
-            asset_discovery_configuration_id = identifiers.AssetDiscoveryConfId(
-                uuid.UUID(request.path_params["asset_discovery_configuration_id"])
+            resource_id = identifiers.DatasetCategoryId(
+                uuid.UUID(request.path_params["dataset_category_id"])
             )
         except (KeyError, ValueError) as err:
             return HTTPException(status_code=404, detail=str(err))
 
         async with session_maker() as session:
             if (
-                asset_discovery_configuration
-                := await discovery_queries.get_asset_discovery_configuration(
-                    session, asset_discovery_configuration_id
+                resource := await category_queries.get_dataset_category(
+                    session, resource_id
                 )
             ) is None:
                 raise HTTPException(
                     404,
-                    f"Asset discovery configuration {asset_discovery_configuration_id!r} not found.",
+                    f"Dataset category {resource_id!r} not found.",
                 )
-        form_instance = await discovery_forms.AssetDiscoveryConfigurationUpdateForm.get_validated_form_instance(
-            request
+        form_instance = (
+            await category_forms.DatasetCategoryUpdateForm.get_validated_form_instance(
+                request
+            )
         )
 
         if form_instance.has_validation_errors():
@@ -472,11 +455,13 @@ class AssetDiscoveryConfigurationDetailEndpoint(HTTPEndpoint):
             logger.debug(f"{form_instance.errors=}")
 
             async def event_streamer():
-                template = template_processor.get_template("discovery/update-form.html")
+                template = template_processor.get_template(
+                    "dataset_categories/update-form.html"
+                )
                 rendered = template.render(
                     request=request,
-                    project=discovery_schemas.AssetDiscoveryConfigurationReadListItem.from_db_instance(
-                        asset_discovery_configuration
+                    resource=category_schemas.DatasetCategoryReadListItem.from_db_instance(
+                        resource
                     ),
                     form=form_instance,
                 )
@@ -492,14 +477,11 @@ class AssetDiscoveryConfigurationDetailEndpoint(HTTPEndpoint):
             # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
             return DatastarResponse(event_streamer(), status_code=200)
 
-        discovery_tasks.update_asset_discovery_configuration.send(
+        category_tasks.update_dataset_category.send(
             raw_request_id=str(form_instance.request_id.data),
-            raw_resource_id=str(asset_discovery_configuration_id),
-            raw_to_update=discovery_schemas.AssetDiscoveryConfigurationUpdate(
+            raw_resource_id=str(resource_id),
+            raw_to_update=category_schemas.DatasetCategoryUpdate(
                 name=form_instance.name.data,
-                relative_path_regexp=form_instance.relative_path_regexp.data,
-                dataset_category_id=form_instance.dataset_category_id.data,
-                workflow_stage_id=form_instance.workflow_stage_id.data,
             ).model_dump_json(),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
         )  # noqa
@@ -508,41 +490,37 @@ class AssetDiscoveryConfigurationDetailEndpoint(HTTPEndpoint):
     @csrf_protect
     @requires_auth
     async def delete(self, request: Request):
-        """Delete an asset_discovery_configuration."""
+        """Delete a dataset category."""
         request_id = identifiers.RequestId(uuid.uuid4())
         user = request.user
         session_maker = request.state.settings.get_db_session_maker()
         try:
-            asset_discovery_configuration_id = identifiers.AssetDiscoveryConfId(
-                uuid.UUID(request.path_params["asset_discovery_configuration_id"])
+            resource_id = identifiers.DatasetCategoryId(
+                uuid.UUID(request.path_params["dataset_category_id"])
             )
         except (KeyError, ValueError) as err:
             return HTTPException(status_code=404, detail=str(err))
 
         async with session_maker() as session:
-            asset_discovery_configuration = (
-                await discovery_queries.get_asset_discovery_configuration(
-                    session,
-                    asset_discovery_configuration_id,
-                )
+            resource = await category_queries.get_dataset_category(
+                session,
+                resource_id,
             )
-            if asset_discovery_configuration is None:
+            if resource is None:
                 raise HTTPException(
                     status_code=404,
-                    detail=_(
-                        f"Asset discovery configuration {asset_discovery_configuration_id!r} not found."
-                    ),
+                    detail=_(f"Dataset category {resource_id!r} not found."),
                 )
-        discovery_tasks.delete_asset_discovery_configuration.send(
+        category_tasks.delete_dataset_category.send(
             raw_request_id=str(request_id),
-            raw_resource_id=str(asset_discovery_configuration_id),
+            raw_resource_id=str(resource_id),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
         )  # noqa
         return Response(status_code=200)
 
 
 routes = [
-    Route("/", AssetDiscoveryConfigurationCollectionEndpoint, name="list"),
+    Route("/", DatasetCategoryCollectionEndpoint, name="list"),
     Route("/stream", stream_to_list_page, name="list_stream"),
     Route("/search", get_list_component, name="get_list_component"),
     Route(
@@ -558,20 +536,20 @@ routes = [
         name="new_stream",
     ),
     Route(
-        "/{asset_discovery_configuration_id}/update",
+        "/{dataset_category_id}/update",
         get_update_form,
         methods=["GET"],
         name="get_update_form",
     ),
     Route(
-        "/{asset_discovery_configuration_id}/update/stream/{request_id}",
+        "/{dataset_category_id}/update/stream/{request_id}",
         stream_to_update_page,
         methods=["GET"],
         name="update_stream",
     ),
     Route(
-        "/{asset_discovery_configuration_id}",
-        AssetDiscoveryConfigurationDetailEndpoint,
+        "/{dataset_category_id}",
+        DatasetCategoryDetailEndpoint,
         name="detail",
     ),
 ]

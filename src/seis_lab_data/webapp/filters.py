@@ -241,6 +241,58 @@ class ItemListFilters(Protocol):
 
 
 @dataclasses.dataclass
+class DatasetCategoryListFilters(ItemListFilters):
+    filters: dict[str, ListFilter]
+
+    @classmethod
+    def from_params(cls, params: Mapping[str, str], current_language: str) -> Self:
+        filters: dict[str, SimpleListFilter | LanguageDependantListFilter] = {}
+        for simple_type in (
+            EnNameFilter,
+            PtNameFilter,
+        ):
+            try:
+                filter_: SimpleListFilter = simple_type.from_params(params)
+                filters[filter_.internal_name] = filter_
+            except ValueError as err:
+                logger.info(str(err))
+        try:
+            filter_: LanguageDependantListFilter = SearchNameFilter.from_params(
+                params, current_language
+            )
+            filters[filter_.internal_name] = filter_
+        except ValueError as err:
+            logger.info(str(err))
+        return cls(filters=filters)
+
+
+@dataclasses.dataclass
+class WorkflowStageListFilters(ItemListFilters):
+    filters: dict[str, ListFilter]
+
+    @classmethod
+    def from_params(cls, params: Mapping[str, str], current_language: str) -> Self:
+        filters: dict[str, SimpleListFilter | LanguageDependantListFilter] = {}
+        for simple_type in (
+            EnNameFilter,
+            PtNameFilter,
+        ):
+            try:
+                filter_: SimpleListFilter = simple_type.from_params(params)
+                filters[filter_.internal_name] = filter_
+            except ValueError as err:
+                logger.info(str(err))
+        try:
+            filter_: LanguageDependantListFilter = SearchNameFilter.from_params(
+                params, current_language
+            )
+            filters[filter_.internal_name] = filter_
+        except ValueError as err:
+            logger.info(str(err))
+        return cls(filters=filters)
+
+
+@dataclasses.dataclass
 class AssetDiscoveryConfigurationListFilters(ItemListFilters):
     filters: dict[str, ListFilter]
 

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+    {{ _("new dataset category") | capitalize }}
+{% endblock page_title %}
+
+{% block details %}
+    <div
+            data-on-intersect__once="@get('{{ url_for('dataset_categories:new_stream', request_id=form.request_id.data) }}')"
+    >
+        {% include "datasetcategories/create-form.html" %}
+    </div>
+{% endblock details %}

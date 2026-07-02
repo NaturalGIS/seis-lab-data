@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block head %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/jsoneditor.min.css') }}">
+    <script src="{{ url_for('static', path='/js/jsoneditor.min.js') }}"></script>
+{% endblock head %}
+
+{% block page_title %}
+    {{ _("edit dataset category") | capitalize }}
+{% endblock page_title %}
+
+{% block details %}
+    <div data-on-intersect__once="@get('{{ url_for("dataset_categories:update_stream", resource_id=resource.id, request_id=form.request_id.data) }}')">
+        {% include "datasetcategories/update-form.html" %}
+    </div>
+{% endblock details %}

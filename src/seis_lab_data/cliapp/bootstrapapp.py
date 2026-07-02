@@ -13,7 +13,10 @@ from .. import (
     constants,
     subscribers,
 )
-from ..operations import surveyrelatedrecords as record_ops
+from ..operations import (
+    datasetcategories as category_ops,
+    workflowstages as stage_ops,
+)
 from ..schemas import (
     identifiers,
     messages as message_schemas,
@@ -118,7 +121,7 @@ async def bootstrap_dataset_categories(ctx: typer.Context):
         for to_create in bootstrapdata.DATASET_CATEGORIES_TO_CREATE.values():
             try:
                 created.append(
-                    await record_ops.create_dataset_category(
+                    await category_ops.create_dataset_category(
                         request_id=identifiers.RequestId(uuid.uuid4()),
                         to_create=to_create,
                         initiator=ctx.obj["admin_user"],
@@ -145,7 +148,7 @@ async def bootstrap_workflow_stages(ctx: typer.Context):
         for to_create in bootstrapdata.WORKFLOW_STAGES_TO_CREATE.values():
             try:
                 created.append(
-                    await record_ops.create_workflow_stage(
+                    await stage_ops.create_workflow_stage(
                         request_id=identifiers.RequestId(uuid.uuid4()),
                         to_create=to_create,
                         initiator=ctx.obj["admin_user"],

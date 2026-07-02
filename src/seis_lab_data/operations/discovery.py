@@ -262,15 +262,19 @@ async def run_mission_discovery(
             user=user,
             asset_discovery_configs=asset_discovery_configs,
         )
-    finally:
-        await mission_ops.change_survey_mission_status(
-            request_id=request_id,
-            target_status=constants.SurveyMissionStatus.DRAFT,
-            survey_mission_id=mission_id,
-            initiator=user,
-            session=session,
-            event_dispatcher=event_dispatcher,
+    except FileNotFoundError as err:
+        await event_dispatcher(
+            event_schemas.DiscoveryEvent(
+                initiator=user.id,
+                resource_type=constants.ResourceType.MISSION,
+                resource_id=str(mission_id),
+                request_id=request_id,
+                modification=constants.DiscoveryStage.ENDED,
+                succeeded=False,
+                details=str(err),
+            )
         )
+    else:
         await event_dispatcher(
             event_schemas.DiscoveryEvent(
                 initiator=user.id,
@@ -280,6 +284,15 @@ async def run_mission_discovery(
                 modification=constants.DiscoveryStage.ENDED,
                 succeeded=True,
             )
+        )
+    finally:
+        await mission_ops.change_survey_mission_status(
+            request_id=request_id,
+            target_status=constants.SurveyMissionStatus.DRAFT,
+            survey_mission_id=mission_id,
+            initiator=user,
+            session=session,
+            event_dispatcher=event_dispatcher,
         )
 
 

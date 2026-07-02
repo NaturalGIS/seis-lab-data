@@ -37,6 +37,34 @@ warnings.filterwarnings(
 )
 
 
+class SeisLabDataIconSettings(BaseModel):
+    asset_discovery_configuration: str = "insert_drive_file"
+    dataset_category: str = "category"
+    delete_item: str = "delete"
+    discover_contents: str = "travel_explore"
+    edit_item: str = "edit"
+    home: str = "home"
+    # list: str = "list"
+    list: str = "view_list"
+    new_item: str = "add_circle_outline"
+    open_link: str = "open_in_new"
+    projects: str = "view_kanban"
+    publish_item: str = "publish"
+    search: str = "search"
+    settings: str = "settings"
+    expand_less: str = "expand_less"
+    expand_more: str = "expand_more"
+    status_draft: str = "design_services"
+    status_published: str = "public"
+    status_under_validation: str = "sync"
+    survey_missions: str = "directions_boat"
+    survey_related_records: str = "source"
+    user: str = "person"
+    view_details: str = "info"
+    validation_valid: str = "check_circle"
+    validation_invalid: str = "dangerous"
+
+
 class SeisLabDataSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="SEIS_LAB_DATA__",
@@ -99,6 +127,7 @@ class SeisLabDataSettings(BaseSettings):
     default_temporal_extent_end: str = ""
     readonly_archive_root_directory: Path = "/mnt/data"
     editable_archive_root_directory: Path = "/mnt/sld"
+    icons: SeisLabDataIconSettings = SeisLabDataIconSettings()
     _db_engine: AsyncEngine | None = None
     _sync_db_engine: Engine | None = None
     _db_session_maker: async_sessionmaker | None = None
