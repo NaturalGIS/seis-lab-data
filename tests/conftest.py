@@ -2,6 +2,7 @@ import pytest
 import pytest_asyncio
 
 import sqlmodel
+from anyio import Path
 from starlette.testclient import TestClient
 
 from seis_lab_data import (
@@ -9,8 +10,8 @@ from seis_lab_data import (
     constants,
 )
 from seis_lab_data.cliapp import (
-    bootstrapdata,
     sampledata,
+    utils,
 )
 from seis_lab_data.db.commands import (
     datasetcategories as category_commands,
@@ -28,6 +29,15 @@ from seis_lab_data.db.engine import (
 from seis_lab_data.schemas.user import User
 from seis_lab_data.schemas.identifiers import UserId
 from seis_lab_data.webapp.app import create_app_from_settings
+
+
+@pytest_asyncio.fixture(scope="session")
+async def bootstrap_data():
+    bootstrap_data_path = (
+        Path(__file__).parents[1] / "src/seis_lab_data/cliapp/bootstrapdata.toml"
+    )
+    result = await utils.get_bootstrap_data(bootstrap_data_path)
+    yield result
 
 
 @pytest.fixture
@@ -86,25 +96,36 @@ async def admin_user(db, db_session_maker):
 
 
 @pytest_asyncio.fixture
-async def bootstrap_dataset_categories(db, db_session_maker):
+async def bootstrap_dataset_categories(db, db_session_maker, bootstrap_data):
     created = []
     async with db_session_maker() as session:
-        for category_to_create in bootstrapdata.DATASET_CATEGORIES_TO_CREATE.values():
+        for to_create in bootstrap_data[constants.ResourceType.CATEGORY]:
             created.append(
-                await category_commands.create_dataset_category(
-                    session, category_to_create
-                )
+                await category_commands.create_dataset_category(session, to_create)
             )
     yield created
 
 
 @pytest_asyncio.fixture
-async def bootstrap_workflow_stages(db, db_session_maker):
+async def bootstrap_workflow_stages(db, db_session_maker, bootstrap_data):
     created = []
     async with db_session_maker() as session:
-        for stage_to_create in bootstrapdata.WORKFLOW_STAGES_TO_CREATE.values():
+        for to_create in bootstrap_data[constants.ResourceType.WORKFLOW_STAGE]:
             created.append(
-                await stage_commands.create_workflow_stage(session, stage_to_create)
+                await stage_commands.create_workflow_stage(session, to_create)
+            )
+    yield created
+
+
+@pytest_asyncio.fixture
+async def bootstrap_asset_discovery_configurations(
+    db, db_session_maker, bootstrap_data
+):
+    created = []
+    async with db_session_maker() as session:
+        for to_create in bootstrap_data[constants.ResourceType.ASSET_DISCOVERY_CONFIG]:
+            created.append(
+                await stage_commands.create_workflow_stage(session, to_create)
             )
     yield created
 

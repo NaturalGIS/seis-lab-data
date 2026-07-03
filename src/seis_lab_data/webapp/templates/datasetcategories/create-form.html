@@ -1,7 +1,7 @@
-{% import "macros.html" as macros %}
+{% from "macro-jsoneditor-field.html" import jsoneditor_field %}
 <form>
     {{ form.request_id() }}
-    {{ macros.render_localizable_field(form.name) }}
+    {{ jsoneditor_field(form.name) }}
     <output></output>
     <div class="row mb-3">
         <div class="col-sm-10 offset-sm-2">

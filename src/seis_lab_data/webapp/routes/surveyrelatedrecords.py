@@ -13,7 +13,10 @@ from starlette_babel import gettext_lazy as _
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import (
+    RedirectResponse,
+    Response,
+)
 from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 from starlette_wtf import csrf_protect
@@ -70,16 +73,13 @@ async def _get_survey_related_record_details(
         request, "survey_related_record_id", identifiers.SurveyRelatedRecordId
     )
     async with request.state.settings.get_db_session_maker()() as session:
-        try:
-            survey_related_record_info = (
-                await survey_related_record_ops.get_survey_related_record(
-                    survey_related_record_id,
-                    user,
-                    session,
-                )
+        survey_related_record_info = (
+            await survey_related_record_ops.get_survey_related_record(
+                survey_related_record_id,
+                user,
+                session,
             )
-        except errors.SeisLabDataError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        )
         if survey_related_record_info is None:
             raise HTTPException(
                 status_code=404,
@@ -1060,7 +1060,11 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
 class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
     async def get(self, request: Request):
         """Get survey-related record details."""
-        details = await _get_survey_related_record_details(request)
+        try:
+            details = await _get_survey_related_record_details(request)
+        except errors.SeisLabDataError:
+            # TODO: figure out how to surface the error to the UI
+            return RedirectResponse(request.url_for("home"))
         template_processor = request.state.templates
         return template_processor.TemplateResponse(
             request,

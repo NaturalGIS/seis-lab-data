@@ -51,6 +51,7 @@ async def update_dataset_category(
     *,
     settings: config.SeisLabDataSettings,
 ) -> None:
+    logger.debug(f"{locals()=}")
     async with settings.get_db_session_maker()() as session:
         await category_ops.update_dataset_category(
             request_id=identifiers.RequestId(uuid.UUID(raw_request_id)),

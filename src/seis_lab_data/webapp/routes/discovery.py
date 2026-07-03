@@ -139,12 +139,10 @@ async def get_creation_form(request: Request):
             "breadcrumbs": [
                 webui_schemas.BreadcrumbItem(
                     name=_("Home"),
-                    icon=settings.icons.home,
                     url=request.url_for("home"),
                 ),
                 webui_schemas.BreadcrumbItem(
                     name=_("Asset discovery configurations"),
-                    icon=settings.icons.asset_discovery_configuration,
                     url=request.url_for("asset_discovery_configurations:list"),
                 ),
                 webui_schemas.BreadcrumbItem(
@@ -203,12 +201,10 @@ async def get_update_form(request: Request):
             "breadcrumbs": [
                 webui_schemas.BreadcrumbItem(
                     name=_("Home"),
-                    icon=settings.icons.home,
                     url=request.url_for("home"),
                 ),
                 webui_schemas.BreadcrumbItem(
                     name=_("Asset discovery configurations"),
-                    icon=settings.icons.asset_discovery_configuration,
                     url=request.url_for("asset_discovery_configurations:list"),
                 ),
                 webui_schemas.BreadcrumbItem(
@@ -362,7 +358,6 @@ class AssetDiscoveryConfigurationCollectionEndpoint(HTTPEndpoint):
                 "breadcrumbs": [
                     webui_schemas.BreadcrumbItem(
                         name=_("Home"),
-                        icon=settings.icons.home,
                         url=request.url_for("home"),
                     ),
                     webui_schemas.BreadcrumbItem(

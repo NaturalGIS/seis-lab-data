@@ -1,6 +1,7 @@
 import logging
 from typing import cast
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import errors
@@ -22,10 +23,15 @@ async def create_dataset_category(
         **to_create.model_dump(),
     )
     session.add(resource)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as err:
+        await session.rollback()
+        raise errors.SeisLabDataError(str(err)) from err
+    await session.refresh(resource)
     return cast(
         models.DatasetCategory,
-        await category_queries.get_dataset_category(session, resource.id),
+        await category_queries.get_dataset_category(session, to_create.id),
     )
 
 

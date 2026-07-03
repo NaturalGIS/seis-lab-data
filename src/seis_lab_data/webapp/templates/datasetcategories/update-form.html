@@ -1,6 +1,6 @@
-{% import "macros.html" as macros %}
 {% from "macro-jsoneditor-field.html" import jsoneditor_field %}
 <form>
+    {{ form.request_id() }}
     {{ jsoneditor_field(form.name) }}
 
     <div class="row mb-3">

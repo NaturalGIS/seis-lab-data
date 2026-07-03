@@ -82,7 +82,7 @@ async def get_list_component(request: Request):
         category_schemas.DatasetCategoryReadListItem.from_db_instance(i) for i in items
     ]
     template_processor = request.state.templates
-    template = template_processor.get_template("dataset_categories/list-component.html")
+    template = template_processor.get_template("datasetcategories/list-component.html")
     rendered = template.render(
         request=request,
         items=serialized_items,
@@ -128,12 +128,10 @@ async def get_creation_form(request: Request):
             "breadcrumbs": [
                 webui_schemas.BreadcrumbItem(
                     name=_("Home"),
-                    icon=settings.icons.home,
                     url=request.url_for("home"),
                 ),
                 webui_schemas.BreadcrumbItem(
                     name=_("Dataset categories"),
-                    icon=settings.icons.dataset_category,
                     url=request.url_for("dataset_categories:list"),
                 ),
                 webui_schemas.BreadcrumbItem(
@@ -383,7 +381,7 @@ class DatasetCategoryCollectionEndpoint(HTTPEndpoint):
 
             async def validation_event_streamer():
                 template = template_processor.get_template(
-                    "dataset_categories/create-form.html"
+                    "datasetcategories/create-form.html"
                 )
                 rendered = template.render(
                     request=request,
@@ -443,7 +441,7 @@ class DatasetCategoryDetailEndpoint(HTTPEndpoint):
                 )
         form_instance = (
             await category_forms.DatasetCategoryUpdateForm.get_validated_form_instance(
-                request
+                request, disregard_id=resource_id
             )
         )
 
@@ -453,11 +451,11 @@ class DatasetCategoryDetailEndpoint(HTTPEndpoint):
 
             async def event_streamer():
                 template = template_processor.get_template(
-                    "dataset_categories/update-form.html"
+                    "datasetcategories/update-form.html"
                 )
                 rendered = template.render(
                     request=request,
-                    resource=category_schemas.DatasetCategoryReadListItem.from_db_instance(
+                    item=category_schemas.DatasetCategoryReadListItem.from_db_instance(
                         resource
                     ),
                     form=form_instance,

@@ -49,6 +49,7 @@
             } catch (e) {
                 initialValue = {};
             }
+            console.log(`${initialValue}`)
 
             const editor = new JSONEditor(container, {
                 history: false,
@@ -56,6 +57,7 @@
                 mainMenuBar: false,
                 mode: "form",
                 modes: ["form"],
+                name: "{{ field.name }}",
                 navigationBar: false,
                 onChange: function () {
                     try {

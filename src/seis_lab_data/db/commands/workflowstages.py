@@ -1,6 +1,7 @@
 import logging
 from typing import cast
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import errors
@@ -18,9 +19,14 @@ async def create_workflow_stage(
     session: AsyncSession,
     to_create: stage_schemas.WorkflowStageCreate,
 ) -> models.WorkflowStage:
-    resource = models.WorkflowStage.model_validate(to_create)
+    resource = models.WorkflowStage(**to_create.model_dump())
     session.add(resource)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as err:
+        await session.rollback()
+        raise errors.SeisLabDataError(str(err)) from err
+    await session.refresh(resource)
     return cast(
         models.WorkflowStage,
         await stage_queries.get_workflow_stage(session, to_create.id),

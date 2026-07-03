@@ -29,13 +29,14 @@ class _BaseForm(StarletteForm):
     )
 
     def _parse_name(self) -> dict | None:
-        raw_json = self.name.data
-        if not raw_json:
+        value: dict[str, str] = self.name.data
+        if not value:
             return None
         try:
-            parsed = json.loads(raw_json)
-            # TODO: validate that we have at least an 'en' entry
-            return parsed
+            if value.get("en", "") == "":
+                self.name.errors.append("Must provide at least english name")
+                return None
+            return value
         except json.JSONDecodeError:
             self.name.errors.append(_("Invalid JSON"))
             return None
@@ -62,15 +63,16 @@ class _BaseForm(StarletteForm):
         as itself.
         """
         error_message = _("There is already a dataset category with this english name")
-
+        if (parsed_name := self._parse_name()) is None:
+            return
         if candidate := await get_dataset_category_by_english_name(
-            session, self.name.en.data
+            session, parsed_name["en"]
         ):
             if disregard_id:
                 if identifiers.DatasetCategoryId(candidate.id) != disregard_id:
-                    self.name.en.errors.append(error_message)
+                    self.name.errors.append(error_message)
             else:
-                self.name.en.errors.append(error_message)
+                self.name.errors.append(error_message)
 
     def has_validation_errors(self) -> bool:
         all_form_validation_errors = {**self.errors}

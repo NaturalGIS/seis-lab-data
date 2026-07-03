@@ -26,6 +26,15 @@ logger = logging.getLogger(__name__)
 
 
 @pass_context
+def get_secondary_language_value(
+    context: dict[str, typing.Any], value: Localizable
+) -> str:
+    current_lang = context["request"].state.language
+    secondary_lang = "en" if current_lang == "pt" else "pt"
+    return getattr(value, secondary_lang)
+
+
+@pass_context
 def translate_localizable_string(
     context: dict[str, typing.Any], value: Localizable
 ) -> str:

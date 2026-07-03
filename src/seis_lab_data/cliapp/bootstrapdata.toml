@@ -1,0 +1,65 @@
+# This file contains bootstrap data to be loaded onto the system DB when performing initial deployments
+
+[[dataset_categories]]
+id = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+name = { en = "bathymetry", pt = "batimetria" }
+
+[[dataset_categories]]
+id = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+name = { en = "bathymetry", pt = "batimetria" }
+
+[[dataset_categories]]
+id = "3002d462-3f2e-4957-a56e-97175f91883a"
+name = { en = "backscatter", pt = "backscatter" }
+
+[[dataset_categories]]
+id = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+name = { en = "seismic", pt = "sismíca" }
+
+[[dataset_categories]]
+id = "333073eb-adc9-4ac7-b822-44f4df5575a3"
+name = { en = "magnetometer/gradiometer", pt = "magnetómetro/gradiómetro" }
+
+[[dataset_categories]]
+id = "4b17a645-dc10-488c-ba7d-47ff052efdf8"
+name = { en = "superficial sediment samples", pt = "amostras sedimento superficial" }
+
+[[dataset_categories]]
+id = "fd68accf-057e-4813-b47a-aa4df3741c45"
+name = { en = "cores", pt = "núcleos" }
+
+[[dataset_categories]]
+id = "43507846-a6cf-4e54-bd80-9ef5be334cf0"
+name = { en = "CPT tests", pt = "testes CPT " }
+
+
+[[workflow_stages]]
+id = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+name = { en = "raw data", pt = "dados brutos" }
+
+[[workflow_stages]]
+id = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
+name = { en = "quality control data", pt = "dados controlo de qualidade" }
+
+[[workflow_stages]]
+id = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+name = { en = "processed data", pt = "dados processados" }
+
+[[workflow_stages]]
+id = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+name = { en = "interpreted data", pt = "dados interpretados" }
+
+
+[[asset_discovery_configurations]]
+id = "3128b241-73a0-4f6f-88d0-75bb9424de25"
+name = "raw kmall"
+relative_path_regexp = "s06-mbes/s02-raw-data/.*\\.kmall"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"  # raw_data
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"  # bathymetry
+
+[[asset_discovery_configurations]]
+id = "1c5b73f7-d3a7-49ed-b6b5-03f5ec8a831b"
+name = "xyz processed bathy"
+relative_path_regexp = "s06-mbes/s05-processed-data/.*\\.xyz"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"  # processed_data
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"  # bathymetry
