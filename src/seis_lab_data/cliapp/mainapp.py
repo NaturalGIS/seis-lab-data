@@ -7,16 +7,23 @@ import typer
 
 from .. import config
 from ..operations import (
+    datasetcategories as category_ops,
     projects as project_ops,
     surveymissions as mission_ops,
     surveyrelatedrecords as record_ops,
+    workflowstages as stage_ops,
 )
-from ..db.queries import surveyrelatedrecords as record_queries
+from ..db.queries import (
+    datasetcategories as category_queries,
+    workflowstages as stage_queries,
+)
 from ..schemas import (
     common as common_schemas,
+    datasetcategories as category_schemas,
     identifiers,
     surveymissions as mission_schemas,
     surveyrelatedrecords as record_schemas,
+    workflowstages as stage_schemas,
 )
 from .asynctyper import AsyncTyper
 from .utils import resolve_admin_user
@@ -83,15 +90,14 @@ async def create_survey_related_record(
     async with settings.get_db_session_maker()() as session:
         if (
             db_dataset_category
-            := await record_queries.get_dataset_category_by_english_name(
+            := await category_queries.get_dataset_category_by_english_name(
                 session, dataset_category
             )
         ) is None:
             printer(f"dataset category '{dataset_category!r}' not found.")
             raise typer.Abort()
         if (
-            db_workflow_stage
-            := await record_queries.get_workflow_stage_by_english_name(
+            db_workflow_stage := await stage_queries.get_workflow_stage_by_english_name(
                 session, workflow_stage
             )
         ) is None:
@@ -329,9 +335,9 @@ async def create_dataset_category(
     """Create a new dataset category."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        created = await record_ops.create_dataset_category(
+        created = await category_ops.create_dataset_category(
             request_id=identifiers.RequestId(uuid.uuid4()),
-            to_create=record_schemas.DatasetCategoryCreate(
+            to_create=category_schemas.DatasetCategoryCreate(
                 id=identifiers.DatasetCategoryId(uuid.uuid4()),
                 name=common_schemas.LocalizableDraftName(en=name_en, pt=name_pt),
             ),
@@ -339,24 +345,20 @@ async def create_dataset_category(
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
         )
-        print(record_schemas.DatasetCategoryRead(**created.model_dump()))
+        print(category_schemas.DatasetCategoryReadListItem(**created.model_dump()))
 
 
 @dataset_categories_app.async_command(name="list")
 async def list_dataset_categories(
     ctx: typer.Context,
-    limit: int = 20,
-    offset: int = 0,
 ):
     """List dataset categories."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await record_ops.list_dataset_categories(
-            session, limit=limit, offset=offset, include_total=True
-        )
-    print(f"Total records: {num_total}")
+        items = await category_queries.collect_all_dataset_categories(session)
+    print(f"Total records: {len(items)}")
     for item in items:
-        print(record_schemas.DatasetCategoryRead(**item.model_dump()))
+        print(category_schemas.DatasetCategoryReadListItem(**item.model_dump()))
 
 
 @dataset_categories_app.async_command(name="delete")
@@ -367,7 +369,7 @@ async def delete_dataset_category(
     """Delete a dataset category."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        await record_ops.delete_dataset_category(
+        await category_ops.delete_dataset_category(
             request_id=identifiers.RequestId(uuid.uuid4()),
             dataset_category_id=dataset_category_id,
             initiator=ctx.obj["admin_user"],
@@ -391,8 +393,8 @@ async def create_workflow_stage(
     """Create a new workflow stage."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        created = await record_ops.create_workflow_stage(
-            to_create=record_schemas.WorkflowStageCreate(
+        created = await stage_ops.create_workflow_stage(
+            to_create=stage_schemas.WorkflowStageCreate(
                 id=identifiers.WorkflowStageId(uuid.uuid4()),
                 name=common_schemas.LocalizableDraftName(en=name_en, pt=name_pt),
             ),
@@ -400,24 +402,20 @@ async def create_workflow_stage(
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
         )
-        print(record_schemas.WorkflowStageRead(**created.model_dump()))
+        print(stage_schemas.WorkflowStageReadListItem(**created.model_dump()))
 
 
 @workflow_stages_app.async_command(name="list")
 async def list_workflow_stages(
     ctx: typer.Context,
-    limit: int = 20,
-    offset: int = 0,
 ):
     """List workflow stages."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await record_ops.list_workflow_stages(
-            session, limit=limit, offset=offset, include_total=True
-        )
-    print(f"Total records: {num_total}")
+        items = await stage_queries.collect_all_workflow_stages(session)
+    print(f"Total records: {len(items)}")
     for item in items:
-        print(record_schemas.WorkflowStageRead(**item.model_dump()))
+        print(stage_schemas.WorkflowStageReadListItem(**item.model_dump()))
 
 
 @workflow_stages_app.async_command(name="delete")
@@ -428,7 +426,7 @@ async def delete_workflow_stage(
     """Delete a workflow stage."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        await record_ops.delete_workflow_stage(
+        await stage_ops.delete_workflow_stage(
             workflow_stage_id,
             initiator=ctx.obj["admin_user"],
             session=session,

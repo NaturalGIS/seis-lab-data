@@ -505,6 +505,8 @@ async def handle_discovery_detail_page(
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
     # - have had its discovery progressed - only applies to SurveyMission: need to update the discovery-related fields
+    logger.debug(f"{context=}")
+    logger.debug(f"{message=}")
     if message.resource_id != context.resource_id:
         return
     if not message.succeeded:

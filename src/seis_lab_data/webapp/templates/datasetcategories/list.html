@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% import "macros.html" as macros %}
+
+{% block page_title %}
+    <span class="icon-stack" aria-hidden="true">
+        <span class="material-icons-outlined">{{ icons.dataset_category }}</span>
+        <span class="material-icons-outlined icon-stack-badge">{{ icons.list }}</span>
+    </span>{{ _("Dataset categories") }}
+{% endblock page_title %}
+
+{% block details %}
+    <script>
+        window.iconNames = JSON.parse('{{ icons | tojson }}')
+    </script>
+
+    <div class="row" data-on-intersect__once="@get('{{ url_for("dataset_categories:list_stream") }}')">
+        <div class="col">
+            <div
+                    class="row justify-content-center m-5"
+                    data-signals:search='{{ search_initial_value }}'
+                    data-signals:advanced-search-panel-open="false"
+                    data-signals:searching="false"
+                    data-signals:listing-version="0"
+                    data-effect="$listingVersion > 0 && @get('{{ url_for('dataset_categories:get_list_component') }}')"
+            >
+                <div class="col-8">
+                    <search class="form-floating">
+                        <input
+                                class="form-control form-control-lg"
+                                type="search"
+                                id="search"
+                                placeholder="Search"
+                                data-bind:search
+                                data-on:input__debounce.200ms="@get('{{ url_for("dataset_categories:get_list_component") }}')"
+                                data-indicator:searching
+                        />
+                        <label class="form-label" for="search">
+                            <span class="material-icons-outlined">{{ icons.search }}</span>
+                            {{ _("search dataset categories") | capitalize }}
+                        </label>
+                    </search>
+                    <div
+                            data-attr:hidden="!$searching"
+                            class="spinner-border spinner-border-sm ms-3"
+                            role="status"
+                            aria-hidden="true"
+                    >
+                        <span class="visually-hidden">{{ _("searching...") | capitalize }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-9">
+            {% include "datasetcategories/list-component.html" %}
+        </div>
+        <div class="col-3">
+            <h5>{{ _("actions") | capitalize }}</h5>
+            <div class="list-group mb-3">
+                {% if permissions.can_create %}
+                    <a
+                            class="list-group-item list-group-item-action list-group-item-info"
+                            href="{{ url_for('dataset_categories:get_creation_form') }}"
+                            aria-label="new-dataset-category"
+                    >
+                        <span class="material-icons-outlined me-1">{{ icons.new_item }}</span>{{ _("Add new dataset category") | capitalize }}
+                    </a>
+                {% endif %}
+            </div>
+            <h5>{{ _("info") | capitalize }}</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <p>{{ _("Dataset categories are metadata about survey-related records") }}</p>
+                </li>
+            </ul>
+        </div>
+    </div>
+{% endblock details %}

@@ -26,6 +26,7 @@ class BreadcrumbItem(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
     name: LazyString | str
+    icon: str | None = None
     url: URL | str | None = None
 
 

@@ -17,6 +17,7 @@ from wtforms import (
     FormField,
 )
 
+from .fields import JsonEditorField
 from ... import constants
 
 logger = logging.getLogger(__name__)
@@ -90,12 +91,16 @@ def retrieve_form_field_by_pydantic_loc(
 ) -> Field | None:
     parent = form_instance
     field = None
+    logger.debug(f"{parent=} - {loc=}")
     for part in loc:
         logger.debug(f"{part=} {field=}")
-        if isinstance(part, int):
+        if isinstance(field, JsonEditorField):
+            return field
+        elif isinstance(part, int):
             field = parent.entries[part]
         else:
             for f in parent:
+                logger.debug(f"{f=}")
                 if (getattr(f, "pydantic_field_name", None) or f.short_name) == part:
                     field = f
                     break

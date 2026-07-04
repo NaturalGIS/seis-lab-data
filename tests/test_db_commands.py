@@ -3,35 +3,41 @@ import uuid
 import pytest
 
 from seis_lab_data.db.commands import (
+    datasetcategories as category_commands,
     projects as project_commands,
     surveymissions as mission_commands,
     surveyrelatedrecords as record_commands,
+    workflowstages as stage_commands,
 )
 from seis_lab_data.db.queries import (
     projects as project_queries,
     surveymissions as mission_queries,
     surveyrelatedrecords as record_queries,
+    datasetcategories as category_queries,
+    workflowstages as stage_queries,
 )
 from seis_lab_data.schemas import (
     common as common_schemas,
+    datasetcategories as category_schemas,
     identifiers,
     projects as project_schemas,
     surveymissions as mission_schemas,
     surveyrelatedrecords as record_schemas,
+    workflowstages as stage_schemas,
 )
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_create_dataset_category(db, db_session_maker):
-    to_create = record_schemas.DatasetCategoryCreate(
+    to_create = category_schemas.DatasetCategoryCreate(
         id=identifiers.DatasetCategoryId(
             uuid.UUID("303cad6d-2e0e-447e-85e1-c284c1c882a7")
         ),
         name=common_schemas.LocalizableDraftName(en="A fake category"),
     )
     async with db_session_maker() as session:
-        created = await record_commands.create_dataset_category(session, to_create)
+        created = await category_commands.create_dataset_category(session, to_create)
         assert created.id == to_create.id
         assert created.name["en"] == to_create.name.en
 
@@ -39,32 +45,35 @@ async def test_create_dataset_category(db, db_session_maker):
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_delete_dataset_category(db, db_session_maker):
-    to_create = record_schemas.DatasetCategoryCreate(
+    to_create = category_schemas.DatasetCategoryCreate(
         id=identifiers.DatasetCategoryId(
             uuid.UUID("26b06713-dce1-4304-bf50-fec5c3f5efe6")
         ),
         name=common_schemas.LocalizableDraftName(en="A fake category"),
     )
     async with db_session_maker() as session:
-        await record_commands.create_dataset_category(session, to_create)
+        await category_commands.create_dataset_category(session, to_create)
         assert (
-            await record_queries.get_dataset_category(session, to_create.id) is not None
+            await category_queries.get_dataset_category(session, to_create.id)
+            is not None
         )
-        await record_commands.delete_dataset_category(session, to_create.id)
-        assert await record_queries.get_dataset_category(session, to_create.id) is None
+        await category_commands.delete_dataset_category(session, to_create.id)
+        assert (
+            await category_queries.get_dataset_category(session, to_create.id) is None
+        )
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_create_workflow_stage(db, db_session_maker):
-    to_create = record_schemas.WorkflowStageCreate(
+    to_create = stage_schemas.WorkflowStageCreate(
         id=identifiers.WorkflowStageId(
             uuid.UUID("24d10a9f-8b30-4866-aa1b-5fe34a2f4ecf")
         ),
         name=common_schemas.LocalizableDraftName(en="A fake workflow stage"),
     )
     async with db_session_maker() as session:
-        created = await record_commands.create_workflow_stage(session, to_create)
+        created = await stage_commands.create_workflow_stage(session, to_create)
         assert created.id == to_create.id
         assert created.name["en"] == to_create.name.en
 
@@ -72,19 +81,17 @@ async def test_create_workflow_stage(db, db_session_maker):
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_delete_workflow_stage(db, db_session_maker):
-    to_create = record_schemas.WorkflowStageCreate(
+    to_create = stage_schemas.WorkflowStageCreate(
         id=identifiers.WorkflowStageId(
             uuid.UUID("adaf887f-27a9-40da-afe4-785a169c3edd")
         ),
         name=common_schemas.LocalizableDraftName(en="A fake workflow stage"),
     )
     async with db_session_maker() as session:
-        await record_commands.create_workflow_stage(session, to_create)
-        assert (
-            await record_queries.get_workflow_stage(session, to_create.id) is not None
-        )
-        await record_commands.delete_workflow_stage(session, to_create.id)
-        assert await record_queries.get_workflow_stage(session, to_create.id) is None
+        await stage_commands.create_workflow_stage(session, to_create)
+        assert await stage_queries.get_workflow_stage(session, to_create.id) is not None
+        await stage_commands.delete_workflow_stage(session, to_create.id)
+        assert await stage_queries.get_workflow_stage(session, to_create.id) is None
 
 
 @pytest.mark.integration

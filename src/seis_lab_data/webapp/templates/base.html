@@ -34,31 +34,53 @@
             <div class="collapse navbar-collapse" id="main-navbar">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4 gap-lg-2">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('projects:list') }}" aria-label="list-projects">
+                        <a class="nav-link" href="{{ url_for('projects:list') }}" aria-label="list-projects" title="{{ _('Projects') }}">
                             <span class="material-icons-outlined" aria-hidden="true">{{ icons.projects }}</span>{{ _("Projects") }}
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('survey_missions:list') }}" aria-label="list-survey-missions">
+                        <a class="nav-link" href="{{ url_for('survey_missions:list') }}" aria-label="list-survey-missions" title="{{ _('Survey Missions') }}">
                             <span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_missions }}</span>{{ _("Survey Missions") }}
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('survey_related_records:list') }}" aria-label="list-survey-related-records">
+                        <a class="nav-link" href="{{ url_for('survey_related_records:list') }}" aria-label="list-survey-related-records" title="{{ _('Survey-related Records') }}">
                             <span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_related_records }}</span>{{ _("Survey-related Records") }}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('asset_discovery_configurations:list') }}" aria-label="list-asset-discovery-configurations">
-                            <span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_related_records }}</span>{{ _("Asset discovery configurations") }}
                         </a>
                     </li>
                 </ul>
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center">
+                    {% if request.user.is_authenticated %}
+                        <li class="nav-item dropdown me-lg-3">
+                            <button
+                                class="btn btn-link text-light text-decoration-none dropdown-toggle"
+                                aria-label="{{ _('Settings') }}"
+                                title="{{ _('Settings') }}"
+                                type="button"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false"
+                            >
+                                <span class="material-icons-outlined" aria-hidden="true">{{ icons.settings }}</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end border-0 shadow" data-bs-theme="light">
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('asset_discovery_configurations:list') }}" aria-label="list-asset-discovery-configurations" title="{{ _('Asset discovery configurations') }}">
+                                        <span class="material-icons-outlined" aria-hidden="true">{{ icons.asset_discovery_configuration }}</span>{{ _("Asset discovery configurations") }}
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('dataset_categories:list') }}" aria-label="list-dataset-categories" title="{{ _('Dataset categories') }}">
+                                        <span class="material-icons-outlined" aria-hidden="true">{{ icons.dataset_category }}</span>{{ _("Dataset categories") }}
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    {% endif %}
                     <li class="nav-item dropdown me-lg-3">
                         <button
                             class="btn btn-link text-light text-decoration-none dropdown-toggle"
                             aria-label="toggle-lang"
+                            title="{{ _('Language') }}"
                             type="button"
                             data-bs-toggle="dropdown"
                             aria-expanded="false"
@@ -90,6 +112,7 @@
                                 aria-haspopup="menu"
                                 aria-controls="user-menu-dropdown"
                                 aria-label="user-menu-toggle"
+                                title="{{ _('User account') }}"
                             >
                                 <span class="material-icons-outlined fs-4" aria-hidden="true">{{ icons.user }}</span>
                             </button>
@@ -109,18 +132,18 @@
                                 </dl>
                                 <hr class="my-3">
                                 {% if "system-admin" in request.user.roles %}
-                                    <a href="{{ request.state.auth_config.authentik_external_url }}/if/admin/" target="_blank" class="btn btn-outline-secondary btn-sm w-100 mb-2">
+                                    <a href="{{ request.state.auth_config.authentik_external_url }}/if/admin/" target="_blank" class="btn btn-outline-secondary btn-sm w-100 mb-2" title="{{ _('Authentik Admin') }} ({{ _('opens in a new tab') }})">
                                         <i class="bi bi-shield-lock"></i> {{ _("Authentik Admin") }}
                                     </a>
                                 {% endif %}
-                                <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary btn-sm w-100" aria-label="logout-nav">
+                                <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary btn-sm w-100" aria-label="logout-nav" title="{{ _('Logout') }}">
                                     <i class="bi bi-box-arrow-right"></i> {{ _("Logout") }}
                                 </a>
                             </div>
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="btn btn-outline-light btn-sm" href="{{ url_for('login') }}" data-testid="login-nav">
+                            <a class="btn btn-outline-light btn-sm" href="{{ url_for('login') }}" data-testid="login-nav" title="{{ _('Login / Register') }}">
                                 <i class="bi bi-box-arrow-in-right"></i> {{ _("Login / Register") }}
                             </a>
                         </li>

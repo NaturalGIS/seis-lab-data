@@ -97,7 +97,7 @@
                 <button
                         class="list-group-item list-group-item-action list-group-item-secondary"
                         aria-label="discover-mission"
-                        data-on:click="@post('{{ url_for("survey_missions:trigger_discovery", survey_mission_id=survey_mission.id) }}', {
+                        data-on:click="@post('{{ url_for("survey_missions:trigger_discovery", survey_mission_id=survey_mission.id, request_id=request_id) }}', {
                             headers: {'X-CSRFToken': '{{ csrf_token(request) }}'}
                         })"
                 >

@@ -13,7 +13,10 @@ from starlette_babel import gettext_lazy as _
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import (
+    RedirectResponse,
+    Response,
+)
 from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 from starlette_wtf import csrf_protect
@@ -31,9 +34,10 @@ from ...operations import (
     surveyrelatedrecords as survey_related_record_ops,
 )
 from ...permissions import surveyrelatedrecords as record_permissions
-from ...db import (
-    models,
-    queries,
+from ...db import models
+from ...db.queries import (
+    datasetcategories as category_queries,
+    workflowstages as stage_queries,
 )
 from ...tasks import surveyrelatedrecords as record_tasks
 from ...schemas import (
@@ -70,16 +74,13 @@ async def _get_survey_related_record_details(
         request, "survey_related_record_id", identifiers.SurveyRelatedRecordId
     )
     async with request.state.settings.get_db_session_maker()() as session:
-        try:
-            survey_related_record_info = (
-                await survey_related_record_ops.get_survey_related_record(
-                    survey_related_record_id,
-                    user,
-                    session,
-                )
+        survey_related_record_info = (
+            await survey_related_record_ops.get_survey_related_record(
+                survey_related_record_id,
+                user,
+                session,
             )
-        except errors.SeisLabDataError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        )
         if survey_related_record_info is None:
             raise HTTPException(
                 status_code=404,
@@ -172,14 +173,14 @@ async def build_survey_related_record_form_instance(
     async with request.state.settings.get_db_session_maker()() as session:
         form_instance.dataset_category_id.choices = [
             (dc.id, dc.name.get(current_language, dc.name["en"]))
-            for dc in await queries.collect_all_dataset_categories(
+            for dc in await category_queries.collect_all_dataset_categories(
                 session,
                 order_by_clause=models.DatasetCategory.name[current_language].astext,
             )
         ]
         form_instance.workflow_stage_id.choices = [
             (ws.id, ws.name.get(current_language, ws.name["en"]))
-            for ws in await queries.collect_all_workflow_stages(
+            for ws in await stage_queries.collect_all_workflow_stages(
                 session,
                 order_by_clause=models.WorkflowStage.name[current_language].astext,
             )
@@ -1060,7 +1061,11 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
 class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
     async def get(self, request: Request):
         """Get survey-related record details."""
-        details = await _get_survey_related_record_details(request)
+        try:
+            details = await _get_survey_related_record_details(request)
+        except errors.SeisLabDataError:
+            # TODO: figure out how to surface the error to the UI
+            return RedirectResponse(request.url_for("home"))
         template_processor = request.state.templates
         return template_processor.TemplateResponse(
             request,

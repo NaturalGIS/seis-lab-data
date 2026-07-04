@@ -130,6 +130,7 @@ async def get_creation_form(request: Request):
     )
     form_instance.request_id.data = str(identifiers.RequestId(uuid.uuid4()))
     template_processor: Jinja2Templates = request.state.templates
+    settings: config.SeisLabDataSettings = request.state.settings
     return template_processor.TemplateResponse(
         request,
         "discovery/create-form-page.html",
@@ -137,14 +138,15 @@ async def get_creation_form(request: Request):
             "form": form_instance,
             "breadcrumbs": [
                 webui_schemas.BreadcrumbItem(
-                    name=_("Home"), url=request.url_for("home")
+                    name=_("Home"),
+                    url=request.url_for("home"),
                 ),
                 webui_schemas.BreadcrumbItem(
                     name=_("Asset discovery configurations"),
                     url=request.url_for("asset_discovery_configurations:list"),
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=_("New asset discovery configuration")
+                    name=_("New"), icon=settings.icons.new_item
                 ),
             ],
         },
@@ -187,6 +189,7 @@ async def get_update_form(request: Request):
     )
     update_form.request_id.data = uuid.uuid4()
     template_processor: Jinja2Templates = request.state.templates
+    settings: config.SeisLabDataSettings = request.state.settings
     return template_processor.TemplateResponse(
         request,
         "discovery/update-form-page.html",
@@ -197,21 +200,16 @@ async def get_update_form(request: Request):
             "form": update_form,
             "breadcrumbs": [
                 webui_schemas.BreadcrumbItem(
-                    name=_("Home"), url=request.url_for("home")
+                    name=_("Home"),
+                    url=request.url_for("home"),
                 ),
                 webui_schemas.BreadcrumbItem(
                     name=_("Asset discovery configurations"),
                     url=request.url_for("asset_discovery_configurations:list"),
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=db_asset_discovery_configuration.name,
-                    url=request.url_for(
-                        "asset_discovery_configurations:detail",
-                        asset_discovery_configuration_id=asset_discovery_configuration_id,
-                    ),
-                ),
-                webui_schemas.BreadcrumbItem(
-                    name=_("Edit asset_discovery_configuration")
+                    name=_("Edit"),
+                    icon=settings.icons.edit_item,
                 ),
             ],
         },
@@ -359,10 +357,12 @@ class AssetDiscoveryConfigurationCollectionEndpoint(HTTPEndpoint):
                 "pagination": pagination_info,
                 "breadcrumbs": [
                     webui_schemas.BreadcrumbItem(
-                        name=_("Home"), url=request.url_for("home")
+                        name=_("Home"),
+                        url=request.url_for("home"),
                     ),
                     webui_schemas.BreadcrumbItem(
-                        name=_("Asset Discovery Configurations")
+                        name=_("Asset Discovery Configurations"),
+                        icon=settings.icons.asset_discovery_configuration,
                     ),
                 ],
                 "permissions": {

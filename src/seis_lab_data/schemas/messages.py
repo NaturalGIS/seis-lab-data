@@ -58,7 +58,10 @@ class ValidationMessage(pydantic.BaseModel):
 
 
 SldPubSubMessage: TypeAlias = Annotated[
-    ResourceModificationMessage | DiscoveryMessage,
+    ResourceModificationMessage
+    | DiscoveryMessage
+    | ValidationMessage
+    | ResourceStatusChangedMessage,
     pydantic.Field(discriminator="type"),
 ]
 

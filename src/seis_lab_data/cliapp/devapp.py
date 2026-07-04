@@ -21,7 +21,10 @@ from ..operations import (
     surveymissions as mission_ops,
     surveyrelatedrecords as record_ops,
 )
-from ..db.queries import surveyrelatedrecords as record_queries
+from ..db.queries import (
+    datasetcategories as category_queries,
+    workflowstages as stage_queries,
+)
 from ..dispatch import no_op_dispatcher
 from ..schemas import (
     identifiers,
@@ -85,10 +88,10 @@ async def generate_many_projects(
         else no_op_dispatcher
     )
     async with settings.get_db_session_maker()() as session:
-        dataset_categories = await record_queries.collect_all_dataset_categories(
+        dataset_categories = await category_queries.collect_all_dataset_categories(
             session
         )
-        workflow_stages = await record_queries.collect_all_workflow_stages(session)
+        workflow_stages = await stage_queries.collect_all_workflow_stages(session)
         project_generator = sampledata.generate_sample_projects(
             owners=[admin_],
             dataset_categories=[
@@ -255,10 +258,10 @@ async def load_sample_survey_related_records(ctx: typer.Context):
     admin_ = ctx.obj["admin_user"]
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        all_dataset_categories = await record_queries.collect_all_dataset_categories(
+        all_dataset_categories = await category_queries.collect_all_dataset_categories(
             session
         )
-        all_workflow_stages = await record_queries.collect_all_workflow_stages(session)
+        all_workflow_stages = await stage_queries.collect_all_workflow_stages(session)
         for to_create in sampledata.get_survey_related_records_to_create(
             owner=admin_,
             dataset_categories={c.name["en"]: c for c in all_dataset_categories},

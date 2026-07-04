@@ -13,7 +13,10 @@
 {% endblock head %}
 
 {% block page_title %}
-	<span class="material-icons-outlined">source</span>{{ _("Survey-related records") }}
+	<span class="icon-stack" aria-hidden="true">
+		<span class="material-icons-outlined">{{ icons.survey_related_records }}</span>
+		<span class="material-icons-outlined icon-stack-badge">{{ icons.list }}</span>
+	</span>{{ _("Survey-related records") }}
 {% endblock page_title %}
 
 {% block details %}

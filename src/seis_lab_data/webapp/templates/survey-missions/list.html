@@ -14,7 +14,10 @@
 {% endblock head %}
 
 {% block page_title %}
-    <span class="material-icons-outlined">directions_boat</span>{{ _("survey missions") | capitalize }}
+    <span class="icon-stack" aria-hidden="true">
+        <span class="material-icons-outlined">{{ icons.survey_missions }}</span>
+        <span class="material-icons-outlined icon-stack-badge">{{ icons.list }}</span>
+    </span>{{ _("survey missions") | capitalize }}
 {% endblock page_title %}
 
 {% block details %}

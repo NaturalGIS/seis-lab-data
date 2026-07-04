@@ -1,0 +1,42 @@
+{% import "macros-buttons.html" as macros_buttons %}
+{% set id_ = item.id | string | replace('-', '') %}
+{% set translated_name = item.name | translate_localizable_string %}
+{% set secondary_name = item.name | secondary_language %}
+{% set names_equal  = translated_name == secondary_name %}
+<div class="col">
+    <div class="card">
+        <div class="card-body">
+            <div class="hstack gap-3">
+                <div>
+                    <h5 class="card-title">{{ translated_name }}</h5>
+                    {% if not names_equal %}
+                        <p class="card-text">{{ secondary_name }}</p>
+                    {% endif %}
+                    <p class="card-text text-muted"><small>{{ item.id }}</small></p>
+                </div>
+                <div class="ms-auto">
+                    {% if permissions.can_update %}
+                        <a
+                                class="btn btn-sm btn-outline-primary"
+                                href="{{ url_for("dataset_categories:get_update_form", dataset_category_id=item.id) }}"
+                        >
+                            <span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit") | capitalize }}
+                        </a>
+                    {% endif %}
+                    {% if permissions.can_delete %}
+                        {{ macros_buttons.render_delete_item_button(
+                    deletion_url=url_for("dataset_categories:detail", dataset_category_id=item.id),
+                    signal_name="deleting" ~ id_,
+                    idle_message="delete",
+                    running_message="deleting...",
+                    generated_csrf_token=csrf_token(request),
+                    modal_dialog_title=_("delete"),
+                    modal_dialog_confirmation_text=_("are you sure you want to delete this item?"),
+                    size_css_class="btn-sm"
+                ) }}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

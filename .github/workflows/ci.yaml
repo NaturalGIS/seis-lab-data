@@ -144,7 +144,7 @@ jobs:
 
       - name: "Login to container registry"
         if: ${{ env.PUBLISH_IMAGE == 'TRUE' }}
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ secrets.CI_MANAGEMENT_USERNAME }}
