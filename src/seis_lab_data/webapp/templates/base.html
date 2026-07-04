@@ -73,6 +73,11 @@
                                         <span class="material-icons-outlined" aria-hidden="true">{{ icons.dataset_category }}</span>{{ _("Dataset categories") }}
                                     </a>
                                 </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('workflow_stages:list') }}" aria-label="list-workflow-stages" title="{{ _('Workflow stages') }}">
+                                        <span class="material-icons-outlined" aria-hidden="true">{{ icons.workflow_stage }}</span>{{ _("Workflow stages") }}
+                                    </a>
+                                </li>
                             </ul>
                         </li>
                     {% endif %}
