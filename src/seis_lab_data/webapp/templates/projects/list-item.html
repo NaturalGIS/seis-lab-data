@@ -1,4 +1,4 @@
-{% import "macros-buttons.html" as macros_buttons %}
+{% from "macros/button.html" import render_button, render_link %}
 {% set id_ = item.id | string | replace('-', '') %}
 <div
         class="col"
@@ -64,7 +64,7 @@
                             </div>
                         </div>
                     </div>
-                    {{ macros_buttons.render_view_details_button(url_for('projects:detail', project_id=item.id)) }}
+                    {{ render_link(url_for("projects:detail", project_id=item.id), _("View"), "view-detail", icons.view_details, "btn-outline-primary") }}
                 </div>
             </div>
         </div>

@@ -490,7 +490,6 @@ async def get_update_form(request: Request):
             },
             "dataset_category_id": details.item.dataset_category.id,
             "workflow_stage_id": details.item.workflow_stage.id,
-            "relative_path": details.item.relative_path,
             "bounding_box": {
                 "min_lon": bbox.bounds[0],
                 "min_lat": bbox.bounds[1],
@@ -557,7 +556,7 @@ async def get_update_form(request: Request):
     async with request.state.settings.get_db_session_maker()() as session:
         (
             initial_related_records_list,
-            _,
+            __,
         ) = await survey_related_record_ops.list_survey_related_records(
             session,
             initiator=user,
@@ -1202,7 +1201,6 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
             ),
             dataset_category_id=form_instance.dataset_category_id.data,
             workflow_stage_id=form_instance.workflow_stage_id.data,
-            relative_path=form_instance.relative_path.data,
             bbox_4326=(
                 f"POLYGON(("
                 f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}, "
