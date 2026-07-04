@@ -63,6 +63,7 @@ class SeisLabDataIconSettings(BaseModel):
     view_details: str = "info"
     validation_valid: str = "check_circle"
     validation_invalid: str = "dangerous"
+    workflow_stage: str = "stairs"
 
 
 class SeisLabDataSettings(BaseSettings):
