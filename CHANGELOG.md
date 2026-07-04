@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `auth-worker`'s healthcheck now polls the unauthenticated OIDC discovery
+  endpoint for the seis-lab-data application instead of checking for the
+  akadmin user. Checking for akadmin only proved that authentik's bootstrap
+  had run, not that the custom blueprint (which creates the OAuth2 client)
+  had been applied, which was a race condition causing e2e tests to
+  intermittently fail in CI with "Client ID Error" on the login page.
+
 ### Changed
 - Authentik image is now 2025-12-04
 - Authentik proxy outpost host_url now points to public URL of authentik

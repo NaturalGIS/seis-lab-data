@@ -109,10 +109,14 @@ services:
       message-broker:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python -c 'import requests; import os; r = requests.get(\"http://auth-webapp:9000/api/v3/core/users/\", params={\"username\": \"akadmin\"}, headers={\"Authorization\": f\"Bearer {os.getenv(\"AUTHENTIK_BOOTSTRAP_TOKEN\")}\"}); r.raise_for_status(); assert r.json()[\"results\"][0][\"username\"] == \"akadmin\"'"]
+      # Hits the unauthenticated OIDC discovery endpoint for our application. It only
+      # starts returning 200 once the custom blueprint (which creates the seis-lab-data
+      # OAuth2 provider/application) has actually been applied by the worker - unlike
+      # checking for the akadmin user, which exists long before the custom blueprint runs.
+      test: ["CMD-SHELL", "python -c 'import requests; requests.get(\"http://auth-webapp:9000/application/o/seis-lab-data/.well-known/openid-configuration\").raise_for_status()'"]
       start_period: 60s
       interval: 10s
-      retries: 10
+      retries: 15
       timeout: 5s
 
   message-broker:
