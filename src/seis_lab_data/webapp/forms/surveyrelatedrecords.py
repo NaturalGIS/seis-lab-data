@@ -17,8 +17,11 @@ from wtforms import (
 )
 
 from ... import constants
-from ...db import models
-from ...db.queries import surveyrelatedrecords as record_queries
+from ...db.queries import (
+    datasetcategories as category_queries,
+    surveyrelatedrecords as record_queries,
+    workflowstages as stage_queries,
+)
 from ...schemas import (
     identifiers,
     surveyrelatedrecords as record_schemas,
@@ -197,18 +200,15 @@ class _SurveyRelatedRecordForm(StarletteForm):
         async with request.state.settings.get_db_session_maker()() as session:
             form_instance.dataset_category_id.choices = [
                 (dc.id, dc.name.get(current_language, dc.name["en"]))
-                for dc in await record_queries.collect_all_dataset_categories(
-                    session,
-                    order_by_clause=models.DatasetCategory.name[
-                        current_language
-                    ].astext,
+                for dc in await category_queries.collect_all_dataset_categories(
+                    session, order_by=current_language
                 )
             ]
             form_instance.workflow_stage_id.choices = [
                 (ws.id, ws.name.get(current_language, ws.name["en"]))
-                for ws in await record_queries.collect_all_workflow_stages(
+                for ws in await stage_queries.collect_all_workflow_stages(
                     session,
-                    order_by_clause=models.WorkflowStage.name[current_language].astext,
+                    order_by=current_language,
                 )
             ]
         return form_instance

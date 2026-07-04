@@ -34,9 +34,10 @@ from ...operations import (
     surveyrelatedrecords as survey_related_record_ops,
 )
 from ...permissions import surveyrelatedrecords as record_permissions
-from ...db import (
-    models,
-    queries,
+from ...db import models
+from ...db.queries import (
+    datasetcategories as category_queries,
+    workflowstages as stage_queries,
 )
 from ...tasks import surveyrelatedrecords as record_tasks
 from ...schemas import (
@@ -172,14 +173,14 @@ async def build_survey_related_record_form_instance(
     async with request.state.settings.get_db_session_maker()() as session:
         form_instance.dataset_category_id.choices = [
             (dc.id, dc.name.get(current_language, dc.name["en"]))
-            for dc in await queries.collect_all_dataset_categories(
+            for dc in await category_queries.collect_all_dataset_categories(
                 session,
                 order_by_clause=models.DatasetCategory.name[current_language].astext,
             )
         ]
         form_instance.workflow_stage_id.choices = [
             (ws.id, ws.name.get(current_language, ws.name["en"]))
-            for ws in await queries.collect_all_workflow_stages(
+            for ws in await stage_queries.collect_all_workflow_stages(
                 session,
                 order_by_clause=models.WorkflowStage.name[current_language].astext,
             )
