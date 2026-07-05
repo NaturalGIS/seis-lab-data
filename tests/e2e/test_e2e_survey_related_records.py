@@ -54,8 +54,9 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
     )
 
     # create the survey-related record
+    record_name_id = uuid.uuid4().hex[:8]
     authenticated_page.get_by_role("link", name="new-item").click()
-    record_name = f"e2e test survey-related record {uuid.uuid4().hex[:8]}"
+    record_name = f"e2e test survey-related record {record_name_id}"
     _fill_survey_related_record_form(authenticated_page, record_name)
 
     authenticated_page.get_by_role(
@@ -168,6 +169,17 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
     expect(authenticated_page).to_have_url(
         re.compile(r"/survey-related-records/[0-9a-f-]{36}$"), timeout=10_000
     )
+
+    # now try to modify the record but cancel
+    authenticated_page.get_by_role("link", name="update-item").click()
+    authenticated_page.get_by_role("link", name="cancel-update").click()
+
+    # and now actually modify it
+    authenticated_page.get_by_role("link", name="update-item").click()
+    authenticated_page.get_by_role("textbox", name="field-name-en").fill(
+        f"The modified name {record_name_id}"
+    )
+    authenticated_page.get_by_role("button", name="submit-update-form").click()
 
     # clean up: delete record → mission → project
     authenticated_page.get_by_role(

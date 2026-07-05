@@ -17,12 +17,15 @@ Users with create permission are linked to /projects/new, which is a separate st
     <script type="module" src="{{ url_for('static', path='/js/basemap.js') }}"></script>
 {% endblock head %}
 
-{% block page_title %}
-    <span class="icon-stack" aria-hidden="true">
+{% block header %}
+    <h1 class="display-1 text-center" aria-label="title">
+        <span class="icon-stack" aria-hidden="true">
         <span class="material-icons-outlined">{{ icons.projects }}</span>
         <span class="material-icons-outlined icon-stack-badge">{{ icons.list }}</span>
     </span>{{ _("Projects") }}
-{% endblock page_title %}
+    </h1>
+{% endblock header %}
+
 
 {% block details %}
     <script>

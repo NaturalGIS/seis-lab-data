@@ -94,8 +94,11 @@ jobs:
       - name: "Stand up compose stack"
         run: |
           IMAGE_URL=${{ fromJSON(steps.docker_metadata.outputs.json).tags[0] }} \
-          docker compose --file docker/compose.ci.yaml up --wait --wait-timeout 120  || COMPOSE_EXIT=$?
-          docker inspect --format='{{json .State.Health}}' seis-lab-data-webapp-1
+          docker compose --file docker/compose.ci.yaml up --wait --wait-timeout 300  || COMPOSE_EXIT=$?
+          if [ -n "$COMPOSE_EXIT" ]; then
+            docker compose --file docker/compose.ci.yaml ps
+            docker compose --file docker/compose.ci.yaml logs
+          fi
           exit ${COMPOSE_EXIT:-0}
 
 

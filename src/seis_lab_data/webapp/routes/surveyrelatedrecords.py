@@ -490,7 +490,6 @@ async def get_update_form(request: Request):
             },
             "dataset_category_id": details.item.dataset_category.id,
             "workflow_stage_id": details.item.workflow_stage.id,
-            "relative_path": details.item.relative_path,
             "bounding_box": {
                 "min_lon": bbox.bounds[0],
                 "min_lat": bbox.bounds[1],
@@ -552,12 +551,13 @@ async def get_update_form(request: Request):
             ],
         },
     )
+    form_instance.request_id.data = uuid.uuid4()
     template_processor: Jinja2Templates = request.state.templates
     user = request.user if request.user.is_authenticated else None
     async with request.state.settings.get_db_session_maker()() as session:
         (
             initial_related_records_list,
-            _,
+            __,
         ) = await survey_related_record_ops.list_survey_related_records(
             session,
             initiator=user,
@@ -1171,7 +1171,6 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
             # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
             return DatastarResponse(stream_validation_failed_events(), status_code=200)
 
-        request_id = identifiers.RequestId(uuid.uuid4())
         related_records = []
         for related_ in form_instance.related_records.entries:
             related_records.append(
@@ -1202,7 +1201,6 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
             ),
             dataset_category_id=form_instance.dataset_category_id.data,
             workflow_stage_id=form_instance.workflow_stage_id.data,
-            relative_path=form_instance.relative_path.data,
             bbox_4326=(
                 f"POLYGON(("
                 f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}, "
@@ -1257,7 +1255,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         )
 
         record_tasks.update_survey_related_record.send(
-            raw_request_id=str(request_id),
+            raw_request_id=str(form_instance.request_id.data),
             raw_survey_related_record_id=str(survey_related_record_id),
             raw_to_update=to_update.model_dump_json(exclude_unset=True),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
@@ -1361,6 +1359,7 @@ async def stream_to_update_page(request: Request):
             url_resolver=request.url_for,
             db_session_factory=session_maker,
             request_id=request_id,
+            target_page=constants.PageType.RESOURCE_UPDATE,
         ),
         message_handlers={
             "resource_modified": common_handlers.handle_resource_modification_edit_page,

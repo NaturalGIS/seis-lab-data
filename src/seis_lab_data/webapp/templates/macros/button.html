@@ -1,0 +1,19 @@
+{% macro render_button(url, text, aria_label, icon, classes="btn-primary") %}
+    <button
+            class="btn {{ classes }}"
+            data-on:click="@get('{{ url }}')"
+            aria-label="{{ aria_label }}"
+    >
+        <span class="material-icons-outlined me-1">{{ icon }}</span>{{ text | capitalize }}
+    </button>
+{% endmacro %}
+
+{% macro render_link(url, text, aria_label, icon, classes="btn-primary") %}
+    <a
+            class="btn {{ classes }}"
+            href="{{ url }}"
+            aria-label="{{ aria_label }}"
+    >
+        <span class="material-icons-outlined me-1">{{ icon }}</span>{{ text | capitalize }}
+    </a>
+{% endmacro %}
