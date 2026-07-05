@@ -37,7 +37,7 @@ async def flash_ui_message_after_redirect(
     payload = {
         "message": notification.message,
         "category": {
-            "success": "primary",
+            "success": "info",
             "error": "danger",
         }.get(notification.category, "info"),
     }
@@ -53,7 +53,7 @@ async def flash_ui_message_same_page(
     payload = {
         "message": notification.message,
         "category": {
-            "success": "primary",
+            "success": "info",
             "error": "danger",
         }.get(notification.category, "info"),
     }

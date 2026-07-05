@@ -1,6 +1,7 @@
 {% import "macros.html" as macros %}
 {% import "macros-maps.html" as macros_maps %}
 <form>
+    {{ form.request_id }}
     {{ macros.render_localizable_field(form.name) }}
     {{ macros.render_localizable_field(form.description) }}
     {{ macros.render_form_field(form.dataset_category_id) }}

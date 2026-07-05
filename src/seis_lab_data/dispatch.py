@@ -24,6 +24,7 @@ class RedisEventDispatcher:
         self._redis = redis_client
 
     async def __call__(self, event: events.SeisLabDataEvent) -> None:
+        logger.debug(f"received event {event=}")
         match event:
             case events.ResourceModificationEvent():
                 await self._redis.publish(
