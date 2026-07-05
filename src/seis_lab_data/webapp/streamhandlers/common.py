@@ -43,7 +43,7 @@ async def flash_ui_message_after_redirect(
     }
     logger.debug(f"{payload=}")
     yield ServerSentEventGenerator.execute_script(
-        f"localStorage.setItem('sld:flash', '{json.dumps(payload)}');"
+        f"localStorage.setItem('sld:flash', {json.dumps(json.dumps(payload))});"
     )
 
 
