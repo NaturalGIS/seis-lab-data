@@ -136,8 +136,8 @@ class _StringFilter(SimpleListFilter):
 
 @dataclasses.dataclass
 class NameFilter(_StringFilter):
-    internal_name = "name_filter"
-    public_name = "name"
+    internal_name: str = "name_filter"
+    public_name: str = "name"
 
 
 @dataclasses.dataclass
