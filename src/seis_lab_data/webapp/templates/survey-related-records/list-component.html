@@ -8,6 +8,47 @@
     >
         <div class="col">
             {% if items | length > 0 %}
+                <div
+                        class="row align-items-center mb-3"
+                        aria-label="selection-toolbar"
+                        data-signals:page-item-ids="[{% for item in items %}'{{ item.id }}'{% if not loop.last %},{% endif %}{% endfor %}]"
+                        data-computed:all-page-items-selected="$pageItemIds.length > 0 && $pageItemIds.every(id => $selectAllMatching ? !$excludedIds[id] : !!$selectedIds[id])"
+                        data-computed:selected-count="$selectAllMatching ? ({{ pagination.total_filtered_items }} - Object.values($excludedIds).filter(Boolean).length) : Object.values($selectedIds).filter(Boolean).length"
+                >
+                    <div class="col-auto form-check">
+                        <input
+                                type="checkbox"
+                                class="form-check-input"
+                                id="select-all-on-page"
+                                aria-label="select-all-on-page"
+                                data-effect="el.checked = $allPageItemsSelected"
+                                data-on:change="evt.target.checked ? ($selectAllMatching ? $pageItemIds.forEach(id => $excludedIds[id] = false) : $pageItemIds.forEach(id => $selectedIds[id] = true)) : ($selectAllMatching ? $pageItemIds.forEach(id => $excludedIds[id] = true) : $pageItemIds.forEach(id => $selectedIds[id] = false))"
+                        >
+                        <label class="form-check-label" for="select-all-on-page">{{ _("select all on this page") | capitalize }}</label>
+                    </div>
+                    <div class="col-auto" aria-label="selected-count" data-attr:hidden="$selectedCount === 0">
+                        <small class="text-body-secondary"><span data-text="$selectedCount"></span> {{ _("selected") }}</small>
+                    </div>
+                    <div
+                            class="col-auto"
+                            data-attr:hidden="!($allPageItemsSelected && !$selectAllMatching && {{ pagination.total_filtered_items }} > $pageItemIds.length)"
+                    >
+                        <button
+                                type="button"
+                                class="btn btn-link btn-sm p-0"
+                                aria-label="select-all-matching"
+                                data-on:click="$selectAllMatching=true; {{ macros.reset_excluded_ids_js() }}"
+                        >{{ _("Select all %(total)d records that match your search") | format(total=pagination.total_filtered_items) }}</button>
+                    </div>
+                    <div class="col-auto" data-attr:hidden="$selectedCount === 0">
+                        <button
+                                type="button"
+                                class="btn btn-link btn-sm p-0"
+                                aria-label="clear-selection"
+                                data-on:click="{{ macros.reset_selection_js() }}"
+                        >{{ _("clear selection") | capitalize }}</button>
+                    </div>
+                </div>
                 <ul class="list-inline text-center">
                     <li class="list-inline-item">
                         <small>{{ _("Total pages: %(total_pages)d") | format(total_pages=pagination.total_filtered_pages) }}</small>

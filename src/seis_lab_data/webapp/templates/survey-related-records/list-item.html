@@ -4,7 +4,16 @@
         class="col"
         data-signals:is-valid-id{{ id_ }}="{{ 'true' if item.validation_result.is_valid else 'false' }}"
 >
-    <div class="card mb-3">
+    <div class="card mb-3 position-relative">
+        <div class="form-check position-absolute top-0 start-0 m-2">
+            <input
+                    type="checkbox"
+                    class="form-check-input"
+                    aria-label="select-item"
+                    data-effect="el.checked = ($selectAllMatching ? !$excludedIds['{{ item.id }}'] : !!$selectedIds['{{ item.id }}'])"
+                    data-on:change="$selectAllMatching ? ($excludedIds['{{ item.id }}'] = !evt.target.checked) : ($selectedIds['{{ item.id }}'] = evt.target.checked)"
+            >
+        </div>
         <div class="row g-0">
             <div class="col-md-4">
                 <div class="placeholder-rectangle bg-secondary"></div>

@@ -204,6 +204,100 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
 
 
 @pytest.mark.e2e
+def test_survey_related_record_bulk_selection(authenticated_page: Page):
+    # NOTE: this only exercises the selection primitives (checkboxes, count,
+    # clear, auto-clear-on-filter-change) on the mission-scoped listing, where
+    # the record count is fully controlled by the test. The top-level listing
+    # pools records system-wide, so a deterministic "select all N matching"
+    # assertion there would depend on how much other data exists in the DB.
+
+    authenticated_page.goto("/")
+    authenticated_page.get_by_role("link", name="list-projects").click()
+    authenticated_page.get_by_role("link", name="new-project").click()
+
+    project_name = f"e2e test project {uuid.uuid4().hex[:8]}"
+    _fill_project_form_minimal(authenticated_page, project_name)
+    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=10_000
+    )
+
+    authenticated_page.get_by_role("link", name="new-item").click()
+    mission_name = f"e2e test survey mission {uuid.uuid4().hex[:8]}"
+    _fill_survey_mission_form_minimal(authenticated_page, mission_name)
+    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/survey-missions/[0-9a-f-]{36}$"), timeout=10_000
+    )
+    mission_detail_url = authenticated_page.url
+
+    record_urls = []
+    for i in range(2):
+        authenticated_page.get_by_role("link", name="new-item").click()
+        record_name = f"e2e bulk selection record {i} {uuid.uuid4().hex[:8]}"
+        _fill_survey_related_record_form(authenticated_page, record_name)
+        authenticated_page.get_by_role("button", name="submit-create-form").click()
+        expect(authenticated_page).to_have_url(
+            re.compile(r"/survey-related-records/[0-9a-f-]{36}$"), timeout=10_000
+        )
+        record_urls.append(authenticated_page.url)
+        authenticated_page.goto(mission_detail_url)
+
+    checkboxes = authenticated_page.get_by_role("checkbox", name="select-item")
+    expect(checkboxes).to_have_count(2)
+    selected_count = authenticated_page.locator("[aria-label='selected-count']")
+    clear_selection_button = authenticated_page.get_by_role(
+        "button", name="clear-selection"
+    )
+
+    checkboxes.nth(0).check()
+    expect(selected_count).to_contain_text("1 selected")
+    expect(clear_selection_button).to_be_visible()
+
+    checkboxes.nth(1).check()
+    expect(selected_count).to_contain_text("2 selected")
+
+    clear_selection_button.click()
+    expect(selected_count).to_be_hidden()
+    expect(clear_selection_button).to_be_hidden()
+
+    # selecting again, then changing the search filter should clear it back out. NOTE:
+    # we assert on the checkboxes disappearing rather than on the translated
+    # "no records found" message, since the e2e suite runs against whatever the
+    # default locale is (currently portuguese) and that message text is not stable
+    # across locales.
+    checkboxes.nth(0).check()
+    expect(selected_count).to_contain_text("1 selected")
+    authenticated_page.get_by_placeholder("search").fill("something not matching")
+    expect(checkboxes).to_have_count(0)
+    authenticated_page.get_by_placeholder("search").fill("")
+    expect(selected_count).to_be_hidden()
+
+    # clean up: delete both records, then mission, then project
+    for record_url in record_urls:
+        authenticated_page.goto(record_url)
+        authenticated_page.get_by_role(
+            "button", name="show-delete-confirmation-modal"
+        ).click()
+        authenticated_page.get_by_role("button", name="delete-item").click()
+        expect(authenticated_page.get_by_role("link", name="new-item")).to_be_visible()
+
+    authenticated_page.get_by_role(
+        "button", name="show-delete-confirmation-modal"
+    ).click()
+    authenticated_page.get_by_role("button", name="delete-item").click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=15_000
+    )
+
+    authenticated_page.get_by_role(
+        "button", name="show-delete-confirmation-modal"
+    ).click()
+    authenticated_page.get_by_role("button", name="delete-item").click()
+    expect(authenticated_page).to_have_url(re.compile(r"/projects/?$"))
+
+
+@pytest.mark.e2e
 def test_survey_related_record_creation_rejects_duplicate_english_name(
     authenticated_page: Page,
 ):
