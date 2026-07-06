@@ -109,6 +109,16 @@
 {% endmacro %}
 
 
+{% macro reset_selection_js() -%}
+Object.keys($selectedIds).forEach((k) => { $selectedIds[k] = false }); Object.keys($excludedIds).forEach((k) => { $excludedIds[k] = false }); $selectAllMatching = false;
+{%- endmacro %}
+
+
+{% macro reset_excluded_ids_js() -%}
+Object.keys($excludedIds).forEach((k) => { $excludedIds[k] = false });
+{%- endmacro %}
+
+
 {% macro render_pagination(pagination) %}
     {% if pagination.total_filtered_pages > 1 %}
         <nav aria-label="project-pagination">
@@ -161,7 +171,8 @@
     begin_label_text,
     end_label_text,
     begin_initial_value="",
-    end_initial_value=""
+    end_initial_value="",
+    extra_on_input_js=""
 ) %}
     <div class="mb-3">
         <label for="search-temporal-extent-begin">{{ begin_label_text }}</label>
@@ -169,7 +180,7 @@
                 id="search-temporal-extent-begin"
                 class="form-control" type="date"
                 data-bind="temporalExtentBegin"
-                data-on:input__debounce.200ms="@get('{{ search_url }}')"
+                data-on:input__debounce.200ms="{{ extra_on_input_js }}@get('{{ search_url }}')"
                 value="{{ begin_initial_value }}"
         >
     </div>
@@ -180,13 +191,13 @@
                 class="form-control"
                 type="date"
                 data-bind="temporalExtentEnd"
-                data-on:input__debounce.200ms="@get('{{ search_url }}')"
+                data-on:input__debounce.200ms="{{ extra_on_input_js }}@get('{{ search_url }}')"
                 value="{{ end_initial_value }}"
         >
     </div>
 {% endmacro %}
 
-{% macro render_search_component(search_url, label_text, initial_value="", set_autofocus=False) %}
+{% macro render_search_component(search_url, label_text, initial_value="", set_autofocus=False, extra_on_input_js="") %}
     <div class="row m-lg-5 justify-content-center" data-signals:search="'{{ initial_value }}'">
         <div class="col-6">
             <search
@@ -199,7 +210,7 @@
                         id="search"
                         placeholder="search"
                         data-bind:search
-                        data-on:input__debounce.200ms="@get('{{ search_url }}')"
+                        data-on:input__debounce.200ms="{{ extra_on_input_js }}@get('{{ search_url }}')"
                         data-indicator:searching
                         {% if set_autofocus %}autofocus{% endif %}
                 />

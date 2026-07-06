@@ -32,6 +32,9 @@
                 data-signals:advanced-search-panel-open="false"
                 data-signals:searching="false"
                 data-signals:listing-version="0"
+                data-signals:selected-ids="{}"
+                data-signals:excluded-ids="{}"
+                data-signals:select-all-matching="false"
                 data-effect="$listingVersion > 0 && @get('{{ url_for('survey_related_records:get_list_component') }}')"
         >
             <div class="col-8">
@@ -42,7 +45,7 @@
                             id="search"
                             placeholder="Search"
                             data-bind:search
-                            data-on:input__debounce.200ms="@get('{{ url_for("survey_related_records:get_list_component") }}')"
+                            data-on:input__debounce.200ms="{{ macros.reset_selection_js() }}@get('{{ url_for("survey_related_records:get_list_component") }}')"
                             data-indicator:searching
                     />
                     <label class="form-label" for="search">
@@ -86,7 +89,8 @@
                                         _("Temporal extent begin"),
                                         _("Temporal extent end"),
                                         "{{ current_temporal_extent.begin }}",
-                                        "{{ current_temporal_extent.end }}"
+                                        "{{ current_temporal_extent.end }}",
+                                        extra_on_input_js=macros.reset_selection_js()
                                     ) }}
                         <div class="mb-3">
                             <label for="path-fragment">{{ _("Path") }}</label>
@@ -94,7 +98,7 @@
                                     id="path-fragment"
                                     class="form-control"
                                     data-bind="assetPathFragment"
-                                    data-on:input__debounce.200ms="@get('{{ url_for("survey_related_records:get_list_component") }}')"
+                                    data-on:input__debounce.200ms="{{ macros.reset_selection_js() }}@get('{{ url_for("survey_related_records:get_list_component") }}')"
                                     value=""
                             >
                         </div>
@@ -121,7 +125,7 @@
                                 data-initial-max-lon="{{ map_bounds.max_lon }}"
                                 data-initial-max-lat="{{ map_bounds.max_lat }}"
                                 style="display: block; width: 100%; height: 30vh"
-                                data-on:map-moveend="document.querySelector('base-map').checkVisibility() ? $currentBbox=evt.detail.map.getBounds().toArray() : $currentBbox=[[-180, -90],[180, 90]]; @get('{{ url_for('survey_related_records:get_list_component') }}')"
+                                data-on:map-moveend="document.querySelector('base-map').checkVisibility() ? $currentBbox=evt.detail.map.getBounds().toArray() : $currentBbox=[[-180, -90],[180, 90]]; {{ macros.reset_selection_js() }}@get('{{ url_for('survey_related_records:get_list_component') }}')"
                         ></base-map>
                     </div>
                 </div>
