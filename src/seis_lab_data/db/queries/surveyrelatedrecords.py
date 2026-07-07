@@ -28,6 +28,7 @@ def _build_survey_related_record_statement(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
 ):
     statement = (
         select(models.SurveyRelatedRecord)
@@ -39,6 +40,8 @@ def _build_survey_related_record_statement(
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
     )
+    if record_ids:
+        statement = statement.where(models.SurveyRelatedRecord.id.in_(record_ids))
     if en_name_filter:
         statement = statement.where(
             models.SurveyRelatedRecord.name["en"].astext.ilike(f"%{en_name_filter}%")
@@ -116,6 +119,7 @@ async def list_published_survey_related_records(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     statement = _build_survey_related_record_statement(
         survey_mission_id,
@@ -124,6 +128,7 @@ async def list_published_survey_related_records(
         spatial_intersect,
         temporal_extent,
         asset_path_fragment_filter,
+        record_ids,
     ).where(models.SurveyRelatedRecord.status == SurveyRelatedRecordStatus.PUBLISHED)
     limit = page_size
     offset = page_size * (page - 1)
@@ -144,6 +149,7 @@ async def list_accessible_survey_related_records(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     statement = (
         _build_survey_related_record_statement(
@@ -153,6 +159,7 @@ async def list_accessible_survey_related_records(
             spatial_intersect,
             temporal_extent,
             asset_path_fragment_filter,
+            record_ids,
         )
         .join(
             models.SurveyMission,
@@ -187,6 +194,7 @@ async def list_survey_related_records(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     """Return all records regardless of status. Intended for admin use."""
     statement = _build_survey_related_record_statement(
@@ -196,6 +204,7 @@ async def list_survey_related_records(
         spatial_intersect,
         temporal_extent,
         asset_path_fragment_filter,
+        record_ids,
     )
     limit = page_size
     offset = page_size * (page - 1)

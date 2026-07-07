@@ -14,7 +14,8 @@ from ..db import models
 from . import (
     common,
     identifiers,
-    surveyrelatedrecords as record_schemas,
+    datasetcategories as category_schemas,
+    workflowstages as stage_schemas,
 )
 
 
@@ -294,8 +295,8 @@ class AssetDiscoveryConfigurationReadListItem(pydantic.BaseModel):
     ]
     name: str
     relative_path_regexp: str
-    workflow_stage: record_schemas.WorkflowStageRead
-    dataset_category: record_schemas.DatasetCategoryRead
+    workflow_stage: stage_schemas.WorkflowStageReadListItem
+    dataset_category: category_schemas.DatasetCategoryReadListItem
 
     @classmethod
     def from_db_instance(

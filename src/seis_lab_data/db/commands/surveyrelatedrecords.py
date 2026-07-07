@@ -1,3 +1,4 @@
+import itertools
 import logging
 
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -71,6 +72,69 @@ async def delete_survey_related_record(
         raise errors.SeisLabDataError(
             f"Survey-related record with id {survey_related_record_id!r} does not exist."
         )
+
+
+async def bulk_update_manually_selected_records(
+    session: AsyncSession,
+    to_update: record_schemas.SurveyRelatedRecordBulkUpdate,
+    selected: list[identifiers.SurveyRelatedRecordId],
+    user_id: identifiers.UserId,
+):
+    raise NotImplementedError
+
+
+async def bulk_update_filtered_records(
+    session: AsyncSession,
+    to_update: record_schemas.SurveyRelatedRecordBulkUpdate,
+    user_id: identifiers.UserId,
+    excluded_record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    selection_query_filters: dict[str, str] | None = None,
+) -> int:
+    page_size = 1_000
+    updated_count = 0
+    for current_page in itertools.count(start=1):
+        (
+            paginated_records,
+            total,
+        ) = await record_queries.list_accessible_survey_related_records(
+            session,
+            user_id,
+            page=current_page,
+            page_size=page_size,
+            include_total=True,
+            en_name_filter=selection_query_filters.get("en_name_filter"),
+            pt_name_filter=selection_query_filters.get("pt_name_filter"),
+            spatial_intersect=selection_query_filters.get("spatial_intersect"),
+            temporal_extent=selection_query_filters.get("temporal_extent"),
+            asset_path_fragment_filter=selection_query_filters.get(
+                "asset_path_fragment_filter"
+            ),
+        )
+        for rec in paginated_records:
+            if identifiers.SurveyRelatedRecordId(rec.id) in (excluded_record_ids or []):
+                logger.debug(f"ignoring record {rec.id!r}...")
+                continue
+            for key, value in to_update.model_dump(
+                exclude={"bbox_4326", "related_records"},
+                exclude_unset=True,
+            ):
+                setattr(rec, key, value)
+            updated_bbox_4326 = (
+                get_bbox_4326_for_db(bbox)
+                if (bbox := to_update.bbox_4326) is not None
+                else None
+            )
+            rec.bbox_4326 = updated_bbox_4326
+            session.add(rec)
+            updated_count += 1
+        if current_page * page_size >= total:
+            break
+    try:
+        await session.commit()
+    except Exception as err:
+        await session.rollback()
+        raise err
+    return updated_count
 
 
 async def update_survey_related_record(

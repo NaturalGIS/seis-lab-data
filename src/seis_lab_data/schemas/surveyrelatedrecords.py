@@ -25,28 +25,10 @@ from .identifiers import (
     WorkflowStageId,
 )
 from .surveymissions import SurveyMissionReadEmbedded
+from .datasetcategories import DatasetCategoryReadListItem
+from .workflowstages import WorkflowStageReadListItem
 
 logger = logging.getLogger(__name__)
-
-
-class DatasetCategoryCreate(pydantic.BaseModel):
-    id: DatasetCategoryId
-    name: LocalizableDraftName
-
-
-class DatasetCategoryRead(pydantic.BaseModel):
-    id: DatasetCategoryId
-    name: LocalizableDraftName
-
-
-class WorkflowStageCreate(pydantic.BaseModel):
-    id: WorkflowStageId
-    name: LocalizableDraftName
-
-
-class WorkflowStageRead(pydantic.BaseModel):
-    id: WorkflowStageId
-    name: LocalizableDraftName
 
 
 class RecordAssetCreate(pydantic.BaseModel):
@@ -140,6 +122,18 @@ class SurveyRelatedRecordCreate(pydantic.BaseModel):
     extra_properties: dict[str, str] | None = None
 
 
+class SurveyRelatedRecordBulkUpdate(pydantic.BaseModel):
+    name: LocalizableDraftName | None = None
+    description: LocalizableDraftDescription | None = None
+    dataset_category_id: DatasetCategoryId | None = None
+    workflow_stage_id: WorkflowStageId | None = None
+    bbox_4326: PossiblyInvalidPolygon | None = None
+    temporal_extent_begin: dt.date | None = None
+    temporal_extent_end: dt.date | None = None
+    links: list[LinkSchema] | None = None
+    related_records: list[RelatedRecordCreate] = []
+
+
 class SurveyRelatedRecordUpdate(pydantic.BaseModel):
     owner_id: UserId | None = None
     survey_mission_id: SurveyMissionId | None = None
@@ -190,8 +184,8 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
     owner_id: UserId
     links: list[LinkSchema] = []
     survey_mission: SurveyMissionReadEmbedded
-    dataset_category: DatasetCategoryRead
-    workflow_stage: WorkflowStageRead
+    dataset_category: DatasetCategoryReadListItem
+    workflow_stage: WorkflowStageReadListItem
     record_assets: list[RecordAssetReadDetailEmbedded]
     related_to_records: list[
         tuple[LocalizableDraftDescription, SurveyRelatedRecordReadEmbedded]
@@ -212,10 +206,10 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
             survey_mission=SurveyMissionReadEmbedded.from_db_instance(
                 instance.survey_mission
             ),
-            dataset_category=DatasetCategoryRead.model_validate(
+            dataset_category=DatasetCategoryReadListItem.model_validate(
                 instance.dataset_category, from_attributes=True
             ),
-            workflow_stage=WorkflowStageRead.model_validate(
+            workflow_stage=WorkflowStageReadListItem.model_validate(
                 instance.workflow_stage, from_attributes=True
             ),
             record_assets=[
