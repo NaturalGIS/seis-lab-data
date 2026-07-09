@@ -1,10 +1,29 @@
 import logging
+import uuid
 
+import shapely
+from sqlalchemy import (
+    bindparam,
+    column,
+    delete,
+    func,
+    select,
+    true,
+    update,
+    values,
+)
+from sqlalchemy.dialects.postgresql import (
+    ARRAY,
+    JSONB,
+    UUID as PG_UUID,
+    insert as pg_insert,
+)
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import errors
 from ...constants import SurveyRelatedRecordStatus
 from ...schemas import (
+    filters as filter_schemas,
     identifiers,
     surveyrelatedrecords as record_schemas,
 )
@@ -71,6 +90,167 @@ async def delete_survey_related_record(
         raise errors.SeisLabDataError(
             f"Survey-related record with id {survey_related_record_id!r} does not exist."
         )
+
+
+async def _replace_related_records_for_subjects(
+    session: AsyncSession,
+    subject_ids: list[uuid.UUID],
+    related_records: list[record_schemas.RelatedRecordCreate],
+) -> None:
+    """Make every given subject record's outgoing relations match `related_records`.
+
+    Implemented as a bulk delete of stale links followed by a bulk upsert,
+    rather than per-record diffing, so it scales to large subject sets.
+    """
+    proposed_related_ids = [r.related_record_id for r in related_records]
+    delete_stmt = delete(models.SurveyRelatedRecordSelfLink).where(
+        models.SurveyRelatedRecordSelfLink.subject_id.in_(subject_ids)
+    )
+    if proposed_related_ids:
+        delete_stmt = delete_stmt.where(
+            models.SurveyRelatedRecordSelfLink.related_to_id.notin_(
+                proposed_related_ids
+            )
+        )
+    await session.execute(delete_stmt)
+
+    if not related_records:
+        return
+
+    proposed = values(
+        column("related_to_id", PG_UUID(as_uuid=True)),
+        column("relation", JSONB),
+        name="proposed_related_record",
+    ).data(
+        [(r.related_record_id, r.relationship.model_dump()) for r in related_records]
+    )
+    subject_ids_table = (
+        func.unnest(
+            bindparam(
+                "subject_ids", value=subject_ids, type_=ARRAY(PG_UUID(as_uuid=True))
+            )
+        )
+        .table_valued("subject_id")
+        .render_derived()
+    )
+    select_pairs = select(
+        subject_ids_table.c.subject_id,
+        proposed.c.related_to_id,
+        proposed.c.relation,
+    ).select_from(subject_ids_table.join(proposed, true()))
+    upsert_stmt = pg_insert(models.SurveyRelatedRecordSelfLink).from_select(
+        ["subject_id", "related_to_id", "relation"], select_pairs
+    )
+    upsert_stmt = upsert_stmt.on_conflict_do_update(
+        index_elements=["subject_id", "related_to_id"],
+        set_={"relation": upsert_stmt.excluded.relation},
+    )
+    await session.execute(upsert_stmt)
+
+
+async def _apply_bulk_update_to_matched_records(
+    session: AsyncSession,
+    to_update: record_schemas.SurveyRelatedRecordBulkUpdate,
+    matched_ids: list[uuid.UUID],
+) -> int:
+    if not matched_ids:
+        return 0
+
+    values_to_set = to_update.model_dump(
+        exclude={"bbox_4326", "related_records"}, exclude_unset=True
+    )
+    # bbox_4326 is handled separately (like elsewhere in this module) because
+    # invalid geometries are silently dropped rather than stored as-is.
+    if "bbox_4326" in to_update.model_fields_set:
+        values_to_set["bbox_4326"] = (
+            get_bbox_4326_for_db(bbox)
+            if (bbox := to_update.bbox_4326) is not None
+            else None
+        )
+
+    if values_to_set:
+        result = await session.execute(
+            update(models.SurveyRelatedRecord)
+            .where(models.SurveyRelatedRecord.id.in_(matched_ids))
+            .values(**values_to_set)
+        )
+        updated_count = result.rowcount
+    else:
+        updated_count = len(matched_ids)
+
+    if "related_records" in to_update.model_fields_set:
+        await _replace_related_records_for_subjects(
+            session, matched_ids, to_update.related_records
+        )
+
+    return updated_count
+
+
+async def bulk_update_manually_selected_records(
+    session: AsyncSession,
+    to_update: record_schemas.SurveyRelatedRecordBulkUpdate,
+    selected: list[identifiers.SurveyRelatedRecordId],
+    user_id: identifiers.UserId,
+    restrict_to_owned: bool = True,
+) -> int:
+    if restrict_to_owned:
+        ids_statement = record_queries.build_owned_survey_related_record_id_statement(
+            user_id, record_ids=selected
+        )
+    else:
+        ids_statement = record_queries.build_survey_related_record_id_statement(
+            record_ids=selected
+        )
+    matched_ids = (await session.exec(ids_statement)).all()
+    try:
+        updated_count = await _apply_bulk_update_to_matched_records(
+            session, to_update, matched_ids
+        )
+        await session.commit()
+    except Exception as err:
+        await session.rollback()
+        raise err
+    return updated_count
+
+
+async def bulk_update_filtered_records(
+    session: AsyncSession,
+    to_update: record_schemas.SurveyRelatedRecordBulkUpdate,
+    user_id: identifiers.UserId,
+    restrict_to_owned: bool = True,
+    excluded_record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    asset_path_fragment_filter: str | None = None,
+) -> int:
+    filter_kwargs = dict(
+        en_name_filter=en_name_filter,
+        pt_name_filter=pt_name_filter,
+        spatial_intersect=spatial_intersect,
+        temporal_extent=temporal_extent,
+        asset_path_fragment_filter=asset_path_fragment_filter,
+        excluded_record_ids=excluded_record_ids,
+    )
+    if restrict_to_owned:
+        ids_statement = record_queries.build_owned_survey_related_record_id_statement(
+            user_id, **filter_kwargs
+        )
+    else:
+        ids_statement = record_queries.build_survey_related_record_id_statement(
+            **filter_kwargs
+        )
+    matched_ids = (await session.exec(ids_statement)).all()
+    try:
+        updated_count = await _apply_bulk_update_to_matched_records(
+            session, to_update, matched_ids
+        )
+        await session.commit()
+    except Exception as err:
+        await session.rollback()
+        raise err
+    return updated_count
 
 
 async def update_survey_related_record(

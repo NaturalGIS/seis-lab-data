@@ -108,7 +108,7 @@ async def list_accessible_projects(
     ).where(
         or_(
             models.Project.status == ProjectStatus.PUBLISHED,
-            models.Project.owner == user_id,
+            models.Project.owner_id == user_id,
         )
     )
     limit = page_size

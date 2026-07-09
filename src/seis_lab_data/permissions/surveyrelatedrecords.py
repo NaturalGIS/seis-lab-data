@@ -80,3 +80,17 @@ def can_change_survey_related_record_status(
     record: models.SurveyRelatedRecord,
 ) -> bool:
     return can_update_survey_related_record(user, record)
+
+
+def can_bulk_update_survey_related_records(user: User) -> bool:
+    """Coarse-grained gate for attempting a bulk update.
+
+    Mirrors the role check in `can_update_survey_related_record`. Unlike
+    that function, this cannot also check per-record ownership, since bulk
+    updates are deliberately implemented without loading each record.
+    Ownership is instead enforced by scoping the underlying DB query to
+    owned records (or, for admins, leaving it unrestricted).
+    """
+    if not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles):
+        return True
+    return ROLE_EDITOR in user.roles

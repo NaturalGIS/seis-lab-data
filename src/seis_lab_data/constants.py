@@ -104,6 +104,11 @@ class ResourceModification(str, enum.Enum):
     UPDATED = "updated"
 
 
+class BulkResourceModification(str, enum.Enum):
+    UPDATED = "updated"
+    DELETED = "deleted"
+
+
 class DiscoveryStage(str, enum.Enum):
     STARTED = "started"
     ENDED = "ended"

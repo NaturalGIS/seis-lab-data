@@ -21,24 +21,23 @@ from .common import _get_total_num_records
 logger = logging.getLogger(__name__)
 
 
-def _build_survey_related_record_statement(
+def _apply_survey_related_record_filters(
+    statement,
     survey_mission_id: identifiers.SurveyMissionId | None = None,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
 ):
-    statement = (
-        select(models.SurveyRelatedRecord)
-        .options(
-            selectinload(models.SurveyRelatedRecord.survey_mission).selectinload(
-                models.SurveyMission.project
-            )
-        )
-        .options(selectinload(models.SurveyRelatedRecord.dataset_category))
-        .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
-    )
+    """Apply the common survey-related record search filters to a statement.
+
+    Shared by statement builders that select full records and by those
+    that only need matching ids (e.g. for bulk-update operations).
+    """
+    if record_ids:
+        statement = statement.where(models.SurveyRelatedRecord.id.in_(record_ids))
     if en_name_filter:
         statement = statement.where(
             models.SurveyRelatedRecord.name["en"].astext.ilike(f"%{en_name_filter}%")
@@ -86,9 +85,67 @@ def _build_survey_related_record_statement(
                 )
             )
         )
+    return statement
+
+
+def _build_survey_related_record_statement(
+    survey_mission_id: identifiers.SurveyMissionId | None = None,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    asset_path_fragment_filter: str | None = None,
+    record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+):
+    statement = (
+        select(models.SurveyRelatedRecord)
+        .options(
+            selectinload(models.SurveyRelatedRecord.survey_mission).selectinload(
+                models.SurveyMission.project
+            )
+        )
+        .options(selectinload(models.SurveyRelatedRecord.dataset_category))
+        .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
+    )
+    statement = _apply_survey_related_record_filters(
+        statement,
+        survey_mission_id,
+        en_name_filter,
+        pt_name_filter,
+        spatial_intersect,
+        temporal_extent,
+        asset_path_fragment_filter,
+        record_ids,
+    )
     return statement.order_by(
         models.SurveyRelatedRecord.temporal_extent_end.desc().nullslast()
     ).order_by(models.SurveyRelatedRecord.temporal_extent_begin.desc().nullslast())
+
+
+def _build_survey_related_record_id_statement(
+    survey_mission_id: identifiers.SurveyMissionId | None = None,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    asset_path_fragment_filter: str | None = None,
+    record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+):
+    """Build a statement selecting only the ids of matching records.
+
+    Intended for reuse as a subquery/executed-upfront id list (e.g. by
+    bulk-update commands), where loading full records would be wasteful.
+    """
+    return _apply_survey_related_record_filters(
+        select(models.SurveyRelatedRecord.id),
+        survey_mission_id,
+        en_name_filter,
+        pt_name_filter,
+        spatial_intersect,
+        temporal_extent,
+        asset_path_fragment_filter,
+        record_ids,
+    )
 
 
 async def _exec_survey_related_record_list(
@@ -116,6 +173,7 @@ async def list_published_survey_related_records(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     statement = _build_survey_related_record_statement(
         survey_mission_id,
@@ -124,11 +182,36 @@ async def list_published_survey_related_records(
         spatial_intersect,
         temporal_extent,
         asset_path_fragment_filter,
+        record_ids,
     ).where(models.SurveyRelatedRecord.status == SurveyRelatedRecordStatus.PUBLISHED)
     limit = page_size
     offset = page_size * (page - 1)
     return await _exec_survey_related_record_list(
         session, statement, limit, offset, include_total
+    )
+
+
+def _restrict_to_accessible(statement, user_id: str):
+    """Restrict a survey-related record statement to records a user may see.
+
+    A record is accessible if it is published, or if the user owns the
+    record itself, its survey mission, or its project.
+    """
+    return (
+        statement.join(
+            models.SurveyMission,
+            models.SurveyRelatedRecord.survey_mission_id == models.SurveyMission.id,
+        )
+        .join(models.Project, models.SurveyMission.project_id == models.Project.id)
+        .where(
+            or_(
+                models.SurveyRelatedRecord.status
+                == SurveyRelatedRecordStatus.PUBLISHED,
+                models.SurveyRelatedRecord.owner_id == user_id,
+                models.SurveyMission.owner_id == user_id,
+                models.Project.owner_id == user_id,
+            )
+        )
     )
 
 
@@ -144,8 +227,9 @@ async def list_accessible_survey_related_records(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
-    statement = (
+    statement = _restrict_to_accessible(
         _build_survey_related_record_statement(
             survey_mission_id,
             en_name_filter,
@@ -153,27 +237,104 @@ async def list_accessible_survey_related_records(
             spatial_intersect,
             temporal_extent,
             asset_path_fragment_filter,
-        )
-        .join(
-            models.SurveyMission,
-            models.SurveyRelatedRecord.survey_mission_id == models.SurveyMission.id,
-        )
-        .join(models.Project, models.SurveyMission.project_id == models.Project.id)
-        .where(
-            or_(
-                models.SurveyRelatedRecord.status
-                == SurveyRelatedRecordStatus.PUBLISHED,
-                models.SurveyRelatedRecord.owner == user_id,
-                models.SurveyMission.owner == user_id,
-                models.Project.owner == user_id,
-            )
-        )
+            record_ids,
+        ),
+        user_id,
     )
     limit = page_size
     offset = page_size * (page - 1)
     return await _exec_survey_related_record_list(
         session, statement, limit, offset, include_total
     )
+
+
+def _restrict_to_owned(statement, user_id: str):
+    """Restrict a survey-related record statement to records a user owns.
+
+    A record is owned if the user owns the record itself, its survey
+    mission, or its project. Unlike `_restrict_to_accessible`, published
+    status does not grant access here - this is for edit authorization
+    (mirroring `can_update_survey_related_record`), not read visibility.
+    """
+    return (
+        statement.join(
+            models.SurveyMission,
+            models.SurveyRelatedRecord.survey_mission_id == models.SurveyMission.id,
+        )
+        .join(models.Project, models.SurveyMission.project_id == models.Project.id)
+        .where(
+            or_(
+                models.SurveyRelatedRecord.owner_id == user_id,
+                models.SurveyMission.owner_id == user_id,
+                models.Project.owner_id == user_id,
+            )
+        )
+    )
+
+
+def build_survey_related_record_id_statement(
+    survey_mission_id: identifiers.SurveyMissionId | None = None,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    asset_path_fragment_filter: str | None = None,
+    record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    excluded_record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+):
+    """Build a statement selecting the ids of matching records, unrestricted.
+
+    Intended for admins, who may bulk-update any matching record.
+    """
+    statement = _build_survey_related_record_id_statement(
+        survey_mission_id,
+        en_name_filter,
+        pt_name_filter,
+        spatial_intersect,
+        temporal_extent,
+        asset_path_fragment_filter,
+        record_ids,
+    )
+    if excluded_record_ids:
+        statement = statement.where(
+            models.SurveyRelatedRecord.id.notin_(excluded_record_ids)
+        )
+    return statement
+
+
+def build_owned_survey_related_record_id_statement(
+    user_id: str,
+    survey_mission_id: identifiers.SurveyMissionId | None = None,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    asset_path_fragment_filter: str | None = None,
+    record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    excluded_record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+):
+    """Build a statement selecting the ids of matching records a user owns.
+
+    Intended for non-admin editors, who may only bulk-update records they
+    own, or whose survey mission or project they own.
+    """
+    statement = _restrict_to_owned(
+        _build_survey_related_record_id_statement(
+            survey_mission_id,
+            en_name_filter,
+            pt_name_filter,
+            spatial_intersect,
+            temporal_extent,
+            asset_path_fragment_filter,
+            record_ids,
+        ),
+        user_id,
+    )
+    if excluded_record_ids:
+        statement = statement.where(
+            models.SurveyRelatedRecord.id.notin_(excluded_record_ids)
+        )
+    return statement
 
 
 async def list_survey_related_records(
@@ -187,6 +348,7 @@ async def list_survey_related_records(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     """Return all records regardless of status. Intended for admin use."""
     statement = _build_survey_related_record_statement(
@@ -196,6 +358,7 @@ async def list_survey_related_records(
         spatial_intersect,
         temporal_extent,
         asset_path_fragment_filter,
+        record_ids,
     )
     limit = page_size
     offset = page_size * (page - 1)

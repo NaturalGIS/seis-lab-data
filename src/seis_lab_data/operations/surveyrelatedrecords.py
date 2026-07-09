@@ -448,3 +448,81 @@ async def update_survey_related_record(
         )
     )
     return updated_survey_related_record
+
+
+async def bulk_update_survey_related_records(
+    *,
+    request_id: identifiers.RequestId,
+    to_update: record_schemas.SurveyRelatedRecordBulkUpdate,
+    initiator: user_schemas.User,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+    selected: list[identifiers.SurveyRelatedRecordId] | None = None,
+    excluded_record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    en_name_filter: str | None = None,
+    pt_name_filter: str | None = None,
+    spatial_intersect: shapely.Polygon | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    asset_path_fragment_filter: str | None = None,
+) -> int | None:
+    """Bulk-update either a manually-selected set of records or all matching a filter.
+
+    `selected` and the filter/`excluded_record_ids` arguments are mutually
+    exclusive ways of specifying which records to update, mirroring the two
+    selection modes offered by the UI: an explicit set of chosen records, or
+    "everything matching the current search, except what was excluded".
+    """
+    is_admin = not {constants.ROLE_ADMIN, constants.ROLE_SYSTEM_ADMIN}.isdisjoint(
+        initiator.roles
+    )
+    try:
+        if not record_permissions.can_bulk_update_survey_related_records(initiator):
+            raise errors.SeisLabDataError(
+                "User is not allowed to bulk-update survey-related records."
+            )
+        if selected is not None:
+            updated_count = await record_commands.bulk_update_manually_selected_records(
+                session,
+                to_update,
+                selected,
+                identifiers.UserId(initiator.id),
+                restrict_to_owned=not is_admin,
+            )
+        else:
+            updated_count = await record_commands.bulk_update_filtered_records(
+                session,
+                to_update,
+                identifiers.UserId(initiator.id),
+                restrict_to_owned=not is_admin,
+                excluded_record_ids=excluded_record_ids,
+                en_name_filter=en_name_filter,
+                pt_name_filter=pt_name_filter,
+                spatial_intersect=spatial_intersect,
+                temporal_extent=temporal_extent,
+                asset_path_fragment_filter=asset_path_fragment_filter,
+            )
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.BulkResourceModificationEvent(
+                initiator=initiator.id,
+                request_id=request_id,
+                resource_type=constants.ResourceType.RECORD,
+                modification=constants.BulkResourceModification.UPDATED,
+                succeeded=False,
+                affected_count=0,
+                details=str(err),
+            )
+        )
+        return None
+
+    await event_dispatcher(
+        event_schemas.BulkResourceModificationEvent(
+            initiator=initiator.id,
+            request_id=request_id,
+            resource_type=constants.ResourceType.RECORD,
+            modification=constants.BulkResourceModification.UPDATED,
+            succeeded=True,
+            affected_count=updated_count,
+        )
+    )
+    return updated_count
