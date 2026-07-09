@@ -89,6 +89,40 @@ async def update_survey_related_record(
 
 @dramatiq.actor
 @decorators.sld_settings
+async def bulk_update_survey_related_records(
+    raw_request_id: str,
+    raw_to_update: str,
+    raw_selection: str,
+    raw_initiator: str,
+    *,
+    settings: config.SeisLabDataSettings,
+):
+    selection = (
+        record_schemas.SurveyRelatedRecordBulkUpdateSelection.model_validate_json(
+            raw_selection
+        )
+    )
+    async with settings.get_db_session_maker()() as session:
+        await record_ops.bulk_update_survey_related_records(
+            request_id=identifiers.RequestId(uuid.UUID(raw_request_id)),
+            to_update=record_schemas.SurveyRelatedRecordBulkUpdate.model_validate_json(
+                raw_to_update
+            ),
+            initiator=user_schemas.User(**json.loads(raw_initiator)),
+            session=session,
+            event_dispatcher=settings.get_event_dispatcher(),
+            selected=selection.selected,
+            excluded_record_ids=selection.excluded_record_ids,
+            en_name_filter=selection.en_name_filter,
+            pt_name_filter=selection.pt_name_filter,
+            spatial_intersect=selection.spatial_intersect,
+            temporal_extent=selection.temporal_extent,
+            asset_path_fragment_filter=selection.asset_path_fragment_filter,
+        )
+
+
+@dramatiq.actor
+@decorators.sld_settings
 async def validate_survey_related_record(
     raw_request_id: str,
     raw_survey_related_record_id: str,

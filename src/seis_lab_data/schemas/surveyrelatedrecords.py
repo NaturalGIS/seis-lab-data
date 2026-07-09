@@ -16,6 +16,7 @@ from .common import (
     serialize_id,
     serialize_possibly_empty_date,
 )
+from .filters import TemporalExtentFilterValue
 from .identifiers import (
     DatasetCategoryId,
     RecordAssetId,
@@ -132,6 +133,24 @@ class SurveyRelatedRecordBulkUpdate(pydantic.BaseModel):
     temporal_extent_end: dt.date | None = None
     links: list[LinkSchema] | None = None
     related_records: list[RelatedRecordCreate] = []
+
+
+class SurveyRelatedRecordBulkUpdateSelection(pydantic.BaseModel):
+    """Which records a bulk update targets.
+
+    `selected` and the filter/`excluded_record_ids` fields are mutually
+    exclusive ways of specifying the target records, mirroring the two
+    selection modes offered by the UI - see
+    `operations.surveyrelatedrecords.bulk_update_survey_related_records`.
+    """
+
+    selected: list[SurveyRelatedRecordId] | None = None
+    excluded_record_ids: list[SurveyRelatedRecordId] | None = None
+    en_name_filter: str | None = None
+    pt_name_filter: str | None = None
+    spatial_intersect: PossiblyInvalidPolygon | None = None
+    temporal_extent: TemporalExtentFilterValue | None = None
+    asset_path_fragment_filter: str | None = None
 
 
 class SurveyRelatedRecordUpdate(pydantic.BaseModel):
