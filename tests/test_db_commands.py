@@ -310,3 +310,152 @@ async def test_delete_survey_related_record(
             await record_queries.get_survey_related_record(session, to_create.id)
             is None
         )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_bulk_update_filtered_records(
+    db,
+    db_session_maker,
+    sample_survey_related_records,
+    bootstrap_workflow_stages,
+    admin_user,
+):
+    first_record, second_record = sample_survey_related_records
+    new_stage = [
+        w for w in bootstrap_workflow_stages if w.name["en"] == "quality control data"
+    ][0]
+    to_update = record_schemas.SurveyRelatedRecordBulkUpdate(
+        workflow_stage_id=identifiers.WorkflowStageId(new_stage.id)
+    )
+    async with db_session_maker() as session:
+        updated_count = await record_commands.bulk_update_filtered_records(
+            session,
+            to_update,
+            identifiers.UserId(admin_user.id),
+            en_name_filter="First",
+        )
+        assert updated_count == 1
+        updated_first = await record_queries.get_survey_related_record(
+            session, identifiers.SurveyRelatedRecordId(first_record.id)
+        )
+        untouched_second = await record_queries.get_survey_related_record(
+            session, identifiers.SurveyRelatedRecordId(second_record.id)
+        )
+        assert updated_first.workflow_stage_id == new_stage.id
+        assert untouched_second.workflow_stage_id != new_stage.id
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_bulk_update_filtered_records_excludes_records(
+    db,
+    db_session_maker,
+    sample_survey_related_records,
+    bootstrap_workflow_stages,
+    admin_user,
+):
+    first_record, second_record = sample_survey_related_records
+    new_stage = [
+        w for w in bootstrap_workflow_stages if w.name["en"] == "quality control data"
+    ][0]
+    to_update = record_schemas.SurveyRelatedRecordBulkUpdate(
+        workflow_stage_id=identifiers.WorkflowStageId(new_stage.id)
+    )
+    async with db_session_maker() as session:
+        updated_count = await record_commands.bulk_update_filtered_records(
+            session,
+            to_update,
+            identifiers.UserId(admin_user.id),
+            excluded_record_ids=[identifiers.SurveyRelatedRecordId(first_record.id)],
+        )
+        assert updated_count == 1
+        untouched_first = await record_queries.get_survey_related_record(
+            session, identifiers.SurveyRelatedRecordId(first_record.id)
+        )
+        updated_second = await record_queries.get_survey_related_record(
+            session, identifiers.SurveyRelatedRecordId(second_record.id)
+        )
+        assert untouched_first.workflow_stage_id != new_stage.id
+        assert updated_second.workflow_stage_id == new_stage.id
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_bulk_update_manually_selected_records(
+    db,
+    db_session_maker,
+    sample_survey_related_records,
+    admin_user,
+):
+    first_record, second_record = sample_survey_related_records
+    to_update = record_schemas.SurveyRelatedRecordBulkUpdate(
+        description=common_schemas.LocalizableDraftDescription(
+            en="Bulk-updated description"
+        )
+    )
+    async with db_session_maker() as session:
+        updated_count = await record_commands.bulk_update_manually_selected_records(
+            session,
+            to_update,
+            [identifiers.SurveyRelatedRecordId(second_record.id)],
+            identifiers.UserId(admin_user.id),
+        )
+        assert updated_count == 1
+        updated_second = await record_queries.get_survey_related_record(
+            session, identifiers.SurveyRelatedRecordId(second_record.id)
+        )
+        untouched_first = await record_queries.get_survey_related_record(
+            session, identifiers.SurveyRelatedRecordId(first_record.id)
+        )
+        assert updated_second.description["en"] == "Bulk-updated description"
+        assert untouched_first.description["en"] != "Bulk-updated description"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_bulk_update_manually_selected_records_replaces_related_records(
+    db,
+    db_session_maker,
+    sample_survey_related_records,
+    admin_user,
+):
+    first_record, second_record = sample_survey_related_records
+
+    add_relation = record_schemas.SurveyRelatedRecordBulkUpdate(
+        related_records=[
+            record_schemas.RelatedRecordCreate(
+                related_record_id=identifiers.SurveyRelatedRecordId(first_record.id),
+                relationship=common_schemas.LocalizableDraftRelationship(
+                    en="duplicate of"
+                ),
+            )
+        ]
+    )
+    async with db_session_maker() as session:
+        await record_commands.bulk_update_manually_selected_records(
+            session,
+            add_relation,
+            [identifiers.SurveyRelatedRecordId(second_record.id)],
+            identifiers.UserId(admin_user.id),
+        )
+        related_to = await record_queries.list_survey_related_record_related_to_records(
+            session, identifiers.SurveyRelatedRecordId(second_record.id)
+        )
+        assert len(related_to) == 1
+        relation, related_record = related_to[0]
+        assert related_record.id == first_record.id
+        assert relation["en"] == "duplicate of"
+
+    clear_relations = record_schemas.SurveyRelatedRecordBulkUpdate(related_records=[])
+    async with db_session_maker() as session:
+        await record_commands.bulk_update_manually_selected_records(
+            session,
+            clear_relations,
+            [identifiers.SurveyRelatedRecordId(second_record.id)],
+            identifiers.UserId(admin_user.id),
+        )
+        related_to = await record_queries.list_survey_related_record_related_to_records(
+            session, identifiers.SurveyRelatedRecordId(second_record.id)
+        )
+        assert len(related_to) == 0

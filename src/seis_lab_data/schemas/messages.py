@@ -27,6 +27,16 @@ class ResourceModificationMessage(pydantic.BaseModel):
     details: str | None = None
 
 
+class BulkResourceModificationMessage(pydantic.BaseModel):
+    type: Literal["bulk_resource_modified"] = "bulk_resource_modified"
+    request_id: identifiers.RequestId
+    resource_type: constants.ResourceType
+    modification: constants.BulkResourceModification
+    succeeded: bool
+    affected_count: int
+    details: str | None = None
+
+
 class ResourceStatusChangedMessage(pydantic.BaseModel):
     type: Literal["resource_status_changed"] = "resource_status_changed"
     resource_type: constants.ResourceType
@@ -59,6 +69,7 @@ class ValidationMessage(pydantic.BaseModel):
 
 SldPubSubMessage: TypeAlias = Annotated[
     ResourceModificationMessage
+    | BulkResourceModificationMessage
     | DiscoveryMessage
     | ValidationMessage
     | ResourceStatusChangedMessage,

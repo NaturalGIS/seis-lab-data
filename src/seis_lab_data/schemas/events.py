@@ -30,6 +30,16 @@ class ResourceModificationEvent(_EventBase):
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
+class BulkResourceModificationEvent(_EventBase):
+    request_id: identifiers.RequestId
+    resource_type: constants.ResourceType
+    modification: constants.BulkResourceModification
+    succeeded: bool
+    affected_count: int
+    details: str | None = None
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
 class ResourceStatusChangedEvent(_EventBase):
     resource_type: constants.ResourceType
     resource_id: str | None
@@ -61,6 +71,7 @@ class ValidationEvent(_EventBase):
 
 SeisLabDataEvent: TypeAlias = (
     ResourceModificationEvent
+    | BulkResourceModificationEvent
     | ResourceStatusChangedEvent
     | DiscoveryEvent
     | ValidationEvent

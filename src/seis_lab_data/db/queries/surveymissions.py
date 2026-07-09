@@ -119,8 +119,8 @@ async def list_accessible_survey_missions(
         .where(
             or_(
                 models.SurveyMission.status == SurveyMissionStatus.PUBLISHED,
-                models.SurveyMission.owner == user_id,
-                models.Project.owner == user_id,
+                models.SurveyMission.owner_id == user_id,
+                models.Project.owner_id == user_id,
             )
         )
     )

@@ -39,6 +39,18 @@ class RedisEventDispatcher:
                         details=event.details,
                     ).model_dump_json(),
                 )
+            case events.BulkResourceModificationEvent():
+                await self._redis.publish(
+                    channel=event.resource_type.get_topic_name(),
+                    message=messages.BulkResourceModificationMessage(
+                        request_id=event.request_id,
+                        resource_type=event.resource_type,
+                        modification=event.modification,
+                        succeeded=event.succeeded,
+                        affected_count=event.affected_count,
+                        details=event.details,
+                    ).model_dump_json(),
+                )
             case events.ResourceStatusChangedEvent():
                 await self._redis.publish(
                     channel=event.resource_type.get_topic_name(),
