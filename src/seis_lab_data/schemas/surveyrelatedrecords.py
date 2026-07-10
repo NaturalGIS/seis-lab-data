@@ -124,14 +124,12 @@ class SurveyRelatedRecordCreate(pydantic.BaseModel):
 
 
 class SurveyRelatedRecordBulkUpdate(pydantic.BaseModel):
-    name: LocalizableDraftName | None = None
     description: LocalizableDraftDescription | None = None
     dataset_category_id: DatasetCategoryId | None = None
     workflow_stage_id: WorkflowStageId | None = None
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
     temporal_extent_end: dt.date | None = None
-    links: list[LinkSchema] | None = None
     related_records: list[RelatedRecordCreate] = []
 
 
@@ -142,10 +140,15 @@ class SurveyRelatedRecordBulkUpdateSelection(pydantic.BaseModel):
     exclusive ways of specifying the target records, mirroring the two
     selection modes offered by the UI - see
     `operations.surveyrelatedrecords.bulk_update_survey_related_records`.
+
+    `survey_mission_id` is an optional additional scope, not a requirement -
+    callers that aren't scoped to a single mission (e.g. a future bulk-edit
+    entry point on the general record listing) can simply omit it.
     """
 
     selected: list[SurveyRelatedRecordId] | None = None
     excluded_record_ids: list[SurveyRelatedRecordId] | None = None
+    survey_mission_id: SurveyMissionId | None = None
     en_name_filter: str | None = None
     pt_name_filter: str | None = None
     spatial_intersect: PossiblyInvalidPolygon | None = None

@@ -8,6 +8,7 @@ from .surveymissions import (
     SurveyMissionUpdateForm,
 )
 from .surveyrelatedrecords import (
+    SurveyRelatedRecordBulkUpdateForm,
     SurveyRelatedRecordCreateForm,
     SurveyRelatedRecordUpdateForm,
 )
@@ -18,6 +19,7 @@ __all__ = [
     ProjectUpdateForm,
     SurveyMissionCreateForm,
     SurveyMissionUpdateForm,
+    SurveyRelatedRecordBulkUpdateForm,
     SurveyRelatedRecordCreateForm,
     SurveyRelatedRecordUpdateForm,
 ]

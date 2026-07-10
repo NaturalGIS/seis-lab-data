@@ -153,6 +153,41 @@ async def handle_resource_modification_list_page(
     )
 
 
+async def handle_bulk_resource_modification(
+    message: message_schemas.SldPubSubMessage,
+    context: subscribers.HandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    """Flash the outcome of a bulk update and return to the mission detail page.
+
+    There's no single `resource_id` to match on for a bulk action, so this
+    matches on `request_id` instead - `context.resource_id` is repurposed to
+    carry the survey mission to redirect back to.
+    """
+    if message.request_id != context.request_id:
+        return
+
+    if message.succeeded:
+        notification = webui_schemas.Notification(
+            message=f"Bulk update succeeded: {message.affected_count} record(s) updated.",
+            category="success",
+        )
+    else:
+        notification = webui_schemas.Notification(
+            message=f"Bulk update failed: {message.details}",
+            category="error",
+        )
+    async for event in flash_ui_message_after_redirect(notification):
+        yield event
+    yield ServerSentEventGenerator.redirect(
+        str(
+            context.url_resolver(
+                "survey_missions:detail", survey_mission_id=context.resource_id
+            )
+        )
+    )
+
+
 async def handle_resource_modification_edit_page(
     message: message_schemas.SldPubSubMessage,
     context: subscribers.HandlerContext,

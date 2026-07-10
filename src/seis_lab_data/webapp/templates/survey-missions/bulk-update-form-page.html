@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block head %}
+    {{ super() }}
+    <script type="module" src="{{ url_for('static', path='/js/maplibre-gl-v5.9.0.js') }}"></script>
+    <link href="{{ url_for('static', path='/css/maplibre-gl-v5.9.0.css') }}" rel='stylesheet'/>
+    <script type="module" src="{{ url_for('static', path='/js/terra-draw-v1.0.0.umd.js') }}"></script>
+    <script type="module"
+            src="{{ url_for('static', path='/js/terra-draw-maplibre-gl-adapter-v1.0.0.umd.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='/js/bbox-map.js') }}"></script>
+{% endblock head %}
+
+{% block page_title %}
+    {{ _("bulk update survey-related records") | capitalize }}
+{% endblock page_title %}
+
+{% block details %}
+    <div data-on-intersect__once="@get('{{ url_for("survey_missions:bulk_update_stream", survey_mission_id=survey_mission.id, request_id=form.request_id.data) }}')">
+        {% include "survey-missions/bulk-update-form.html" %}
+    </div>
+{% endblock details %}

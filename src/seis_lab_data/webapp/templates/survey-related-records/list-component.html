@@ -48,6 +48,19 @@
                                 data-on:click="{{ macros.reset_selection_js() }}"
                         >{{ _("clear selection") | capitalize }}</button>
                     </div>
+                    {% if bulk_update_base_url is defined and bulk_update_base_url %}
+                        <div
+                                class="col-auto"
+                                data-attr:hidden="$selectedCount === 0"
+                                data-computed:bulk-update-url="'{{ bulk_update_base_url }}?selection=' + encodeURIComponent(JSON.stringify({search: $search, selectedIds: $selectedIds, excludedIds: $excludedIds, selectAllMatching: $selectAllMatching}))"
+                        >
+                            <a
+                                    class="btn btn-primary btn-sm"
+                                    aria-label="bulk-update"
+                                    data-attr:href="$bulkUpdateUrl"
+                            >{{ _("bulk update") | capitalize }}</a>
+                        </div>
+                    {% endif %}
                 </div>
                 <ul class="list-inline text-center">
                     <li class="list-inline-item">
