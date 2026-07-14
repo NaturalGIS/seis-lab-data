@@ -337,6 +337,17 @@ def build_owned_survey_related_record_id_statement(
     return statement
 
 
+async def count_survey_related_records_matching(
+    session: AsyncSession, ids_statement
+) -> int:
+    """Count how many records an id-only statement matches.
+
+    Intended for the bulk-update id builders above, to show a user how many
+    records a pending bulk update would affect without materializing ids.
+    """
+    return await _get_total_num_records(session, ids_statement)
+
+
 async def list_survey_related_records(
     session: AsyncSession,
     survey_mission_id: identifiers.SurveyMissionId | None = None,

@@ -87,7 +87,7 @@
                    extra_on_input_js=macros.reset_selection_js()
                 ) }}
                 <div id="survey-mission-records">
-                    {% with items = survey_related_records %}
+                    {% with items = survey_related_records, bulk_update_base_url = (url_for("survey_missions:get_bulk_update_form", survey_mission_id=survey_mission.id) if permissions.can_bulk_update else none) %}
                         {% include "survey-related-records/list-component.html" %}
                     {% endwith %}
                 </div>

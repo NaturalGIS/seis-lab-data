@@ -192,14 +192,15 @@ async def bulk_update_manually_selected_records(
     selected: list[identifiers.SurveyRelatedRecordId],
     user_id: identifiers.UserId,
     restrict_to_owned: bool = True,
+    survey_mission_id: identifiers.SurveyMissionId | None = None,
 ) -> int:
     if restrict_to_owned:
         ids_statement = record_queries.build_owned_survey_related_record_id_statement(
-            user_id, record_ids=selected
+            user_id, survey_mission_id=survey_mission_id, record_ids=selected
         )
     else:
         ids_statement = record_queries.build_survey_related_record_id_statement(
-            record_ids=selected
+            survey_mission_id=survey_mission_id, record_ids=selected
         )
     matched_ids = (await session.exec(ids_statement)).all()
     try:
@@ -219,6 +220,7 @@ async def bulk_update_filtered_records(
     user_id: identifiers.UserId,
     restrict_to_owned: bool = True,
     excluded_record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    survey_mission_id: identifiers.SurveyMissionId | None = None,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
@@ -226,6 +228,7 @@ async def bulk_update_filtered_records(
     asset_path_fragment_filter: str | None = None,
 ) -> int:
     filter_kwargs = dict(
+        survey_mission_id=survey_mission_id,
         en_name_filter=en_name_filter,
         pt_name_filter=pt_name_filter,
         spatial_intersect=spatial_intersect,

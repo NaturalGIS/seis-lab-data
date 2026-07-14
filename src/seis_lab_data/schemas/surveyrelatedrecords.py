@@ -124,14 +124,12 @@ class SurveyRelatedRecordCreate(pydantic.BaseModel):
 
 
 class SurveyRelatedRecordBulkUpdate(pydantic.BaseModel):
-    name: LocalizableDraftName | None = None
     description: LocalizableDraftDescription | None = None
     dataset_category_id: DatasetCategoryId | None = None
     workflow_stage_id: WorkflowStageId | None = None
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
     temporal_extent_end: dt.date | None = None
-    links: list[LinkSchema] | None = None
     related_records: list[RelatedRecordCreate] = []
 
 
@@ -142,10 +140,15 @@ class SurveyRelatedRecordBulkUpdateSelection(pydantic.BaseModel):
     exclusive ways of specifying the target records, mirroring the two
     selection modes offered by the UI - see
     `operations.surveyrelatedrecords.bulk_update_survey_related_records`.
+
+    `survey_mission_id` is an optional additional scope, not a requirement -
+    callers that aren't scoped to a single mission (e.g. a future bulk-edit
+    entry point on the general record listing) can simply omit it.
     """
 
     selected: list[SurveyRelatedRecordId] | None = None
     excluded_record_ids: list[SurveyRelatedRecordId] | None = None
+    survey_mission_id: SurveyMissionId | None = None
     en_name_filter: str | None = None
     pt_name_filter: str | None = None
     spatial_intersect: PossiblyInvalidPolygon | None = None
@@ -179,6 +182,8 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
     status: SurveyRelatedRecordStatus
     validation_result: models.ValidationResult | None
     survey_mission: SurveyMissionReadEmbedded
+    dataset_category: DatasetCategoryReadListItem
+    workflow_stage: WorkflowStageReadListItem
     bbox_4326: PolygonOut | None
     temporal_extent_begin: Annotated[
         dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
@@ -196,6 +201,12 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
             survey_mission=SurveyMissionReadEmbedded.from_db_instance(
                 instance.survey_mission
             ),
+            dataset_category=DatasetCategoryReadListItem.model_validate(
+                instance.dataset_category, from_attributes=True
+            ),
+            workflow_stage=WorkflowStageReadListItem.model_validate(
+                instance.workflow_stage, from_attributes=True
+            ),
         )
 
 
@@ -203,8 +214,8 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
     owner_id: UserId
     links: list[LinkSchema] = []
     survey_mission: SurveyMissionReadEmbedded
-    dataset_category: DatasetCategoryReadListItem
-    workflow_stage: WorkflowStageReadListItem
+    # dataset_category: DatasetCategoryReadListItem
+    # workflow_stage: WorkflowStageReadListItem
     record_assets: list[RecordAssetReadDetailEmbedded]
     related_to_records: list[
         tuple[LocalizableDraftDescription, SurveyRelatedRecordReadEmbedded]

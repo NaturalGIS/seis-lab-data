@@ -459,6 +459,7 @@ async def bulk_update_survey_related_records(
     event_dispatcher: dispatch.EventDispatcherProtocol,
     selected: list[identifiers.SurveyRelatedRecordId] | None = None,
     excluded_record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    survey_mission_id: identifiers.SurveyMissionId | None = None,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
@@ -471,6 +472,9 @@ async def bulk_update_survey_related_records(
     exclusive ways of specifying which records to update, mirroring the two
     selection modes offered by the UI: an explicit set of chosen records, or
     "everything matching the current search, except what was excluded".
+
+    `survey_mission_id` is an optional additional scope - omit it to bulk-update
+    across all missions a user may access.
     """
     is_admin = not {constants.ROLE_ADMIN, constants.ROLE_SYSTEM_ADMIN}.isdisjoint(
         initiator.roles
@@ -487,6 +491,7 @@ async def bulk_update_survey_related_records(
                 selected,
                 identifiers.UserId(initiator.id),
                 restrict_to_owned=not is_admin,
+                survey_mission_id=survey_mission_id,
             )
         else:
             updated_count = await record_commands.bulk_update_filtered_records(
@@ -495,6 +500,7 @@ async def bulk_update_survey_related_records(
                 identifiers.UserId(initiator.id),
                 restrict_to_owned=not is_admin,
                 excluded_record_ids=excluded_record_ids,
+                survey_mission_id=survey_mission_id,
                 en_name_filter=en_name_filter,
                 pt_name_filter=pt_name_filter,
                 spatial_intersect=spatial_intersect,

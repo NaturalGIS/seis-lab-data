@@ -7,6 +7,7 @@ from starlette.requests import Request
 from starlette_babel import gettext_lazy as _
 from starlette_wtf import StarletteForm
 from wtforms import (
+    BooleanField,
     FieldList,
     Form,
     FormField,
@@ -386,3 +387,151 @@ class SurveyRelatedRecordUpdateForm(_SurveyRelatedRecordForm):
         except pydantic.ValidationError as exc:
             logger.error(f"pydantic errors {exc.errors()=}")
             incorporate_schema_validation_errors_into_form(exc.errors(), self)
+
+
+class SurveyRelatedRecordBulkUpdateForm(StarletteForm):
+    """Form for bulk-updating survey-related records.
+
+    Deliberately not a subclass of `_SurveyRelatedRecordForm`, since it must
+    not drag in `name`/`description`/`assets`, none of which are bulk-editable.
+
+    Each `update_*` checkbox is the only thing that decides whether its field
+    group is included in the constructed `SurveyRelatedRecordBulkUpdate` -
+    this avoids the "is blank the same as unset?" ambiguity that would
+    otherwise exist per field (most notably for `related_records`, where an
+    empty list is a legitimate value meaning "clear all relationships").
+    """
+
+    request_id = HiddenField()
+    selection = HiddenField()
+
+    update_dataset_category = BooleanField(_("update dataset category"))
+    dataset_category_id = SelectField(_("Dataset category"))
+
+    update_workflow_stage = BooleanField(_("update workflow stage"))
+    workflow_stage_id = SelectField(_("Workflow stage"))
+
+    update_bounding_box = BooleanField(_("update bounding box"))
+    bounding_box = FormField(BoundingBoxForm)
+
+    update_temporal_extent = BooleanField(_("update temporal extent"))
+    temporal_extent_begin = OptionalDateField()
+    temporal_extent_end = OptionalDateField()
+
+    update_related_records = BooleanField(_("update related records"))
+    related_records = FieldList(
+        FormField(RelatedRecordForm),
+        label=_("related records"),
+        min_entries=0,
+        max_entries=constants.SURVEY_RELATED_RECORD_MAX_RELATED,
+    )
+
+    def has_validation_errors(self) -> bool:
+        # see the equivalent workaround in _SurveyRelatedRecordForm
+        all_form_validation_errors = {**self.errors}
+        for related_record in self.related_records.entries:
+            all_form_validation_errors.update(**related_record.errors)
+        return bool(all_form_validation_errors)
+
+    @staticmethod
+    def parse_related_record_compound_name(name: str) -> str:
+        return name.rpartition(" - ")[-1]
+
+    def validate_with_schema(self) -> None:
+        kwargs = {}
+        if self.update_dataset_category.data:
+            kwargs["dataset_category_id"] = self.dataset_category_id.data
+        if self.update_workflow_stage.data:
+            kwargs["workflow_stage_id"] = self.workflow_stage_id.data
+        if self.update_bounding_box.data:
+            kwargs["bbox_4326"] = (
+                f"POLYGON(("
+                f"{self.bounding_box.min_lon.data} {self.bounding_box.min_lat.data}, "
+                f"{self.bounding_box.max_lon.data} {self.bounding_box.min_lat.data}, "
+                f"{self.bounding_box.max_lon.data} {self.bounding_box.max_lat.data}, "
+                f"{self.bounding_box.min_lon.data} {self.bounding_box.max_lat.data}, "
+                f"{self.bounding_box.min_lon.data} {self.bounding_box.min_lat.data}"
+                f"))"
+            )
+        if self.update_temporal_extent.data:
+            kwargs["temporal_extent_begin"] = self.temporal_extent_begin.data or None
+            kwargs["temporal_extent_end"] = self.temporal_extent_end.data or None
+        if self.update_related_records.data:
+            related_records = []
+            for relationship_sub_form in self.related_records.entries:
+                related_record_id = self.parse_related_record_compound_name(
+                    relationship_sub_form.related_record.data
+                )
+                related_records.append(
+                    {
+                        "related_record_id": related_record_id,
+                        "relationship": {
+                            k: v
+                            for k, v in relationship_sub_form.relationship.data.items()
+                            if v
+                        },
+                    }
+                )
+            kwargs["related_records"] = related_records
+
+        self.built_bulk_update = None
+        if not kwargs:
+            # this error is attached to a visible field (rather than a hidden
+            # one) so it actually gets rendered - see render_form_field's
+            # special-casing of HiddenField, which never shows errors
+            self.update_dataset_category.errors.append(
+                _("Select at least one field to bulk-update")
+            )
+            return
+
+        try:
+            # stored on the instance so the caller can use the already-built
+            # schema object directly, rather than re-deriving it from form
+            # fields a second time after validation succeeds
+            self.built_bulk_update = record_schemas.SurveyRelatedRecordBulkUpdate(
+                **kwargs
+            )
+        except pydantic.ValidationError as exc:
+            logger.error(f"pydantic errors {exc.errors()=}")
+            incorporate_schema_validation_errors_into_form(exc.errors(), self)
+
+    @classmethod
+    async def from_request(cls, request, data: dict | None = None):
+        """Creates a form instance from the request.
+
+        This method's main reason for existing is to ensure select fields are
+        populated dynamically, with choices from the database.
+        """
+        if data is not None:
+            form_instance = cls(request, data=data)
+        else:
+            form_instance = await cls.from_formdata(request)
+        current_language = request.state.language
+        async with request.state.settings.get_db_session_maker()() as session:
+            form_instance.dataset_category_id.choices = [
+                (dc.id, dc.name.get(current_language, dc.name["en"]))
+                for dc in await category_queries.collect_all_dataset_categories(
+                    session, order_by=current_language
+                )
+            ]
+            form_instance.workflow_stage_id.choices = [
+                (ws.id, ws.name.get(current_language, ws.name["en"]))
+                for ws in await stage_queries.collect_all_workflow_stages(
+                    session,
+                    order_by=current_language,
+                )
+            ]
+        return form_instance
+
+    @classmethod
+    async def get_validated_form_instance(cls, request: Request):
+        """Performs full validation of the bulk-update form.
+
+        Unlike `_SurveyRelatedRecordForm.get_validated_form_instance`, there
+        is no English-name uniqueness check to perform, since `name` is not
+        a bulk-editable field.
+        """
+        form_instance = await cls.from_request(request)
+        await form_instance.validate_on_submit()
+        form_instance.validate_with_schema()
+        return form_instance

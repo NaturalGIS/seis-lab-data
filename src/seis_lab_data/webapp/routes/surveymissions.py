@@ -24,6 +24,7 @@ from ... import (
     geojson,
     subscribers,
 )
+from ...db.queries import surveyrelatedrecords as record_queries
 from ...operations import (
     projects as project_ops,
     surveymissions as survey_mission_ops,
@@ -151,6 +152,11 @@ async def _get_survey_mission_details(
             )
             if user
             else False,
+            can_bulk_update=(
+                record_permissions.can_bulk_update_survey_related_records(user)
+                if user
+                else False
+            ),
         ),
         breadcrumbs=[
             webui_schemas.BreadcrumbItem(
@@ -376,6 +382,16 @@ async def get_mission_records_list_component(request: Request):
     serialized_items = [
         webui_schemas.SurveyRelatedRecordReadListItem.from_db_instance(i) for i in items
     ]
+    bulk_update_base_url = (
+        str(
+            request.url_for(
+                "survey_missions:get_bulk_update_form",
+                survey_mission_id=survey_mission_id,
+            )
+        )
+        if user and record_permissions.can_bulk_update_survey_related_records(user)
+        else None
+    )
     template_processor = request.state.templates
     template = template_processor.get_template(
         "survey-related-records/list-component.html"
@@ -385,6 +401,7 @@ async def get_mission_records_list_component(request: Request):
         items=serialized_items,
         update_current_url_with=filter_query_string,
         pagination=pagination_info,
+        bulk_update_base_url=bulk_update_base_url,
     )
 
     async def event_streamer():
@@ -1103,6 +1120,304 @@ async def stream_to_new_page(request: Request):
     return DatastarResponse(event_streamer())
 
 
+def _parse_bulk_update_selection(
+    raw_selection: str | None,
+    current_language: str,
+    survey_mission_id: identifiers.SurveyMissionId,
+) -> record_schemas.SurveyRelatedRecordBulkUpdateSelection:
+    """Resolve the `selection` query param into a bulk-update selection.
+
+    The param carries the same JSON-blob-of-signals shape Datastar's `@get`
+    auto-appends elsewhere in this app (see `get_mission_records_list_component`),
+    just arriving under a different name via a plain link instead - so the
+    same filter-parsing machinery applies.
+    """
+    params = json.loads(raw_selection) if raw_selection else {}
+    list_filters = filters.SurveyRelatedRecordListFilters.from_params(
+        params, current_language
+    )
+    valid_selection_fields = set(
+        record_schemas.SurveyRelatedRecordBulkUpdateSelection.model_fields
+    )
+    filter_kwargs = {
+        k: v
+        for k, v in list_filters.as_kwargs().items()
+        if k in valid_selection_fields and k != "survey_mission_id"
+    }
+    if params.get("selectAllMatching"):
+        excluded_ids = [
+            identifiers.SurveyRelatedRecordId(uuid.UUID(k))
+            for k, v in (params.get("excludedIds") or {}).items()
+            if v
+        ]
+        return record_schemas.SurveyRelatedRecordBulkUpdateSelection(
+            survey_mission_id=survey_mission_id,
+            excluded_record_ids=excluded_ids or None,
+            **filter_kwargs,
+        )
+    selected_ids = [
+        identifiers.SurveyRelatedRecordId(uuid.UUID(k))
+        for k, v in (params.get("selectedIds") or {}).items()
+        if v
+    ]
+    return record_schemas.SurveyRelatedRecordBulkUpdateSelection(
+        survey_mission_id=survey_mission_id,
+        selected=selected_ids,
+    )
+
+
+async def _count_bulk_update_matches(
+    session, user, selection: record_schemas.SurveyRelatedRecordBulkUpdateSelection
+) -> int:
+    is_admin = not {constants.ROLE_ADMIN, constants.ROLE_SYSTEM_ADMIN}.isdisjoint(
+        user.roles
+    )
+    kwargs = dict(
+        survey_mission_id=selection.survey_mission_id,
+        en_name_filter=selection.en_name_filter,
+        pt_name_filter=selection.pt_name_filter,
+        spatial_intersect=selection.spatial_intersect,
+        temporal_extent=selection.temporal_extent,
+        asset_path_fragment_filter=selection.asset_path_fragment_filter,
+        record_ids=selection.selected,
+        excluded_record_ids=selection.excluded_record_ids,
+    )
+    if is_admin:
+        statement = record_queries.build_survey_related_record_id_statement(**kwargs)
+    else:
+        statement = record_queries.build_owned_survey_related_record_id_statement(
+            user.id, **kwargs
+        )
+    return await record_queries.count_survey_related_records_matching(
+        session, statement
+    )
+
+
+async def _get_initial_related_records(session, user) -> list[tuple[str, str]]:
+    items, _ = await survey_related_record_ops.list_survey_related_records(
+        session, initiator=user
+    )
+    return [(i.id, i.name["en"]) for i in items]
+
+
+@requires_auth
+async def get_bulk_update_form(request: Request):
+    """Render the bulk-update form for a survey mission's records.
+
+    Reached via a plain link (not a Datastar action) whose href is computed
+    client-side from the current selection/filter signals - see
+    `list-component.html`. Everything needed is already in the query string,
+    so this is a single ordinary GET, no redirect hop involved.
+    """
+    survey_mission_id = get_id_from_request_path(
+        request, "survey_mission_id", identifiers.SurveyMissionId
+    )
+    user = request.user
+    selection = _parse_bulk_update_selection(
+        request.query_params.get("selection"),
+        request.state.language,
+        survey_mission_id,
+    )
+    async with request.state.settings.get_db_session_maker()() as session:
+        survey_mission = await survey_mission_ops.get_survey_mission(
+            survey_mission_id, user, session
+        )
+        if survey_mission is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Survey mission {survey_mission_id!r} not found.",
+            )
+        matched_count = await _count_bulk_update_matches(session, user, selection)
+        initial_related_records = await _get_initial_related_records(session, user)
+
+    form_instance = await forms.SurveyRelatedRecordBulkUpdateForm.from_request(
+        request, data={}
+    )
+    form_instance.request_id.data = uuid.uuid4()
+    form_instance.selection.data = selection.model_dump_json()
+
+    template_processor: Jinja2Templates = request.state.templates
+    return template_processor.TemplateResponse(
+        request,
+        "survey-missions/bulk-update-form-page.html",
+        context={
+            "survey_mission": survey_mission,
+            "survey_mission_id": survey_mission_id,
+            "form": form_instance,
+            "matched_count": matched_count,
+            "initial_related_records": initial_related_records,
+        },
+    )
+
+
+@csrf_protect
+@requires_auth
+async def post_bulk_update(request: Request):
+    survey_mission_id = get_id_from_request_path(
+        request, "survey_mission_id", identifiers.SurveyMissionId
+    )
+    user = request.user
+    form_instance = (
+        await forms.SurveyRelatedRecordBulkUpdateForm.get_validated_form_instance(
+            request
+        )
+    )
+
+    if form_instance.has_validation_errors():
+        selection = (
+            record_schemas.SurveyRelatedRecordBulkUpdateSelection.model_validate_json(
+                form_instance.selection.data
+            )
+        )
+        async with request.state.settings.get_db_session_maker()() as session:
+            matched_count = await _count_bulk_update_matches(session, user, selection)
+            initial_related_records = await _get_initial_related_records(session, user)
+        template_processor: Jinja2Templates = request.state.templates
+        template = template_processor.get_template(
+            "survey-missions/bulk-update-form.html"
+        )
+        rendered = template.render(
+            request=request,
+            form=form_instance,
+            survey_mission_id=survey_mission_id,
+            matched_count=matched_count,
+            initial_related_records=initial_related_records,
+        )
+
+        async def stream_validation_failed_events():
+            yield ServerSentEventGenerator.patch_elements(
+                rendered,
+                selector=webui_schemas.selector_info.main_content_selector,
+                mode=ElementPatchMode.INNER,
+            )
+            yield ServerSentEventGenerator.execute_script(
+                "document.querySelector('.is-invalid')?.scrollIntoView({behavior: 'smooth', block: 'center'})"
+            )
+
+        # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
+        return DatastarResponse(stream_validation_failed_events(), status_code=200)
+
+    selection = (
+        record_schemas.SurveyRelatedRecordBulkUpdateSelection.model_validate_json(
+            form_instance.selection.data
+        )
+    )
+    record_tasks.bulk_update_survey_related_records.send(
+        raw_request_id=str(form_instance.request_id.data),
+        raw_to_update=form_instance.built_bulk_update.model_dump_json(
+            exclude_unset=True
+        ),
+        raw_selection=selection.model_dump_json(exclude_unset=True),
+        raw_initiator=json.dumps(dataclasses.asdict(user)),
+    )
+    return Response(status_code=200)
+
+
+@requires_auth
+async def stream_to_bulk_update_page(request: Request):
+    survey_mission_id = get_id_from_request_path(
+        request, "survey_mission_id", identifiers.SurveyMissionId
+    )
+    try:
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid request id") from err
+
+    subscription = subscribers.subscribe_to_topic(
+        request.state.redis_client,
+        [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS],
+        subscribers.HandlerContext(
+            resource_id=str(survey_mission_id),
+            request_id=request_id,
+            user=request.user,
+            url_resolver=request.url_for,
+        ),
+        {
+            "bulk_resource_modified": common_handlers.handle_bulk_resource_modification,
+        },
+    )
+
+    async def event_streamer():
+        async for sse_event in subscription:
+            yield sse_event
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def add_bulk_update_form_related_to_record(request: Request):
+    survey_mission_id = get_id_from_request_path(
+        request, "survey_mission_id", identifiers.SurveyMissionId
+    )
+    form_instance = await forms.SurveyRelatedRecordBulkUpdateForm.from_request(request)
+    if len(form_instance.related_records.entries) < (
+        constants.SURVEY_RELATED_RECORD_MAX_RELATED
+    ):
+        form_instance.related_records.append_entry()
+    user = request.user if request.user.is_authenticated else None
+    selection = (
+        record_schemas.SurveyRelatedRecordBulkUpdateSelection.model_validate_json(
+            form_instance.selection.data
+        )
+    )
+    async with request.state.settings.get_db_session_maker()() as session:
+        initial_related_records = await _get_initial_related_records(session, user)
+        matched_count = await _count_bulk_update_matches(session, user, selection)
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template("survey-missions/bulk-update-form.html")
+    rendered = template.render(
+        request=request,
+        form=form_instance,
+        survey_mission_id=survey_mission_id,
+        matched_count=matched_count,
+        initial_related_records=initial_related_records,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=webui_schemas.selector_info.main_content_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+async def remove_bulk_update_form_related_to_record(request: Request):
+    survey_mission_id = get_id_from_request_path(
+        request, "survey_mission_id", identifiers.SurveyMissionId
+    )
+    form_instance = await forms.SurveyRelatedRecordBulkUpdateForm.from_request(request)
+    index = int(request.query_params.get("index", 0))
+    form_instance.related_records.entries.pop(index)
+    user = request.user if request.user.is_authenticated else None
+    selection = (
+        record_schemas.SurveyRelatedRecordBulkUpdateSelection.model_validate_json(
+            form_instance.selection.data
+        )
+    )
+    async with request.state.settings.get_db_session_maker()() as session:
+        matched_count = await _count_bulk_update_matches(session, user, selection)
+    template_processor: Jinja2Templates = request.state.templates
+    template = template_processor.get_template("survey-missions/bulk-update-form.html")
+    rendered = template.render(
+        request=request,
+        form=form_instance,
+        survey_mission_id=survey_mission_id,
+        matched_count=matched_count,
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=webui_schemas.selector_info.main_content_selector,
+            mode=ElementPatchMode.INNER,
+        )
+
+    return DatastarResponse(event_streamer())
+
+
 routes = [
     Route(
         "/",
@@ -1193,6 +1508,36 @@ routes = [
         trigger_discovery,
         methods=["POST"],
         name="trigger_discovery",
+    ),
+    Route(
+        "/{survey_mission_id}/records/bulk-update",
+        get_bulk_update_form,
+        methods=["GET"],
+        name="get_bulk_update_form",
+    ),
+    Route(
+        "/{survey_mission_id}/records/bulk-update",
+        post_bulk_update,
+        methods=["POST"],
+        name="post_bulk_update",
+    ),
+    Route(
+        "/{survey_mission_id}/records/bulk-update/stream/{request_id}",
+        stream_to_bulk_update_page,
+        methods=["GET"],
+        name="bulk_update_stream",
+    ),
+    Route(
+        "/{survey_mission_id}/records/bulk-update/add-related-record-form",
+        add_bulk_update_form_related_to_record,
+        methods=["POST"],
+        name="add_bulk_update_form_related_to_record",
+    ),
+    Route(
+        "/{survey_mission_id}/records/bulk-update/remove-related-record-form",
+        remove_bulk_update_form_related_to_record,
+        methods=["POST"],
+        name="remove_bulk_update_form_related_to_record",
     ),
     Route(
         "/{survey_mission_id}",

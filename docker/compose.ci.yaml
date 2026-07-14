@@ -114,9 +114,9 @@ services:
       # OAuth2 provider/application) has actually been applied by the worker - unlike
       # checking for the akadmin user, which exists long before the custom blueprint runs.
       test: ["CMD-SHELL", "python -c 'import requests; requests.get(\"http://auth-webapp:9000/application/o/seis-lab-data/.well-known/openid-configuration\").raise_for_status()'"]
-      start_period: 60s
+      start_period: 90s
       interval: 10s
-      retries: 30
+      retries: 60
       timeout: 5s
 
   message-broker:
