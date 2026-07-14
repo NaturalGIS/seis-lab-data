@@ -1,5 +1,6 @@
 {% import "macros.html" as macros %}
 {% import "macros-maps.html" as macros_maps %}
+{% from "macros/checkbox.html" import render_checkbox %}
 <form>
     {{ form.request_id }}
     {{ form.selection }}
@@ -8,21 +9,21 @@
 
     <div class="row border p-4 mb-3">
         <div class="col">
-            {{ macros.render_form_field(form.update_dataset_category) }}
+            {{ render_checkbox(form.update_dataset_category) }}
             {{ macros.render_form_field(form.dataset_category_id) }}
         </div>
     </div>
 
     <div class="row border p-4 mb-3">
         <div class="col">
-            {{ macros.render_form_field(form.update_workflow_stage) }}
+            {{ render_checkbox(form.update_workflow_stage) }}
             {{ macros.render_form_field(form.workflow_stage_id) }}
         </div>
     </div>
 
     <div class="row border p-4 mb-3">
         <div class="col">
-            {{ macros.render_form_field(form.update_bounding_box) }}
+            {{ render_checkbox(form.update_bounding_box) }}
             {{ macros_maps.render_bbox_update_component(
                 settings.webmap_base_tile_layer_url,
                 settings.webmap_default_zoom_level,
@@ -33,7 +34,7 @@
 
     <div class="row border p-4 mb-3">
         <div class="col">
-            {{ macros.render_form_field(form.update_temporal_extent) }}
+            {{ render_checkbox(form.update_temporal_extent) }}
             {{ macros.render_form_field(form.temporal_extent_begin) }}
             {{ macros.render_form_field(form.temporal_extent_end) }}
         </div>
@@ -41,7 +42,7 @@
 
     <div class="row border p-4 mb-3">
         <div class="col">
-            {{ macros.render_form_field(form.update_related_records) }}
+            {{ render_checkbox(form.update_related_records) }}
             <h3>{{ _("related records") | capitalize }}</h3>
             <div id="form-related-records-container">
                 {% for related_to in form.related_records %}

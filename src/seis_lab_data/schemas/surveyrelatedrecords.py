@@ -182,6 +182,8 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
     status: SurveyRelatedRecordStatus
     validation_result: models.ValidationResult | None
     survey_mission: SurveyMissionReadEmbedded
+    dataset_category: DatasetCategoryReadListItem
+    workflow_stage: WorkflowStageReadListItem
     bbox_4326: PolygonOut | None
     temporal_extent_begin: Annotated[
         dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
@@ -199,6 +201,12 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
             survey_mission=SurveyMissionReadEmbedded.from_db_instance(
                 instance.survey_mission
             ),
+            dataset_category=DatasetCategoryReadListItem.model_validate(
+                instance.dataset_category, from_attributes=True
+            ),
+            workflow_stage=WorkflowStageReadListItem.model_validate(
+                instance.workflow_stage, from_attributes=True
+            ),
         )
 
 
@@ -206,8 +214,8 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
     owner_id: UserId
     links: list[LinkSchema] = []
     survey_mission: SurveyMissionReadEmbedded
-    dataset_category: DatasetCategoryReadListItem
-    workflow_stage: WorkflowStageReadListItem
+    # dataset_category: DatasetCategoryReadListItem
+    # workflow_stage: WorkflowStageReadListItem
     record_assets: list[RecordAssetReadDetailEmbedded]
     related_to_records: list[
         tuple[LocalizableDraftDescription, SurveyRelatedRecordReadEmbedded]
