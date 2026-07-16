@@ -37,7 +37,7 @@ from ..auth import (
     AuthConfig,
     get_oauth_manager,
 )
-from ..processing.broker import setup_broker
+from ..tasks.broker import setup_broker
 
 from . import jinjafilters
 from .auth_backend import OIDCAuthBackend
@@ -48,6 +48,9 @@ from .routes import (
 from .routes.projects import routes as projects_routes
 from .routes.surveymissions import routes as missions_routes
 from .routes.surveyrelatedrecords import routes as records_routes
+from .routes.discovery import routes as discovery_routes
+from .routes.datasetcategories import routes as dataset_category_routes
+from .routes.workflowstages import routes as workflow_stage_routes
 
 
 class State(TypedDict):
@@ -73,27 +76,7 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
     jinja_env.globals.update(
         {
             "csrf_token": csrf_token,
-            "icons": {
-                "delete_item": "delete",
-                "edit_item": "edit",
-                "new_item": "add_circle_outline",
-                "open_link": "open_in_new",
-                "projects": "view_timeline",
-                "publish_item": "publish",
-                "search": "search",
-                "expand_less": "expand_less",
-                "expand_more": "expand_more",
-                "discover_project": "travel_explore",
-                "status_draft": "design_services",
-                "status_published": "public",
-                "status_under_validation": "sync",
-                "survey_missions": "directions_boat",
-                "survey_related_records": "source",
-                "user": "person",
-                "view_details": "info",
-                "validation_valid": "check_circle",
-                "validation_invalid": "dangerous",
-            },
+            "icons": settings.icons.model_dump(),
             "item_limits": {
                 "ASSET_MAX_LINKS": constants.ASSET_MAX_LINKS,
                 "PROJECT_MAX_LINKS": constants.PROJECT_MAX_LINKS,
@@ -116,9 +99,11 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
     jinja_env.filters["translate_localizable_string"] = (
         jinjafilters.translate_localizable_string
     )
+    jinja_env.filters["secondary_language"] = jinjafilters.get_secondary_language_value
     jinja_env.filters["translate_enum"] = jinjafilters.translate_enum
     jinja_env.filters["get_status_icon_name"] = jinjafilters.get_status_icon_name
     jinja_env.filters["highlight_json"] = jinjafilters.highlight_json
+    jinja_env.filters["asset_url"] = jinjafilters.get_url_for_asset
     configure_jinja_env(jinja_env)
     templates = Jinja2Templates(env=jinja_env)
     yield State(
@@ -135,7 +120,7 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
     app = Starlette(
         debug=settings.debug,
         routes=[
-            Route("/", base.home),
+            Route("/", base.home, name="home"),
             Route("/login", auth.login),
             Route("/oauth2/callback", auth.auth_callback),
             Route("/logout", auth.logout),
@@ -147,6 +132,21 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                 "/survey-related-records",
                 name="survey_related_records",
                 routes=records_routes,
+            ),
+            Mount(
+                "/asset-discovery-configurations",
+                name="asset_discovery_configurations",
+                routes=discovery_routes,
+            ),
+            Mount(
+                "/dataset-categories",
+                name="dataset_categories",
+                routes=dataset_category_routes,
+            ),
+            Mount(
+                "/workflow-stages",
+                name="workflow_stages",
+                routes=workflow_stage_routes,
             ),
         ],
         lifespan=lifespan,

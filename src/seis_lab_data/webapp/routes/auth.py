@@ -8,10 +8,12 @@ from datastar_py.starlette import DatastarResponse
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
-from ... import schemas
 from ...constants import AUTH_CLIENT_NAME
-from ...db import commands
-from ...schemas import identifiers
+from ...db.commands.users import upsert_user
+from ...schemas import (
+    identifiers,
+    user as user_schemas,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +54,7 @@ async def auth_callback(request: Request):
             session_maker = request.state.settings.get_db_session_maker()
             try:
                 async with session_maker() as session:
-                    await commands.upsert_user(session, user)
+                    await upsert_user(session, user)
             except Exception:
                 logger.warning("Failed to upsert user to local DB", exc_info=True)
         response = RedirectResponse(url=request.url_for("home"), status_code=302)
@@ -84,11 +86,11 @@ async def logout(request: Request):
 
 def get_user(
     user_info: dict,
-) -> schemas.User | None:
+) -> user_schemas.User | None:
     id_ = user_info.get("sub")
     if id_ is None:
         return None
-    return schemas.User(
+    return user_schemas.User(
         id=identifiers.UserId(id_),
         email=user_info.get("email"),
         username=user_info.get("preferred_username"),
@@ -120,7 +122,7 @@ def requires_auth(route_function: Callable):
                         str(request.url_for("login"))
                     )
 
-                return DatastarResponse(event_streamer(), status_code=302)
+                return DatastarResponse(event_streamer(), status_code=200)
             else:
                 return RedirectResponse(url=request.url_for("login"), status_code=302)
 

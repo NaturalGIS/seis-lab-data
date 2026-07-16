@@ -4,8 +4,16 @@
             {% for item in breadcrumbs %}
                 <li class="breadcrumb-item">
                     {% if item.url %}
-                        <a href="{{ item.url }}">{{ item.name }}</a>
+                        <a href="{{ item.url }}">
+                            {% if item.icon %}
+                                <span class="material-icons-outlined fs-6 me-1" aria-hidden="true">{{ item.icon }}</span>
+                            {% endif %}
+                            {{ item.name }}
+                        </a>
                     {% else %}
+                        {% if item.icon %}
+                            <span class="material-icons-outlined fs-6 me-1" aria-hidden="true">{{ item.icon }}</span>
+                        {% endif %}
                         {{ item.name }}
                     {% endif %}
                 </li>

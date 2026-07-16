@@ -15,7 +15,7 @@ formatters:
 
   sld:
     (): uvicorn.logging.DefaultFormatter
-    fmt: "%(levelprefix)s %(asctime)s %(module)s %(funcName)s %(message)s"
+    fmt: "%(levelprefix)s %(asctime)s [%(module)s] [%(funcName)s] %(message)s"
     use_colors: null
 
   access:

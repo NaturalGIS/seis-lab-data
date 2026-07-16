@@ -8,9 +8,11 @@ from sqlmodel import (
     select,
 )
 
-from ... import schemas
 from ...constants import ProjectStatus
-from ...schemas import identifiers
+from ...schemas import (
+    filters as filter_schemas,
+    identifiers,
+)
 from .. import models
 from .common import _get_total_num_records
 
@@ -21,7 +23,7 @@ def _build_project_statement(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ):
     statement = select(models.Project)
     if en_name_filter:
@@ -78,7 +80,7 @@ async def list_published_projects(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.Project], int | None]:
     """Lists public projects."""
     statement = _build_project_statement(
@@ -98,7 +100,7 @@ async def list_accessible_projects(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.Project], int | None]:
     """List projects that are viewable by the input user."""
     statement = _build_project_statement(
@@ -106,7 +108,7 @@ async def list_accessible_projects(
     ).where(
         or_(
             models.Project.status == ProjectStatus.PUBLISHED,
-            models.Project.owner == user_id,
+            models.Project.owner_id == user_id,
         )
     )
     limit = page_size
@@ -122,7 +124,7 @@ async def list_projects(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.Project], int | None]:
     """Return all projects regardless of status. Intended for admin use."""
     statement = _build_project_statement(

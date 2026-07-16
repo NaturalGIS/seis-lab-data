@@ -55,7 +55,7 @@ docs. Enable it by setting the `BUILD_PDF` environment variable to any value. It
 - Development guide - This produces the `docs/assets/documents/seis-lab-data-development-guide.pdf` file:
 
     ```shell
-    BUILD_PDF=1 uv run mkdocs build`
+    BUILD_PDFS=1 uv run mkdocs build`
     ```
 
 

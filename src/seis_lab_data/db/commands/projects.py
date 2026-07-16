@@ -2,23 +2,21 @@ import logging
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from ... import (
-    errors,
-    schemas,
-)
+from ... import errors
 from ...constants import ProjectStatus
-from ...schemas import identifiers
-from .. import (
-    models,
-    queries,
+from ...schemas import (
+    identifiers,
+    projects as project_schemas,
 )
-from .common import get_bbox_4326_for_db
+from .. import models
+from ..queries import projects as project_queries
+from . import common
 
 logger = logging.getLogger(__name__)
 
 
 async def create_project(
-    session: AsyncSession, to_create: schemas.ProjectCreate
+    session: AsyncSession, to_create: project_schemas.ProjectCreate
 ) -> models.Project:
     project = models.Project(
         **to_create.model_dump(
@@ -26,13 +24,13 @@ async def create_project(
             exclude_none=True,
         ),
         bbox_4326=(
-            get_bbox_4326_for_db(bbox)
+            common.get_bbox_4326_for_db(bbox)
             if (bbox := to_create.bbox_4326) is not None
             else bbox
         ),
     )
     if (
-        existing_project := await queries.get_project_by_english_name(
+        existing_project := await project_queries.get_project_by_english_name(
             session, to_create.name.en
         )
     ) is not None:
@@ -42,14 +40,14 @@ async def create_project(
     session.add(project)
     await session.commit()
     await session.refresh(project)
-    return await queries.get_project(session, to_create.id)
+    return await project_queries.get_project(session, to_create.id)
 
 
 async def delete_project(
     session: AsyncSession,
     project_id: identifiers.ProjectId,
 ) -> None:
-    if project := (await queries.get_project(session, project_id)):
+    if project := (await project_queries.get_project(session, project_id)):
         await session.delete(project)
         await session.commit()
     else:
@@ -59,14 +57,14 @@ async def delete_project(
 async def update_project(
     session: AsyncSession,
     project: models.Project,
-    to_update: schemas.ProjectUpdate,
+    to_update: project_schemas.ProjectUpdate,
 ) -> models.Project:
     for key, value in to_update.model_dump(
         exclude={"bbox_4326"}, exclude_unset=True
     ).items():
         setattr(project, key, value)
     updated_bbox_4326 = (
-        get_bbox_4326_for_db(bbox)
+        common.get_bbox_4326_for_db(bbox)
         if (bbox := to_update.bbox_4326) is not None
         else None
     )
@@ -87,17 +85,17 @@ async def update_project_validation_result(
     session.add(project)
     await session.commit()
     await session.refresh(project)
-    return await queries.get_project(session, identifiers.ProjectId(project.id))
+    return await project_queries.get_project(session, identifiers.ProjectId(project.id))
 
 
 async def set_project_status(
     session: AsyncSession, project_id: identifiers.ProjectId, status: ProjectStatus
 ) -> models.Project:
     """Unconditionally sets the project's status."""
-    if (project := (await queries.get_project(session, project_id))) is None:
+    if (project := (await project_queries.get_project(session, project_id))) is None:
         raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
     project.status = status
     session.add(project)
     await session.commit()
     await session.refresh(project)
-    return await queries.get_project(session, identifiers.ProjectId(project_id))
+    return await project_queries.get_project(session, identifiers.ProjectId(project_id))

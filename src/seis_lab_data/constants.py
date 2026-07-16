@@ -23,6 +23,11 @@ SURVEY_RELATED_RECORD_MAX_RELATED: typing.Final[int] = 5
 NEW_TOPIC_PROJECTS: typing.Final[str] = "projects"
 NEW_TOPIC_SURVEY_MISSIONS: typing.Final[str] = "survey_missions"
 NEW_TOPIC_SURVEY_RELATED_RECORDS: typing.Final[str] = "survey_related_records"
+NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS: typing.Final[str] = (
+    "asset_discovery_conigurations"
+)
+NEW_TOPIC_DATASET_CATEGORIES: typing.Final[str] = "dataset_categories"
+NEW_TOPIC_WORKFLOW_STAGES: typing.Final[str] = "workflow_stages"
 
 PROGRESS_TOPIC_NAME_TEMPLATE: typing.Final[str] = "progress:{request_id}"
 
@@ -64,6 +69,55 @@ SURVEY_RELATED_RECORD_VALIDITY_CHANGED_TOPIC: typing.Final[str] = (
 SURVEY_RELATED_RECORD_DELETED_TOPIC: typing.Final[str] = (
     "survey-related-record-deleted:{survey_related_record_id}"
 )
+
+
+class PageType(str, enum.Enum):
+    HOME = "home"
+    RESOURCE_LIST = "resource_list"
+    RESOURCE_NEW = "resource_new"
+    RESOURCE_UPDATE = "resource_update"
+    RESOURCE_DETAIL = "resource_detail"
+
+
+class ResourceType(str, enum.Enum):
+    ASSET_DISCOVERY_CONFIG = "asset_discovery_configuration"
+    CATEGORY = "dataset_category"
+    MISSION = "survey_mission"
+    PROJECT = "project"
+    RECORD = "survey_related_record"
+    WORKFLOW_STAGE = "workflow_stage"
+
+    def get_topic_name(self) -> str:
+        return {
+            self.ASSET_DISCOVERY_CONFIG: NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS,
+            self.CATEGORY: NEW_TOPIC_DATASET_CATEGORIES,
+            self.MISSION: NEW_TOPIC_SURVEY_MISSIONS,
+            self.PROJECT: NEW_TOPIC_PROJECTS,
+            self.RECORD: NEW_TOPIC_SURVEY_RELATED_RECORDS,
+            self.WORKFLOW_STAGE: NEW_TOPIC_WORKFLOW_STAGES,
+        }[self]
+
+
+class ResourceModification(str, enum.Enum):
+    CREATED = "created"
+    DELETED = "deleted"
+    UPDATED = "updated"
+
+
+class BulkResourceModification(str, enum.Enum):
+    UPDATED = "updated"
+    DELETED = "deleted"
+
+
+class DiscoveryStage(str, enum.Enum):
+    STARTED = "started"
+    ENDED = "ended"
+    PROGRESS = "progress"
+
+
+class ValidationStage(str, enum.Enum):
+    STARTED = "started"
+    ENDED = "ended"
 
 
 class TranslatableEnumProtocol(typing.Protocol):

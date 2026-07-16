@@ -1,36 +1,39 @@
 import asyncio
-import dataclasses
 import json
 import uuid
 from typing import Annotated
 
-import shapely
 import typer
-import redis.asyncio as aioredis
 
-from .. import (
-    config,
-    constants,
-    operations,
-    schemas,
-    subscribers,
+from .. import config
+from ..operations import (
+    datasetcategories as category_ops,
+    projects as project_ops,
+    surveymissions as mission_ops,
+    surveyrelatedrecords as record_ops,
+    workflowstages as stage_ops,
 )
-from ..processing import projects as project_tasks
-from ..db import queries
-from ..schemas import identifiers
+from ..db.queries import (
+    datasetcategories as category_queries,
+    workflowstages as stage_queries,
+)
+from ..schemas import (
+    common as common_schemas,
+    datasetcategories as category_schemas,
+    identifiers,
+    surveymissions as mission_schemas,
+    surveyrelatedrecords as record_schemas,
+    workflowstages as stage_schemas,
+)
 from .asynctyper import AsyncTyper
 from .utils import resolve_admin_user
-from . import handlers
+from .projectsapp import app as projects_app
 
 app = AsyncTyper()
 
 dataset_categories_app = AsyncTyper()
 app.add_typer(dataset_categories_app, name="dataset-categories")
 
-domain_types_app = AsyncTyper()
-app.add_typer(domain_types_app, name="domain-types")
-
-projects_app = AsyncTyper()
 app.add_typer(projects_app, name="projects")
 
 survey_missions_app = AsyncTyper()
@@ -77,7 +80,6 @@ async def create_survey_related_record(
     description_en: str,
     description_pt: str,
     dataset_category: str,
-    domain_type: str,
     workflow_stage: str,
     relative_path: str,
     link: Annotated[list[dict], typer.Option(parser=json.loads)] = [],
@@ -87,28 +89,22 @@ async def create_survey_related_record(
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
         if (
-            db_dataset_category := await queries.get_dataset_category_by_english_name(
+            db_dataset_category
+            := await category_queries.get_dataset_category_by_english_name(
                 session, dataset_category
             )
         ) is None:
             printer(f"dataset category '{dataset_category!r}' not found.")
             raise typer.Abort()
         if (
-            db_domain_type := await queries.get_domain_type_by_english_name(
-                session, domain_type
-            )
-        ) is None:
-            printer(f"domain type '{domain_type!r}' not found.")
-            raise typer.Abort()
-        if (
-            db_workflow_stage := await queries.get_workflow_stage_by_english_name(
+            db_workflow_stage := await stage_queries.get_workflow_stage_by_english_name(
                 session, workflow_stage
             )
         ) is None:
             printer(f"workflow stage '{workflow_stage!r}' not found.")
             raise typer.Abort()
         if (
-            survey_mission := await operations.get_survey_mission(
+            survey_mission := await mission_ops.get_survey_mission(
                 identifiers.SurveyMissionId(parent_survey_mission_id),
                 ctx.obj["admin_user"],
                 session,
@@ -119,28 +115,28 @@ async def create_survey_related_record(
                 "mission does not exist."
             )
             raise typer.Abort()
-        created = await operations.create_survey_related_record(
-            to_create=schemas.SurveyRelatedRecordCreate(
+        created = await record_ops.create_survey_related_record(
+            request_id=identifiers.RequestId(uuid.uuid4()),
+            to_create=record_schemas.SurveyRelatedRecordCreate(
                 id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
                 owner_id=identifiers.UserId(owner),
-                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
-                description=schemas.LocalizableDraftDescription(
+                name=common_schemas.LocalizableDraftName(en=name_en, pt=name_pt),
+                description=common_schemas.LocalizableDraftDescription(
                     en=description_en, pt=description_pt
                 ),
                 survey_mission_id=identifiers.SurveyMissionId(survey_mission.id),
                 dataset_category_id=identifiers.DatasetCategoryId(
                     db_dataset_category.id
                 ),
-                domain_type_id=identifiers.DomainTypeId(db_domain_type.id),
                 workflow_stage_id=identifiers.WorkflowStageId(db_workflow_stage.id),
                 relative_path=relative_path,
-                links=[schemas.LinkSchema(**li) for li in link],
+                links=[common_schemas.LinkSchema(**li) for li in link],
             ),
             initiator=ctx.obj["admin_user"],
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
         )
-        print(schemas.SurveyRelatedRecordReadDetail(**created.model_dump()))
+        print(record_schemas.SurveyRelatedRecordReadDetail(**created.model_dump()))
 
 
 @survey_related_records_app.async_command(name="list")
@@ -153,7 +149,7 @@ async def list_survey_related_records(
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     _page_size = page_size or settings.pagination_page_size
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await operations.list_survey_related_records(
+        items, num_total = await record_ops.list_survey_related_records(
             session,
             initiator=ctx.obj["admin_user"],
             page=page,
@@ -164,7 +160,7 @@ async def list_survey_related_records(
     for item in items:
         # ctx.obj["main"].status_console.print_json(item.model_dump_json())
         print(
-            schemas.SurveyRelatedRecordReadListItem.from_db_instance(
+            record_schemas.SurveyRelatedRecordReadListItem.from_db_instance(
                 item
             ).model_dump_json()
         )
@@ -177,7 +173,7 @@ async def get_survey_related_record(
     """Get details about a survey-related record."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        record_details = await operations.get_survey_related_record(
+        record_details = await record_ops.get_survey_related_record(
             identifiers.SurveyRelatedRecordId(survey_related_record_id),
             ctx.obj["admin_user"].id,
             session,
@@ -188,7 +184,7 @@ async def get_survey_related_record(
             )
         else:
             print(
-                schemas.SurveyRelatedRecordReadDetail.from_db_instance(
+                record_schemas.SurveyRelatedRecordReadDetail.from_db_instance(
                     *record_details
                 ).model_dump_json()
             )
@@ -203,8 +199,11 @@ async def delete_survey_related_record(
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     printer = ctx.obj["main"].status_console.print
     async with settings.get_db_session_maker()() as session:
-        await operations.delete_survey_related_record(
-            identifiers.SurveyRelatedRecordId(survey_related_record_id),
+        await record_ops.delete_survey_related_record(
+            request_id=identifiers.RequestId(uuid.uuid4()),
+            survey_related_record_id=identifiers.SurveyRelatedRecordId(
+                survey_related_record_id
+            ),
             initiator=ctx.obj["admin_user"].id,
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
@@ -233,7 +232,7 @@ async def create_survey_mission(
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
         if (
-            project := await operations.get_project(
+            project := await project_ops.get_project(
                 identifiers.ProjectId(parent_project_id),
                 ctx.obj["admin_user"],
                 session,
@@ -243,23 +242,24 @@ async def create_survey_mission(
                 "Cannot create survey mission as the parent project does not exist."
             )
             raise typer.Abort()
-        created = await operations.create_survey_mission(
-            to_create=schemas.SurveyMissionCreate(
+        created = await mission_ops.create_survey_mission(
+            request_id=identifiers.RequestId(uuid.uuid4()),
+            to_create=mission_schemas.SurveyMissionCreate(
                 id=identifiers.SurveyMissionId(uuid.uuid4()),
                 project_id=identifiers.ProjectId(project.id),
                 owner_id=identifiers.UserId(owner),
-                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
-                description=schemas.LocalizableDraftDescription(
+                name=common_schemas.LocalizableDraftName(en=name_en, pt=name_pt),
+                description=common_schemas.LocalizableDraftDescription(
                     en=description_en, pt=description_pt
                 ),
                 relative_path=relative_path,
-                links=[schemas.LinkSchema(**li) for li in link],
+                links=[common_schemas.LinkSchema(**li) for li in link],
             ),
             initiator=ctx.obj["admin_user"],
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
         )
-        print(schemas.SurveyMissionReadDetail(**created.model_dump()))
+        print(mission_schemas.SurveyMissionReadDetail(**created.model_dump()))
 
 
 @survey_missions_app.async_command(name="list")
@@ -271,7 +271,7 @@ async def list_survey_missions(
     """List survey missions."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await operations.list_survey_missions(
+        items, num_total = await mission_ops.list_survey_missions(
             session,
             initiator=ctx.obj["admin_user"],
             limit=limit,
@@ -280,7 +280,7 @@ async def list_survey_missions(
         )
     print(f"Total records: {num_total}")
     for item in items:
-        print(schemas.SurveyMissionReadListItem(**item.model_dump()))
+        print(mission_schemas.SurveyMissionReadListItem(**item.model_dump()))
 
 
 @survey_missions_app.async_command(name="get")
@@ -288,7 +288,7 @@ async def get_survey_mission(ctx: typer.Context, survey_mission_id: uuid.UUID):
     """Get details about a survey mission"""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        survey_mission = await operations.get_survey_mission(
+        survey_mission = await mission_ops.get_survey_mission(
             identifiers.SurveyMissionId(survey_mission_id),
             ctx.obj["admin_user"].id,
             session,
@@ -297,7 +297,7 @@ async def get_survey_mission(ctx: typer.Context, survey_mission_id: uuid.UUID):
             print(f"Survey mission {survey_mission_id!r} not found")
         else:
             print(
-                schemas.SurveyMissionReadDetail.from_db_instance(
+                mission_schemas.SurveyMissionReadDetail.from_db_instance(
                     survey_mission
                 ).model_dump_json()
             )
@@ -311,159 +311,14 @@ async def delete_survey_mission(
     """Delete a survey mission."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        await operations.delete_survey_mission(
-            identifiers.SurveyMissionId(survey_mission_id),
+        await mission_ops.delete_survey_mission(
+            request_id=identifiers.RequestId(uuid.uuid4()),
+            survey_mission_id=identifiers.SurveyMissionId(survey_mission_id),
             initiator=ctx.obj["admin_user"].id,
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
         )
     print(f"Deleted survey mission with id {survey_mission_id!r}")
-
-
-@projects_app.callback()
-def projects_app_callback(ctx: typer.Context):
-    """Manage projects."""
-
-
-def _parse_bbox_bounds(raw_bounds: str) -> shapely.Polygon:
-    bounds = [float(coord) for coord in raw_bounds.split(",")]
-    if len(bounds) != 4:
-        raise ValueError("Bounds must have exactly four comma-separated values.")
-    min_lon, min_lat, max_lon, max_lat = bounds
-    return shapely.box(min_lon, min_lat, max_lon, max_lat)
-
-
-@projects_app.async_command(name="create")
-async def create_project(
-    ctx: typer.Context,
-    owner: str,
-    name_en: str,
-    root_path: str,
-    link: Annotated[list[dict], typer.Option(parser=json.loads)] = None,
-    name_pt: str | None = None,
-    description_en: str | None = None,
-    description_pt: str | None = None,
-    bbox_4326: Annotated[
-        shapely.Polygon,
-        typer.Option(
-            parser=_parse_bbox_bounds,
-            help=(
-                "Bounds of the bounding box as a comma-separated list of "
-                "min_lon,min_lat,max_lon,max_lat"
-            ),
-        ),
-    ] = None,
-):
-    """Create a new project."""
-    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
-    async with settings.get_db_session_maker()() as session:
-        created = await operations.create_project(
-            to_create=schemas.ProjectCreate(
-                id=identifiers.ProjectId(uuid.uuid4()),
-                owner_id=identifiers.UserId(owner),
-                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
-                description=schemas.LocalizableDraftDescription(
-                    en=description_en, pt=description_pt
-                ),
-                root_path=root_path,
-                bbox_4326=bbox_4326.wkt,
-                links=[
-                    schemas.LinkSchema(
-                        url=li["url"],
-                        link_description=schemas.LocalizableDraftDescription(
-                            en=li.get("link_description", {}).get("en", ""),
-                            pt=li.get("link_description", {}).get("pt", ""),
-                        ),
-                        media_type=li["media_type"],
-                        relation=li["relation"],
-                    )
-                    for li in link or []
-                ],
-            ),
-            initiator=ctx.obj["admin_user"],
-            session=session,
-            event_dispatcher=settings.get_event_dispatcher(),
-        )
-        print(schemas.ProjectReadDetail(**created.model_dump()))
-
-
-@projects_app.async_command(name="get")
-async def get_project(ctx: typer.Context, project_id: uuid.UUID):
-    """Get details about a project"""
-    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
-    async with settings.get_db_session_maker()() as session:
-        project = await operations.get_project(
-            identifiers.ProjectId(project_id),
-            ctx.obj["admin_user"].id,
-            session,
-        )
-        if project is None:
-            print(f"Project {project_id!r} not found")
-        else:
-            print(schemas.ProjectReadDetail.from_db_instance(project).model_dump_json())
-
-
-@projects_app.async_command(name="list")
-async def list_projects(
-    ctx: typer.Context,
-    page: int = 1,
-    page_size: int = 20,
-):
-    """List projects."""
-    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
-    async with settings.get_db_session_maker()() as session:
-        items, num_total = await operations.list_projects(
-            session,
-            initiator=ctx.obj["admin_user"],
-            page=page,
-            page_size=page_size,
-            include_total=True,
-        )
-    print(f"Total records: {num_total}")
-    for item in items:
-        print(schemas.ProjectReadListItem(**item.model_dump()))
-
-
-@projects_app.async_command(name="delete")
-async def delete_project(
-    ctx: typer.Context,
-    project_id: uuid.UUID,
-):
-    """Delete a project."""
-    redis_client: aioredis.Redis = ctx.obj["main"].redis_client
-    subscription = subscribers.subscribe_to_topic(
-        redis_client,
-        topic_name=constants.NEW_TOPIC_PROJECTS,
-        handler_context=subscribers.HandlerContext(),
-        message_handlers={
-            "project_deleted": handlers.handle_project_deletion_success,
-            "project_not_deleted": handlers.handle_project_deletion_failure,
-        },
-    )
-    project_tasks.delete_project.send(
-        raw_request_id=str(uuid.uuid4()),
-        raw_project_id=str(identifiers.ProjectId(project_id)),
-        raw_initiator=json.dumps(dataclasses.asdict(ctx.obj["admin_user"])),
-    )  # noqa
-    async for chunk in subscription:
-        ctx.obj["main"].status_console.print(chunk)
-
-
-@projects_app.async_command(name="old-delete")
-async def old_delete_project(
-    ctx: typer.Context,
-    project_id: uuid.UUID,
-):
-    """Delete a project."""
-    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
-    async with settings.get_db_session_maker()() as session:
-        await operations.delete_project(
-            identifiers.ProjectId(project_id),
-            initiator=ctx.obj["admin_user"],
-            session=session,
-            event_dispatcher=settings.get_event_dispatcher(),
-        )
-    print(f"Deleted project with id {project_id!r}")
 
 
 @dataset_categories_app.callback()
@@ -480,33 +335,30 @@ async def create_dataset_category(
     """Create a new dataset category."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        created = await operations.create_dataset_category(
-            to_create=schemas.DatasetCategoryCreate(
+        created = await category_ops.create_dataset_category(
+            request_id=identifiers.RequestId(uuid.uuid4()),
+            to_create=category_schemas.DatasetCategoryCreate(
                 id=identifiers.DatasetCategoryId(uuid.uuid4()),
-                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
+                name=common_schemas.LocalizableDraftName(en=name_en, pt=name_pt),
             ),
             initiator=ctx.obj["admin_user"],
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
         )
-        print(schemas.DatasetCategoryRead(**created.model_dump()))
+        print(category_schemas.DatasetCategoryReadListItem(**created.model_dump()))
 
 
 @dataset_categories_app.async_command(name="list")
 async def list_dataset_categories(
     ctx: typer.Context,
-    limit: int = 20,
-    offset: int = 0,
 ):
     """List dataset categories."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await operations.list_dataset_categories(
-            session, limit=limit, offset=offset, include_total=True
-        )
-    print(f"Total records: {num_total}")
+        items = await category_queries.collect_all_dataset_categories(session)
+    print(f"Total records: {len(items)}")
     for item in items:
-        print(schemas.DatasetCategoryRead(**item.model_dump()))
+        print(category_schemas.DatasetCategoryReadListItem(**item.model_dump()))
 
 
 @dataset_categories_app.async_command(name="delete")
@@ -517,73 +369,14 @@ async def delete_dataset_category(
     """Delete a dataset category."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        await operations.delete_dataset_category(
-            dataset_category_id,
+        await category_ops.delete_dataset_category(
+            request_id=identifiers.RequestId(uuid.uuid4()),
+            dataset_category_id=dataset_category_id,
             initiator=ctx.obj["admin_user"],
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
         )
     print(f"Deleted dataset category with id {dataset_category_id!r}")
-
-
-@domain_types_app.callback()
-def domain_types_app_callback(ctx: typer.Context):
-    """Manage domain types."""
-
-
-@domain_types_app.async_command(name="create")
-async def create_domain_type(
-    ctx: typer.Context,
-    name_en: str,
-    name_pt: str,
-):
-    """Create a new domain type."""
-    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
-    async with settings.get_db_session_maker()() as session:
-        created = await operations.create_domain_type(
-            to_create=schemas.DomainTypeCreate(
-                id=identifiers.DomainTypeId(uuid.uuid4()),
-                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
-            ),
-            initiator=ctx.obj["admin_user"],
-            session=session,
-            event_dispatcher=settings.get_event_dispatcher(),
-        )
-        print(schemas.DomainTypeRead(**created.model_dump()))
-
-
-@domain_types_app.async_command(name="list")
-async def list_domain_types(
-    ctx: typer.Context,
-    limit: int = 20,
-    offset: int = 0,
-):
-    """List domain types."""
-    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
-    async with settings.get_db_session_maker()() as session:
-        items, num_total = await operations.list_domain_types(
-            session, limit=limit, offset=offset, include_total=True
-        )
-    print(f"Total records: {num_total}")
-    for item in items:
-        print(schemas.DomainTypeRead(**item.model_dump()))
-
-
-@domain_types_app.async_command(name="delete")
-async def delete_domain_type(
-    ctx: typer.Context,
-    domain_type_id: uuid.UUID,
-):
-    """Delete a domain type."""
-    settings: config.SeisLabDataSettings = ctx.obj["main"].settings
-    async with settings.get_db_session_maker()() as session:
-        await operations.delete_domain_type(
-            domain_type_id,
-            initiator=ctx.obj["admin_user"],
-            session=session,
-            event_dispatcher=settings.get_event_dispatcher(),
-        )
-    print(f"Deleted domain type with id {domain_type_id!r}")
 
 
 @workflow_stages_app.callback()
@@ -600,33 +393,29 @@ async def create_workflow_stage(
     """Create a new workflow stage."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        created = await operations.create_workflow_stage(
-            to_create=schemas.WorkflowStageCreate(
+        created = await stage_ops.create_workflow_stage(
+            to_create=stage_schemas.WorkflowStageCreate(
                 id=identifiers.WorkflowStageId(uuid.uuid4()),
-                name=schemas.LocalizableDraftName(en=name_en, pt=name_pt),
+                name=common_schemas.LocalizableDraftName(en=name_en, pt=name_pt),
             ),
             initiator=ctx.obj["admin_user"],
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
         )
-        print(schemas.WorkflowStageRead(**created.model_dump()))
+        print(stage_schemas.WorkflowStageReadListItem(**created.model_dump()))
 
 
 @workflow_stages_app.async_command(name="list")
 async def list_workflow_stages(
     ctx: typer.Context,
-    limit: int = 20,
-    offset: int = 0,
 ):
     """List workflow stages."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await operations.list_workflow_stages(
-            session, limit=limit, offset=offset, include_total=True
-        )
-    print(f"Total records: {num_total}")
+        items = await stage_queries.collect_all_workflow_stages(session)
+    print(f"Total records: {len(items)}")
     for item in items:
-        print(schemas.WorkflowStageRead(**item.model_dump()))
+        print(stage_schemas.WorkflowStageReadListItem(**item.model_dump()))
 
 
 @workflow_stages_app.async_command(name="delete")
@@ -637,7 +426,7 @@ async def delete_workflow_stage(
     """Delete a workflow stage."""
     settings: config.SeisLabDataSettings = ctx.obj["main"].settings
     async with settings.get_db_session_maker()() as session:
-        await operations.delete_workflow_stage(
+        await stage_ops.delete_workflow_stage(
             workflow_stage_id,
             initiator=ctx.obj["admin_user"],
             session=session,

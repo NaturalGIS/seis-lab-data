@@ -1,17 +1,12 @@
-import asyncio
 import dataclasses
 import json
 import logging
 import uuid
-from typing import AsyncGenerator
 
 import shapely
 from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
-from datastar_py.sse import DatastarEvent
 from datastar_py.starlette import DatastarResponse
-from dramatiq import Message
-from jinja2 import Template
 from redis.asyncio import Redis
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
@@ -27,22 +22,32 @@ from ... import (
     constants,
     errors,
     geojson,
-    operations,
-    permissions,
-    schemas,
     subscribers,
 )
-from ...constants import PROGRESS_TOPIC_NAME_TEMPLATE
-from ...processing import (
-    projects as project_tasks,
-    discovery as discovery_tasks,
-    tasks,
+from ...operations import (
+    projects as project_ops,
+    surveymissions as survey_mission_ops,
 )
-from ...schemas import identifiers
-from ..streamhandlers import projects as project_handlers
-from .. import (
-    filters,
-    forms,
+from ...permissions import (
+    projects as project_permissions,
+    surveymissions as mission_permissions,
+)
+from ...tasks import (
+    projects as project_tasks,
+    surveymissions as survey_mission_tasks,
+)
+from ...schemas import (
+    common as common_schemas,
+    identifiers,
+    projects as project_schemas,
+    surveymissions as mission_schemas,
+    webui as webui_schemas,
+)
+from ..streamhandlers import common as common_handlers
+from .. import filters
+from ..forms import (
+    projects as project_forms,
+    surveymissions as mission_forms,
 )
 from .auth import (
     requires_auth,
@@ -51,7 +56,6 @@ from .common import (
     get_id_from_request_path,
     get_page_from_request_params,
     get_pagination_info,
-    produce_event_stream_for_topic,
     UPDATE_BASEMAP_JS_SCRIPT,
 )
 
@@ -62,7 +66,7 @@ logger = logging.getLogger(__name__)
 @requires_auth
 async def get_project_creation_form(request: Request):
     """Return a form suitable for creating a new project."""
-    form_instance = await forms.ProjectCreateForm.from_formdata(request)
+    form_instance = await project_forms.ProjectCreateForm.from_formdata(request)
     form_instance.request_id.data = str(identifiers.RequestId(uuid.uuid4()))
     template_processor: Jinja2Templates = request.state.templates
     return template_processor.TemplateResponse(
@@ -71,11 +75,13 @@ async def get_project_creation_form(request: Request):
         context={
             "form": form_instance,
             "breadcrumbs": [
-                schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
-                schemas.BreadcrumbItem(
+                webui_schemas.BreadcrumbItem(
+                    name=_("Home"), url=request.url_for("home")
+                ),
+                webui_schemas.BreadcrumbItem(
                     name=_("Projects"), url=request.url_for("projects:list")
                 ),
-                schemas.BreadcrumbItem(name=_("New project")),
+                webui_schemas.BreadcrumbItem(name=_("New project")),
             ],
         },
     )
@@ -90,7 +96,7 @@ async def get_project_update_form(request: Request):
     project_id = get_id_from_request_path(request, "project_id", identifiers.ProjectId)
     async with session_maker() as session:
         try:
-            project = await operations.get_project(
+            project = await project_ops.get_project(
                 project_id,
                 user,
                 session,
@@ -106,7 +112,7 @@ async def get_project_update_form(request: Request):
         if project.bbox_4326 is not None
         else None
     )
-    update_form = forms.ProjectUpdateForm(
+    update_form = project_forms.ProjectUpdateForm(
         request=request,
         data={
             "name": {
@@ -147,23 +153,26 @@ async def get_project_update_form(request: Request):
             ),
         },
     )
+    update_form.request_id.data = uuid.uuid4()
     template_processor: Jinja2Templates = request.state.templates
     return template_processor.TemplateResponse(
         request,
         "projects/update-form-page.html",
         context={
-            "project": schemas.ProjectReadDetail.from_db_instance(project),
+            "project": webui_schemas.ProjectReadDetail.from_db_instance(project),
             "form": update_form,
             "breadcrumbs": [
-                schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
-                schemas.BreadcrumbItem(
+                webui_schemas.BreadcrumbItem(
+                    name=_("Home"), url=request.url_for("home")
+                ),
+                webui_schemas.BreadcrumbItem(
                     name=_("Projects"), url=request.url_for("projects:list")
                 ),
-                schemas.BreadcrumbItem(
+                webui_schemas.BreadcrumbItem(
                     name=project.name["en"],
                     url=request.url_for("projects:detail", project_id=project_id),
                 ),
-                schemas.BreadcrumbItem(name=_("Edit project")),
+                webui_schemas.BreadcrumbItem(name=_("Edit project")),
             ],
         },
     )
@@ -179,37 +188,72 @@ async def get_project_details_component(request: Request):
         project=details.item,
         pagination=details.pagination,
         survey_missions=details.children,
+        search_initial_value=details.children_filter,
         permissions=details.permissions,
     )
 
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
     return DatastarResponse(event_streamer())
 
 
-async def get_project_list_updates(request: Request):
+async def stream_to_list_page(request: Request):
     """Stream relevant updates for the project list page."""
 
     subscription = subscribers.subscribe_to_topic(
         request.state.redis_client,
-        constants.NEW_TOPIC_PROJECTS,
-        subscribers.ProjectHandlerContext(
+        [constants.NEW_TOPIC_PROJECTS],
+        subscribers.HandlerContext(
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
             db_session_factory=request.state.settings.get_db_session_maker(),
+            target_page=constants.PageType.RESOURCE_LIST,
+            resource_type=constants.ResourceType.PROJECT,
         ),
         {
-            "project_creation_successful": project_handlers.handle_list_page_project_modification,
-            "project_deletion_successful": project_handlers.handle_list_page_project_modification,
-            "project_update_successful": project_handlers.handle_list_page_project_modification,
-            "project_created": project_handlers.handle_list_page_project_modification,
-            "project_updated": project_handlers.handle_list_page_project_modification,
-            "project_deleted": project_handlers.handle_list_page_project_modification,
+            "resource_modified": common_handlers.handle_resource_modification_list_page,
+            # "project_creation_successful": project_handlers.handle_list_page_project_modification,
+            # "project_deletion_successful": project_handlers.handle_list_page_project_modification,
+            # "project_update_successful": project_handlers.handle_list_page_project_modification,
+            # "project_created": project_handlers.handle_list_page_project_modification,
+            # "project_updated": project_handlers.handle_list_page_project_modification,
+            # "project_deleted": project_handlers.handle_list_page_project_modification,
+        },
+    )
+
+    async def event_streamer():
+        async for sse_event in subscription:
+            yield sse_event
+
+    return DatastarResponse(event_streamer(), status_code=200)
+
+
+@requires_auth
+async def stream_to_new_page(request: Request):
+    """Stream relevant updates for the new project page."""
+    try:
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid request id") from err
+
+    # TODO: should we update the form fields with handlers too?
+    subscription = subscribers.subscribe_to_topic(
+        request.state.redis_client,
+        [constants.NEW_TOPIC_PROJECTS],
+        subscribers.HandlerContext(
+            request_id=request_id,
+            user=request.user,
+            url_resolver=request.url_for,
+            jinja_environment=request.state.templates.env,
+            db_session_factory=request.state.settings.get_db_session_maker(),
+        ),
+        {
+            "resource_modified": common_handlers.handle_resource_modification_new_page,
         },
     )
 
@@ -221,41 +265,11 @@ async def get_project_list_updates(request: Request):
 
 
 @requires_auth
-async def get_project_new_updates(request: Request):
-    """Stream relevant updates for the new project page."""
-    try:
-        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
-    except ValueError as err:
-        raise HTTPException(status_code=400, detail="Invalid request id") from err
-
-    # TODO: should we update the form fields with handlers too?
-    subscription = subscribers.subscribe_to_topic(
-        request.state.redis_client,
-        constants.NEW_TOPIC_PROJECTS,
-        subscribers.HandlerContext(
-            request_id=request_id,
-            user=request.user,
-            url_resolver=request.url_for,
-            jinja_environment=request.state.templates.env,
-            db_session_factory=request.state.settings.get_db_session_maker(),
-        ),
-        {
-            "project_created": project_handlers.handle_new_page_project_creation_successful,
-            "project_not_created": project_handlers.handle_new_page_project_creation_failed,
-        },
-    )
-
-    async def event_streamer():
-        async for sse_event in subscription:
-            yield sse_event
-
-    return DatastarResponse(event_streamer())
-
-
-async def get_project_detail_updates(request: Request):
-    """Stream relevant updates for the project details page."""
+async def stream_to_update_page(request: Request):
+    """Stream relevant updates for the project update page."""
     try:
         project_id = identifiers.ProjectId(uuid.UUID(request.path_params["project_id"]))
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
     except ValueError as err:
         raise HTTPException(
             status_code=400, detail="Invalid project or request id"
@@ -266,23 +280,17 @@ async def get_project_detail_updates(request: Request):
 
     subscription = subscribers.subscribe_to_topic(
         redis_client,
-        constants.NEW_TOPIC_PROJECTS,
-        subscribers.ProjectHandlerContext(
-            project_id=project_id,
+        [constants.NEW_TOPIC_PROJECTS],
+        subscribers.HandlerContext(
+            resource_id=str(project_id),
             user=user,
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
             db_session_factory=session_maker,
+            request_id=request_id,
         ),
         {
-            "project_deleted": project_handlers.handle_detail_page_project_deletion_success,
-            "project_deletion_failed": project_handlers.handle_detail_page_project_deletion_failure,
-            "project_discovery_progress": project_handlers.handle_detail_page_project_discovery_progress,
-            "project_status_changed": project_handlers.handle_detail_page_project_status_changed,
-            "project_updated": project_handlers.handle_edit_page_project_modification_successful,
-            "project_not_updated": project_handlers.handle_edit_page_project_modification_failure,
-            "project_validated": project_handlers.handle_detail_page_project_validated,
-            "project_not_validated": project_handlers.handle_detail_page_project_not_validated,
+            "resource_modified": common_handlers.handle_resource_modification_edit_page,
         },
     )
 
@@ -293,7 +301,48 @@ async def get_project_detail_updates(request: Request):
     return DatastarResponse(event_streamer())
 
 
-async def _get_project_details(request: Request) -> schemas.ProjectDetails:
+async def stream_to_detail_page(request: Request):
+    """Stream relevant updates for the project details page."""
+    try:
+        project_id = identifiers.ProjectId(uuid.UUID(request.path_params["project_id"]))
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
+    except ValueError as err:
+        raise HTTPException(
+            status_code=400, detail="Invalid project or request id"
+        ) from err
+    session_maker = request.state.settings.get_db_session_maker()
+    redis_client: Redis = request.state.redis_client
+    user = request.user if request.user.is_authenticated else None
+
+    subscription = subscribers.subscribe_to_topic(
+        redis_client,
+        [
+            constants.NEW_TOPIC_PROJECTS,
+            constants.NEW_TOPIC_SURVEY_MISSIONS,
+        ],
+        subscribers.HandlerContext(
+            resource_id=str(project_id),
+            user=user,
+            jinja_environment=request.state.templates.env,
+            url_resolver=request.url_for,
+            db_session_factory=session_maker,
+            request_id=request_id,
+            resource_type=constants.ResourceType.PROJECT,
+            target_page=constants.PageType.RESOURCE_DETAIL,
+        ),
+        {
+            "resource_modified": common_handlers.handle_resource_modification_detail_page,
+        },
+    )
+
+    async def event_streamer():
+        async for sse_event in subscription:
+            yield sse_event
+
+    return DatastarResponse(event_streamer())
+
+
+async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails:
     """utility function to get project details and its survey missions."""
     survey_mission_current_page = get_page_from_request_params(request)
     current_language = request.state.language
@@ -305,7 +354,7 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
     settings: config.SeisLabDataSettings = request.state.settings
     async with settings.get_db_session_maker()() as session:
         try:
-            project = await operations.get_project(
+            project = await project_ops.get_project(
                 project_id,
                 user,
                 session,
@@ -316,7 +365,7 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
             raise HTTPException(
                 status_code=404, detail=_(f"Project {project_id!r} not found.")
             )
-        survey_missions, total = await operations.list_survey_missions(
+        survey_missions, total = await survey_mission_ops.list_survey_missions(
             session,
             user,
             project_id=project_id,
@@ -325,10 +374,10 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
             page_size=settings.pagination_page_size,
             **survey_mission_list_filters.as_kwargs(),
         )
-    return schemas.ProjectDetails(
-        item=schemas.ProjectReadDetail.from_db_instance(project),
+    return webui_schemas.ProjectDetails(
+        item=webui_schemas.ProjectReadDetail.from_db_instance(project),
         children=[
-            schemas.SurveyMissionReadListItem.from_db_instance(sm)
+            webui_schemas.SurveyMissionReadListItem.from_db_instance(sm)
             for sm in survey_missions
         ],
         children_filter=survey_mission_list_filters.get_text_search_filter(
@@ -343,19 +392,39 @@ async def _get_project_details(request: Request) -> schemas.ProjectDetails:
                 request.url_for("projects:detail", project_id=project_id)
             ),
         ),
-        permissions=schemas.UserPermissionDetails(
-            can_delete=permissions.can_delete_project(user, project),
-            can_update=permissions.can_update_project(user, project),
-            can_create_children=permissions.can_create_survey_mission(user, project),
+        permissions=webui_schemas.UserPermissionDetails(
+            can_delete=project_permissions.can_delete_project(user, project)
+            if user
+            else False,
+            can_update=project_permissions.can_update_project(user, project)
+            if user
+            else False,
+            can_create_children=mission_permissions.can_create_survey_mission(
+                user, project
+            )
+            if user
+            else False,
+            can_validate=project_permissions.can_validate_project(user, project)
+            if user
+            else False,
+            can_discover=project_permissions.can_discover_project(user, project)
+            if user
+            else False,
         ),
         breadcrumbs=[
-            schemas.BreadcrumbItem(name=_("Home"), url=str(request.url_for("home"))),
-            schemas.BreadcrumbItem(
+            webui_schemas.BreadcrumbItem(
+                name=_("Home"),
+                # icon=settings.icons.home,
+                url=str(request.url_for("home")),
+            ),
+            webui_schemas.BreadcrumbItem(
                 name=_("Projects"),
+                # icon=settings.icons.list,
                 url=request.url_for("projects:list"),
             ),
-            schemas.BreadcrumbItem(
+            webui_schemas.BreadcrumbItem(
                 name=project.name["en"],
+                icon=settings.icons.projects,
             ),
         ],
     )
@@ -379,7 +448,7 @@ async def get_list_component(request: Request):
     settings: config.SeisLabDataSettings = request.state.settings
     user = request.user if request.user.is_authenticated else None
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await operations.list_projects(
+        items, num_total = await project_ops.list_projects(
             session,
             initiator=user,
             page=current_page,
@@ -388,7 +457,7 @@ async def get_list_component(request: Request):
             **internal_filter_kwargs,
         )
         num_unfiltered_total = (
-            await operations.list_projects(session, initiator=user, include_total=True)
+            await project_ops.list_projects(session, initiator=user, include_total=True)
         )[1]
 
     pagination_info = get_pagination_info(
@@ -398,7 +467,9 @@ async def get_list_component(request: Request):
         num_unfiltered_total,
         collection_url=str(request.url_for("projects:list")),
     )
-    serialized_items = [schemas.ProjectReadListItem.from_db_instance(i) for i in items]
+    serialized_items = [
+        project_schemas.ProjectReadListItem.from_db_instance(i) for i in items
+    ]
     template_processor = request.state.templates
     template = template_processor.get_template("projects/list-component.html")
     rendered = template.render(
@@ -411,7 +482,7 @@ async def get_list_component(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.items_selector,
+            selector=webui_schemas.selector_info.items_selector,
             mode=ElementPatchMode.REPLACE,
         )
         yield ServerSentEventGenerator.execute_script(
@@ -438,7 +509,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             request.query_params, current_language
         )
         async with settings.get_db_session_maker()() as session:
-            items, num_total = await operations.list_projects(
+            items, num_total = await project_ops.list_projects(
                 session,
                 initiator=user,
                 page=current_page,
@@ -447,7 +518,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 **list_filters.as_kwargs(),
             )
             num_unfiltered_total = (
-                await operations.list_projects(
+                await project_ops.list_projects(
                     session, initiator=user, include_total=True
                 )
             )[1]
@@ -466,7 +537,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             min_lon, min_lat, max_lon, max_lat = default_bbox.bounds
 
         serialized_items = [
-            schemas.ProjectReadListItem.from_db_instance(i) for i in items
+            project_schemas.ProjectReadListItem.from_db_instance(i) for i in items
         ]
         geojson_features = geojson.to_feature_collection(serialized_items)
         return template_processor.TemplateResponse(
@@ -487,10 +558,17 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                     "end": settings.default_temporal_extent_end,
                 },
                 "breadcrumbs": [
-                    schemas.BreadcrumbItem(name=_("Home"), url=request.url_for("home")),
-                    schemas.BreadcrumbItem(name=_("Projects")),
+                    webui_schemas.BreadcrumbItem(
+                        name=_("Home"),
+                        # icon=settings.icons.home,
+                        url=request.url_for("home"),
+                    ),
+                    webui_schemas.BreadcrumbItem(
+                        name=_("Projects"),
+                        icon=settings.icons.projects,
+                    ),
                 ],
-                "user_can_create": permissions.can_create_project(user),
+                "user_can_create": project_permissions.can_create_project(user),
                 "search_initial_value": list_filters.get_text_search_filter(
                     current_language
                 ),
@@ -506,8 +584,8 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         """Create a new project."""
         template_processor: Jinja2Templates = request.state.templates
         user = request.user
-        form_instance = await forms.ProjectCreateForm.get_validated_form_instance(
-            request
+        form_instance = (
+            await project_forms.ProjectCreateForm.get_validated_form_instance(request)
         )
         if form_instance.has_validation_errors():
             logger.debug("form did not validate")
@@ -520,7 +598,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 )
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
-                    selector=schemas.selector_info.main_content_selector,
+                    selector=webui_schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
                 yield ServerSentEventGenerator.execute_script(
@@ -530,14 +608,14 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
             return DatastarResponse(event_streamer(), status_code=200)
 
-        to_create = schemas.ProjectCreate(
+        to_create = project_schemas.ProjectCreate(
             id=identifiers.ProjectId(uuid.uuid4()),
             owner_id=user.id,
-            name=schemas.LocalizableDraftName(
+            name=common_schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,
             ),
-            description=schemas.LocalizableDraftDescription(
+            description=common_schemas.LocalizableDraftDescription(
                 en=form_instance.description.en.data,
                 pt=form_instance.description.pt.data,
             ),
@@ -555,11 +633,11 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             temporal_extent_begin=form_instance.temporal_extent_begin.data,
             temporal_extent_end=form_instance.temporal_extent_end.data,
             links=[
-                schemas.LinkSchema(
+                common_schemas.LinkSchema(
                     url=lf.url.data,
                     media_type=lf.media_type.data,
                     relation=lf.relation.data,
-                    link_description=schemas.LocalizableDraftDescription(
+                    link_description=common_schemas.LocalizableDraftDescription(
                         en=lf.link_description.en.data,
                         pt=lf.link_description.pt.data,
                     ),
@@ -575,76 +653,6 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             raw_initiator=json.dumps(dataclasses.asdict(user)),
         )  # noqa
         return Response(status_code=200)
-
-        # tasks.create_project.send(
-        #     raw_request_id=str(request_id),
-        #     raw_to_create=to_create.model_dump_json(),
-        #     raw_initiator=json.dumps(dataclasses.asdict(user)),
-        # )
-
-        # async def handle_processing_success(
-        #     final_message: schemas.ProcessingMessage, message_template: Template
-        # ) -> AsyncGenerator[DatastarEvent, None]:
-        #     yield ServerSentEventGenerator.patch_elements(
-        #         message_template.render(
-        #             data_test_id="processing-success-message",
-        #             status=final_message.status,
-        #             message=f"{final_message.message} - you will be redirected shortly.",
-        #         ),
-        #         selector=schemas.selector_info.feedback_selector,
-        #         mode=ElementPatchMode.APPEND,
-        #     )
-        #     await asyncio.sleep(1)
-        #
-        #     tasks.validate_project.send(
-        #         raw_request_id=str(request_id),
-        #         raw_project_id=str(to_create.id),
-        #         raw_initiator=json.dumps(dataclasses.asdict(user)),
-        #     )
-        #
-        #     yield ServerSentEventGenerator.redirect(
-        #         str(request.url_for("projects:detail", project_id=to_create.id)),
-        #     )
-        #
-        # async def handle_processing_failure(
-        #     final_message: schemas.ProcessingMessage, message_template: Template
-        # ) -> AsyncGenerator[DatastarEvent, None]:
-        #     rendered = message_template.render(
-        #         status=final_message.status.value,
-        #         message=f"ERROR: {final_message.message}",
-        #     )
-        #     yield ServerSentEventGenerator.patch_elements(
-        #         rendered,
-        #         selector=schemas.selector_info.feedback_selector,
-        #         mode=ElementPatchMode.APPEND,
-        #     )
-        #
-        # async def event_streamer():
-        #     yield ServerSentEventGenerator.patch_elements(
-        #         """<li>Creating project as a background task...</li>""",
-        #         selector=schemas.selector_info.feedback_selector,
-        #         mode=ElementPatchMode.APPEND,
-        #     )
-        #
-        #     enqueued_message: Message = tasks.create_project.send(
-        #         raw_request_id=str(request_id),
-        #         raw_to_create=to_create.model_dump_json(),
-        #         raw_initiator=json.dumps(dataclasses.asdict(user)),
-        #     )
-        #     logger.debug(f"{enqueued_message=}")
-        #     event_stream_generator = produce_event_stream_for_topic(
-        #         redis_client,
-        #         request,
-        #         topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
-        #         on_success=handle_processing_success,
-        #         on_failure=handle_processing_failure,
-        #         patch_elements_selector=schemas.selector_info.feedback_selector,
-        #         timeout_seconds=30,
-        #     )
-        #     async for sse_event in event_stream_generator:
-        #         yield sse_event
-        #
-        # return DatastarResponse(event_streamer(), status_code=200)
 
 
 class ProjectDetailEndpoint(HTTPEndpoint):
@@ -662,6 +670,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             request,
             "projects/detail.html",
             context={
+                "request_id": uuid.uuid4(),
                 "project": details.item,
                 "pagination": details.pagination,
                 "survey_missions": details.children,
@@ -683,11 +692,13 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         )
         async with session_maker() as session:
             if (
-                project := await operations.get_project(project_id, user, session)
+                project := await project_ops.get_project(project_id, user, session)
             ) is None:
                 raise HTTPException(404, f"Project {project_id!r} not found.")
-        form_instance = await forms.ProjectUpdateForm.get_validated_form_instance(
-            request, disregard_id=project_id
+        form_instance = (
+            await project_forms.ProjectUpdateForm.get_validated_form_instance(
+                request, disregard_id=project_id
+            )
         )
 
         if form_instance.has_validation_errors():
@@ -698,12 +709,12 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 template = template_processor.get_template("projects/update-form.html")
                 rendered = template.render(
                     request=request,
-                    project=schemas.ProjectReadDetail.from_db_instance(project),
+                    project=webui_schemas.ProjectReadDetail.from_db_instance(project),
                     form=form_instance,
                 )
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
-                    selector=schemas.selector_info.main_content_selector,
+                    selector=webui_schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
                 yield ServerSentEventGenerator.execute_script(
@@ -714,13 +725,13 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             return DatastarResponse(event_streamer(), status_code=200)
 
         raw_dc = form_instance.discovery_configuration.data
-        to_update = schemas.ProjectUpdate(
+        to_update = project_schemas.ProjectUpdate(
             owner_id=user.id,
-            name=schemas.LocalizableDraftName(
+            name=common_schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,
             ),
-            description=schemas.LocalizableDraftDescription(
+            description=common_schemas.LocalizableDraftDescription(
                 en=form_instance.description.en.data,
                 pt=form_instance.description.pt.data,
             ),
@@ -737,11 +748,11 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             temporal_extent_begin=form_instance.temporal_extent_begin.data,
             temporal_extent_end=form_instance.temporal_extent_end.data,
             links=[
-                schemas.LinkSchema(
+                common_schemas.LinkSchema(
                     url=lf.url.data,
                     media_type=lf.media_type.data,
                     relation=lf.relation.data,
-                    link_description=schemas.LocalizableDraftDescription(
+                    link_description=common_schemas.LocalizableDraftDescription(
                         en=lf.link_description.en.data,
                         pt=lf.link_description.pt.data,
                     ),
@@ -762,14 +773,16 @@ class ProjectDetailEndpoint(HTTPEndpoint):
     @requires_auth
     async def delete(self, request: Request):
         """Delete a project."""
-        request_id = identifiers.RequestId(uuid.uuid4())
+        request_id = identifiers.RequestId(
+            uuid.UUID(request.query_params["request_id"])
+        )
         user = request.user
         session_maker = request.state.settings.get_db_session_maker()
         project_id = get_id_from_request_path(
             request, "project_id", identifiers.ProjectId
         )
         async with session_maker() as session:
-            project = await operations.get_project(
+            project = await project_ops.get_project(
                 project_id,
                 user,
                 session,
@@ -789,16 +802,18 @@ class ProjectDetailEndpoint(HTTPEndpoint):
     @requires_auth
     async def post(self, request: Request):
         """Create a new survey mission belonging to the project."""
-        user = request.user if request.user.is_authenticated else None
+        user = request.user
         project_id = get_id_from_request_path(
             request, "project_id", identifiers.ProjectId
         )
         session_maker = request.state.settings.get_db_session_maker()
         template_processor: Jinja2Templates = request.state.templates
-        creation_form = await forms.SurveyMissionCreateForm.from_formdata(request)
+        creation_form = await mission_forms.SurveyMissionCreateForm.from_formdata(
+            request
+        )
         async with session_maker() as session:
             try:
-                project = await operations.get_project(project_id, user, session)
+                project = await project_ops.get_project(project_id, user, session)
             except errors.SeisLabDataError as exc:
                 raise HTTPException(status_code=404, detail=str(exc)) from exc
             if project is None:
@@ -826,23 +841,22 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 )
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
-                    selector=schemas.selector_info.main_content_selector,
+                    selector=webui_schemas.selector_info.main_content_selector,
                     mode=ElementPatchMode.INNER,
                 )
 
             # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
             return DatastarResponse(stream_validation_failed_events(), status_code=200)
 
-        request_id = identifiers.RequestId(uuid.uuid4())
-        to_create = schemas.SurveyMissionCreate(
+        to_create = mission_schemas.SurveyMissionCreate(
             id=identifiers.SurveyMissionId(uuid.uuid4()),
-            project_id=project.id,
+            project_id=identifiers.ProjectId(project.id),
             owner_id=user.id,
-            name=schemas.LocalizableDraftName(
+            name=common_schemas.LocalizableDraftName(
                 en=creation_form.name.en.data,
                 pt=creation_form.name.pt.data,
             ),
-            description=schemas.LocalizableDraftDescription(
+            description=common_schemas.LocalizableDraftDescription(
                 en=creation_form.description.en.data,
                 pt=creation_form.description.pt.data,
             ),
@@ -859,11 +873,11 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             temporal_extent_begin=creation_form.temporal_extent_begin.data,
             temporal_extent_end=creation_form.temporal_extent_end.data,
             links=[
-                schemas.LinkSchema(
+                common_schemas.LinkSchema(
                     url=lf.url.data,
                     media_type=lf.media_type.data,
                     relation=lf.relation.data,
-                    link_description=schemas.LocalizableDraftDescription(
+                    link_description=common_schemas.LocalizableDraftDescription(
                         en=lf.link_description.en.data,
                         pt=lf.link_description.pt.data,
                     ),
@@ -871,84 +885,82 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 for lf in creation_form.links.entries
             ],
         )
-        logger.info(f"{to_create=}")
+        request_id = identifiers.RequestId(uuid.UUID(creation_form.request_id.data))
+        survey_mission_tasks.create_survey_mission.send(
+            raw_request_id=str(request_id),
+            raw_to_create=to_create.model_dump_json(),
+            raw_initiator=json.dumps(dataclasses.asdict(user)),
+        )  # noqa
+        return Response(status_code=200)
 
-        async def handle_processing_success(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            yield ServerSentEventGenerator.patch_elements(
-                message_template.render(
-                    data_test_id="processing-success-message",
-                    status=final_message.status,
-                    message=f"{final_message.message} - you will be redirected shortly.",
-                ),
-                selector=schemas.selector_info.main_content_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-            await asyncio.sleep(1)
 
-            tasks.validate_survey_mission.send(
-                raw_request_id=str(request_id),
-                raw_survey_mission_id=str(to_create.id),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
+async def get_project_missions_list_component(request: Request):
+    """Return a paginated, filtered list of survey missions belonging to a project."""
+    project_id = get_id_from_request_path(request, "project_id", identifiers.ProjectId)
+    if (raw_search_params := request.query_params.get("datastar")) is not None:
+        try:
+            list_filters = filters.SurveyMissionListFilters.from_json(
+                raw_search_params, request.state.language
             )
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid search params")
+        else:
+            internal_filter_kwargs = list_filters.as_kwargs()
+            filter_query_string = list_filters.serialize_to_query_string()
+    else:
+        internal_filter_kwargs = {}
+        filter_query_string = ""
+    current_page = get_page_from_request_params(request)
+    settings: config.SeisLabDataSettings = request.state.settings
+    user = request.user if request.user.is_authenticated else None
+    async with settings.get_db_session_maker()() as session:
+        items, num_total = await survey_mission_ops.list_survey_missions(
+            session,
+            initiator=user,
+            project_id=project_id,
+            page=current_page,
+            page_size=settings.pagination_page_size,
+            include_total=True,
+            **internal_filter_kwargs,
+        )
+        num_unfiltered_total = (
+            await survey_mission_ops.list_survey_missions(
+                session, initiator=user, project_id=project_id, include_total=True
+            )
+        )[1]
+    pagination_info = get_pagination_info(
+        current_page,
+        settings.pagination_page_size,
+        num_total,
+        num_unfiltered_total,
+        collection_url=str(request.url_for("projects:detail", project_id=project_id)),
+    )
+    serialized_items = [
+        webui_schemas.SurveyMissionReadListItem.from_db_instance(i) for i in items
+    ]
+    template_processor = request.state.templates
+    template = template_processor.get_template("survey-missions/list-component.html")
+    rendered = template.render(
+        request=request,
+        items=serialized_items,
+        update_current_url_with=filter_query_string,
+        pagination=pagination_info,
+    )
 
-            yield ServerSentEventGenerator.redirect(
-                str(
-                    request.url_for(
-                        "survey_missions:detail",
-                        survey_mission_id=to_create.id,
-                    )
-                ),
-            )
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=webui_schemas.selector_info.items_selector,
+            mode=ElementPatchMode.REPLACE,
+        )
 
-        async def handle_processing_failure(
-            final_message: schemas.ProcessingMessage, message_template: Template
-        ) -> AsyncGenerator[DatastarEvent, None]:
-            rendered = message_template.render(
-                status=final_message.status.value,
-                message=f"ERROR: {final_message.message}",
-            )
-            yield ServerSentEventGenerator.patch_elements(
-                rendered,
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-
-        async def stream_events():
-            yield ServerSentEventGenerator.patch_elements(
-                """<li>Creating survey mission as a background task...</li>""",
-                selector=schemas.selector_info.feedback_selector,
-                mode=ElementPatchMode.APPEND,
-            )
-
-            enqueued_message: Message = tasks.create_survey_mission.send(
-                raw_request_id=str(request_id),
-                raw_to_create=to_create.model_dump_json(),
-                raw_initiator=json.dumps(dataclasses.asdict(user)),
-            )
-            logger.debug(f"{enqueued_message=}")
-            redis_client: Redis = request.state.redis_client
-            event_stream_generator = produce_event_stream_for_topic(
-                redis_client,
-                request,
-                topic_name=PROGRESS_TOPIC_NAME_TEMPLATE.format(request_id=request_id),
-                on_success=handle_processing_success,
-                on_failure=handle_processing_failure,
-                patch_elements_selector=schemas.selector_info.feedback_selector,
-                timeout_seconds=30,
-            )
-            async for sse_event in event_stream_generator:
-                yield sse_event
-
-        # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
-        return DatastarResponse(stream_events(), status_code=200)
+    return DatastarResponse(event_streamer())
 
 
 @csrf_protect
 async def add_create_project_form_link(request: Request):
     """Add a form link to a create_project form."""
-    creation_form = await forms.ProjectCreateForm.from_formdata(request)
+    creation_form = await project_forms.ProjectCreateForm.from_formdata(request)
     creation_form.links.append_entry()
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template("projects/create-form.html")
@@ -960,7 +972,7 @@ async def add_create_project_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -970,7 +982,7 @@ async def add_create_project_form_link(request: Request):
 @csrf_protect
 async def remove_create_project_form_link(request: Request):
     """Remove a form link from a create_project form."""
-    creation_form = await forms.ProjectCreateForm.from_formdata(request)
+    creation_form = await project_forms.ProjectCreateForm.from_formdata(request)
     link_index = int(request.query_params["link_index"])
     creation_form.links.entries.pop(link_index)
     template_processor: Jinja2Templates = request.state.templates
@@ -983,7 +995,7 @@ async def remove_create_project_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -994,7 +1006,7 @@ async def remove_create_project_form_link(request: Request):
 async def add_update_project_form_link(request: Request):
     """Add a form link to an update_project form."""
     details = await _get_project_details(request)
-    form_ = await forms.ProjectUpdateForm.from_formdata(request)
+    form_ = await project_forms.ProjectUpdateForm.from_formdata(request)
     form_.links.append_entry()
     template_processor: Jinja2Templates = request.state.templates
     template = template_processor.get_template("projects/update-form.html")
@@ -1007,7 +1019,7 @@ async def add_update_project_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
@@ -1018,7 +1030,7 @@ async def add_update_project_form_link(request: Request):
 async def remove_update_project_form_link(request: Request):
     """Remove a form link from an update_project form."""
     details = await _get_project_details(request)
-    form_ = await forms.ProjectUpdateForm.from_formdata(request)
+    form_ = await project_forms.ProjectUpdateForm.from_formdata(request)
     link_index = int(request.query_params["link_index"])
     form_.links.entries.pop(link_index)
     template_processor: Jinja2Templates = request.state.templates
@@ -1032,22 +1044,11 @@ async def remove_update_project_form_link(request: Request):
     async def event_streamer():
         yield ServerSentEventGenerator.patch_elements(
             rendered,
-            selector=schemas.selector_info.main_content_selector,
+            selector=webui_schemas.selector_info.main_content_selector,
             mode=ElementPatchMode.INNER,
         )
 
     return DatastarResponse(event_streamer())
-
-
-@csrf_protect
-@requires_auth
-async def trigger_project_discovery(request: Request):
-    discovery_tasks.discover_project_contents.send(
-        raw_request_id=str(uuid.uuid4()),
-        raw_project_id=request.path_params["project_id"],
-        raw_initiator=json.dumps(dataclasses.asdict(request.user)),
-    )  # noqa
-    return Response(status_code=200)
 
 
 @csrf_protect
@@ -1063,7 +1064,7 @@ async def trigger_project_validation(request: Request):
 
 routes = [
     Route("/", ProjectCollectionEndpoint, name="list"),
-    Route("/stream", get_project_list_updates, name="list_stream"),
+    Route("/stream", stream_to_list_page, name="list_stream"),
     Route("/search", get_list_component, name="get_list_component"),
     Route(
         "/new/add-form-link",
@@ -1085,7 +1086,7 @@ routes = [
     ),
     Route(
         "/new/{request_id}/stream",
-        get_project_new_updates,
+        stream_to_new_page,
         methods=["GET"],
         name="new_stream",
     ),
@@ -1094,6 +1095,12 @@ routes = [
         get_project_update_form,
         methods=["GET"],
         name="get_update_form",
+    ),
+    Route(
+        "/{project_id}/update/stream/{request_id}",
+        stream_to_update_page,
+        methods=["GET"],
+        name="update_stream",
     ),
     Route(
         "/{project_id}/add-update-form-link",
@@ -1114,16 +1121,16 @@ routes = [
         name="get_details_component",
     ),
     Route(
-        "/{project_id}/stream",
-        get_project_detail_updates,
+        "/{project_id}/missions",
+        get_project_missions_list_component,
         methods=["GET"],
-        name="detail_stream",
+        name="get_project_missions_list_component",
     ),
     Route(
-        "/{project_id}/discover",
-        trigger_project_discovery,
-        methods=["POST"],
-        name="trigger_discovery",
+        "/{project_id}/stream/{request_id}",
+        stream_to_detail_page,
+        methods=["GET"],
+        name="detail_stream",
     ),
     Route(
         "/{project_id}/validate",

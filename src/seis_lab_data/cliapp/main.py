@@ -8,7 +8,7 @@ from rich.panel import Panel
 import typer
 
 from .. import config
-from ..processing import broker
+from ..tasks import broker
 from .bootstrapapp import app as bootstrap_app
 from .dbapp import app as db_app
 from .devapp import app as dev_app
@@ -50,8 +50,7 @@ def run_processing_worker(ctx: typer.Context) -> None:
     dramatiq_args = [
         "dramatiq",
         "--skip-logging",
-        "seis_lab_data.processing.broker:setup_broker",
-        "seis_lab_data.processing.tasks",
+        "seis_lab_data.tasks.broker:setup_broker",
     ]
     if context.settings.debug:
         dramatiq_args.extend(

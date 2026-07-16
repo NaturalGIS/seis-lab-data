@@ -1,0 +1,33 @@
+{% import "macros.html" as macros %}
+
+{% block items %}
+    <div
+            class="row"
+            aria-label="items"
+            {% if update_current_url_with is defined %}data-effect="window.history.replaceState({}, '', `${window.location.href.split('?')[0]}{{ update_current_url_with }}`)"{% endif %}
+    >
+        <div class="col">
+            {% if items | length > 0 %}
+                <ul class="list-inline text-center">
+                    <li class="list-inline-item">
+                        <small>{{ _("Total pages: %(total_pages)d") | format(total_pages=pagination.total_filtered_pages) }}</small>
+                    </li>
+                    <li class="list-inline-item">
+                        <small>{{ _("Filtered items: %(total_filtered)d") | format(total_filtered=pagination.total_filtered_items) }}</small>
+                    </li>
+                    <li class="list-inline-item">
+                        <small>{{ _("Total items: %(total_unfiltered)d") | format(total_unfiltered=pagination.total_unfiltered_items) }}</small>
+                    </li>
+                </ul>
+                {{ macros.render_pagination(pagination) }}
+                <div class="row row-cols-1 g-4">
+                    {% for item in items %}
+                        {% include "workflowstages/list-item.html" %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p>{{ _("No workflow stages found") }}</p>
+            {% endif %}
+        </div>
+    </div>
+{% endblock items %}

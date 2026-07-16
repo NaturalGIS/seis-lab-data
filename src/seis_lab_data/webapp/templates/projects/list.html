@@ -17,9 +17,15 @@ Users with create permission are linked to /projects/new, which is a separate st
     <script type="module" src="{{ url_for('static', path='/js/basemap.js') }}"></script>
 {% endblock head %}
 
-{% block page_title %}
-    <span class="material-icons-outlined">view_timeline</span>{{ _("Projects") }}
-{% endblock page_title %}
+{% block header %}
+    <h1 class="display-1 text-center" aria-label="title">
+        <span class="icon-stack" aria-hidden="true">
+        <span class="material-icons-outlined">{{ icons.projects }}</span>
+        <span class="material-icons-outlined icon-stack-badge">{{ icons.list }}</span>
+    </span>{{ _("Projects") }}
+    </h1>
+{% endblock header %}
+
 
 {% block details %}
     <script>
@@ -33,8 +39,8 @@ Users with create permission are linked to /projects/new, which is a separate st
                     data-signals:search='{{ search_initial_value }}'
                     data-signals:advanced-search-panel-open="false"
                     data-signals:searching="false"
-                    data-signals:project-listing-version="0"
-                    data-effect="$projectListingVersion > 0 && @get('{{ url_for('projects:get_list_component') }}')"
+                    data-signals:listing-version="0"
+                    data-effect="$listingVersion > 0 && @get('{{ url_for('projects:get_list_component') }}')"
             >
                 <div class="col-8">
                     <search class="form-floating">

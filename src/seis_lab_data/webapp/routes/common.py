@@ -1,31 +1,19 @@
-import asyncio
 import dataclasses
-import json
 import logging
 import uuid
 from typing import (
-    AsyncGenerator,
-    Callable,
     Final,
     Type,
     TypeVar,
 )
 
 import pydantic
-from datastar_py import ServerSentEventGenerator
-from datastar_py.consts import ElementPatchMode
-from datastar_py.sse import DatastarEvent
-from jinja2 import Template
 from jinja2.filters import do_truncate
-from redis.asyncio import Redis
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
-from starlette.templating import Jinja2Templates
 
-from ... import schemas
-from ...constants import ProcessingStatus
 from ...localization import translate_localizable
-from ...schemas import identifiers
+from ...schemas import identifiers, surveyrelatedrecords as record_schemas
 
 logger = logging.getLogger(__name__)
 
@@ -116,126 +104,10 @@ def get_page_count(
     return (total_items + page_size - 1) // page_size
 
 
-async def produce_event_stream_for_item_updates(
-    redis_client: Redis,
-    request: Request,
-    timeout_seconds: int = 30,
-    **topic_handler: Callable[[dict], AsyncGenerator[DatastarEvent, None]],
-):
-    logger.debug("Inside produce_event_stream_for_item_updates")
-    async with redis_client.pubsub() as pubsub:
-        logger.debug(f"Subscribing to {topic_handler.keys()=}...")
-        await pubsub.subscribe(*topic_handler.keys())
-        try:
-            while True:
-                try:
-                    if await request.is_disconnected():
-                        logger.info("client disconnected")
-                        break
-                except Exception:
-                    logger.exception("Error checking disconnection")
-                    raise
-                try:
-                    if message := await pubsub.get_message(
-                        ignore_subscribe_messages=True, timeout=None
-                    ):
-                        logger.debug(f"received message: {message=}")
-                        from_channel = message["channel"].decode("utf-8")
-                        handler = topic_handler[from_channel]
-                        logger.info(f"the handler for this message is {handler=}")
-                        async for datastar_event in handler(message["data"]):
-                            yield datastar_event
-                except asyncio.CancelledError:
-                    logger.info("pubsub listener was cancelled")
-                    raise
-                except Exception:
-                    logger.exception("Some error happened")
-                    raise
-        finally:
-            logger.info(f"unsubscribing from {topic_handler.keys()=}...")
-            await pubsub.unsubscribe(*topic_handler.keys())
-
-
-async def produce_event_stream_for_topic(
-    redis_client: Redis,
-    request: Request,
-    topic_name: str,
-    on_success: Callable[
-        [schemas.ProcessingMessage, Template], AsyncGenerator[DatastarEvent, None]
-    ],
-    on_failure: Callable[
-        [schemas.ProcessingMessage, Template], AsyncGenerator[DatastarEvent, None]
-    ],
-    patch_elements_selector: str,
-    timeout_seconds: int = 30,
-):
-    template_processor: Jinja2Templates = request.state.templates
-    message_template = template_processor.get_template(
-        "processing/progress-message-list-item.html"
-    )
-    async with redis_client.pubsub() as pubsub:
-        await pubsub.subscribe(topic_name)
-        try:
-            while True:
-                if await request.is_disconnected():
-                    logger.info(f"client disconnected from topic {topic_name!r}")
-                    break
-                try:
-                    if message := await pubsub.get_message(
-                        ignore_subscribe_messages=False, timeout=timeout_seconds
-                    ):
-                        if message["type"] == "subscribe":
-                            logger.debug(f"Subscribed to topic {topic_name!r}")
-                        elif message["type"] == "message":
-                            processing_message = schemas.ProcessingMessage(
-                                **json.loads(message["data"])
-                            )
-                            logger.debug(f"Received message: {processing_message!r}")
-                            if processing_message.status in (
-                                ProcessingStatus.SUCCESS,
-                                ProcessingStatus.FAILED,
-                            ):
-                                if (
-                                    processing_message.status
-                                    == ProcessingStatus.SUCCESS
-                                ):
-                                    async for datastar_event in on_success(
-                                        processing_message, message_template
-                                    ):
-                                        yield datastar_event
-                                else:
-                                    async for datastar_event in on_failure(
-                                        processing_message, message_template
-                                    ):
-                                        yield datastar_event
-                                break
-                            else:
-                                yield ServerSentEventGenerator.patch_elements(
-                                    message_template.render(
-                                        status=processing_message.status,
-                                        message=processing_message.message,
-                                    ),
-                                    selector=patch_elements_selector,
-                                    mode=ElementPatchMode.APPEND,
-                                )
-                    else:
-                        logging.info(
-                            f"pubsub listener for topic {topic_name!r} timed out after {timeout_seconds} seconds"
-                        )
-                        break
-                except asyncio.CancelledError:
-                    logger.info(
-                        f"pubsub listener for topic {topic_name!r} was cancelled"
-                    )
-                    raise
-        finally:
-            await pubsub.unsubscribe(topic_name)
-
-
 def build_related_record_compound_name(
     request: Request,
-    survey_related_record: schemas.SurveyRelatedRecordReadEmbedded
-    | schemas.SurveyRelatedRecordReadListItem,
+    survey_related_record: record_schemas.SurveyRelatedRecordReadEmbedded
+    | record_schemas.SurveyRelatedRecordReadListItem,
 ) -> str:
     current_language = request.state.language
     current_name = translate_localizable(survey_related_record.name, current_language)

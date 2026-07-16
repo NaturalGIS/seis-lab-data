@@ -3,7 +3,6 @@
 {% import "macros-buttons-list-items.html" as macros_buttons_list_items %}
 {% import "macros-maps.html" as macros_maps %}
 <div class="row"
-     data-on-intersect__once="@get('{{ url_for("survey_related_records:get_detail_updates", survey_related_record_id=survey_related_record.id) }}')"
      data-signals:is-valid="{{ survey_related_record.validation_result.is_valid | default(False, True) | tojson }}"
      data-signals:status="'{{ survey_related_record.status.value }}'"
      data-signals:deleting="false"
@@ -26,8 +25,6 @@
                                 <dl class="row">
                                     <dt class="col-sm-3">{{ _("dataset category") | capitalize }}</dt>
                                     <dd class="col-sm-9">{{ survey_related_record.dataset_category.name|translate_localizable_string }}</dd>
-                                    <dt class="col-sm-3">{{ _("domain type") | capitalize }}</dt>
-                                    <dd class="col-sm-9">{{ survey_related_record.domain_type.name|translate_localizable_string }}</dd>
                                     <dt class="col-sm-3">{{ _("workflow stage") | capitalize }}</dt>
                                     <dd class="col-sm-9">{{ survey_related_record.workflow_stage.name|translate_localizable_string }}</dd>
                                     <dt class="col-sm-3">{{ _("survey mission") | capitalize }}</dt>
@@ -42,8 +39,6 @@
                                                 href="{{ url_for('projects:detail', project_id=survey_related_record.survey_mission.project.id) }}"
                                         >{{ survey_related_record.survey_mission.project.name|translate_localizable_string }}</a>
                                     </dd>
-                                    <dt class="col-sm-3">{{ _("relative path") | capitalize }}</dt>
-                                    <dd class="col-sm-9">{{ survey_related_record.relative_path }}</dd>
                                     <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
                                     <dd class="col-sm-9">{{ survey_related_record.temporal_extent_begin|default(_(".."), True) }}/{{ survey_related_record.temporal_extent_end|default(_(".."), True) }}</dd>
                                 </dl>
@@ -138,7 +133,7 @@
             {% endif %}
             {% if permissions.can_delete %}
                 {{ macros_buttons_list_items.render_delete_item_button(
-                    deletion_url=url_for("survey_related_records:detail", survey_related_record_id=survey_related_record.id),
+                    deletion_url=url_for("survey_related_records:detail", survey_related_record_id=survey_related_record.id) ~ "?request_id=" ~ request_id,
                     signal_name="deleting",
                     idle_message="delete survey-related record",
                     running_message="deleting survey-related record...",
@@ -213,6 +208,10 @@
                 <dd class="col-sm-9">{{ asset.description|translate_localizable_string }}</dd>
                 <dt class="col-sm-3">{{ _("Is valid") }}</dt>
                 <dd class="col-sm-9">{{ asset.is_valid }}</dd>
+                <dt class="col-sm-3">{{ _("Relative path") }}</dt>
+                <dd class="col-sm-9">{{ asset.relative_path }}</dd>
+                <dt class="col-sm-3">{{ _("Archive URL") }}</dt>
+                <dd class="col-sm-9">{{ asset | asset_url(survey_related_record) }}</dd>
             </dl>
         {% else %}
             {{ _("No assets found") }}

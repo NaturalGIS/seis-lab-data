@@ -1,0 +1,33 @@
+{% from "macro-jsoneditor-field.html" import jsoneditor_field %}
+<form>
+    {{ form.request_id() }}
+    {{ jsoneditor_field(form.name) }}
+    <output></output>
+    <div class="row mb-3">
+        <div class="col-sm-10 offset-sm-2">
+            <a
+                    href="{{ url_for('workflow_stages:list') }}"
+                    class="btn btn-outline-secondary"
+                    aria-label="cancel-creation"
+            >{{ _('cancel') | capitalize }}
+            </a>
+            <button
+                    type="submit"
+                    aria-label="submit-create-form"
+                    class="btn btn-primary"
+                    data-on:click="@post('{{ url_for('workflow_stages:list') }}', {
+                            contentType: 'form',
+                            headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
+                        })"
+                    data-indicator="submitting"
+                    data-attr:disabled="$submitting"
+                    data-text="$submitting ? '{{ _('Creating workflow stage...') }}' : '{{ _('create workflow stage') }}'"
+            >
+            </button>
+            <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
+                 data-attr:hidden="!$submitting">
+                <span class="visually-hidden">{{ _("Loading...") }}</span>
+            </div>
+        </div>
+    </div>
+</form>

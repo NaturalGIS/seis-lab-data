@@ -2,6 +2,7 @@ import logging
 import re
 import uuid
 from collections.abc import AsyncIterator
+from typing import AsyncGenerator
 
 from anyio import Path
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -10,553 +11,417 @@ from .. import (
     config,
     constants,
     errors,
-    permissions,
 )
-from ..schemas import events as event_schemas
 from ..db import models
 from ..db.queries import (
-    projects as project_queries,
-    surveymissions as survey_mission_queries,
-    surveyrelatedrecords as record_queries,
+    discovery as discovery_queries,
+    surveymissions as mission_queries,
     recordassets as asset_queries,
 )
-from .. import dispatch
+from ..db.commands import discovery as discovery_commands
+from ..permissions import (
+    discovery as discovery_permissions,
+    surveymissions as mission_permissions,
+)
 from ..schemas import (
     common,
+    events as event_schemas,
     discovery as discovery_schemas,
+    identifiers,
+    surveyrelatedrecords as record_schemas,
+    user as user_schemas,
 )
-from ..schemas.user import User
-from ..schemas.surveymissions import SurveyMissionCreate
-from ..schemas.surveyrelatedrecords import (
-    RecordAssetCreate,
-    SurveyRelatedRecordCreate,
-)
-from ..schemas import identifiers
+from .. import dispatch
 
 from . import (
-    projects as project_ops,
-    surveymissions as survey_mission_ops,
+    surveymissions as mission_ops,
     surveyrelatedrecords as record_ops,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def _get_survey_mission_discovery_conf(
-    survey_mission: models.SurveyMission,
-) -> discovery_schemas.SurveyMissionDiscoveryConfiguration | None:
-    """Find a mission's discovery configuration."""
-
-    project_discovery_conf = (
-        discovery_schemas.ProjectDiscoveryConfiguration.from_raw_config(
-            survey_mission.project.discovery_configuration
-        )
-    )
-    for mission_discovery_conf in project_discovery_conf.survey_missions:
-        if mission_discovery_conf.relative_path.strip(
-            "/"
-        ) == survey_mission.relative_path.strip("/"):
-            return mission_discovery_conf
-    else:
-        return None
-
-
-async def discover_survey_mission_records(
-    *,
-    session: AsyncSession,
-    archive_root: str,
-    survey_mission: models.SurveyMission,
-    event_dispatcher: dispatch.EventDispatcherProtocol,
-    user: User | None = None,
-) -> AsyncIterator[models.SurveyRelatedRecord]:
-    if (
-        mission_discovery_conf := _get_survey_mission_discovery_conf(survey_mission)
-    ) is None:
-        logger.warning(
-            f"Could not determine survey mission discovery configuration for "
-            f"mission {survey_mission.id!r}"
-        )
-        return
-
-    project_discovery_conf = (
-        discovery_schemas.ProjectDiscoveryConfiguration.from_raw_config(
-            survey_mission.project.discovery_configuration
-        )
-        if survey_mission.project.discovery_configuration
-        else None
-    )
-    if project_discovery_conf is None:
-        logger.warning(
-            "The survey mission's project does not have a discovery configuration - Cannot discover records"
-        )
-        return
-
-    relationships_to_create = []  # noqa
-    for idx, record_discovery_conf_name in enumerate(
-        mission_discovery_conf.record_configuration_ids
-    ):
-        logger.debug(
-            f"[{idx + 1}/{len(mission_discovery_conf.record_configuration_ids)}] "
-            f"Discovering record config {record_discovery_conf_name!r}..."
-        )
-        if (
-            record_discovery_conf := project_discovery_conf.records.get(
-                record_discovery_conf_name
-            )
-        ) is None:
-            logger.warning(
-                f"Record conf named {record_discovery_conf_name!r} not found."
-            )
-            continue
-        new_records = await discover_records(
-            session=session,
-            archive_root=archive_root,
-            record_discovery_config=record_discovery_conf,
-            survey_mission=survey_mission,
-            owner_id=identifiers.UserId(user.id) if user else None,
-        )
-        for new_record in new_records:
-            created_record = await record_ops.create_survey_related_record(
-                new_record,
-                initiator=user,
-                session=session,
-                event_dispatcher=event_dispatcher,
-            )
-            yield created_record
-        # TODO: now we need to handle record relationships
-
-
-async def discover_records(
-    *,
-    session: AsyncSession,
-    archive_root: str,
-    record_discovery_config: discovery_schemas.SurveyRecordDiscoveryConfiguration,
-    survey_mission: models.SurveyMission,
-    owner_id: identifiers.UserId | None = None,
-) -> list[SurveyRelatedRecordCreate]:
-    """Discover survey-related record instances and their assets in the filesystem.
-
-    Each returned item represents one record instance (a group of matched assets
-    that share the same property values). Instances whose assets are already in
-    the catalog are filtered out.
-    """
-    if (
-        dataset_category := await record_queries.get_dataset_category_by_english_name(
-            session, record_discovery_config.dataset_category
-        )
-    ) is None:
-        raise errors.SeisLabDataError(
-            f"Unknown dataset category: {record_discovery_config.dataset_category!r}"
-        )
-    if (
-        domain_type := await record_queries.get_domain_type_by_english_name(
-            session, record_discovery_config.domain_type
-        )
-    ) is None:
-        raise errors.SeisLabDataError(
-            f"Unknown domain type: {record_discovery_config.domain_type!r}"
-        )
-    if (
-        workflow_stage := await record_queries.get_workflow_stage_by_english_name(
-            session, record_discovery_config.workflow_stage
-        )
-    ) is None:
-        raise errors.SeisLabDataError(
-            f"Unknown workflow stage: {record_discovery_config.workflow_stage!r}"
-        )
-
-    base_path = Path(
-        "/".join(
-            (
-                archive_root,
-                survey_mission.project.root_path.strip("/"),
-                survey_mission.relative_path.strip("/"),
-            )
-        )
-    )
-
-    if not (
-        instances := await scan_record_instances(base_path, record_discovery_config)
-    ):
-        logger.warning(
-            f"No record instances found for config {record_discovery_config.id_!r}"
-        )
-        return []
-
-    results = []
-    for instance in instances:
-        instance_assets = []
-        already_catalogued = False
-        for asset_idx, discovered_file in instance.assets.items():
-            asset_conf = record_discovery_config.assets[asset_idx]
-            relative_path = str(Path(discovered_file.path).relative_to(base_path))
-            if (
-                await asset_queries.get_record_asset_by_file_path(
-                    session, relative_path
-                )
-                is not None
-            ):
-                logger.debug(
-                    f"path {relative_path!r} is already in the catalog, skipping instance"
-                )
-                already_catalogued = True
-                break
-            instance_assets.append(
-                RecordAssetCreate(
-                    id=identifiers.RecordAssetId(uuid.uuid4()),
-                    name=asset_conf.name,
-                    description=asset_conf.description or {},
-                    relative_path=relative_path,
-                    links=asset_conf.links,
-                )
-            )
-        extra_props = {k: str(v) for k, v in instance.properties.items()}
-        logger.debug(f"{extra_props=}")
-        logger.debug(f"{record_discovery_config.name=}")
-        da_name = {
-            k: v.format(**extra_props) for k, v in record_discovery_config.name.items()
-        }
-        logger.debug(f"{da_name=}")
-        if not already_catalogued and instance_assets:
-            results.append(
-                SurveyRelatedRecordCreate(
-                    id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
-                    owner_id=owner_id or identifiers.UserId(survey_mission.owner_id),
-                    survey_mission_id=identifiers.SurveyMissionId(survey_mission.id),
-                    name={
-                        k: v.format(**extra_props)
-                        for k, v in record_discovery_config.name.items()
-                    },
-                    description=record_discovery_config.description or {},
-                    dataset_category_id=identifiers.DatasetCategoryId(
-                        dataset_category.id
-                    ),
-                    domain_type_id=identifiers.DomainTypeId(domain_type.id),
-                    workflow_stage_id=identifiers.WorkflowStageId(workflow_stage.id),
-                    bbox_4326=None,
-                    temporal_extent_begin=None,
-                    temporal_extent_end=None,
-                    links=[],
-                    assets=instance_assets,
-                    related_records=[],
-                    extra_properties={
-                        k: str(v) for k, v in instance.properties.items()
-                    },
-                ),
-            )
-    return results
-
-
-async def scan_record_instances(
-    base_path: Path,
-    record_conf: discovery_schemas.SurveyRecordDiscoveryConfiguration,
-) -> list[discovery_schemas.DiscoveredRecord]:
-    """Scan the filesystem for all file groups matching a record config.
-
-    Uses asset[0] files as anchors. For each anchor, searches the remaining
-    asset lists for the first file that is compatible with the anchor across
-    all shared properties. A record instance is formed only when every asset
-    type yields a compatible file.
-    """
-    asset_files: list[list[discovery_schemas.DiscoveredFile]] = []
-    for asset_conf in record_conf.assets:
-        files = [f async for f in discover_files(base_path, asset_conf)]
-        asset_files.append(files)
-
-    if not asset_files or any(not files for files in asset_files):
-        return []
-
-    extra_props = record_conf.extra_properties or []
-    results = []
-
-    for anchor in asset_files[0]:
-        instance_assets: dict[int, discovery_schemas.DiscoveredFile] = {0: anchor}
-        complete = True
-        for asset_idx in range(1, len(asset_files)):
-            match = next(
-                (
-                    f
-                    for f in asset_files[asset_idx]
-                    if _files_are_compatible(anchor, f, extra_props)
-                ),
-                None,
-            )
-            if match is None:
-                logger.debug(
-                    f"No compatible file for asset {asset_idx} "
-                    f"against anchor {anchor.path!r}"
-                )
-                complete = False
-                break
-            instance_assets[asset_idx] = match
-
-        if complete:
-            results.append(
-                discovery_schemas.DiscoveredRecord(
-                    properties={
-                        prop.identifier: anchor.properties[prop.identifier]
-                        for prop in extra_props
-                        if prop.identifier in anchor.properties
-                    },
-                    assets=instance_assets,
-                )
-            )
-
-    return results
-
-
-def _files_are_compatible(
-    anchor: discovery_schemas.DiscoveredFile,
-    candidate: discovery_schemas.DiscoveredFile,
-    properties: list[discovery_schemas.RecordProperty],
-) -> bool:
-    """Return True if candidate is compatible with anchor for all shared properties.
-
-    A property is only checked when both files extracted a value for it. The
-    compatibility criterion is defined per property type (e.g. exact equality for
-    constants, delta threshold for datetimes).
-    """
-    for prop in properties:
-        a = anchor.properties.get(prop.identifier)
-        b = candidate.properties.get(prop.identifier)
-        if a is None or b is None:
-            continue  # property absent in one file — no constraint
-        if not prop.is_compatible(a, b):
-            return False
-    return True
-
-
-async def discover_files(
-    root: Path,
-    asset_config: discovery_schemas.RecordAssetDiscoveryConfiguration,
-) -> AsyncIterator[discovery_schemas.DiscoveredFile]:
-    compiled_patterns = [
-        _build_pattern_regex(p, asset_config.properties)
-        for p in asset_config.discovery_patterns
-    ]
-
-    async for path in root.rglob("*"):
-        if not await path.is_file():
-            continue
-
-        relative = path.relative_to(root).as_posix()
-
-        for pattern in compiled_patterns:
-            m = pattern.search(relative)
-            if not m:
-                continue
-
-            extracted = {}
-            valid = True
-
-            for name, prop in asset_config.properties.items():
-                try:
-                    raw = m.group(name)
-                except IndexError:
-                    continue  # This placeholder isn't in this pattern — skip
-
-                try:
-                    value = prop.convert(raw)
-                except Exception:
-                    valid = False
-                    break
-
-                if not prop.validate_value(value):
-                    valid = False
-                    break
-
-                extracted[name] = value
-
-            if valid:
-                yield discovery_schemas.DiscoveredFile(
-                    path=str(path), properties=extracted
-                )
-
-            break  # matched a pattern, don't try others
-
-
-def _build_pattern_regex(
-    template: str,
-    properties: dict[str, discovery_schemas.RecordProperty],
-) -> re.Pattern:
-    logger.debug(f"{properties=}")
-    seen: set[str] = set()
-
-    def replacer(m: re.Match) -> str:
-        name = m.group("prop_name")
-        if name not in properties:
-            raise ValueError(f"Placeholder {name} not found in extra_properties")
-        if name in seen:
-            return f"(?P={name})"
-        seen.add(name)
-        return f"(?P<{name}>{properties[name].pattern})"
-
-    regex_str = re.sub(r"\{\{(?P<prop_name>\w+)\}\}", replacer, template)
-    logger.debug(f"{regex_str=}")
-    return re.compile(regex_str)
-
-
-async def discover_project_survey_missions(
-    *,
-    session: AsyncSession,
-    project: models.Project,
-    event_dispatcher: dispatch.EventDispatcherProtocol,
-    settings: config.SeisLabDataSettings,
-    user: User | None = None,
-) -> AsyncIterator[models.SurveyMission]:
-    """Discover and save a project's survey missions.
-
-    Survey missions become owned by the input user, if provided. Otherwise, they
-    are owned by the project owner.
-
-    Note that this function does not discover whatever resources may be part of
-    survey missions, it just creates the missions.
-    """
-    discovery_configuration = (
-        discovery_schemas.ProjectDiscoveryConfiguration.from_raw_config(
-            project.discovery_configuration
-        )
-    )
-    for survey_mission_discovery_conf in discovery_configuration.survey_missions:
-        if (
-            mission_to_create := await _discover_survey_mission(
-                session, project, survey_mission_discovery_conf, settings
-            )
-        ) is None:
-            continue
-        db_survey_mission = await survey_mission_ops.create_survey_mission(
-            to_create=mission_to_create,
-            initiator=user,
-            session=session,
-            event_dispatcher=event_dispatcher,
-        )
-        yield db_survey_mission
-
-
-async def _discover_survey_mission(
-    session: AsyncSession,
-    project: models.Project,
-    survey_mission_discovery_conf: discovery_schemas.SurveyMissionDiscoveryConfiguration,
-    settings: config.SeisLabDataSettings,
-    owner: User | None = None,
-) -> SurveyMissionCreate | None:
-    mission_path = Path(
-        "/".join(
-            (
-                str(settings.readonly_archive_root_directory).rstrip("/"),
-                project.root_path.strip("/"),
-                survey_mission_discovery_conf.relative_path.strip("/"),
-            )
-        )
-    )
-    logger.debug(f"{mission_path=}")
-    if not await mission_path.is_dir():
-        return None
-    project_id = identifiers.ProjectId(project.id)
-    if (
-        existing_survey_mission
-        := await survey_mission_queries.get_survey_mission_by_path(
-            session, project_id, survey_mission_discovery_conf.relative_path
-        )
-    ) is not None:
-        logger.debug(
-            f"Found an already existing survey mission with the same "
-            f"path ({existing_survey_mission.id!r}), skipping..."
-        )
-        return None
-    return SurveyMissionCreate(  # noqa
-        id=identifiers.SurveyMissionId(uuid.uuid4()),
-        owner_id=identifiers.UserId(owner.id if owner else project.owner_id),
-        project_id=project_id,
-        name=common.LocalizableDraftName(**survey_mission_discovery_conf.name),
-        description=common.LocalizableDraftDescription(
-            **(survey_mission_discovery_conf.description or {})
-        ),
-        relative_path=survey_mission_discovery_conf.relative_path,
-    )
-
-
-async def run_project_discovery(
+async def create_asset_discovery_configuration(
     *,
     request_id: identifiers.RequestId,
-    project_id: identifiers.ProjectId,
+    to_create: discovery_schemas.AssetDiscoveryConfigurationCreate,
+    initiator: user_schemas.User,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+) -> models.AssetDiscoveryConfiguration | None:
+    try:
+        if not discovery_permissions.can_create_asset_discovery_configuration(
+            initiator
+        ):
+            raise errors.SeisLabDataError(
+                "User is not allowed to create an asset discovery configuration."
+            )
+        asset_discovery_configuration = (
+            await discovery_commands.create_asset_discovery_configuration(
+                session, to_create
+            )
+        )
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.ResourceModificationEvent(
+                initiator=initiator.id,
+                request_id=request_id,
+                resource_type=constants.ResourceType.ASSET_DISCOVERY_CONFIG,
+                resource_id=None,
+                modification=constants.ResourceModification.CREATED,
+                succeeded=False,
+                details=str(err),
+            )
+        )
+        return None
+
+    await event_dispatcher(
+        event_schemas.ResourceModificationEvent(
+            initiator=initiator.id,
+            request_id=request_id,
+            resource_type=constants.ResourceType.ASSET_DISCOVERY_CONFIG,
+            modification=constants.ResourceModification.CREATED,
+            succeeded=True,
+            resource_id=str(asset_discovery_configuration.id),
+        )
+    )
+    return asset_discovery_configuration
+
+
+async def update_asset_discovery_configuration(
+    request_id: identifiers.RequestId,
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId,
+    to_update: discovery_schemas.AssetDiscoveryConfigurationUpdate,
+    initiator: user_schemas.User,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+) -> models.AssetDiscoveryConfiguration | None:
+    try:
+        if (
+            asset_discovery_conf
+            := await discovery_queries.get_asset_discovery_configuration(
+                session, asset_discovery_configuration_id
+            )
+        ) is None:
+            raise errors.SeisLabDataError(
+                f"asset discovery configuration with id {asset_discovery_configuration_id} does not exist."
+            )
+        if not discovery_permissions.can_update_asset_discovery_configuration(
+            initiator
+        ):
+            raise errors.SeisLabDataError(
+                "User is not allowed to update asset discovery configuration."
+            )
+        updated_asset_discovery_conf = (
+            await discovery_commands.update_asset_discovery_configuration(
+                session, asset_discovery_conf, to_update
+            )
+        )
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.ResourceModificationEvent(
+                initiator=initiator.id,
+                request_id=request_id,
+                resource_type=constants.ResourceType.ASSET_DISCOVERY_CONFIG,
+                resource_id=str(asset_discovery_configuration_id),
+                modification=constants.ResourceModification.UPDATED,
+                succeeded=False,
+                details=str(err),
+            )
+        )
+        return None
+
+    await event_dispatcher(
+        event_schemas.ResourceModificationEvent(
+            initiator=initiator.id,
+            request_id=request_id,
+            resource_type=constants.ResourceType.ASSET_DISCOVERY_CONFIG,
+            resource_id=str(asset_discovery_configuration_id),
+            modification=constants.ResourceModification.UPDATED,
+            succeeded=True,
+        )
+    )
+    return updated_asset_discovery_conf
+
+
+async def delete_asset_discovery_configuration(
+    *,
+    request_id: identifiers.RequestId,
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId,
+    initiator: user_schemas.User,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+) -> None:
+    try:
+        if (
+            await discovery_queries.get_asset_discovery_configuration(
+                session, asset_discovery_configuration_id
+            )
+        ) is None:
+            raise errors.SeisLabDataError(
+                f"asset discovery configuration with id {asset_discovery_configuration_id} does not exist."
+            )
+        if not discovery_permissions.can_delete_asset_discovery_configuration(
+            initiator
+        ):
+            raise errors.SeisLabDataError(
+                "User is not allowed to delete asset discovery configuration."
+            )
+        await discovery_commands.delete_asset_discovery_configuration(
+            session, asset_discovery_configuration_id
+        )
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.ResourceModificationEvent(
+                initiator=initiator.id,
+                request_id=request_id,
+                resource_type=constants.ResourceType.ASSET_DISCOVERY_CONFIG,
+                resource_id=str(asset_discovery_configuration_id),
+                modification=constants.ResourceModification.DELETED,
+                succeeded=False,
+                details=str(err),
+            ),
+        )
+        return None
+
+    await event_dispatcher(
+        event_schemas.ResourceModificationEvent(
+            initiator=initiator.id,
+            request_id=request_id,
+            resource_type=constants.ResourceType.ASSET_DISCOVERY_CONFIG,
+            resource_id=str(asset_discovery_configuration_id),
+            modification=constants.ResourceModification.DELETED,
+            succeeded=True,
+        ),
+    )
+
+
+async def run_mission_discovery(
+    *,
+    request_id: identifiers.RequestId,
+    mission_id: identifiers.SurveyMissionId,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
     settings: config.SeisLabDataSettings,
-    user: User,
+    user: user_schemas.User,
 ) -> None:
     try:
-        if (project := await project_queries.get_project(session, project_id)) is None:
+        if (
+            mission := await mission_queries.get_survey_mission(session, mission_id)
+        ) is None:
             raise errors.SeisLabDataError(
-                f"Project with id {project_id} does not exist."
+                f"Survey mission with id {mission_id} does not exist."
             )
-        if not permissions.can_discover_project(user, project):
+        if not mission_permissions.can_discover_survey_mission(user, mission):
             raise errors.SeisLabDataError(
-                "User is not allowed to run discovery on this project."
+                "User is not allowed to run discovery on this survey mission."
             )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
-            event_schemas.ProjectDiscoveryFailedEvent(
+            event_schemas.DiscoveryEvent(
+                initiator=user.id,
+                resource_type=constants.ResourceType.MISSION,
+                resource_id=str(mission_id),
                 request_id=request_id,
-                project_id=project_id,
-                initiator=user.id if user else "",
+                modification=constants.DiscoveryStage.ENDED,
+                succeeded=False,
                 details=str(err),
             )
         )
         return
 
-    db_project = await project_ops.change_project_status(
-        constants.ProjectStatus.UNDER_DISCOVERY,
-        project_id,
-        user,
-        session,
-        event_dispatcher,
+    logger.debug(f"Discovering contents of mission {mission.name['en']!r}...")
+    asset_discovery_configs = (
+        await discovery_queries.collect_all_asset_discovery_configurations(session)
     )
-
-    async for db_survey_mission in discover_project_survey_missions(
+    await mission_ops.change_survey_mission_status(
+        request_id=request_id,
+        target_status=constants.SurveyMissionStatus.UNDER_DISCOVERY,
+        survey_mission_id=mission_id,
+        initiator=user,
         session=session,
-        project=db_project,
         event_dispatcher=event_dispatcher,
-        settings=settings,
-        user=user,
-    ):
-        survey_mission_id = identifiers.SurveyMissionId(db_survey_mission.id)
+    )
+    await event_dispatcher(
+        event_schemas.DiscoveryEvent(
+            initiator=user.id,
+            resource_type=constants.ResourceType.MISSION,
+            resource_id=str(mission_id),
+            request_id=request_id,
+            modification=constants.DiscoveryStage.STARTED,
+            succeeded=True,
+        )
+    )
+    try:
+        await _discover_mission_records(
+            request_id=request_id,
+            mission=mission,
+            session=session,
+            event_dispatcher=event_dispatcher,
+            settings=settings,
+            user=user,
+            asset_discovery_configs=asset_discovery_configs,
+        )
+    except FileNotFoundError as err:
         await event_dispatcher(
-            event_schemas.ProjectDiscoveryProgressEvent(
-                project_id=project_id,
-                details=f"Discovered survey mission {db_survey_mission.id}",
-                initiator=user.id if user else "",
+            event_schemas.DiscoveryEvent(
+                initiator=user.id,
+                resource_type=constants.ResourceType.MISSION,
+                resource_id=str(mission_id),
+                request_id=request_id,
+                modification=constants.DiscoveryStage.ENDED,
+                succeeded=False,
+                details=str(err),
             )
         )
-        await survey_mission_ops.change_survey_mission_status(
-            constants.SurveyMissionStatus.UNDER_DISCOVERY,
-            survey_mission_id,
-            user,
-            session,
-            event_dispatcher,
+    else:
+        await event_dispatcher(
+            event_schemas.DiscoveryEvent(
+                initiator=user.id,
+                resource_type=constants.ResourceType.MISSION,
+                resource_id=str(mission_id),
+                request_id=request_id,
+                modification=constants.DiscoveryStage.ENDED,
+                succeeded=True,
+            )
         )
-
-        async for _ in discover_survey_mission_records(
+    finally:
+        await mission_ops.change_survey_mission_status(
+            request_id=request_id,
+            target_status=constants.SurveyMissionStatus.DRAFT,
+            survey_mission_id=mission_id,
+            initiator=user,
             session=session,
-            archive_root=str(settings.readonly_archive_root_directory),
-            survey_mission=db_survey_mission,
             event_dispatcher=event_dispatcher,
-            user=user,
-        ):
-            pass
-
-        await survey_mission_ops.change_survey_mission_status(
-            constants.SurveyMissionStatus.DRAFT,
-            survey_mission_id,
-            user,
-            session,
-            event_dispatcher,
         )
 
-    await project_ops.change_project_status(
-        constants.ProjectStatus.DRAFT,
-        project_id,
-        user,
-        session,
-        event_dispatcher,
+
+async def _discover_mission_records(
+    *,
+    request_id: identifiers.RequestId,
+    mission: models.SurveyMission,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+    settings: config.SeisLabDataSettings,
+    user: user_schemas.User,
+    asset_discovery_configs: list[models.AssetDiscoveryConfiguration],
+) -> None:
+    mission_root_path = Path(
+        "/".join(
+            (
+                str(settings.readonly_archive_root_directory),
+                mission.relative_path,
+            )
+        )
     )
+    logger.debug(f"{mission_root_path=}")
+    for asset_discovery_conf in asset_discovery_configs:
+        logger.debug(f"Searching for asset {asset_discovery_conf=}...")
+        full_path_regexp = "/".join(
+            (
+                str(mission_root_path),
+                asset_discovery_conf.relative_path_regexp,
+            )
+        )
+        logger.debug(f"{full_path_regexp=}")
+        async for found_path in _discover_asset_paths(full_path_regexp):
+            # each found_path is to become a record with a single asset
+            relative_file_path = str(found_path.relative_to(mission_root_path))
+            if (
+                await asset_queries.get_record_asset_by_file_path(
+                    session, relative_file_path
+                )
+            ) is None:
+                # create a new record and a new asset
+                await record_ops.create_survey_related_record(
+                    request_id=request_id,
+                    to_create=record_schemas.SurveyRelatedRecordCreate(
+                        id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
+                        owner_id=identifiers.UserId(user.id),
+                        survey_mission_id=identifiers.SurveyMissionId(mission.id),
+                        name=common.LocalizableDraftName(en=found_path.name),
+                        description=common.LocalizableDraftDescription(en=""),
+                        dataset_category_id=identifiers.DatasetCategoryId(
+                            asset_discovery_conf.dataset_category_id
+                        ),
+                        workflow_stage_id=identifiers.WorkflowStageId(
+                            asset_discovery_conf.workflow_stage_id
+                        ),
+                        assets=[
+                            record_schemas.RecordAssetCreate(
+                                id=identifiers.RecordAssetId(uuid.uuid4()),
+                                name=common.LocalizableDraftName(en=found_path.stem),
+                                description=common.LocalizableDraftDescription(en=""),
+                                relative_path=relative_file_path,
+                            )
+                        ],
+                    ),
+                    initiator=user,
+                    session=session,
+                    event_dispatcher=event_dispatcher,
+                )
+            else:
+                logger.debug(
+                    f"file {found_path!r} is already tracked in the DB - ignoring..."
+                )
+
+
+async def _discover_asset_paths(
+    full_path_regexp: str,
+) -> AsyncGenerator[Path, None]:
+    """Discover assets for a particular asset discovery configuration.
+
+    Discovery assumptions:
+
+    - One record only holds one asset. Although generally we support multiple assets per record,
+      for discovery the only supported use case is a 1:1 mapping between record and asset.
+    """
+    root, pattern = split_pattern_path(full_path_regexp)
+    if not pattern:
+        if await root.is_file():
+            yield root
+        return
+
+    pattern_parts = Path(pattern).parts
+    async for matched_path in walk_pattern(root, pattern_parts):
+        yield matched_path
+
+
+async def walk_pattern(
+    current: Path, remaining: tuple[str, ...]
+) -> AsyncIterator[Path]:
+    if not remaining:
+        if await current.is_file():
+            yield current
+        return
+
+    head, *tail = remaining
+    tail = tuple(tail)
+    regex = re.compile(f"^{head}$")
+    try:
+        async for entry in current.iterdir():
+            if await entry.is_dir():
+                async for matched in walk_pattern(entry, remaining):
+                    yield matched
+            if regex.match(entry.name):
+                if tail:
+                    async for matched in walk_pattern(entry, tail):
+                        yield matched
+                else:
+                    if await entry.is_file():
+                        yield entry
+    except (PermissionError, NotADirectoryError):
+        return
+
+
+def split_pattern_path(regexp_path: str) -> tuple[Path, str]:
+    """Split a regexp path into a Path component and a regexp pattern"""
+    _re_meta = re.compile(r"[.*+?^${}()\[\]|\\]")
+    parts = Path(regexp_path).parts
+    plain_parts = []
+    for i, part in enumerate(parts):
+        if _re_meta.search(part):
+            pattern = str(Path(*parts[i:])) if parts[i:] else ""
+            return Path(*plain_parts) if plain_parts else Path("."), pattern
+        plain_parts.append(part)
+    return Path(regexp_path), ""

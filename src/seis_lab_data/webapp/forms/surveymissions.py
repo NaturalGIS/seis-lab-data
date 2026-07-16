@@ -8,15 +8,16 @@ from starlette_wtf import StarletteForm
 from wtforms import (
     FieldList,
     FormField,
+    HiddenField,
     StringField,
 )
 
-from ... import (
-    constants,
-    schemas,
+from ... import constants
+from ...db.queries.surveymissions import get_survey_mission_by_english_name
+from ...schemas import (
+    identifiers,
+    surveymissions as survey_mission_schemas,
 )
-from ...db.queries import get_survey_mission_by_english_name
-from ...schemas import identifiers
 from .common import (
     BoundingBoxForm,
     NameForm,
@@ -43,6 +44,7 @@ class _SurveyMissionForm(StarletteForm):
     inputs.
     """
 
+    request_id = HiddenField()
     name = FormField(NameForm)
     description = FormField(DescriptionForm)
     relative_path = StringField(
@@ -143,7 +145,7 @@ class SurveyMissionCreateForm(_SurveyMissionForm):
         # includes full error locations - otherwise it would be harder to match
         # pydantic validation errors with wtforms field errors
         try:
-            schemas.SurveyMissionCreate(
+            survey_mission_schemas.SurveyMissionCreate(
                 # these are not part of the form, but we must provide something
                 id=None,
                 owner_id=None,
@@ -182,7 +184,7 @@ class SurveyMissionUpdateForm(_SurveyMissionForm):
         # includes full error locations - otherwise it would be harder to match
         # pydantic validation errors with wtforms field errors
         try:
-            schemas.SurveyMissionUpdate(
+            survey_mission_schemas.SurveyMissionUpdate(
                 # these are not part of the form, but we must provide something
                 owner_id=None,
                 project_id=None,

@@ -1,5 +1,6 @@
 {% import "macros.html" as macros %}
 <form data-on:datastar-fetch="evt.detail.type === 'finished' && document.querySelector('bbox-map')?.initMap()">
+    {{ form.request_id() }}
     {{ macros.render_localizable_field(form.name) }}
     {{ macros.render_localizable_field(form.description) }}
     {{ macros.render_form_field(form.relative_path) }}

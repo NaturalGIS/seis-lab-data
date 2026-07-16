@@ -7,10 +7,12 @@ from sqlmodel import (
     select,
 )
 
-from ... import schemas
 from ...constants import SurveyMissionStatus
 from ...db import models
-from ...schemas import identifiers
+from ...schemas import (
+    identifiers,
+    filters as filter_schemas,
+)
 from .common import _get_total_num_records
 
 
@@ -19,7 +21,7 @@ def _build_survey_mission_statement(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ):
     statement = select(models.SurveyMission).options(
         selectinload(models.SurveyMission.project)
@@ -81,7 +83,7 @@ async def list_published_survey_missions(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.SurveyMission], int | None]:
     statement = _build_survey_mission_statement(
         project_id, en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
@@ -103,7 +105,7 @@ async def list_accessible_survey_missions(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.SurveyMission], int | None]:
     statement = (
         _build_survey_mission_statement(
@@ -117,8 +119,8 @@ async def list_accessible_survey_missions(
         .where(
             or_(
                 models.SurveyMission.status == SurveyMissionStatus.PUBLISHED,
-                models.SurveyMission.owner == user_id,
-                models.Project.owner == user_id,
+                models.SurveyMission.owner_id == user_id,
+                models.Project.owner_id == user_id,
             )
         )
     )
@@ -138,7 +140,7 @@ async def list_survey_missions(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: schemas.TemporalExtentFilterValue | None = None,
+    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.SurveyMission], int | None]:
     """Return all survey missions regardless of status. Intended for admin use."""
     statement = _build_survey_mission_statement(
@@ -149,6 +151,14 @@ async def list_survey_missions(
     return await _exec_survey_mission_list(
         session, statement, limit, offset, include_total
     )
+
+
+async def collect_all_project_survey_missions(
+    session: AsyncSession,
+    project_id: identifiers.ProjectId,
+) -> list[models.SurveyMission]:
+    statement = _build_survey_mission_statement(project_id=project_id)
+    return (await session.exec(statement)).all()
 
 
 async def get_survey_mission(

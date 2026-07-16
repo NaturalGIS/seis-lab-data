@@ -39,9 +39,14 @@ def test_survey_mission_lifecycle(authenticated_page: Page):
         re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=10_000
     )
 
-    # create the survey mission
+    # access the new mission page but then cancel it and verify we are back in the project detail page
     authenticated_page.get_by_role("link", name="new-item").click()
-    mission_name = f"e2e test survey mission {uuid.uuid4().hex[:8]}"
+    authenticated_page.get_by_role("link", name="cancel-creation").click()
+
+    # create the survey mission
+    mission_name_id = uuid.uuid4().hex[:8]
+    authenticated_page.get_by_role("link", name="new-item").click()
+    mission_name = f"e2e test survey mission {mission_name_id}"
     _fill_survey_mission_form(authenticated_page, mission_name)
 
     authenticated_page.get_by_role("button", name="add-another-link").click()
@@ -83,12 +88,25 @@ def test_survey_mission_lifecycle(authenticated_page: Page):
         re.compile(r"/survey-missions/[0-9a-f-]{36}$"), timeout=10_000
     )
 
+    # now try to modify the mission, but cancel and verify we are back at the mission detail page
+    authenticated_page.get_by_role("link", name="update-item").click()
+    authenticated_page.get_by_role("link", name="cancel-update").click()
+
+    # and now actually modify it
+    authenticated_page.get_by_role("link", name="update-item").click()
+    authenticated_page.get_by_role("textbox", name="field-name-en").fill(
+        f"The modified name {mission_name_id}"
+    )
+    authenticated_page.get_by_role("button", name="submit-update-form").click()
+
     # clean up by deleting the survey mission, then the project
     authenticated_page.get_by_role(
         "button", name="show-delete-confirmation-modal"
     ).click()
     authenticated_page.get_by_role("button", name="delete-item").click()
-    expect(authenticated_page.get_by_role("link", name="new-item")).to_be_visible()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=15_000
+    )
 
     authenticated_page.get_by_role(
         "button", name="show-delete-confirmation-modal"
@@ -138,7 +156,9 @@ def test_survey_mission_creation_rejects_duplicate_english_name(
         "button", name="show-delete-confirmation-modal"
     ).click()
     authenticated_page.get_by_role("button", name="delete-item").click()
-    expect(authenticated_page.get_by_role("link", name="new-item")).to_be_visible()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=15_000
+    )
 
     authenticated_page.get_by_role(
         "button", name="show-delete-confirmation-modal"

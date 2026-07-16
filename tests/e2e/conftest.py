@@ -54,12 +54,14 @@ def authenticated_context(browser, auth_credentials, base_url, request):
         page.goto("/")
         page.get_by_test_id("login-nav").click()
         email, password = auth_credentials
-        page.get_by_placeholder(re.compile("email", re.IGNORECASE)).fill(email)
+        page.get_by_placeholder(re.compile("email", re.IGNORECASE)).fill(
+            email, timeout=60_000
+        )
         page.get_by_placeholder(
             re.compile("please enter your password", re.IGNORECASE)
         ).fill(password)
         page.get_by_text(re.compile("log in", re.IGNORECASE)).click()
-        expect(page.get_by_test_id("user-menu")).to_be_visible()
+        expect(page.get_by_test_id("user-menu")).to_be_visible(timeout=60_000)
         storage_state = context.storage_state()
 
         if tracing_value in _TRACING_VALUES:
@@ -107,11 +109,13 @@ def fresh_authenticated_page(browser, auth_credentials, base_url):
     page.goto("/")
     page.get_by_test_id("login-nav").click()
     email, password = auth_credentials
-    page.get_by_placeholder(re.compile("email", re.IGNORECASE)).fill(email)
+    page.get_by_placeholder(re.compile("email", re.IGNORECASE)).fill(
+        email, timeout=60_000
+    )
     page.get_by_placeholder(
         re.compile("please enter your password", re.IGNORECASE)
     ).fill(password)
     page.get_by_text(re.compile("log in", re.IGNORECASE)).click()
-    expect(page.get_by_test_id("user-menu")).to_be_visible()
+    expect(page.get_by_test_id("user-menu")).to_be_visible(timeout=60_000)
     yield page
     context.close()

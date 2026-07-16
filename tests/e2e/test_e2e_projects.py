@@ -25,12 +25,19 @@ def test_project_lifecycle(authenticated_page: Page):
     # start from the landing page
     authenticated_page.goto("/")
 
+    project_name_id = uuid.uuid4().hex[:8]
+
     # navigate to the projects page and click the create new project button
     authenticated_page.get_by_role("link", name="list-projects").click()
     authenticated_page.get_by_role("link", name="new-project").click()
 
+    # hit the cancel button and verify we are brought back to the projects page
+    authenticated_page.get_by_role("link", name="cancel-creation").click()
+
+    authenticated_page.get_by_role("link", name="new-project").click()
+
     # fill out the form and submit it — use a unique suffix to avoid collisions across runs
-    project_name = f"e2e test project {uuid.uuid4().hex[:8]}"
+    project_name = f"e2e test project {project_name_id}"
     _fill_project_form(authenticated_page, project_name)
 
     authenticated_page.get_by_role("button", name="add-another-link").click()
@@ -70,6 +77,32 @@ def test_project_lifecycle(authenticated_page: Page):
     authenticated_page.get_by_role("button", name="submit-create-form").click()
 
     # expect to be redirected to the project detail page upon successful creation
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=10_000
+    )
+
+    # try to modify the project, but this time hit the cancel button. This is done
+    # before the real modification below because submitting a real update puts the
+    # project into the `under_validation` status for a few seconds, during which the
+    # `update-item` link is disabled - the status signal is only ever set once, when
+    # the detail page is rendered, so clicking `update-item` again right after a real
+    # update is racy (see issue tracking the live status/validation signal updates).
+    authenticated_page.get_by_role("link", name="update-item").click()
+    authenticated_page.get_by_role("link", name="cancel-update").click()
+
+    # expect to be redirector the project detail page upon cancelling the modification
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=10_000
+    )
+
+    # now actually modify the project
+    authenticated_page.get_by_role("link", name="update-item").click()
+    authenticated_page.get_by_role("textbox", name="field-name-en").fill(
+        f"The modified name {project_name_id}"
+    )
+    authenticated_page.get_by_role("button", name="submit-update-form").click()
+
+    # expect to be redirector the project detail page upon successful modification
     expect(authenticated_page).to_have_url(
         re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=10_000
     )

@@ -2,6 +2,7 @@ import pytest
 import pytest_asyncio
 
 import sqlmodel
+from anyio import Path
 from starlette.testclient import TestClient
 
 from seis_lab_data import (
@@ -9,18 +10,34 @@ from seis_lab_data import (
     constants,
 )
 from seis_lab_data.cliapp import (
-    bootstrapdata,
     sampledata,
+    utils,
 )
-from seis_lab_data.db import commands
+from seis_lab_data.db.commands import (
+    datasetcategories as category_commands,
+    projects as project_commands,
+    surveymissions as mission_commands,
+    surveyrelatedrecords as record_commands,
+    users as user_commands,
+    workflowstages as stage_commands,
+)
 from seis_lab_data.db.engine import (
     get_engine,
     get_session_maker,
     get_sync_engine,
 )
-from seis_lab_data.schemas import User
+from seis_lab_data.schemas.user import User
 from seis_lab_data.schemas.identifiers import UserId
 from seis_lab_data.webapp.app import create_app_from_settings
+
+
+@pytest_asyncio.fixture(scope="session")
+async def bootstrap_data():
+    bootstrap_data_path = (
+        Path(__file__).parents[1] / "src/seis_lab_data/cliapp/bootstrapdata.toml"
+    )
+    result = await utils.get_bootstrap_data(bootstrap_data_path)
+    yield result
 
 
 @pytest.fixture
@@ -74,37 +91,41 @@ async def admin_user(db, db_session_maker):
         roles=[constants.ROLE_SYSTEM_ADMIN],
     )
     async with db_session_maker() as session:
-        await commands.upsert_user(session, admin_user)
+        await user_commands.upsert_user(session, admin_user)
     yield admin_user
 
 
 @pytest_asyncio.fixture
-async def bootstrap_dataset_categories(db, db_session_maker):
+async def bootstrap_dataset_categories(db, db_session_maker, bootstrap_data):
     created = []
     async with db_session_maker() as session:
-        for category_to_create in bootstrapdata.DATASET_CATEGORIES_TO_CREATE.values():
+        for to_create in bootstrap_data[constants.ResourceType.CATEGORY]:
             created.append(
-                await commands.create_dataset_category(session, category_to_create)
+                await category_commands.create_dataset_category(session, to_create)
             )
     yield created
 
 
 @pytest_asyncio.fixture
-async def bootstrap_domain_types(db, db_session_maker):
+async def bootstrap_workflow_stages(db, db_session_maker, bootstrap_data):
     created = []
     async with db_session_maker() as session:
-        for domain_to_create in bootstrapdata.DOMAIN_TYPES_TO_CREATE.values():
-            created.append(await commands.create_domain_type(session, domain_to_create))
+        for to_create in bootstrap_data[constants.ResourceType.WORKFLOW_STAGE]:
+            created.append(
+                await stage_commands.create_workflow_stage(session, to_create)
+            )
     yield created
 
 
 @pytest_asyncio.fixture
-async def bootstrap_workflow_stages(db, db_session_maker):
+async def bootstrap_asset_discovery_configurations(
+    db, db_session_maker, bootstrap_data
+):
     created = []
     async with db_session_maker() as session:
-        for stage_to_create in bootstrapdata.WORKFLOW_STAGES_TO_CREATE.values():
+        for to_create in bootstrap_data[constants.ResourceType.ASSET_DISCOVERY_CONFIG]:
             created.append(
-                await commands.create_workflow_stage(session, stage_to_create)
+                await stage_commands.create_workflow_stage(session, to_create)
             )
     yield created
 
@@ -114,7 +135,9 @@ async def sample_projects(db, db_session_maker, admin_user):
     created = []
     async with db_session_maker() as session:
         for project_to_create in sampledata.get_projects_to_create(admin_user):
-            created.append(await commands.create_project(session, project_to_create))
+            created.append(
+                await project_commands.create_project(session, project_to_create)
+            )
     yield created
 
 
@@ -126,7 +149,9 @@ async def sample_survey_missions(db, db_session_maker, sample_projects, admin_us
             admin_user
         ):
             created.append(
-                await commands.create_survey_mission(session, survey_mission_to_create)
+                await mission_commands.create_survey_mission(
+                    session, survey_mission_to_create
+                )
             )
     yield created
 
@@ -137,7 +162,6 @@ async def sample_survey_related_records(
     db_session_maker,
     sample_survey_missions,
     bootstrap_dataset_categories,
-    bootstrap_domain_types,
     bootstrap_workflow_stages,
     admin_user,
 ):
@@ -145,12 +169,11 @@ async def sample_survey_related_records(
     async with db_session_maker() as session:
         for survey_record_to_create in sampledata.get_survey_related_records_to_create(
             dataset_categories={c.name["en"]: c for c in bootstrap_dataset_categories},
-            domain_types={d.name["en"]: d for d in bootstrap_domain_types},
             workflow_stages={w.name["en"]: w for w in bootstrap_workflow_stages},
             owner=admin_user,
         ):
             created.append(
-                await commands.create_survey_related_record(
+                await record_commands.create_survey_related_record(
                     session, survey_record_to_create
                 )
             )

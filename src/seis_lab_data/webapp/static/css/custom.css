@@ -16,7 +16,31 @@ a > .material-icons-outlined {
     margin-right: 8px;
 }
 
-h1 > .material-icons-outlined {
+h1 > .material-icons-outlined,
+h1 > .icon-stack {
     font-size: inherit;
     margin-right: 8px;
+}
+
+.icon-stack {
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.icon-stack .material-icons-outlined {
+    font-size: inherit;
+    margin-right: 0;
+}
+
+.icon-stack .icon-stack-badge {
+    position: absolute;
+    right: -0.15em;
+    bottom: -0.15em;
+    font-size: 0.45em;
+    line-height: 1;
+    background-color: var(--bs-body-bg, #fff);
+    border: 0.08em solid currentColor;
+    border-radius: 50%;
+    padding: 0.1em;
 }

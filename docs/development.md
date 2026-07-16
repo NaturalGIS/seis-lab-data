@@ -1,5 +1,8 @@
 # Development
 
+This document is project deliverable _D03 - Developer-oriented documentation on how to stand up the project_. It
+contains information on how to set up a local development environment suitable for working on the SeisLabData project.
+
 This project is composed of a set of multiple services which are deployed with `docker compose`. The
 `docker/compose.dev.yaml` file is a compose file suitable for development
 
@@ -189,6 +192,37 @@ whenever you know there have been recent merges.
     Because the docker compose file used for dev bind mounts the entire `src` directory, it will
     mask the container's own compiled `*.mo` files. This means that after running
     `seis-lab-data translations compile` you need to restart the `webapp` service for the changes to take effect.
+
+
+## Mounting the production archive locally
+
+If needed, you can use sshfs to mount the production archive locally.
+
+Install sshfs, then enable the `user_allow_other` option in the fuse config and you should be able to mount it locally.
+
+```shell
+apt install sshfs
+
+# now edit /etc/fuse.conf and uncomment the line that has `user_allow_other`
+
+mkdir <your-data-root>/production-archive
+
+# this mounts the archive
+sshfs <name-of-your-ssh-alias>:/mnt/seislab_data \
+    <your-data-root>/production-archive \
+    -o allow_other \
+    -o reconnect \
+    -o ServerAliveInterval=15
+
+# now you must restart the docker compose stack in order for docker to be able to see the mount
+docker compose -f docker/compose.dev.yaml up -d --force-recreate
+```
+
+You can later unmount it with:
+
+```shell
+fusermount -u <your-data-root>/production-archive
+```
 
 
 ## Auxiliary dev services

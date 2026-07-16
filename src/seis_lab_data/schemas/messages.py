@@ -2,6 +2,7 @@ from typing import (
     Annotated,
     Literal,
     TypeAlias,
+    TypeVar,
 )
 
 from . import identifiers
@@ -10,16 +11,131 @@ from .. import constants
 import pydantic
 
 
-class ProjectDiscoverySuccessfulMessage(pydantic.BaseModel):
+IdType = TypeVar("IdType")
+
+
+class ResourceModificationMessage(pydantic.BaseModel):
+    type: Literal["resource_modified"] = "resource_modified"
+    request_id: identifiers.RequestId
+    resource_type: constants.ResourceType
+    resource_id: str | None
+    parent_resource_id: str | None = (
+        None  # mostly useful for when resource is deleted to figure out where to redirect
+    )
+    modification: constants.ResourceModification
+    succeeded: bool
+    details: str | None = None
+
+
+class BulkResourceModificationMessage(pydantic.BaseModel):
+    type: Literal["bulk_resource_modified"] = "bulk_resource_modified"
+    request_id: identifiers.RequestId
+    resource_type: constants.ResourceType
+    modification: constants.BulkResourceModification
+    succeeded: bool
+    affected_count: int
+    details: str | None = None
+
+
+class ResourceStatusChangedMessage(pydantic.BaseModel):
+    type: Literal["resource_status_changed"] = "resource_status_changed"
+    resource_type: constants.ResourceType
+    resource_id: str | None
+    succeeded: bool
+    new_status: str | None
+    details: str | None = None
+
+
+class DiscoveryMessage(pydantic.BaseModel):
+    type: Literal["discovery"] = "discovery"
+    resource_type: constants.ResourceType
+    resource_id: str
+    request_id: identifiers.RequestId
+    modification: constants.DiscoveryStage
+    succeeded: bool
+    details: str | None = None
+
+
+class ValidationMessage(pydantic.BaseModel):
+    type: Literal["validation"] = "validation"
+    resource_type: constants.ResourceType
+    resource_id: str
+    request_id: identifiers.RequestId
+    modification: constants.ValidationStage
+    succeeded: bool
+    is_valid: bool
+    details: str | None = None
+
+
+SldPubSubMessage: TypeAlias = Annotated[
+    ResourceModificationMessage
+    | BulkResourceModificationMessage
+    | DiscoveryMessage
+    | ValidationMessage
+    | ResourceStatusChangedMessage,
+    pydantic.Field(discriminator="type"),
+]
+
+
+class AssetDiscoveryConfigurationCreatedMessage(pydantic.BaseModel):
+    type: Literal["asset_discovery_configuration_created"] = (
+        "asset_discovery_configuration_created"
+    )
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId
+    request_id: identifiers.RequestId | None = None
+
+
+class AssetDiscoveryConfigurationNotCreatedMessage(pydantic.BaseModel):
+    type: Literal["asset_discovery_configuration_not_created"] = (
+        "asset_discovery_configuration_not_created"
+    )
+    request_id: identifiers.RequestId | None = None
+    details: str
+
+
+class AssetDiscoveryConfigurationUpdatedMessage(pydantic.BaseModel):
+    type: Literal["asset_discovery_configuration_updated"] = (
+        "asset_discovery_configuration_updated"
+    )
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId
+    request_id: identifiers.RequestId | None = None
+
+
+class AssetDiscoveryConfigurationNotUpdatedMessage(pydantic.BaseModel):
+    type: Literal["asset_discovery_configuration_not_updated"] = (
+        "asset_discovery_configuration_not_updated"
+    )
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId
+    request_id: identifiers.RequestId | None = None
+    details: str
+
+
+class AssetDiscoveryConfigurationDeletedMessage(pydantic.BaseModel):
+    type: Literal["asset_discovery_configuration_deleted"] = (
+        "asset_discovery_configuration_deleted"
+    )
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId
+    request_id: identifiers.RequestId | None = None
+
+
+class AssetDiscoveryConfigurationNotDeletedMessage(pydantic.BaseModel):
+    type: Literal["asset_discovery_configuration_not_deleted"] = (
+        "asset_discovery_configuration_not_deleted"
+    )
+    asset_discovery_configuration_id: identifiers.AssetDiscoveryConfId
+    request_id: identifiers.RequestId | None = None
+    details: str
+
+
+class ProjectDiscoverySucceededMessage(pydantic.BaseModel):
     type: Literal["project_discovery_successful"] = "project_discovery_successful"
     request_id: identifiers.RequestId
     project_id: identifiers.ProjectId
-    details: str | None = None
 
 
 class ProjectDiscoveryFailedMessage(pydantic.BaseModel):
     type: Literal["project_discovery_failed"] = "project_discovery_failed"
-    request_id: identifiers.RequestId
+    request_id: identifiers.RequestId | None = None
     project_id: identifiers.ProjectId
     details: str
 
@@ -93,16 +209,26 @@ class ProjectDiscoveryProgressMessage(pydantic.BaseModel):
 class SurveyMissionCreatedMessage(pydantic.BaseModel):
     type: Literal["survey_mission_created"] = "survey_mission_created"
     survey_mission_id: identifiers.SurveyMissionId
+    request_id: identifiers.RequestId | None = None
+
+
+class SurveyMissionNotCreatedMessage(pydantic.BaseModel):
+    type: Literal["survey_mission_not_created"] = "survey_mission_not_created"
+    request_id: identifiers.RequestId
+    details: str
 
 
 class SurveyMissionUpdatedMessage(pydantic.BaseModel):
     type: Literal["survey_mission_updated"] = "survey_mission_updated"
     survey_mission_id: identifiers.SurveyMissionId
+    request_id: identifiers.RequestId | None = None
 
 
 class SurveyMissionDeletedMessage(pydantic.BaseModel):
     type: Literal["survey_mission_deleted"] = "survey_mission_deleted"
     survey_mission_id: identifiers.SurveyMissionId
+    project_id: identifiers.ProjectId
+    request_id: identifiers.RequestId | None = None
 
 
 class SurveyMissionStatusChangedMessage(pydantic.BaseModel):
@@ -132,6 +258,7 @@ class SurveyRelatedRecordCreatedMessage(pydantic.BaseModel):
     type: Literal["survey_related_record_created"] = "survey_related_record_created"
     record_id: identifiers.SurveyRelatedRecordId
     survey_mission_id: identifiers.SurveyMissionId
+    request_id: identifiers.RequestId
 
 
 class SurveyRelatedRecordUpdatedMessage(pydantic.BaseModel):
@@ -141,7 +268,9 @@ class SurveyRelatedRecordUpdatedMessage(pydantic.BaseModel):
 
 class SurveyRelatedRecordDeletedMessage(pydantic.BaseModel):
     type: Literal["survey_related_record_deleted"] = "survey_related_record_deleted"
+    request_id: identifiers.RequestId | None = None
     record_id: identifiers.SurveyRelatedRecordId
+    survey_mission_id: identifiers.SurveyMissionId
 
 
 class SurveyRelatedRecordStatusChangedMessage(pydantic.BaseModel):
@@ -158,8 +287,14 @@ class SurveyRelatedRecordValidatedMessage(pydantic.BaseModel):
     is_valid: bool
 
 
-SldPubSubMessage: TypeAlias = Annotated[
-    ProjectDiscoverySuccessfulMessage
+OldSldPubSubMessage: TypeAlias = Annotated[
+    AssetDiscoveryConfigurationCreatedMessage
+    | AssetDiscoveryConfigurationNotCreatedMessage
+    | AssetDiscoveryConfigurationUpdatedMessage
+    | AssetDiscoveryConfigurationNotUpdatedMessage
+    | AssetDiscoveryConfigurationDeletedMessage
+    | AssetDiscoveryConfigurationNotDeletedMessage
+    | ProjectDiscoverySucceededMessage
     | ProjectDiscoveryFailedMessage
     | ProjectCreatedMessage
     | ProjectNotCreatedMessage

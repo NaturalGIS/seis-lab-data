@@ -4,7 +4,7 @@ repo_url: https://github.com/naturalgis/seis-lab-data
 site_author: Equipa NaturalGIS
 
 hooks:
-  - mkdocs_hooks.py
+  - mkdocs/mkdocs_hooks.py
 
 nav:
   - Home: index.md
@@ -22,7 +22,7 @@ extra_css:
 
 theme:
   name: material
-  custom_dir: mkdocs-overrides
+  custom_dir: mkdocs
   palette:
     primary: blue grey
     accent: pink

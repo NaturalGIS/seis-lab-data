@@ -1,7 +1,14 @@
 site_name: seis-lab-data docs
+docs_dir: ../docs
+
+hooks:
+  - mkdocs_pdf_hooks.py
+
+extra:
+  live_url: https://naturalgis.github.io/seis-lab-data/pt/development/
 
 nav:
-  - Administration: admin-guide.md
+  - Development: development.md
 
 extra_css:
   - stylesheets/styles.css
@@ -34,9 +41,9 @@ plugins:
       author: Equipa NaturalGIS
       cover_title: SeisLabData
       copyright: '&copy 2026 CC BY 4.0'
-      cover_subtitle: Guia de administração
+      cover_subtitle: Documentação de desenvolvimento
       toc_title: Índice
-      output_path: pdf/seis-lab-data-administration-guide.pdf
+      output_path: pdf/seis-lab-data-development-guide.pdf
 
 markdown_extensions:
   - admonition

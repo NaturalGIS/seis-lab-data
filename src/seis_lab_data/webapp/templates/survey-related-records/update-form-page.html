@@ -15,5 +15,7 @@
 {% endblock page_title %}
 
 {% block details %}
-    {% include "survey-related-records/update-form.html" %}
+    <div data-on-intersect__once="@get('{{ url_for("survey_related_records:update_stream", survey_related_record_id=survey_related_record.id, request_id=form.request_id.data) }}')">
+        {% include "survey-related-records/update-form.html" %}
+    </div>
 {% endblock details %}

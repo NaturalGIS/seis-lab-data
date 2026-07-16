@@ -6,6 +6,7 @@ from typing import (
     Any,
     Callable,
     Protocol,
+    Sequence,
     TypeVar,
 )
 
@@ -14,9 +15,12 @@ import pydantic
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio.session import async_sessionmaker
 
-from .schemas import identifiers
-from .schemas.messages import SldPubSubMessage
-from .schemas.user import User
+from . import constants
+from .schemas import (
+    identifiers,
+    messages as message_schemas,
+    user as user_schemas,
+)
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -28,23 +32,11 @@ class HandlerContext:
     jinja_environment: jinja2.Environment | None = None
     url_resolver: Callable[[str], Any] | None = None
     db_session_factory: async_sessionmaker | None = None
-    user: User | None = None
+    user: user_schemas.User | None = None
     request_id: identifiers.RequestId | None = None
-
-
-@dataclasses.dataclass(frozen=True)
-class ProjectHandlerContext(HandlerContext):
-    project_id: identifiers.ProjectId | None = None
-
-
-@dataclasses.dataclass(frozen=True)
-class SurveyMissionHandlerContext(HandlerContext):
-    survey_mission_id: identifiers.SurveyMissionId | None = None
-
-
-@dataclasses.dataclass(frozen=True)
-class SurveyRelatedRecordHandlerContext(HandlerContext):
-    survey_related_record_id: identifiers.SurveyRelatedRecordId | None = None
+    target_page: constants.PageType | None = None
+    resource_type: constants.ResourceType | None = None
+    resource_id: str | None = None
 
 
 class MessageHandlerProtocol[T_co, TContext: HandlerContext](Protocol):
@@ -64,7 +56,7 @@ class MessageHandlerProtocol[T_co, TContext: HandlerContext](Protocol):
 
 async def subscribe_to_topic[T, TContext: HandlerContext](
     redis_client: Redis,
-    topic_name: str,
+    topic_names: Sequence[str],
     handler_context: TContext,
     message_handlers: dict[str, MessageHandlerProtocol[T, TContext]],
 ) -> AsyncGenerator[T, None]:
@@ -73,7 +65,8 @@ async def subscribe_to_topic[T, TContext: HandlerContext](
     """
     done_event = asyncio.Event()
     async with redis_client.pubsub() as pubsub:
-        await pubsub.subscribe(topic_name)
+        logger.debug(f"Subscribing to {topic_names}")
+        await pubsub.subscribe(*topic_names)
         try:
             async for message in pubsub.listen():
                 if done_event.is_set():
@@ -82,14 +75,14 @@ async def subscribe_to_topic[T, TContext: HandlerContext](
                     continue
 
                 try:
-                    parsed = pydantic.TypeAdapter(SldPubSubMessage).validate_json(
-                        message["data"]
-                    )
+                    parsed = pydantic.TypeAdapter(
+                        message_schemas.SldPubSubMessage
+                    ).validate_json(message["data"])
                 except pydantic.ValidationError as err:
                     logger.warning(err)
                     logger.warning(
                         f"Unrecognised message {message['data']!r} "
-                        f"on {topic_name!r}, skipping"
+                        f"on {topic_names!r}, skipping"
                     )
                     continue
 
@@ -107,6 +100,6 @@ async def subscribe_to_topic[T, TContext: HandlerContext](
                     break
 
         except asyncio.CancelledError:
-            logger.info(f"pubsub listener for {topic_name!r} cancelled")
+            logger.info(f"pubsub listener for {topic_names!r} cancelled")
         finally:
-            await pubsub.unsubscribe(topic_name)
+            await pubsub.unsubscribe(topic_names)

@@ -16,213 +16,63 @@ class _EventBase:
     timestamp: dt.datetime = dataclasses.field(default_factory=get_utc_now)
 
 
-# Project events
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ResourceModificationEvent(_EventBase):
+    request_id: identifiers.RequestId
+    resource_type: constants.ResourceType
+    resource_id: str | None
+    parent_resource_id: str | None = (
+        None  # mostly useful for when resource is deleted to figure out where to redirect
+    )
+    modification: constants.ResourceModification
+    succeeded: bool
+    details: str | None = None
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
-class ProjectCreatedEvent(_EventBase):
-    project_id: identifiers.ProjectId
-    request_id: identifiers.RequestId | None = None
+class BulkResourceModificationEvent(_EventBase):
+    request_id: identifiers.RequestId
+    resource_type: constants.ResourceType
+    modification: constants.BulkResourceModification
+    succeeded: bool
+    affected_count: int
+    details: str | None = None
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
-class ProjectNotCreatedEvent(_EventBase):
-    request_id: identifiers.RequestId | None = None
-    details: str
+class ResourceStatusChangedEvent(_EventBase):
+    resource_type: constants.ResourceType
+    resource_id: str | None
+    succeeded: bool
+    new_status: str | None
+    details: str | None = None
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
-class ProjectUpdatedEvent(_EventBase):
-    project_id: identifiers.ProjectId
-    request_id: identifiers.RequestId | None = None
+class DiscoveryEvent(_EventBase):
+    resource_type: constants.ResourceType
+    resource_id: str
+    request_id: identifiers.RequestId
+    modification: constants.DiscoveryStage
+    succeeded: bool
+    details: str | None = None
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
-class ProjectNotUpdatedEvent(_EventBase):
-    project_id: identifiers.ProjectId
-    request_id: identifiers.RequestId | None = None
-    details: str
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class ProjectDeletedEvent(_EventBase):
-    project_id: identifiers.ProjectId
-    request_id: identifiers.RequestId | None = None
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class ProjectNotDeletedEvent(_EventBase):
-    project_id: identifiers.ProjectId
-    request_id: identifiers.RequestId | None = None
-    details: str
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class ProjectStatusChangedEvent(_EventBase):
-    project_id: identifiers.ProjectId
-    old_status: constants.ProjectStatus
-    new_status: constants.ProjectStatus
-
-
-# this is emitted when the validation process errors out
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class ProjectNotValidatedEvent(_EventBase):
-    project_id: identifiers.ProjectId
-    request_id: identifiers.RequestId | None = None
-    details: str
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class ProjectValidatedEvent(_EventBase):
-    project_id: identifiers.ProjectId
+class ValidationEvent(_EventBase):
+    resource_type: constants.ResourceType
+    resource_id: str
+    request_id: identifiers.RequestId
+    modification: constants.ValidationStage
+    succeeded: bool
     is_valid: bool
-    details: list[dict[str, str]]
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class ProjectDiscoveryFailedEvent(_EventBase):
-    project_id: identifiers.ProjectId
-    request_id: identifiers.RequestId | None = None
-    details: str
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class ProjectDiscoveryProgressEvent(_EventBase):
-    project_id: identifiers.ProjectId
-    details: str
-
-
-# Survey mission events
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class SurveyMissionCreatedEvent(_EventBase):
-    survey_mission_id: identifiers.SurveyMissionId
-    project_id: identifiers.ProjectId
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class SurveyMissionUpdatedEvent(_EventBase):
-    survey_mission_id: identifiers.SurveyMissionId
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class SurveyMissionDeletedEvent(_EventBase):
-    survey_mission_id: identifiers.SurveyMissionId
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class SurveyMissionStatusChangedEvent(_EventBase):
-    survey_mission_id: identifiers.SurveyMissionId
-    old_status: constants.SurveyMissionStatus
-    new_status: constants.SurveyMissionStatus
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class SurveyMissionValidatedEvent(_EventBase):
-    survey_mission_id: identifiers.SurveyMissionId
-    is_valid: bool
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class SurveyMissionDiscoveryProgressEvent(_EventBase):
-    survey_mission_id: identifiers.SurveyMissionId
-    project_id: identifiers.ProjectId
-    details: str
-
-
-# Survey-related record events
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class SurveyRelatedRecordCreatedEvent(_EventBase):
-    record_id: identifiers.SurveyRelatedRecordId
-    survey_mission_id: identifiers.SurveyMissionId
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class SurveyRelatedRecordUpdatedEvent(_EventBase):
-    record_id: identifiers.SurveyRelatedRecordId
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class SurveyRelatedRecordDeletedEvent(_EventBase):
-    record_id: identifiers.SurveyRelatedRecordId
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class SurveyRelatedRecordStatusChangedEvent(_EventBase):
-    record_id: identifiers.SurveyRelatedRecordId
-    old_status: constants.SurveyRelatedRecordStatus
-    new_status: constants.SurveyRelatedRecordStatus
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class SurveyRelatedRecordValidatedEvent(_EventBase):
-    record_id: identifiers.SurveyRelatedRecordId
-    is_valid: bool
-
-
-# Reference data events
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class DatasetCategoryCreatedEvent(_EventBase):
-    category_id: identifiers.DatasetCategoryId
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class DatasetCategoryDeletedEvent(_EventBase):
-    category_id: identifiers.DatasetCategoryId
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class DomainTypeCreatedEvent(_EventBase):
-    domain_type_id: identifiers.DomainTypeId
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class DomainTypeDeletedEvent(_EventBase):
-    domain_type_id: identifiers.DomainTypeId
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class WorkflowStageCreatedEvent(_EventBase):
-    stage_id: identifiers.WorkflowStageId
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class WorkflowStageDeletedEvent(_EventBase):
-    stage_id: identifiers.WorkflowStageId
+    details: str | None = None
 
 
 SeisLabDataEvent: TypeAlias = (
-    ProjectCreatedEvent
-    | ProjectNotCreatedEvent
-    | ProjectUpdatedEvent
-    | ProjectNotUpdatedEvent
-    | ProjectDeletedEvent
-    | ProjectNotDeletedEvent
-    | ProjectStatusChangedEvent
-    | ProjectValidatedEvent
-    | ProjectNotValidatedEvent
-    | ProjectDiscoveryFailedEvent
-    | ProjectDiscoveryProgressEvent
-    | SurveyMissionCreatedEvent
-    | SurveyMissionUpdatedEvent
-    | SurveyMissionDeletedEvent
-    | SurveyMissionStatusChangedEvent
-    | SurveyMissionValidatedEvent
-    | SurveyMissionDiscoveryProgressEvent
-    | SurveyRelatedRecordCreatedEvent
-    | SurveyRelatedRecordUpdatedEvent
-    | SurveyRelatedRecordDeletedEvent
-    | SurveyRelatedRecordStatusChangedEvent
-    | SurveyRelatedRecordValidatedEvent
-    | DatasetCategoryCreatedEvent
-    | DatasetCategoryDeletedEvent
-    | DomainTypeCreatedEvent
-    | DomainTypeDeletedEvent
-    | WorkflowStageCreatedEvent
-    | WorkflowStageDeletedEvent
+    ResourceModificationEvent
+    | BulkResourceModificationEvent
+    | ResourceStatusChangedEvent
+    | DiscoveryEvent
+    | ValidationEvent
 )

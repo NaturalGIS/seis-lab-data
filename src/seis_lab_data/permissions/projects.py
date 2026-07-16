@@ -1,6 +1,6 @@
 import logging
 
-from .. import schemas
+from ..schemas.user import User
 from ..constants import (
     ROLE_ADMIN,
     ROLE_EDITOR,
@@ -13,18 +13,18 @@ logger = logging.getLogger(__name__)
 
 
 def can_read_project(
-    user: schemas.User | None,
+    user: User | None,
     project: models.Project,
 ) -> bool:
     if user and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles):
         return True
     if project.status == ProjectStatus.PUBLISHED:
         return True
-    return user and project.owner_id == user.id
+    return user is not None and project.owner_id == user.id
 
 
 def can_create_project(
-    user: schemas.User | None,
+    user: User | None,
 ) -> bool:
     if user is None:
         return False
@@ -35,7 +35,7 @@ def can_create_project(
 
 
 def can_update_project(
-    user: schemas.User | None,
+    user: User | None,
     project: models.Project,
 ) -> bool:
     if not user:
@@ -48,28 +48,28 @@ def can_update_project(
 
 
 def can_delete_project(
-    user: schemas.User | None,
+    user: User | None,
     project: models.Project,
 ) -> bool:
     return can_update_project(user, project)
 
 
 def can_validate_project(
-    user: schemas.User | None,
+    user: User | None,
     project: models.Project,
 ) -> bool:
     return can_update_project(user, project)
 
 
 def can_change_project_status(
-    user: schemas.User | None,
+    user: User | None,
     project: models.Project,
 ) -> bool:
     return can_update_project(user, project)
 
 
 def can_discover_project(
-    user: schemas.User | None,
+    user: User | None,
     project: models.Project,
 ) -> bool:
     return can_update_project(user, project)

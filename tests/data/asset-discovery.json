@@ -1,0 +1,12 @@
+{
+  "raw_bathy_kmall": {
+    "relative_path_regexp": "s06-mbes/s02-raw-data/.*\\.kmall",
+    "workflow_stage": "raw_data",
+    "category": "mbes"
+  },
+  "raw_uhrs_segy": {
+    "relative_path_regexp": "s13-uhrs/s02-raw-data/.*\\.segy",
+    "workflow_stage": "raw_data",
+    "category": "uhrs"
+  }
+}

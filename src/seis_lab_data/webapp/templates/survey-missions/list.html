@@ -14,7 +14,10 @@
 {% endblock head %}
 
 {% block page_title %}
-    <span class="material-icons-outlined">directions_boat</span>{{ _("survey missions") | capitalize }}
+    <span class="icon-stack" aria-hidden="true">
+        <span class="material-icons-outlined">{{ icons.survey_missions }}</span>
+        <span class="material-icons-outlined icon-stack-badge">{{ icons.list }}</span>
+    </span>{{ _("survey missions") | capitalize }}
 {% endblock page_title %}
 
 {% block details %}
@@ -29,6 +32,7 @@
                     data-signals:search='{{ search_initial_value }}'
                     data-signals:advanced-search-panel-open="false"
                     data-signals:searching="false"
+                    data-effect="$listingVersion > 0 && @get('{{ url_for('survey_missions:get_list_component') }}')"
             >
                 <div class="col-8">
                     <search class="form-floating">
@@ -119,7 +123,7 @@
 
     </div>
     <div class="row"
-         data-on-intersect__once="@get('{{ url_for("survey_missions:get_listing_updates") }}')"
+         data-on-intersect__once="@get('{{ url_for("survey_missions:list_stream") }}')"
     >
         <div class="col-9">
             {% include "survey-missions/list-component.html" %}

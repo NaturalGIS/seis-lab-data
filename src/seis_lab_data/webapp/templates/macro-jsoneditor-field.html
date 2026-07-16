@@ -1,0 +1,86 @@
+{% macro jsoneditor_field(field, height="180px") %}
+    {% set form_element_classes = "form-control is-invalid" if field.errors else "form-control" %}
+    {% set form_element_described_by = name_prefix ~ field.name ~ "-help backend-validation-" ~ name_prefix ~ field.name ~ "-feedback" if field.errors else name_prefix ~ field.name ~ "-help" %}
+    {% set stable_test_id = test_id or ("field-" ~ name_prefix ~ field.name) %}
+    <div class="row mb-3">
+        <div class="col-sm-2">
+            {{ field.label(class="form-label") }}
+            {% if field.flags.backend_required %}
+                <span class="text-danger">*</span>
+            {% endif %}
+
+        </div>
+        <div class="col-sm-10{% if field.errors %} has-validation{% endif %}">
+            {% if field.flags.backend_required %}
+                {{ field(class=form_element_classes,
+                         aria_describedby=form_element_described_by,
+                         aria_required="true",
+                         aria_label=stable_test_id,
+                         **kwargs) }}
+            {% else %}
+                {{ field(class=form_element_classes,
+                         aria_describedby=form_element_described_by,
+                         aria_label=stable_test_id,
+                         **kwargs) }}
+            {% endif %}
+            <div id="{{ field.id }}-editor"></div>
+            <div id="{{ name_prefix }}{{ field.name }}-help" class="form-text">
+                {{ field.description }}{% if field.flags.backend_required %} -
+                    {{ _("This is a required field") }}{% endif %}</div>
+            {% if field.errors %}
+                <div class="invalid-feedback" id="backend-validation-{{ name_prefix }}{{ field.name }}-feedback">
+                    {% for error in field.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <script>
+        (function () {
+            const hiddenInput = document.getElementById("{{ field.id }}");
+            const container = document.getElementById("{{ field.id }}-editor");
+
+            let initialValue = {};
+            try {
+                initialValue = JSON.parse(hiddenInput.value || "{}");
+            } catch (e) {
+                initialValue = {};
+            }
+            console.log(`${initialValue}`)
+
+            const editor = new JSONEditor(container, {
+                history: false,
+                limitDragging: true,
+                mainMenuBar: false,
+                mode: "form",
+                modes: ["form"],
+                name: "{{ field.name }}",
+                navigationBar: false,
+                onChange: function () {
+                    try {
+                        hiddenInput.value = JSON.stringify(editor.get());
+                    } catch (e) {
+                        // editor is mid-edit / temporarily invalid — leave hiddenInput as-is
+                    }
+                },
+                search: false,
+
+            });
+            editor.set(initialValue);
+
+            // Belt-and-braces: force a sync right before submit too
+            const formEl = hiddenInput.closest("form");
+            if (formEl) {
+                formEl.addEventListener("submit", function () {
+                    try {
+                        hiddenInput.value = JSON.stringify(editor.get());
+                    } catch (e) {
+                    }
+                });
+            }
+        })();
+    </script>
+{% endmacro %}

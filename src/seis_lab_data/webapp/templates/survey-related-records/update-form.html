@@ -1,11 +1,10 @@
 {% import "macros.html" as macros %}
 {% import "macros-maps.html" as macros_maps %}
 <form>
+    {{ form.request_id }}
     {{ macros.render_localizable_field(form.name) }}
     {{ macros.render_localizable_field(form.description) }}
-    {{ macros.render_form_field(form.relative_path) }}
     {{ macros.render_form_field(form.dataset_category_id) }}
-    {{ macros.render_form_field(form.domain_type_id) }}
     {{ macros.render_form_field(form.workflow_stage_id) }}
 
     {{ macros_maps.render_bbox_update_component(
@@ -130,7 +129,7 @@
             </a>
             <button
                     type="submit"
-                    aria-label="submit-create-form"
+                    aria-label="submit-update-form"
                     class="btn btn-primary"
                     data-on:click="@put('{{ url_for('survey_related_records:detail', survey_related_record_id=survey_related_record.id) }}', {
                             contentType: 'form',

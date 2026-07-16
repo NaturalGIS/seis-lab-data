@@ -4,33 +4,40 @@
         class="col"
         data-signals:is-valid-id{{ id_ }}="{{ 'true' if item.validation_result.is_valid else 'false' }}"
 >
-    <div class="card mb-3">
+    <div class="card mb-3 position-relative">
+        <div class="form-check position-absolute top-0 start-0 m-2">
+            <input
+                    type="checkbox"
+                    class="form-check-input"
+                    aria-label="select-item"
+                    data-effect="el.checked = ($selectAllMatching ? !$excludedIds['{{ item.id }}'] : !!$selectedIds['{{ item.id }}'])"
+                    data-on:change="$selectAllMatching ? ($excludedIds['{{ item.id }}'] = !evt.target.checked) : ($selectedIds['{{ item.id }}'] = evt.target.checked)"
+            >
+        </div>
         <div class="row g-0">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="placeholder-rectangle bg-secondary"></div>
             </div>
-            <div class="col-md-8">
+            <div class="col-md-9">
                 <div class="card-body">
                     <div class="row justify-content-between">
-                        <div class="col-4">
-                            <h5 class="card-title">{{ item.name|translate_localizable_string|default(_("name not available"), True) }}</h5>
-                        </div>
-                        <div class="col-4">
-                            <small class="text-body-secondary"><span
-                                    class="material-icons-outlined me-1">{{ icons['status_' + item.status.value] }}</span> {{ item.status.value }}
-                            </small>
-                            <span
-                                    class="material-icons-outlined me-1"
-                                    data-text="$isValidId{{ id_ }} ? window.iconNames['validation_valid'] : window.iconNames['validation_invalid']"
-                                    data-class:text-success="$isValidId{{ id_ }}"
-                                    data-class:text-danger="!$isValidId{{ id_ }}"
-                            ></span>
-                            <span
-                                    data-text="$isValidId{{ id_ }} ? 'Valid' : 'Invalid' "
-                                    data-class:text-success="$isValidId{{ id_ }}"
-                                    data-class:text-danger="!$isValidId{{ id_ }}"
-                            ></span>
-                        </div>
+                        <h5 class="card-title">{{ item.name|translate_localizable_string|default(_("name not available"), True) }}</h5>
+                        <small class="text-body-secondary"><span
+                                class="material-icons-outlined me-1">{{ icons['status_' + item.status.value] }}</span> {{ item.status.value }}
+                        </small>
+                        <small class="text-body-secondary">
+                        <span
+                                class="material-icons-outlined me-1"
+                                data-text="$isValidId{{ id_ }} ? window.iconNames['validation_valid'] : window.iconNames['validation_invalid']"
+                                data-class:text-success="$isValidId{{ id_ }}"
+                                data-class:text-danger="!$isValidId{{ id_ }}"
+                        ></span><span
+                                data-text="$isValidId{{ id_ }} ? 'Valid' : 'Invalid' "
+                                data-class:text-success="$isValidId{{ id_ }}"
+                                data-class:text-danger="!$isValidId{{ id_ }}"
+                        ></span>
+
+                        </small>
                     </div>
                     <div class="row">
                         <div class="col-12">
@@ -40,6 +47,9 @@
                                         {{ item.temporal_extent_begin | default(_(".."), True) }}/{{ item.temporal_extent_end | default(_(".."), True) }}
                                     </small>
                                 </li>
+                                <li class="card-text">
+                                    <span class="badge text-bg-primary">{{ item.dataset_category.name | translate_localizable_string }}</span>
+                                    <span class="badge text-bg-secondary">{{ item.workflow_stage.name | translate_localizable_string }}</span></li>
                                 <li class="card-text text-truncate">
                                     {{ item.description|translate_localizable_string|default(_("description not available"), True) }}
                                 </li>
