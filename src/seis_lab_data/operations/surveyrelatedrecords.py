@@ -208,7 +208,7 @@ async def validate_survey_related_record(
         )
         await asyncio.sleep(3)
         validation_schemas.ValidSurveyRelatedRecord.model_validate(
-            survey_related_record
+            survey_related_record, from_attributes=True
         )
     except pydantic.ValidationError as err:
         for error in err.errors():

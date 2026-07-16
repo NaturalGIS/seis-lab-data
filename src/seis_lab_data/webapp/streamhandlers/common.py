@@ -469,6 +469,40 @@ async def _handle_survey_mission_modification_detail_page(
         )
 
 
+async def handle_resource_validation_detail_page(
+    message: message_schemas.ValidationMessage,
+    context: subscribers.HandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    logger.debug(f"{context=}")
+    logger.debug(f"{message=}")
+    # TODO: update the page elements too
+    if context.resource_id != message.resource_id:
+        return
+    if not message.succeeded and context.request_id == message.request_id:
+        async for event in flash_ui_message_same_page(
+            webui_schemas.Notification(
+                message=(
+                    f"{message.resource_type.capitalize()} {message.type} "
+                    f"{message.modification} failed: {message.details}"
+                ),
+                category="error",
+            )
+        ):
+            yield event
+    elif message.succeeded:
+        async for event in flash_ui_message_same_page(
+            webui_schemas.Notification(
+                message=(
+                    f"{message.resource_type.capitalize()} {message.type} "
+                    f"{message.modification}"
+                ),
+            )
+        ):
+            yield event
+    yield ServerSentEventGenerator.patch_signals({"validating": False})
+
+
 async def handle_resource_modification_detail_page(
     message: message_schemas.ResourceModificationMessage,
     context: subscribers.HandlerContext,

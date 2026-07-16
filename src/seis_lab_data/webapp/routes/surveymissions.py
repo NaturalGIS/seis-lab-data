@@ -277,6 +277,7 @@ async def stream_to_detail_page(request: Request):
         message_handlers={
             "resource_modified": common_handlers.handle_resource_modification_detail_page,
             "discovery": common_handlers.handle_discovery_detail_page,
+            "validation": common_handlers.handle_resource_validation_detail_page,
         },
     )
 

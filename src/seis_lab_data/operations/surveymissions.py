@@ -189,7 +189,9 @@ async def validate_survey_mission(
             event_dispatcher=event_dispatcher,
         )
         await asyncio.sleep(3)
-        validation_schemas.ValidSurveyMission.model_validate(survey_mission)
+        validation_schemas.ValidSurveyMission.model_validate(
+            survey_mission, from_attributes=True
+        )
     except pydantic.ValidationError as err:
         for error in err.errors():
             validation_errors.append(

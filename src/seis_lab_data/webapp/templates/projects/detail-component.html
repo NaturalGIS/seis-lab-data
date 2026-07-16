@@ -92,7 +92,11 @@
     </div>
     <div class="col-3">
         <h5>{{ _("actions") | capitalize }}</h5>
-        <div class="list-group mb-3" data-signals:deleting="false">
+        <div
+                class="list-group mb-3"
+                data-signals:deleting="false"
+                data-signals:validating="false"
+        >
             {% if permissions.can_update %}
                 <button
                         class="list-group-item list-group-item-action list-group-item-secondary"
@@ -105,8 +109,6 @@
                     <span class="material-icons-outlined me-1">{{ icons.validation_valid }}</span>
                     {{ _("validate project") | capitalize }}
                 </button>
-            {% endif %}
-            {% if permissions.can_update %}
                 <a
                         class="list-group-item list-group-item-action list-group-item-info"
                         href="{{ url_for('projects:get_update_form', project_id=project.id) }}"

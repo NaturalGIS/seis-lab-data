@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 import pydantic
@@ -153,8 +152,8 @@ async def validate_project(
             session=session,
             event_dispatcher=event_dispatcher,
         )
-        await asyncio.sleep(3)
-        validation_schemas.ValidProject.model_validate(project)
+        # await asyncio.sleep(3)
+        validation_schemas.ValidProject.model_validate(project, from_attributes=True)
     except pydantic.ValidationError as err:
         for error in err.errors():
             validation_errors.append(
