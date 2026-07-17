@@ -332,6 +332,7 @@ async def stream_to_detail_page(request: Request):
         ),
         {
             "resource_modified": common_handlers.handle_resource_modification_detail_page,
+            "resource_status_changed": common_handlers.handle_resource_status_changed_detail_page,
             "validation": common_handlers.handle_resource_validation_detail_page,
         },
     )
@@ -672,7 +673,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             "projects/detail.html",
             context={
                 "request_id": uuid.uuid4(),
-                "project": details.item,
+                "item": details.item,
                 "pagination": details.pagination,
                 "survey_missions": details.children,
                 "search_initial_value": details.children_filter,
@@ -1055,8 +1056,9 @@ async def remove_update_project_form_link(request: Request):
 @csrf_protect
 @requires_auth
 async def trigger_project_validation(request: Request):
+    request_id = identifiers.RequestId(uuid.UUID(request.query_params["request_id"]))
     project_tasks.validate_project.send(
-        raw_request_id=str(uuid.uuid4()),
+        raw_request_id=str(request_id),
         raw_project_id=str(uuid.UUID(request.path_params.get("project_id"))),
         raw_initiator=json.dumps(dataclasses.asdict(request.user)),
     )  # noqa

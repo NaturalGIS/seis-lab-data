@@ -5,7 +5,9 @@ import logging
 import time
 import uuid
 from collections.abc import AsyncGenerator
+from functools import partial
 
+from datastar_py.consts import ElementPatchMode
 from datastar_py.sse import ServerSentEventGenerator
 from datastar_py.starlette import DatastarEvent
 
@@ -14,6 +16,7 @@ from ... import (
     subscribers,
 )
 from ...operations import (
+    projects as project_ops,
     surveymissions as mission_ops,
     surveyrelatedrecords as record_ops,
 )
@@ -300,7 +303,19 @@ async def _handle_project_modification_detail_page(
                     logger.debug(
                         f"Project {message.resource_id!r} has been updated - re-rendering its details..."
                     )
-                    # TODO: yield re-render of project details
+                    async for event in flash_ui_message_after_redirect(
+                        webui_schemas.Notification(
+                            message=f"{message.resource_type.capitalize()} {message.resource_id} was {message.modification}",
+                        )
+                    ):
+                        yield event
+                    yield ServerSentEventGenerator.redirect(
+                        str(
+                            context.url_resolver(
+                                "projects:detail", project_id=project_id
+                            )
+                        )
+                    )
                 case constants.ResourceModification.DELETED:
                     async for event in flash_ui_message_after_redirect(
                         webui_schemas.Notification(
@@ -476,15 +491,17 @@ async def handle_resource_validation_detail_page(
 ) -> AsyncGenerator[DatastarEvent, None]:
     logger.debug(f"{context=}")
     logger.debug(f"{message=}")
-    # TODO: update the page elements too
     if context.resource_id != message.resource_id:
         return
-    if not message.succeeded and context.request_id == message.request_id:
+    if message.modification != constants.ValidationStage.ENDED:
+        return
+
+    if not message.succeeded and message.request_id == context.request_id:
         async for event in flash_ui_message_same_page(
             webui_schemas.Notification(
                 message=(
                     f"{message.resource_type.capitalize()} {message.type} "
-                    f"{message.modification} failed: {message.details}"
+                    f"{message.modification}: {message.details}"
                 ),
                 category="error",
             )
@@ -500,7 +517,126 @@ async def handle_resource_validation_detail_page(
             )
         ):
             yield event
+
+        match message.resource_type:
+            case constants.ResourceType.PROJECT:
+                template = context.jinja_environment.get_template(
+                    "projects/partial-validation.html"
+                )
+                async with context.db_session_factory() as session:
+                    db_project = await project_ops.get_project(
+                        project_id=identifiers.ProjectId(
+                            uuid.UUID(message.resource_id)
+                        ),
+                        initiator=context.user,
+                        session=session,
+                    )
+                    logger.debug(f"{db_project=}")
+                    rendered = template.render(item=db_project)
+            case constants.ResourceType.MISSION:
+                template = context.jinja_environment.get_template(
+                    "projects/partial-validation.html"
+                )
+                async with context.db_session_factory() as session:
+                    db_mission = mission_ops.get_survey_mission(
+                        survey_mission_id=identifiers.SurveyMissionId(
+                            uuid.UUID(message.resource_id)
+                        ),
+                        initiator=context.user,
+                        session=session,
+                    )
+                    rendered = template.render(item=db_mission)
+
+            case constants.ResourceType.RECORD:
+                template = context.jinja_environment.get_template(
+                    "projects/partial-validation.html"
+                )
+                async with context.db_session_factory() as session:
+                    db_record = record_ops.get_survey_related_record(
+                        survey_related_record_id=identifiers.SurveyRelatedRecordId(
+                            uuid.UUID(message.resource_id)
+                        ),
+                        initiator=context.user,
+                        session=session,
+                    )
+                    rendered = template.render(item=db_record)
+            case _:
+                return
+
+        yield ServerSentEventGenerator.patch_elements(
+            rendered,
+            selector=webui_schemas.NewItemSelectorInfo.validation_result_selector,
+            mode=ElementPatchMode.REPLACE,
+            use_view_transition=True,
+        )
     yield ServerSentEventGenerator.patch_signals({"validating": False})
+
+
+async def handle_resource_status_changed_detail_page(
+    message: message_schemas.ResourceStatusChangedMessage,
+    context: subscribers.HandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    if context.resource_id != message.resource_id:
+        return
+
+    if not message.succeeded and message.request_id == context.request_id:
+        async for event in flash_ui_message_same_page(
+            webui_schemas.Notification(
+                message=(
+                    f"{message.resource_type.capitalize()} {message.type} "
+                    f"{message.modification}: {message.details}"
+                ),
+                category="error",
+            )
+        ):
+            yield event
+    elif message.succeeded:
+        yield ServerSentEventGenerator.patch_signals("item_status", message.new_status)
+        yield ServerSentEventGenerator.execute_script(
+            f"console.log('{message.new_status}')"
+        )
+        status_partial_template = context.jinja_environment.get_template(
+            "projects/partial-status.html"
+        )
+        try:
+            item_getter = {
+                constants.ResourceType.PROJECT: partial(
+                    project_ops.get_project,
+                    project_id=identifiers.ProjectId(uuid.UUID(message.resource_id)),
+                ),
+                constants.ResourceType.MISSION: partial(
+                    mission_ops.get_survey_mission,
+                    survey_mission_id=identifiers.SurveyMissionId(
+                        uuid.UUID(message.resource_id)
+                    ),
+                ),
+                constants.ResourceType.RECORD: partial(
+                    record_ops.get_survey_related_record,
+                    survey_related_record_id=identifiers.SurveyRelatedRecordId(
+                        uuid.UUID(message.resource_id)
+                    ),
+                ),
+            }[message.resource_type]
+        except (KeyError, ValueError) as err:
+            logger.exception("Could not determine item_getter")
+            async for event in flash_ui_message_same_page(
+                webui_schemas.Notification(
+                    message=f"Could not determine item_getter: {str(err)} ",
+                    category="error",
+                )
+            ):
+                yield event
+        else:
+            async with context.db_session_factory() as session:
+                item = await item_getter(initiator=context.user, session=session)
+                rendered = status_partial_template.render(item=item)
+                yield ServerSentEventGenerator.patch_elements(
+                    rendered,
+                    selector=webui_schemas.NewItemSelectorInfo.status_selector,
+                    mode=ElementPatchMode.REPLACE,
+                    use_view_transition=True,
+                )
 
 
 async def handle_resource_modification_detail_page(

@@ -55,6 +55,7 @@ class RedisEventDispatcher:
                 await self._redis.publish(
                     channel=event.resource_type.get_topic_name(),
                     message=messages.ResourceStatusChangedMessage(
+                        request_id=event.request_id,
                         resource_type=event.resource_type,
                         resource_id=event.resource_id,
                         succeeded=event.succeeded,

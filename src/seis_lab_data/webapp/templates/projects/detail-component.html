@@ -3,38 +3,38 @@
 {% import "macros-maps.html" as macros_maps %}
 <div
     class="row"
-    data-on-intersect__once="@get('{{ url_for("projects:detail_stream", project_id=project.id, request_id=request_id) }}')"
-    data-signals:is-valid="{{ 'true' if project.validation_result.is_valid else 'false' }}"
-    data-signals:status="'{{ project.status.value }}'"
+    data-on-intersect__once="@get('{{ url_for("projects:detail_stream", project_id=item.id, request_id=request_id) }}')"
+    data-signals:is-valid="{{ 'true' if item.validation_result.is_valid else 'false' }}"
+    data-signals:status="'{{ item.status.value }}'"
 >
     <div class="col">
         <div class="row mb-5">
             <div class="col">
                 <div class="card">
-                    {% if project.bbox_4326 is not none %}
+                    {% if item.bbox_4326 is not none %}
                         {{ macros_maps.render_bbox_display_component(
                             settings.webmap_base_tile_layer_url,
                             settings.webmap_default_zoom_level,
-                            project.bbox_4326
+                            item.bbox_4326
                         ) }}
                     {% endif %}
                     <div class="card-body">
                         <div class="row">
                             <div class="col">
-                                <p>{{ project.description | translate_localizable_string }}</p>
+                                <p>{{ item.description | translate_localizable_string }}</p>
                                 <dl class="row">
                                     <dt class="col-sm-3">{{ _("root path") | capitalize }}</dt>
-                                    <dd class="col-sm-9">{{ project.root_path|default(_("root path not available"), True) }}</dd>
+                                    <dd class="col-sm-9">{{ item.root_path|default(_("root path not available"), True) }}</dd>
                                     <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
-                                    <dd class="col-sm-9">{{ project.temporal_extent_begin|default(_(".."), True) }}/{{ project.temporal_extent_end|default(_(".."), True) }}</dd>
+                                    <dd class="col-sm-9">{{ item.temporal_extent_begin|default(_(".."), True) }}/{{ item.temporal_extent_end|default(_(".."), True) }}</dd>
                                     <dt class="col-sm-3">{{ _("spatial extent") | capitalize }}
-                                    <dd class="col-sm-9">{{ project.bbox_4326.bounds }}</dd>
+                                    <dd class="col-sm-9">{{ item.bbox_4326.bounds }}</dd>
                                 </dl>
                             </div>
                             <div class="col-3">
                                 <h5>{{ _("links") | capitalize }}</h5>
                                 <div class="list-group list-group-flush">
-                                    {% for link in project.links %}
+                                    {% for link in item.links %}
                                         <a
                                                 class="list-group-item list-group-item-action"
                                                 href="{{ link.url }}"
@@ -60,10 +60,10 @@
                                 </div>
                             </div>
                         </div>
-                        {% if project.discovery_configuration %}
+                        {% if item.discovery_configuration %}
                         <details class="mt-3">
                             <summary style="cursor: pointer;">{{ _("project discovery configuration") | capitalize }}</summary>
-                            {{ project.discovery_configuration.model_dump(exclude_none=True) | highlight_json }}
+                            {{ item.discovery_configuration.model_dump(exclude_none=True) | highlight_json }}
                         </details>
                         {% endif %}
                     </div>
@@ -73,12 +73,12 @@
         <div
             class="row mt-4"
             data-signals:listing-version="0"
-            data-effect="$listingVersion > 0 && @get('{{ url_for('projects:get_project_missions_list_component', project_id=project.id) }}')"
+            data-effect="$listingVersion > 0 && @get('{{ url_for('projects:get_project_missions_list_component', project_id=item.id) }}')"
         >
             <div class="col">
                 <h2>{{ _("survey missions") | capitalize }}</h2>
                 {{ macros.render_search_component(
-                   url_for("projects:get_project_missions_list_component", project_id=project.id),
+                   url_for("projects:get_project_missions_list_component", project_id=item.id),
                    _("search project survey-missions"),
                    initial_value=search_initial_value | default("", true)
                 ) }}
@@ -101,7 +101,7 @@
                 <button
                         class="list-group-item list-group-item-action list-group-item-secondary"
                         data-attr:disabled="$status !== 'draft'"
-                        data-on:click="@post('{{ url_for("projects:trigger_validation", project_id=project.id) }}', {
+                        data-on:click="@post('{{ url_for("projects:trigger_validation", project_id=item.id) ~ "?request_id=" ~ request_id }}', {
                             headers: {'X-CSRFToken': '{{ csrf_token(request) }}'}
                         })"
                         aria-label="validate-project"
@@ -111,7 +111,7 @@
                 </button>
                 <a
                         class="list-group-item list-group-item-action list-group-item-info"
-                        href="{{ url_for('projects:get_update_form', project_id=project.id) }}"
+                        href="{{ url_for('projects:get_update_form', project_id=item.id) }}"
                         aria-label="update-item"
                         data-attr:class="$status === 'under_validation' ? 'list-group-item list-group-item-action list-group-item-info disabled' : 'list-group-item list-group-item-action list-group-item-info'"
                         data-attr:aria-disabled="$status === 'under_validation'"
@@ -122,7 +122,7 @@
             {% if permissions.can_create_children %}
                 <a
                         class="list-group-item list-group-item-action list-group-item-info"
-                        href="{{ url_for('survey_missions:get_creation_form', project_id=project.id) }}"
+                        href="{{ url_for('survey_missions:get_creation_form', project_id=item.id) }}"
                         aria-label="new-item"
                 >
                     <span class="material-icons-outlined me-1">{{ icons.survey_missions }}</span>{{ _("add new survey mission") | capitalize }}
@@ -130,7 +130,7 @@
             {% endif %}
             {% if permissions.can_delete %}
                 {{ macros_buttons_list_items.render_delete_item_button(
-                deletion_url=url_for("projects:detail", project_id=project.id) ~ "?request_id=" ~ request_id,
+                deletion_url=url_for("projects:detail", project_id=item.id) ~ "?request_id=" ~ request_id,
                 signal_name="deleting",
                 idle_message="delete project",
                 running_message="deleting project...",
@@ -145,44 +145,8 @@
             window.iconNames = JSON.parse('{{ icons | tojson }}')
         </script>
         <ul class="list-group">
-            <li
-                    class="list-group-item"
-                    aria-label="status"
-                    data-attr:style="$status === 'published' ? 'display:none' : 'display:block'"
-            >
-                <span
-                    class="material-icons-outlined me-1"
-                    data-text="iconNames['status_' + $status]"
-                ></span>
-                <span data-text="$status"></span>
-            </li>
-            <li
-                    data-class:list-group-item-success="$isValid && $status === 'draft'"
-                    data-class:list-group-item-danger="!$isValid && $status === 'draft'"
-                    class="list-group-item"
-                aria-label="validation-result"
-            >
-                <div class="spinner-border" role="status" data-attr:style="$status === 'under_validation' ? 'display: block' : 'display:none'">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <div data-attr:style="$status === 'under_validation' ? 'display: none' : 'display:block'">
-                    <h6>
-                        <span class="material-icons-outlined me-1" data-text="$isValid ? '{{ icons.validation_valid }}' : '{{ icons.validation_invalid }}'"></span>
-                        <span data-text="$isValid ? '{{ _('project is valid') | capitalize }}' : '{{ _('project is invalid') | capitalize  }}'"></span>
-                    </h6>
-                    {% set validation_errors = project.validation_result.errors or [] %}
-                    <div aria-label="validation-result-details">
-                        {% if validation_errors | length > 0 %}
-                            <ul>
-                                {% for validation_error in validation_errors %}
-                                    <li>{{ validation_error.name }}: {{ validation_error.message }}</li>
-                                {% endfor %}
-                            </ul>
-                        {% endif %}
-
-                    </div>
-                </div>
-            </li>
+            {% include "projects/partial-status.html" %}
+            {% include "projects/partial-validation.html" %}
             <li class="list-group-item">
                 <p>{{ _("Projects with a status of DRAFT are only visible to their owners") }}</p>
                 <p>{{ _("In order to become viewable by all users, a project must be published. Publication is only possible once the project is considered valid.") }}</p>

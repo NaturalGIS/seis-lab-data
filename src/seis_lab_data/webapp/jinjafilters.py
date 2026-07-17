@@ -11,16 +11,30 @@ from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import JsonLexer
 
-from ..constants import (
-    ProjectStatus,
-    TranslatableEnumProtocol,
-)
+from .. import constants
 from ..schemas.common import Localizable
 from ..localization import translate_localizable
 
 if typing.TYPE_CHECKING:
     from ..config import SeisLabDataSettings
+    from ..schemas import projects as project_schemas
+    from ..schemas import surveymissions as mission_schemas
     from ..schemas import surveyrelatedrecords as record_schemas
+
+    ItemWithStatus = typing.TypeVar(
+        "ItemWithStatus",
+        bound=(
+            project_schemas.ProjectReadDetail,
+            project_schemas.ProjectReadEmbedded,
+            project_schemas.ProjectReadListItem,
+            mission_schemas.SurveyMissionReadDetail,
+            mission_schemas.SurveyMissionReadEmbedded,
+            mission_schemas.SurveyMissionReadListItem,
+            record_schemas.SurveyRelatedRecordReadDetail,
+            record_schemas.SurveyRelatedRecordReadEmbedded,
+            record_schemas.SurveyRelatedRecordReadListItem,
+        ),
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -42,17 +56,32 @@ def translate_localizable_string(
 
 
 @pass_context
-def get_status_icon_name(context: dict[str, typing.Any], status: ProjectStatus) -> str:
+def get_status_icon_name(
+    context: dict[str, typing.Any],
+    item: "ItemWithStatus",
+) -> str:
     return {
-        ProjectStatus.DRAFT: context.get("icons", {}).get("status_draft", ""),
-        ProjectStatus.UNDER_VALIDATION: context.get("icons", {}).get(
-            "status_under_validation", ""
-        ),
-        ProjectStatus.PUBLISHED: context.get("icons", {}).get("status_published", ""),
-    }.get(status, "")
+        constants.ProjectStatus.DRAFT: context["icons"]["status_draft"],
+        constants.ProjectStatus.UNDER_VALIDATION: context["icons"][
+            "status_under_validation"
+        ],
+        constants.ProjectStatus.PUBLISHED: context["icons"]["status_published"],
+        constants.SurveyMissionStatus.DRAFT: context["icons"]["status_draft"],
+        constants.SurveyMissionStatus.UNDER_VALIDATION: context["icons"][
+            "status_under_validation"
+        ],
+        constants.SurveyMissionStatus.PUBLISHED: context["icons"]["status_published"],
+        constants.SurveyRelatedRecordStatus.DRAFT: context["icons"]["status_draft"],
+        constants.SurveyRelatedRecordStatus.UNDER_VALIDATION: context["icons"][
+            "status_under_validation"
+        ],
+        constants.SurveyRelatedRecordStatus.PUBLISHED: context["icons"][
+            "status_published"
+        ],
+    }.get(item.status, context["icons"]["status_other"])
 
 
-def translate_enum(value: TranslatableEnumProtocol) -> str:
+def translate_enum(value: constants.TranslatableEnumProtocol) -> str:
     return value.get_translated_value()
 
 
