@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 import pydantic
@@ -94,6 +93,7 @@ async def change_project_status(
         await event_dispatcher(
             event_schemas.ResourceStatusChangedEvent(
                 initiator=initiator.id,
+                request_id=request_id,
                 resource_type=constants.ResourceType.PROJECT,
                 resource_id=str(project_id),
                 succeeded=False,
@@ -105,6 +105,7 @@ async def change_project_status(
     await event_dispatcher(
         event_schemas.ResourceStatusChangedEvent(
             initiator=initiator.id,
+            request_id=request_id,
             resource_type=constants.ResourceType.PROJECT,
             resource_id=str(project_id),
             succeeded=True,
@@ -115,6 +116,7 @@ async def change_project_status(
 
 
 async def validate_project(
+    *,
     request_id: identifiers.RequestId,
     project_id: identifiers.ProjectId,
     initiator: user_schemas.User,
@@ -153,8 +155,7 @@ async def validate_project(
             session=session,
             event_dispatcher=event_dispatcher,
         )
-        await asyncio.sleep(3)
-        validation_schemas.ValidProject.model_validate(project)
+        validation_schemas.ValidProject.model_validate(project, from_attributes=True)
     except pydantic.ValidationError as err:
         for error in err.errors():
             validation_errors.append(
@@ -177,6 +178,14 @@ async def validate_project(
             session, project, validation_result={"is_valid": True, "errors": None}
         )
     finally:
+        await change_project_status(
+            request_id=request_id,
+            target_status=constants.ProjectStatus.DRAFT,
+            project_id=project_id,
+            initiator=initiator,
+            session=session,
+            event_dispatcher=event_dispatcher,
+        )
         await event_dispatcher(
             event_schemas.ValidationEvent(
                 initiator=initiator.id,
@@ -188,14 +197,6 @@ async def validate_project(
                 is_valid=not validation_errors,
                 details=str(validation_errors),
             )
-        )
-        await change_project_status(
-            request_id=request_id,
-            target_status=constants.ProjectStatus.DRAFT,
-            project_id=project_id,
-            initiator=initiator,
-            session=session,
-            event_dispatcher=event_dispatcher,
         )
     return project
 
@@ -236,6 +237,13 @@ async def update_project(
         )
         return None
 
+    await validate_project(
+        request_id=request_id,
+        project_id=project_id,
+        initiator=initiator,
+        session=session,
+        event_dispatcher=event_dispatcher,
+    )
     await event_dispatcher(
         event_schemas.ResourceModificationEvent(
             initiator=initiator.id,

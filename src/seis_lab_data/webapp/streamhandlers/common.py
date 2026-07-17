@@ -1,11 +1,12 @@
-import dataclasses
 import json
 import asyncio
 import logging
 import time
 import uuid
 from collections.abc import AsyncGenerator
+from functools import partial
 
+from datastar_py.consts import ElementPatchMode
 from datastar_py.sse import ServerSentEventGenerator
 from datastar_py.starlette import DatastarEvent
 
@@ -14,6 +15,7 @@ from ... import (
     subscribers,
 )
 from ...operations import (
+    projects as project_ops,
     surveymissions as mission_ops,
     surveyrelatedrecords as record_ops,
 )
@@ -21,11 +23,6 @@ from ...schemas import (
     identifiers,
     messages as message_schemas,
     webui as webui_schemas,
-)
-from ...tasks import (
-    projects as project_tasks,
-    surveymissions as mission_tasks,
-    surveyrelatedrecords as record_tasks,
 )
 
 logger = logging.getLogger(__name__)
@@ -199,26 +196,6 @@ async def handle_resource_modification_edit_page(
     if message.resource_id != context.resource_id:
         return
 
-    match message.resource_type:
-        case constants.ResourceType.PROJECT:
-            project_tasks.validate_project.send(
-                raw_request_id=str(message.request_id),
-                raw_project_id=str(message.resource_id),
-                raw_initiator=json.dumps(dataclasses.asdict(context.user)),
-            )  # noqa
-        case constants.ResourceType.MISSION:
-            mission_tasks.validate_survey_mission.send(
-                raw_request_id=str(message.request_id),
-                raw_survey_mission_id=str(message.resource_id),
-                raw_initiator=json.dumps(dataclasses.asdict(context.user)),
-            )  # noqa
-        case constants.ResourceType.RECORD:
-            record_tasks.validate_survey_related_record.send(
-                raw_request_id=str(message.request_id),
-                raw_survey_related_record_id=str(message.resource_id),
-                raw_initiator=json.dumps(dataclasses.asdict(context.user)),
-            )  # noqa
-
     if message.succeeded:
         notification = webui_schemas.Notification(
             message=f"{message.resource_type.capitalize()} updated successfully!",
@@ -300,7 +277,19 @@ async def _handle_project_modification_detail_page(
                     logger.debug(
                         f"Project {message.resource_id!r} has been updated - re-rendering its details..."
                     )
-                    # TODO: yield re-render of project details
+                    async for event in flash_ui_message_after_redirect(
+                        webui_schemas.Notification(
+                            message=f"{message.resource_type.capitalize()} {message.resource_id} was {message.modification}",
+                        )
+                    ):
+                        yield event
+                    yield ServerSentEventGenerator.redirect(
+                        str(
+                            context.url_resolver(
+                                "projects:detail", project_id=project_id
+                            )
+                        )
+                    )
                 case constants.ResourceModification.DELETED:
                     async for event in flash_ui_message_after_redirect(
                         webui_schemas.Notification(
@@ -467,6 +456,57 @@ async def _handle_survey_mission_modification_detail_page(
         yield ServerSentEventGenerator.patch_signals(
             {"listingVersion": int(time.time() * 1000)}
         )
+
+
+async def handle_resource_status_changed_detail_page(
+    message: message_schemas.ResourceStatusChangedMessage,
+    context: subscribers.HandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    if context.resource_id != message.resource_id:
+        return
+
+    status_partial_template = context.jinja_environment.get_template(
+        "projects/partial-status.html"
+    )
+    try:
+        item_getter = {
+            constants.ResourceType.PROJECT: partial(
+                project_ops.get_project,
+                project_id=identifiers.ProjectId(uuid.UUID(message.resource_id)),
+            ),
+            constants.ResourceType.MISSION: partial(
+                mission_ops.get_survey_mission,
+                survey_mission_id=identifiers.SurveyMissionId(
+                    uuid.UUID(message.resource_id)
+                ),
+            ),
+            constants.ResourceType.RECORD: partial(
+                record_ops.get_survey_related_record,
+                survey_related_record_id=identifiers.SurveyRelatedRecordId(
+                    uuid.UUID(message.resource_id)
+                ),
+            ),
+        }[message.resource_type]
+    except (KeyError, ValueError) as err:
+        logger.exception("Could not determine item_getter")
+        async for event in flash_ui_message_same_page(
+            webui_schemas.Notification(
+                message=f"Could not determine item_getter: {str(err)} ",
+                category="error",
+            )
+        ):
+            yield event
+    else:
+        async with context.db_session_factory() as session:
+            item = await item_getter(initiator=context.user, session=session)
+            rendered = status_partial_template.render(item=item)
+            yield ServerSentEventGenerator.patch_elements(
+                rendered,
+                selector=webui_schemas.NewItemSelectorInfo.status_selector,
+                mode=ElementPatchMode.REPLACE,
+                use_view_transition=True,
+            )
 
 
 async def handle_resource_modification_detail_page(

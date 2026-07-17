@@ -593,7 +593,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             "survey-missions/detail.html",
             context={
                 "request_id": uuid.uuid4(),
-                "survey_mission": details.item,
+                "item": details.item,
                 "pagination": details.pagination,
                 "survey_related_records": details.children,
                 "search_initial_value": details.children_filter,

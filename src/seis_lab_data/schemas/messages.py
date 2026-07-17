@@ -39,6 +39,7 @@ class BulkResourceModificationMessage(pydantic.BaseModel):
 
 class ResourceStatusChangedMessage(pydantic.BaseModel):
     type: Literal["resource_status_changed"] = "resource_status_changed"
+    request_id: identifiers.RequestId
     resource_type: constants.ResourceType
     resource_id: str | None
     succeeded: bool

@@ -41,6 +41,7 @@ class BulkResourceModificationEvent(_EventBase):
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class ResourceStatusChangedEvent(_EventBase):
+    request_id: identifiers.RequestId
     resource_type: constants.ResourceType
     resource_id: str | None
     succeeded: bool
