@@ -116,6 +116,7 @@ async def change_project_status(
 
 
 async def validate_project(
+    *,
     request_id: identifiers.RequestId,
     project_id: identifiers.ProjectId,
     initiator: user_schemas.User,
@@ -154,7 +155,6 @@ async def validate_project(
             session=session,
             event_dispatcher=event_dispatcher,
         )
-        # await asyncio.sleep(3)
         validation_schemas.ValidProject.model_validate(project, from_attributes=True)
     except pydantic.ValidationError as err:
         for error in err.errors():

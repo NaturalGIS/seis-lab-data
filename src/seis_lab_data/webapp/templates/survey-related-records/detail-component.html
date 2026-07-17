@@ -3,50 +3,50 @@
 {% import "macros-buttons-list-items.html" as macros_buttons_list_items %}
 {% import "macros-maps.html" as macros_maps %}
 <div class="row"
-     data-signals:is-valid="{{ survey_related_record.validation_result.is_valid | default(False, True) | tojson }}"
-     data-signals:status="'{{ survey_related_record.status.value }}'"
+     data-signals:is-valid="{{ item.validation_result.is_valid | default(False, True) | tojson }}"
+     data-signals:status="'{{ item.status.value }}'"
      data-signals:deleting="false"
 >
     <div class="col">
         <div class="row mb-5">
             <div class="col">
                 <div class="card">
-                    {% if survey_related_record.bbox_4326 is not none %}
+                    {% if item.bbox_4326 is not none %}
                         {{ macros_maps.render_bbox_display_component(
                             settings.webmap_base_tile_layer_url,
                             settings.webmap_default_zoom_level,
-                            survey_related_record.bbox_4326
+                            item.bbox_4326
                         ) }}
                     {% endif %}
                     <div class="card-body">
                         <div class="row">
                             <div class="col">
-                                <p>{{ survey_related_record.description | translate_localizable_string }}</p>
+                                <p>{{ item.description | translate_localizable_string }}</p>
                                 <dl class="row">
                                     <dt class="col-sm-3">{{ _("dataset category") | capitalize }}</dt>
-                                    <dd class="col-sm-9">{{ survey_related_record.dataset_category.name|translate_localizable_string }}</dd>
+                                    <dd class="col-sm-9">{{ item.dataset_category.name|translate_localizable_string }}</dd>
                                     <dt class="col-sm-3">{{ _("workflow stage") | capitalize }}</dt>
-                                    <dd class="col-sm-9">{{ survey_related_record.workflow_stage.name|translate_localizable_string }}</dd>
+                                    <dd class="col-sm-9">{{ item.workflow_stage.name|translate_localizable_string }}</dd>
                                     <dt class="col-sm-3">{{ _("survey mission") | capitalize }}</dt>
                                     <dd class="col-sm-9">
                                         <a
-                                                href="{{ url_for('survey_missions:detail', survey_mission_id=survey_related_record.survey_mission.id) }}"
-                                        >{{ survey_related_record.survey_mission.name|translate_localizable_string }}</a>
+                                                href="{{ url_for('survey_missions:detail', survey_mission_id=item.survey_mission.id) }}"
+                                        >{{ item.survey_mission.name|translate_localizable_string }}</a>
                                     </dd>
                                     <dt class="col-sm-3">{{ _("project") | capitalize }}</dt>
                                     <dd class="col-sm-9">
                                         <a
-                                                href="{{ url_for('projects:detail', project_id=survey_related_record.survey_mission.project.id) }}"
-                                        >{{ survey_related_record.survey_mission.project.name|translate_localizable_string }}</a>
+                                                href="{{ url_for('projects:detail', project_id=item.survey_mission.project.id) }}"
+                                        >{{ item.survey_mission.project.name|translate_localizable_string }}</a>
                                     </dd>
                                     <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
-                                    <dd class="col-sm-9">{{ survey_related_record.temporal_extent_begin|default(_(".."), True) }}/{{ survey_related_record.temporal_extent_end|default(_(".."), True) }}</dd>
+                                    <dd class="col-sm-9">{{ item.temporal_extent_begin|default(_(".."), True) }}/{{ item.temporal_extent_end|default(_(".."), True) }}</dd>
                                 </dl>
                             </div>
                             <div class="col-3">
                                 <h5>{{ _("links") | capitalize }}</h5>
                                 <div class="list-group list-group-flush">
-                                    {% for link in survey_related_record.links %}
+                                    {% for link in item.links %}
                                         <a
                                                 class="list-group-item list-group-item-action"
                                                 href="{{ link.url }}"
@@ -70,10 +70,10 @@
                                         <p class="list-group-item">{{ _("no links found") | capitalize }}</p>
                                     {% endfor %}
                                 </div>
-                                {% if survey_related_record.related_to_records | length > 0 %}
+                                {% if item.related_to_records | length > 0 %}
                                     <h5>{{ _('related to') | capitalize }}</h5>
                                     <div class="list-group list-group-flush">
-                                        {% for relation, other_record in survey_related_record.related_to_records %}
+                                        {% for relation, other_record in item.related_to_records %}
                                             <a
                                                     class="list-group-item list-group-item-action"
                                                     href="{{ url_for('survey_related_records:detail', survey_related_record_id=other_record.id) }}"
@@ -88,10 +88,10 @@
                                         {% endfor %}
                                     </div>
                                 {% endif %}
-                                {% if survey_related_record.subject_for_records | length > 0 %}
+                                {% if item.subject_for_records | length > 0 %}
                                     <h5>{{ _('subject to') | capitalize }}</h5>
                                     <div class="list-group list-group-flush">
-                                        {% for relation, other_record in survey_related_record.subject_for_records %}
+                                        {% for relation, other_record in item.subject_for_records %}
                                             <a
                                                     class="list-group-item list-group-item-action"
                                                     href="{{ url_for('survey_related_records:detail', survey_related_record_id=other_record.id) }}"
@@ -123,7 +123,7 @@
                 {% if permissions.can_update %}
                     <a
                             class="btn btn-primary"
-                            href="{{ url_for('survey_related_records:get_update_form', survey_related_record_id=survey_related_record.id) }}"
+                            href="{{ url_for('survey_related_records:get_update_form', survey_related_record_id=item.id) }}"
                             aria-label="update-item"
                     >
                         <span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit") | capitalize }}
@@ -131,7 +131,7 @@
                 {% endif %}
                 {% if permissions.can_delete %}
                     {{ macros_buttons.render_delete_item_button(
-                        deletion_url=url_for("survey_related_records:detail", survey_related_record_id=survey_related_record.id) ~ "?request_id=" ~ request_id,
+                        deletion_url=url_for("survey_related_records:detail", survey_related_record_id=item.id) ~ "?request_id=" ~ request_id,
                         signal_name="deleting",
                         idle_message=_("delete..."),
                         running_message="deleting survey-related record...",
@@ -147,44 +147,8 @@
             window.iconNames = JSON.parse('{{ icons | tojson }}')
         </script>
         <ul class="list-group">
-            <li
-                    class="list-group-item"
-                    aria-label="status"
-                    data-attr:style="$status === 'published' ? 'display:none' : 'display:block'"
-            >
-                <span
-                        class="material-icons-outlined me-1"
-                        data-text="iconNames['status_' + $status]"
-                ></span>
-                <span data-text="$status"></span>
-            </li>
-            <li
-                    data-class:list-group-item-success="$isValid && $status === 'draft'"
-                    data-class:list-group-item-danger="!$isValid && $status === 'draft'"
-                    class="list-group-item"
-                    aria-label="validation-result"
-            >
-                <div class="spinner-border" role="status" data-attr:style="$status === 'under_validation' ? 'display: block' : 'display:none'">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <div data-attr:style="$status === 'under_validation' ? 'display: none' : 'display:block'">
-                    <h6>
-                        <span class="material-icons-outlined me-1" data-text="$isValid ? '{{ icons.validation_valid }}' : '{{ icons.validation_invalid }}'"></span>
-                        <span data-text="$isValid ? '{{ _('survey-related record is valid') | capitalize }}' : '{{ _('survey-related record is invalid') | capitalize  }}'"></span>
-                    </h6>
-                    {% set validation_errors = survey_related_record.validation_result.errors or [] %}
-                    <div aria-label="validation-result-details">
-                        {% if validation_errors | length > 0 %}
-                            <ul>
-                                {% for validation_error in validation_errors %}
-                                    <li>{{ validation_error.name }}: {{ validation_error.message }}</li>
-                                {% endfor %}
-                            </ul>
-                        {% endif %}
-
-                    </div>
-                </div>
-            </li>
+            {% include "partial-status.html" %}
+            {% include "partial-validation.html" %}
             <li class="list-group-item">
                 <p>{{ _("Survey-related records with a status of DRAFT are only visible to their owners") }}</p>
                 <p>{{ _("In order to become viewable by all users, a survey-related record must be published. Publication is only possible once the record is considered valid.") }}</p>
@@ -199,7 +163,7 @@
 <div class="row">
     <div class="col">
         <h2>{{ _("assets") | capitalize }}</h2>
-        {% for asset in survey_related_record.record_assets %}
+        {% for asset in item.record_assets %}
             <dl class="row">
                 <dt class="col-sm-3">{{ _("Name") }}</dt>
                 <dd class="col-sm-9">{{ asset.name|translate_localizable_string }}</dd>
@@ -210,7 +174,7 @@
                 <dt class="col-sm-3">{{ _("Relative path") }}</dt>
                 <dd class="col-sm-9">{{ asset.relative_path }}</dd>
                 <dt class="col-sm-3">{{ _("Archive URL") }}</dt>
-                <dd class="col-sm-9">{{ asset | asset_url(survey_related_record) }}</dd>
+                <dd class="col-sm-9">{{ asset | asset_url(item) }}</dd>
             </dl>
         {% else %}
             {{ _("No assets found") }}

@@ -119,24 +119,3 @@ async def bulk_update_survey_related_records(
             temporal_extent=selection.temporal_extent,
             asset_path_fragment_filter=selection.asset_path_fragment_filter,
         )
-
-
-@dramatiq.actor
-@decorators.sld_settings
-async def validate_survey_related_record(
-    raw_request_id: str,
-    raw_survey_related_record_id: str,
-    raw_initiator: str,
-    *,
-    settings: config.SeisLabDataSettings,
-):
-    async with settings.get_db_session_maker()() as session:
-        await record_ops.validate_survey_related_record(
-            request_id=identifiers.RequestId(uuid.UUID(raw_request_id)),
-            survey_related_record_id=identifiers.SurveyRelatedRecordId(
-                uuid.UUID(raw_survey_related_record_id)
-            ),
-            initiator=user_schemas.User(**json.loads(raw_initiator)),
-            session=session,
-            event_dispatcher=settings.get_event_dispatcher(),
-        )

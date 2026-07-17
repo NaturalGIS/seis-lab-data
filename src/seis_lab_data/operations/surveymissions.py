@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 import pydantic
@@ -120,6 +119,7 @@ async def change_survey_mission_status(
     except errors.SeisLabDataError as err:
         await event_dispatcher(
             event_schemas.ResourceStatusChangedEvent(
+                request_id=request_id,
                 initiator=initiator.id,
                 resource_type=constants.ResourceType.MISSION,
                 resource_id=str(survey_mission_id),
@@ -131,6 +131,7 @@ async def change_survey_mission_status(
         return None
     await event_dispatcher(
         event_schemas.ResourceStatusChangedEvent(
+            request_id=request_id,
             initiator=initiator.id,
             resource_type=constants.ResourceType.MISSION,
             resource_id=str(survey_mission_id),
@@ -142,6 +143,7 @@ async def change_survey_mission_status(
 
 
 async def validate_survey_mission(
+    *,
     request_id: identifiers.RequestId,
     survey_mission_id: identifiers.SurveyMissionId,
     initiator: user_schemas.User,
@@ -188,7 +190,6 @@ async def validate_survey_mission(
             session=session,
             event_dispatcher=event_dispatcher,
         )
-        await asyncio.sleep(3)
         validation_schemas.ValidSurveyMission.model_validate(
             survey_mission, from_attributes=True
         )
@@ -286,6 +287,13 @@ async def update_survey_mission(
         )
         return None
 
+    await validate_survey_mission(
+        request_id=request_id,
+        survey_mission_id=survey_mission_id,
+        initiator=initiator,
+        session=session,
+        event_dispatcher=event_dispatcher,
+    )
     await event_dispatcher(
         event_schemas.ResourceModificationEvent(
             resource_type=constants.ResourceType.MISSION,

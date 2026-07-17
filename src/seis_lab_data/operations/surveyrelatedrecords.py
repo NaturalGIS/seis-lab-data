@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 import pydantic
@@ -149,6 +148,7 @@ async def change_survey_related_record_status(
         return None
     await event_dispatcher(
         event_schemas.ResourceStatusChangedEvent(
+            request_id=request_id,
             initiator=initiator.id,
             resource_type=constants.ResourceType.RECORD,
             resource_id=str(survey_related_record_id),
@@ -160,6 +160,7 @@ async def change_survey_related_record_status(
 
 
 async def validate_survey_related_record(
+    *,
     request_id: identifiers.RequestId,
     survey_related_record_id: identifiers.SurveyRelatedRecordId,
     initiator: user_schemas.User,
@@ -206,7 +207,6 @@ async def validate_survey_related_record(
             session=session,
             event_dispatcher=event_dispatcher,
         )
-        await asyncio.sleep(3)
         validation_schemas.ValidSurveyRelatedRecord.model_validate(
             survey_related_record, from_attributes=True
         )
@@ -436,6 +436,13 @@ async def update_survey_related_record(
         )
     updated_survey_related_record = await record_commands.update_survey_related_record(
         session, survey_related_record, to_update
+    )
+    await validate_survey_related_record(
+        request_id=request_id,
+        survey_related_record_id=survey_related_record_id,
+        initiator=initiator,
+        session=session,
+        event_dispatcher=event_dispatcher,
     )
     await event_dispatcher(
         event_schemas.ResourceModificationEvent(

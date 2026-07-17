@@ -277,7 +277,6 @@ async def stream_to_detail_page(request: Request):
         message_handlers={
             "resource_modified": common_handlers.handle_resource_modification_detail_page,
             "discovery": common_handlers.handle_discovery_detail_page,
-            "validation": common_handlers.handle_resource_validation_detail_page,
         },
     )
 
@@ -594,7 +593,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             "survey-missions/detail.html",
             context={
                 "request_id": uuid.uuid4(),
-                "survey_mission": details.item,
+                "item": details.item,
                 "pagination": details.pagination,
                 "survey_related_records": details.children,
                 "search_initial_value": details.children_filter,

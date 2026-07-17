@@ -1072,7 +1072,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
             "survey-related-records/detail.html",
             context={
                 "request_id": uuid.uuid4(),
-                "survey_related_record": details.item,
+                "item": details.item,
                 "permissions": details.permissions,
                 "breadcrumbs": details.breadcrumbs,
             },
@@ -1324,7 +1324,6 @@ async def stream_to_detail_page(request: Request):
         ),
         message_handlers={
             "resource_modified": common_handlers.handle_resource_modification_detail_page,
-            "validation": common_handlers.handle_resource_validation_detail_page,
         },
     )
 

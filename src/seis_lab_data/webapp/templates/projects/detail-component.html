@@ -98,17 +98,6 @@
                 data-signals:validating="false"
         >
             {% if permissions.can_update %}
-                <button
-                        class="list-group-item list-group-item-action list-group-item-secondary"
-                        data-attr:disabled="$status !== 'draft'"
-                        data-on:click="@post('{{ url_for("projects:trigger_validation", project_id=item.id) ~ "?request_id=" ~ request_id }}', {
-                            headers: {'X-CSRFToken': '{{ csrf_token(request) }}'}
-                        })"
-                        aria-label="validate-project"
-                >
-                    <span class="material-icons-outlined me-1">{{ icons.validation_valid }}</span>
-                    {{ _("validate project") | capitalize }}
-                </button>
                 <a
                         class="list-group-item list-group-item-action list-group-item-info"
                         href="{{ url_for('projects:get_update_form', project_id=item.id) }}"
@@ -145,8 +134,8 @@
             window.iconNames = JSON.parse('{{ icons | tojson }}')
         </script>
         <ul class="list-group">
-            {% include "projects/partial-status.html" %}
-            {% include "projects/partial-validation.html" %}
+            {% include "partial-status.html" %}
+            {% include "partial-validation.html" %}
             <li class="list-group-item">
                 <p>{{ _("Projects with a status of DRAFT are only visible to their owners") }}</p>
                 <p>{{ _("In order to become viewable by all users, a project must be published. Publication is only possible once the project is considered valid.") }}</p>

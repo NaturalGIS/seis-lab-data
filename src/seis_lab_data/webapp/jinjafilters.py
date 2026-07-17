@@ -99,14 +99,14 @@ def highlight_json(value: dict) -> Markup:
 def get_url_for_asset(
     context: dict[str, typing.Any],
     asset: "record_schemas.RecordAssetReadDetailEmbedded",
-    survey_related_record: "record_schemas.SurveyRelatedRecordReadDetail",
+    item: "record_schemas.SurveyRelatedRecordReadDetail",
 ) -> str:
     settings: SeisLabDataSettings = context.get("settings")
     return "/".join(
         (
             settings.public_url,
-            survey_related_record.survey_mission.project.root_path,
-            survey_related_record.survey_mission.relative_path,
+            item.survey_mission.project.root_path,
+            item.survey_mission.relative_path,
             asset.relative_path,
         )
     )
