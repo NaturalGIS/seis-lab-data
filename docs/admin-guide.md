@@ -98,10 +98,19 @@ whitelisted machine's IP address.
     ssh seis-lab-data-production -N -D 1080
     ```
 
-    And then use a web browser with proxy support. For example, google chrome:
+    And then use a web browser with proxy support.
+
+    On Linux, for example with Google Chrome:
 
     ```shell
-    google-chrome --proxy-server="socks5://localhost:1080
+    google-chrome --proxy-server="socks5://localhost:1080"
+    ```
+
+    On macOS, invoke the browser binary through `open`, using a separate profile so the proxy is applied even
+    if the browser is already running. For example with Brave:
+
+    ```shell
+    open -na "Brave Browser" --args --proxy-server="socks5://localhost:1080" --user-data-dir="/tmp/brave-proxy"
     ```
 
     With this connection in place, the production environment can be found by browsing to
