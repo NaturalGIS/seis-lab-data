@@ -55,6 +55,7 @@ class SeisLabDataIconSettings(BaseModel):
     expand_less: str = "expand_less"
     expand_more: str = "expand_more"
     status_draft: str = "design_services"
+    status_other: str = "question_mark"
     status_published: str = "public"
     status_under_validation: str = "sync"
     survey_missions: str = "directions_boat"

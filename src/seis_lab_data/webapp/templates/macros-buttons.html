@@ -48,7 +48,7 @@
             data-bs-target="#{{ modal_id }}"
             data-attr:disabled="${{ signal_name }}"
     >
-        <span class="material-icons-outlined me-1">{{ icons.delete_item }}</span><span data-text="${{ signal_name }} ? '{{ running_message }}' : '{{ idle_message }}...'"></span>
+        <span class="material-icons-outlined me-1">{{ icons.delete_item }}</span><span data-text="${{ signal_name }} ? '{{ running_message }}' : '{{ idle_message }}'"></span>
     </button>
     <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
          data-attr:hidden="!${{ signal_name }}">

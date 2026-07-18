@@ -83,24 +83,3 @@ async def delete_survey_mission(
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
         )
-
-
-@dramatiq.actor
-@decorators.sld_settings
-async def validate_survey_mission(
-    raw_request_id: str,
-    raw_survey_mission_id: str,
-    raw_initiator: str,
-    *,
-    settings: config.SeisLabDataSettings,
-):
-    async with settings.get_db_session_maker()() as session:
-        await survey_mission_ops.validate_survey_mission(
-            request_id=identifiers.RequestId(uuid.UUID(raw_request_id)),
-            survey_mission_id=identifiers.SurveyMissionId(
-                uuid.UUID(raw_survey_mission_id)
-            ),
-            initiator=user_schemas.User(**json.loads(raw_initiator)),
-            session=session,
-            event_dispatcher=settings.get_event_dispatcher(),
-        )

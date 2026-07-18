@@ -332,6 +332,7 @@ async def stream_to_detail_page(request: Request):
         ),
         {
             "resource_modified": common_handlers.handle_resource_modification_detail_page,
+            "resource_status_changed": common_handlers.handle_resource_status_changed_detail_page,
         },
     )
 
@@ -671,7 +672,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             "projects/detail.html",
             context={
                 "request_id": uuid.uuid4(),
-                "project": details.item,
+                "item": details.item,
                 "pagination": details.pagination,
                 "survey_missions": details.children,
                 "search_initial_value": details.children_filter,
@@ -1051,17 +1052,6 @@ async def remove_update_project_form_link(request: Request):
     return DatastarResponse(event_streamer())
 
 
-@csrf_protect
-@requires_auth
-async def trigger_project_validation(request: Request):
-    project_tasks.validate_project.send(
-        raw_request_id=str(uuid.uuid4()),
-        raw_project_id=str(uuid.UUID(request.path_params.get("project_id"))),
-        raw_initiator=json.dumps(dataclasses.asdict(request.user)),
-    )  # noqa
-    return Response(status_code=200)
-
-
 routes = [
     Route("/", ProjectCollectionEndpoint, name="list"),
     Route("/stream", stream_to_list_page, name="list_stream"),
@@ -1131,12 +1121,6 @@ routes = [
         stream_to_detail_page,
         methods=["GET"],
         name="detail_stream",
-    ),
-    Route(
-        "/{project_id}/validate",
-        trigger_project_validation,
-        methods=["POST"],
-        name="trigger_validation",
     ),
     Route(
         "/{project_id}",

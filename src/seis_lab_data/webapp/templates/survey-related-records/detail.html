@@ -11,11 +11,11 @@
 {% endblock head %}
 
 {% block page_title %}
-    <span class="material-icons-outlined me-1">{{ icons.survey_related_records }}</span> {{ survey_related_record.name|translate_localizable_string }}
+    <span class="material-icons-outlined me-1">{{ icons.survey_related_records }}</span> {{ item.name|translate_localizable_string }}
 {% endblock page_title %}
 
 {% block details %}
-    <div data-on-intersect__once="@get('{{ url_for("survey_related_records:detail_stream", survey_related_record_id=survey_related_record.id, request_id=request_id) }}')"
+    <div data-on-intersect__once="@get('{{ url_for("survey_related_records:detail_stream", survey_related_record_id=item.id, request_id=request_id) }}')"
     >
         {% include "survey-related-records/detail-component.html" %}
     </div>

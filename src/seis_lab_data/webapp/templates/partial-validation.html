@@ -1,0 +1,28 @@
+{% set icon = icons.validation_valid if item.validation_result.is_valid else icons.validation_invalid %}
+{% set validation_title = (_('resource is valid') if item.validation_result.is_valid else _('resource is not valid'))  | capitalize %}
+{% set validation_errors = item.validation_result.errors or [] %}
+{% if item.status.value == "UNDER_VALIDATION" %}
+    <li class="list-group-item" aria-label="validation-result">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </li>
+{% else %}
+    <li
+            class="list-group-item {% if item.validation_result.is_valid %}list-group-item-success{% else %}list-group-item-danger{% endif %}"
+            aria-label="validation-result"
+    >
+        <div>
+            <h6><span class="material-icons-outlined me-1">{{ icon }}</span>{{ validation_title }}</h6>
+            {% if validation_errors | length > 0 %}
+                <div aria-label="validation-result-details">
+                    <ul>
+                        {% for validation_error in validation_errors %}
+                            <li>{{ validation_error.name }}: {{ validation_error.message }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+        </div>
+    </li>
+{% endif %}
