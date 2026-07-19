@@ -4,9 +4,7 @@ import logging
 import time
 import uuid
 from collections.abc import AsyncGenerator
-from functools import partial
 
-from datastar_py.consts import ElementPatchMode
 from datastar_py.sse import ServerSentEventGenerator
 from datastar_py.starlette import DatastarEvent
 
@@ -15,7 +13,6 @@ from ... import (
     subscribers,
 )
 from ...operations import (
-    projects as project_ops,
     surveymissions as mission_ops,
     surveyrelatedrecords as record_ops,
 )
@@ -458,55 +455,248 @@ async def _handle_survey_mission_modification_detail_page(
         )
 
 
+async def _handle_survey_related_record_modification_detail_page(
+    message: message_schemas.ResourceModificationMessage,
+    context: subscribers.HandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    if message.resource_id != context.resource_id:
+        # are we handling this record's details?
+        return
+
+    if not message.succeeded:  # if same request_id, show a notification
+        if message.request_id == context.request_id:
+            async for event in flash_ui_message_same_page(
+                webui_schemas.Notification(
+                    message=f"{message.resource_type.capitalize()} {message.modification} failed: {message.details}",
+                    category="error",
+                )
+            ):
+                yield event
+    else:
+        match message.modification:
+            case constants.ResourceModification.UPDATED:
+                logger.debug(
+                    f"Survey-related record {message.resource_id!r} has been updated - re-rendering its details..."
+                )
+                yield ServerSentEventGenerator.redirect(
+                    str(
+                        context.url_resolver(
+                            "survey_related_records:detail",
+                            survey_related_record_id=message.resource_id,
+                        )
+                    )
+                )
+            case constants.ResourceModification.DELETED:
+                async for event in flash_ui_message_after_redirect(
+                    webui_schemas.Notification(
+                        message=f"{message.resource_type.capitalize()} {message.resource_id} was deleted",
+                    )
+                ):
+                    yield event
+                if (mission_id := message.parent_resource_id) is not None:
+                    redirect_to = context.url_resolver(
+                        "survey_missions:detail", survey_mission_id=mission_id
+                    )
+                else:
+                    redirect_to = context.url_resolver("survey_related_records:list")
+
+                yield ServerSentEventGenerator.redirect(str(redirect_to))
+            case _:
+                logger.debug(
+                    f"Don't know how to handle modification {message.modification!r}, skipping..."
+                )
+
+
 async def handle_resource_status_changed_detail_page(
     message: message_schemas.ResourceStatusChangedMessage,
     context: subscribers.HandlerContext,
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
-    if context.resource_id != message.resource_id:
-        return
+    """Handle status changes for an item's detail page."""
 
-    status_partial_template = context.jinja_environment.get_template(
-        "projects/partial-status.html"
-    )
-    try:
-        item_getter = {
-            constants.ResourceType.PROJECT: partial(
-                project_ops.get_project,
-                project_id=identifiers.ProjectId(uuid.UUID(message.resource_id)),
-            ),
-            constants.ResourceType.MISSION: partial(
-                mission_ops.get_survey_mission,
-                survey_mission_id=identifiers.SurveyMissionId(
-                    uuid.UUID(message.resource_id)
-                ),
-            ),
-            constants.ResourceType.RECORD: partial(
-                record_ops.get_survey_related_record,
-                survey_related_record_id=identifiers.SurveyRelatedRecordId(
-                    uuid.UUID(message.resource_id)
-                ),
-            ),
-        }[message.resource_type]
-    except (KeyError, ValueError) as err:
-        logger.exception("Could not determine item_getter")
-        async for event in flash_ui_message_same_page(
-            webui_schemas.Notification(
-                message=f"Could not determine item_getter: {str(err)} ",
-                category="error",
-            )
+    async for event in flash_ui_message_after_redirect(
+        webui_schemas.Notification(
+            message=f"{message.resource_type.value} changed status to {message.new_status}"
+        )
+    ):
+        yield event
+
+    match context.resource_type:
+        case constants.ResourceType.PROJECT:
+            async for event in _handle_project_status_changed_detail_page(
+                message, context, done
+            ):
+                yield event
+        case constants.ResourceType.MISSION:
+            async for event in _handle_survey_mission_status_changed_detail_page(
+                message, context, done
+            ):
+                yield event
+        case _:
+            if context.resource_id != message.resource_id:
+                return
+            match message.resource_type:
+                case constants.ResourceType.RECORD:
+                    yield ServerSentEventGenerator.redirect(
+                        str(
+                            context.url_resolver(
+                                "survey_related_records:detail",
+                                survey_related_record_id=message.resource_id,
+                            )
+                        )
+                    )
+                case _:
+                    logger.debug(
+                        f"Don't know how to handle a status change for {message!r}"
+                    )
+
+
+async def _handle_survey_mission_status_changed_detail_page(
+    message: message_schemas.ResourceStatusChangedMessage,
+    context: subscribers.HandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    """Handle a status changed message in the context of a survey mission detail page.
+
+    If a mission status changes and the user is looking at the mission's detail page we want to refresh the page
+
+    If a survey-related record status changes and the user is looking at its parent mission detail page we want to
+    reload the list of records because it may be modified
+    """
+
+    match message:
+        case message_schemas.ResourceStatusChangedMessage(
+            succeeded=True, resource_type=constants.ResourceType.MISSION
         ):
-            yield event
-    else:
-        async with context.db_session_factory() as session:
-            item = await item_getter(initiator=context.user, session=session)
-            rendered = status_partial_template.render(item=item)
-            yield ServerSentEventGenerator.patch_elements(
-                rendered,
-                selector=webui_schemas.NewItemSelectorInfo.status_selector,
-                mode=ElementPatchMode.REPLACE,
-                use_view_transition=True,
+            if message.resource_id == context.resource_id:
+                yield ServerSentEventGenerator.redirect(
+                    str(
+                        context.url_resolver(
+                            "survey_missions:detail",
+                            survey_mission_id=message.resource_id,
+                        )
+                    )
+                )
+        case message_schemas.ResourceStatusChangedMessage(
+            succeeded=True,
+            resource_type=constants.ResourceType.RECORD,
+        ):
+            record_id = identifiers.SurveyRelatedRecordId(
+                uuid.UUID(message.resource_id)
             )
+            # only care if record is a child of context's mission
+            async with context.db_session_factory() as session:
+                if (
+                    record_info := await record_ops.get_survey_related_record(
+                        survey_related_record_id=record_id,
+                        initiator=context.user,
+                        session=session,
+                    )
+                ) is not None and str(
+                    record_info[0].survey_mission_id == context.resource_id
+                ):
+                    async for event in flash_ui_message_same_page(
+                        notification=webui_schemas.Notification(
+                            message=(
+                                f"Survey mission {context.resource_id!r} has had child record {record_info[0].id!r} "
+                                f"modified - Reloaded record list"
+                            )
+                        )
+                    ):
+                        yield event
+                    # update datastar signal which frontend uses to check when needing to re-fetch list of project child missions
+                    yield ServerSentEventGenerator.patch_signals(
+                        {"listingVersion": int(time.time() * 1000)}
+                    )
+
+
+async def _handle_project_status_changed_detail_page(
+    message: message_schemas.ResourceStatusChangedMessage,
+    context: subscribers.HandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    """Handle a status changed message in the context of a project detail page.
+
+    If a project status changes and the user is looking at the project's detail page we want to refresh the page
+
+    If a survey mission status changes and the user is looking at its parent project detail page we want to
+    reload the list of survey missions because it may be modified
+
+    If a survey-related record's status changes and the user is looking at its parent project detail page we want
+    to reload the list of survey missions because it may be modified
+    """
+
+    match message:
+        case message_schemas.ResourceStatusChangedMessage(
+            succeeded=True, resource_type=constants.ResourceType.PROJECT
+        ):
+            if message.resource_id == context.resource_id:
+                yield ServerSentEventGenerator.redirect(
+                    str(
+                        context.url_resolver(
+                            "projects:detail", project_id=message.resource_id
+                        )
+                    )
+                )
+        case message_schemas.ResourceStatusChangedMessage(
+            succeeded=True,
+            resource_type=constants.ResourceType.MISSION,
+        ):
+            mission_id = identifiers.SurveyMissionId(uuid.UUID(message.resource_id))
+            # only care if mission is a child of context's project
+            async with context.db_session_factory() as session:
+                if (
+                    db_mission := await mission_ops.get_survey_mission(
+                        survey_mission_id=mission_id,
+                        initiator=context.user,
+                        session=session,
+                    )
+                ) is not None and str(db_mission.project_id == context.resource_id):
+                    async for event in flash_ui_message_same_page(
+                        notification=webui_schemas.Notification(
+                            message=(
+                                f"Project {context.resource_id!r} has had child survey mission {db_mission.id!r} "
+                                f"modified - Reloaded mission list"
+                            )
+                        )
+                    ):
+                        yield event
+                    # update datastar signal which frontend uses to check when needing to re-fetch list of project child missions
+                    yield ServerSentEventGenerator.patch_signals(
+                        {"listingVersion": int(time.time() * 1000)}
+                    )
+        case message_schemas.ResourceStatusChangedMessage(
+            succeeded=True,
+            resource_type=constants.ResourceType.RECORD,
+        ):
+            record_id = identifiers.SurveyRelatedRecordId(
+                uuid.UUID(message.resource_id)
+            )
+            # only care if record's parent mission is child of the context's project
+            async with context.db_session_factory() as session:
+                if (
+                    record_info := await record_ops.get_survey_related_record(
+                        survey_related_record_id=record_id,
+                        initiator=context.user,
+                        session=session,
+                    )
+                ) is not None and str(
+                    record_info[0].survey_mission.project_id
+                ) == context.resource_id:
+                    async for event in flash_ui_message_same_page(
+                        notification=webui_schemas.Notification(
+                            message=(
+                                f"Project {context.resource_id!r} has had child survey-related record {record_info[0].id!r} "
+                                f"modified - Reloaded mission list"
+                            )
+                        )
+                    ):
+                        yield event
+                    # update datastar signal which frontend uses to check when needing to re-fetch list of project child missions
+                    yield ServerSentEventGenerator.patch_signals(
+                        {"listingVersion": int(time.time() * 1000)}
+                    )
 
 
 async def handle_resource_modification_detail_page(
@@ -524,54 +714,55 @@ async def handle_resource_modification_detail_page(
     logger.debug(f"{context=}")
     logger.debug(f"{message=}")
 
-    if context.resource_type == constants.ResourceType.PROJECT:
-        async for event in _handle_project_modification_detail_page(
-            message, context, done
-        ):
-            yield event
-    elif context.resource_type == constants.ResourceType.MISSION:
-        async for event in _handle_survey_mission_modification_detail_page(
-            message, context, done
-        ):
-            yield event
-    else:
-        if message.resource_id != context.resource_id:
-            return
-        if not message.succeeded:  # if same request_id, show a notification
-            if message.request_id == context.request_id:
-                async for event in flash_ui_message_same_page(
-                    webui_schemas.Notification(
-                        message=f"{message.resource_type.capitalize()} {message.modification} failed: {message.details}",
-                        category="error",
-                    )
-                ):
-                    yield event
-        else:
-            match message.modification:
-                case constants.ResourceModification.DELETED:
-                    if context.resource_type == constants.ResourceType.RECORD:
-                        if (mission_id := message.parent_resource_id) is not None:
-                            redirect_to = context.url_resolver(
-                                "survey_missions:detail",
-                                survey_mission_id=mission_id,
-                            )
-                        else:
-                            redirect_to = context.url_resolver(
-                                "survey_related_records:list"
-                            )
-                    else:
-                        listing_page_alias = {
-                            constants.ResourceType.ASSET_DISCOVERY_CONFIG: "asset_discovery_configurations:list",
-                        }.get(message.resource_type, "home")
-                        redirect_to = context.url_resolver(listing_page_alias)
-                    async for event in flash_ui_message_after_redirect(
+    match context.resource_type:
+        case constants.ResourceType.PROJECT:
+            async for event in _handle_project_modification_detail_page(
+                message, context, done
+            ):
+                yield event
+        case constants.ResourceType.MISSION:
+            async for event in _handle_survey_mission_modification_detail_page(
+                message, context, done
+            ):
+                yield event
+        case constants.ResourceType.RECORD:
+            async for event in _handle_survey_related_record_modification_detail_page(
+                message, context, done
+            ):
+                yield event
+        case _:
+            if message.resource_id != context.resource_id:
+                return
+            if not message.succeeded:  # if same request_id, show a notification
+                if message.request_id == context.request_id:
+                    async for event in flash_ui_message_same_page(
                         webui_schemas.Notification(
-                            message=f"{message.resource_type.capitalize()} {message.resource_id} was deleted",
+                            message=f"{message.resource_type.capitalize()} {message.modification} failed: {message.details}",
+                            category="error",
                         )
                     ):
                         yield event
-                    if redirect_to:
-                        yield ServerSentEventGenerator.redirect(str(redirect_to))
+                return
+            async for event in flash_ui_message_after_redirect(
+                webui_schemas.Notification(
+                    message=f"{message.resource_type} {message.resource_id} was {message.modification}"
+                )
+            ):
+                yield event
+            match message.resource_type:
+                # regardless of it being an update or a delete, redirect to the listing page
+                case constants.ResourceType.ASSET_DISCOVERY_CONFIG:
+                    yield ServerSentEventGenerator.redirect(
+                        str(context.url_resolver("asset_discovery_configurations:list"))
+                    )
+                case constants.ResourceType.CATEGORY:
+                    yield ServerSentEventGenerator.redirect(
+                        str(context.url_resolver("dataset_categories:list"))
+                    )
+                case constants.ResourceType.WORKFLOW_STAGE:
+                    yield ServerSentEventGenerator.redirect(
+                        str(context.url_resolver("workflow_stages:list"))
+                    )
 
 
 async def handle_discovery_detail_page(

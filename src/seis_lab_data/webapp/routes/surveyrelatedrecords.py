@@ -1324,6 +1324,7 @@ async def stream_to_detail_page(request: Request):
         ),
         message_handlers={
             "resource_modified": common_handlers.handle_resource_modification_detail_page,
+            "resource_status_changed": common_handlers.handle_resource_status_changed_detail_page,
         },
     )
 
@@ -1371,6 +1372,34 @@ async def stream_to_update_page(request: Request):
             yield datastar_event
 
     return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+@requires_auth
+async def trigger_publishing(request: Request):
+    record_tasks.handle_survey_related_record_publication.send(
+        raw_request_id=str(request.query_params.get("request_id", "")),
+        raw_survey_related_record_id=request.path_params["survey_related_record_id"],
+        raw_to_update=record_schemas.SurveyRelatedRecordPublication(
+            published=True
+        ).model_dump_json(exclude_unset=True),
+        raw_initiator=json.dumps(dataclasses.asdict(request.user)),
+    )  # noqa
+    return Response(status_code=200)
+
+
+@csrf_protect
+@requires_auth
+async def trigger_unpublishing(request: Request):
+    record_tasks.handle_survey_related_record_publication.send(
+        raw_request_id=str(request.query_params.get("request_id", "")),
+        raw_survey_related_record_id=request.path_params["survey_related_record_id"],
+        raw_to_update=record_schemas.SurveyRelatedRecordPublication(
+            published=False
+        ).model_dump_json(exclude_unset=True),
+        raw_initiator=json.dumps(dataclasses.asdict(request.user)),
+    )  # noqa
+    return Response(status_code=200)
 
 
 routes = [
@@ -1534,5 +1563,17 @@ routes = [
         remove_update_form_related_to_record,
         methods=["POST"],
         name="remove_update_form_related_to_record",
+    ),
+    Route(
+        "/{survey_related_record_id}/publish",
+        trigger_publishing,
+        methods=["POST"],
+        name="publish",
+    ),
+    Route(
+        "/{survey_related_record_id}/unpublish",
+        trigger_unpublishing,
+        methods=["POST"],
+        name="unpublish",
     ),
 ]

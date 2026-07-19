@@ -175,6 +175,10 @@ class SurveyRelatedRecordUpdate(pydantic.BaseModel):
     related_records: list[RelatedRecordCreate] = []
 
 
+class SurveyRelatedRecordPublication(pydantic.BaseModel):
+    published: bool
+
+
 class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
     id: Annotated[SurveyRelatedRecordId, pydantic.PlainSerializer(serialize_id)]
     name: LocalizableDraftName

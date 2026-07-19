@@ -2,6 +2,7 @@
 {% import "macros-buttons.html" as macros_buttons %}
 {% import "macros-buttons-list-items.html" as macros_buttons_list_items %}
 {% import "macros-maps.html" as macros_maps %}
+{% from "macros/button.html" import render_post_button %}
 <div class="row"
      data-signals:is-valid="{{ item.validation_result.is_valid | default(False, True) | tojson }}"
      data-signals:status="'{{ item.status.value }}'"
@@ -116,11 +117,11 @@
     </div>
 
     <div class="col-3">
-
         <div class="card border-0 mb-3">
             <div class="card-body p-0 d-grid gap-2">
                 <h5 class="card-title">{{ _("actions") | capitalize }}</h5>
-                {% if permissions.can_update %}
+
+                {% if item | is_updatable(permissions) %}
                     <a
                             class="btn btn-primary"
                             href="{{ url_for('survey_related_records:get_update_form', survey_related_record_id=item.id) }}"
@@ -129,7 +130,27 @@
                         <span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit") | capitalize }}
                     </a>
                 {% endif %}
-                {% if permissions.can_delete %}
+                {% if item | is_publishable(permissions) %}
+                    {{ render_post_button(
+                        url=url_for("survey_related_records:publish", survey_related_record_id=item.id) ~ "?request_id=" ~ request_id,
+                        text=_("publish"),
+                        aria_label="publish-record",
+                        icon=icons.publish_item,
+                        generated_csrf_token=csrf_token(request),
+                        classes="btn-success"
+                    ) }}
+                {% endif %}
+                {% if item | is_unpublishable(permissions) %}
+                    {{ render_post_button(
+                    url=url_for("survey_related_records:unpublish", survey_related_record_id=item.id) ~ "?request_id=" ~ request_id,
+                    text=_("unpublish"),
+                    aria_label="unpublish-record",
+                    icon=icons.unpublish_item,
+                    generated_csrf_token=csrf_token(request),
+                    classes="btn-warning"
+                ) }}
+                {% endif %}
+                {% if item | is_deletable(permissions) %}
                     {{ macros_buttons.render_delete_item_button(
                         deletion_url=url_for("survey_related_records:detail", survey_related_record_id=item.id) ~ "?request_id=" ~ request_id,
                         signal_name="deleting",
@@ -148,7 +169,9 @@
         </script>
         <ul class="list-group">
             {% include "partial-status.html" %}
-            {% include "partial-validation.html" %}
+            {% if item.status == SurveyRelatedRecordStatus.DRAFT %}
+                {% include "partial-validation.html" %}
+            {% endif %}
             <li class="list-group-item">
                 <p>{{ _("Survey-related records with a status of DRAFT are only visible to their owners") }}</p>
                 <p>{{ _("In order to become viewable by all users, a survey-related record must be published. Publication is only possible once the record is considered valid.") }}</p>

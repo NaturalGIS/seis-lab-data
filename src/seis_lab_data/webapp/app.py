@@ -87,6 +87,7 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
             },
             "settings": settings,
             "ProjectStatus": constants.ProjectStatus,
+            "SurveyRelatedRecordStatus": constants.SurveyRelatedRecordStatus,
             "default_webmap_bounds": {
                 "min_lon": min_lon,
                 "max_lon": max_lon,
@@ -102,6 +103,10 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
     jinja_env.filters["secondary_language"] = jinjafilters.get_secondary_language_value
     jinja_env.filters["translate_enum"] = jinjafilters.translate_enum
     jinja_env.filters["status_icon"] = jinjafilters.get_status_icon_name
+    jinja_env.filters["is_deletable"] = jinjafilters.is_deletable
+    jinja_env.filters["is_publishable"] = jinjafilters.is_publishable
+    jinja_env.filters["is_updatable"] = jinjafilters.is_updatable
+    jinja_env.filters["is_unpublishable"] = jinjafilters.is_unpublishable
     jinja_env.filters["highlight_json"] = jinjafilters.highlight_json
     jinja_env.filters["asset_url"] = jinjafilters.get_url_for_asset
     configure_jinja_env(jinja_env)

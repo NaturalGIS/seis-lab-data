@@ -399,6 +399,7 @@ async def get_survey_related_record(
 
 
 async def update_survey_related_record(
+    *,
     request_id: identifiers.RequestId,
     survey_related_record_id: identifiers.SurveyRelatedRecordId,
     to_update: record_schemas.SurveyRelatedRecordUpdate,

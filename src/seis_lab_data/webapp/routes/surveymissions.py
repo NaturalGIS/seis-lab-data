@@ -276,6 +276,7 @@ async def stream_to_detail_page(request: Request):
         ),
         message_handlers={
             "resource_modified": common_handlers.handle_resource_modification_detail_page,
+            "resource_status_changed": common_handlers.handle_resource_status_changed_detail_page,
             "discovery": common_handlers.handle_discovery_detail_page,
         },
     )

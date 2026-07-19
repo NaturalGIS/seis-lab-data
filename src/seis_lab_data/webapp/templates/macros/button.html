@@ -8,12 +8,38 @@
     </button>
 {% endmacro %}
 
-{% macro render_link(url, text, aria_label, icon, classes="btn-primary") %}
+
+{% macro render_link(url, text, aria_label, icon, classes="btn-primary", enabled=True) %}
     <a
-            class="btn {{ classes }}"
-            href="{{ url }}"
+            class="btn {% if enabled %}{{ classes }}{% else %}btn-outline-dark disabled{% endif %}"
             aria-label="{{ aria_label }}"
+            {% if enabled %}
+                href="{{ url }}"
+            {% else %}
+                tabindex="-1"
+                aria-disabled="true"
+            {% endif %}
     >
         <span class="material-icons-outlined me-1">{{ icon }}</span>{{ text | capitalize }}
     </a>
+{% endmacro %}
+
+
+{% macro render_post_button(
+    url,
+    text,
+    aria_label,
+    icon,
+    generated_csrf_token,
+    classes="btn-primary",
+    enabled=True
+) %}
+    <button
+            type="button"
+            aria-label="{{ aria_label }}"
+            class="btn {{ classes }}"
+            data-on:click="@post('{{ url }}', {headers: {'X-CSRFToken': '{{ generated_csrf_token }}'}})"
+    >
+        <span class="material-icons-outlined me-1">{{ icon }}</span>{{ text | capitalize }}
+    </button>
 {% endmacro %}
