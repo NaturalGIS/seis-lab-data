@@ -1,10 +1,12 @@
 import logging
+import math
 import re
 import uuid
 from collections.abc import AsyncIterator
 from typing import AsyncGenerator
 
-from anyio import Path
+import shapely
+from anyio import Path, to_thread
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from .. import (
@@ -32,6 +34,7 @@ from ..schemas import (
     user as user_schemas,
 )
 from .. import dispatch
+from ..tasks.extractors import dispatch as extractor_dispatch
 
 from . import (
     surveymissions as mission_ops,
@@ -39,6 +42,11 @@ from . import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Buffer applied to every extracted bbox (~10 m in degrees): noise on multi-km
+# footprints, but keeps point/line extents visible on the map and avoids the
+# degenerate zero-area polygons that shapely marks invalid.
+_BBOX_BUFFER = 1e-4
 
 
 async def create_asset_discovery_configuration(
@@ -316,6 +324,17 @@ async def _discover_mission_records(
     )
     logger.debug(f"{mission_root_path=}")
     for asset_discovery_conf in asset_discovery_configs:
+        if (
+            asset_discovery_conf.dataset_category_id is None
+            or asset_discovery_conf.workflow_stage_id is None
+        ):
+            logger.warning(
+                "Skipping asset discovery configuration %s (%r): it has no "
+                "dataset category or workflow stage",
+                asset_discovery_conf.id,
+                asset_discovery_conf.name,
+            )
+            continue
         logger.debug(f"Searching for asset {asset_discovery_conf=}...")
         full_path_regexp = "/".join(
             (
@@ -329,9 +348,28 @@ async def _discover_mission_records(
             relative_file_path = str(found_path.relative_to(mission_root_path))
             if (
                 await asset_queries.get_record_asset_by_file_path(
-                    session, relative_file_path
+                    session,
+                    relative_file_path,
+                    identifiers.SurveyMissionId(mission.id),
                 )
             ) is None:
+                # best-effort metadata extraction: a failure must never abort
+                # discovery or record creation
+                metadata = None
+                try:
+                    metadata = await to_thread.run_sync(
+                        extractor_dispatch.dispatch_extractor, str(found_path)
+                    )
+                except Exception as err:
+                    logger.warning(
+                        "Metadata extraction failed for %s: %s", found_path, err
+                    )
+                    logger.debug("Extraction failure detail", exc_info=True)
+                bbox_wkt = (
+                    _bbox_4326_tuple_to_wkt(metadata.bbox_4326)
+                    if metadata is not None and metadata.bbox_4326 is not None
+                    else None
+                )
                 # create a new record and a new asset
                 await record_ops.create_survey_related_record(
                     request_id=request_id,
@@ -340,12 +378,21 @@ async def _discover_mission_records(
                         owner_id=identifiers.UserId(user.id),
                         survey_mission_id=identifiers.SurveyMissionId(mission.id),
                         name=common.LocalizableDraftName(en=found_path.name),
-                        description=common.LocalizableDraftDescription(en=""),
+                        description=common.LocalizableDraftDescription(
+                            en=metadata.describe() if metadata is not None else ""
+                        ),
                         dataset_category_id=identifiers.DatasetCategoryId(
                             asset_discovery_conf.dataset_category_id
                         ),
                         workflow_stage_id=identifiers.WorkflowStageId(
                             asset_discovery_conf.workflow_stage_id
+                        ),
+                        bbox_4326=bbox_wkt,
+                        temporal_extent_begin=(
+                            metadata.temporal_extent_begin if metadata else None
+                        ),
+                        temporal_extent_end=(
+                            metadata.temporal_extent_end if metadata else None
                         ),
                         assets=[
                             record_schemas.RecordAssetCreate(
@@ -364,6 +411,38 @@ async def _discover_mission_records(
                 logger.debug(
                     f"file {found_path!r} is already tracked in the DB - ignoring..."
                 )
+
+
+def _bbox_4326_tuple_to_wkt(
+    bbox: tuple[float, float, float, float],
+) -> str | None:
+    """Turn an extracted lon/lat bbox into a WKT polygon for the record.
+
+    Garbage coordinates (non-finite or out of lon/lat range, e.g. from a bogus
+    CRS transform) are discarded with a warning. The surviving bbox is expanded
+    by _BBOX_BUFFER on every side. Antimeridian-crossing bboxes are not handled
+    (Portuguese waters).
+    """
+    minx, miny, maxx, maxy = bbox
+    tolerance = 1e-6
+    if not all(math.isfinite(value) for value in bbox) or not (
+        -180 - tolerance <= minx <= maxx <= 180 + tolerance
+        and -90 - tolerance <= miny <= maxy <= 90 + tolerance
+    ):
+        logger.warning(
+            "Discarding extracted bbox with out-of-range or non-finite coordinates: %s",
+            bbox,
+        )
+        return None
+    # The envelope of the two corners is always valid (Point, LineString or
+    # Polygon), unlike shapely.box on a degenerate bbox; buffering with square
+    # caps and mitre joins keeps the result an axis-aligned rectangle.
+    envelope = shapely.MultiPoint([(minx, miny), (maxx, maxy)]).envelope
+    buffered = envelope.buffer(_BBOX_BUFFER, cap_style="square", join_style="mitre")
+    # Snap to a 1e-5 degree grid (~1 m): finer precision is meaningless under
+    # the ~10 m buffer, and the frontend's TerraDraw silently rejects
+    # coordinates with more than 9 decimal places, dropping the map rectangle.
+    return shapely.set_precision(buffered, 1e-5).wkt
 
 
 async def _discover_asset_paths(
