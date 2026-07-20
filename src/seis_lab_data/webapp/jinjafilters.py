@@ -13,6 +13,7 @@ from pygments.lexers import JsonLexer
 
 from .. import constants
 from ..schemas.common import Localizable
+from ..schemas.webui import UserPermissionDetails
 from ..localization import translate_localizable
 
 if typing.TYPE_CHECKING:
@@ -53,6 +54,66 @@ def translate_localizable_string(
     context: dict[str, typing.Any], value: Localizable
 ) -> str:
     return translate_localizable(value, context["request"].state.language)
+
+
+def is_publishable(
+    item: "ItemWithStatus", permissions: "UserPermissionDetails"
+) -> bool:
+    return all(
+        (
+            {
+                constants.ProjectStatus.DRAFT: True,
+                constants.SurveyMissionStatus.DRAFT: True,
+                constants.SurveyRelatedRecordStatus.DRAFT: True,
+            }.get(item.status),
+            (item.validation_result or {}).get("is_valid"),
+            permissions.can_update,
+        )
+    )
+
+
+def is_unpublishable(
+    item: "ItemWithStatus",
+    permissions: "UserPermissionDetails",
+) -> bool:
+    return all(
+        (
+            {
+                constants.ProjectStatus.PUBLISHED: True,
+                constants.SurveyMissionStatus.PUBLISHED: True,
+                constants.SurveyRelatedRecordStatus.PUBLISHED: True,
+            }.get(item.status),
+            permissions.can_update,
+        )
+    )
+
+
+def is_deletable(
+    item: "ItemWithStatus",
+    permissions: "UserPermissionDetails",
+) -> bool:
+    return bool(
+        {
+            constants.ProjectStatus.DRAFT: True,
+            constants.SurveyMissionStatus.DRAFT: True,
+            constants.SurveyRelatedRecordStatus.DRAFT: True,
+        }.get(item.status)
+        and permissions.can_delete
+    )
+
+
+def is_updatable(
+    item: "ItemWithStatus",
+    permissions: "UserPermissionDetails",
+) -> bool:
+    return bool(
+        {
+            constants.ProjectStatus.DRAFT: True,
+            constants.SurveyMissionStatus.DRAFT: True,
+            constants.SurveyRelatedRecordStatus.DRAFT: True,
+        }.get(item.status)
+        and permissions.can_update
+    )
 
 
 @pass_context
