@@ -431,20 +431,6 @@ async def update_survey_related_record(
             raise errors.SeisLabDataError(
                 "User not allowed to update survey-related record."
             )
-        if (
-            mission_status := survey_related_record.survey_mission.status
-        ) != constants.SurveyMissionStatus.DRAFT:
-            raise errors.SeisLabDataError(
-                f"Cannot update survey-related record because parent survey "
-                f"mission's status is {mission_status}"
-            )
-        if (
-            project_status := survey_related_record.survey_mission.project.status
-        ) != constants.ProjectStatus.DRAFT:
-            raise errors.SeisLabDataError(
-                f"Cannot update survey-related record because parent project's "
-                f"status is {project_status}"
-            )
         await record_commands.update_survey_related_record(
             session, survey_related_record, to_update
         )
