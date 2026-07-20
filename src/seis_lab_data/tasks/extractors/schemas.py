@@ -75,4 +75,23 @@ class VectorMetadata(ExtractedMetadata):
         return summary[: constants.DESCRIPTION_MAX_LENGTH]
 
 
-ExtractionResult = RasterMetadata | VectorMetadata
+class KmallMetadata(ExtractedMetadata):
+    echo_sounder_id: int | None = None
+    datagram_count: int
+    position_count: int
+
+    def describe(self) -> str:
+        sounder = (
+            f"EM {self.echo_sounder_id}" if self.echo_sounder_id else "unknown sounder"
+        )
+        summary = (
+            f"Auto-extracted: Kongsberg KMALL, {sounder}, "
+            f"{self.datagram_count} datagram(s), "
+            f"{self.position_count} position fix(es). "
+            f"CRS: {_format_crs(self.epsg, self.crs_name)}."
+        )
+        summary += _native_bbox_clause(self.bbox_native)
+        return summary[: constants.DESCRIPTION_MAX_LENGTH]
+
+
+ExtractionResult = RasterMetadata | VectorMetadata | KmallMetadata

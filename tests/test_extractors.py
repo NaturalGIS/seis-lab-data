@@ -5,7 +5,10 @@ module self-skips where it is unavailable. Everything is exercised against
 synthetic files built in-test, so the suite needs no sample-data archive.
 """
 
+import datetime as dt
 import logging
+import math
+import struct
 
 import pytest
 
@@ -22,6 +25,9 @@ from seis_lab_data.tasks.extractors.gdal_raster import (  # noqa: E402
 )
 from seis_lab_data.tasks.extractors.gdal_vector import (  # noqa: E402
     extract_vector_metadata,
+)
+from seis_lab_data.tasks.extractors.kmall import (  # noqa: E402
+    extract_kmall_metadata,
 )
 
 gdal.UseExceptions()
@@ -198,7 +204,7 @@ def test_dispatch_ignores_sidecars(tmp_path, suffix):
     assert dispatch.dispatch_extractor(sidecar) is None
 
 
-@pytest.mark.parametrize("suffix", [".kmall", ".sgy", ".segy"])
+@pytest.mark.parametrize("suffix", [".sgy", ".segy"])
 def test_dispatch_stubs_return_none(tmp_path, suffix):
     stub = tmp_path / f"survey{suffix}"
     stub.write_bytes(b"\x00")
@@ -260,3 +266,192 @@ def test_describe_crs_unknown():
         geometry_type="Point",
     ).describe()
     assert "CRS: unknown." in text
+
+
+# 2024-09-28 18:48:31 UTC, matching the archive's EM712 line 0419
+_KMALL_T0 = 1_727_549_311
+_KMALL_HEADER = struct.Struct("<I4sBBHII")
+
+
+def _kmall_datagram(dgm_type, time_sec, body=b""):
+    total = _KMALL_HEADER.size + len(body) + 4
+    header = _KMALL_HEADER.pack(total, dgm_type, 0, 0, 712, time_sec, 0)
+    return header + body + struct.pack("<I", total)
+
+
+def _kmall_position_body(lat, lon):
+    # common part (8 bytes) + sensor data: two times, fix quality, lat/lon
+    common = struct.pack("<HHHH", 8, 0, 0, 0)
+    sensor = struct.pack("<IIf", 0, 0, 1.0) + struct.pack("<dd", lat, lon)
+    return common + sensor
+
+
+def _write_kmall(path, fixes, dgm_type=b"#SPO", cpo_fixes=()):
+    datagrams = [_kmall_datagram(b"#SVT", _KMALL_T0)]
+    for index, (lat, lon) in enumerate(fixes):
+        datagrams.append(
+            _kmall_datagram(dgm_type, _KMALL_T0 + index, _kmall_position_body(lat, lon))
+        )
+    for index, (lat, lon) in enumerate(cpo_fixes):
+        datagrams.append(
+            _kmall_datagram(b"#CPO", _KMALL_T0 + index, _kmall_position_body(lat, lon))
+        )
+    # a final datagram on the next day exercises the temporal range
+    datagrams.append(_kmall_datagram(b"#SVT", _KMALL_T0 + 86400))
+    path.write_bytes(b"".join(datagrams))
+
+
+def test_kmall_metadata_fields(tmp_path):
+    path = tmp_path / "line.kmall"
+    _write_kmall(path, [(40.5, -9.3), (40.7, -9.1), (40.6, -9.2)])
+
+    result = extract_kmall_metadata(path)
+
+    assert isinstance(result, schemas.KmallMetadata)
+    assert result.driver == "KMALL"
+    assert result.echo_sounder_id == 712
+    assert result.datagram_count == 5
+    assert result.position_count == 3
+    assert result.epsg == 4326
+    assert result.bbox_4326 == (-9.3, 40.5, -9.1, 40.7)
+    assert result.bbox_native == result.bbox_4326
+    assert result.temporal_extent_begin == dt.date(2024, 9, 28)
+    assert result.temporal_extent_end == dt.date(2024, 9, 29)
+
+
+def test_kmall_cpo_fallback(tmp_path):
+    path = tmp_path / "line.kmall"
+    _write_kmall(path, [(40.5, -9.3), (40.7, -9.1)], dgm_type=b"#CPO")
+
+    result = extract_kmall_metadata(path)
+
+    assert result.position_count == 2
+    assert result.bbox_4326 == (-9.3, 40.5, -9.1, 40.7)
+
+
+def test_kmall_spo_takes_precedence_over_cpo(tmp_path):
+    # SPO is the primary source; a divergent CPO feed must be IGNORED, never
+    # merged into the bbox or the fix count
+    path = tmp_path / "line.kmall"
+    _write_kmall(path, [(40.5, -9.3), (40.7, -9.1)], cpo_fixes=[(50.0, 5.0)])
+
+    result = extract_kmall_metadata(path)
+
+    assert result.position_count == 2
+    assert result.bbox_4326 == (-9.3, 40.5, -9.1, 40.7)
+
+
+def test_kmall_short_position_body_skipped(tmp_path):
+    # a position datagram whose body ends before the lat/lon doubles must be
+    # skipped without crashing
+    short_body = struct.pack("<HHHH", 8, 0, 0, 0) + struct.pack("<IIf", 0, 0, 1.0)
+    datagrams = [
+        _kmall_datagram(b"#SPO", _KMALL_T0, short_body),
+        _kmall_datagram(b"#SPO", _KMALL_T0 + 1, _kmall_position_body(40.6, -9.2)),
+    ]
+    path = tmp_path / "line.kmall"
+    path.write_bytes(b"".join(datagrams))
+
+    result = extract_kmall_metadata(path)
+
+    assert result.position_count == 1
+    assert result.bbox_4326 == (-9.2, 40.6, -9.2, 40.6)
+
+
+def test_kmall_without_positions(tmp_path):
+    path = tmp_path / "line.kmall"
+    _write_kmall(path, [])
+
+    result = extract_kmall_metadata(path)
+
+    assert result.bbox_4326 is None
+    assert result.epsg is None
+    assert result.position_count == 0
+    assert result.temporal_extent_begin == dt.date(2024, 9, 28)
+    assert result.temporal_extent_end == dt.date(2024, 9, 29)
+
+
+def test_kmall_skips_garbage_fixes(tmp_path):
+    path = tmp_path / "line.kmall"
+    _write_kmall(
+        path,
+        [
+            (200.0, 5.0),  # out-of-range sentinel
+            (0.0, 0.0),  # null-island GNSS dropout
+            (math.nan, -9.2),
+            (40.6, -9.2),  # the only valid fix
+        ],
+    )
+
+    result = extract_kmall_metadata(path)
+
+    assert result.position_count == 1
+    assert result.bbox_4326 == (-9.2, 40.6, -9.2, 40.6)
+
+
+def test_kmall_truncated_tail_garbage(tmp_path):
+    path = tmp_path / "line.kmall"
+    _write_kmall(path, [(40.5, -9.3)])
+    with path.open("ab") as fh:
+        fh.write(b"X" * 40)  # parses as an invalid header -> walk stops
+
+    result = extract_kmall_metadata(path)
+
+    assert result.datagram_count == 3
+    assert result.position_count == 1
+
+
+def test_kmall_truncated_tail_beyond_eof(tmp_path):
+    # the realistic acquisition-crash shape: a well-formed header whose
+    # num_bytes claims data beyond the end of the file
+    path = tmp_path / "line.kmall"
+    _write_kmall(path, [(40.5, -9.3)])
+    with path.open("ab") as fh:
+        fh.write(_KMALL_HEADER.pack(99999, b"#MRZ", 0, 0, 712, _KMALL_T0 + 2, 0))
+
+    result = extract_kmall_metadata(path)
+
+    assert result.datagram_count == 3
+    assert result.position_count == 1
+
+
+def test_kmall_garbage_raises(tmp_path):
+    path = tmp_path / "junk.kmall"
+    path.write_bytes(b"this is definitely not a kmall file")
+    with pytest.raises(ValueError):
+        extract_kmall_metadata(path)
+
+
+@pytest.mark.parametrize("content", [b"", b"tiny"])
+def test_kmall_too_small_raises(tmp_path, content):
+    # empty or sub-header files never enter the walk and must still raise
+    path = tmp_path / "empty.kmall"
+    path.write_bytes(content)
+    with pytest.raises(ValueError):
+        extract_kmall_metadata(path)
+
+
+def test_dispatch_routes_kmall(tmp_path):
+    path = tmp_path / "line.kmall"
+    _write_kmall(path, [(40.5, -9.3)])
+    assert isinstance(dispatch.dispatch_extractor(path), schemas.KmallMetadata)
+
+
+def test_dispatch_big_kmall_logs(tmp_path, monkeypatch, caplog):
+    path = tmp_path / "line.kmall"
+    _write_kmall(path, [(40.5, -9.3)])
+    monkeypatch.setattr(dispatch, "_BIG_FILE_LOG_BYTES", 0)
+    with caplog.at_level(logging.INFO, logger=dispatch.logger.name):
+        result = dispatch.dispatch_extractor(path)
+    assert isinstance(result, schemas.KmallMetadata)
+    assert any("large KMALL file" in record.message for record in caplog.records)
+
+
+def test_kmall_describe(tmp_path):
+    path = tmp_path / "line.kmall"
+    _write_kmall(path, [(40.5, -9.3)])
+    text = extract_kmall_metadata(path).describe()
+    assert text.startswith("Auto-extracted: Kongsberg KMALL, EM 712")
+    assert "position fix(es)" in text
+    assert "EPSG:4326" in text
+    assert len(text) <= 500

@@ -3,6 +3,7 @@ from pathlib import Path
 
 from .gdal_raster import extract_raster_metadata
 from .gdal_vector import extract_vector_metadata
+from .kmall import extract_kmall_metadata
 from .schemas import ExtractionResult
 
 logger = logging.getLogger(__name__)
@@ -19,8 +20,10 @@ _RASTER_EXTENSIONS = frozenset(
 # excluded (needs LIBKML, absent from the image); .gdb (a directory) and S-57 .000 too.
 _VECTOR_EXTENSIONS = frozenset({".shp", ".gpkg", ".geojson", ".kml", ".dxf"})
 
-# Dedicated KMALL/SEG-Y extractors land in later blueprints; stubbed to None for now.
-_STUB_EXTENSIONS = frozenset({".kmall", ".sgy", ".segy"})
+_KMALL_EXTENSIONS = frozenset({".kmall"})
+
+# The dedicated SEG-Y extractor lands in a later blueprint; stubbed to None for now.
+_STUB_EXTENSIONS = frozenset({".sgy", ".segy"})
 
 _BIG_FILE_LOG_BYTES = 1024**3  # log-only threshold; no hard size limit
 
@@ -29,9 +32,10 @@ def dispatch_extractor(path: Path | str) -> ExtractionResult | None:
     """Route a file to its metadata extractor by extension.
 
     Pure sync and potentially slow: GDAL's XYZ driver scans the whole file on open,
-    so a multi-GB grid can take ~1 minute. Async callers must run this in a worker
-    thread (e.g. anyio.to_thread.run_sync). Returns None for unsupported extensions,
-    directories, and the KMALL/SEG-Y stubs.
+    so a multi-GB grid can take ~1 minute, and KMALL files get a full datagram-header
+    walk (seconds per GB). Async callers must run this in a worker thread (e.g.
+    anyio.to_thread.run_sync). Returns None for unsupported extensions, directories,
+    and the SEG-Y stub.
     """
     p = Path(path)
     if not p.is_file():
@@ -45,6 +49,13 @@ def dispatch_extractor(path: Path | str) -> ExtractionResult | None:
         return extract_raster_metadata(p)
     if suffix in _VECTOR_EXTENSIONS:
         return extract_vector_metadata(p)
+    if suffix in _KMALL_EXTENSIONS:
+        size = p.stat().st_size
+        if size > _BIG_FILE_LOG_BYTES:
+            logger.info(
+                "Extracting metadata from large KMALL file %s (%d bytes)", p, size
+            )
+        return extract_kmall_metadata(p)
     if suffix in _STUB_EXTENSIONS:
         return None
     return None
