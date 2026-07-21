@@ -26,6 +26,7 @@ from ... import (
     constants,
     errors,
     geojson,
+    localization,
     subscribers,
 )
 from ...constants import SURVEY_RELATED_RECORD_MAX_RELATED
@@ -997,6 +998,30 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
         settings: config.SeisLabDataSettings = request.state.settings
         user = request.user if request.user.is_authenticated else None
         async with settings.get_db_session_maker()() as session:
+            dataset_category_filter_options = []
+            for (
+                dataset_category
+            ) in await category_queries.collect_all_dataset_categories(session):
+                dataset_category_filter_options.append(
+                    (
+                        dataset_category.id,
+                        localization.translate_localizable_dict(
+                            dataset_category.name, request.state.language
+                        ),
+                    )
+                )
+            workflow_stage_filter_options = []
+            for workflow_stage in await stage_queries.collect_all_workflow_stages(
+                session
+            ):
+                workflow_stage_filter_options.append(
+                    (
+                        workflow_stage.id,
+                        localization.translate_localizable_dict(
+                            workflow_stage.name, request.state.language
+                        ),
+                    )
+                )
             (
                 items,
                 num_total,
@@ -1038,6 +1063,8 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
                 "items": serialized_items,
                 "geojson_features": json.dumps(geojson_features),
                 "pagination": pagination_info,
+                "dataset_categories": dataset_category_filter_options,
+                "workflow_stages": workflow_stage_filter_options,
                 "map_bounds": {
                     "min_lon": min_lon,
                     "min_lat": min_lat,

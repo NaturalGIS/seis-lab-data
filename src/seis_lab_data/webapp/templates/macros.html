@@ -197,18 +197,26 @@ Object.keys($excludedIds).forEach((k) => { $excludedIds[k] = false });
     </div>
 {% endmacro %}
 
-{% macro render_search_component(search_url, label_text, initial_value="", set_autofocus=False, extra_on_input_js="") %}
-    <div class="row m-lg-5 justify-content-center" data-signals:search="'{{ initial_value }}'">
-        <div class="col-6">
-            <search
-                    data-signals:searching="false"
-                    class="form-floating"
-            >
+
+{% macro render_search_component(
+    search_url,
+    label_text,
+    initial_value="",
+    set_autofocus=False,
+    extra_on_input_js=""
+) %}
+    <div
+            class="row justify-content-center m-5"
+            data-signals:search="'{{ initial_value }}'"
+            data-signals:searching="false"
+    >
+        <div class="col-8">
+            <search class="form-floating">
                 <input
                         class="form-control form-control-lg"
                         type="search"
                         id="search"
-                        placeholder="search"
+                        placeholder="Search"
                         data-bind:search
                         data-on:input__debounce.200ms="{{ extra_on_input_js }}@get('{{ search_url }}')"
                         data-indicator:searching
@@ -227,6 +235,7 @@ Object.keys($excludedIds).forEach((k) => { $excludedIds[k] = false });
             >
                 <span class="visually-hidden">{{ _("searching...") | capitalize }}</span>
             </div>
+
         </div>
     </div>
 {% endmacro %}

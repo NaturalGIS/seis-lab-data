@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% import "macros.html" as macros %}
 {% from "macros/checkbox.html" import search_checkbox  %}
+{% from "macros/select.html" import search_select %}
 
 {% block head %}
     {{ super() }}
@@ -92,6 +93,20 @@
             <div class="col mt-1 mb-5">
                 <div class="row collapse" id="advanced-search-controls">
                     <div class="col-4">
+                        {{ search_select(
+                            "search-dataset-category",
+                            dataset_categories,
+                                "filterDatasetCategory",
+                                url_for("survey_related_records:get_list_component"),
+                                _("dataset category") | capitalize
+                        ) }}
+                        {{ search_select(
+                            "search-workflow-stage",
+                            workflow_stages,
+                                "filterWorkflowStage",
+                                url_for("survey_related_records:get_list_component"),
+                                _("workflow stage") | capitalize
+                        ) }}
                         {{ macros.render_temporal_extent_search_component(
                                         url_for("survey_related_records:get_list_component"),
                                         _("Temporal extent begin"),

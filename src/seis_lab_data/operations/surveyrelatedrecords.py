@@ -346,6 +346,8 @@ async def list_survey_related_records(
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
     only_internal: bool = False,
+    dataset_category_id: identifiers.DatasetCategoryId | None = None,
+    workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     kwargs = dict(
         survey_mission_id=survey_mission_id,
@@ -357,6 +359,8 @@ async def list_survey_related_records(
         spatial_intersect=spatial_intersect,
         temporal_extent=temporal_extent,
         asset_path_fragment_filter=asset_path_fragment_filter,
+        dataset_category_id=dataset_category_id,
+        workflow_stage_id=workflow_stage_id,
     )
     if initiator is None:
         return await record_queries.list_published_survey_related_records(

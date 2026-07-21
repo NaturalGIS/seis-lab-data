@@ -30,6 +30,8 @@ def _apply_survey_related_record_filters(
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    dataset_category_id: identifiers.DatasetCategoryId | None = None,
+    workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ):
     """Apply the common survey-related record search filters to a statement.
 
@@ -70,6 +72,14 @@ def _apply_survey_related_record_filters(
             statement = statement.where(
                 models.SurveyRelatedRecord.temporal_extent_end <= temporal_extent.end
             )
+    if dataset_category_id is not None:
+        statement = statement.where(
+            models.SurveyRelatedRecord.dataset_category_id == dataset_category_id
+        )
+    if workflow_stage_id is not None:
+        statement = statement.where(
+            models.SurveyRelatedRecord.workflow_stage_id == workflow_stage_id
+        )
     if asset_path_fragment_filter is not None:
         statement = statement.where(
             exists(
@@ -96,6 +106,8 @@ def _build_survey_related_record_statement(
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    dataset_category_id: identifiers.DatasetCategoryId | None = None,
+    workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ):
     statement = (
         select(models.SurveyRelatedRecord)
@@ -116,6 +128,8 @@ def _build_survey_related_record_statement(
         temporal_extent,
         asset_path_fragment_filter,
         record_ids,
+        dataset_category_id=dataset_category_id,
+        workflow_stage_id=workflow_stage_id,
     )
     return statement.order_by(
         models.SurveyRelatedRecord.temporal_extent_end.desc().nullslast()
@@ -130,6 +144,8 @@ def _build_survey_related_record_id_statement(
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    dataset_category_id: identifiers.DatasetCategoryId | None = None,
+    workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ):
     """Build a statement selecting only the ids of matching records.
 
@@ -145,6 +161,8 @@ def _build_survey_related_record_id_statement(
         temporal_extent,
         asset_path_fragment_filter,
         record_ids,
+        dataset_category_id=dataset_category_id,
+        workflow_stage_id=workflow_stage_id,
     )
 
 
@@ -174,15 +192,19 @@ async def list_published_survey_related_records(
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    dataset_category_id: identifiers.DatasetCategoryId | None = None,
+    workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     statement = _build_survey_related_record_statement(
-        survey_mission_id,
-        en_name_filter,
-        pt_name_filter,
-        spatial_intersect,
-        temporal_extent,
-        asset_path_fragment_filter,
-        record_ids,
+        survey_mission_id=survey_mission_id,
+        en_name_filter=en_name_filter,
+        pt_name_filter=pt_name_filter,
+        spatial_intersect=spatial_intersect,
+        temporal_extent=temporal_extent,
+        asset_path_fragment_filter=asset_path_fragment_filter,
+        record_ids=record_ids,
+        dataset_category_id=dataset_category_id,
+        workflow_stage_id=workflow_stage_id,
     ).where(models.SurveyRelatedRecord.status == SurveyRelatedRecordStatus.PUBLISHED)
     limit = page_size
     offset = page_size * (page - 1)
@@ -228,16 +250,20 @@ async def list_accessible_survey_related_records(
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    dataset_category_id: identifiers.DatasetCategoryId | None = None,
+    workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     statement = _restrict_to_accessible(
         _build_survey_related_record_statement(
-            survey_mission_id,
-            en_name_filter,
-            pt_name_filter,
-            spatial_intersect,
-            temporal_extent,
-            asset_path_fragment_filter,
-            record_ids,
+            survey_mission_id=survey_mission_id,
+            en_name_filter=en_name_filter,
+            pt_name_filter=pt_name_filter,
+            spatial_intersect=spatial_intersect,
+            temporal_extent=temporal_extent,
+            asset_path_fragment_filter=asset_path_fragment_filter,
+            record_ids=record_ids,
+            dataset_category_id=dataset_category_id,
+            workflow_stage_id=workflow_stage_id,
         ),
         user_id,
     )
@@ -361,16 +387,20 @@ async def list_survey_related_records(
     asset_path_fragment_filter: str | None = None,
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
     only_internal: bool = False,
+    dataset_category_id: identifiers.DatasetCategoryId | None = None,
+    workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
-    """Return all records regardless of status. Intended for admin use."""
+    """Return all records. Intended for admin use."""
     statement = _build_survey_related_record_statement(
-        survey_mission_id,
-        en_name_filter,
-        pt_name_filter,
-        spatial_intersect,
-        temporal_extent,
-        asset_path_fragment_filter,
-        record_ids,
+        survey_mission_id=survey_mission_id,
+        en_name_filter=en_name_filter,
+        pt_name_filter=pt_name_filter,
+        spatial_intersect=spatial_intersect,
+        temporal_extent=temporal_extent,
+        asset_path_fragment_filter=asset_path_fragment_filter,
+        record_ids=record_ids,
+        dataset_category_id=dataset_category_id,
+        workflow_stage_id=workflow_stage_id,
     )
     if only_internal:
         statement = statement.where(

@@ -352,6 +352,7 @@ async def get_mission_records_list_component(request: Request):
     else:
         internal_filter_kwargs = {}
         filter_query_string = ""
+    logger.debug(f"{internal_filter_kwargs=}")
     current_page = get_page_from_request_params(request)
     settings: config.SeisLabDataSettings = request.state.settings
     user = request.user if request.user.is_authenticated else None
