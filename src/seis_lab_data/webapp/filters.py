@@ -69,13 +69,13 @@ class TemporalExtentFilter(SimpleListFilter):
 
 
 @dataclasses.dataclass
-class OnlyPublishedFilter(SimpleListFilter):
-    internal_name = "only_published"
+class OnlyInternalFilter(SimpleListFilter):
+    internal_name = "only_internal"
     value: bool
 
     @classmethod
     def from_params(cls, params: Mapping[str, str]) -> Self:
-        return cls(value=bool(params.get("filterOnlyPublished", False)))
+        return cls(value=bool(params.get("filterOnlyInternal", False)))
 
 
 @dataclasses.dataclass
@@ -326,7 +326,7 @@ class ProjectListFilters(ItemListFilters):
         filters: dict[str, SimpleListFilter | LanguageDependantListFilter] = {}
         for simple_type in (
             BoundingBoxFilter,
-            OnlyPublishedFilter,
+            OnlyInternalFilter,
             TemporalExtentFilter,
             EnNameFilter,
             PtNameFilter,

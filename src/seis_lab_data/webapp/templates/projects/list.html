@@ -60,11 +60,11 @@ Users with create permission are linked to /projects/new, which is a separate st
                         </label>
                     </search>
                     {{ search_checkbox(
-                        "search-only-published",
+                        "search-only-internal",
                         "false",
-                        "filterOnlyPublished",
+                        "filterOnlyInternal",
                         url_for("projects:get_list_component"),
-                        _("show only published items") | capitalize
+                        _("show only internal items") | capitalize
                     ) }}
                     <button
                             class="btn btn-light btn-sm mt-1"
