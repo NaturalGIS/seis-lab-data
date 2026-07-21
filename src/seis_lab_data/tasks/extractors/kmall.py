@@ -8,6 +8,10 @@ from .schemas import KmallMetadata
 
 logger = logging.getLogger(__name__)
 
+# The standalone prod validator scripts/validate_extractors.py re-implements this
+# walk (it cannot import the package). Any change to the datagram/fix parsing
+# below must be mirrored there, and vice versa.
+
 # numBytesDgm, dgmType, dgmVersion, systemID, echoSounderID, time_sec, time_nanosec
 _DATAGRAM_HEADER = struct.Struct("<I4sBBHII")
 # A datagram is at least the header plus the repeated length field at its tail.
@@ -131,7 +135,7 @@ def _parse_position_fix(body: bytes) -> tuple[float, float] | None:
         return None
     (num_bytes_common,) = struct.unpack_from("<H", body, 0)
     offset = num_bytes_common + _SENSOR_DATA_LATLON_OFFSET
-    if offset < 0 or offset + 16 > len(body):
+    if offset + 16 > len(body):
         return None
     latitude, longitude = struct.unpack_from("<dd", body, offset)
     if not (math.isfinite(latitude) and math.isfinite(longitude)):
