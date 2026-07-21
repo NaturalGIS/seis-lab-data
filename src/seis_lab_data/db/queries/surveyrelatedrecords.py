@@ -360,6 +360,7 @@ async def list_survey_related_records(
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    only_internal: bool = False,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     """Return all records regardless of status. Intended for admin use."""
     statement = _build_survey_related_record_statement(
@@ -371,6 +372,10 @@ async def list_survey_related_records(
         asset_path_fragment_filter,
         record_ids,
     )
+    if only_internal:
+        statement = statement.where(
+            models.SurveyRelatedRecord.status != SurveyRelatedRecordStatus.PUBLISHED
+        )
     limit = page_size
     offset = page_size * (page - 1)
     return await _exec_survey_related_record_list(

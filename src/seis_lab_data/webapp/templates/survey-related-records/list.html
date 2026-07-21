@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "macros.html" as macros %}
+{% from "macros/checkbox.html" import search_checkbox  %}
 
 {% block head %}
     {{ super() }}
@@ -53,6 +54,13 @@
                         {{ _("search survey-related records") | capitalize }}
                     </label>
                 </search>
+                {{ search_checkbox(
+                        "search-only-internal",
+                        "false",
+                        "filterOnlyInternal",
+                        url_for("survey_related_records:get_list_component"),
+                        _("show only internal survey-related records") | capitalize
+                    ) }}
                 <div
                         data-attr:hidden="!$searching"
                         class="spinner-border spinner-border-sm ms-3"

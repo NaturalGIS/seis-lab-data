@@ -428,6 +428,7 @@ async def list_survey_missions(
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    only_internal: bool = False,
 ) -> tuple[list[models.SurveyMission], int | None]:
     kwargs = dict(
         project_id=project_id,
@@ -444,6 +445,7 @@ async def list_survey_missions(
     elif not {constants.ROLE_ADMIN, constants.ROLE_SYSTEM_ADMIN}.isdisjoint(
         initiator.roles
     ):
+        kwargs.update(only_internal=only_internal)
         return await mission_queries.list_survey_missions(session, **kwargs)
     else:
         return await mission_queries.list_accessible_survey_missions(

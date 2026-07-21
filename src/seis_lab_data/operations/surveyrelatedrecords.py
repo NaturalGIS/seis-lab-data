@@ -345,6 +345,7 @@ async def list_survey_related_records(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    only_internal: bool = False,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     kwargs = dict(
         survey_mission_id=survey_mission_id,
@@ -364,6 +365,7 @@ async def list_survey_related_records(
     elif not {constants.ROLE_ADMIN, constants.ROLE_SYSTEM_ADMIN}.isdisjoint(
         initiator.roles
     ):
+        kwargs.update(only_internal=only_internal)
         return await record_queries.list_survey_related_records(session, **kwargs)
     else:
         return await record_queries.list_accessible_survey_related_records(
