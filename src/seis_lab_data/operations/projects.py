@@ -405,6 +405,7 @@ async def list_projects(
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    only_published: bool = False,
 ) -> tuple[list[models.Project], int | None]:
     kwargs = dict(
         page=page,
@@ -420,6 +421,7 @@ async def list_projects(
     elif not {constants.ROLE_ADMIN, constants.ROLE_SYSTEM_ADMIN}.isdisjoint(
         initiator.roles
     ):
+        kwargs.update(only_published=only_published)
         return await project_queries.list_projects(session, **kwargs)
     else:
         return await project_queries.list_accessible_projects(

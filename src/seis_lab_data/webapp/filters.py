@@ -69,6 +69,16 @@ class TemporalExtentFilter(SimpleListFilter):
 
 
 @dataclasses.dataclass
+class OnlyPublishedFilter(SimpleListFilter):
+    internal_name = "only_published"
+    value: bool
+
+    @classmethod
+    def from_params(cls, params: Mapping[str, str]) -> Self:
+        return cls(value=bool(params.get("filterOnlyPublished", False)))
+
+
+@dataclasses.dataclass
 class BoundingBoxFilter(SimpleListFilter):
     internal_name = "spatial_intersect"
     value: shapely.Polygon
@@ -316,6 +326,7 @@ class ProjectListFilters(ItemListFilters):
         filters: dict[str, SimpleListFilter | LanguageDependantListFilter] = {}
         for simple_type in (
             BoundingBoxFilter,
+            OnlyPublishedFilter,
             TemporalExtentFilter,
             EnNameFilter,
             PtNameFilter,
