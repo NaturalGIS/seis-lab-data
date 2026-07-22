@@ -25,9 +25,9 @@
                                 <p>{{ item.description | translate_localizable_string }}</p>
                                 <dl class="row">
                                     <dt class="col-sm-3">{{ _("dataset category") | capitalize }}</dt>
-                                    <dd class="col-sm-9">{{ item.dataset_category.name|translate_localizable_string }}</dd>
+                                    <dd class="col-sm-9"><span class="badge bg-dataset-category">{% if item.dataset_category %}{{ item.dataset_category.name|translate_localizable_string }}{% else %}{{ _("unknown category") }}{% endif %}</span></dd>
                                     <dt class="col-sm-3">{{ _("workflow stage") | capitalize }}</dt>
-                                    <dd class="col-sm-9">{{ item.workflow_stage.name|translate_localizable_string }}</dd>
+                                    <dd class="col-sm-9"><span class="badge bg-workflow-stage">{% if item.workflow_stage %}{{ item.workflow_stage.name|translate_localizable_string }}{% else %}{{ _("unknown stage") }}{% endif %}</span></dd>
                                     <dt class="col-sm-3">{{ _("survey mission") | capitalize }}</dt>
                                     <dd class="col-sm-9">
                                         <a
