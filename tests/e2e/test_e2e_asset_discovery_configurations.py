@@ -11,7 +11,7 @@ from playwright.sync_api import (
 
 
 def _fill_asset_discovery_configuration_form(
-    page: Page, name: str, relative_path_regexp: str
+    page: Page, name: str, relative_path_regexp: str, media_type: str = "image/tiff"
 ):
     # unlike dataset categories / workflow stages, the name here is a plain (not
     # localizable) field, and there are two additional required associations
@@ -19,6 +19,7 @@ def _fill_asset_discovery_configuration_form(
     page.get_by_role("textbox", name="field-relative_path_regexp").fill(
         relative_path_regexp
     )
+    page.get_by_role("textbox", name="field-media_type").fill(media_type)
     # pick whatever the first available option is for each association — the test
     # only cares that some valid dataset category / workflow stage gets linked,
     # not which one, so it doesn't need to hardcode sample data names

@@ -278,6 +278,7 @@ class AssetDiscoveryConfigurationCreate(pydantic.BaseModel):
         str, pydantic.Field(min_length=1, max_length=constants.NAME_MAX_LENGTH)
     ]
     relative_path_regexp: str
+    media_type: str
     workflow_stage_id: identifiers.WorkflowStageId
     dataset_category_id: identifiers.DatasetCategoryId
 
@@ -285,6 +286,7 @@ class AssetDiscoveryConfigurationCreate(pydantic.BaseModel):
 class AssetDiscoveryConfigurationUpdate(pydantic.BaseModel):
     name: str | None = None
     relative_path_regexp: str | None = None
+    media_type: str | None = None
     workflow_stage_id: identifiers.WorkflowStageId | None = None
     dataset_category_id: identifiers.DatasetCategoryId | None = None
 
@@ -295,6 +297,7 @@ class AssetDiscoveryConfigurationReadListItem(pydantic.BaseModel):
     ]
     name: str
     relative_path_regexp: str
+    media_type: str
     workflow_stage: stage_schemas.WorkflowStageReadListItem
     dataset_category: category_schemas.DatasetCategoryReadListItem
 

@@ -186,8 +186,8 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
     status: SurveyRelatedRecordStatus
     validation_result: models.ValidationResult | None
     survey_mission: SurveyMissionReadEmbedded
-    dataset_category: DatasetCategoryReadListItem
-    workflow_stage: WorkflowStageReadListItem
+    dataset_category: DatasetCategoryReadListItem | None
+    workflow_stage: WorkflowStageReadListItem | None
     bbox_4326: PolygonOut | None
     temporal_extent_begin: Annotated[
         dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
@@ -207,10 +207,14 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
             ),
             dataset_category=DatasetCategoryReadListItem.model_validate(
                 instance.dataset_category, from_attributes=True
-            ),
+            )
+            if instance.dataset_category
+            else None,
             workflow_stage=WorkflowStageReadListItem.model_validate(
                 instance.workflow_stage, from_attributes=True
-            ),
+            )
+            if instance.workflow_stage
+            else None,
         )
 
 
@@ -242,10 +246,14 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
             ),
             dataset_category=DatasetCategoryReadListItem.model_validate(
                 instance.dataset_category, from_attributes=True
-            ),
+            )
+            if instance.dataset_category
+            else None,
             workflow_stage=WorkflowStageReadListItem.model_validate(
                 instance.workflow_stage, from_attributes=True
-            ),
+            )
+            if instance.workflow_stage
+            else None,
             record_assets=[
                 RecordAssetReadDetailEmbedded.model_validate(
                     db_asset, from_attributes=True

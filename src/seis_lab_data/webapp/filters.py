@@ -137,7 +137,7 @@ class _StringFilter(SimpleListFilter):
 @dataclasses.dataclass
 class NameFilter(_StringFilter):
     internal_name: str = "name_filter"
-    public_name: str = "name"
+    public_name: str = "search"
 
 
 @dataclasses.dataclass

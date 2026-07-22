@@ -26,7 +26,7 @@
                          **kwargs) }}
                 {% endif %}
                 <div id="{{ name_prefix }}{{ field.name }}-help" class="form-text">
-                    {{ field.description }}{% if field.flags.backend_required %} -
+                    {{ field.description | safe }}{% if field.flags.backend_required %} -
                         {{ _("This is a required field") }}{% endif %}</div>
                 {% if field.errors %}
                     <div class="invalid-feedback" id="backend-validation-{{ name_prefix }}{{ field.name }}-feedback">

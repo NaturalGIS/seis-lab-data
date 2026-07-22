@@ -100,14 +100,8 @@ async def bootstrap_asset_discovery_configurations(ctx: typer.Context):
             done.set()
 
     request_id = identifiers.RequestId(uuid.uuid4())
-    subscription = subscribers.subscribe_to_topic(
-        redis_client,
-        topic_names=[constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS],
-        handler_context=subscribers.HandlerContext(
-            request_id=request_id,
-        ),
-        message_handlers={"resource_modified": handle_message},
-    )
+    topic_names = [constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS]
+    pubsub = await subscribers.open_topic_subscription(redis_client, topic_names)
 
     for current in to_create:
         ctx.obj["main"].status_console.print(f"Queueing {current.name} for creation...")
@@ -117,6 +111,12 @@ async def bootstrap_asset_discovery_configurations(ctx: typer.Context):
             raw_initiator=json.dumps(dataclasses.asdict(admin_)),
         )  # noqa
 
+    subscription = subscribers.iter_topic_messages(
+        pubsub,
+        topic_names,
+        subscribers.HandlerContext(request_id=request_id),
+        {"resource_modified": handle_message},
+    )
     async for chunk in subscription:
         ctx.obj["main"].status_console.print(chunk)
 
@@ -165,14 +165,8 @@ async def bootstrap_workflow_stages(
             done.set()
 
     request_id = identifiers.RequestId(uuid.uuid4())
-    subscription = subscribers.subscribe_to_topic(
-        redis_client,
-        topic_names=[constants.NEW_TOPIC_WORKFLOW_STAGES],
-        handler_context=subscribers.HandlerContext(
-            request_id=request_id,
-        ),
-        message_handlers={"resource_modified": handle_message},
-    )
+    topic_names = [constants.NEW_TOPIC_WORKFLOW_STAGES]
+    pubsub = await subscribers.open_topic_subscription(redis_client, topic_names)
 
     for current in to_create:
         ctx.obj["main"].status_console.print(
@@ -184,6 +178,12 @@ async def bootstrap_workflow_stages(
             raw_initiator=json.dumps(dataclasses.asdict(admin_)),
         )  # noqa
 
+    subscription = subscribers.iter_topic_messages(
+        pubsub,
+        topic_names,
+        subscribers.HandlerContext(request_id=request_id),
+        {"resource_modified": handle_message},
+    )
     async for chunk in subscription:
         ctx.obj["main"].status_console.print(chunk)
 
@@ -232,14 +232,8 @@ async def bootstrap_dataset_categories(
             done.set()
 
     request_id = identifiers.RequestId(uuid.uuid4())
-    subscription = subscribers.subscribe_to_topic(
-        redis_client,
-        topic_names=[constants.NEW_TOPIC_DATASET_CATEGORIES],
-        handler_context=subscribers.HandlerContext(
-            request_id=request_id,
-        ),
-        message_handlers={"resource_modified": handle_message},
-    )
+    topic_names = [constants.NEW_TOPIC_DATASET_CATEGORIES]
+    pubsub = await subscribers.open_topic_subscription(redis_client, topic_names)
 
     for current in to_create:
         ctx.obj["main"].status_console.print(
@@ -251,5 +245,11 @@ async def bootstrap_dataset_categories(
             raw_initiator=json.dumps(dataclasses.asdict(admin_)),
         )  # noqa
 
+    subscription = subscribers.iter_topic_messages(
+        pubsub,
+        topic_names,
+        subscribers.HandlerContext(request_id=request_id),
+        {"resource_modified": handle_message},
+    )
     async for chunk in subscription:
         ctx.obj["main"].status_console.print(chunk)

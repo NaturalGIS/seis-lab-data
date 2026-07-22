@@ -166,16 +166,18 @@ async def discover_survey_mission_contents(
                 yield f"[green]Success:[/green] Mission {message.resource_id!r} discovery completed successfully!"
                 done.set()
 
-    subscription = subscribers.subscribe_to_topic(
-        redis_client,
-        topic_names=[constants.NEW_TOPIC_SURVEY_MISSIONS],
-        handler_context=subscribers.HandlerContext(resource_id=str(survey_mission_id)),
-        message_handlers={"discovery": handle_message},
-    )
+    topic_names = [constants.NEW_TOPIC_SURVEY_MISSIONS]
+    pubsub = await subscribers.open_topic_subscription(redis_client, topic_names)
     discovery_tasks.discover_survey_mission_contents.send(
         raw_request_id=str(uuid.uuid4()),
         raw_survey_mission_id=str(survey_mission_id),
         raw_initiator=json.dumps(dataclasses.asdict(ctx.obj["admin_user"])),
     )  # noqa
+    subscription = subscribers.iter_topic_messages(
+        pubsub,
+        topic_names,
+        subscribers.HandlerContext(resource_id=str(survey_mission_id)),
+        {"discovery": handle_message},
+    )
     async for chunk in subscription:
         ctx.obj["main"].status_console.print(chunk)

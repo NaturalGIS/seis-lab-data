@@ -174,16 +174,8 @@ async def load_sample_projects(ctx: typer.Context):
             done.set()
 
     request_id = identifiers.RequestId(uuid.uuid4())
-    subscription = subscribers.subscribe_to_topic(
-        redis_client,
-        topic_names=[constants.NEW_TOPIC_PROJECTS],
-        handler_context=subscribers.HandlerContext(
-            request_id=request_id,
-        ),
-        message_handlers={
-            "resource_modified": handle_message,
-        },
-    )
+    topic_names = [constants.NEW_TOPIC_PROJECTS]
+    pubsub = await subscribers.open_topic_subscription(redis_client, topic_names)
 
     for to_create in projects_to_create:
         ctx.obj["main"].status_console.print(
@@ -195,6 +187,12 @@ async def load_sample_projects(ctx: typer.Context):
             raw_initiator=json.dumps(dataclasses.asdict(admin_)),
         )  # noqa
 
+    subscription = subscribers.iter_topic_messages(
+        pubsub,
+        topic_names,
+        subscribers.HandlerContext(request_id=request_id),
+        {"resource_modified": handle_message},
+    )
     async for chunk in subscription:
         ctx.obj["main"].status_console.print(chunk)
 
@@ -225,17 +223,8 @@ async def load_sample_survey_missions(ctx: typer.Context):
             done.set()
 
     request_id = identifiers.RequestId(uuid.uuid4())
-
-    subscription = subscribers.subscribe_to_topic(
-        redis_client,
-        topic_names=[constants.NEW_TOPIC_SURVEY_MISSIONS],
-        handler_context=subscribers.HandlerContext(
-            request_id=request_id,
-        ),
-        message_handlers={
-            "resource_modified": handle_message,
-        },
-    )
+    topic_names = [constants.NEW_TOPIC_SURVEY_MISSIONS]
+    pubsub = await subscribers.open_topic_subscription(redis_client, topic_names)
 
     for to_create in missions_to_create:
         ctx.obj["main"].status_console.print(
@@ -247,6 +236,12 @@ async def load_sample_survey_missions(ctx: typer.Context):
             raw_initiator=json.dumps(dataclasses.asdict(admin_)),
         )  # noqa
 
+    subscription = subscribers.iter_topic_messages(
+        pubsub,
+        topic_names,
+        subscribers.HandlerContext(request_id=request_id),
+        {"resource_modified": handle_message},
+    )
     async for chunk in subscription:
         ctx.obj["main"].status_console.print(chunk)
 

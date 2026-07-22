@@ -220,9 +220,11 @@ async def stream_to_update_page(request: Request):
     redis_client: Redis = request.state.redis_client
     user = request.user if request.user.is_authenticated else None
 
-    subscription = subscribers.subscribe_to_topic(
-        redis_client,
-        [constants.NEW_TOPIC_SURVEY_MISSIONS],
+    topic_names = [constants.NEW_TOPIC_SURVEY_MISSIONS]
+    pubsub = await subscribers.open_topic_subscription(redis_client, topic_names)
+    subscription = subscribers.iter_topic_messages(
+        pubsub,
+        topic_names,
         subscribers.HandlerContext(
             resource_id=str(survey_mission_id),
             resource_type=constants.ResourceType.MISSION,
@@ -258,12 +260,14 @@ async def stream_to_detail_page(request: Request):
     redis_client: Redis = request.state.redis_client
     user = request.user if request.user.is_authenticated else None
 
-    subscription = subscribers.subscribe_to_topic(
-        redis_client,
-        [
-            constants.NEW_TOPIC_SURVEY_MISSIONS,
-            constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
-        ],
+    topic_names = [
+        constants.NEW_TOPIC_SURVEY_MISSIONS,
+        constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
+    ]
+    pubsub = await subscribers.open_topic_subscription(redis_client, topic_names)
+    subscription = subscribers.iter_topic_messages(
+        pubsub,
+        topic_names,
         subscribers.HandlerContext(
             resource_id=str(survey_mission_id),
             user=user,
@@ -485,9 +489,13 @@ async def get_list_component(request: Request):
 
 
 async def stream_to_list_page(request: Request):
-    subscription = subscribers.subscribe_to_topic(
-        request.state.redis_client,
-        [constants.NEW_TOPIC_SURVEY_MISSIONS],
+    topic_names = [constants.NEW_TOPIC_SURVEY_MISSIONS]
+    pubsub = await subscribers.open_topic_subscription(
+        request.state.redis_client, topic_names
+    )
+    subscription = subscribers.iter_topic_messages(
+        pubsub,
+        topic_names,
         subscribers.HandlerContext(
             resource_type=constants.ResourceType.MISSION,
             jinja_environment=request.state.templates.env,
@@ -1098,9 +1106,13 @@ async def stream_to_new_page(request: Request):
     except ValueError as err:
         raise HTTPException(status_code=400, detail="Invalid request id") from err
 
-    subscription = subscribers.subscribe_to_topic(
-        request.state.redis_client,
-        [constants.NEW_TOPIC_SURVEY_MISSIONS],
+    topic_names = [constants.NEW_TOPIC_SURVEY_MISSIONS]
+    pubsub = await subscribers.open_topic_subscription(
+        request.state.redis_client, topic_names
+    )
+    subscription = subscribers.iter_topic_messages(
+        pubsub,
+        topic_names,
         subscribers.HandlerContext(
             request_id=request_id,
             resource_type=constants.ResourceType.MISSION,
@@ -1324,9 +1336,13 @@ async def stream_to_bulk_update_page(request: Request):
     except ValueError as err:
         raise HTTPException(status_code=400, detail="Invalid request id") from err
 
-    subscription = subscribers.subscribe_to_topic(
-        request.state.redis_client,
-        [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS],
+    topic_names = [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS]
+    pubsub = await subscribers.open_topic_subscription(
+        request.state.redis_client, topic_names
+    )
+    subscription = subscribers.iter_topic_messages(
+        pubsub,
+        topic_names,
         subscribers.HandlerContext(
             resource_id=str(survey_mission_id),
             request_id=request_id,
