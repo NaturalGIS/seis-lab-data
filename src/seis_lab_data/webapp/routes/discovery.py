@@ -418,6 +418,7 @@ class AssetDiscoveryConfigurationCollectionEndpoint(HTTPEndpoint):
             id=identifiers.AssetDiscoveryConfId(uuid.uuid4()),
             name=form_instance.name.data,
             relative_path_regexp=form_instance.relative_path_regexp.data,
+            media_type=form_instance.media_type.data,
             dataset_category_id=form_instance.dataset_category_id.data,
             workflow_stage_id=form_instance.workflow_stage_id.data,
         )
@@ -493,6 +494,7 @@ class AssetDiscoveryConfigurationDetailEndpoint(HTTPEndpoint):
             raw_to_update=discovery_schemas.AssetDiscoveryConfigurationUpdate(
                 name=form_instance.name.data,
                 relative_path_regexp=form_instance.relative_path_regexp.data,
+                media_type=form_instance.media_type.data,
                 dataset_category_id=form_instance.dataset_category_id.data,
                 workflow_stage_id=form_instance.workflow_stage_id.data,
             ).model_dump_json(),

@@ -46,6 +46,7 @@ async def get_bootstrap_data(
             discovery_schemas.AssetDiscoveryConfigurationCreate(
                 id=i["id"],
                 name=i["name"],
+                media_type=i["media_type"],
                 relative_path_regexp=i["relative_path_regexp"],
                 workflow_stage_id=i["workflow_stage"],
                 dataset_category_id=i["dataset_category"],

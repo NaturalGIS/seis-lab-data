@@ -16,19 +16,14 @@
                     <div class="row">
                         <div class="col-12">
                             <ul class="list-unstyled">
+                                <li class="card-text text-truncate">{{ item.media_type }}</li>
                                 <li class="card-text text-truncate">
-                                    {{ item.workflow_stage.name.en }}
+                                    <span class="badge bg-dataset-category">{{ item.dataset_category.name.en }}</span>
                                 </li>
-                            </ul>
-                            <ul class="list-unstyled">
                                 <li class="card-text text-truncate">
-                                    {{ item.dataset_category.name.en }}
+                                    <span class="badge bg-workflow-stage">{{ item.workflow_stage.name.en }}</span>
                                 </li>
-                            </ul>
-                            <ul class="list-unstyled">
-                                <li class="card-text text-truncate">
-                                    {{ item.relative_path_regexp }}
-                                </li>
+                                <li class="card-text text-truncate">{{ item.relative_path_regexp }}</li>
                             </ul>
                         </div>
                     </div>

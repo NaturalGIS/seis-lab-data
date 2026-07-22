@@ -48,8 +48,8 @@
                                     </small>
                                 </li>
                                 <li class="card-text">
-                                    <span class="badge text-bg-primary">{{ item.dataset_category.name | translate_localizable_string }}</span>
-                                    <span class="badge text-bg-secondary">{{ item.workflow_stage.name | translate_localizable_string }}</span></li>
+                                    <span class="badge bg-dataset-category">{{ item.dataset_category.name | translate_localizable_string }}</span>
+                                    <span class="badge bg-workflow-stage">{{ item.workflow_stage.name | translate_localizable_string }}</span></li>
                                 <li class="card-text text-truncate">
                                     {{ item.description|translate_localizable_string|default(_("description not available"), True) }}
                                 </li>

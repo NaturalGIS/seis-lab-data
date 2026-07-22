@@ -49,6 +49,7 @@ name = { en = "interpreted data", pt = "dados interpretados" }
 [[asset_discovery_configurations]]
 id = "3128b241-73a0-4f6f-88d0-75bb9424de25"
 name = "raw kmall"
+media_type = "application/prs.ipma.kmall"
 relative_path_regexp = "s06-mbes/s02-raw-data/.*\\.kmall"
 workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"  # raw_data
 dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"  # bathymetry
@@ -56,6 +57,7 @@ dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"  # bathymetry
 [[asset_discovery_configurations]]
 id = "1c5b73f7-d3a7-49ed-b6b5-03f5ec8a831b"
 name = "xyz processed bathy"
+media_type = "application/prs.ipma.xyz"
 relative_path_regexp = "s06-mbes/s05-processed-data/.*\\.xyz"
 workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"  # processed_data
 dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"  # bathymetry
