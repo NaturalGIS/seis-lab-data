@@ -488,8 +488,12 @@ async def get_update_form(request: Request):
                 "en": details.item.description.en,
                 "pt": details.item.description.pt,
             },
-            "dataset_category_id": details.item.dataset_category.id,
-            "workflow_stage_id": details.item.workflow_stage.id,
+            "dataset_category_id": details.item.dataset_category.id
+            if details.item.dataset_category
+            else None,
+            "workflow_stage_id": details.item.workflow_stage.id
+            if details.item.workflow_stage
+            else None,
             "bounding_box": {
                 "min_lon": bbox.bounds[0],
                 "min_lat": bbox.bounds[1],

@@ -21,11 +21,8 @@ async def list_dataset_categories(
 ) -> tuple[list[models.DatasetCategory], int | None]:
     limit = page_size
     offset = page_size * (page - 1)
-    statement = (
-        select(models.DatasetCategory)
-        .order_by(models.DatasetCategory.name["en"].astext.desc())
-        .offset(offset)
-        .limit(limit)
+    statement = select(models.DatasetCategory).order_by(
+        models.DatasetCategory.name["en"].astext.desc()
     )
     if en_name_filter is not None:
         statement = statement.where(
@@ -35,7 +32,7 @@ async def list_dataset_categories(
         statement = statement.where(
             models.DatasetCategory.name["pt"].astext.ilike(f"%{pt_name_filter}%")
         )
-    items = (await session.exec(statement)).all()
+    items = (await session.exec(statement.offset(offset).limit(limit))).all()
     num_total = (
         await _get_total_num_records(session, statement) if include_total else None
     )

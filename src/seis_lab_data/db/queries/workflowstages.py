@@ -21,11 +21,8 @@ async def list_workflow_stages(
 ) -> tuple[list[models.WorkflowStage], int | None]:
     limit = page_size
     offset = page_size * (page - 1)
-    statement = (
-        select(models.WorkflowStage)
-        .order_by(models.WorkflowStage.name["en"].astext.desc())
-        .offset(offset)
-        .limit(limit)
+    statement = select(models.WorkflowStage).order_by(
+        models.WorkflowStage.name["en"].astext.desc()
     )
     if en_name_filter is not None:
         statement = statement.where(
@@ -35,7 +32,7 @@ async def list_workflow_stages(
         statement = statement.where(
             models.WorkflowStage.name["pt"].astext.ilike(f"%{pt_name_filter}%")
         )
-    items = (await session.exec(statement)).all()
+    items = (await session.exec(statement.offset(offset).limit(limit))).all()
     num_total = (
         await _get_total_num_records(session, statement) if include_total else None
     )
