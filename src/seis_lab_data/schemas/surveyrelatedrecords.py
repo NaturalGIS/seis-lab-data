@@ -195,6 +195,7 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
     temporal_extent_end: Annotated[
         dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
     ]
+    record_assets: list[RecordAssetReadDetailEmbedded]
 
     @classmethod
     def from_db_instance(
@@ -215,16 +216,18 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
             )
             if instance.workflow_stage
             else None,
+            record_assets=[
+                RecordAssetReadDetailEmbedded.model_validate(
+                    db_asset, from_attributes=True
+                )
+                for db_asset in instance.assets
+            ],
         )
 
 
 class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
     owner_id: UserId
     links: list[LinkSchema] = []
-    survey_mission: SurveyMissionReadEmbedded
-    # dataset_category: DatasetCategoryReadListItem
-    # workflow_stage: WorkflowStageReadListItem
-    record_assets: list[RecordAssetReadDetailEmbedded]
     related_to_records: list[
         tuple[LocalizableDraftDescription, SurveyRelatedRecordReadEmbedded]
     ]

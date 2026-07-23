@@ -60,6 +60,7 @@ from .common import (
     get_pagination_info,
     UPDATE_BASEMAP_JS_SCRIPT,
 )
+from .datalist import get_missions_datalist
 
 logger = logging.getLogger(__name__)
 
@@ -1443,6 +1444,7 @@ routes = [
         methods=["GET"],
         name="list",
     ),
+    Route("/datalist", get_missions_datalist, name="get_datalist"),
     Route(
         "/search",
         get_list_component,

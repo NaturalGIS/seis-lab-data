@@ -337,6 +337,7 @@ async def list_survey_related_records(
     session: AsyncSession,
     initiator: user_schemas.User | None,
     survey_mission_id: identifiers.SurveyMissionId | None = None,
+    project_id: identifiers.ProjectId | None = None,
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
@@ -351,6 +352,7 @@ async def list_survey_related_records(
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     kwargs = dict(
         survey_mission_id=survey_mission_id,
+        project_id=project_id,
         page=page,
         page_size=page_size,
         include_total=include_total,

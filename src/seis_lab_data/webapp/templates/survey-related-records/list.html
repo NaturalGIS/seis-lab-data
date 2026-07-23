@@ -2,6 +2,7 @@
 {% import "macros.html" as macros %}
 {% from "macros/checkbox.html" import search_checkbox  %}
 {% from "macros/select.html" import search_select %}
+{% from "macros/datalist.html" import search_datalist %}
 
 {% block head %}
     {{ super() }}
@@ -93,6 +94,20 @@
             <div class="col mt-1 mb-5">
                 <div class="row collapse" id="advanced-search-controls">
                     <div class="col-4">
+                        {{ search_datalist(
+                              "search-project-datalist",
+                              filter_projects_datalist,
+                              "filterProject",
+                              url_for("survey_related_records:get_list_component"),
+                              _("project") | capitalize
+                        ) }}
+                        {{ search_datalist(
+                              "search-mission-datalist",
+                              filter_missions_datalist,
+                              "filterMission",
+                              url_for("survey_related_records:get_list_component"),
+                              _("mission") | capitalize
+                        ) }}
                         {{ search_select(
                             "search-dataset-category",
                             dataset_categories,

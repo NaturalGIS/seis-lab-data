@@ -31,6 +31,7 @@ from ... import (
 )
 from ...constants import SURVEY_RELATED_RECORD_MAX_RELATED
 from ...operations import (
+    projects as project_ops,
     surveymissions as survey_mission_ops,
     surveyrelatedrecords as survey_related_record_ops,
 )
@@ -44,6 +45,8 @@ from ...tasks import surveyrelatedrecords as record_tasks
 from ...schemas import (
     common as common_schemas,
     identifiers,
+    projects as project_schemas,
+    surveymissions as mission_schemas,
     surveyrelatedrecords as record_schemas,
     webui as webui_schemas,
 )
@@ -57,6 +60,8 @@ from .auth import (
 )
 from .common import (
     build_related_record_compound_name,
+    build_mission_compound_name,
+    build_project_compound_name,
     get_id_from_request_path,
     get_page_from_request_params,
     get_pagination_info,
@@ -998,6 +1003,24 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
         settings: config.SeisLabDataSettings = request.state.settings
         user = request.user if request.user.is_authenticated else None
         async with settings.get_db_session_maker()() as session:
+            some_db_projects = (
+                await project_ops.list_projects(
+                    session, initiator=user, include_total=False
+                )
+            )[0]
+            some_projects = [
+                project_schemas.ProjectReadListItem.from_db_instance(i)
+                for i in some_db_projects
+            ]
+            some_db_missions = (
+                await survey_mission_ops.list_survey_missions(
+                    session, initiator=user, include_total=False
+                )
+            )[0]
+            some_missions = [
+                mission_schemas.SurveyMissionReadListItem.from_db_instance(i)
+                for i in some_db_missions
+            ]
             dataset_category_filter_options = []
             for (
                 dataset_category
@@ -1065,6 +1088,12 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
                 "pagination": pagination_info,
                 "dataset_categories": dataset_category_filter_options,
                 "workflow_stages": workflow_stage_filter_options,
+                "filter_projects_datalist": [
+                    build_project_compound_name(request, i) for i in some_projects
+                ],
+                "filter_missions_datalist": [
+                    build_mission_compound_name(request, i) for i in some_missions
+                ],
                 "map_bounds": {
                     "min_lon": min_lon,
                     "min_lat": min_lat,

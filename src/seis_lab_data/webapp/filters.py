@@ -3,6 +3,7 @@ import datetime as dt
 import json
 import logging
 import uuid
+import re
 from typing import (
     Mapping,
     Protocol,
@@ -232,6 +233,41 @@ class SurveyMissionIdFilter(_StringFilter):
         return ""
 
 
+_compound_name_id_regex = re.compile(r" (?P<id>\w{8}-\w{4}-\w{4}-\w{4}-\w{12})$")
+
+
+@dataclasses.dataclass
+class ProjectCompoundNameFilter(_StringFilter):
+    internal_name: str = "project_id"
+    public_name: str = "filterProject"
+    value: identifiers.ProjectId | None
+
+    @classmethod
+    def from_params(cls, params: Mapping[str, str]) -> Self:
+        raw_value = params.get(cls.public_name, "")
+        if (re_obj := _compound_name_id_regex.search(raw_value)) is not None:
+            return cls(value=identifiers.ProjectId(uuid.UUID(re_obj.groupdict()["id"])))
+        else:
+            return cls(value=None)
+
+
+@dataclasses.dataclass
+class SurveyMissionCompoundNameFilter(_StringFilter):
+    internal_name: str = "survey_mission_id"
+    public_name: str = "filterMission"
+    value: identifiers.SurveyMissionId | None
+
+    @classmethod
+    def from_params(cls, params: Mapping[str, str]) -> Self:
+        raw_value = params.get(cls.public_name, "")
+        if (re_obj := _compound_name_id_regex.search(raw_value)) is not None:
+            return cls(
+                value=identifiers.SurveyMissionId(uuid.UUID(re_obj.groupdict()["id"]))
+            )
+        else:
+            return cls(value=None)
+
+
 @dataclasses.dataclass
 class SearchNameFilter(LanguageDependantListFilter):
     internal_name: str
@@ -428,6 +464,8 @@ class SurveyRelatedRecordListFilters(ItemListFilters):
             DatasetCategoryFilter,
             WorkflowStageFilter,
             SurveyMissionIdFilter,
+            SurveyMissionCompoundNameFilter,
+            ProjectCompoundNameFilter,
             PathFragmentFilter,
         ):
             try:
