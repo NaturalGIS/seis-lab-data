@@ -346,6 +346,7 @@ async def list_survey_related_records(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    asset_media_type_filter: str | None = None,
     only_internal: bool = False,
     dataset_category_id: identifiers.DatasetCategoryId | None = None,
     workflow_stage_id: identifiers.WorkflowStageId | None = None,
@@ -363,6 +364,7 @@ async def list_survey_related_records(
         asset_path_fragment_filter=asset_path_fragment_filter,
         dataset_category_id=dataset_category_id,
         workflow_stage_id=workflow_stage_id,
+        asset_media_type_filter=asset_media_type_filter,
     )
     if initiator is None:
         return await record_queries.list_published_survey_related_records(

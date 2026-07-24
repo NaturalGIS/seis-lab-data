@@ -216,6 +216,12 @@ class PathFragmentFilter(_StringFilter):
 
 
 @dataclasses.dataclass
+class MediaTypeFilter(_StringFilter):
+    internal_name: str = "asset_media_type_filter"
+    public_name: str = "filterMediaType"
+
+
+@dataclasses.dataclass
 class ProjectIdFilter(_StringFilter):
     internal_name: str = "project_id"
     public_name: str = "projectId"
@@ -462,6 +468,7 @@ class SurveyRelatedRecordListFilters(ItemListFilters):
             PtNameFilter,
             OnlyInternalFilter,
             DatasetCategoryFilter,
+            MediaTypeFilter,
             WorkflowStageFilter,
             SurveyMissionIdFilter,
             SurveyMissionCompoundNameFilter,

@@ -122,6 +122,13 @@
                                 url_for("survey_related_records:get_list_component"),
                                 _("workflow stage") | capitalize
                         ) }}
+                        {{ search_datalist(
+                              "search-asset-media-type",
+                              filter_media_types_datalist,
+                              "filterMediaType",
+                              url_for("survey_related_records:get_list_component"),
+                              _("media type") | capitalize
+                        ) }}
                         {{ macros.render_temporal_extent_search_component(
                                         url_for("survey_related_records:get_list_component"),
                                         _("Temporal extent begin"),

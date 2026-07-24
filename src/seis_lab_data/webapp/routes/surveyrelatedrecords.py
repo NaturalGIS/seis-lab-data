@@ -39,6 +39,7 @@ from ...permissions import surveyrelatedrecords as record_permissions
 from ...db import models
 from ...db.queries import (
     datasetcategories as category_queries,
+    recordassets as asset_queries,
     workflowstages as stage_queries,
 )
 from ...tasks import surveyrelatedrecords as record_tasks
@@ -1021,6 +1022,8 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
                 mission_schemas.SurveyMissionReadListItem.from_db_instance(i)
                 for i in some_db_missions
             ]
+            some_media_types = await asset_queries.list_media_types(session)
+
             dataset_category_filter_options = []
             for (
                 dataset_category
@@ -1094,6 +1097,7 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
                 "filter_missions_datalist": [
                     build_mission_compound_name(request, i) for i in some_missions
                 ],
+                "filter_media_types_datalist": some_media_types,
                 "map_bounds": {
                     "min_lon": min_lon,
                     "min_lat": min_lat,
