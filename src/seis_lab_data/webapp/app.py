@@ -45,6 +45,7 @@ from .routes import (
     auth,
     base,
 )
+from .routes import datalist
 from .routes.projects import routes as projects_routes
 from .routes.surveymissions import routes as missions_routes
 from .routes.surveyrelatedrecords import routes as records_routes
@@ -152,6 +153,11 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                 "/workflow-stages",
                 name="workflow_stages",
                 routes=workflow_stage_routes,
+            ),
+            Route(
+                "/asset-media-types",
+                datalist.get_registered_media_types,
+                name="asset_media_types",
             ),
         ],
         lifespan=lifespan,

@@ -1,0 +1,25 @@
+{% macro search_datalist(
+    id,
+    options,
+    bind_signal,
+    search_url,
+    label
+) %}
+    <div class="row mb-3">
+        <datalist id="{{ id ~ '-datalist' }}">
+            {% for value in options %}
+                <option value="{{ value }}"></option>
+            {% endfor %}
+        </datalist>
+        <div class="col">
+            <label class="form-label" for="{{ id }}">{{ label }}</label>
+            <input
+                id="{{ id }}"
+                list="{{ id ~ '-datalist' }}"
+                class="form-control"
+                data-bind="{{ bind_signal }}"
+                data-on:input__debounce.200ms="@get('{{ search_url }}')"
+            >
+        </div>
+    </div>
+{% endmacro %}

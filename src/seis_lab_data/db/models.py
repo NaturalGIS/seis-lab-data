@@ -407,6 +407,7 @@ class RecordAsset(SQLModel, table=True):
         foreign_key="surveyrelatedrecord.id", ondelete="CASCADE", index=True
     )
     relative_path: str = ""
+    media_type: str | None = Field(default=None)
     links: Annotated[list[Link], PlainSerializer(serialize_localizable_field)] = Field(
         sa_column=Column(JSONB), default_factory=list
     )

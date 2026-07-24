@@ -141,11 +141,16 @@ async def list_survey_missions(
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    only_internal: bool = False,
 ) -> tuple[list[models.SurveyMission], int | None]:
     """Return all survey missions regardless of status. Intended for admin use."""
     statement = _build_survey_mission_statement(
         project_id, en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
     )
+    if only_internal:
+        statement = statement.where(
+            models.SurveyMission.status != SurveyMissionStatus.PUBLISHED
+        )
     limit = page_size
     offset = page_size * (page - 1)
     return await _exec_survey_mission_list(

@@ -1,0 +1,25 @@
+{% macro search_select(
+    id,
+    options,
+    bind_signal,
+    search_url,
+    label,
+    selected_option=None
+) %}
+    <div class="row mb-3">
+        <div class="col">
+            <label class="form-label" for="{{ id }}">{{ label }}</label>
+            <select
+                    id="{{ id }}"
+                    class="form-select"
+                    data-bind="{{ bind_signal }}"
+                    data-on:change="@get('{{ search_url }}')"
+            >
+                <option value="all">{{ _("all") | capitalize }}</option>
+                {% for option in options %}
+                    <option{% if option[0] == selected_option %} selected{% endif %} value="{{ option[0] }}">{{ option[1] }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+{% endmacro %}

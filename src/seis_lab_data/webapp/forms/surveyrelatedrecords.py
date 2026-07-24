@@ -49,6 +49,7 @@ class AssetCreateForm(Form):
     asset_id = HiddenField("asset_id", default=_generate_new_asset_id)
     asset_name = FormField(NameForm, name="name")
     asset_description = FormField(DescriptionForm, name="description")
+    media_type = StringField(_("media type"))
     relative_path = StringField(
         _("relative path"),
         description=_(
@@ -299,6 +300,7 @@ class SurveyRelatedRecordCreateForm(_SurveyRelatedRecordForm):
                         "id": None,
                         "name": {**ass.asset_name.data},
                         "description": {**ass.asset_description.data},
+                        "media_type": ass.media_type.data,
                         "relative_path": ass.relative_path.data,
                         "links": [
                             {
@@ -369,6 +371,7 @@ class SurveyRelatedRecordUpdateForm(_SurveyRelatedRecordForm):
                         "id": None,
                         "name": {**ass.asset_name.data},
                         "description": {**ass.asset_description.data},
+                        "media_type": ass.media_type.data,
                         "relative_path": ass.relative_path.data,
                         "links": [
                             {

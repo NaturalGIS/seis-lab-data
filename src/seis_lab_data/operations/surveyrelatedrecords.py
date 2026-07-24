@@ -337,6 +337,7 @@ async def list_survey_related_records(
     session: AsyncSession,
     initiator: user_schemas.User | None,
     survey_mission_id: identifiers.SurveyMissionId | None = None,
+    project_id: identifiers.ProjectId | None = None,
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
@@ -345,9 +346,14 @@ async def list_survey_related_records(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    asset_media_type_filter: str | None = None,
+    only_internal: bool = False,
+    dataset_category_id: identifiers.DatasetCategoryId | None = None,
+    workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     kwargs = dict(
         survey_mission_id=survey_mission_id,
+        project_id=project_id,
         page=page,
         page_size=page_size,
         include_total=include_total,
@@ -356,6 +362,9 @@ async def list_survey_related_records(
         spatial_intersect=spatial_intersect,
         temporal_extent=temporal_extent,
         asset_path_fragment_filter=asset_path_fragment_filter,
+        dataset_category_id=dataset_category_id,
+        workflow_stage_id=workflow_stage_id,
+        asset_media_type_filter=asset_media_type_filter,
     )
     if initiator is None:
         return await record_queries.list_published_survey_related_records(
@@ -364,6 +373,7 @@ async def list_survey_related_records(
     elif not {constants.ROLE_ADMIN, constants.ROLE_SYSTEM_ADMIN}.isdisjoint(
         initiator.roles
     ):
+        kwargs.update(only_internal=only_internal)
         return await record_queries.list_survey_related_records(session, **kwargs)
     else:
         return await record_queries.list_accessible_survey_related_records(

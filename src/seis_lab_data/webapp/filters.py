@@ -2,6 +2,8 @@ import dataclasses
 import datetime as dt
 import json
 import logging
+import uuid
+import re
 from typing import (
     Mapping,
     Protocol,
@@ -11,6 +13,7 @@ from typing_extensions import Self
 
 import shapely
 
+from ..schemas import identifiers
 from ..schemas.filters import TemporalExtentFilterValue
 
 logger = logging.getLogger(__name__)
@@ -66,6 +69,23 @@ class TemporalExtentFilter(SimpleListFilter):
         if self.value.end:
             result += f"&temporalExtentEnd={self.value.end.strftime('%Y-%m-%d')}"
         return result[1:] if result.startswith("&") else result
+
+
+@dataclasses.dataclass
+class OnlyInternalFilter(SimpleListFilter):
+    value: bool
+    internal_name = "only_internal"
+    public_name: str = "filterOnlyInternal"
+
+    @classmethod
+    def from_params(cls, params: Mapping[str, str]) -> Self:
+        return cls(value=bool(params.get(cls.public_name, False)))
+
+    def serialize_to_query_string(self) -> str:
+        if self.value:
+            return f"{self.public_name}={self.value}"
+        else:
+            return ""
 
 
 @dataclasses.dataclass
@@ -153,21 +173,52 @@ class PtNameFilter(_StringFilter):
 
 
 @dataclasses.dataclass
-class DatasetCategoryFilter(_StringFilter):
-    internal_name: str = "dataset_category_filter"
-    public_name: str = "dataset_category"
+class DatasetCategoryFilter(SimpleListFilter):
+    value: identifiers.DatasetCategoryId | None
+    internal_name: str = "dataset_category_id"
+    public_name: str = "filterDatasetCategory"
+
+    @classmethod
+    def from_params(cls, params: Mapping[str, str]) -> Self:
+        if (raw_value := params.get(cls.public_name)) is not None:
+            parsed = identifiers.DatasetCategoryId(uuid.UUID(raw_value))
+        else:
+            parsed = None
+        logger.debug(f"inside DatasetCategoryFilter.from_params() - {locals()=}")
+        return cls(value=parsed)
+
+    def serialize_to_query_string(self) -> str:
+        return f"{self.public_name}={str(self.value)}" if self.value else ""
 
 
 @dataclasses.dataclass
-class WorkflowStageFilter(_StringFilter):
-    internal_name: str = "workflow_stage_filter"
-    public_name: str = "workflow_stage"
+class WorkflowStageFilter(SimpleListFilter):
+    value: identifiers.WorkflowStageId | None
+    internal_name: str = "workflow_stage_id"
+    public_name: str = "filterWorkflowStage"
+
+    @classmethod
+    def from_params(cls, params: Mapping[str, str]) -> Self:
+        if (raw_value := params.get(cls.public_name)) is not None:
+            parsed = identifiers.WorkflowStageId(uuid.UUID(raw_value))
+        else:
+            parsed = None
+        return cls(value=parsed)
+
+    def serialize_to_query_string(self) -> str:
+        return f"{self.public_name}={str(self.value)}" if self.value else ""
 
 
 @dataclasses.dataclass
 class PathFragmentFilter(_StringFilter):
     internal_name: str = "asset_path_fragment_filter"
     public_name: str = "assetPathFragment"
+
+
+@dataclasses.dataclass
+class MediaTypeFilter(_StringFilter):
+    internal_name: str = "asset_media_type_filter"
+    public_name: str = "filterMediaType"
 
 
 @dataclasses.dataclass
@@ -186,6 +237,41 @@ class SurveyMissionIdFilter(_StringFilter):
 
     def serialize_to_query_string(self) -> str:
         return ""
+
+
+_compound_name_id_regex = re.compile(r" (?P<id>\w{8}-\w{4}-\w{4}-\w{4}-\w{12})$")
+
+
+@dataclasses.dataclass
+class ProjectCompoundNameFilter(_StringFilter):
+    internal_name: str = "project_id"
+    public_name: str = "filterProject"
+    value: identifiers.ProjectId | None
+
+    @classmethod
+    def from_params(cls, params: Mapping[str, str]) -> Self:
+        raw_value = params.get(cls.public_name, "")
+        if (re_obj := _compound_name_id_regex.search(raw_value)) is not None:
+            return cls(value=identifiers.ProjectId(uuid.UUID(re_obj.groupdict()["id"])))
+        else:
+            return cls(value=None)
+
+
+@dataclasses.dataclass
+class SurveyMissionCompoundNameFilter(_StringFilter):
+    internal_name: str = "survey_mission_id"
+    public_name: str = "filterMission"
+    value: identifiers.SurveyMissionId | None
+
+    @classmethod
+    def from_params(cls, params: Mapping[str, str]) -> Self:
+        raw_value = params.get(cls.public_name, "")
+        if (re_obj := _compound_name_id_regex.search(raw_value)) is not None:
+            return cls(
+                value=identifiers.SurveyMissionId(uuid.UUID(re_obj.groupdict()["id"]))
+            )
+        else:
+            return cls(value=None)
 
 
 @dataclasses.dataclass
@@ -237,7 +323,9 @@ class ItemListFilters(Protocol):
         return f"?{result}" if result != "" else ""
 
     def as_kwargs(self) -> dict:
-        return {f.internal_name: f.value for f in self.filters.values()}
+        return {
+            f.internal_name: f.value for f in self.filters.values() if f.value != ""
+        }
 
 
 @dataclasses.dataclass
@@ -316,6 +404,7 @@ class ProjectListFilters(ItemListFilters):
         filters: dict[str, SimpleListFilter | LanguageDependantListFilter] = {}
         for simple_type in (
             BoundingBoxFilter,
+            OnlyInternalFilter,
             TemporalExtentFilter,
             EnNameFilter,
             PtNameFilter,
@@ -346,9 +435,8 @@ class SurveyMissionListFilters(ItemListFilters):
             BoundingBoxFilter,
             TemporalExtentFilter,
             EnNameFilter,
+            OnlyInternalFilter,
             PtNameFilter,
-            DatasetCategoryFilter,
-            WorkflowStageFilter,
             ProjectIdFilter,
         ):
             try:
@@ -378,9 +466,13 @@ class SurveyRelatedRecordListFilters(ItemListFilters):
             TemporalExtentFilter,
             EnNameFilter,
             PtNameFilter,
+            OnlyInternalFilter,
             DatasetCategoryFilter,
+            MediaTypeFilter,
             WorkflowStageFilter,
             SurveyMissionIdFilter,
+            SurveyMissionCompoundNameFilter,
+            ProjectCompoundNameFilter,
             PathFragmentFilter,
         ):
             try:

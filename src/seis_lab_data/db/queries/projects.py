@@ -125,11 +125,14 @@ async def list_projects(
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    only_internal: bool = False,
 ) -> tuple[list[models.Project], int | None]:
-    """Return all projects regardless of status. Intended for admin use."""
+    """Return all projects. Intended for admin use."""
     statement = _build_project_statement(
         en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
     )
+    if only_internal:
+        statement = statement.where(models.Project.status != ProjectStatus.PUBLISHED)
     limit = page_size
     offset = page_size * (page - 1)
     return await _exec_project_list(session, statement, limit, offset, include_total)

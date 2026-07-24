@@ -57,7 +57,7 @@ async def list_asset_discovery_configurations(
     statement = (
         select(models.AssetDiscoveryConfiguration)
         .options(*_SELECT_IN_LOAD_OPTIONS)
-        .order_by(models.AssetDiscoveryConfiguration.name.asc())
+        .order_by(models.AssetDiscoveryConfiguration.name)
     )
     if name_filter is not None:
         statement = statement.where(
@@ -84,7 +84,7 @@ async def collect_all_asset_discovery_configurations(
     statement = (
         select(models.AssetDiscoveryConfiguration)
         .options(*_SELECT_IN_LOAD_OPTIONS)
-        .order_by(models.AssetDiscoveryConfiguration.name.asc())
+        .order_by(models.AssetDiscoveryConfiguration.name)
     )
     if name_filter is not None:
         statement = statement.where(

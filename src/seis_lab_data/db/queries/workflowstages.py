@@ -3,7 +3,10 @@ import uuid
 from typing import Literal
 
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
+from sqlmodel import (
+    func,
+    select,
+)
 
 from ...db import models
 from .common import _get_total_num_records
@@ -22,7 +25,7 @@ async def list_workflow_stages(
     limit = page_size
     offset = page_size * (page - 1)
     statement = select(models.WorkflowStage).order_by(
-        models.WorkflowStage.name["en"].astext.desc()
+        models.WorkflowStage.name["en"].astext
     )
     if en_name_filter is not None:
         statement = statement.where(
@@ -46,8 +49,8 @@ async def collect_all_workflow_stages(
     order_by: Literal["name_en", "name_pt"] = "name_en",
 ) -> list[models.WorkflowStage]:
     order_by_clause = {
-        "name_pt": models.WorkflowStage.name["pt"].astext.desc(),
-    }.get(order_by, models.WorkflowStage.name["en"].astext.desc())
+        "name_pt": func.lower(models.WorkflowStage.name["pt"].astext),
+    }.get(order_by, func.lower(models.WorkflowStage.name["en"].astext))
 
     statement = select(models.WorkflowStage).order_by(order_by_clause)
     if en_name_filter is not None:
