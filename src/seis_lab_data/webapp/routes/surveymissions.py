@@ -812,6 +812,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                         en=af.asset_description.en.data,
                         pt=af.asset_description.pt.data,
                     ),
+                    media_type=af.media_type.data,
                     relative_path=af.relative_path.data,
                     links=[
                         common_schemas.LinkSchema(
