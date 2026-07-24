@@ -81,6 +81,8 @@ async def _get_survey_mission_details(
     survey_mission_id = get_id_from_request_path(
         request, "survey_mission_id", identifiers.SurveyMissionId
     )
+    filter_kwargs = survey_related_records_list_filters.as_kwargs()
+    del filter_kwargs["survey_mission_id"]
     async with settings.get_db_session_maker()() as session:
         try:
             survey_mission = await survey_mission_ops.get_survey_mission(
@@ -105,7 +107,7 @@ async def _get_survey_mission_details(
             include_total=True,
             page=records_current_page,
             page_size=settings.pagination_page_size,
-            **survey_related_records_list_filters.as_kwargs(),
+            **filter_kwargs,
         )
     return webui_schemas.SurveyMissionDetails(
         item=webui_schemas.SurveyMissionReadDetail.from_db_instance(survey_mission),

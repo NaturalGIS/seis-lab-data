@@ -7,6 +7,7 @@ from datastar_py.starlette import DatastarResponse
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
+from ...db.queries import recordassets as asset_queries
 from ...operations import (
     projects as project_ops,
     surveymissions as mission_ops,
@@ -161,4 +162,30 @@ async def get_records_datalist(request: Request) -> DatastarResponse:
                 for i in serialized_items
             ],
         )
+    )
+
+
+async def get_registered_media_types(request: Request) -> DatastarResponse:
+    """Provides existing media_types for building datalists.
+
+    This route expects to be called via datastar @get and therefore tries
+    to collect relevant signals from a "datastar" query param, which is a
+    JSON object.
+    """
+    if (target_datalist_id := request.query_params.get("target")) is None:
+        raise HTTPException(status_code=400, detail="target is required")
+    try:
+        search_value = json.loads(request.query_params.get("datastar")).get(
+            "filterMediaType"
+        )
+    except (TypeError, KeyError) as err:
+        raise HTTPException(
+            status_code=400, detail="Could not retrieve search value"
+        ) from err
+    async with request.state.settings.get_db_session_maker()() as session:
+        media_types = await asset_queries.list_media_types(
+            session, name_filter=search_value
+        )
+    return DatastarResponse(
+        _event_streamer(target_datalist_id, [i for i in media_types if i])
     )
