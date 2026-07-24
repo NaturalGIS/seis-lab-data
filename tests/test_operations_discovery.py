@@ -366,8 +366,8 @@ async def test_discovery_survives_extraction_failure(
 async def test_discovery_passes_temporal_extent_through(
     db_session_maker, admin_user, discovery_env, monkeypatch
 ):
-    # no current extractor emits temporal dates (KMALL/SEG-Y are stubs), so a
-    # faked dispatcher pins the passthrough until they land
+    # KMALL and SEG-Y do emit temporal dates, but a faked dispatcher keeps this
+    # test about the passthrough itself rather than about any one extractor
     target = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/dated.tif"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(b"content is irrelevant, dispatch is faked")

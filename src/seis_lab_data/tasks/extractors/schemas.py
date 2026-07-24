@@ -94,4 +94,34 @@ class KmallMetadata(ExtractedMetadata):
         return summary[: constants.DESCRIPTION_MAX_LENGTH]
 
 
-ExtractionResult = RasterMetadata | VectorMetadata | KmallMetadata
+class SegyMetadata(ExtractedMetadata):
+    trace_count: int | None = None
+    samples_per_trace: int | None = None
+    # the raw header value, deliberately unitless: time files store microseconds
+    # here but depth-domain files store a length (50 == 0.05 m) and rev0/1 has
+    # no flag to tell them apart
+    sample_interval: int | None = None
+    sample_format: str | None = None
+    coordinate_units: str | None = None
+    coverage: str = "full"
+
+    def describe(self) -> str:
+        summary = "Auto-extracted: SEG-Y"
+        if self.trace_count is not None:
+            summary += f", {self.trace_count} trace(s)"
+        if self.samples_per_trace is not None:
+            summary += f", {self.samples_per_trace} sample(s) per trace"
+        if self.sample_interval is not None:
+            summary += f", sample interval {self.sample_interval} (raw)"
+        if self.sample_format is not None:
+            summary += f", {self.sample_format}"
+        if self.coordinate_units is not None:
+            summary += f", coordinates in {self.coordinate_units}"
+        summary += f". CRS: {_format_crs(self.epsg, self.crs_name)}."
+        summary += _native_bbox_clause(self.bbox_native)
+        if self.coverage == "partial":
+            summary += " Coordinate sampling was partly unreliable."
+        return summary[: constants.DESCRIPTION_MAX_LENGTH]
+
+
+ExtractionResult = RasterMetadata | VectorMetadata | KmallMetadata | SegyMetadata

@@ -29,6 +29,9 @@ from seis_lab_data.tasks.extractors.gdal_vector import (  # noqa: E402
 from seis_lab_data.tasks.extractors.kmall import (  # noqa: E402
     extract_kmall_metadata,
 )
+from seis_lab_data.tasks.extractors.segy import (  # noqa: E402
+    extract_segy_metadata,
+)
 
 gdal.UseExceptions()
 
@@ -202,13 +205,6 @@ def test_dispatch_ignores_sidecars(tmp_path, suffix):
     sidecar = tmp_path / f"points{suffix}"
     sidecar.write_bytes(b"\x00")
     assert dispatch.dispatch_extractor(sidecar) is None
-
-
-@pytest.mark.parametrize("suffix", [".sgy", ".segy"])
-def test_dispatch_stubs_return_none(tmp_path, suffix):
-    stub = tmp_path / f"survey{suffix}"
-    stub.write_bytes(b"\x00")
-    assert dispatch.dispatch_extractor(stub) is None
 
 
 def test_dispatch_unknown_extension(tmp_path):
@@ -455,3 +451,716 @@ def test_kmall_describe(tmp_path):
     assert "position fix(es)" in text
     assert "EPSG:4326" in text
     assert len(text) <= 500
+
+
+# SEG-Y builders: tiny files with the real layout (3200-byte textual header +
+# 400-byte binary header + fixed-length traces), big-endian by default. Day 272
+# of 2024 is 2024-09-28, matching the archive's survey dates.
+_INT32_MIN = -(2**31)
+_INT32_MAX = 2**31 - 1
+
+
+def _segy_binary_header(ns, sample_format, interval, revision, n_ext, order):
+    header = bytearray(400)
+    struct.pack_into(order + "H", header, 16, interval)
+    struct.pack_into(order + "H", header, 20, ns)
+    struct.pack_into(order + "H", header, 24, sample_format)
+    header[300] = revision
+    struct.pack_into(order + "h", header, 304, n_ext)
+    return bytes(header)
+
+
+def _segy_trace(
+    ns=4,
+    bytes_per_sample=4,
+    src=(0, 0),
+    cdp=(0, 0),
+    scalco=0,
+    units=1,
+    year=2024,
+    day=272,
+    hour=12,
+    minute=30,
+    second=15,
+    order=">",
+):
+    header = bytearray(240)
+    struct.pack_into(order + "h", header, 70, scalco)
+    struct.pack_into(order + "ii", header, 72, *src)
+    struct.pack_into(order + "H", header, 88, units)
+    struct.pack_into(order + "HHHHH", header, 156, year, day, hour, minute, second)
+    struct.pack_into(order + "ii", header, 180, *cdp)
+    return bytes(header) + b"\x00" * (ns * bytes_per_sample)
+
+
+def _write_segy(
+    path,
+    traces,
+    ns=4,
+    sample_format=5,
+    interval=250,
+    revision=1,
+    n_ext=0,
+    order=">",
+    extended=b"",
+    trailer=b"",
+):
+    path.write_bytes(
+        b" " * 3200
+        + _segy_binary_header(ns, sample_format, interval, revision, n_ext, order)
+        + extended
+        + b"".join(traces)
+        + trailer
+    )
+
+
+def test_segy_metres_path(tmp_path):
+    path = tmp_path / "line.sgy"
+    _write_segy(
+        path,
+        [
+            _segy_trace(src=(-50000, 150000), day=272),
+            _segy_trace(src=(-48000, 152000), day=273),
+            _segy_trace(src=(-49000, 151000), day=272),
+        ],
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert isinstance(result, schemas.SegyMetadata)
+    assert result.driver == "SEG-Y"
+    assert result.trace_count == 3
+    assert result.samples_per_trace == 4
+    assert result.sample_interval == 250
+    assert result.sample_format == "ieee-float32"
+    assert result.coordinate_units == "metres"
+    assert result.coverage == "full"
+    # undeclared projected metres: native bbox only, the CRS is never guessed
+    assert result.bbox_native == (-50000.0, 150000.0, -48000.0, 152000.0)
+    assert result.bbox_4326 is None
+    assert result.epsg is None
+    assert result.temporal_extent_begin == dt.date(2024, 9, 28)
+    assert result.temporal_extent_end == dt.date(2024, 9, 29)
+
+
+def test_segy_geographic_degrees(tmp_path):
+    # units=3 with scalco=-10000: raw ints are degrees times 10000
+    path = tmp_path / "line.sgy"
+    _write_segy(
+        path,
+        [
+            _segy_trace(src=(-87500, 422300), scalco=-10000, units=3),
+            _segy_trace(src=(-87000, 422800), scalco=-10000, units=3),
+        ],
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert result.coordinate_units == "degrees"
+    assert result.epsg == 4326
+    assert result.crs_name == "WGS 84"
+    assert result.bbox_4326 == (-8.75, 42.23, -8.7, 42.28)
+    assert result.bbox_native == result.bbox_4326
+
+
+def test_segy_geographic_arc_seconds(tmp_path):
+    # the real CW HAT.sgy shape: units=2, stationary, arc-seconds with a
+    # negative scalar; -8.7385 deg is -31458.6 arc-seconds
+    path = tmp_path / "line.sgy"
+    _write_segy(
+        path,
+        [_segy_trace(src=(-314586, 1520280), scalco=-10, units=2)],
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert result.coordinate_units == "arc-seconds"
+    assert result.epsg == 4326
+    lon_min, lat_min, lon_max, lat_max = result.bbox_4326
+    assert lon_min == lon_max == pytest.approx(-8.7385)
+    assert lat_min == lat_max == pytest.approx(42.23)
+
+
+def test_segy_dms_units_skipped(tmp_path):
+    # packed DDDMMSS.ss is never converted in v1; storing the packed integers
+    # verbatim would fake a bbox
+    path = tmp_path / "line.sgy"
+    _write_segy(path, [_segy_trace(src=(83030450, 421512), units=4)])
+
+    result = extract_segy_metadata(path)
+
+    assert result.coordinate_units == "dms"
+    assert result.bbox_native is None
+    assert result.bbox_4326 is None
+    assert result.coverage == "full"
+
+
+def test_segy_scalco_multiplies(tmp_path):
+    path = tmp_path / "line.sgy"
+    _write_segy(path, [_segy_trace(src=(-5000, 15000), scalco=10)])
+
+    result = extract_segy_metadata(path)
+
+    assert result.bbox_native == (-50000.0, 150000.0, -50000.0, 150000.0)
+
+
+def test_segy_cdp_sentinel_fill_ignored(tmp_path):
+    # real archive traces carry INT32_MIN fill in the CDP fields while src holds
+    # the good coordinates. The scalar matters: scaled by -10000 a sentinel
+    # becomes -214748.36, well inside the plausible-metres range, so only the
+    # sentinel guard itself keeps it out of the bbox
+    path = tmp_path / "line.sgy"
+    _write_segy(
+        path,
+        [
+            _segy_trace(src=(-500000000, 1500000000), scalco=-10000),
+            _segy_trace(src=(0, 0), cdp=(_INT32_MIN, _INT32_MIN), scalco=-10000),
+            _segy_trace(src=(_INT32_MAX, _INT32_MAX), scalco=-10000),
+        ],
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert result.bbox_native == (-50000.0, 150000.0, -50000.0, 150000.0)
+    assert result.coverage == "full"
+
+
+def test_segy_src_takes_precedence_over_cdp(tmp_path):
+    # src is the primary source; a divergent cdp feed must be IGNORED, never
+    # merged into the bbox (the KMALL SPO/CPO rule, applied to SEG-Y)
+    path = tmp_path / "line.sgy"
+    _write_segy(
+        path,
+        [
+            _segy_trace(src=(-50000, 150000), cdp=(-90000, 190000)),
+            _segy_trace(src=(-48000, 152000), cdp=(-91000, 191000)),
+        ],
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert result.bbox_native == (-50000.0, 150000.0, -48000.0, 152000.0)
+
+
+def test_segy_cdp_fallback(tmp_path):
+    # chirp/Innomar/sbp populate only src, UHRS both; a src-less trace must
+    # still yield its CDP coordinates
+    path = tmp_path / "line.sgy"
+    _write_segy(path, [_segy_trace(src=(0, 0), cdp=(-50000, 150000))])
+
+    result = extract_segy_metadata(path)
+
+    assert result.bbox_native == (-50000.0, 150000.0, -50000.0, 150000.0)
+
+
+def test_segy_without_coordinates(tmp_path):
+    path = tmp_path / "line.sgy"
+    _write_segy(path, [_segy_trace(), _segy_trace()])
+
+    result = extract_segy_metadata(path)
+
+    assert result.bbox_native is None
+    assert result.bbox_4326 is None
+    assert result.coverage == "full"
+    assert result.temporal_extent_begin == dt.date(2024, 9, 28)
+
+
+def test_segy_mostly_garbage_coordinates_partial(tmp_path):
+    # implausible coordinate magnitudes are the tell of samples landing
+    # mid-trace; above half the samples the coverage is flagged partial, but
+    # the plausible traces still contribute
+    path = tmp_path / "line.sgy"
+    garbage = [_segy_trace(src=(2_000_000_000, 7)) for _ in range(8)]
+    good = [
+        _segy_trace(src=(-50000, 150000)),
+        _segy_trace(src=(-48000, 152000)),
+    ]
+    _write_segy(path, garbage + good)
+
+    result = extract_segy_metadata(path)
+
+    assert result.coverage == "partial"
+    assert result.bbox_native == (-50000.0, 150000.0, -48000.0, 152000.0)
+
+
+def test_segy_two_digit_year_temporal_none(tmp_path):
+    path = tmp_path / "line.sgy"
+    _write_segy(path, [_segy_trace(src=(-50000, 150000), year=24)])
+
+    result = extract_segy_metadata(path)
+
+    assert result.temporal_extent_begin is None
+    assert result.temporal_extent_end is None
+    assert result.bbox_native is not None
+
+
+def test_segy_corrupt_time_fields_skipped(tmp_path):
+    # a single corrupt time field skips only that trace's date and never aborts
+    # the extraction (the KMALL guarantee)
+    path = tmp_path / "line.sgy"
+    _write_segy(
+        path,
+        [
+            _segy_trace(src=(-50000, 150000), hour=99),
+            _segy_trace(src=(-48000, 152000), year=2023, day=366),  # not a leap year
+            _segy_trace(src=(-49000, 151000), day=272),
+        ],
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert result.temporal_extent_begin == dt.date(2024, 9, 28)
+    assert result.temporal_extent_end == dt.date(2024, 9, 28)
+    assert result.bbox_native == (-50000.0, 150000.0, -48000.0, 152000.0)
+
+
+def test_segy_trailing_bytes_tolerated(tmp_path):
+    # a real BSTK file carries a 5,056-byte trailer: floor division ignores it
+    path = tmp_path / "line.sgy"
+    _write_segy(
+        path,
+        [_segy_trace(src=(-50000, 150000)), _segy_trace(src=(-48000, 152000))],
+        trailer=b"\x87" * 100,
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert result.trace_count == 2
+    assert result.coverage == "full"
+    assert result.bbox_native == (-50000.0, 150000.0, -48000.0, 152000.0)
+
+
+def test_segy_zero_samples_partial_metadata(tmp_path):
+    # ns=0 in the binary header leaves no trustworthy trace length; keep the
+    # header facts, never fall back to the unreliable per-trace ns field
+    path = tmp_path / "line.sgy"
+    _write_segy(path, [b"\x00" * 240], ns=0)
+
+    result = extract_segy_metadata(path)
+
+    assert result.samples_per_trace is None
+    assert result.trace_count is None
+    assert result.sample_format == "ieee-float32"
+    assert result.sample_interval == 250
+    assert result.bbox_native is None
+
+
+def test_segy_unknown_format_partial_metadata(tmp_path):
+    path = tmp_path / "line.sgy"
+    _write_segy(path, [_segy_trace()], sample_format=9)
+
+    result = extract_segy_metadata(path)
+
+    assert result.sample_format == "format code 9"
+    assert result.trace_count is None
+    assert result.bbox_native is None
+
+
+def test_segy_little_endian(tmp_path):
+    path = tmp_path / "line.sgy"
+    _write_segy(
+        path,
+        [_segy_trace(src=(-50000, 150000), order="<")],
+        order="<",
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert result.sample_format == "ieee-float32"
+    assert result.samples_per_trace == 4
+    assert result.bbox_native == (-50000.0, 150000.0, -50000.0, 150000.0)
+
+
+def test_segy_rev0_extended_count_ignored(tmp_path):
+    # the rev0 bytes at offset 304 are undefined noise; trusting them would
+    # push data_start past the traces
+    path = tmp_path / "line.sgy"
+    _write_segy(
+        path,
+        [_segy_trace(src=(-50000, 150000)), _segy_trace(src=(-48000, 152000))],
+        revision=0,
+        n_ext=50,
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert result.trace_count == 2
+    assert result.bbox_native == (-50000.0, 150000.0, -48000.0, 152000.0)
+
+
+def test_segy_variable_extended_count_untrusted(tmp_path):
+    # n_ext == -1 means "variable, stanza-terminated" and is not trusted
+    path = tmp_path / "line.sgy"
+    _write_segy(path, [_segy_trace(src=(-50000, 150000))], revision=1, n_ext=-1)
+
+    result = extract_segy_metadata(path)
+
+    assert result.trace_count == 1
+    assert result.bbox_native == (-50000.0, 150000.0, -50000.0, 150000.0)
+
+
+def test_segy_extended_textual_headers(tmp_path):
+    path = tmp_path / "line.sgy"
+    _write_segy(
+        path,
+        [_segy_trace(src=(-50000, 150000)), _segy_trace(src=(-48000, 152000))],
+        revision=1,
+        n_ext=1,
+        extended=b" " * 3200,
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert result.trace_count == 2
+    assert result.bbox_native == (-50000.0, 150000.0, -48000.0, 152000.0)
+
+
+def test_segy_sampling_includes_endpoints(tmp_path):
+    # 150 single-sample traces: only ~100 are sampled, but the first and last
+    # trace (the line endpoints) must always contribute to the bbox
+    path = tmp_path / "line.sgy"
+    first = _segy_trace(ns=1, bytes_per_sample=1, src=(-52000, 148000))
+    middle = [
+        _segy_trace(ns=1, bytes_per_sample=1, src=(-49000, 151000)) for _ in range(148)
+    ]
+    last = _segy_trace(ns=1, bytes_per_sample=1, src=(-45000, 155000))
+    _write_segy(path, [first, *middle, last], ns=1, sample_format=8)
+
+    result = extract_segy_metadata(path)
+
+    assert result.trace_count == 150
+    assert result.sample_format == "int8"
+    assert result.bbox_native == (-52000.0, 148000.0, -45000.0, 155000.0)
+
+
+@pytest.mark.parametrize(
+    "content",
+    [b"", b"tiny", b"\x00" * 4000, b"\xff" * 4000],
+)
+def test_segy_not_a_segy_raises(tmp_path, content):
+    # too small to hold a trace, or a binary header whose format code is
+    # invalid in both byte orders
+    path = tmp_path / "junk.sgy"
+    path.write_bytes(content)
+    with pytest.raises(ValueError):
+        extract_segy_metadata(path)
+
+
+# production holds 925 .SEGY files besides the 68k lowercase ones, so the
+# uppercase variants are pinned here too
+@pytest.mark.parametrize("suffix", [".sgy", ".segy", ".SGY", ".SEGY"])
+def test_dispatch_routes_segy(tmp_path, suffix):
+    path = tmp_path / f"line{suffix}"
+    _write_segy(path, [_segy_trace(src=(-50000, 150000))])
+    assert isinstance(dispatch.dispatch_extractor(path), schemas.SegyMetadata)
+
+
+def test_segy_implausible_span_discards_bbox(tmp_path):
+    # real owf-2025 files exist whose src AND cdp fields hold noise around the
+    # projection origin with sporadic spikes into the millions; the resulting
+    # box spanned thousands of km while coverage still said "full". Rejecting
+    # the outliers instead would leave a small credible box AT the origin,
+    # which is on land in central Portugal, so the whole box goes.
+    path = tmp_path / "line.sgy"
+    _write_segy(
+        path,
+        [
+            _segy_trace(src=(140, 120), scalco=-100),
+            _segy_trace(src=(-240, -330), scalco=-100),
+            _segy_trace(src=(588515700, 600505400), scalco=-100),
+            _segy_trace(src=(-100, -80), scalco=-100),
+        ],
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert result.bbox_native is None
+    assert result.bbox_4326 is None
+    assert result.coverage == "partial"
+    # the rest of the metadata is unaffected and still worth having
+    assert result.trace_count == 4
+    assert result.sample_format == "ieee-float32"
+    assert result.temporal_extent_begin == dt.date(2024, 9, 28)
+
+
+def test_segy_implausible_span_without_any_rejected_value(tmp_path):
+    # the case a garbage-count rule cannot catch: every value stays inside the
+    # per-value plausibility filter, so only the span betrays the noise
+    path = tmp_path / "line.sgy"
+    _write_segy(
+        path,
+        [
+            _segy_trace(src=(140, 120), scalco=-100),
+            _segy_trace(src=(-986000000, -493000000), scalco=-100),
+            _segy_trace(src=(995000000, 497000000), scalco=-100),
+        ],
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert result.bbox_native is None
+    assert result.coverage == "partial"
+
+
+def test_segy_geographic_implausible_span_discards_bbox(tmp_path):
+    # the same protection on the only path that draws a map rectangle
+    path = tmp_path / "line.sgy"
+    _write_segy(
+        path,
+        [
+            _segy_trace(src=(-87500, 422300), scalco=-10000, units=3),
+            _segy_trace(src=(1200000, -600000), scalco=-10000, units=3),
+        ],
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert result.bbox_4326 is None
+    assert result.bbox_native is None
+    assert result.epsg is None  # no CRS claim without a box to attach it to
+    assert result.coverage == "partial"
+
+
+def test_segy_survey_wide_span_is_kept(tmp_path):
+    # a legitimately long line must survive: real files measure up to 61.5 km
+    # and the cap is 200 km, so a 60 km line is still stored
+    path = tmp_path / "line.sgy"
+    _write_segy(
+        path,
+        [
+            _segy_trace(src=(-13000000, 2200000), scalco=-100),
+            _segy_trace(src=(-13000000, 8200000), scalco=-100),
+        ],
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert result.bbox_native == (-130000.0, 22000.0, -130000.0, 82000.0)
+    assert result.coverage == "full"
+
+
+def test_segy_burst_corruption_span_discards_bbox(tmp_path):
+    # the second junk mode the 66k scan found (A7808 ET_SBP): a real ~2.5 km
+    # line with a burst of corrupt-nav traces stretched the box to ~494 km with
+    # garbage_count 0, which the old 500 km cap let through as coverage=full.
+    # The 200 km cap catches it while leaving every real line (<= 61.5 km) alone.
+    path = tmp_path / "line.sgy"
+    _write_segy(
+        path,
+        [
+            _segy_trace(src=(-12198249, 5017758), scalco=-100),  # (-121982, 50177)
+            _segy_trace(src=(-738249, -44428591), scalco=-100),  # (-7382, -444285)
+        ],
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert result.bbox_native is None
+    assert result.coverage == "partial"
+    # the header facts are unaffected and still worth keeping
+    assert result.trace_count == 2
+
+
+def test_segy_low_support_bbox_dropped(tmp_path):
+    # the third junk mode the scan found (A7808 GEOM): a 95-182 GB file where
+    # only 2-3 of 100 sampled traces carry a fix and the rest are coordinate-less.
+    # A box from 3 points covers a sliver of the real line while claiming full
+    # coverage, so it is dropped and the coverage flagged.
+    path = tmp_path / "line.sgy"
+    traces = [_segy_trace(src=(-50000, 150000))] * 3 + [_segy_trace()] * 97
+    _write_segy(path, traces)
+
+    result = extract_segy_metadata(path)
+
+    assert result.trace_count == 100
+    assert result.bbox_native is None
+    assert result.coverage == "partial"
+
+
+def test_segy_low_support_kept_for_small_file(tmp_path):
+    # the guard: a genuinely small file with only a few traces keeps its box even
+    # when only some carry a fix - too few samples to trust the support ratio
+    path = tmp_path / "line.sgy"
+    traces = [
+        _segy_trace(src=(-50000, 150000)),
+        _segy_trace(src=(-48000, 152000)),
+    ] + [_segy_trace()] * 6
+    _write_segy(path, traces)
+
+    result = extract_segy_metadata(path)
+
+    assert result.trace_count == 8
+    assert result.bbox_native == (-50000.0, 150000.0, -48000.0, 152000.0)
+    assert result.coverage == "full"
+
+
+def test_segy_units_unset_treated_as_metres(tmp_path):
+    # the real raw-file case: the UHRS rev1.segy files leave units at 0
+    path = tmp_path / "line.sgy"
+    _write_segy(path, [_segy_trace(src=(-50000, 150000), units=0)])
+
+    result = extract_segy_metadata(path)
+
+    assert result.coordinate_units == "unset"
+    assert result.bbox_native == (-50000.0, 150000.0, -50000.0, 150000.0)
+    assert result.bbox_4326 is None
+    assert result.epsg is None
+
+
+def test_segy_geographic_out_of_range_rejected(tmp_path):
+    # the plausibility filter guards the only path that draws a map rectangle:
+    # a trace claiming degrees but carrying projected metres must not become a
+    # bbox somewhere off the planet
+    path = tmp_path / "line.sgy"
+    _write_segy(
+        path,
+        [
+            _segy_trace(src=(-87500, 422300), scalco=-10000, units=3),
+            _segy_trace(src=(-500000, 1500000), units=3),  # metres in a degrees file
+        ],
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert result.bbox_4326 == (-8.75, 42.23, -8.75, 42.23)
+    assert result.coverage == "full"  # one garbage trace out of two is not "> half"
+
+
+def test_segy_coverage_boundary_at_exactly_half(tmp_path):
+    # exactly half the samples garbage stays "full"; one more tips it to partial
+    path = tmp_path / "line.sgy"
+    good = [_segy_trace(src=(-50000, 150000)), _segy_trace(src=(-48000, 152000))]
+    garbage = [_segy_trace(src=(2_000_000_000, 7)) for _ in range(2)]
+    _write_segy(path, good + garbage)
+    assert extract_segy_metadata(path).coverage == "full"
+
+    _write_segy(path, good + garbage + [_segy_trace(src=(2_000_000_000, 7))])
+    assert extract_segy_metadata(path).coverage == "partial"
+
+
+def test_segy_extended_headers_not_fitting_are_ignored(tmp_path):
+    # a declared extended-header count that would leave no room for a trace is
+    # garbage; trusting it would push data_start past the end of the file and
+    # yield a negative trace_count
+    path = tmp_path / "line.sgy"
+    _write_segy(
+        path,
+        [_segy_trace(src=(-50000, 150000))],
+        revision=1,
+        n_ext=99,  # 99 * 3200 bytes that are not in the file
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert result.trace_count == 1
+    assert result.bbox_native == (-50000.0, 150000.0, -50000.0, 150000.0)
+
+
+def test_segy_little_endian_revision_word(tmp_path):
+    # a little-endian writer storing the rev1-style uint16 0x0100 puts the major
+    # number in the SECOND byte; reading a single byte would see revision 0 and
+    # then ignore the extended header, shifting the whole trace grid
+    path = tmp_path / "line.sgy"
+    header = bytearray(_segy_binary_header(4, 5, 250, 1, 1, "<"))
+    header[300:302] = b"\x00\x01"
+    path.write_bytes(
+        b" " * 3200
+        + bytes(header)
+        + b" " * 3200
+        + _segy_trace(src=(-50000, 150000), order="<")
+        + _segy_trace(src=(-48000, 152000), order="<")
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert result.trace_count == 2
+    assert result.bbox_native == (-50000.0, 150000.0, -48000.0, 152000.0)
+
+
+def test_segy_rev2_extra_trace_headers_partial_metadata(tmp_path):
+    # rev2 lets each trace carry additional 240-byte headers; the trace length
+    # is then unknown to us, and a desynced grid would store a confidently
+    # wrong bbox, so only the header facts survive
+    path = tmp_path / "line.sgy"
+    header = bytearray(_segy_binary_header(4, 5, 250, 2, 0, ">"))
+    struct.pack_into(">i", header, 306, 1)
+    path.write_bytes(
+        b" " * 3200
+        + bytes(header)
+        + b"".join(
+            _segy_trace(src=src) + b"\x00" * 240
+            for src in ((-50000, 150000), (-48000, 152000))
+        )
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert result.sample_format == "ieee-float32"
+    assert result.trace_count is None
+    assert result.bbox_native is None
+
+
+def test_segy_truncated_binary_header_raises(tmp_path):
+    # a file that ends inside the binary header must still raise ValueError
+    # rather than let a struct error escape
+    path = tmp_path / "line.sgy"
+    _write_segy(path, [_segy_trace(src=(-50000, 150000))])
+    truncated = tmp_path / "truncated.sgy"
+    truncated.write_bytes(path.read_bytes()[:3400])
+
+    with pytest.raises(ValueError):
+        extract_segy_metadata(truncated)
+
+
+def test_segy_trace_count_zero(tmp_path):
+    # a file holding the headers but less than one full trace
+    path = tmp_path / "line.sgy"
+    path.write_bytes(
+        b" " * 3200 + _segy_binary_header(1000, 5, 250, 1, 0, ">") + b"\x00" * 300
+    )
+
+    result = extract_segy_metadata(path)
+
+    assert result.trace_count == 0
+    assert result.samples_per_trace == 1000
+    assert result.bbox_native is None
+    assert result.temporal_extent_begin is None
+
+
+def test_segy_describe_partial_metadata(tmp_path):
+    # a file whose traces cannot be walked still gets a useful description
+    path = tmp_path / "line.sgy"
+    _write_segy(path, [_segy_trace()], sample_format=9)
+    text = extract_segy_metadata(path).describe()
+    assert text.startswith("Auto-extracted: SEG-Y")
+    assert "format code 9" in text
+    assert "trace(s)" not in text
+    assert "CRS: unknown." in text
+
+
+def test_segy_describe_partial_coverage(tmp_path):
+    path = tmp_path / "line.sgy"
+    garbage = [_segy_trace(src=(2_000_000_000, 7)) for _ in range(8)]
+    _write_segy(path, garbage + [_segy_trace(src=(-50000, 150000))])
+    text = extract_segy_metadata(path).describe()
+    assert "partly unreliable" in text
+
+
+def test_segy_describe(tmp_path):
+    path = tmp_path / "line.sgy"
+    _write_segy(path, [_segy_trace(src=(-50000, 150000))])
+    text = extract_segy_metadata(path).describe()
+    assert text.startswith("Auto-extracted: SEG-Y")
+    assert "1 trace(s)" in text
+    assert "coordinates in metres" in text
+    assert "CRS: unknown." in text
+    assert "Native bbox:" in text
+    assert len(text) <= 500
+
+
+def test_segy_describe_geographic(tmp_path):
+    path = tmp_path / "line.sgy"
+    _write_segy(path, [_segy_trace(src=(-87500, 422300), scalco=-10000, units=3)])
+    text = extract_segy_metadata(path).describe()
+    assert "coordinates in degrees" in text
+    assert "EPSG:4326" in text
