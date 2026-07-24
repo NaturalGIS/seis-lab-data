@@ -71,11 +71,21 @@ async def get_record_asset_by_english_name(
 
 
 async def get_record_asset_by_file_path(
-    session: AsyncSession, file_path: str
+    session: AsyncSession,
+    file_path: str,
+    survey_mission_id: identifiers.SurveyMissionId,
 ) -> models.RecordAsset | None:
+    # Scoped per mission: the same relative path may legitimately exist in
+    # several missions, each deserving its own record.
     statement = (
         select(models.RecordAsset)
+        .join(
+            models.SurveyRelatedRecord,
+            models.RecordAsset.survey_related_record_id
+            == models.SurveyRelatedRecord.id,
+        )
         .where(models.RecordAsset.relative_path == file_path)
+        .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
         .options(_SELECT_IN_LOAD_OPTIONS)
     )
     return (await session.exec(statement)).first()

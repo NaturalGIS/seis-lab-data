@@ -15,6 +15,7 @@ from seis_lab_data.cliapp import (
 )
 from seis_lab_data.db.commands import (
     datasetcategories as category_commands,
+    discovery as discovery_commands,
     projects as project_commands,
     surveymissions as mission_commands,
     surveyrelatedrecords as record_commands,
@@ -119,13 +120,19 @@ async def bootstrap_workflow_stages(db, db_session_maker, bootstrap_data):
 
 @pytest_asyncio.fixture
 async def bootstrap_asset_discovery_configurations(
-    db, db_session_maker, bootstrap_data
+    db,
+    db_session_maker,
+    bootstrap_data,
+    bootstrap_dataset_categories,
+    bootstrap_workflow_stages,
 ):
     created = []
     async with db_session_maker() as session:
         for to_create in bootstrap_data[constants.ResourceType.ASSET_DISCOVERY_CONFIG]:
             created.append(
-                await stage_commands.create_workflow_stage(session, to_create)
+                await discovery_commands.create_asset_discovery_configuration(
+                    session, to_create
+                )
             )
     yield created
 

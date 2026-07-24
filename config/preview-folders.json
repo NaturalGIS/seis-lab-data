@@ -1,0 +1,37 @@
+{
+  "version": 0,
+  "status": "DRAFT - awaiting the definitive folder list from the IPMA colleague; the entries below are examples taken from survey-extensions-compact_VV01.xlsx and WILL be replaced by that list",
+  "description": "Survey-template folders where asset previews (issues #145/#154) are to be generated. Folders NOT listed here get no preview. This file does not affect discovery or metadata extraction (#116). Paths are relative to the survey root. 'extensions' optionally narrows which files in the folder qualify. 'preview_kind' hints the derivation type: raster | vector | auto.",
+  "folders": [
+    {
+      "folder": "s06-mbes/s05-processed-data",
+      "extensions": [".xyz", ".tif", ".tiff", ".flt", ".asc"],
+      "preview_kind": "raster"
+    },
+    {
+      "folder": "s06-mbes/s09-backscatter/s04-processed-data",
+      "extensions": [".tif", ".xyz"],
+      "preview_kind": "raster"
+    },
+    {
+      "folder": "s07-sss/s05-processed-data",
+      "extensions": [".tif"],
+      "preview_kind": "raster"
+    },
+    {
+      "folder": "s08-chirp/s05-processed-data",
+      "extensions": [".sgy"],
+      "preview_kind": "auto"
+    },
+    {
+      "folder": "s13-uhrs/s05-processed-data",
+      "extensions": [".sgy"],
+      "preview_kind": "auto"
+    },
+    {
+      "folder": "s28-tracks/s02-final",
+      "extensions": [".shp"],
+      "preview_kind": "vector"
+    }
+  ]
+}
