@@ -379,7 +379,8 @@ async def _discover_mission_records(
                         survey_mission_id=identifiers.SurveyMissionId(mission.id),
                         name=common.LocalizableDraftName(en=found_path.name),
                         description=common.LocalizableDraftDescription(
-                            en=metadata.describe() if metadata is not None else ""
+                            en=metadata.describe("en") if metadata is not None else "",
+                            pt=metadata.describe("pt") if metadata is not None else "",
                         ),
                         dataset_category_id=identifiers.DatasetCategoryId(
                             asset_discovery_conf.dataset_category_id

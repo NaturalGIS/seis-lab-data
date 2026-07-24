@@ -19,6 +19,7 @@ from osgeo import gdal, ogr, osr  # noqa: E402
 from seis_lab_data.tasks.extractors import (  # noqa: E402
     dispatch,
     schemas,
+    segy,
 )
 from seis_lab_data.tasks.extractors.gdal_raster import (  # noqa: E402
     extract_raster_metadata,
@@ -264,6 +265,56 @@ def test_describe_crs_unknown():
     assert "CRS: unknown." in text
 
 
+def test_raster_describe_pt(synthetic_geotiff):
+    text = extract_raster_metadata(synthetic_geotiff).describe("pt")
+    assert text.startswith("Extração automática: raster GTiff")
+    assert "banda(s)" in text
+    assert "TM06" in text
+    assert "EPSG:3763" in text
+    assert len(text) <= 500
+
+
+def test_vector_describe_pt(synthetic_shapefile):
+    text = extract_vector_metadata(synthetic_shapefile).describe("pt")
+    assert text.startswith("Extração automática: vetor ESRI Shapefile")
+    assert "elemento(s)" in text
+    assert "Point" in text  # a geometry type stays an English identifier
+    assert len(text) <= 500
+
+
+def test_describe_truncates_to_500_pt():
+    absurd = schemas.RasterMetadata(
+        driver="GTiff",
+        width=1,
+        height=1,
+        band_count=1,
+        crs_name="X" * 2000,
+    )
+    assert len(absurd.describe("pt")) == 500
+
+
+def test_describe_crs_unknown_pt():
+    text = schemas.VectorMetadata(
+        driver="ESRI Shapefile",
+        layer_count=1,
+        feature_count=0,
+        geometry_type="Point",
+    ).describe("pt")
+    assert "CRS: desconhecido." in text
+
+
+def test_words_lexicon_parity():
+    # adding a key to one language but not the other must be a hard failure
+    assert set(schemas._WORDS["en"]) == set(schemas._WORDS["pt"])
+
+
+def test_segy_units_labels_have_pt():
+    # every translatable SEG-Y units label (all but the pass-through "dms") needs
+    # a Portuguese entry, so a rename in segy.py cannot leak English into pt
+    translatable = set(segy._UNITS_LABELS.values()) - {"dms"}
+    assert translatable <= set(schemas._UNITS_PT)
+
+
 # 2024-09-28 18:48:31 UTC, matching the archive's EM712 line 0419
 _KMALL_T0 = 1_727_549_311
 _KMALL_HEADER = struct.Struct("<I4sBBHII")
@@ -449,6 +500,16 @@ def test_kmall_describe(tmp_path):
     text = extract_kmall_metadata(path).describe()
     assert text.startswith("Auto-extracted: Kongsberg KMALL, EM 712")
     assert "position fix(es)" in text
+    assert "EPSG:4326" in text
+    assert len(text) <= 500
+
+
+def test_kmall_describe_pt(tmp_path):
+    path = tmp_path / "line.kmall"
+    _write_kmall(path, [(40.5, -9.3)])
+    text = extract_kmall_metadata(path).describe("pt")
+    assert text.startswith("Extração automática: Kongsberg KMALL, EM 712")
+    assert "posição(ões)" in text
     assert "EPSG:4326" in text
     assert len(text) <= 500
 
@@ -1163,4 +1224,41 @@ def test_segy_describe_geographic(tmp_path):
     _write_segy(path, [_segy_trace(src=(-87500, 422300), scalco=-10000, units=3)])
     text = extract_segy_metadata(path).describe()
     assert "coordinates in degrees" in text
+    assert "EPSG:4326" in text
+
+
+def test_segy_describe_pt(tmp_path):
+    path = tmp_path / "line.sgy"
+    _write_segy(path, [_segy_trace(src=(-50000, 150000))])
+    text = extract_segy_metadata(path).describe("pt")
+    assert text.startswith("Extração automática: SEG-Y")
+    assert "1 traço(s)" in text
+    assert "coordenadas em metros" in text
+    assert "CRS: desconhecido." in text
+    assert "Extensão nativa:" in text
+    assert len(text) <= 500
+
+
+def test_segy_describe_partial_coverage_pt(tmp_path):
+    path = tmp_path / "line.sgy"
+    garbage = [_segy_trace(src=(2_000_000_000, 7)) for _ in range(8)]
+    _write_segy(path, garbage + [_segy_trace(src=(-50000, 150000))])
+    text = extract_segy_metadata(path).describe("pt")
+    assert "pouco fiável" in text
+
+
+def test_segy_describe_partial_metadata_pt(tmp_path):
+    path = tmp_path / "line.sgy"
+    _write_segy(path, [_segy_trace()], sample_format=9)
+    text = extract_segy_metadata(path).describe("pt")
+    assert "format code 9" in text  # a technical identifier stays English
+    assert "traço(s)" not in text
+    assert "CRS: desconhecido." in text
+
+
+def test_segy_describe_geographic_pt(tmp_path):
+    path = tmp_path / "line.sgy"
+    _write_segy(path, [_segy_trace(src=(-87500, 422300), scalco=-10000, units=3)])
+    text = extract_segy_metadata(path).describe("pt")
+    assert "coordenadas em graus" in text
     assert "EPSG:4326" in text

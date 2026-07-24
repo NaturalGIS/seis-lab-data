@@ -116,6 +116,7 @@ async def discovery_env(
                 id=identifiers.AssetDiscoveryConfId(uuid.uuid4()),
                 name="test tif",
                 relative_path_regexp=r"s01/.*\.tif",
+                media_type="image/tiff",
                 workflow_stage_id=identifiers.WorkflowStageId(
                     bootstrap_workflow_stages[0].id
                 ),
@@ -229,6 +230,7 @@ async def test_discovery_extracts_metadata(db_session_maker, admin_user, discove
     record = records[0]
     assert record.name["en"] == "grid.tif"
     assert record.description["en"].startswith("Auto-extracted: GTiff raster")
+    assert record.description["pt"].startswith("Extração automática: raster GTiff")
     assert record.bbox_4326 is not None
     # the synthetic EPSG:3763 grid reprojects to central Portugal
     minx, miny, maxx, maxy = to_shape(record.bbox_4326).bounds
@@ -358,6 +360,7 @@ async def test_discovery_survives_extraction_failure(
     record = records[0]
     assert record.name["en"] == "bad.tif"
     assert record.description["en"] == ""
+    assert record.description["pt"] == ""
     assert record.bbox_4326 is None
 
 
@@ -418,6 +421,7 @@ async def test_discovery_skips_configuration_with_null_foreign_keys(
                 id=uuid.uuid4(),
                 name="broken config",
                 relative_path_regexp=r"s01/.*\.tif",
+                media_type="image/tiff",
                 workflow_stage_id=None,
                 dataset_category_id=None,
             )
