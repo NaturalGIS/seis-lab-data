@@ -4,7 +4,10 @@ import uuid
 
 import dramatiq
 
-from .. import config
+from .. import (
+    config,
+    constants,
+)
 from ..operations import surveyrelatedrecords as record_ops
 from ..schemas import (
     identifiers,
@@ -80,6 +83,36 @@ async def update_survey_related_record(
             ),
             to_update=record_schemas.SurveyRelatedRecordUpdate.model_validate_json(
                 raw_to_update
+            ),
+            initiator=user_schemas.User(**json.loads(raw_initiator)),
+            session=session,
+            event_dispatcher=settings.get_event_dispatcher(),
+        )
+
+
+@dramatiq.actor
+@decorators.sld_settings
+async def handle_survey_related_record_publication(
+    raw_request_id: str,
+    raw_survey_related_record_id: str,
+    raw_to_update: str,
+    raw_initiator: str,
+    *,
+    settings: config.SeisLabDataSettings,
+):
+    publishing_info = record_schemas.SurveyRelatedRecordPublication.model_validate_json(
+        raw_to_update
+    )
+    async with settings.get_db_session_maker()() as session:
+        await record_ops.change_survey_related_record_status(
+            request_id=identifiers.RequestId(uuid.UUID(raw_request_id)),
+            target_status=(
+                constants.SurveyRelatedRecordStatus.PUBLISHED
+                if publishing_info.published
+                else constants.SurveyRelatedRecordStatus.DRAFT
+            ),
+            survey_related_record_id=identifiers.SurveyRelatedRecordId(
+                uuid.UUID(raw_survey_related_record_id)
             ),
             initiator=user_schemas.User(**json.loads(raw_initiator)),
             session=session,

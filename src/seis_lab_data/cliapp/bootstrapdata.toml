@@ -29,6 +29,77 @@ id = "43507846-a6cf-4e54-bd80-9ef5be334cf0"
 name = { en = "CPT tests", pt = "testes CPT " }
 
 
+# maps to: s07-sss
+[[dataset_categories]]
+id = "ecf90394-8196-4a1c-9edc-b236b7a0749c"
+name = { en = "side-scan sonar", pt = "sonar de varrimento lateral" }
+
+# maps to: s22-sedimentology
+[[dataset_categories]]
+id = "016717d6-ac03-482b-9429-54dad7ccee90"
+name = { en = "sedimentology", pt = "sedimentologia" }
+
+# maps to: s23-environmental
+[[dataset_categories]]
+id = "e4f12c26-8475-4260-8da0-3d82e1864b4a"
+name = { en = "environmental monitoring", pt = "monitorização ambiental" }
+
+# maps to: s24-metocean
+[[dataset_categories]]
+id = "0b3132c6-f026-49ed-948a-54b24edacf74"
+name = { en = "metocean", pt = "meteorologia e oceanografia" }
+
+# maps to: s25-underwater-footage
+[[dataset_categories]]
+id = "c65884b0-7ec5-4daf-a083-171c15158c1f"
+name = { en = "underwater footage", pt = "imagens subaquáticas" }
+
+# maps to: s26-logs
+[[dataset_categories]]
+id = "2fa3e72f-2c71-496c-8186-92150543d2d5"
+name = { en = "survey logs", pt = "registos de operação" }
+
+# maps to: s27-navigation
+[[dataset_categories]]
+id = "4bf4e531-9541-42fa-8120-62883302c7ed"
+name = { en = "navigation", pt = "navegação" }
+
+# maps to: s28-tracks
+[[dataset_categories]]
+id = "5fd1536f-dc17-425f-8530-f92548163d29"
+name = { en = "vessel/ROV tracks", pt = "trajetos de embarcação/ROV" }
+
+# maps to: s29-ground-model
+[[dataset_categories]]
+id = "78b5cb94-43fe-4346-8cba-4bb98a739d22"
+name = { en = "ground model", pt = "modelo de terreno" }
+
+# maps to: s30-reporting
+[[dataset_categories]]
+id = "728d4cf0-b791-45ff-8c78-b6294871bc74"
+name = { en = "reporting", pt = "relatórios" }
+
+# maps to: s32-interpretation-general
+[[dataset_categories]]
+id = "c8502a00-1856-472e-97d6-cdc752445cb5"
+name = { en = "general interpretation", pt = "interpretação geral" }
+
+# maps to: s33-geophys-other
+[[dataset_categories]]
+id = "a17e2881-9d7c-4974-a312-bb2b58081cb2"
+name = { en = "other geophysical data", pt = "outros dados geofísicos" }
+
+# maps to: s34-geotech-other
+[[dataset_categories]]
+id = "6db7dc66-58b8-4055-b614-f8514fadc497"
+name = { en = "other geotechnical data", pt = "outros dados geotécnicos" }
+
+# maps to: s35-hydrographic-other
+[[dataset_categories]]
+id = "9e7f79fb-1cb7-447d-9548-26caf5d94e20"
+name = { en = "other hydrographic data", pt = "outros dados hidrográficos" }
+
+
 [[workflow_stages]]
 id = "ac51aa07-90e9-43d4-83b9-d079482a001e"
 name = { en = "raw data", pt = "dados brutos" }
@@ -45,17 +116,1487 @@ name = { en = "processed data", pt = "dados processados" }
 id = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
 name = { en = "interpreted data", pt = "dados interpretados" }
 
+[[workflow_stages]]
+id = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+name = { en = "reporting", pt = "relatórios" }
+
 
 [[asset_discovery_configurations]]
-id = "3128b241-73a0-4f6f-88d0-75bb9424de25"
-name = "raw kmall"
+id = "107e1150-ab83-48b9-abbf-78db43a52174"
+name = "mbes raw pds"
+media_type = "application/prs.ipma.pds"
+relative_path_regexp = "s06-mbes/s02-raw-data/.*\\.pds"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "7537692e-3247-4a8e-aa6e-ce7ff1edeb94"
+name = "mbes raw kmall"
+media_type = "application/prs.ipma.kmall"
 relative_path_regexp = "s06-mbes/s02-raw-data/.*\\.kmall"
-workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"  # raw_data
-dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"  # bathymetry
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
 
 [[asset_discovery_configurations]]
-id = "1c5b73f7-d3a7-49ed-b6b5-03f5ec8a831b"
-name = "xyz processed bathy"
+id = "acd1b6f9-c195-468d-8bb9-4c4d96ab8e42"
+name = "mbes raw all"
+media_type = "application/prs.ipma.all"
+relative_path_regexp = "s06-mbes/s02-raw-data/.*\\.all"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "9030c20e-ac13-4c60-963b-d10dd91429d8"
+name = "mbes raw vcf"
+media_type = "application/prs.ipma.vcf"
+relative_path_regexp = "s06-mbes/s02-raw-data/.*\\.vcf"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "d7cbd359-59ff-42ab-84f6-e8dd56170f5a"
+name = "mbes raw wcd"
+media_type = "application/prs.ipma.wcd"
+relative_path_regexp = "s06-mbes/s02-raw-data/.*\\.wcd"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "4edc6f4f-9465-43cb-a1e1-2ce491920bbd"
+name = "mbes raw srh"
+media_type = "application/prs.ipma.srh"
+relative_path_regexp = "s06-mbes/s02-raw-data/.*\\.srh"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "c1754332-28b1-45b9-9b93-45219fb888dd"
+name = "mbes raw rtcm"
+media_type = "application/prs.ipma.rtcm"
+relative_path_regexp = "s06-mbes/s02-raw-data/.*\\.rtcm"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "0d7e0279-5654-4c1f-bbae-648e8c09dae6"
+name = "mbes processed xyz"
+media_type = "application/prs.ipma.xyz"
 relative_path_regexp = "s06-mbes/s05-processed-data/.*\\.xyz"
-workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"  # processed_data
-dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"  # bathymetry
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "4a3c7c46-6b79-4a1c-8481-f4cb406b7640"
+name = "mbes processed tif"
+media_type = "application/prs.ipma.tif"
+relative_path_regexp = "s06-mbes/s05-processed-data/.*\\.tif"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "bac1c5f2-e389-447f-ab3a-5137dd7a375a"
+name = "mbes processed flt"
+media_type = "application/prs.ipma.flt"
+relative_path_regexp = "s06-mbes/s05-processed-data/.*\\.flt"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "789815f8-6eb1-4b0e-b86d-9adf4409d164"
+name = "mbes processed asc"
+media_type = "application/prs.ipma.asc"
+relative_path_regexp = "s06-mbes/s05-processed-data/.*\\.asc"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "07253aa3-b9f0-40b7-8319-89e984891036"
+name = "mbes processed tiff"
+media_type = "application/prs.ipma.tiff"
+relative_path_regexp = "s06-mbes/s05-processed-data/.*\\.tiff"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "b8eee2f2-c0d0-4e38-bc6e-00d3ea585b5e"
+name = "mbes processed txt"
+media_type = "application/prs.ipma.txt"
+relative_path_regexp = "s06-mbes/s05-processed-data/.*\\.txt"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "1db8a6a4-dbaf-4545-8260-12e5f7905d75"
+name = "mbes processed dat"
+media_type = "application/prs.ipma.dat"
+relative_path_regexp = "s06-mbes/s05-processed-data/.*\\.dat"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "a50049c2-aaa9-480e-8dcc-257be3ae71df"
+name = "mbes processed grd"
+media_type = "application/prs.ipma.grd"
+relative_path_regexp = "s06-mbes/s05-processed-data/.*\\.grd"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "ffe5e89b-09de-4f1f-8203-c3a799fb6a46"
+name = "mbes processed dtm points txt"
+media_type = "application/prs.ipma.txt"
+relative_path_regexp = "s06-mbes/s05-processed-data/s02-dtm-points/.*\\.txt"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "451c368b-b48b-4b04-a0d8-7f3cf4ec277d"
+name = "mbes processed dtm points xyz"
+media_type = "application/prs.ipma.xyz"
+relative_path_regexp = "s06-mbes/s05-processed-data/s02-dtm-points/.*\\.xyz"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "66dfbd30-3531-4613-ae77-69025744b1f7"
+name = "mbes processed slope tiff"
+media_type = "application/prs.ipma.tiff"
+relative_path_regexp = "s06-mbes/s05-processed-data/s03-slope/.*\\.tiff"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "7ee50b66-8b45-4e7b-a246-d249f5db53cb"
+name = "mbes processed slope txt"
+media_type = "application/prs.ipma.txt"
+relative_path_regexp = "s06-mbes/s05-processed-data/s03-slope/.*\\.txt"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "d0be839d-b1ea-4e34-8753-84e07da6d90d"
+name = "mbes processed slope xyz"
+media_type = "application/prs.ipma.xyz"
+relative_path_regexp = "s06-mbes/s05-processed-data/s03-slope/.*\\.xyz"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "013dfd89-12e8-4e59-9106-07a22bd2e50f"
+name = "mbes gis surfaces tiff"
+media_type = "application/prs.ipma.tiff"
+relative_path_regexp = "s06-mbes/s08-gis/s01-surfaces/.*\\.tiff"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "ba980e5e-64ce-4270-b6c1-41e52d86dbc1"
+name = "mbes gis surfaces txt"
+media_type = "application/prs.ipma.txt"
+relative_path_regexp = "s06-mbes/s08-gis/s01-surfaces/.*\\.txt"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "104b4ded-08a9-4650-8212-f4d952ee42c9"
+name = "mbes gis surfaces xyz"
+media_type = "application/prs.ipma.xyz"
+relative_path_regexp = "s06-mbes/s08-gis/s01-surfaces/.*\\.xyz"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "112e1a9d-0e60-4db8-a38c-f568209a435c"
+name = "mbes gis tiff tiff"
+media_type = "application/prs.ipma.tiff"
+relative_path_regexp = "s06-mbes/s08-gis/s02-tiff/.*\\.tiff"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "01b7ac3e-cf75-4efc-b138-f034fcff6798"
+name = "mbes backscatter tif"
+media_type = "application/prs.ipma.tif"
+relative_path_regexp = "s06-mbes/s09-backscatter/.*\\.tif"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "3002d462-3f2e-4957-a56e-97175f91883a"
+
+[[asset_discovery_configurations]]
+id = "415ccaa3-a49d-4a56-b9d7-3e43cdf724c4"
+name = "mbes backscatter txt"
+media_type = "application/prs.ipma.txt"
+relative_path_regexp = "s06-mbes/s09-backscatter/.*\\.txt"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "3002d462-3f2e-4957-a56e-97175f91883a"
+
+[[asset_discovery_configurations]]
+id = "87a3ec1f-9d7a-4306-8edd-a4edf3f51c48"
+name = "mbes backscatter dat"
+media_type = "application/prs.ipma.dat"
+relative_path_regexp = "s06-mbes/s09-backscatter/.*\\.dat"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "3002d462-3f2e-4957-a56e-97175f91883a"
+
+[[asset_discovery_configurations]]
+id = "b3c3e336-07b8-44d1-9f63-5847c874ae14"
+name = "mbes backscatter fmt"
+media_type = "application/prs.ipma.fmt"
+relative_path_regexp = "s06-mbes/s09-backscatter/.*\\.fmt"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "3002d462-3f2e-4957-a56e-97175f91883a"
+
+[[asset_discovery_configurations]]
+id = "459a0dd0-f1d4-4dc6-b4a8-5d8ffde5b28a"
+name = "mbes backscatter processed xyz"
+media_type = "application/prs.ipma.xyz"
+relative_path_regexp = "s06-mbes/s09-backscatter/s04-processed-data/.*\\.xyz"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "3002d462-3f2e-4957-a56e-97175f91883a"
+
+[[asset_discovery_configurations]]
+id = "5e397756-8594-4d91-8c05-b1e1a7fc71a5"
+name = "mbes backscatter processed tif"
+media_type = "application/prs.ipma.tif"
+relative_path_regexp = "s06-mbes/s09-backscatter/s04-processed-data/.*\\.tif"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "3002d462-3f2e-4957-a56e-97175f91883a"
+
+[[asset_discovery_configurations]]
+id = "f3e868f5-5001-4904-af2d-fcf8773e0a02"
+name = "mbes backscatter processed csar0"
+media_type = "application/prs.ipma.csar0"
+relative_path_regexp = "s06-mbes/s09-backscatter/s04-processed-data/.*\\.csar0"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "3002d462-3f2e-4957-a56e-97175f91883a"
+
+[[asset_discovery_configurations]]
+id = "10c6ea91-3ebc-4262-be51-4b9c81f9c3c9"
+name = "mbes backscatter processed csar"
+media_type = "application/prs.ipma.csar"
+relative_path_regexp = "s06-mbes/s09-backscatter/s04-processed-data/.*\\.csar"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "3002d462-3f2e-4957-a56e-97175f91883a"
+
+[[asset_discovery_configurations]]
+id = "c507ef4d-557a-4b66-af42-7d1ff5771ac1"
+name = "mbes backscatter processed xyz txt"
+media_type = "application/prs.ipma.txt"
+relative_path_regexp = "s06-mbes/s09-backscatter/s04-processed-data/s01-xyz/.*\\.txt"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "3002d462-3f2e-4957-a56e-97175f91883a"
+
+[[asset_discovery_configurations]]
+id = "4bbd12a4-e349-4f05-947a-d3b41950a78f"
+name = "mbes backscatter processed xyz xyz"
+media_type = "application/prs.ipma.xyz"
+relative_path_regexp = "s06-mbes/s09-backscatter/s04-processed-data/s01-xyz/.*\\.xyz"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "3002d462-3f2e-4957-a56e-97175f91883a"
+
+[[asset_discovery_configurations]]
+id = "4d40547d-5209-468b-8aa0-ecacfd806bd1"
+name = "mbes backscatter processed tiff tiff"
+media_type = "application/prs.ipma.tiff"
+relative_path_regexp = "s06-mbes/s09-backscatter/s04-processed-data/s02-tiff/.*\\.tiff"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "3002d462-3f2e-4957-a56e-97175f91883a"
+
+[[asset_discovery_configurations]]
+id = "d9ab8030-20f9-4a03-85e1-6831e721c000"
+name = "mbes backscatter gis tiff tif"
+media_type = "application/prs.ipma.tif"
+relative_path_regexp = "s06-mbes/s09-backscatter/s07-gis/s02-tiff/.*\\.tif"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "3002d462-3f2e-4957-a56e-97175f91883a"
+
+[[asset_discovery_configurations]]
+id = "8b0067b0-b871-419c-a2eb-cad17b22e5de"
+name = "mbes tracklines log"
+media_type = "application/prs.ipma.log"
+relative_path_regexp = "s06-mbes/s10-tracklines/.*\\.log"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "a21590d3-a5c3-43c8-8e0c-afca1c3d7612"
+name = "mbes tracklines csar0"
+media_type = "application/prs.ipma.csar0"
+relative_path_regexp = "s06-mbes/s10-tracklines/.*\\.csar0"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "0af59908-0f05-410c-99d1-f1274f23affb"
+name = "mbes tracklines csar"
+media_type = "application/prs.ipma.csar"
+relative_path_regexp = "s06-mbes/s10-tracklines/.*\\.csar"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "6d827f3d-0d9b-4b29-a324-0d5a63cf9466"
+name = "mbes tracklines p111"
+media_type = "application/prs.ipma.p111"
+relative_path_regexp = "s06-mbes/s10-tracklines/.*\\.p111"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "640118b9-b545-49d4-9785-0c8cd886e241"
+name = "mbes tracklines asc"
+media_type = "application/prs.ipma.asc"
+relative_path_regexp = "s06-mbes/s10-tracklines/.*\\.asc"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "7b8cdb69-1cfa-4b86-ac42-5a4165a1306e"
+name = "mbes tracklines txt"
+media_type = "application/prs.ipma.txt"
+relative_path_regexp = "s06-mbes/s10-tracklines/.*\\.txt"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "5a05d6e1-74dd-4ec8-a5a4-b841714d21e6"
+name = "mbes tracklines kmz"
+media_type = "application/prs.ipma.kmz"
+relative_path_regexp = "s06-mbes/s10-tracklines/.*\\.kmz"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "36bae78b-7918-4881-81c6-55172e390687"
+name = "mbes tracklines dat"
+media_type = "application/prs.ipma.dat"
+relative_path_regexp = "s06-mbes/s10-tracklines/.*\\.dat"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "3d0f23f5-13f9-4143-89fe-1e0e6192bf49"
+name = "mbes tracklines p190"
+media_type = "application/prs.ipma.p190"
+relative_path_regexp = "s06-mbes/s10-tracklines/.*\\.p190"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
+
+[[asset_discovery_configurations]]
+id = "3ffe6a8c-f1af-443d-ad6a-2f91f8b0556c"
+name = "sss raw jsf"
+media_type = "application/prs.ipma.jsf"
+relative_path_regexp = "s07-sss/s02-raw-data/.*\\.jsf"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "ecf90394-8196-4a1c-9edc-b236b7a0749c"
+
+[[asset_discovery_configurations]]
+id = "a75762cb-03dc-46b0-82cf-af6de204208e"
+name = "sss raw xtf"
+media_type = "application/prs.ipma.xtf"
+relative_path_regexp = "s07-sss/s02-raw-data/.*\\.xtf"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "ecf90394-8196-4a1c-9edc-b236b7a0749c"
+
+[[asset_discovery_configurations]]
+id = "660840f0-ef24-4a4a-877a-54c0f6281f74"
+name = "sss processed tif"
+media_type = "application/prs.ipma.tif"
+relative_path_regexp = "s07-sss/s05-processed-data/.*\\.tif"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "ecf90394-8196-4a1c-9edc-b236b7a0749c"
+
+[[asset_discovery_configurations]]
+id = "33880368-2440-4cc6-9129-b2211904477a"
+name = "chirp raw sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s08-chirp/s02-raw-data/.*\\.sgy"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "ef9ec018-3f74-438b-861b-912a8dbfeaf9"
+name = "chirp qc sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s08-chirp/s03-qc/.*\\.sgy"
+workflow_stage = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "8506bec2-822a-4d08-ac23-ab5340798e6c"
+name = "chirp processed twt sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s08-chirp/s05-processed-data/s01-twt/.*\\.sgy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "799f4ae2-825a-4164-bf85-42d9246899ec"
+name = "chirp processed dpt sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s08-chirp/s05-processed-data/s02-dpt/.*\\.sgy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "14ea8233-590e-4f99-af06-cb55a6c7e0b3"
+name = "sbp other raw sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s09-sbp-other/s02-raw-data/.*\\.sgy"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "7d73ee55-47ca-4458-82fd-7d701a4ff7cd"
+name = "sbp other processed sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s09-sbp-other/s05-processed-data/.*\\.sgy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "8a7e35c2-d1e0-4990-8891-c12a6e965b40"
+name = "sbp other processed twt sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s09-sbp-other/s05-processed-data/s01-twt/.*\\.sgy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "701fa403-293a-4537-9e34-bef22ceadd22"
+name = "sbp other processed twt mig sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s09-sbp-other/s05-processed-data/s01-twt/s02-mig/.*\\.sgy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "861454aa-728f-4110-913e-6ab8abc33bcb"
+name = "sbp other processed dpt mig sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s09-sbp-other/s05-processed-data/s02-dpt/s02-mig/.*\\.sgy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "25658033-61b2-4b2c-8120-0b7093e010af"
+name = "sbp other interpretation dat"
+media_type = "application/prs.ipma.dat"
+relative_path_regexp = "s09-sbp-other/s06-interpretation/.*\\.dat"
+workflow_stage = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "733a9f63-5f8b-4641-9cc9-8c07b8cb87f2"
+name = "sbp other interpretation horizons twt horizons dat"
+media_type = "application/prs.ipma.dat"
+relative_path_regexp = "s09-sbp-other/s06-interpretation/s01-horizons/s01-twt/s01-horizons/.*\\.dat"
+workflow_stage = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "1ba8555f-66bc-4a74-859b-aeb8701ba065"
+name = "sbp other interpretation horizons dpt horizons dat"
+media_type = "application/prs.ipma.dat"
+relative_path_regexp = "s09-sbp-other/s06-interpretation/s01-horizons/s02-dpt/s01-horizons/.*\\.dat"
+workflow_stage = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "2c5313a3-b0d5-4aab-aa4a-20629ee70b6d"
+name = "sbp other interpretation grids dpt horizons dat"
+media_type = "application/prs.ipma.dat"
+relative_path_regexp = "s09-sbp-other/s06-interpretation/s02-grids/s02-dpt/s01-horizons/.*\\.dat"
+workflow_stage = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "9835a7ba-91d5-45c5-aaa6-c8ad67c2ee97"
+name = "sbp other interpretation grids dpt below seabed dat"
+media_type = "application/prs.ipma.dat"
+relative_path_regexp = "s09-sbp-other/s06-interpretation/s02-grids/s02-dpt/s02-below-seabed/.*\\.dat"
+workflow_stage = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "2ae1d3e1-1b3c-4bb1-989b-4bb513e92427"
+name = "sbp other interpretation other dat"
+media_type = "application/prs.ipma.dat"
+relative_path_regexp = "s09-sbp-other/s06-interpretation/s06-other/.*\\.dat"
+workflow_stage = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "e2d9c6df-251b-4e02-acb1-23e0e27ea1d4"
+name = "sbp other reports pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s09-sbp-other/s07-reports/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "90e75c2d-fa23-435b-8f65-0351986addfe"
+name = "innomar raw ses3"
+media_type = "application/prs.ipma.ses3"
+relative_path_regexp = "s10-innomar/s02-raw-data/.*\\.ses3"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "a41a45a9-3303-466f-9323-f8489e267f25"
+name = "innomar raw sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s10-innomar/s02-raw-data/.*\\.sgy"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "0cc25073-0fd5-420d-a0a7-03a23be7c920"
+name = "innomar qc sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s10-innomar/s03-qc/.*\\.sgy"
+workflow_stage = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "a081cb9d-4ad3-43f8-a817-d6a590ffb4ca"
+name = "innomar processed twt mig sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s10-innomar/s05-processed-data/s01-twt/s02-mig/.*\\.sgy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "0dcec126-9549-4b3f-99fb-96e9c7d74dd5"
+name = "innomar processed dpt sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s10-innomar/s05-processed-data/s02-dpt/.*\\.sgy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "aebc375c-f10c-43bd-8376-faa01952f642"
+name = "uhrs raw segy"
+media_type = "application/prs.ipma.segy"
+relative_path_regexp = "s13-uhrs/s02-raw-data/.*\\.segy"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "3ebe0533-ea56-4386-95d3-ae7534ec079d"
+name = "uhrs qc sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s13-uhrs/s03-qc/.*\\.sgy"
+workflow_stage = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "5a16571d-20b2-4b48-84ea-e8f3f187f2b7"
+name = "uhrs qc seismic sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s13-uhrs/s03-qc/s01-seismic-data/.*\\.sgy"
+workflow_stage = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "54da4064-0cc5-49e5-b021-a4d49539ceb6"
+name = "uhrs qc bstk sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s13-uhrs/s03-qc/s03-bstk/.*\\.sgy"
+workflow_stage = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "aedaba5c-3a2b-47a0-b9ef-d56de68cb5df"
+name = "uhrs qc navigation txt"
+media_type = "application/prs.ipma.txt"
+relative_path_regexp = "s13-uhrs/s03-qc/s05-navigation/.*\\.txt"
+workflow_stage = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "b38ee8c8-6535-431e-89bd-4ba6caacd06e"
+name = "uhrs qc navigation log"
+media_type = "application/prs.ipma.log"
+relative_path_regexp = "s13-uhrs/s03-qc/s05-navigation/.*\\.log"
+workflow_stage = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "77bdb756-74af-4e2a-aec7-1c6b524b5013"
+name = "uhrs qc other segy"
+media_type = "application/prs.ipma.segy"
+relative_path_regexp = "s13-uhrs/s03-qc/s07-other/.*\\.segy"
+workflow_stage = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "1c9cf956-ab27-41c6-bb7f-84230d6a4353"
+name = "uhrs processed sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s13-uhrs/s05-processed-data/.*\\.sgy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "07c2ccc1-f47c-4ad2-86e4-c3f9783a35d2"
+name = "uhrs processed prestk sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s13-uhrs/s05-processed-data/s01-prestk/.*\\.sgy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "9bd691bd-5064-4bfe-85a4-b34b38245723"
+name = "uhrs processed prestk mul sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s13-uhrs/s05-processed-data/s01-prestk/s01-mul/.*\\.sgy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "19fb6932-c693-4a77-9fdb-c69d6b4b10da"
+name = "uhrs processed poststk twt mul sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s13-uhrs/s05-processed-data/s02-poststk/s01-twt/s01-mul/.*\\.sgy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "776fb586-8535-49d3-a604-082b8a4f8542"
+name = "uhrs processed poststk twt mig sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s13-uhrs/s05-processed-data/s02-poststk/s01-twt/s02-mig/.*\\.sgy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "c6b48cda-29e9-484a-b3f5-d29ae8012626"
+name = "uhrs processed poststk dpt sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s13-uhrs/s05-processed-data/s02-poststk/s02-dpt/.*\\.sgy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "203aace8-8dfe-46ad-b277-9a9c9eb562ce"
+name = "uhrs processed poststk dpt mig sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s13-uhrs/s05-processed-data/s02-poststk/s02-dpt/s02-mig/.*\\.sgy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "8a178443-57df-47fc-9893-354ac92f1cdf"
+name = "uhrs processed velocities sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s13-uhrs/s05-processed-data/s03-velocities/.*\\.sgy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "b67ffcc6-01cc-41c2-8b67-b966b2945fe7"
+name = "uhrs processed velocities vel rms sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s13-uhrs/s05-processed-data/s03-velocities/s02-vel-rms/.*\\.sgy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "be64e4fd-f616-4dce-b52c-8578bbeb880e"
+name = "uhrs processed velocities vel int sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s13-uhrs/s05-processed-data/s03-velocities/s03-vel-int/.*\\.sgy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "31940e3b-0d99-445d-9aa1-64e87a1fcd4a"
+name = "uhrs processed tests sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s13-uhrs/s05-processed-data/s05-tests/.*\\.sgy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "4b8ccde5-91b2-4275-b3ba-e1a0971a3293"
+name = "uhrs processed tests segy"
+media_type = "application/prs.ipma.segy"
+relative_path_regexp = "s13-uhrs/s05-processed-data/s05-tests/.*\\.segy"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "c0c216f6-838e-4bce-a6b0-4f37161d2c41"
+name = "uhrs interpretation horizons twt horizons dat"
+media_type = "application/prs.ipma.dat"
+relative_path_regexp = "s13-uhrs/s06-interpretation/s01-horizons/s01-twt/s01-horizons/.*\\.dat"
+workflow_stage = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "02334f48-bdf2-4b1d-8746-5ac26972eb7e"
+name = "uhrs interpretation horizons dpt horizons dat"
+media_type = "application/prs.ipma.dat"
+relative_path_regexp = "s13-uhrs/s06-interpretation/s01-horizons/s02-dpt/s01-horizons/.*\\.dat"
+workflow_stage = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "c5cf254d-2c72-4fad-bd11-5e1fb11bddcf"
+name = "uhrs interpretation grids dpt horizons dat"
+media_type = "application/prs.ipma.dat"
+relative_path_regexp = "s13-uhrs/s06-interpretation/s02-grids/s02-dpt/s01-horizons/.*\\.dat"
+workflow_stage = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "5befdf74-036f-41ca-9148-041cb899a883"
+name = "uhrs interpretation grids dpt below seabed dat"
+media_type = "application/prs.ipma.dat"
+relative_path_regexp = "s13-uhrs/s06-interpretation/s02-grids/s02-dpt/s02-below-seabed/.*\\.dat"
+workflow_stage = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "0589844d-b6b4-41c4-a914-6659025c0cc4"
+name = "uhrs interpretation grids dpt thick dat"
+media_type = "application/prs.ipma.dat"
+relative_path_regexp = "s13-uhrs/s06-interpretation/s02-grids/s02-dpt/s03-thick/.*\\.dat"
+workflow_stage = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "aa857f8b-1fee-48ea-bad4-5a644323757c"
+name = "uhrs interpretation other dat"
+media_type = "application/prs.ipma.dat"
+relative_path_regexp = "s13-uhrs/s06-interpretation/s06-other/.*\\.dat"
+workflow_stage = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "d0e800ce-06dd-4c06-85b3-b484b24342a1"
+name = "uhrs interpretation other xyz"
+media_type = "application/prs.ipma.xyz"
+relative_path_regexp = "s13-uhrs/s06-interpretation/s06-other/.*\\.xyz"
+workflow_stage = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "0f3d35a9-44a9-40a5-9d84-09c55fad775d"
+name = "uhrs interpretation other tif"
+media_type = "application/prs.ipma.tif"
+relative_path_regexp = "s13-uhrs/s06-interpretation/s06-other/.*\\.tif"
+workflow_stage = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "d752b386-73e9-493f-bdd4-74512f88210a"
+name = "uhrs reports offshore reports pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s13-uhrs/s07-reports/s01-offshore-reports/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "8d021540-1bcb-44cc-b0df-da2962fd53ba"
+name = "uhrs reports onshore reports pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s13-uhrs/s07-reports/s02-onshore-reports/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "e0ed2617-1590-4e55-bca9-f24ff3fdcc99"
+name = "uhrs navigation log"
+media_type = "application/prs.ipma.log"
+relative_path_regexp = "s13-uhrs/s09-navigation/.*\\.log"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "21f73024-10d6-4cb5-8d18-28e783f788f5"
+name = "uhrs navigation txt"
+media_type = "application/prs.ipma.txt"
+relative_path_regexp = "s13-uhrs/s09-navigation/.*\\.txt"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "dcf18fa2-627c-4243-9d4f-fb3c590cf5fa"
+name = "uhrs navigation nav"
+media_type = "application/prs.ipma.nav"
+relative_path_regexp = "s13-uhrs/s09-navigation/.*\\.nav"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "8dd25d0f-6b22-4eed-b23c-c0d89babe9e7"
+name = "uhrs navigation shp"
+media_type = "application/prs.ipma.shp"
+relative_path_regexp = "s13-uhrs/s09-navigation/.*\\.shp"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
+
+[[asset_discovery_configurations]]
+id = "e36cde80-9b38-4d55-96f1-1da09a46bb9b"
+name = "magnetometer raw txt"
+media_type = "application/prs.ipma.txt"
+relative_path_regexp = "s17-magnetometer/s02-raw-data/.*\\.txt"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "333073eb-adc9-4ac7-b822-44f4df5575a3"
+
+[[asset_discovery_configurations]]
+id = "f63eb906-a485-4852-a33c-09260ce47204"
+name = "magnetometer raw geomag"
+media_type = "application/prs.ipma.geomag"
+relative_path_regexp = "s17-magnetometer/s02-raw-data/.*\\.geomag"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "333073eb-adc9-4ac7-b822-44f4df5575a3"
+
+[[asset_discovery_configurations]]
+id = "de27219b-5f3d-44c8-903c-545e90bffc28"
+name = "magnetometer raw csv"
+media_type = "application/prs.ipma.csv"
+relative_path_regexp = "s17-magnetometer/s02-raw-data/.*\\.csv"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "333073eb-adc9-4ac7-b822-44f4df5575a3"
+
+[[asset_discovery_configurations]]
+id = "f616ff5c-24c6-4761-b8ce-ce16cd335e02"
+name = "magnetometer qc txt"
+media_type = "application/prs.ipma.txt"
+relative_path_regexp = "s17-magnetometer/s03-qc/.*\\.txt"
+workflow_stage = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
+dataset_category = "333073eb-adc9-4ac7-b822-44f4df5575a3"
+
+[[asset_discovery_configurations]]
+id = "3aabb2a3-f10d-49da-b9d9-14922c56412e"
+name = "magnetometer qc xml"
+media_type = "application/prs.ipma.xml"
+relative_path_regexp = "s17-magnetometer/s03-qc/.*\\.xml"
+workflow_stage = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
+dataset_category = "333073eb-adc9-4ac7-b822-44f4df5575a3"
+
+[[asset_discovery_configurations]]
+id = "95c9b9b0-2f0e-4f1b-a1d6-b2c9f77d4a22"
+name = "magnetometer processed xml"
+media_type = "application/prs.ipma.xml"
+relative_path_regexp = "s17-magnetometer/s05-processed-data/.*\\.xml"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "333073eb-adc9-4ac7-b822-44f4df5575a3"
+
+[[asset_discovery_configurations]]
+id = "712c2691-b00c-48a8-8a43-565921d405fe"
+name = "magnetometer processed flt"
+media_type = "application/prs.ipma.flt"
+relative_path_regexp = "s17-magnetometer/s05-processed-data/.*\\.flt"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "333073eb-adc9-4ac7-b822-44f4df5575a3"
+
+[[asset_discovery_configurations]]
+id = "df7fea1b-096b-4614-b440-e3eead88cab4"
+name = "magnetometer processed ovr"
+media_type = "application/prs.ipma.ovr"
+relative_path_regexp = "s17-magnetometer/s05-processed-data/.*\\.ovr"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "333073eb-adc9-4ac7-b822-44f4df5575a3"
+
+[[asset_discovery_configurations]]
+id = "5d991c02-a3bc-45fc-9a5d-4779d8ce433a"
+name = "magnetometer processed grd"
+media_type = "application/prs.ipma.grd"
+relative_path_regexp = "s17-magnetometer/s05-processed-data/.*\\.grd"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "333073eb-adc9-4ac7-b822-44f4df5575a3"
+
+[[asset_discovery_configurations]]
+id = "b5dd3874-97ca-40aa-a35c-5861340ebe40"
+name = "magnetometer processed txt"
+media_type = "application/prs.ipma.txt"
+relative_path_regexp = "s17-magnetometer/s05-processed-data/.*\\.txt"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "333073eb-adc9-4ac7-b822-44f4df5575a3"
+
+[[asset_discovery_configurations]]
+id = "156b46d3-9dfe-42b8-9b25-54027ed43bbe"
+name = "magnetometer processed dat"
+media_type = "application/prs.ipma.dat"
+relative_path_regexp = "s17-magnetometer/s05-processed-data/.*\\.dat"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "333073eb-adc9-4ac7-b822-44f4df5575a3"
+
+[[asset_discovery_configurations]]
+id = "1488f65c-c2e4-4242-b52c-88db9bd002d3"
+name = "magnetometer processed gdb"
+media_type = "application/prs.ipma.gdb"
+relative_path_regexp = "s17-magnetometer/s05-processed-data/.*\\.gdb"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "333073eb-adc9-4ac7-b822-44f4df5575a3"
+
+[[asset_discovery_configurations]]
+id = "6b2a3c87-6523-488c-910d-ee759eddd07b"
+name = "grabs data xlsx"
+media_type = "application/prs.ipma.xlsx"
+relative_path_regexp = "s18-grabs/s02-data/.*\\.xlsx"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "4b17a645-dc10-488c-ba7d-47ff052efdf8"
+
+[[asset_discovery_configurations]]
+id = "238ffd2e-75b1-411e-b705-3e132d92970c"
+name = "grabs data txt"
+media_type = "application/prs.ipma.txt"
+relative_path_regexp = "s18-grabs/s02-data/.*\\.txt"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "4b17a645-dc10-488c-ba7d-47ff052efdf8"
+
+[[asset_discovery_configurations]]
+id = "2bba91d1-e493-40c9-be39-14980c60a359"
+name = "vibrocorer raw jpg"
+media_type = "application/prs.ipma.jpg"
+relative_path_regexp = "s19-vibrocorer/s01-raw-data/.*\\.jpg"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "fd68accf-057e-4813-b47a-aa4df3741c45"
+
+[[asset_discovery_configurations]]
+id = "1dc11d1c-9e19-45de-b144-70419a91a113"
+name = "vibrocorer raw pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s19-vibrocorer/s01-raw-data/.*\\.pdf"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "fd68accf-057e-4813-b47a-aa4df3741c45"
+
+[[asset_discovery_configurations]]
+id = "4fdc03fe-b106-4d7f-a978-2f8445fb56f5"
+name = "vibrocorer reports pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s19-vibrocorer/s05-reports/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "fd68accf-057e-4813-b47a-aa4df3741c45"
+
+[[asset_discovery_configurations]]
+id = "fe756435-8064-47f1-9a7b-8f0b314bafa3"
+name = "cpt raw pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s21-cpt/s01-raw-data/.*\\.pdf"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "43507846-a6cf-4e54-bd80-9ef5be334cf0"
+
+[[asset_discovery_configurations]]
+id = "9a79caf1-cd95-402f-8e50-acd348ae0ae2"
+name = "sedimentology reports pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s22-sedimentology/s06-reports/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "016717d6-ac03-482b-9429-54dad7ccee90"
+
+[[asset_discovery_configurations]]
+id = "ee0c7903-590b-40f5-bac9-8328fd3280cf"
+name = "environmental mammals jpg"
+media_type = "application/prs.ipma.jpg"
+relative_path_regexp = "s23-environmental/s03-mammals/.*\\.jpg"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "e4f12c26-8475-4260-8da0-3d82e1864b4a"
+
+[[asset_discovery_configurations]]
+id = "cb75a5c2-8bfb-48a7-a60b-6b9f9a347f78"
+name = "environmental mammals pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s23-environmental/s03-mammals/.*\\.pdf"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "e4f12c26-8475-4260-8da0-3d82e1864b4a"
+
+[[asset_discovery_configurations]]
+id = "adfe3c6a-3a4d-4ebb-80da-e86180da3c76"
+name = "environmental reports pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s23-environmental/s06-reports/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "e4f12c26-8475-4260-8da0-3d82e1864b4a"
+
+[[asset_discovery_configurations]]
+id = "2eef9517-0c59-41bd-9027-7f6a558caac1"
+name = "environmental photos jpg"
+media_type = "application/prs.ipma.jpg"
+relative_path_regexp = "s23-environmental/s07-photos/.*\\.jpg"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "e4f12c26-8475-4260-8da0-3d82e1864b4a"
+
+[[asset_discovery_configurations]]
+id = "e38cc926-5cf5-4c34-bc3a-0264fa57f1e9"
+name = "metocean processed xlsx"
+media_type = "application/prs.ipma.xlsx"
+relative_path_regexp = "s24-metocean/s02-processed-data/.*\\.xlsx"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "0b3132c6-f026-49ed-948a-54b24edacf74"
+
+[[asset_discovery_configurations]]
+id = "c35a2063-ac2e-4384-ada5-1669caa3d8e9"
+name = "metocean reports pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s24-metocean/s04-reports/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "0b3132c6-f026-49ed-948a-54b24edacf74"
+
+[[asset_discovery_configurations]]
+id = "73f17021-c6ee-45ed-97fb-eefd4eb3acd2"
+name = "underwater footage raw jpg"
+media_type = "application/prs.ipma.jpg"
+relative_path_regexp = "s25-underwater-footage/s01-raw-data/.*\\.jpg"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "c65884b0-7ec5-4daf-a083-171c15158c1f"
+
+[[asset_discovery_configurations]]
+id = "ed5705c4-3f5b-4aaf-9323-98cd7996affe"
+name = "underwater footage raw avi"
+media_type = "application/prs.ipma.avi"
+relative_path_regexp = "s25-underwater-footage/s01-raw-data/.*\\.avi"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "c65884b0-7ec5-4daf-a083-171c15158c1f"
+
+[[asset_discovery_configurations]]
+id = "8ec00765-4e02-475e-9b5d-63ddb0902508"
+name = "underwater footage raw cr2"
+media_type = "application/prs.ipma.cr2"
+relative_path_regexp = "s25-underwater-footage/s01-raw-data/.*\\.cr2"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "c65884b0-7ec5-4daf-a083-171c15158c1f"
+
+[[asset_discovery_configurations]]
+id = "7e3d4af9-02a0-40b0-b5db-c43801b3b170"
+name = "underwater footage raw mp4"
+media_type = "application/prs.ipma.mp4"
+relative_path_regexp = "s25-underwater-footage/s01-raw-data/.*\\.mp4"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "c65884b0-7ec5-4daf-a083-171c15158c1f"
+
+[[asset_discovery_configurations]]
+id = "552765d6-c281-4b45-a190-75ece81862fc"
+name = "underwater footage reports pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s25-underwater-footage/s06-reports/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "c65884b0-7ec5-4daf-a083-171c15158c1f"
+
+[[asset_discovery_configurations]]
+id = "f7413f24-e35a-4357-8a27-9c8a3f6e4fd0"
+name = "logs xlsx"
+media_type = "application/prs.ipma.xlsx"
+relative_path_regexp = "s26-logs/.*\\.xlsx"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "2fa3e72f-2c71-496c-8186-92150543d2d5"
+
+[[asset_discovery_configurations]]
+id = "d49103c1-9d21-41f2-a2dc-930d013bf8bf"
+name = "logs pds"
+media_type = "application/prs.ipma.pds"
+relative_path_regexp = "s26-logs/.*\\.pds"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "2fa3e72f-2c71-496c-8186-92150543d2d5"
+
+[[asset_discovery_configurations]]
+id = "e1a571b0-0bc4-4129-bb1b-1be5f5d48654"
+name = "logs log"
+media_type = "application/prs.ipma.log"
+relative_path_regexp = "s26-logs/.*\\.log"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "2fa3e72f-2c71-496c-8186-92150543d2d5"
+
+[[asset_discovery_configurations]]
+id = "4f3cc6a6-3b8e-4961-9054-273a1bacfe11"
+name = "logs ods"
+media_type = "application/prs.ipma.ods"
+relative_path_regexp = "s26-logs/.*\\.ods"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "2fa3e72f-2c71-496c-8186-92150543d2d5"
+
+[[asset_discovery_configurations]]
+id = "c1df0797-8657-4d31-a58c-5bf71f70e054"
+name = "logs xlsm"
+media_type = "application/prs.ipma.xlsm"
+relative_path_regexp = "s26-logs/.*\\.xlsm"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "2fa3e72f-2c71-496c-8186-92150543d2d5"
+
+[[asset_discovery_configurations]]
+id = "c8592406-5f7a-4f94-a833-77d435210e59"
+name = "logs pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s26-logs/.*\\.pdf"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "2fa3e72f-2c71-496c-8186-92150543d2d5"
+
+[[asset_discovery_configurations]]
+id = "521e99c2-608a-47bf-ad4c-a00600935d1f"
+name = "navigation p111"
+media_type = "application/prs.ipma.p111"
+relative_path_regexp = "s27-navigation/.*\\.p111"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "4bf4e531-9541-42fa-8120-62883302c7ed"
+
+[[asset_discovery_configurations]]
+id = "05717f3e-af39-40a8-b104-3eab1c1ca0ab"
+name = "navigation txt"
+media_type = "application/prs.ipma.txt"
+relative_path_regexp = "s27-navigation/.*\\.txt"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "4bf4e531-9541-42fa-8120-62883302c7ed"
+
+[[asset_discovery_configurations]]
+id = "5bc05348-996a-43a1-8d97-1f2a91e77448"
+name = "navigation log"
+media_type = "application/prs.ipma.log"
+relative_path_regexp = "s27-navigation/.*\\.log"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "4bf4e531-9541-42fa-8120-62883302c7ed"
+
+[[asset_discovery_configurations]]
+id = "f11803e3-776d-4251-b164-4c1c27e2c488"
+name = "navigation gswp"
+media_type = "application/prs.ipma.gswp"
+relative_path_regexp = "s27-navigation/.*\\.gswp"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "4bf4e531-9541-42fa-8120-62883302c7ed"
+
+[[asset_discovery_configurations]]
+id = "1f12ddcd-6e19-4f42-9bcf-c9eb772c6287"
+name = "navigation dbf"
+media_type = "application/prs.ipma.dbf"
+relative_path_regexp = "s27-navigation/.*\\.dbf"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "4bf4e531-9541-42fa-8120-62883302c7ed"
+
+[[asset_discovery_configurations]]
+id = "858a86fd-bcd0-4790-8828-732abfbe09f8"
+name = "navigation shp"
+media_type = "application/prs.ipma.shp"
+relative_path_regexp = "s27-navigation/.*\\.shp"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "4bf4e531-9541-42fa-8120-62883302c7ed"
+
+[[asset_discovery_configurations]]
+id = "4a4f5d33-43e0-44d3-9e9c-3e673698235c"
+name = "tracks qc vessel txt"
+media_type = "application/prs.ipma.txt"
+relative_path_regexp = "s28-tracks/s01-qc/s01-vessel/.*\\.txt"
+workflow_stage = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
+dataset_category = "5fd1536f-dc17-425f-8530-f92548163d29"
+
+[[asset_discovery_configurations]]
+id = "385384a0-2755-4c08-a216-9a7c21376c04"
+name = "tracks qc vessel log"
+media_type = "application/prs.ipma.log"
+relative_path_regexp = "s28-tracks/s01-qc/s01-vessel/.*\\.log"
+workflow_stage = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
+dataset_category = "5fd1536f-dc17-425f-8530-f92548163d29"
+
+[[asset_discovery_configurations]]
+id = "5865196d-cf1e-4e5f-a817-82e9c1818088"
+name = "tracks qc vessel shp"
+media_type = "application/prs.ipma.shp"
+relative_path_regexp = "s28-tracks/s01-qc/s01-vessel/.*\\.shp"
+workflow_stage = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
+dataset_category = "5fd1536f-dc17-425f-8530-f92548163d29"
+
+[[asset_discovery_configurations]]
+id = "21b9ac6f-8f29-47bb-a03c-633696ef38cd"
+name = "tracks qc rotv txt"
+media_type = "application/prs.ipma.txt"
+relative_path_regexp = "s28-tracks/s01-qc/s02-rotv/.*\\.txt"
+workflow_stage = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
+dataset_category = "5fd1536f-dc17-425f-8530-f92548163d29"
+
+[[asset_discovery_configurations]]
+id = "7da0b095-af45-478f-b8f3-622ce63ee4a6"
+name = "tracks qc rotv log"
+media_type = "application/prs.ipma.log"
+relative_path_regexp = "s28-tracks/s01-qc/s02-rotv/.*\\.log"
+workflow_stage = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
+dataset_category = "5fd1536f-dc17-425f-8530-f92548163d29"
+
+[[asset_discovery_configurations]]
+id = "dcc1d539-3d03-4cf6-b78b-8642f2f8c4e0"
+name = "tracks qc rotv shp"
+media_type = "application/prs.ipma.shp"
+relative_path_regexp = "s28-tracks/s01-qc/s02-rotv/.*\\.shp"
+workflow_stage = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
+dataset_category = "5fd1536f-dc17-425f-8530-f92548163d29"
+
+[[asset_discovery_configurations]]
+id = "a3eccc8a-bf48-4754-8a22-43f48fbf3f89"
+name = "tracks final txt"
+media_type = "application/prs.ipma.txt"
+relative_path_regexp = "s28-tracks/s02-final/.*\\.txt"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "5fd1536f-dc17-425f-8530-f92548163d29"
+
+[[asset_discovery_configurations]]
+id = "af6defb3-bafe-45f2-a775-27d60e3d5825"
+name = "tracks final log"
+media_type = "application/prs.ipma.log"
+relative_path_regexp = "s28-tracks/s02-final/.*\\.log"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "5fd1536f-dc17-425f-8530-f92548163d29"
+
+[[asset_discovery_configurations]]
+id = "d8c140bc-a772-4b0d-9cbb-f9e69ba48682"
+name = "tracks final shp"
+media_type = "application/prs.ipma.shp"
+relative_path_regexp = "s28-tracks/s02-final/.*\\.shp"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "5fd1536f-dc17-425f-8530-f92548163d29"
+
+[[asset_discovery_configurations]]
+id = "ebcc3601-35ff-4668-a17f-91cb429eabfb"
+name = "tracks final vessel txt"
+media_type = "application/prs.ipma.txt"
+relative_path_regexp = "s28-tracks/s02-final/s01-vessel/.*\\.txt"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "5fd1536f-dc17-425f-8530-f92548163d29"
+
+[[asset_discovery_configurations]]
+id = "74b9f427-1b1e-4906-b4bf-c35abaf198c9"
+name = "tracks final vessel log"
+media_type = "application/prs.ipma.log"
+relative_path_regexp = "s28-tracks/s02-final/s01-vessel/.*\\.log"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "5fd1536f-dc17-425f-8530-f92548163d29"
+
+[[asset_discovery_configurations]]
+id = "ee692900-8da3-4705-b209-d74fa407b8b6"
+name = "tracks final vessel shp"
+media_type = "application/prs.ipma.shp"
+relative_path_regexp = "s28-tracks/s02-final/s01-vessel/.*\\.shp"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "5fd1536f-dc17-425f-8530-f92548163d29"
+
+[[asset_discovery_configurations]]
+id = "669c8072-025e-4a9c-8717-28e1cbd5a3f8"
+name = "ground model interpretation dat"
+media_type = "application/prs.ipma.dat"
+relative_path_regexp = "s29-ground-model/s03-interpretation/.*\\.dat"
+workflow_stage = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+dataset_category = "78b5cb94-43fe-4346-8cba-4bb98a739d22"
+
+[[asset_discovery_configurations]]
+id = "9ba6943e-bfa9-4407-9c9f-c54a8a39af73"
+name = "ground model interpretation shp"
+media_type = "application/prs.ipma.shp"
+relative_path_regexp = "s29-ground-model/s03-interpretation/.*\\.shp"
+workflow_stage = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+dataset_category = "78b5cb94-43fe-4346-8cba-4bb98a739d22"
+
+[[asset_discovery_configurations]]
+id = "d9514269-62b3-4f7f-a118-502bd7bc660f"
+name = "reporting pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s30-reporting/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "728d4cf0-b791-45ff-8c78-b6294871bc74"
+
+[[asset_discovery_configurations]]
+id = "1187a687-6520-4e43-bdf3-b0183dbcb2f3"
+name = "reporting dpr pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s30-reporting/s01-dpr/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "728d4cf0-b791-45ff-8c78-b6294871bc74"
+
+[[asset_discovery_configurations]]
+id = "fd0281e0-9a2c-44d0-81ec-7b893df6a015"
+name = "reporting daily pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s30-reporting/s02-daily/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "728d4cf0-b791-45ff-8c78-b6294871bc74"
+
+[[asset_discovery_configurations]]
+id = "677c0c39-1668-4eeb-acd5-b67f1a45a708"
+name = "reporting weekly pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s30-reporting/s03-weekly/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "728d4cf0-b791-45ff-8c78-b6294871bc74"
+
+[[asset_discovery_configurations]]
+id = "a64650cd-60d8-4dac-aac0-7a41c33b3b69"
+name = "reporting mmo pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s30-reporting/s04-mmo/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "728d4cf0-b791-45ff-8c78-b6294871bc74"
+
+[[asset_discovery_configurations]]
+id = "8977ea9a-2c2b-4c86-a993-3cd1fca436f2"
+name = "reporting vessel logs pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s30-reporting/s05-vessel-logs/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "728d4cf0-b791-45ff-8c78-b6294871bc74"
+
+[[asset_discovery_configurations]]
+id = "bb815dea-10cb-4a0a-bdd7-e42b80a01ae3"
+name = "reporting mob pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s30-reporting/s06-mob/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "728d4cf0-b791-45ff-8c78-b6294871bc74"
+
+[[asset_discovery_configurations]]
+id = "cbe03233-a934-446f-9e46-3540d704d42a"
+name = "reporting operations pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s30-reporting/s07-operations/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "728d4cf0-b791-45ff-8c78-b6294871bc74"
+
+[[asset_discovery_configurations]]
+id = "62b254a7-5102-491a-8fb4-52e6ebc05e91"
+name = "reporting field report pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s30-reporting/s08-field-report-data/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "728d4cf0-b791-45ff-8c78-b6294871bc74"
+
+[[asset_discovery_configurations]]
+id = "594ef885-9891-485c-acfe-0cb5bf5740f6"
+name = "reporting drafts pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s30-reporting/s11-drafts/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "728d4cf0-b791-45ff-8c78-b6294871bc74"
+
+[[asset_discovery_configurations]]
+id = "175c1fc3-e0da-41cc-a0e2-72a37c7831e0"
+name = "reporting final pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s30-reporting/s13-final/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "728d4cf0-b791-45ff-8c78-b6294871bc74"
+
+[[asset_discovery_configurations]]
+id = "e61f3cd6-cb4e-45ae-b605-f683229fe969"
+name = "reporting other pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s30-reporting/s14-other/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "728d4cf0-b791-45ff-8c78-b6294871bc74"
+
+[[asset_discovery_configurations]]
+id = "cf2cc908-afac-480e-954a-ed3730c80270"
+name = "interpretation general deliverables dat"
+media_type = "application/prs.ipma.dat"
+relative_path_regexp = "s32-interpretation-general/s01-deliverables/.*\\.dat"
+workflow_stage = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+dataset_category = "c8502a00-1856-472e-97d6-cdc752445cb5"
+
+[[asset_discovery_configurations]]
+id = "968a4ebc-8eb8-48e4-9fca-90f266773bd0"
+name = "interpretation general deliverables fmt"
+media_type = "application/prs.ipma.fmt"
+relative_path_regexp = "s32-interpretation-general/s01-deliverables/.*\\.fmt"
+workflow_stage = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+dataset_category = "c8502a00-1856-472e-97d6-cdc752445cb5"
+
+[[asset_discovery_configurations]]
+id = "dd93f99c-ffe8-4ad8-9ea1-1e401c395f14"
+name = "interpretation general deliverables shp"
+media_type = "application/prs.ipma.shp"
+relative_path_regexp = "s32-interpretation-general/s01-deliverables/.*\\.shp"
+workflow_stage = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
+dataset_category = "c8502a00-1856-472e-97d6-cdc752445cb5"
+
+[[asset_discovery_configurations]]
+id = "c452cc0a-018b-4079-9df1-4855fe07a0b2"
+name = "geophys other sgy"
+media_type = "application/prs.ipma.sgy"
+relative_path_regexp = "s33-geophys-other/.*\\.sgy"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "a17e2881-9d7c-4974-a312-bb2b58081cb2"
+
+[[asset_discovery_configurations]]
+id = "368ca705-3e0f-4515-8784-7eb0469cfd2c"
+name = "geotech other shp"
+media_type = "application/prs.ipma.shp"
+relative_path_regexp = "s34-geotech-other/.*\\.shp"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "6db7dc66-58b8-4055-b614-f8514fadc497"
+
+[[asset_discovery_configurations]]
+id = "28b8d312-8302-4cd5-9845-e87c1b69da80"
+name = "geotech other processed ags"
+media_type = "application/prs.ipma.ags"
+relative_path_regexp = "s34-geotech-other/s02-processed-data/.*\\.ags"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "6db7dc66-58b8-4055-b614-f8514fadc497"
+
+[[asset_discovery_configurations]]
+id = "feccc17f-bc8d-4ab3-89a6-8fbade066f43"
+name = "geotech other processed las"
+media_type = "application/prs.ipma.las"
+relative_path_regexp = "s34-geotech-other/s02-processed-data/.*\\.las"
+workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
+dataset_category = "6db7dc66-58b8-4055-b614-f8514fadc497"
+
+[[asset_discovery_configurations]]
+id = "17b242c6-8957-41a9-bfc6-8f11bddebeaa"
+name = "geotech other reports pdf"
+media_type = "application/prs.ipma.pdf"
+relative_path_regexp = "s34-geotech-other/s05-reports/.*\\.pdf"
+workflow_stage = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
+dataset_category = "6db7dc66-58b8-4055-b614-f8514fadc497"
+
+[[asset_discovery_configurations]]
+id = "4bd88cef-1f90-451f-8fd6-18a671a80450"
+name = "geotech other locations shp"
+media_type = "application/prs.ipma.shp"
+relative_path_regexp = "s34-geotech-other/s07-locations/.*\\.shp"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "6db7dc66-58b8-4055-b614-f8514fadc497"
+
+[[asset_discovery_configurations]]
+id = "ae50f5c3-7f61-4af1-b45a-1a01f04ff4c1"
+name = "geotech other locations xls"
+media_type = "application/prs.ipma.xls"
+relative_path_regexp = "s34-geotech-other/s07-locations/.*\\.xls"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "6db7dc66-58b8-4055-b614-f8514fadc497"
+
+[[asset_discovery_configurations]]
+id = "0b16876d-2631-4c81-8a67-f33ce3ae1c6b"
+name = "hydrographic other svp csv"
+media_type = "application/prs.ipma.csv"
+relative_path_regexp = "s35-hydrographic-other/s03-svp/.*\\.csv"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "9e7f79fb-1cb7-447d-9548-26caf5d94e20"
+
+[[asset_discovery_configurations]]
+id = "7542cfd4-4f94-4463-8f04-33a2191ba8e7"
+name = "hydrographic other svp xlsx"
+media_type = "application/prs.ipma.xlsx"
+relative_path_regexp = "s35-hydrographic-other/s03-svp/.*\\.xlsx"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "9e7f79fb-1cb7-447d-9548-26caf5d94e20"
+
+[[asset_discovery_configurations]]
+id = "54f0d7f7-e056-4f10-aaad-e0c431476d6f"
+name = "hydrographic other svp asvp"
+media_type = "application/prs.ipma.asvp"
+relative_path_regexp = "s35-hydrographic-other/s03-svp/.*\\.asvp"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "9e7f79fb-1cb7-447d-9548-26caf5d94e20"
+
+[[asset_discovery_configurations]]
+id = "dfe884c2-3d77-4177-bf15-8a9d3f17c7f2"
+name = "hydrographic other svp txt"
+media_type = "application/prs.ipma.txt"
+relative_path_regexp = "s35-hydrographic-other/s03-svp/.*\\.txt"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "9e7f79fb-1cb7-447d-9548-26caf5d94e20"
+
+[[asset_discovery_configurations]]
+id = "5233c3b2-8b93-44b4-9730-e95f08f87f17"
+name = "hydrographic other svp shp"
+media_type = "application/prs.ipma.shp"
+relative_path_regexp = "s35-hydrographic-other/s03-svp/.*\\.shp"
+workflow_stage = "ac51aa07-90e9-43d4-83b9-d079482a001e"
+dataset_category = "9e7f79fb-1cb7-447d-9548-26caf5d94e20"

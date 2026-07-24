@@ -127,6 +127,7 @@ class AssetDiscoveryConfiguration(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(unique=True)
     relative_path_regexp: str
+    media_type: str
     workflow_stage_id: uuid.UUID | None = Field(
         foreign_key="workflowstage.id", ondelete="CASCADE", index=True
     )

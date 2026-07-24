@@ -488,8 +488,12 @@ async def get_update_form(request: Request):
                 "en": details.item.description.en,
                 "pt": details.item.description.pt,
             },
-            "dataset_category_id": details.item.dataset_category.id,
-            "workflow_stage_id": details.item.workflow_stage.id,
+            "dataset_category_id": details.item.dataset_category.id
+            if details.item.dataset_category
+            else None,
+            "workflow_stage_id": details.item.workflow_stage.id
+            if details.item.workflow_stage
+            else None,
             "bounding_box": {
                 "min_lon": bbox.bounds[0],
                 "min_lat": bbox.bounds[1],
@@ -957,9 +961,13 @@ async def get_list_component(request: Request):
 
 
 async def stream_to_list_page(request: Request):
-    subscription = subscribers.subscribe_to_topic(
-        request.state.redis_client,
-        [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS],
+    topic_names = [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS]
+    pubsub = await subscribers.open_topic_subscription(
+        request.state.redis_client, topic_names
+    )
+    subscription = subscribers.iter_topic_messages(
+        pubsub,
+        topic_names,
         subscribers.HandlerContext(
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
@@ -1271,9 +1279,13 @@ async def stream_to_new_page(request: Request):
     except ValueError as err:
         raise HTTPException(status_code=400, detail="Invalid request id") from err
 
-    subscription = subscribers.subscribe_to_topic(
-        request.state.redis_client,
-        [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS],
+    topic_names = [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS]
+    pubsub = await subscribers.open_topic_subscription(
+        request.state.redis_client, topic_names
+    )
+    subscription = subscribers.iter_topic_messages(
+        pubsub,
+        topic_names,
         subscribers.HandlerContext(
             request_id=request_id,
             user=request.user,
@@ -1309,9 +1321,11 @@ async def stream_to_detail_page(request: Request):
     redis_client: Redis = request.state.redis_client
     user = request.user if request.user.is_authenticated else None
 
-    subscription = subscribers.subscribe_to_topic(
-        redis_client,
-        [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS],
+    topic_names = [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS]
+    pubsub = await subscribers.open_topic_subscription(redis_client, topic_names)
+    subscription = subscribers.iter_topic_messages(
+        pubsub,
+        topic_names,
         subscribers.HandlerContext(
             resource_id=str(record_id),
             user=user,
@@ -1324,6 +1338,7 @@ async def stream_to_detail_page(request: Request):
         ),
         message_handlers={
             "resource_modified": common_handlers.handle_resource_modification_detail_page,
+            "resource_status_changed": common_handlers.handle_resource_status_changed_detail_page,
         },
     )
 
@@ -1349,9 +1364,11 @@ async def stream_to_update_page(request: Request):
     redis_client: Redis = request.state.redis_client
     user = request.user
 
-    subscription = subscribers.subscribe_to_topic(
-        redis_client,
-        [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS],
+    topic_names = [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS]
+    pubsub = await subscribers.open_topic_subscription(redis_client, topic_names)
+    subscription = subscribers.iter_topic_messages(
+        pubsub,
+        topic_names,
         subscribers.HandlerContext(
             resource_id=str(record_id),
             user=user,
@@ -1371,6 +1388,34 @@ async def stream_to_update_page(request: Request):
             yield datastar_event
 
     return DatastarResponse(event_streamer())
+
+
+@csrf_protect
+@requires_auth
+async def trigger_publishing(request: Request):
+    record_tasks.handle_survey_related_record_publication.send(
+        raw_request_id=str(request.query_params.get("request_id", "")),
+        raw_survey_related_record_id=request.path_params["survey_related_record_id"],
+        raw_to_update=record_schemas.SurveyRelatedRecordPublication(
+            published=True
+        ).model_dump_json(exclude_unset=True),
+        raw_initiator=json.dumps(dataclasses.asdict(request.user)),
+    )  # noqa
+    return Response(status_code=200)
+
+
+@csrf_protect
+@requires_auth
+async def trigger_unpublishing(request: Request):
+    record_tasks.handle_survey_related_record_publication.send(
+        raw_request_id=str(request.query_params.get("request_id", "")),
+        raw_survey_related_record_id=request.path_params["survey_related_record_id"],
+        raw_to_update=record_schemas.SurveyRelatedRecordPublication(
+            published=False
+        ).model_dump_json(exclude_unset=True),
+        raw_initiator=json.dumps(dataclasses.asdict(request.user)),
+    )  # noqa
+    return Response(status_code=200)
 
 
 routes = [
@@ -1534,5 +1579,17 @@ routes = [
         remove_update_form_related_to_record,
         methods=["POST"],
         name="remove_update_form_related_to_record",
+    ),
+    Route(
+        "/{survey_related_record_id}/publish",
+        trigger_publishing,
+        methods=["POST"],
+        name="publish",
+    ),
+    Route(
+        "/{survey_related_record_id}/unpublish",
+        trigger_unpublishing,
+        methods=["POST"],
+        name="unpublish",
     ),
 ]

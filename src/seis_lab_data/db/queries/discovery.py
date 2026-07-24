@@ -50,28 +50,26 @@ async def list_asset_discovery_configurations(
     page_size: int = 20,
     include_total: bool = False,
     name_filter: str | None = None,
-    relative_path_regext_filter: str | None = None,
+    relative_path_regexp_filter: str | None = None,
 ) -> tuple[list[models.AssetDiscoveryConfiguration], int | None]:
     limit = page_size
     offset = page_size * (page - 1)
     statement = (
         select(models.AssetDiscoveryConfiguration)
         .options(*_SELECT_IN_LOAD_OPTIONS)
-        .order_by(models.AssetDiscoveryConfiguration.name.desc())
-        .offset(offset)
-        .limit(limit)
+        .order_by(models.AssetDiscoveryConfiguration.name.asc())
     )
     if name_filter is not None:
         statement = statement.where(
             models.AssetDiscoveryConfiguration.name.ilike(f"%{name_filter}%")
         )
-    if relative_path_regext_filter is not None:
+    if relative_path_regexp_filter is not None:
         statement = statement.where(
             models.AssetDiscoveryConfiguration.relative_path_regexp.ilike(
-                f"%{relative_path_regext_filter}%"
+                f"%{relative_path_regexp_filter}%"
             )
         )
-    items = (await session.exec(statement)).all()
+    items = (await session.exec(statement.offset(offset).limit(limit))).all()
     num_total = (
         await _get_total_num_records(session, statement) if include_total else None
     )
@@ -86,7 +84,7 @@ async def collect_all_asset_discovery_configurations(
     statement = (
         select(models.AssetDiscoveryConfiguration)
         .options(*_SELECT_IN_LOAD_OPTIONS)
-        .order_by(models.AssetDiscoveryConfiguration.name.desc())
+        .order_by(models.AssetDiscoveryConfiguration.name.asc())
     )
     if name_filter is not None:
         statement = statement.where(

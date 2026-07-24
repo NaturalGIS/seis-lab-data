@@ -142,18 +142,18 @@ async def delete_project(
 ):
     """Delete a project."""
     redis_client: aioredis.Redis = ctx.obj["main"].redis_client
-    subscription = subscribers.subscribe_to_topic(
-        redis_client,
-        topic_names=[constants.NEW_TOPIC_PROJECTS],
-        handler_context=subscribers.HandlerContext(),
-        message_handlers={
-            "resource_modified": handlers.handle_resource_modified,
-        },
-    )
+    topic_names = [constants.NEW_TOPIC_PROJECTS]
+    pubsub = await subscribers.open_topic_subscription(redis_client, topic_names)
     project_tasks.delete_project.send(
         raw_request_id=str(uuid.uuid4()),
         raw_project_id=str(identifiers.ProjectId(project_id)),
         raw_initiator=json.dumps(dataclasses.asdict(ctx.obj["admin_user"])),
     )  # noqa
+    subscription = subscribers.iter_topic_messages(
+        pubsub,
+        topic_names,
+        subscribers.HandlerContext(),
+        {"resource_modified": handlers.handle_resource_modified},
+    )
     async for chunk in subscription:
         ctx.obj["main"].status_console.print(chunk)

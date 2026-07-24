@@ -217,9 +217,13 @@ async def get_update_form(request: Request):
 
 
 async def stream_to_list_page(request: Request):
-    subscription = subscribers.subscribe_to_topic(
-        request.state.redis_client,
-        [constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS],
+    topic_names = [constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS]
+    pubsub = await subscribers.open_topic_subscription(
+        request.state.redis_client, topic_names
+    )
+    subscription = subscribers.iter_topic_messages(
+        pubsub,
+        topic_names,
         subscribers.HandlerContext(
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
@@ -248,9 +252,13 @@ async def stream_to_new_page(request: Request):
         raise HTTPException(status_code=400, detail="Invalid request id") from err
 
     # TODO: should we update the form fields with handlers too?
-    subscription = subscribers.subscribe_to_topic(
-        request.state.redis_client,
-        [constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS],
+    topic_names = [constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS]
+    pubsub = await subscribers.open_topic_subscription(
+        request.state.redis_client, topic_names
+    )
+    subscription = subscribers.iter_topic_messages(
+        pubsub,
+        topic_names,
         subscribers.HandlerContext(
             request_id=request_id,
             user=request.user,
@@ -286,9 +294,13 @@ async def stream_to_update_page(request: Request):
         raise HTTPException(status_code=400, detail="Invalid request id") from err
 
     # TODO: should we update the form fields with handlers too?
-    subscription = subscribers.subscribe_to_topic(
-        request.state.redis_client,
-        [constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS],
+    topic_names = [constants.NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS]
+    pubsub = await subscribers.open_topic_subscription(
+        request.state.redis_client, topic_names
+    )
+    subscription = subscribers.iter_topic_messages(
+        pubsub,
+        topic_names,
         subscribers.HandlerContext(
             request_id=request_id,
             user=request.user,
@@ -418,6 +430,7 @@ class AssetDiscoveryConfigurationCollectionEndpoint(HTTPEndpoint):
             id=identifiers.AssetDiscoveryConfId(uuid.uuid4()),
             name=form_instance.name.data,
             relative_path_regexp=form_instance.relative_path_regexp.data,
+            media_type=form_instance.media_type.data,
             dataset_category_id=form_instance.dataset_category_id.data,
             workflow_stage_id=form_instance.workflow_stage_id.data,
         )
@@ -493,6 +506,7 @@ class AssetDiscoveryConfigurationDetailEndpoint(HTTPEndpoint):
             raw_to_update=discovery_schemas.AssetDiscoveryConfigurationUpdate(
                 name=form_instance.name.data,
                 relative_path_regexp=form_instance.relative_path_regexp.data,
+                media_type=form_instance.media_type.data,
                 dataset_category_id=form_instance.dataset_category_id.data,
                 workflow_stage_id=form_instance.workflow_stage_id.data,
             ).model_dump_json(),

@@ -60,17 +60,19 @@ Users with create permission are linked to /asset-discovery-configurations/new, 
             {% include "discovery/list-component.html" %}
         </div>
         <div class="col-3">
-            <h5>{{ _("actions") | capitalize }}</h5>
-            <div class="list-group mb-3">
-                {% if permissions.can_create %}
-                    <a
-                            class="list-group-item list-group-item-action list-group-item-info"
-                            href="{{ url_for('asset_discovery_configurations:get_creation_form') }}"
-                            aria-label="new-asset-discovery-configuration"
-                    >
-                        <span class="material-icons-outlined me-1">{{ icons.new_item }}</span>{{ _("Add new asset_discovery_configuration") | capitalize }}
-                    </a>
-                {% endif %}
+            <div class="card border-0 mb-3">
+                <h5>{{ _("actions") | capitalize }}</h5>
+                <div class="card-body p-0 d-grid gap-2">
+                    {% if permissions.can_create %}
+                        <a
+                                class="btn btn-primary"
+                                href="{{ url_for('asset_discovery_configurations:get_creation_form') }}"
+                                aria-label="new-asset-discovery-configuration"
+                        >
+                            <span class="material-icons-outlined me-1">{{ icons.new_item }}</span>{{ _("Add new asset_discovery_configuration") | capitalize }}
+                        </a>
+                    {% endif %}
+                </div>
             </div>
             <h5>{{ _("info") | capitalize }}</h5>
             <ul class="list-group">

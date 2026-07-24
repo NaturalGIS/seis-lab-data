@@ -41,6 +41,15 @@ class _AssetDiscoveryConfigurationForm(StarletteForm):
             "A regular expression that is used to find the respective file on the filesystem"
         ),
     )
+    media_type = StringField(
+        description=_(
+            "Media type (AKA MIME type) of the asset. Discover existing "
+            "media types at the "
+            '<a href="https://www.iana.org/assignments/media-types/media-types.xhtml">official IANA media type list</a>.'
+            " If needed, define custom media types like this "
+            "'application/prs.ipma.&ltfile-format&gt' (ex: application/prs.ipma.kmall)"
+        )
+    )
     dataset_category_id = SelectField(_("Dataset category"))
     workflow_stage_id = SelectField(_("Workflow stage"))
 
@@ -48,6 +57,8 @@ class _AssetDiscoveryConfigurationForm(StarletteForm):
         super().__init__(*args, **kwargs)
         # Make 'name' field required
         self.name.flags.backend_required = True
+        self.relative_path_regexp.flags.backend_required = True
+        self.media_type.flags.backend_required = True
 
     def has_validation_errors(self) -> bool:
         all_form_validation_errors = {**self.errors}
@@ -115,6 +126,7 @@ class AssetDiscoveryConfigurationCreateForm(_AssetDiscoveryConfigurationForm):
                 id=None,
                 name=self.name.data,
                 relative_path_regexp=self.relative_path_regexp.data,
+                media_type=self.media_type.data,
                 dataset_category_id=self.dataset_category_id.data,
                 workflow_stage_id=self.workflow_stage_id.data,
             )
@@ -127,6 +139,7 @@ class AssetDiscoveryConfigurationUpdateForm(_AssetDiscoveryConfigurationForm):
         try:
             discovery_schemas.AssetDiscoveryConfigurationUpdate(
                 name=self.name.data,
+                media_type=self.media_type.data,
                 relative_path_regexp=self.relative_path_regexp.data,
                 dataset_category_id=self.dataset_category_id.data,
                 workflow_stage_id=self.workflow_stage_id.data,

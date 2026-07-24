@@ -13,6 +13,7 @@ from typing import (
 import jinja2
 import pydantic
 from redis.asyncio import Redis
+from redis.asyncio.client import PubSub
 from sqlalchemy.ext.asyncio.session import async_sessionmaker
 
 from . import constants
@@ -54,52 +55,67 @@ class MessageHandlerProtocol[T_co, TContext: HandlerContext](Protocol):
         ...
 
 
-async def subscribe_to_topic[T, TContext: HandlerContext](
+async def open_topic_subscription(
     redis_client: Redis,
+    topic_names: Sequence[str],
+) -> PubSub:
+    """Subscribe to a pubsub topic and return once the subscription is live.
+
+    Callers must await this *before* dispatching any messages that are
+    expected to trigger a `resource_modified` event on this topic - otherwise
+    a fast consumer can publish before anyone is listening and the event is
+    lost for good (redis pub/sub is fire-and-forget).
+    """
+    pubsub = redis_client.pubsub()
+    await pubsub.subscribe(*topic_names)
+    logger.debug(f"Subscribed to {topic_names}")
+    return pubsub
+
+
+async def iter_topic_messages[T, TContext: HandlerContext](
+    pubsub: PubSub,
     topic_names: Sequence[str],
     handler_context: TContext,
     message_handlers: dict[str, MessageHandlerProtocol[T, TContext]],
 ) -> AsyncGenerator[T, None]:
     """
-    Subscribe to a pubsub topic and dispatch incoming messages to relevant handlers.
+    Dispatch incoming messages on an already-subscribed pubsub to relevant handlers.
     """
     done_event = asyncio.Event()
-    async with redis_client.pubsub() as pubsub:
-        logger.debug(f"Subscribing to {topic_names}")
-        await pubsub.subscribe(*topic_names)
-        try:
-            async for message in pubsub.listen():
-                if done_event.is_set():
-                    break
-                if message["type"] != "message":
-                    continue
+    try:
+        async for message in pubsub.listen():
+            if done_event.is_set():
+                break
+            if message["type"] != "message":
+                continue
 
-                try:
-                    parsed = pydantic.TypeAdapter(
-                        message_schemas.SldPubSubMessage
-                    ).validate_json(message["data"])
-                except pydantic.ValidationError as err:
-                    logger.warning(err)
-                    logger.warning(
-                        f"Unrecognised message {message['data']!r} "
-                        f"on {topic_names!r}, skipping"
-                    )
-                    continue
+            try:
+                parsed = pydantic.TypeAdapter(
+                    message_schemas.SldPubSubMessage
+                ).validate_json(message["data"])
+            except pydantic.ValidationError as err:
+                logger.warning(err)
+                logger.warning(
+                    f"Unrecognised message {message['data']!r} "
+                    f"on {topic_names!r}, skipping"
+                )
+                continue
 
-                handler = message_handlers.get(parsed.type)
-                if handler is None:
-                    logger.debug(f"No handler for {parsed.type!r}, ignoring")
-                    continue
+            handler = message_handlers.get(parsed.type)
+            if handler is None:
+                logger.debug(f"No handler for {parsed.type!r}, ignoring")
+                continue
 
-                async for chunk in handler(
-                    parsed, context=handler_context, done=done_event
-                ):
-                    yield chunk
+            async for chunk in handler(
+                parsed, context=handler_context, done=done_event
+            ):
+                yield chunk
 
-                if done_event.is_set():
-                    break
+            if done_event.is_set():
+                break
 
-        except asyncio.CancelledError:
-            logger.info(f"pubsub listener for {topic_names!r} cancelled")
-        finally:
-            await pubsub.unsubscribe(topic_names)
+    except asyncio.CancelledError:
+        logger.info(f"pubsub listener for {topic_names!r} cancelled")
+    finally:
+        await pubsub.unsubscribe(*topic_names)
+        await pubsub.aclose()

@@ -1,3 +1,24 @@
+:root {
+    --bs-dataset-category-color: #ff6b35;
+    --bs-workflow-stage-color: #a83604;
+}
+
+.bg-dataset-category {
+    background-color: var(--bs-dataset-category-color) !important;
+}
+
+.text-dataset-category {
+    color: var(--bs-dataset-category-color) !important;
+}
+
+.bg-workflow-stage {
+    background-color: var(--bs-workflow-stage-color) !important;
+}
+
+.text-workflow-stage {
+    color: var(--bs-workflow-stage-color) !important;
+}
+
 @view-transition {
     navigation: auto;
 }

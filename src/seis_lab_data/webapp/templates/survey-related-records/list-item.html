@@ -21,7 +21,11 @@
             <div class="col-md-9">
                 <div class="card-body">
                     <div class="row justify-content-between">
-                        <h5 class="card-title">{{ item.name|translate_localizable_string|default(_("name not available"), True) }}</h5>
+                        <div class="d-flex align-items-center flex-wrap gap-2">
+                            <h5 class="card-title mb-0">{{ item.name|translate_localizable_string|default(_("name not available"), True) }}</h5>
+                            <span class="badge bg-dataset-category">{% if item.dataset_category %}{{ item.dataset_category.name | translate_localizable_string }}{% else %}{{ _("unknown category") }}{% endif %}</span>
+                            <span class="badge bg-workflow-stage">{% if item.workflow_stage %}{{ item.workflow_stage.name | translate_localizable_string }}{% else %}{{ _("unknown stage") }}{% endif %}</span>
+                        </div>
                         <small class="text-body-secondary"><span
                                 class="material-icons-outlined me-1">{{ icons['status_' + item.status.value] }}</span> {{ item.status.value }}
                         </small>
@@ -47,9 +51,6 @@
                                         {{ item.temporal_extent_begin | default(_(".."), True) }}/{{ item.temporal_extent_end | default(_(".."), True) }}
                                     </small>
                                 </li>
-                                <li class="card-text">
-                                    <span class="badge text-bg-primary">{{ item.dataset_category.name | translate_localizable_string }}</span>
-                                    <span class="badge text-bg-secondary">{{ item.workflow_stage.name | translate_localizable_string }}</span></li>
                                 <li class="card-text text-truncate">
                                     {{ item.description|translate_localizable_string|default(_("description not available"), True) }}
                                 </li>
