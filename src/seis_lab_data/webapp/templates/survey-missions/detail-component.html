@@ -2,7 +2,9 @@
 {% import "macros-buttons.html" as macros_buttons %}
 {% import "macros-buttons-list-items.html" as macros_buttons_list_items %}
 {% import "macros-maps.html" as macros_maps %}
-{% from "macros/search.html" import search_component %}
+{% from "macros/checkbox.html" import search_checkbox %}
+{% from "macros/select.html" import search_select %}
+{% from "macros/datalist.html" import search_datalist %}
 <div
         class="row"
         data-on-intersect__once="@get('{{ url_for("survey_missions:detail_stream", request_id=request_id, survey_mission_id=item.id) }}')"
@@ -73,6 +75,9 @@
         </div>
         <div
             class="row mt-4"
+            data-signals:search="'{{ search_initial_value | default('', true) }}'"
+            data-signals:advanced-search-panel-open="false"
+            data-signals:searching="false"
             data-signals:listing-version="0"
             data-signals:selected-ids="{}"
             data-signals:excluded-ids="{}"
@@ -81,12 +86,107 @@
         >
             <div class="col">
                 <h2>{{ _("survey-related-records") | capitalize }}</h2>
-                {{ search_component(
-                   url_for("survey_missions:get_mission_records_list_component", survey_mission_id=item.id),
-                   _("search survey-related records"),
-                   initial_value=search_initial_value | default("", true),
-                   extra_on_input_js=macros.reset_selection_js()
-                ) }}
+                {% set mission_records_url = url_for("survey_missions:get_mission_records_list_component", survey_mission_id=item.id) %}
+                <div class="row justify-content-center mb-3">
+                    <div class="col-8">
+                        <search class="form-floating">
+                            <input
+                                    class="form-control form-control-lg"
+                                    type="search"
+                                    id="search"
+                                    placeholder="Search"
+                                    data-bind:search
+                                    data-on:input__debounce.200ms="{{ macros.reset_selection_js() }}@get('{{ mission_records_url }}')"
+                                    data-indicator:searching
+                            />
+                            <label class="form-label" for="search">
+                                <span class="material-icons-outlined">{{ icons.search }}</span>
+                                {{ _("search survey-related records") | capitalize }}
+                            </label>
+                        </search>
+                        {{ search_checkbox(
+                                "search-only-internal",
+                                "false",
+                                "filterOnlyInternal",
+                                mission_records_url,
+                                _("show only internal survey-related records") | capitalize
+                            ) }}
+                        <div
+                                data-attr:hidden="!$searching"
+                                class="spinner-border spinner-border-sm ms-3"
+                                role="status"
+                                aria-hidden="true"
+                        >
+                            <span class="visually-hidden">{{ _("searching...") | capitalize }}</span>
+                        </div>
+                        <button
+                                class="btn btn-light btn-sm mt-1"
+                                type="button"
+                                data-on:click="$advancedSearchPanelOpen=!$advancedSearchPanelOpen"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#mission-advanced-search-controls"
+                                aria-expanded="false"
+                                aria-controls="mission-advanced-search-controls"
+                        >
+                            <span
+                                    class="material-icons-outlined me-1"
+                                    data-attr:style="$advancedSearchPanelOpen ? 'transform: rotate(0deg); transition: transform 0.3s ease;' : 'transform: rotate(-90deg); transition: transform 0.3s ease;'"
+                            >
+                                {{ icons.expand_more }}
+                            </span>
+                            {{ _("toggle advanced search controls") | capitalize }}
+                        </button>
+                    </div>
+                </div>
+                <div class="row collapse" id="mission-advanced-search-controls">
+                    <div class="col-6">
+                        {{ search_select(
+                            "search-dataset-category",
+                            dataset_categories,
+                                "filterDatasetCategory",
+                                mission_records_url,
+                                _("dataset category") | capitalize
+                        ) }}
+                        {{ search_select(
+                            "search-workflow-stage",
+                            workflow_stages,
+                                "filterWorkflowStage",
+                                mission_records_url,
+                                _("workflow stage") | capitalize
+                        ) }}
+                        {{ search_datalist(
+                              "search-asset-media-type",
+                              filter_media_types_datalist,
+                              "filterMediaType",
+                              mission_records_url,
+                              _("media type") | capitalize
+                        ) }}
+                    </div>
+                    <div class="col-6">
+                        <div class="row">
+                            <div class="col">
+                                {{ macros.render_temporal_extent_search_component(
+                                                mission_records_url,
+                                                _("Temporal extent begin"),
+                                                _("Temporal extent end"),
+                                                current_temporal_extent.begin,
+                                                current_temporal_extent.end,
+                                                extra_on_input_js=macros.reset_selection_js()
+                                            ) }}
+                                <div class="mb-3">
+                                    <label class="form-label" for="path-fragment">{{ _("Path") }}</label>
+                                    <input
+                                            id="path-fragment"
+                                            class="form-control"
+                                            data-bind="assetPathFragment"
+                                            data-on:input__debounce.200ms="{{ macros.reset_selection_js() }}@get('{{ mission_records_url }}')"
+                                            value=""
+                                    >
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div id="survey-mission-records">
                     {% with items = survey_related_records, bulk_update_base_url = (url_for("survey_missions:get_bulk_update_form", survey_mission_id=item.id) if permissions.can_bulk_update else none) %}
                         {% include "survey-related-records/list-component.html" %}

@@ -106,3 +106,8 @@ class SurveyMissionDetails(
     ItemDetails[SurveyMissionReadDetail, SurveyRelatedRecordReadDetail]
 ):
     """Details for a survey mission, including its records, permissions and pagination."""
+
+    dataset_categories: list[tuple[str, str]]
+    workflow_stages: list[tuple[str, str]]
+    filter_media_types_datalist: list[str]
+    current_temporal_extent: dict[str, str | None]

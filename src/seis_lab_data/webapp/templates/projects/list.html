@@ -93,8 +93,8 @@ Users with create permission are linked to /projects/new, which is a separate st
                                 url_for("projects:get_list_component"),
                                 _("Temporal extent begin"),
                                 _("Temporal extent end"),
-                                "{{ current_temporal_extent.begin }}",
-                                "{{ current_temporal_extent.end }}"
+                                current_temporal_extent.begin,
+                                current_temporal_extent.end
                             ) }}
                         </div>
                         <div

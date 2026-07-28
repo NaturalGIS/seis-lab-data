@@ -151,4 +151,7 @@ async def bulk_update_survey_related_records(
             spatial_intersect=selection.spatial_intersect,
             temporal_extent=selection.temporal_extent,
             asset_path_fragment_filter=selection.asset_path_fragment_filter,
+            asset_media_type_filter=selection.asset_media_type_filter,
+            dataset_category_id=selection.dataset_category_id,
+            workflow_stage_id=selection.workflow_stage_id,
         )
