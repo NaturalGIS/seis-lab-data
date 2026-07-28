@@ -1,0 +1,50 @@
+{% from "macros/checkbox.html" import search_checkbox %}
+
+{% macro search_component(
+    search_url,
+    label_text,
+    initial_value="",
+    set_autofocus=False,
+    extra_on_input_js=""
+) %}
+    <div
+            class="row justify-content-center m-5"
+            data-signals:search="'{{ initial_value }}'"
+            data-signals:searching="false"
+    >
+        <div class="col-8">
+            <search class="form-floating">
+                <input
+                        class="form-control form-control-lg"
+                        type="search"
+                        id="search"
+                        placeholder="Search"
+                        data-bind:search
+                        data-on:input__debounce.200ms="{{ extra_on_input_js }}@get('{{ search_url }}')"
+                        data-indicator:searching
+                        {% if set_autofocus %}autofocus{% endif %}
+                />
+                <label class="form-label" for="search">
+                    <span class="material-icons-outlined me-1">{{ icons.search }}</span>
+                    {{ label_text | capitalize }}
+                </label>
+            </search>
+            {{ search_checkbox(
+                "search-only-internal",
+                "true",
+                "filterOnlyInternal",
+                search_url,
+                _("show only internal items") | capitalize
+            ) }}
+            <div
+                    data-attr:hidden="!$searching"
+                    class="spinner-border spinner-border-sm ms-3"
+                    role="status"
+                    aria-hidden="true"
+            >
+                <span class="visually-hidden">{{ _("searching...") | capitalize }}</span>
+            </div>
+
+        </div>
+    </div>
+{% endmacro %}

@@ -66,3 +66,30 @@ async def test_list_survey_related_records(
             session, survey_mission_id=survey_mission_id_filter, include_total=True
         )
         assert total == expected_total
+
+
+@pytest.mark.parametrize(
+    "project_id_filter, expected_total",
+    [
+        pytest.param(None, 2),
+        pytest.param(
+            identifiers.ProjectId(uuid.UUID("74f07051-1aa9-4c08-bc27-3ecf101ab5b3")), 2
+        ),
+        pytest.param(
+            identifiers.ProjectId(uuid.UUID("8f931331-15c3-4899-846c-38470f6bcb5a")), 0
+        ),
+    ],
+)
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_list_survey_related_records_project_id_filter(
+    sample_survey_related_records,
+    db_session_maker,
+    project_id_filter,
+    expected_total,
+):
+    async with db_session_maker() as session:
+        survey_records, total = await record_queries.list_survey_related_records(
+            session, project_id=project_id_filter, include_total=True
+        )
+        assert total == expected_total

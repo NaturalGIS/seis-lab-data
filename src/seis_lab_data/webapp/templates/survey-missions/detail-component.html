@@ -2,6 +2,7 @@
 {% import "macros-buttons.html" as macros_buttons %}
 {% import "macros-buttons-list-items.html" as macros_buttons_list_items %}
 {% import "macros-maps.html" as macros_maps %}
+{% from "macros/search.html" import search_component %}
 <div
         class="row"
         data-on-intersect__once="@get('{{ url_for("survey_missions:detail_stream", request_id=request_id, survey_mission_id=item.id) }}')"
@@ -80,7 +81,7 @@
         >
             <div class="col">
                 <h2>{{ _("survey-related-records") | capitalize }}</h2>
-                {{ macros.render_search_component(
+                {{ search_component(
                    url_for("survey_missions:get_mission_records_list_component", survey_mission_id=item.id),
                    _("search survey-related records"),
                    initial_value=search_initial_value | default("", true),

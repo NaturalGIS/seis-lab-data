@@ -2,7 +2,10 @@ import logging
 from typing import Literal
 
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
+from sqlmodel import (
+    func,
+    select,
+)
 
 from ...db import models
 from ...schemas import identifiers
@@ -22,7 +25,7 @@ async def list_dataset_categories(
     limit = page_size
     offset = page_size * (page - 1)
     statement = select(models.DatasetCategory).order_by(
-        models.DatasetCategory.name["en"].astext.desc()
+        func.lower(models.DatasetCategory.name["en"].astext)
     )
     if en_name_filter is not None:
         statement = statement.where(
@@ -46,8 +49,8 @@ async def collect_all_dataset_categories(
     order_by: Literal["name_en", "name_pt"] = "name_en",
 ) -> list[models.DatasetCategory]:
     order_by_clause = {
-        "name_pt": models.DatasetCategory.name["pt"].astext.desc(),
-    }.get(order_by, models.DatasetCategory.name["en"].astext.desc())
+        "name_pt": func.lower(models.DatasetCategory.name["pt"].astext),
+    }.get(order_by, func.lower(models.DatasetCategory.name["en"].astext))
 
     statement = select(models.DatasetCategory).order_by(order_by_clause)
     if en_name_filter is not None:

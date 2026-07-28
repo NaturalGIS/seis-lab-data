@@ -26,6 +26,14 @@
                             <span class="badge bg-dataset-category">{% if item.dataset_category %}{{ item.dataset_category.name | translate_localizable_string }}{% else %}{{ _("unknown category") }}{% endif %}</span>
                             <span class="badge bg-workflow-stage">{% if item.workflow_stage %}{{ item.workflow_stage.name | translate_localizable_string }}{% else %}{{ _("unknown stage") }}{% endif %}</span>
                         </div>
+                        <div class="card-text my-2">
+                            <span class="material-icons-outlined me-1">{{ icons.projects }}</span>
+                            {{ item.survey_mission.project.name | translate_localizable_string }}
+                            <span class="material-icons-outlined me-1">{{ icons.survey_missions }}</span>
+                            {{ item.survey_mission.name | translate_localizable_string }}
+                        </div>
+
+
                         <small class="text-body-secondary"><span
                                 class="material-icons-outlined me-1">{{ icons['status_' + item.status.value] }}</span> {{ item.status.value }}
                         </small>
@@ -54,6 +62,7 @@
                                 <li class="card-text text-truncate">
                                     {{ item.description|translate_localizable_string|default(_("description not available"), True) }}
                                 </li>
+                                <li class="card-text"><small>{{ item.record_assets | map(attribute="relative_path") | join(",") }}</small></li>
                             </ul>
                         </div>
                         <div class="col">

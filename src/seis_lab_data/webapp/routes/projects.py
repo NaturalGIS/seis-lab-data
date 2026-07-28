@@ -58,6 +58,7 @@ from .common import (
     get_pagination_info,
     UPDATE_BASEMAP_JS_SCRIPT,
 )
+from .datalist import get_projects_datalist
 
 logger = logging.getLogger(__name__)
 
@@ -1066,6 +1067,7 @@ async def remove_update_project_form_link(request: Request):
 
 routes = [
     Route("/", ProjectCollectionEndpoint, name="list"),
+    Route("/datalist", get_projects_datalist, name="get_datalist"),
     Route("/stream", stream_to_list_page, name="list_stream"),
     Route("/search", get_list_component, name="get_list_component"),
     Route(

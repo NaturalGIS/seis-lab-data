@@ -19,9 +19,10 @@ from .common import (
 from .filters import TemporalExtentFilterValue
 from .identifiers import (
     DatasetCategoryId,
-    RecordAssetId,
+    ProjectId,
     SurveyRelatedRecordId,
     SurveyMissionId,
+    RecordAssetId,
     UserId,
     WorkflowStageId,
 )
@@ -36,6 +37,7 @@ class RecordAssetCreate(pydantic.BaseModel):
     id: RecordAssetId
     name: LocalizableDraftName
     description: LocalizableDraftDescription
+    media_type: str | None = None
     relative_path: str
     links: list[LinkSchema] = []
 
@@ -44,6 +46,7 @@ class RecordAssetUpdate(pydantic.BaseModel):
     id: RecordAssetId
     name: LocalizableDraftName | None = None
     description: LocalizableDraftDescription | None = None
+    media_type: str | None = None
     relative_path: str | None = None
     links: list[LinkSchema] | None = None
 
@@ -57,6 +60,7 @@ class RecordAssetReadListItem(pydantic.BaseModel):
 class RecordAssetReadDetailEmbedded(RecordAssetReadListItem):
     description: LocalizableDraftDescription
     relative_path: str
+    media_type: str | None
     links: list[LinkSchema] = []
 
 
@@ -149,10 +153,13 @@ class SurveyRelatedRecordBulkUpdateSelection(pydantic.BaseModel):
     selected: list[SurveyRelatedRecordId] | None = None
     excluded_record_ids: list[SurveyRelatedRecordId] | None = None
     survey_mission_id: SurveyMissionId | None = None
+    project_id: ProjectId | None = None
     en_name_filter: str | None = None
     pt_name_filter: str | None = None
     spatial_intersect: PossiblyInvalidPolygon | None = None
     temporal_extent: TemporalExtentFilterValue | None = None
+    asset_path_fragment_filter: str | None = None
+    asset_media_type_filter: str | None = None
     asset_path_fragment_filter: str | None = None
 
 
@@ -195,6 +202,7 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
     temporal_extent_end: Annotated[
         dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
     ]
+    record_assets: list[RecordAssetReadDetailEmbedded]
 
     @classmethod
     def from_db_instance(
@@ -215,16 +223,18 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
             )
             if instance.workflow_stage
             else None,
+            record_assets=[
+                RecordAssetReadDetailEmbedded.model_validate(
+                    db_asset, from_attributes=True
+                )
+                for db_asset in instance.assets
+            ],
         )
 
 
 class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
     owner_id: UserId
     links: list[LinkSchema] = []
-    survey_mission: SurveyMissionReadEmbedded
-    # dataset_category: DatasetCategoryReadListItem
-    # workflow_stage: WorkflowStageReadListItem
-    record_assets: list[RecordAssetReadDetailEmbedded]
     related_to_records: list[
         tuple[LocalizableDraftDescription, SurveyRelatedRecordReadEmbedded]
     ]

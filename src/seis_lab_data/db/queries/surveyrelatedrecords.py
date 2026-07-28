@@ -1,7 +1,7 @@
 import logging
 
 import shapely
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import aliased, selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import (
     exists,
@@ -22,14 +22,19 @@ logger = logging.getLogger(__name__)
 
 
 def _apply_survey_related_record_filters(
+    *,
     statement,
     survey_mission_id: identifiers.SurveyMissionId | None = None,
+    project_id: identifiers.ProjectId | None = None,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    asset_media_type_filter: str | None = None,
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    dataset_category_id: identifiers.DatasetCategoryId | None = None,
+    workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ):
     """Apply the common survey-related record search filters to a statement.
 
@@ -60,6 +65,13 @@ def _apply_survey_related_record_filters(
         statement = statement.where(
             models.SurveyRelatedRecord.survey_mission_id == survey_mission_id
         )
+    if project_id is not None:
+        # aliased so this join doesn't collide with the unaliased SurveyMission
+        # join that `_restrict_to_accessible`/`_restrict_to_owned` add later
+        mission = aliased(models.SurveyMission)
+        statement = statement.join(
+            mission, models.SurveyRelatedRecord.survey_mission_id == mission.id
+        ).where(mission.project_id == project_id)
     if temporal_extent is not None:
         if temporal_extent.begin is not None:
             statement = statement.where(
@@ -70,6 +82,14 @@ def _apply_survey_related_record_filters(
             statement = statement.where(
                 models.SurveyRelatedRecord.temporal_extent_end <= temporal_extent.end
             )
+    if dataset_category_id is not None:
+        statement = statement.where(
+            models.SurveyRelatedRecord.dataset_category_id == dataset_category_id
+        )
+    if workflow_stage_id is not None:
+        statement = statement.where(
+            models.SurveyRelatedRecord.workflow_stage_id == workflow_stage_id
+        )
     if asset_path_fragment_filter is not None:
         statement = statement.where(
             exists(
@@ -85,17 +105,34 @@ def _apply_survey_related_record_filters(
                 )
             )
         )
+    if asset_media_type_filter is not None:
+        statement = statement.where(
+            exists(
+                select(models.RecordAsset)
+                .where(
+                    models.RecordAsset.survey_related_record_id
+                    == models.SurveyRelatedRecord.id
+                )
+                .where(
+                    models.RecordAsset.media_type.ilike(f"%{asset_media_type_filter}%")
+                )
+            )
+        )
     return statement
 
 
 def _build_survey_related_record_statement(
     survey_mission_id: identifiers.SurveyMissionId | None = None,
+    project_id: identifiers.ProjectId | None = None,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    asset_media_type_filter: str | None = None,
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    dataset_category_id: identifiers.DatasetCategoryId | None = None,
+    workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ):
     statement = (
         select(models.SurveyRelatedRecord)
@@ -106,16 +143,25 @@ def _build_survey_related_record_statement(
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
+        # adding all assets too, since they will always be a small list
+        .options(selectinload(models.SurveyRelatedRecord.assets))
+        # also adding relationships with other records - only first order relationships are loaded, not the full tree
+        .options(selectinload(models.SurveyRelatedRecord.related_to_links))
+        .options(selectinload(models.SurveyRelatedRecord.subject_links))
     )
     statement = _apply_survey_related_record_filters(
-        statement,
-        survey_mission_id,
-        en_name_filter,
-        pt_name_filter,
-        spatial_intersect,
-        temporal_extent,
-        asset_path_fragment_filter,
-        record_ids,
+        statement=statement,
+        survey_mission_id=survey_mission_id,
+        project_id=project_id,
+        en_name_filter=en_name_filter,
+        pt_name_filter=pt_name_filter,
+        spatial_intersect=spatial_intersect,
+        temporal_extent=temporal_extent,
+        asset_path_fragment_filter=asset_path_fragment_filter,
+        asset_media_type_filter=asset_media_type_filter,
+        record_ids=record_ids,
+        dataset_category_id=dataset_category_id,
+        workflow_stage_id=workflow_stage_id,
     )
     return statement.order_by(
         models.SurveyRelatedRecord.temporal_extent_end.desc().nullslast()
@@ -130,6 +176,8 @@ def _build_survey_related_record_id_statement(
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    dataset_category_id: identifiers.DatasetCategoryId | None = None,
+    workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ):
     """Build a statement selecting only the ids of matching records.
 
@@ -137,14 +185,16 @@ def _build_survey_related_record_id_statement(
     bulk-update commands), where loading full records would be wasteful.
     """
     return _apply_survey_related_record_filters(
-        select(models.SurveyRelatedRecord.id),
-        survey_mission_id,
-        en_name_filter,
-        pt_name_filter,
-        spatial_intersect,
-        temporal_extent,
-        asset_path_fragment_filter,
-        record_ids,
+        statement=select(models.SurveyRelatedRecord.id),
+        survey_mission_id=survey_mission_id,
+        en_name_filter=en_name_filter,
+        pt_name_filter=pt_name_filter,
+        spatial_intersect=spatial_intersect,
+        temporal_extent=temporal_extent,
+        asset_path_fragment_filter=asset_path_fragment_filter,
+        record_ids=record_ids,
+        dataset_category_id=dataset_category_id,
+        workflow_stage_id=workflow_stage_id,
     )
 
 
@@ -165,6 +215,7 @@ async def _exec_survey_related_record_list(
 async def list_published_survey_related_records(
     session: AsyncSession,
     survey_mission_id: identifiers.SurveyMissionId | None = None,
+    project_id: identifiers.ProjectId | None = None,
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
@@ -173,16 +224,23 @@ async def list_published_survey_related_records(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    asset_media_type_filter: str | None = None,
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    dataset_category_id: identifiers.DatasetCategoryId | None = None,
+    workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     statement = _build_survey_related_record_statement(
-        survey_mission_id,
-        en_name_filter,
-        pt_name_filter,
-        spatial_intersect,
-        temporal_extent,
-        asset_path_fragment_filter,
-        record_ids,
+        survey_mission_id=survey_mission_id,
+        project_id=project_id,
+        en_name_filter=en_name_filter,
+        pt_name_filter=pt_name_filter,
+        spatial_intersect=spatial_intersect,
+        temporal_extent=temporal_extent,
+        asset_path_fragment_filter=asset_path_fragment_filter,
+        asset_media_type_filter=asset_media_type_filter,
+        record_ids=record_ids,
+        dataset_category_id=dataset_category_id,
+        workflow_stage_id=workflow_stage_id,
     ).where(models.SurveyRelatedRecord.status == SurveyRelatedRecordStatus.PUBLISHED)
     limit = page_size
     offset = page_size * (page - 1)
@@ -219,6 +277,7 @@ async def list_accessible_survey_related_records(
     session: AsyncSession,
     user_id: str,
     survey_mission_id: identifiers.SurveyMissionId | None = None,
+    project_id: identifiers.ProjectId | None = None,
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
@@ -227,17 +286,24 @@ async def list_accessible_survey_related_records(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    asset_media_type_filter: str | None = None,
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    dataset_category_id: identifiers.DatasetCategoryId | None = None,
+    workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     statement = _restrict_to_accessible(
         _build_survey_related_record_statement(
-            survey_mission_id,
-            en_name_filter,
-            pt_name_filter,
-            spatial_intersect,
-            temporal_extent,
-            asset_path_fragment_filter,
-            record_ids,
+            survey_mission_id=survey_mission_id,
+            project_id=project_id,
+            en_name_filter=en_name_filter,
+            pt_name_filter=pt_name_filter,
+            spatial_intersect=spatial_intersect,
+            temporal_extent=temporal_extent,
+            asset_path_fragment_filter=asset_path_fragment_filter,
+            asset_media_type_filter=asset_media_type_filter,
+            record_ids=record_ids,
+            dataset_category_id=dataset_category_id,
+            workflow_stage_id=workflow_stage_id,
         ),
         user_id,
     )
@@ -351,6 +417,7 @@ async def count_survey_related_records_matching(
 async def list_survey_related_records(
     session: AsyncSession,
     survey_mission_id: identifiers.SurveyMissionId | None = None,
+    project_id: identifiers.ProjectId | None = None,
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
@@ -359,18 +426,30 @@ async def list_survey_related_records(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    asset_media_type_filter: str | None = None,
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    only_internal: bool = False,
+    dataset_category_id: identifiers.DatasetCategoryId | None = None,
+    workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
-    """Return all records regardless of status. Intended for admin use."""
+    """Return all records. Intended for admin use."""
     statement = _build_survey_related_record_statement(
-        survey_mission_id,
-        en_name_filter,
-        pt_name_filter,
-        spatial_intersect,
-        temporal_extent,
-        asset_path_fragment_filter,
-        record_ids,
+        survey_mission_id=survey_mission_id,
+        project_id=project_id,
+        en_name_filter=en_name_filter,
+        pt_name_filter=pt_name_filter,
+        spatial_intersect=spatial_intersect,
+        temporal_extent=temporal_extent,
+        asset_path_fragment_filter=asset_path_fragment_filter,
+        asset_media_type_filter=asset_media_type_filter,
+        record_ids=record_ids,
+        dataset_category_id=dataset_category_id,
+        workflow_stage_id=workflow_stage_id,
     )
+    if only_internal:
+        statement = statement.where(
+            models.SurveyRelatedRecord.status != SurveyRelatedRecordStatus.PUBLISHED
+        )
     limit = page_size
     offset = page_size * (page - 1)
     return await _exec_survey_related_record_list(

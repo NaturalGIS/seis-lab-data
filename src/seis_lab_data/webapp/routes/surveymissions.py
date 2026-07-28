@@ -60,6 +60,7 @@ from .common import (
     get_pagination_info,
     UPDATE_BASEMAP_JS_SCRIPT,
 )
+from .datalist import get_missions_datalist
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,8 @@ async def _get_survey_mission_details(
     survey_mission_id = get_id_from_request_path(
         request, "survey_mission_id", identifiers.SurveyMissionId
     )
+    filter_kwargs = survey_related_records_list_filters.as_kwargs()
+    filter_kwargs.pop("survey_mission_id", None)
     async with settings.get_db_session_maker()() as session:
         try:
             survey_mission = await survey_mission_ops.get_survey_mission(
@@ -104,7 +107,7 @@ async def _get_survey_mission_details(
             include_total=True,
             page=records_current_page,
             page_size=settings.pagination_page_size,
-            **survey_related_records_list_filters.as_kwargs(),
+            **filter_kwargs,
         )
     return webui_schemas.SurveyMissionDetails(
         item=webui_schemas.SurveyMissionReadDetail.from_db_instance(survey_mission),
@@ -348,10 +351,12 @@ async def get_mission_records_list_component(request: Request):
             raise HTTPException(status_code=400, detail="Invalid search params")
         else:
             internal_filter_kwargs = list_filters.as_kwargs()
+            internal_filter_kwargs.pop("survey_mission_id", None)
             filter_query_string = list_filters.serialize_to_query_string()
     else:
         internal_filter_kwargs = {}
         filter_query_string = ""
+    logger.debug(f"{internal_filter_kwargs=}")
     current_page = get_page_from_request_params(request)
     settings: config.SeisLabDataSettings = request.state.settings
     user = request.user if request.user.is_authenticated else None
@@ -810,6 +815,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                         en=af.asset_description.en.data,
                         pt=af.asset_description.pt.data,
                     ),
+                    media_type=af.media_type.data,
                     relative_path=af.relative_path.data,
                     links=[
                         common_schemas.LinkSchema(
@@ -1442,6 +1448,7 @@ routes = [
         methods=["GET"],
         name="list",
     ),
+    Route("/datalist", get_missions_datalist, name="get_datalist"),
     Route(
         "/search",
         get_list_component,

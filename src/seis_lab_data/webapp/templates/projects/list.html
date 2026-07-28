@@ -4,6 +4,7 @@ Users with create permission are linked to /projects/new, which is a separate st
 #}
 {% extends "base.html" %}
 {% import "macros.html" as macros %}
+{% from "macros/checkbox.html" import search_checkbox  %}
 
 {% block head %}
     {{ super() }}
@@ -58,14 +59,13 @@ Users with create permission are linked to /projects/new, which is a separate st
                             {{ _("search projects") | capitalize }}
                         </label>
                     </search>
-                    <div
-                            data-attr:hidden="!$searching"
-                            class="spinner-border spinner-border-sm ms-3"
-                            role="status"
-                            aria-hidden="true"
-                    >
-                        <span class="visually-hidden">{{ _("searching...") | capitalize }}</span>
-                    </div>
+                    {{ search_checkbox(
+                        "search-only-internal",
+                        "false",
+                        "filterOnlyInternal",
+                        url_for("projects:get_list_component"),
+                        _("show only internal projects") | capitalize
+                    ) }}
                     <button
                             class="btn btn-light btn-sm mt-1"
                             type="button"

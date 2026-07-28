@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 {% import "macros.html" as macros %}
+{% from "macros/checkbox.html" import search_checkbox  %}
+{% from "macros/select.html" import search_select %}
+{% from "macros/datalist.html" import search_datalist %}
 
 {% block head %}
     {{ super() }}
@@ -53,6 +56,13 @@
                         {{ _("search survey-related records") | capitalize }}
                     </label>
                 </search>
+                {{ search_checkbox(
+                        "search-only-internal",
+                        "false",
+                        "filterOnlyInternal",
+                        url_for("survey_related_records:get_list_component"),
+                        _("show only internal survey-related records") | capitalize
+                    ) }}
                 <div
                         data-attr:hidden="!$searching"
                         class="spinner-border spinner-border-sm ms-3"
@@ -84,6 +94,41 @@
             <div class="col mt-1 mb-5">
                 <div class="row collapse" id="advanced-search-controls">
                     <div class="col-4">
+                        {{ search_datalist(
+                              "search-project-datalist",
+                              filter_projects_datalist,
+                              "filterProject",
+                              url_for("survey_related_records:get_list_component"),
+                              _("project") | capitalize
+                        ) }}
+                        {{ search_datalist(
+                              "search-mission-datalist",
+                              filter_missions_datalist,
+                              "filterMission",
+                              url_for("survey_related_records:get_list_component"),
+                              _("mission") | capitalize
+                        ) }}
+                        {{ search_select(
+                            "search-dataset-category",
+                            dataset_categories,
+                                "filterDatasetCategory",
+                                url_for("survey_related_records:get_list_component"),
+                                _("dataset category") | capitalize
+                        ) }}
+                        {{ search_select(
+                            "search-workflow-stage",
+                            workflow_stages,
+                                "filterWorkflowStage",
+                                url_for("survey_related_records:get_list_component"),
+                                _("workflow stage") | capitalize
+                        ) }}
+                        {{ search_datalist(
+                              "search-asset-media-type",
+                              filter_media_types_datalist,
+                              "filterMediaType",
+                              url_for("survey_related_records:get_list_component"),
+                              _("media type") | capitalize
+                        ) }}
                         {{ macros.render_temporal_extent_search_component(
                                         url_for("survey_related_records:get_list_component"),
                                         _("Temporal extent begin"),
