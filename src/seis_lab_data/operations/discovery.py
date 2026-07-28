@@ -324,17 +324,6 @@ async def _discover_mission_records(
     )
     logger.debug(f"{mission_root_path=}")
     for asset_discovery_conf in asset_discovery_configs:
-        if (
-            asset_discovery_conf.dataset_category_id is None
-            or asset_discovery_conf.workflow_stage_id is None
-        ):
-            logger.warning(
-                "Skipping asset discovery configuration %s (%r): it has no "
-                "dataset category or workflow stage",
-                asset_discovery_conf.id,
-                asset_discovery_conf.name,
-            )
-            continue
         logger.debug(f"Searching for asset {asset_discovery_conf=}...")
         full_path_regexp = "/".join(
             (
