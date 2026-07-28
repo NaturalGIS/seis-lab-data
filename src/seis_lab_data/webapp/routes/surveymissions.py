@@ -82,7 +82,7 @@ async def _get_survey_mission_details(
         request, "survey_mission_id", identifiers.SurveyMissionId
     )
     filter_kwargs = survey_related_records_list_filters.as_kwargs()
-    del filter_kwargs["survey_mission_id"]
+    filter_kwargs.pop("survey_mission_id", None)
     async with settings.get_db_session_maker()() as session:
         try:
             survey_mission = await survey_mission_ops.get_survey_mission(
@@ -351,6 +351,7 @@ async def get_mission_records_list_component(request: Request):
             raise HTTPException(status_code=400, detail="Invalid search params")
         else:
             internal_filter_kwargs = list_filters.as_kwargs()
+            internal_filter_kwargs.pop("survey_mission_id", None)
             filter_query_string = list_filters.serialize_to_query_string()
     else:
         internal_filter_kwargs = {}

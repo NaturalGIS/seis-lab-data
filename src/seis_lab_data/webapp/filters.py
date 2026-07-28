@@ -254,7 +254,7 @@ class ProjectCompoundNameFilter(_StringFilter):
         if (re_obj := _compound_name_id_regex.search(raw_value)) is not None:
             return cls(value=identifiers.ProjectId(uuid.UUID(re_obj.groupdict()["id"])))
         else:
-            return cls(value=None)
+            raise ValueError(f"Cannot find a valid compound name in {raw_value!r}")
 
 
 @dataclasses.dataclass
@@ -271,7 +271,7 @@ class SurveyMissionCompoundNameFilter(_StringFilter):
                 value=identifiers.SurveyMissionId(uuid.UUID(re_obj.groupdict()["id"]))
             )
         else:
-            return cls(value=None)
+            raise ValueError(f"Cannot find a valid compound name in {raw_value!r}")
 
 
 @dataclasses.dataclass
