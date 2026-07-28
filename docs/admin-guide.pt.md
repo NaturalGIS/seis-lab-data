@@ -104,10 +104,19 @@ a partir do endereço IP de uma máquina previamente autorizada.
     ssh seis-lab-data-production -N -D 1080
     ```
 
-    E depois usar um navegador web com suporte de proxy. Por exemplo, o Google Chrome:
+    E depois usar um navegador web com suporte de proxy.
+
+    Em Linux, por exemplo com o Google Chrome:
 
     ```shell
-    google-chrome --proxy-server="socks5://localhost:1080
+    google-chrome --proxy-server="socks5://localhost:1080"
+    ```
+
+    Em macOS, invocar o binário do navegador através do `open`, usando um perfil separado para que o proxy
+    seja aplicado mesmo que o navegador já esteja aberto. Por exemplo, com o Brave:
+
+    ```shell
+    open -na "Brave Browser" --args --proxy-server="socks5://localhost:1080" --user-data-dir="/tmp/brave-proxy"
     ```
 
     Com esta ligação ativa, o ambiente de produção pode ser acedido navegando para
