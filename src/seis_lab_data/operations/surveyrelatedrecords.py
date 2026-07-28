@@ -508,6 +508,9 @@ async def bulk_update_survey_related_records(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    asset_media_type_filter: str | None = None,
+    dataset_category_id: identifiers.DatasetCategoryId | None = None,
+    workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ) -> int | None:
     """Bulk-update either a manually selected set of records or all matching a filter.
 
@@ -549,6 +552,9 @@ async def bulk_update_survey_related_records(
                 spatial_intersect=spatial_intersect,
                 temporal_extent=temporal_extent,
                 asset_path_fragment_filter=asset_path_fragment_filter,
+                asset_media_type_filter=asset_media_type_filter,
+                dataset_category_id=dataset_category_id,
+                workflow_stage_id=workflow_stage_id,
             )
     except errors.SeisLabDataError as err:
         await event_dispatcher(

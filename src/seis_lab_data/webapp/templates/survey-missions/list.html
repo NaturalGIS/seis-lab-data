@@ -93,8 +93,8 @@
                                         url_for("survey_missions:get_list_component"),
                                         _("Temporal extent begin"),
                                         _("Temporal extent end"),
-                                        "{{ current_temporal_extent.begin }}",
-                                        "{{ current_temporal_extent.end }}"
+                                        current_temporal_extent.begin,
+                                        current_temporal_extent.end
                                     ) }}
                         </div>
                         <div

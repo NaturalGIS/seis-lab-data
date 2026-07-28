@@ -52,7 +52,7 @@
                         <div
                                 class="col-auto"
                                 data-attr:hidden="$selectedCount === 0"
-                                data-computed:bulk-update-url="'{{ bulk_update_base_url }}?selection=' + encodeURIComponent(JSON.stringify({search: $search, selectedIds: $selectedIds, excludedIds: $excludedIds, selectAllMatching: $selectAllMatching}))"
+                                data-computed:bulk-update-url="'{{ bulk_update_base_url }}?selection=' + encodeURIComponent(JSON.stringify({search: $search, selectedIds: $selectedIds, excludedIds: $excludedIds, selectAllMatching: $selectAllMatching, filterDatasetCategory: $filterDatasetCategory, filterWorkflowStage: $filterWorkflowStage, filterMediaType: $filterMediaType, temporalExtentBegin: $temporalExtentBegin, temporalExtentEnd: $temporalExtentEnd, assetPathFragment: $assetPathFragment}))"
                         >
                             <a
                                     class="btn btn-primary btn-sm"

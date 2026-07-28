@@ -133,12 +133,12 @@
                                         url_for("survey_related_records:get_list_component"),
                                         _("Temporal extent begin"),
                                         _("Temporal extent end"),
-                                        "{{ current_temporal_extent.begin }}",
-                                        "{{ current_temporal_extent.end }}",
+                                        current_temporal_extent.begin,
+                                        current_temporal_extent.end,
                                         extra_on_input_js=macros.reset_selection_js()
                                     ) }}
                         <div class="mb-3">
-                            <label for="path-fragment">{{ _("Path") }}</label>
+                            <label class="form-label" for="path-fragment">{{ _("Path") }}</label>
                             <input
                                     id="path-fragment"
                                     class="form-control"

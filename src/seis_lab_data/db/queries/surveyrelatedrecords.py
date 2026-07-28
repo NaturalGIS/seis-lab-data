@@ -175,6 +175,7 @@ def _build_survey_related_record_id_statement(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    asset_media_type_filter: str | None = None,
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
     dataset_category_id: identifiers.DatasetCategoryId | None = None,
     workflow_stage_id: identifiers.WorkflowStageId | None = None,
@@ -192,6 +193,7 @@ def _build_survey_related_record_id_statement(
         spatial_intersect=spatial_intersect,
         temporal_extent=temporal_extent,
         asset_path_fragment_filter=asset_path_fragment_filter,
+        asset_media_type_filter=asset_media_type_filter,
         record_ids=record_ids,
         dataset_category_id=dataset_category_id,
         workflow_stage_id=workflow_stage_id,
@@ -345,8 +347,11 @@ def build_survey_related_record_id_statement(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    asset_media_type_filter: str | None = None,
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
     excluded_record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    dataset_category_id: identifiers.DatasetCategoryId | None = None,
+    workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ):
     """Build a statement selecting the ids of matching records, unrestricted.
 
@@ -359,7 +364,10 @@ def build_survey_related_record_id_statement(
         spatial_intersect,
         temporal_extent,
         asset_path_fragment_filter,
+        asset_media_type_filter,
         record_ids,
+        dataset_category_id,
+        workflow_stage_id,
     )
     if excluded_record_ids:
         statement = statement.where(
@@ -376,8 +384,11 @@ def build_owned_survey_related_record_id_statement(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    asset_media_type_filter: str | None = None,
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
     excluded_record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
+    dataset_category_id: identifiers.DatasetCategoryId | None = None,
+    workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ):
     """Build a statement selecting the ids of matching records a user owns.
 
@@ -392,7 +403,10 @@ def build_owned_survey_related_record_id_statement(
             spatial_intersect,
             temporal_extent,
             asset_path_fragment_filter,
+            asset_media_type_filter,
             record_ids,
+            dataset_category_id,
+            workflow_stage_id,
         ),
         user_id,
     )

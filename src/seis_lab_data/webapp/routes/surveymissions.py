@@ -22,9 +22,15 @@ from ... import (
     constants,
     errors,
     geojson,
+    localization,
     subscribers,
 )
-from ...db.queries import surveyrelatedrecords as record_queries
+from ...db.queries import (
+    datasetcategories as category_queries,
+    recordassets as asset_queries,
+    surveyrelatedrecords as record_queries,
+    workflowstages as stage_queries,
+)
 from ...operations import (
     projects as project_ops,
     surveymissions as survey_mission_ops,
@@ -109,7 +115,37 @@ async def _get_survey_mission_details(
             page_size=settings.pagination_page_size,
             **filter_kwargs,
         )
+        dataset_category_filter_options = [
+            (
+                dataset_category.id,
+                localization.translate_localizable_dict(
+                    dataset_category.name, current_language
+                ),
+            )
+            for dataset_category in await category_queries.collect_all_dataset_categories(
+                session
+            )
+        ]
+        workflow_stage_filter_options = [
+            (
+                workflow_stage.id,
+                localization.translate_localizable_dict(
+                    workflow_stage.name, current_language
+                ),
+            )
+            for workflow_stage in await stage_queries.collect_all_workflow_stages(
+                session
+            )
+        ]
+        media_type_filter_options = await asset_queries.list_media_types(session)
     return webui_schemas.SurveyMissionDetails(
+        dataset_categories=dataset_category_filter_options,
+        workflow_stages=workflow_stage_filter_options,
+        filter_media_types_datalist=media_type_filter_options,
+        current_temporal_extent={
+            "begin": settings.default_temporal_extent_begin,
+            "end": settings.default_temporal_extent_end,
+        },
         item=webui_schemas.SurveyMissionReadDetail.from_db_instance(survey_mission),
         children=[
             webui_schemas.SurveyRelatedRecordReadListItem.from_db_instance(srr)
@@ -196,6 +232,10 @@ async def get_details_component(request: Request):
         survey_related_records=details.children,
         search_initial_value=details.children_filter,
         permissions=details.permissions,
+        dataset_categories=details.dataset_categories,
+        workflow_stages=details.workflow_stages,
+        filter_media_types_datalist=details.filter_media_types_datalist,
+        current_temporal_extent=details.current_temporal_extent,
     )
 
     async def event_streamer():
@@ -613,6 +653,10 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 "search_initial_value": details.children_filter,
                 "permissions": details.permissions,
                 "breadcrumbs": details.breadcrumbs,
+                "dataset_categories": details.dataset_categories,
+                "workflow_stages": details.workflow_stages,
+                "filter_media_types_datalist": details.filter_media_types_datalist,
+                "current_temporal_extent": details.current_temporal_extent,
             },
         )
 
@@ -1198,6 +1242,9 @@ async def _count_bulk_update_matches(
         spatial_intersect=selection.spatial_intersect,
         temporal_extent=selection.temporal_extent,
         asset_path_fragment_filter=selection.asset_path_fragment_filter,
+        asset_media_type_filter=selection.asset_media_type_filter,
+        dataset_category_id=selection.dataset_category_id,
+        workflow_stage_id=selection.workflow_stage_id,
         record_ids=selection.selected,
         excluded_record_ids=selection.excluded_record_ids,
     )

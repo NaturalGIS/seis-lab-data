@@ -227,6 +227,9 @@ async def bulk_update_filtered_records(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
+    asset_media_type_filter: str | None = None,
+    dataset_category_id: identifiers.DatasetCategoryId | None = None,
+    workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ) -> int:
     filter_kwargs = dict(
         survey_mission_id=survey_mission_id,
@@ -235,6 +238,9 @@ async def bulk_update_filtered_records(
         spatial_intersect=spatial_intersect,
         temporal_extent=temporal_extent,
         asset_path_fragment_filter=asset_path_fragment_filter,
+        asset_media_type_filter=asset_media_type_filter,
+        dataset_category_id=dataset_category_id,
+        workflow_stage_id=workflow_stage_id,
         excluded_record_ids=excluded_record_ids,
     )
     if restrict_to_owned:

@@ -160,7 +160,8 @@ class SurveyRelatedRecordBulkUpdateSelection(pydantic.BaseModel):
     temporal_extent: TemporalExtentFilterValue | None = None
     asset_path_fragment_filter: str | None = None
     asset_media_type_filter: str | None = None
-    asset_path_fragment_filter: str | None = None
+    dataset_category_id: DatasetCategoryId | None = None
+    workflow_stage_id: WorkflowStageId | None = None
 
 
 class SurveyRelatedRecordUpdate(pydantic.BaseModel):
