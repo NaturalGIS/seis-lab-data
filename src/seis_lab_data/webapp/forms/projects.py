@@ -195,7 +195,6 @@ class ProjectUpdateForm(_ProjectForm):
         discovery_configuration = self._parse_discovery_configuration()
         try:
             project_schemas.ProjectUpdate(
-                owner_id=None,
                 name={
                     **get_form_field_by_name(self, "name").data,
                 },

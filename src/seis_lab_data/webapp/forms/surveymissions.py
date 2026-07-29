@@ -186,7 +186,6 @@ class SurveyMissionUpdateForm(_SurveyMissionForm):
         try:
             survey_mission_schemas.SurveyMissionUpdate(
                 # these are not part of the form, but we must provide something
-                owner_id=None,
                 project_id=None,
                 name={
                     **get_form_field_by_name(self, "name").data,

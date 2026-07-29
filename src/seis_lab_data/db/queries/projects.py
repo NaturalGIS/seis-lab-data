@@ -88,35 +88,10 @@ async def list_published_projects(
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.Project], int | None]:
-    """Lists public projects."""
+    """Produces a paginated and filterable listing of public projects."""
     statement = _build_project_statement(
         en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
     ).where(models.Project.status == ProjectStatus.PUBLISHED)
-    limit = page_size
-    offset = page_size * (page - 1)
-    return await _exec_project_list(session, statement, limit, offset, include_total)
-
-
-async def list_accessible_projects(
-    session: AsyncSession,
-    user_id: str,
-    page: int = 1,
-    page_size: int = 20,
-    include_total: bool = False,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
-    spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
-) -> tuple[list[models.Project], int | None]:
-    """List projects that are viewable by the input user."""
-    statement = _build_project_statement(
-        en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
-    ).where(
-        or_(
-            models.Project.status == ProjectStatus.PUBLISHED,
-            models.Project.owner_id == user_id,
-        )
-    )
     limit = page_size
     offset = page_size * (page - 1)
     return await _exec_project_list(session, statement, limit, offset, include_total)
@@ -133,7 +108,10 @@ async def list_projects(
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     only_internal: bool = False,
 ) -> tuple[list[models.Project], int | None]:
-    """Return all projects. Intended for admin use."""
+    """Produces a paginated and filterable listing of all projects.
+
+    Intended for registered users.
+    """
     statement = _build_project_statement(
         en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
     )

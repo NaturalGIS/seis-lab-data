@@ -258,95 +258,6 @@ async def list_published_survey_related_records(
     )
 
 
-def _restrict_to_accessible(statement, user_id: str):
-    """Restrict a survey-related record statement to records a user may see.
-
-    A record is accessible if it is published, or if the user owns the
-    record itself, its survey mission, or its project.
-    """
-    return (
-        statement.join(
-            models.SurveyMission,
-            models.SurveyRelatedRecord.survey_mission_id == models.SurveyMission.id,
-        )
-        .join(models.Project, models.SurveyMission.project_id == models.Project.id)
-        .where(
-            or_(
-                models.SurveyRelatedRecord.status
-                == SurveyRelatedRecordStatus.PUBLISHED,
-                models.SurveyRelatedRecord.owner_id == user_id,
-                models.SurveyMission.owner_id == user_id,
-                models.Project.owner_id == user_id,
-            )
-        )
-    )
-
-
-async def list_accessible_survey_related_records(
-    session: AsyncSession,
-    user_id: str,
-    survey_mission_id: identifiers.SurveyMissionId | None = None,
-    project_id: identifiers.ProjectId | None = None,
-    page: int = 1,
-    page_size: int = 20,
-    include_total: bool = False,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
-    spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
-    asset_path_fragment_filter: str | None = None,
-    asset_media_type_filter: str | None = None,
-    record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
-    dataset_category_id: identifiers.DatasetCategoryId | None = None,
-    workflow_stage_id: identifiers.WorkflowStageId | None = None,
-) -> tuple[list[models.SurveyRelatedRecord], int | None]:
-    statement = _restrict_to_accessible(
-        _build_survey_related_record_statement(
-            survey_mission_id=survey_mission_id,
-            project_id=project_id,
-            en_name_filter=en_name_filter,
-            pt_name_filter=pt_name_filter,
-            spatial_intersect=spatial_intersect,
-            temporal_extent=temporal_extent,
-            asset_path_fragment_filter=asset_path_fragment_filter,
-            asset_media_type_filter=asset_media_type_filter,
-            record_ids=record_ids,
-            dataset_category_id=dataset_category_id,
-            workflow_stage_id=workflow_stage_id,
-        ),
-        user_id,
-    )
-    limit = page_size
-    offset = page_size * (page - 1)
-    return await _exec_survey_related_record_list(
-        session, statement, limit, offset, include_total
-    )
-
-
-def _restrict_to_owned(statement, user_id: str):
-    """Restrict a survey-related record statement to records a user owns.
-
-    A record is owned if the user owns the record itself, its survey
-    mission, or its project. Unlike `_restrict_to_accessible`, published
-    status does not grant access here - this is for edit authorization
-    (mirroring `can_update_survey_related_record`), not read visibility.
-    """
-    return (
-        statement.join(
-            models.SurveyMission,
-            models.SurveyRelatedRecord.survey_mission_id == models.SurveyMission.id,
-        )
-        .join(models.Project, models.SurveyMission.project_id == models.Project.id)
-        .where(
-            or_(
-                models.SurveyRelatedRecord.owner_id == user_id,
-                models.SurveyMission.owner_id == user_id,
-                models.Project.owner_id == user_id,
-            )
-        )
-    )
-
-
 def build_survey_related_record_id_statement(
     survey_mission_id: identifiers.SurveyMissionId | None = None,
     en_name_filter: str | None = None,
@@ -384,7 +295,6 @@ def build_survey_related_record_id_statement(
 
 
 def build_owned_survey_related_record_id_statement(
-    user_id: str,
     survey_mission_id: identifiers.SurveyMissionId | None = None,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
@@ -402,20 +312,17 @@ def build_owned_survey_related_record_id_statement(
     Intended for non-admin editors, who may only bulk-update records they
     own, or whose survey mission or project they own.
     """
-    statement = _restrict_to_owned(
-        _build_survey_related_record_id_statement(
-            survey_mission_id,
-            en_name_filter,
-            pt_name_filter,
-            spatial_intersect,
-            temporal_extent,
-            asset_path_fragment_filter,
-            asset_media_type_filter,
-            record_ids,
-            dataset_category_id,
-            workflow_stage_id,
-        ),
-        user_id,
+    statement = _build_survey_related_record_id_statement(
+        survey_mission_id,
+        en_name_filter,
+        pt_name_filter,
+        spatial_intersect,
+        temporal_extent,
+        asset_path_fragment_filter,
+        asset_media_type_filter,
+        record_ids,
+        dataset_category_id,
+        workflow_stage_id,
     )
     if excluded_record_ids:
         statement = statement.where(

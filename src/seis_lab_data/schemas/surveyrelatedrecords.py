@@ -165,7 +165,6 @@ class SurveyRelatedRecordBulkUpdateSelection(pydantic.BaseModel):
 
 
 class SurveyRelatedRecordUpdate(pydantic.BaseModel):
-    owner_id: UserId | None = None
     survey_mission_id: SurveyMissionId | None = None
 
     name: LocalizableDraftName | None = None
@@ -234,7 +233,6 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
 
 
 class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
-    owner_id: UserId
     links: list[LinkSchema] = []
     related_to_records: list[
         tuple[LocalizableDraftDescription, SurveyRelatedRecordReadEmbedded]

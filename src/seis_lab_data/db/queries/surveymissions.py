@@ -101,42 +101,6 @@ async def list_published_survey_missions(
     )
 
 
-async def list_accessible_survey_missions(
-    session: AsyncSession,
-    user_id: str,
-    project_id: identifiers.ProjectId | None = None,
-    page: int = 1,
-    page_size: int = 20,
-    include_total: bool = False,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
-    spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
-) -> tuple[list[models.SurveyMission], int | None]:
-    statement = (
-        _build_survey_mission_statement(
-            project_id,
-            en_name_filter,
-            pt_name_filter,
-            spatial_intersect,
-            temporal_extent,
-        )
-        .join(models.Project, models.SurveyMission.project_id == models.Project.id)
-        .where(
-            or_(
-                models.SurveyMission.status == SurveyMissionStatus.PUBLISHED,
-                models.SurveyMission.owner_id == user_id,
-                models.Project.owner_id == user_id,
-            )
-        )
-    )
-    limit = page_size
-    offset = page_size * (page - 1)
-    return await _exec_survey_mission_list(
-        session, statement, limit, offset, include_total
-    )
-
-
 async def list_survey_missions(
     session: AsyncSession,
     project_id: identifiers.ProjectId | None = None,

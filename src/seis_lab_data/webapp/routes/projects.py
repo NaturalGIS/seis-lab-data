@@ -407,23 +407,13 @@ async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails
             ),
         ),
         permissions=webui_schemas.UserPermissionDetails(
-            can_delete=project_permissions.can_delete_project(user, project)
-            if user
-            else False,
-            can_update=project_permissions.can_update_project(user, project)
-            if user
-            else False,
+            can_delete=project_permissions.can_delete_project(user, project),
+            can_update=project_permissions.can_update_project(user, project),
             can_create_children=mission_permissions.can_create_survey_mission(
                 user, project
-            )
-            if user
-            else False,
-            can_validate=project_permissions.can_validate_project(user, project)
-            if user
-            else False,
-            can_discover=project_permissions.can_discover_project(user, project)
-            if user
-            else False,
+            ),
+            can_validate=project_permissions.can_validate_project(user, project),
+            can_discover=project_permissions.can_discover_project(user, project),
         ),
         breadcrumbs=[
             webui_schemas.BreadcrumbItem(

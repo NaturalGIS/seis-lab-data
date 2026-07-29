@@ -168,33 +168,21 @@ async def _get_survey_mission_details(
         permissions=webui_schemas.UserPermissionDetails(
             can_create_children=record_permissions.can_create_survey_related_record(
                 user, survey_mission
-            )
-            if user
-            else False,
+            ),
             can_update=mission_permissions.can_update_survey_mission(
                 user, survey_mission
-            )
-            if user
-            else False,
+            ),
             can_delete=mission_permissions.can_delete_survey_mission(
                 user, survey_mission
-            )
-            if user
-            else False,
+            ),
             can_validate=mission_permissions.can_validate_survey_mission(
                 user, survey_mission
-            )
-            if user
-            else False,
+            ),
             can_discover=mission_permissions.can_discover_survey_mission(
                 user, survey_mission
-            )
-            if user
-            else False,
+            ),
             can_bulk_update=(
                 record_permissions.can_bulk_update_survey_related_records(user)
-                if user
-                else False
             ),
         ),
         breadcrumbs=[
@@ -1232,9 +1220,6 @@ def _parse_bulk_update_selection(
 async def _count_bulk_update_matches(
     session, user, selection: record_schemas.SurveyRelatedRecordBulkUpdateSelection
 ) -> int:
-    is_admin = not {constants.ROLE_ADMIN, constants.ROLE_SYSTEM_ADMIN}.isdisjoint(
-        user.roles
-    )
     kwargs = dict(
         survey_mission_id=selection.survey_mission_id,
         en_name_filter=selection.en_name_filter,
@@ -1248,12 +1233,7 @@ async def _count_bulk_update_matches(
         record_ids=selection.selected,
         excluded_record_ids=selection.excluded_record_ids,
     )
-    if is_admin:
-        statement = record_queries.build_survey_related_record_id_statement(**kwargs)
-    else:
-        statement = record_queries.build_owned_survey_related_record_id_statement(
-            user.id, **kwargs
-        )
+    statement = record_queries.build_survey_related_record_id_statement(**kwargs)
     return await record_queries.count_survey_related_records_matching(
         session, statement
     )

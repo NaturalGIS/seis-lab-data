@@ -31,7 +31,6 @@ class ProjectCreate(pydantic.BaseModel):
 
 
 class ProjectUpdate(pydantic.BaseModel):
-    owner_id: UserId | None = None
     name: LocalizableDraftName | None = None
     description: LocalizableDraftDescription | None = None
     root_path: str | None = None
@@ -72,7 +71,6 @@ class ProjectReadListItem(ProjectReadEmbedded):
 
 
 class ProjectReadDetail(ProjectReadListItem):
-    owner_id: UserId
     links: list[LinkSchema] = []
     bbox_4326: PolygonOut | None
     # discovery_configuration: "ProjectDiscoveryConfiguration | None"

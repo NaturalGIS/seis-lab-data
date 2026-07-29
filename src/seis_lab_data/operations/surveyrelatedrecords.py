@@ -370,15 +370,9 @@ async def list_survey_related_records(
         return await record_queries.list_published_survey_related_records(
             session, **kwargs
         )
-    elif not {constants.ROLE_ADMIN, constants.ROLE_SYSTEM_ADMIN}.isdisjoint(
-        initiator.roles
-    ):
+    else:
         kwargs.update(only_internal=only_internal)
         return await record_queries.list_survey_related_records(session, **kwargs)
-    else:
-        return await record_queries.list_accessible_survey_related_records(
-            session, initiator.id, **kwargs
-        )
 
 
 async def get_survey_related_record(
@@ -398,11 +392,7 @@ async def get_survey_related_record(
     )
     if record is None:
         return None
-    if not record_permissions.can_read_survey_related_record(initiator, record):
-        raise errors.SeisLabDataError(
-            f"User is not allowed to read survey-related "
-            f"record {survey_related_record_id!r}."
-        )
+
     record_id = identifiers.SurveyRelatedRecordId(record.id)
     records_related_to = (
         await record_queries.list_survey_related_record_related_to_records(
@@ -414,6 +404,18 @@ async def get_survey_related_record(
             session, record_id
         )
     )
+
+    if record.status == constants.SurveyRelatedRecordStatus.PUBLISHED:
+        return record, records_related_to, records_subject_for
+
+    error_msg = f"User not allowed to read survey-related record {record_id!r}."
+
+    if initiator is None:
+        raise errors.UserNotAllowedError(error_msg)
+
+    if not record_permissions.can_read_private_survey_related_record(initiator, record):
+        raise errors.UserNotAllowedError(error_msg)
+
     return record, records_related_to, records_subject_for
 
 
@@ -522,29 +524,22 @@ async def bulk_update_survey_related_records(
     `survey_mission_id` is an optional additional scope - omit it to bulk-update
     across all missions a user may access.
     """
-    is_admin = not {constants.ROLE_ADMIN, constants.ROLE_SYSTEM_ADMIN}.isdisjoint(
-        initiator.roles
-    )
     try:
         if not record_permissions.can_bulk_update_survey_related_records(initiator):
-            raise errors.SeisLabDataError(
-                "User is not allowed to bulk-update survey-related records."
+            raise errors.UserNotAllowedError(
+                "User not allowed to bulk-update survey-related records."
             )
         if selected is not None:
             updated_count = await record_commands.bulk_update_manually_selected_records(
                 session,
                 to_update,
                 selected,
-                identifiers.UserId(initiator.id),
-                restrict_to_owned=not is_admin,
                 survey_mission_id=survey_mission_id,
             )
         else:
             updated_count = await record_commands.bulk_update_filtered_records(
                 session,
                 to_update,
-                identifiers.UserId(initiator.id),
-                restrict_to_owned=not is_admin,
                 excluded_record_ids=excluded_record_ids,
                 survey_mission_id=survey_mission_id,
                 en_name_filter=en_name_filter,

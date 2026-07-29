@@ -36,7 +36,6 @@ class SurveyMissionCreate(pydantic.BaseModel):
 
 
 class SurveyMissionUpdate(pydantic.BaseModel):
-    owner_id: UserId | None = None
     project_id: ProjectId | None = None
     name: LocalizableDraftName | None = None
     description: LocalizableDraftDescription | None = None
@@ -100,7 +99,6 @@ class SurveyMissionReadListItem(pydantic.BaseModel):
 
 
 class SurveyMissionReadDetail(SurveyMissionReadListItem):
-    owner_id: UserId
     relative_path: str
     links: list[LinkSchema] = []
 

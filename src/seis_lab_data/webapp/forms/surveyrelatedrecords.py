@@ -346,7 +346,6 @@ class SurveyRelatedRecordUpdateForm(_SurveyRelatedRecordForm):
         try:
             record_schemas.SurveyRelatedRecordUpdate(
                 # these are not part of the form, but we must provide something
-                owner_id=None,
                 survey_mission_id=None,
                 name={**get_form_field_by_name(self, "name").data},
                 description={**get_form_field_by_name(self, "description").data},

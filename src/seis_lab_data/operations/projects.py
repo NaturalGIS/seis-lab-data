@@ -418,15 +418,9 @@ async def list_projects(
     )
     if initiator is None:
         return await project_queries.list_published_projects(session, **kwargs)
-    elif not {constants.ROLE_ADMIN, constants.ROLE_SYSTEM_ADMIN}.isdisjoint(
-        initiator.roles
-    ):
+    else:
         kwargs.update(only_internal=only_internal)
         return await project_queries.list_projects(session, **kwargs)
-    else:
-        return await project_queries.list_accessible_projects(
-            session, initiator.id, **kwargs
-        )
 
 
 async def get_project(
@@ -437,8 +431,18 @@ async def get_project(
     project = await project_queries.get_project(session, project_id)
     if project is None:
         return None
-    if not project_permissions.can_read_project(initiator, project):
-        raise errors.SeisLabDataError(
+
+    if project.status == constants.ProjectStatus.PUBLISHED:
+        return project
+
+    if initiator is None:
+        raise errors.UserNotAllowedError(
+            f"User not allowed to read project {project_id!r}."
+        )
+
+    if not project_permissions.can_read_private_project(initiator, project):
+        raise errors.UserNotAllowedError(
             f"User is not allowed to read project {project_id!r}."
         )
+
     return project
