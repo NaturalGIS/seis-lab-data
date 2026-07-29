@@ -70,6 +70,7 @@ async def get_project_creation_form(request: Request):
     form_instance = await project_forms.ProjectCreateForm.from_formdata(request)
     form_instance.request_id.data = str(identifiers.RequestId(uuid.uuid4()))
     template_processor: Jinja2Templates = request.state.templates
+    settings: config.SeisLabDataSettings = request.state.settings
     return template_processor.TemplateResponse(
         request,
         "projects/create-form-page.html",
@@ -77,12 +78,18 @@ async def get_project_creation_form(request: Request):
             "form": form_instance,
             "breadcrumbs": [
                 webui_schemas.BreadcrumbItem(
-                    name=_("Home"), url=request.url_for("home")
+                    name=_("Home"),
+                    url=request.url_for("home"),
+                    icon=settings.icons.home,
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=_("Projects"), url=request.url_for("projects:list")
+                    name=_("Projects"),
+                    url=request.url_for("projects:list"),
+                    icon=settings.icons.projects,
                 ),
-                webui_schemas.BreadcrumbItem(name=_("New project")),
+                webui_schemas.BreadcrumbItem(
+                    name=_("New project"), icon=settings.icons.new_item
+                ),
             ],
         },
     )
@@ -156,6 +163,7 @@ async def get_project_update_form(request: Request):
     )
     update_form.request_id.data = uuid.uuid4()
     template_processor: Jinja2Templates = request.state.templates
+    settings: config.SeisLabDataSettings = request.state.settings
     return template_processor.TemplateResponse(
         request,
         "projects/update-form-page.html",
@@ -164,16 +172,23 @@ async def get_project_update_form(request: Request):
             "form": update_form,
             "breadcrumbs": [
                 webui_schemas.BreadcrumbItem(
-                    name=_("Home"), url=request.url_for("home")
+                    name=_("Home"),
+                    url=request.url_for("home"),
+                    icon=settings.icons.home,
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=_("Projects"), url=request.url_for("projects:list")
+                    name=_("Projects"),
+                    url=request.url_for("projects:list"),
+                    icon=settings.icons.projects,
                 ),
                 webui_schemas.BreadcrumbItem(
                     name=project.name["en"],
                     url=request.url_for("projects:detail", project_id=project_id),
+                    icon=settings.icons.projects,
                 ),
-                webui_schemas.BreadcrumbItem(name=_("Edit project")),
+                webui_schemas.BreadcrumbItem(
+                    name=_("Edit"), icon=settings.icons.edit_item
+                ),
             ],
         },
     )
@@ -418,13 +433,13 @@ async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails
         breadcrumbs=[
             webui_schemas.BreadcrumbItem(
                 name=_("Home"),
-                # icon=settings.icons.home,
                 url=str(request.url_for("home")),
+                icon=settings.icons.home,
             ),
             webui_schemas.BreadcrumbItem(
                 name=_("Projects"),
-                # icon=settings.icons.list,
                 url=request.url_for("projects:list"),
+                icon=settings.icons.projects,
             ),
             webui_schemas.BreadcrumbItem(
                 name=project.name["en"],
@@ -564,7 +579,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 "breadcrumbs": [
                     webui_schemas.BreadcrumbItem(
                         name=_("Home"),
-                        # icon=settings.icons.home,
+                        icon=settings.icons.home,
                         url=request.url_for("home"),
                     ),
                     webui_schemas.BreadcrumbItem(

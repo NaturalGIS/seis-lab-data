@@ -187,10 +187,14 @@ async def _get_survey_mission_details(
         ),
         breadcrumbs=[
             webui_schemas.BreadcrumbItem(
-                name=_("Home"), url=str(request.url_for("home"))
+                name=_("Home"),
+                url=str(request.url_for("home")),
+                icon=settings.icons.home,
             ),
             webui_schemas.BreadcrumbItem(
-                name=_("Projects"), url=str(request.url_for("projects:list"))
+                name=_("Projects"),
+                url=str(request.url_for("projects:list")),
+                icon=settings.icons.projects,
             ),
             webui_schemas.BreadcrumbItem(
                 name=str(survey_mission.project.name["en"]),
@@ -200,9 +204,10 @@ async def _get_survey_mission_details(
                         project_id=survey_mission.project.id,
                     )
                 ),
+                icon=settings.icons.projects,
             ),
             webui_schemas.BreadcrumbItem(
-                name=str(survey_mission.name["en"]),
+                name=str(survey_mission.name["en"]), icon=settings.icons.survey_missions
             ),
         ],
     )
@@ -342,6 +347,7 @@ async def get_survey_mission_creation_form(request: Request):
             )
 
     template_processor: Jinja2Templates = request.state.templates
+    settings: config.SeisLabDataSettings = request.state.settings
     return template_processor.TemplateResponse(
         request,
         "survey-missions/create-form-page.html",
@@ -350,16 +356,23 @@ async def get_survey_mission_creation_form(request: Request):
             "form": form_instance,
             "breadcrumbs": [
                 webui_schemas.BreadcrumbItem(
-                    name=_("Home"), url=request.url_for("home")
+                    name=_("Home"),
+                    url=request.url_for("home"),
+                    icon=settings.icons.home,
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=_("Projects"), url=request.url_for("projects:list")
+                    name=_("Projects"),
+                    url=request.url_for("projects:list"),
+                    icon=settings.icons.projects,
                 ),
                 webui_schemas.BreadcrumbItem(
                     name=project.name["en"],
                     url=request.url_for("projects:detail", project_id=project.id),
+                    icon=settings.icons.projects,
                 ),
-                webui_schemas.BreadcrumbItem(name=_("New survey mission")),
+                webui_schemas.BreadcrumbItem(
+                    name=_("New survey mission"), icon=settings.icons.new_item
+                ),
             ],
         },
     )
@@ -610,9 +623,13 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
                 },
                 "breadcrumbs": [
                     webui_schemas.BreadcrumbItem(
-                        name=_("Home"), url=request.url_for("home")
+                        name=_("Home"),
+                        url=request.url_for("home"),
+                        icon=settings.icons.home,
                     ),
-                    webui_schemas.BreadcrumbItem(name=_("Survey Missions")),
+                    webui_schemas.BreadcrumbItem(
+                        name=_("Survey Missions"), icon=settings.icons.survey_missions
+                    ),
                 ],
                 "search_initial_value": list_filters.get_text_search_filter(
                     current_language
@@ -1099,6 +1116,7 @@ async def get_survey_mission_update_form(request: Request):
     )
     update_form.request_id.data = uuid.uuid4()
     template_processor: Jinja2Templates = request.state.templates
+    settings: config.SeisLabDataSettings = request.state.settings
     return template_processor.TemplateResponse(
         request,
         "survey-missions/update-form-page.html",
@@ -1107,19 +1125,32 @@ async def get_survey_mission_update_form(request: Request):
             "form": update_form,
             "breadcrumbs": [
                 webui_schemas.BreadcrumbItem(
-                    name=_("Home"), url=request.url_for("home")
+                    name=_("Home"),
+                    url=request.url_for("home"),
+                    icon=settings.icons.home,
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=_("Survey missions"),
-                    url=request.url_for("survey_missions:list"),
+                    name=_("Projects"),
+                    url=request.url_for("projects:list"),
+                    icon=settings.icons.projects,
+                ),
+                webui_schemas.BreadcrumbItem(
+                    name=survey_mission.project.name["en"],
+                    url=request.url_for(
+                        "projects:detail", project_id=survey_mission.project_id
+                    ),
+                    icon=settings.icons.projects,
                 ),
                 webui_schemas.BreadcrumbItem(
                     name=survey_mission.name["en"],
                     url=request.url_for(
                         "survey_missions:detail", survey_mission_id=survey_mission_id
                     ),
+                    icon=settings.icons.survey_missions,
                 ),
-                webui_schemas.BreadcrumbItem(name=_("Edit survey mission")),
+                webui_schemas.BreadcrumbItem(
+                    name=_("Edit"), icon=settings.icons.edit_item
+                ),
             ],
         },
     )

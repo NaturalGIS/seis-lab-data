@@ -6,6 +6,8 @@ Users with create permission are linked to /asset-discovery-configurations/new, 
 {% extends "base.html" %}
 {% import "macros.html" as macros %}
 
+{% block header_extra_class %}text-center{% endblock %}
+
 {% block page_title %}
     <span class="icon-stack" aria-hidden="true">
         <span class="material-icons-outlined">{{ icons.asset_discovery_configuration }}</span>

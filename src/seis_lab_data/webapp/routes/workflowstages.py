@@ -344,6 +344,7 @@ class WorkflowStageCollectionEndpoint(HTTPEndpoint):
                 "breadcrumbs": [
                     webui_schemas.BreadcrumbItem(
                         name=_("Home"),
+                        icon=settings.icons.home,
                         url=request.url_for("home"),
                     ),
                     webui_schemas.BreadcrumbItem(

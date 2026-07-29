@@ -352,6 +352,7 @@ class DatasetCategoryCollectionEndpoint(HTTPEndpoint):
                     webui_schemas.BreadcrumbItem(
                         name=_("Home"),
                         url=request.url_for("home"),
+                        icon=settings.icons.home,
                     ),
                     webui_schemas.BreadcrumbItem(
                         name=_("Dataset categories"),
