@@ -1,6 +1,12 @@
 :root {
     --bs-dataset-category-color: #ff6b35;
     --bs-workflow-stage-color: #a83604;
+    --bs-project-color: #c77dff;
+    --bs-survey-mission-color: #b8f24a;
+    --bs-survey-related-record-color: #f9a8d4;
+    --bs-project-color-dark: #7b2cbf;
+    --bs-survey-mission-color-dark: #486b00;
+    --bs-survey-related-record-color-dark: #be185d;
 }
 
 .bg-dataset-category {
@@ -17,6 +23,52 @@
 
 .text-workflow-stage {
     color: var(--bs-workflow-stage-color) !important;
+}
+
+.bg-project {
+    background-color: var(--bs-project-color) !important;
+}
+
+.bg-survey-mission {
+    background-color: var(--bs-survey-mission-color) !important;
+}
+
+.bg-survey-related-record {
+    background-color: var(--bs-survey-related-record-color) !important;
+}
+
+.resource-type-bar {
+    height: 32px;
+}
+
+.nav-link-project:hover,
+.nav-link-project:focus,
+.nav-link-project.active {
+    color: var(--bs-project-color) !important;
+}
+
+.nav-link-survey-mission:hover,
+.nav-link-survey-mission:focus,
+.nav-link-survey-mission.active {
+    color: var(--bs-survey-mission-color) !important;
+}
+
+.nav-link-survey-related-record:hover,
+.nav-link-survey-related-record:focus,
+.nav-link-survey-related-record.active {
+    color: var(--bs-survey-related-record-color) !important;
+}
+
+.title-project {
+    color: var(--bs-project-color-dark) !important;
+}
+
+.title-survey-mission {
+    color: var(--bs-survey-mission-color-dark) !important;
+}
+
+.title-survey-related-record {
+    color: var(--bs-survey-related-record-color-dark) !important;
 }
 
 @view-transition {

@@ -6,6 +6,8 @@ Users with create permission are linked to /projects/new, which is a separate st
 {% import "macros.html" as macros %}
 {% from "macros/checkbox.html" import search_checkbox  %}
 
+{% block resource_type_color_class %}bg-project{% endblock %}
+
 {% block head %}
     {{ super() }}
     <script type="module" src="{{ url_for('static', path='/js/maplibre-gl-v5.9.0.js') }}"></script>
@@ -19,7 +21,7 @@ Users with create permission are linked to /projects/new, which is a separate st
 {% endblock head %}
 
 {% block header %}
-    <h1 class="display-1 text-center" aria-label="title">
+    <h1 class="display-1 text-center title-project" aria-label="title">
         <span class="icon-stack" aria-hidden="true">
         <span class="material-icons-outlined">{{ icons.projects }}</span>
         <span class="material-icons-outlined icon-stack-badge">{{ icons.list }}</span>

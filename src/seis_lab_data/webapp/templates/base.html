@@ -13,7 +13,8 @@
     {% endblock %}
 </head>
 <body>
-<header class="mb-3 border-bottom bg-primary">
+{% set resource_type_class = self.resource_type_color_class() %}
+<header class="border-bottom bg-primary">
     <nav class="navbar navbar-expand-lg" data-bs-theme="dark">
         <div class="container-fluid">
             <a class="navbar-brand d-flex align-items-center gap-2" href="{{ url_for('home') }}">
@@ -34,17 +35,17 @@
             <div class="collapse navbar-collapse" id="main-navbar">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4 gap-lg-2">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('projects:list') }}" aria-label="list-projects" title="{{ _('Projects') }}">
+                        <a class="nav-link nav-link-project{% if resource_type_class == 'bg-project' %} active{% endif %}" href="{{ url_for('projects:list') }}" aria-label="list-projects" title="{{ _('Projects') }}" {% if resource_type_class == 'bg-project' %}aria-current="page"{% endif %}>
                             <span class="material-icons-outlined" aria-hidden="true">{{ icons.projects }}</span>{{ _("Projects") }}
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('survey_missions:list') }}" aria-label="list-survey-missions" title="{{ _('Survey Missions') }}">
+                        <a class="nav-link nav-link-survey-mission{% if resource_type_class == 'bg-survey-mission' %} active{% endif %}" href="{{ url_for('survey_missions:list') }}" aria-label="list-survey-missions" title="{{ _('Survey Missions') }}" {% if resource_type_class == 'bg-survey-mission' %}aria-current="page"{% endif %}>
                             <span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_missions }}</span>{{ _("Survey Missions") }}
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('survey_related_records:list') }}" aria-label="list-survey-related-records" title="{{ _('Survey-related Records') }}">
+                        <a class="nav-link nav-link-survey-related-record{% if resource_type_class == 'bg-survey-related-record' %} active{% endif %}" href="{{ url_for('survey_related_records:list') }}" aria-label="list-survey-related-records" title="{{ _('Survey-related Records') }}" {% if resource_type_class == 'bg-survey-related-record' %}aria-current="page"{% endif %}>
                             <span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_related_records }}</span>{{ _("Survey-related Records") }}
                         </a>
                     </li>
@@ -157,16 +158,17 @@
             </div>
         </div>
     </nav>
+    <div class="resource-type-bar {% block resource_type_color_class %}{% endblock %}" aria-hidden="true"></div>
 </header>
+{% if breadcrumbs %}
+    {% include 'breadcrumbs.html' %}
+{% endif %}
 <div class="container-fluid">
-    {% if breadcrumbs %}
-        {% include 'breadcrumbs.html' %}
-    {% endif %}
     <div class="row m-5">
         <div class="col">
             {% block content %}
                 {% block header %}
-                    <h1 class="display-1" aria-label="title">{% block page_title %}{% endblock page_title %}</h1>
+                    <h1 class="display-1 text-truncate {% block header_extra_class %}{% endblock %}{% if resource_type_class == 'bg-project' %} title-project{% elif resource_type_class == 'bg-survey-mission' %} title-survey-mission{% elif resource_type_class == 'bg-survey-related-record' %} title-survey-related-record{% endif %}" aria-label="title">{% block page_title %}{% endblock page_title %}</h1>
                 {% endblock %}
 
                 <div aria-label="content">

@@ -1,23 +1,21 @@
-<div class="row">
-    <nav aria-label="breadcrumbs">
-        <ul class="breadcrumb p-3 bg-body-tertiary rounded-3">
-            {% for item in breadcrumbs %}
-                <li class="breadcrumb-item">
-                    {% if item.url %}
-                        <a href="{{ item.url }}">
-                            {% if item.icon %}
-                                <span class="material-icons-outlined fs-6 me-1" aria-hidden="true">{{ item.icon }}</span>
-                            {% endif %}
-                            {{ item.name }}
-                        </a>
-                    {% else %}
+<nav aria-label="breadcrumbs">
+    <ul class="breadcrumb py-3 px-3 mb-0 bg-body-tertiary rounded-0">
+        {% for item in breadcrumbs %}
+            <li class="breadcrumb-item">
+                {% if item.url %}
+                    <a href="{{ item.url }}">
                         {% if item.icon %}
                             <span class="material-icons-outlined fs-6 me-1" aria-hidden="true">{{ item.icon }}</span>
                         {% endif %}
                         {{ item.name }}
+                    </a>
+                {% else %}
+                    {% if item.icon %}
+                        <span class="material-icons-outlined fs-6 me-1" aria-hidden="true">{{ item.icon }}</span>
                     {% endif %}
-                </li>
-            {% endfor %}
-        </ul>
-    </nav>
-</div>
+                    {{ item.name }}
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+</nav>

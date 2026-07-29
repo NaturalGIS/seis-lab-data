@@ -102,6 +102,7 @@ async def _get_survey_related_record_details(
     can_update = record_permissions.can_update_survey_related_record(
         user, survey_related_record
     )
+    settings: config.SeisLabDataSettings = request.state.settings
     return webui_schemas.SurveyRelatedRecordDetails(
         item=serialized,
         permissions=webui_schemas.UserPermissionDetails(
@@ -113,10 +114,14 @@ async def _get_survey_related_record_details(
         ),
         breadcrumbs=[
             webui_schemas.BreadcrumbItem(
-                name=_("Home"), url=str(request.url_for("home"))
+                name=_("Home"),
+                url=str(request.url_for("home")),
+                icon=settings.icons.home,
             ),
             webui_schemas.BreadcrumbItem(
-                name=_("Projects"), url=str(request.url_for("projects:list"))
+                name=_("Projects"),
+                url=str(request.url_for("projects:list")),
+                icon=settings.icons.projects,
             ),
             webui_schemas.BreadcrumbItem(
                 name=str(survey_related_record.survey_mission.project.name["en"]),
@@ -126,6 +131,7 @@ async def _get_survey_related_record_details(
                         project_id=survey_related_record.survey_mission.project.id,
                     )
                 ),
+                icon=settings.icons.projects,
             ),
             webui_schemas.BreadcrumbItem(
                 name=str(survey_related_record.survey_mission.name["en"]),
@@ -135,9 +141,11 @@ async def _get_survey_related_record_details(
                         survey_mission_id=survey_related_record.survey_mission.id,
                     )
                 ),
+                icon=settings.icons.survey_missions,
             ),
             webui_schemas.BreadcrumbItem(
                 name=str(survey_related_record.name["en"]),
+                icon=settings.icons.survey_related_records,
             ),
         ],
     )
@@ -223,6 +231,7 @@ async def get_creation_form(request: Request):
     form_instance = await forms.SurveyRelatedRecordCreateForm.from_request(request)
     form_instance.request_id.data = str(identifiers.RequestId(uuid.uuid4()))
     template_processor: Jinja2Templates = request.state.templates
+    settings: config.SeisLabDataSettings = request.state.settings
     return template_processor.TemplateResponse(
         request,
         "survey-related-records/create-form-page.html",
@@ -231,24 +240,32 @@ async def get_creation_form(request: Request):
             "survey_mission_id": survey_mission_id,
             "breadcrumbs": [
                 webui_schemas.BreadcrumbItem(
-                    name=_("Home"), url=request.url_for("home")
+                    name=_("Home"),
+                    url=request.url_for("home"),
+                    icon=settings.icons.home,
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=_("Projects"), url=request.url_for("projects:list")
+                    name=_("Projects"),
+                    url=request.url_for("projects:list"),
+                    icon=settings.icons.projects,
                 ),
                 webui_schemas.BreadcrumbItem(
                     name=parent_survey_mission.project.name["en"],
                     url=request.url_for(
                         "projects:detail", project_id=parent_survey_mission.project.id
                     ),
+                    icon=settings.icons.projects,
                 ),
                 webui_schemas.BreadcrumbItem(
                     name=parent_survey_mission.name["en"],
                     url=request.url_for(
                         "survey_missions:detail", survey_mission_id=survey_mission_id
                     ),
+                    icon=settings.icons.survey_missions,
                 ),
-                webui_schemas.BreadcrumbItem(name=_("New survey-related record")),
+                webui_schemas.BreadcrumbItem(
+                    name=_("New survey-related record"), icon=settings.icons.new_item
+                ),
             ],
         },
     )
@@ -576,6 +593,7 @@ async def get_update_form(request: Request):
     initial_related_records = [
         (i.id, i.name["en"]) for i in initial_related_records_list
     ]
+    settings: config.SeisLabDataSettings = request.state.settings
     return template_processor.TemplateResponse(
         request,
         "survey-related-records/update-form-page.html",
@@ -585,11 +603,30 @@ async def get_update_form(request: Request):
             "initial_related_records": initial_related_records,
             "breadcrumbs": [
                 webui_schemas.BreadcrumbItem(
-                    name=_("Home"), url=request.url_for("home")
+                    name=_("Home"),
+                    url=request.url_for("home"),
+                    icon=settings.icons.home,
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=_("Survey-related records"),
-                    url=request.url_for("survey_related_records:list"),
+                    name=_("Projects"),
+                    url=request.url_for("projects:list"),
+                    icon=settings.icons.projects,
+                ),
+                webui_schemas.BreadcrumbItem(
+                    name=details.item.survey_mission.project.name.en,
+                    url=request.url_for(
+                        "projects:detail",
+                        project_id=details.item.survey_mission.project.id,
+                    ),
+                    icon=settings.icons.projects,
+                ),
+                webui_schemas.BreadcrumbItem(
+                    name=details.item.survey_mission.name.en,
+                    url=request.url_for(
+                        "survey_missions:detail",
+                        survey_mission_id=details.item.survey_mission.id,
+                    ),
+                    icon=settings.icons.survey_missions,
                 ),
                 webui_schemas.BreadcrumbItem(
                     name=details.item.name.en,
@@ -597,8 +634,11 @@ async def get_update_form(request: Request):
                         "survey_related_records:detail",
                         survey_related_record_id=details.item.id,
                     ),
+                    icon=settings.icons.survey_related_records,
                 ),
-                webui_schemas.BreadcrumbItem(name=_("Edit survey-related record")),
+                webui_schemas.BreadcrumbItem(
+                    name=_("Edit"), icon=settings.icons.edit_item
+                ),
             ],
         },
     )
@@ -1110,9 +1150,14 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
                 },
                 "breadcrumbs": [
                     webui_schemas.BreadcrumbItem(
-                        name=_("Home"), url=request.url_for("home")
+                        name=_("Home"),
+                        url=request.url_for("home"),
+                        icon=settings.icons.home,
                     ),
-                    webui_schemas.BreadcrumbItem(name=_("Survey-related records")),
+                    webui_schemas.BreadcrumbItem(
+                        name=_("Survey-related records"),
+                        icon=settings.icons.survey_related_records,
+                    ),
                 ],
                 "search_initial_value": list_filters.get_text_search_filter(
                     current_language
