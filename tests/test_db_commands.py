@@ -333,7 +333,6 @@ async def test_bulk_update_filtered_records(
         updated_count = await record_commands.bulk_update_filtered_records(
             session,
             to_update,
-            identifiers.UserId(admin_user.id),
             en_name_filter="First",
         )
         assert updated_count == 1
@@ -367,7 +366,6 @@ async def test_bulk_update_filtered_records_excludes_records(
         updated_count = await record_commands.bulk_update_filtered_records(
             session,
             to_update,
-            identifiers.UserId(admin_user.id),
             excluded_record_ids=[identifiers.SurveyRelatedRecordId(first_record.id)],
         )
         assert updated_count == 1
@@ -400,7 +398,6 @@ async def test_bulk_update_manually_selected_records(
             session,
             to_update,
             [identifiers.SurveyRelatedRecordId(second_record.id)],
-            identifiers.UserId(admin_user.id),
         )
         assert updated_count == 1
         updated_second = await record_queries.get_survey_related_record(
@@ -438,7 +435,6 @@ async def test_bulk_update_manually_selected_records_replaces_related_records(
             session,
             add_relation,
             [identifiers.SurveyRelatedRecordId(second_record.id)],
-            identifiers.UserId(admin_user.id),
         )
         related_to = await record_queries.list_survey_related_record_related_to_records(
             session, identifiers.SurveyRelatedRecordId(second_record.id)
@@ -454,7 +450,6 @@ async def test_bulk_update_manually_selected_records_replaces_related_records(
             session,
             clear_relations,
             [identifiers.SurveyRelatedRecordId(second_record.id)],
-            identifiers.UserId(admin_user.id),
         )
         related_to = await record_queries.list_survey_related_record_related_to_records(
             session, identifiers.SurveyRelatedRecordId(second_record.id)

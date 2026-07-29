@@ -442,15 +442,9 @@ async def list_survey_missions(
     )
     if initiator is None:
         return await mission_queries.list_published_survey_missions(session, **kwargs)
-    elif not {constants.ROLE_ADMIN, constants.ROLE_SYSTEM_ADMIN}.isdisjoint(
-        initiator.roles
-    ):
+    else:
         kwargs.update(only_internal=only_internal)
         return await mission_queries.list_survey_missions(session, **kwargs)
-    else:
-        return await mission_queries.list_accessible_survey_missions(
-            session, initiator.id, **kwargs
-        )
 
 
 async def get_survey_mission(
@@ -461,8 +455,15 @@ async def get_survey_mission(
     mission = await mission_queries.get_survey_mission(session, survey_mission_id)
     if mission is None:
         return None
-    if not mission_permissions.can_read_survey_mission(initiator, mission):
-        raise errors.SeisLabDataError(
-            f"User is not allowed to read survey mission {survey_mission_id!r}."
-        )
+
+    if mission.status == constants.SurveyMissionStatus.PUBLISHED:
+        return mission
+
+    error_msg = f"User not allowed to read survey mission {survey_mission_id!r}."
+
+    if initiator is None:
+        raise errors.UserNotAllowedError(error_msg)
+
+    if not mission_permissions.can_read_private_survey_mission(initiator, mission):
+        raise errors.UserNotAllowedError(error_msg)
     return mission

@@ -191,18 +191,11 @@ async def bulk_update_manually_selected_records(
     session: AsyncSession,
     to_update: record_schemas.SurveyRelatedRecordBulkUpdate,
     selected: list[identifiers.SurveyRelatedRecordId],
-    user_id: identifiers.UserId,
-    restrict_to_owned: bool = True,
     survey_mission_id: identifiers.SurveyMissionId | None = None,
 ) -> int:
-    if restrict_to_owned:
-        ids_statement = record_queries.build_owned_survey_related_record_id_statement(
-            user_id, survey_mission_id=survey_mission_id, record_ids=selected
-        )
-    else:
-        ids_statement = record_queries.build_survey_related_record_id_statement(
-            survey_mission_id=survey_mission_id, record_ids=selected
-        )
+    ids_statement = record_queries.build_survey_related_record_id_statement(
+        survey_mission_id=survey_mission_id, record_ids=selected
+    )
     matched_ids = (await session.exec(ids_statement)).all()
     try:
         updated_count = await _apply_bulk_update_to_matched_records(
@@ -218,8 +211,6 @@ async def bulk_update_manually_selected_records(
 async def bulk_update_filtered_records(
     session: AsyncSession,
     to_update: record_schemas.SurveyRelatedRecordBulkUpdate,
-    user_id: identifiers.UserId,
-    restrict_to_owned: bool = True,
     excluded_record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
     survey_mission_id: identifiers.SurveyMissionId | None = None,
     en_name_filter: str | None = None,
@@ -243,14 +234,9 @@ async def bulk_update_filtered_records(
         workflow_stage_id=workflow_stage_id,
         excluded_record_ids=excluded_record_ids,
     )
-    if restrict_to_owned:
-        ids_statement = record_queries.build_owned_survey_related_record_id_statement(
-            user_id, **filter_kwargs
-        )
-    else:
-        ids_statement = record_queries.build_survey_related_record_id_statement(
-            **filter_kwargs
-        )
+    ids_statement = record_queries.build_survey_related_record_id_statement(
+        **filter_kwargs
+    )
     matched_ids = (await session.exec(ids_statement)).all()
     try:
         updated_count = await _apply_bulk_update_to_matched_records(

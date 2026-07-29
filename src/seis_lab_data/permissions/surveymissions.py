@@ -1,76 +1,54 @@
 import logging
 
 from ..schemas.user import User
-from ..constants import (
-    ROLE_ADMIN,
-    ROLE_EDITOR,
-    ROLE_SYSTEM_ADMIN,
-    SurveyMissionStatus,
-)
 from ..db import models
+
+from .common import can_manage_item
 
 logger = logging.getLogger(__name__)
 
 
-def can_read_survey_mission(
+def can_read_private_survey_mission(
     user: User | None,
     mission: models.SurveyMission,
 ) -> bool:
-    if user and not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles):
-        return True
-    if mission.status == SurveyMissionStatus.PUBLISHED:
-        return True
-    return user is not None and (
-        mission.owner_id == user.id or mission.project.owner_id == user.id
-    )
+    return user is not None
 
 
 def can_create_survey_mission(
     user: User | None,
     project: models.Project,
 ) -> bool:
-    if user is None:
-        return False
-    if not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles):
-        return True
-    return ROLE_EDITOR in user.roles and project.owner_id == user.id
+    return can_manage_item(user)
 
 
 def can_update_survey_mission(
     user: User | None,
     mission: models.SurveyMission,
 ) -> bool:
-    if not user:
-        return False
-    if not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles):
-        return True
-    if ROLE_EDITOR in user.roles and mission.owner_id == user.id:
-        return True
-    if ROLE_EDITOR in user.roles and mission.project.owner_id == user.id:
-        return True
-    return False
+    return can_manage_item(user)
 
 
 def can_delete_survey_mission(
     user: User | None,
     mission: models.SurveyMission,
 ) -> bool:
-    return can_update_survey_mission(user, mission)
+    return can_manage_item(user)
 
 
 def can_validate_survey_mission(
     user: User | None,
     mission: models.SurveyMission,
 ) -> bool:
-    return can_update_survey_mission(user, mission)
+    return can_manage_item(user)
 
 
 def can_discover_survey_mission(user: User, mission: models.SurveyMission) -> bool:
-    return can_update_survey_mission(user, mission)
+    return can_manage_item(user)
 
 
 def can_change_survey_mission_status(
     user: User | None,
     mission: models.SurveyMission,
 ) -> bool:
-    return can_update_survey_mission(user, mission)
+    return can_manage_item(user)
