@@ -47,11 +47,17 @@ def _build_project_statement(
     if temporal_extent is not None:
         if temporal_extent.begin is not None:
             statement = statement.where(
-                models.Project.temporal_extent_begin >= temporal_extent.begin
+                or_(
+                    models.Project.temporal_extent_begin >= temporal_extent.begin,
+                    models.Project.temporal_extent_begin.is_(None),
+                )
             )
         if temporal_extent.end is not None:
             statement = statement.where(
-                models.Project.temporal_extent_end <= temporal_extent.end
+                or_(
+                    models.Project.temporal_extent_end <= temporal_extent.end,
+                    models.Project.temporal_extent_end.is_(None),
+                )
             )
     return statement.order_by(
         models.Project.temporal_extent_end.desc().nullslast()

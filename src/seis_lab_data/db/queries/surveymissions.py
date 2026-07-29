@@ -49,11 +49,17 @@ def _build_survey_mission_statement(
     if temporal_extent is not None:
         if temporal_extent.begin is not None:
             statement = statement.where(
-                models.SurveyMission.temporal_extent_begin >= temporal_extent.begin
+                or_(
+                    models.SurveyMission.temporal_extent_begin >= temporal_extent.begin,
+                    models.SurveyMission.temporal_extent_begin.is_(None),
+                )
             )
         if temporal_extent.end is not None:
             statement = statement.where(
-                models.SurveyMission.temporal_extent_end <= temporal_extent.end
+                or_(
+                    models.SurveyMission.temporal_extent_end <= temporal_extent.end,
+                    models.SurveyMission.temporal_extent_end.is_(None),
+                )
             )
     return statement.order_by(
         models.SurveyMission.temporal_extent_end.desc().nullslast()

@@ -75,12 +75,19 @@ def _apply_survey_related_record_filters(
     if temporal_extent is not None:
         if temporal_extent.begin is not None:
             statement = statement.where(
-                models.SurveyRelatedRecord.temporal_extent_begin
-                >= temporal_extent.begin
+                or_(
+                    models.SurveyRelatedRecord.temporal_extent_begin
+                    >= temporal_extent.begin,
+                    models.SurveyRelatedRecord.temporal_extent_begin.is_(None),
+                )
             )
         if temporal_extent.end is not None:
             statement = statement.where(
-                models.SurveyRelatedRecord.temporal_extent_end <= temporal_extent.end
+                or_(
+                    models.SurveyRelatedRecord.temporal_extent_end
+                    <= temporal_extent.end,
+                    models.SurveyRelatedRecord.temporal_extent_end.is_(None),
+                )
             )
     if dataset_category_id is not None:
         statement = statement.where(
