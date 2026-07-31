@@ -3,7 +3,7 @@ name: seis-lab-data
 x-auth-image: &auth-image "ghcr.io/goauthentik/server:2025.12.4"
 x-auth-admin-token: &auth-admin-token "admin123"
 x-common-image: &common-image "${IMAGE_URL}"
-x-db-image: &db-image "postgis/postgis:17-3.5-alpine"
+x-db-image: &db-image "postgis/postgis:17-3.5"
 x-auth-client-id: &auth-client-id "sld-client-id"
 x-auth-client-secret: &auth-client-secret "sld-client-secret"
 x-auth-redirect-url: &auth-redirect-url "http://localhost:8888/oauth2/callback"
