@@ -91,10 +91,12 @@ class SurveyRelatedRecordReadEmbedded(pydantic.BaseModel):
 
 
 def check_asset_english_names_for_uniqueness(
-    assets: list[RecordAssetCreate],
-) -> list[RecordAssetCreate]:
+    assets: list[RecordAssetCreate] | list[RecordAssetUpdate],
+) -> list[RecordAssetCreate] | list[RecordAssetUpdate]:
     seen_names = set()
     for asset in assets:
+        if asset.name is None:  # not being changed, so nothing to check here
+            continue
         if asset.name.en in seen_names:
             raise ValueError(f"Duplicate asset english name found: {asset.name.en!r}")
         seen_names.add(asset.name.en)
