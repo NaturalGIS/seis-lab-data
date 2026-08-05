@@ -31,9 +31,10 @@ COPY --chown=ubuntu:ubuntu . .
 
 # Sync the project
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/ubuntu/.cache/uv \
-    uv sync --locked --group gdal --compile-bytecode
+    uv sync --locked --group gdal --group docs --compile-bytecode
 
 RUN uv run seis-lab-data translations compile
+RUN uv run mkdocs build --strict --site-dir /home/ubuntu/app/docs-site
 
 # Runtime stage - clean GDAL base without build tools
 FROM ghcr.io/osgeo/gdal:ubuntu-small-3.11.4

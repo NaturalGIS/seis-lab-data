@@ -327,6 +327,27 @@ services:
         uid: "5050"
         gid: "5050"
 
+  docs:
+    image: *common-image
+    entrypoint: ["uv", "run", "mkdocs"]
+    command: ["serve", "--dev-addr=0.0.0.0:8000"]
+    volumes:
+      - type: bind
+        source: ../mkdocs.yml
+        target: /home/ubuntu/app/mkdocs.yml
+      - type: bind
+        source: ../docs
+        target: /home/ubuntu/app/docs
+      - type: bind
+        source: ../mkdocs
+        target: /home/ubuntu/app/mkdocs
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.docs-router.entrypoints=web"
+      - "traefik.http.routers.docs-router.rule=Host(`docs.localhost`)"
+      - "traefik.http.routers.docs-router.priority=90"
+      - "traefik.http.services.docs.loadbalancer.server.port=8000"
+
 
 configs:
 

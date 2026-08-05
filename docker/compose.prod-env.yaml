@@ -306,6 +306,19 @@ services:
       - "traefik.http.routers.dozzle-router.middlewares=authentik-auth"
       - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
 
+  docs:
+    image: *common-image
+    entrypoint: ["uv", "run", "python", "/home/ubuntu/app/docker/docs/entrypoint.py"]
+    environment:
+      MKDOCS_SITE_URL: "https://seis-lab-data.ipma.pt/docs"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.docs-router.rule=Host(`seis-lab-data.ipma.pt`) && PathPrefix(`/docs`)"
+      - "traefik.http.routers.docs-router.entrypoints=websecure"
+      - "traefik.http.routers.docs-router.tls=true"
+      - "traefik.http.routers.docs-router.priority=90"
+      - "traefik.http.services.docs.loadbalancer.server.port=8000"
+
 configs:
   traefik-conf:
     file: traefik-prod-config.toml
