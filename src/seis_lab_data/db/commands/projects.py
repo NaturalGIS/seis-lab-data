@@ -34,7 +34,7 @@ async def create_project(
             session, to_create.name.en
         )
     ) is not None:
-        raise errors.SeisLabDataError(
+        raise errors.DuplicateResourceError(
             f"Project with english name {to_create.name.en!r} already exists ({existing_project.id})."
         )
     session.add(project)

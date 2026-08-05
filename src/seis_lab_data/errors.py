@@ -4,3 +4,7 @@ class SeisLabDataError(Exception):
 
 class UserNotAllowedError(SeisLabDataError):
     pass
+
+
+class DuplicateResourceError(SeisLabDataError):
+    pass

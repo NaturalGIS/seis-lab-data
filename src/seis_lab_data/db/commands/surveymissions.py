@@ -36,7 +36,7 @@ async def create_survey_mission(
     if await mission_queries.get_survey_mission_by_english_name(
         session, identifiers.ProjectId(to_create.project_id), to_create.name.en
     ):
-        raise errors.SeisLabDataError(
+        raise errors.DuplicateResourceError(
             f"There is already a survey mission with english name {to_create.name.en!r} for "
             f"the same project."
         )
