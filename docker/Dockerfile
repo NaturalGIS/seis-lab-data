@@ -5,11 +5,20 @@ FROM ghcr.io/osgeo/gdal:ubuntu-small-3.11.4 AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.7.18 /uv /uvx /bin/
 
-# Install build dependencies needed for GDAL Python bindings compilation
+# Install build dependencies needed for GDAL Python bindings compilation, plus
+# weasyprint's system dependencies, needed only to build the PDF docs below -
+# neither set makes it into the runtime stage, which copies just the built
+# app over, not the OS packages.
 RUN apt-get update \
   && apt-get install --yes --no-install-recommends \
     build-essential \
     python3-dev \
+    fonts-lato \
+    ghostscript \
+    libharfbuzz0b \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libpangocairo-1.0-0 \
   && rm -rf /var/lib/apt/lists/*
 
 USER ubuntu
@@ -34,7 +43,7 @@ RUN --mount=type=cache,uid=1000,gid=1000,target=/home/ubuntu/.cache/uv \
     uv sync --locked --group gdal --group docs --compile-bytecode
 
 RUN uv run seis-lab-data translations compile
-RUN uv run mkdocs build --strict --site-dir /home/ubuntu/app/docs-site
+RUN BUILD_PDFS=1 uv run mkdocs build --strict --site-dir /home/ubuntu/app/docs-site
 
 # Runtime stage - clean GDAL base without build tools
 FROM ghcr.io/osgeo/gdal:ubuntu-small-3.11.4

@@ -177,6 +177,7 @@ services:
       SEIS_LAB_DATA__BIND_HOST: 0.0.0.0
       SEIS_LAB_DATA__BIND_PORT: 5000
       SEIS_LAB_DATA__PUBLIC_URL: https://seis-lab-data.naturalgis.pt
+      SEIS_LAB_DATA__DOCS_URL: https://seis-lab-data.naturalgis.pt/docs
       SEIS_LAB_DATA__AUTH_EXTERNAL_BASE_URL: https://auth.seis-lab-data.naturalgis.pt
       SEIS_LAB_DATA__AUTH_INTERNAL_BASE_URL: http://auth-webapp:9000
       SEIS_LAB_DATA__WEBMAP_BASE_TILE_LAYER_URL: https://seis-lab-data.naturalgis.pt/tiles/emodnet-bathymetry/{z}/{x}/{y}
