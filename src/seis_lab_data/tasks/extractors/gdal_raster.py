@@ -37,7 +37,11 @@ def extract_raster_metadata(path: Path | str) -> RasterMetadata:
         src_srs = osr.SpatialReference(wkt) if wkt else None
         epsg, crs_name, crs_wkt = common.identify_srs(src_srs)
         nodata = ds.GetRasterBand(1).GetNoDataValue() if band_count else None
-        bbox_4326 = common.project_bbox_to_wgs84(bbox_native, src_srs)
+        bbox_4326 = (
+            common.project_bbox_to_wgs84(bbox_native, src_srs)
+            if bbox_native is not None and src_srs is not None
+            else None
+        )
 
         return RasterMetadata(
             driver=driver,

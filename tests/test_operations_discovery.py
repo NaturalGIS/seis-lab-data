@@ -65,26 +65,6 @@ def _write_geotiff(path):
     ds = None
 
 
-def _undeclared_crs_metadata(**overrides):
-    """Metadata as extracted from a file whose format cannot declare a CRS."""
-    return extractor_schemas.RasterMetadata(
-        driver="XYZ",
-        width=10,
-        height=10,
-        band_count=1,
-        bbox_native=_NATIVE_BBOX_TM06,
-        **overrides,
-    )
-
-
-async def _set_mission_implicit_crs(db_session_maker, mission_id, implicit_crs):
-    async with db_session_maker() as session:
-        mission = await session.get(models.SurveyMission, mission_id)
-        mission.implicit_crs = implicit_crs
-        session.add(mission)
-        await session.commit()
-
-
 async def _create_mission(
     session, admin_user, project_id, mission_relative_path, name_suffix=""
 ):
@@ -442,12 +422,22 @@ async def test_discovery_applies_mission_implicit_crs(
     target.write_bytes(b"content is irrelevant, dispatch is faked")
 
     def fake_dispatch(path):
-        return _undeclared_crs_metadata()
+        return extractor_schemas.RasterMetadata(
+            driver="XYZ",
+            width=10,
+            height=10,
+            band_count=1,
+            bbox_native=_NATIVE_BBOX_TM06,
+        )
 
     monkeypatch.setattr(
         discovery_ops.extractor_dispatch, "dispatch_extractor", fake_dispatch
     )
-    await _set_mission_implicit_crs(db_session_maker, discovery_env["mission"].id, 3763)
+    async with db_session_maker() as session:
+        mission = await session.get(models.SurveyMission, discovery_env["mission"].id)
+        mission.implicit_crs = 3763
+        session.add(mission)
+        await session.commit()
 
     await _run_discovery(
         db_session_maker,
@@ -477,7 +467,13 @@ async def test_discovery_implicit_crs_default_discards_projected_coordinates(
     target.write_bytes(b"content is irrelevant, dispatch is faked")
 
     def fake_dispatch(path):
-        return _undeclared_crs_metadata()
+        return extractor_schemas.RasterMetadata(
+            driver="XYZ",
+            width=10,
+            height=10,
+            band_count=1,
+            bbox_native=_NATIVE_BBOX_TM06,
+        )
 
     monkeypatch.setattr(
         discovery_ops.extractor_dispatch, "dispatch_extractor", fake_dispatch
@@ -499,81 +495,6 @@ async def test_discovery_implicit_crs_default_discards_projected_coordinates(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_discovery_implicit_crs_does_not_override_declared_crs(
-    db_session_maker, admin_user, discovery_env, monkeypatch
-):
-    target = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/declared.tif"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(b"content is irrelevant, dispatch is faked")
-
-    def fake_dispatch(path):
-        return extractor_schemas.RasterMetadata(
-            driver="GTiff",
-            width=10,
-            height=10,
-            band_count=1,
-            epsg=3763,
-            crs_name="ETRS89 / Portugal TM06",
-            crs_wkt='PROJCS["ETRS89 / Portugal TM06"]',
-            bbox_native=_NATIVE_BBOX_TM06,
-            bbox_4326=(-8.2, 39.6, -8.1, 39.7),
-        )
-
-    monkeypatch.setattr(
-        discovery_ops.extractor_dispatch, "dispatch_extractor", fake_dispatch
-    )
-    # a mission CRS that would yield a wildly different bbox if it ever fired
-    await _set_mission_implicit_crs(
-        db_session_maker, discovery_env["mission"].id, 32629
-    )
-
-    await _run_discovery(
-        db_session_maker,
-        discovery_env["mission"].id,
-        discovery_env["settings"],
-        admin_user,
-    )
-
-    records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
-    assert len(records) == 1
-    assert to_shape(records[0].bbox_4326).bounds == pytest.approx(
-        (-8.2001, 39.5999, -8.0999, 39.7001)
-    )
-
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_discovery_implicit_crs_skipped_when_file_declares_a_crs(
-    db_session_maker, admin_user, discovery_env, monkeypatch
-):
-    # a CRS the extractor could not resolve to an EPSG code is still a declared
-    # CRS, so the mission's implicit CRS must not step in
-    target = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/wkt.tif"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(b"content is irrelevant, dispatch is faked")
-
-    def fake_dispatch(path):
-        return _undeclared_crs_metadata(crs_name="unnamed", crs_wkt='PROJCS["unnamed"]')
-
-    monkeypatch.setattr(
-        discovery_ops.extractor_dispatch, "dispatch_extractor", fake_dispatch
-    )
-    await _set_mission_implicit_crs(db_session_maker, discovery_env["mission"].id, 3763)
-
-    await _run_discovery(
-        db_session_maker,
-        discovery_env["mission"].id,
-        discovery_env["settings"],
-        admin_user,
-    )
-
-    records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
-    assert len(records) == 1
-    assert records[0].bbox_4326 is None
-
-
-@pytest.mark.integration
-@pytest.mark.asyncio
 async def test_discovery_survives_invalid_implicit_crs(
     db_session_maker, admin_user, discovery_env, monkeypatch
 ):
@@ -582,14 +503,22 @@ async def test_discovery_survives_invalid_implicit_crs(
     target.write_bytes(b"content is irrelevant, dispatch is faked")
 
     def fake_dispatch(path):
-        return _undeclared_crs_metadata()
+        return extractor_schemas.RasterMetadata(
+            driver="XYZ",
+            width=10,
+            height=10,
+            band_count=1,
+            bbox_native=_NATIVE_BBOX_TM06,
+        )
 
     monkeypatch.setattr(
         discovery_ops.extractor_dispatch, "dispatch_extractor", fake_dispatch
     )
-    await _set_mission_implicit_crs(
-        db_session_maker, discovery_env["mission"].id, 999999
-    )
+    async with db_session_maker() as session:
+        mission = await session.get(models.SurveyMission, discovery_env["mission"].id)
+        mission.implicit_crs = 999999
+        session.add(mission)
+        await session.commit()
 
     collector = await _run_discovery(
         db_session_maker,

@@ -46,9 +46,10 @@ def extract_vector_metadata(path: Path | str) -> VectorMetadata:
                 srs_captured = True
             native_boxes.append((minx, miny, maxx, maxy))
             native_srs_names.add(srs.GetName() if srs is not None else None)
-            projected = common.project_bbox_to_wgs84((minx, miny, maxx, maxy), srs)
-            if projected is not None:
-                boxes_4326.append(projected)
+            if srs is not None:
+                boxes_4326.append(
+                    common.project_bbox_to_wgs84((minx, miny, maxx, maxy), srs)
+                )
 
         # Native bbox only makes sense when the extent-bearing layers share one CRS.
         bbox_native = _union(native_boxes) if len(native_srs_names) <= 1 else None

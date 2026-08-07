@@ -358,29 +358,23 @@ async def _discover_mission_records(
                         "Metadata extraction failed for %s: %s", found_path, err
                     )
                     logger.debug("Extraction failure detail", exc_info=True)
-                bbox_4326 = metadata.bbox_4326 if metadata is not None else None
-                if (
-                    metadata is not None
-                    and bbox_4326 is None
-                    and metadata.bbox_native is not None
-                    and metadata.epsg is None
-                    and metadata.crs_wkt is None
-                ):
-                    # the file declares no CRS of its own - fall back to the CRS
-                    # declared on the mission
-                    try:
-                        implicit_srs = osr.SpatialReference()
-                        implicit_srs.ImportFromEPSG(mission.implicit_crs)
-                        bbox_4326 = extractor_common.project_bbox_to_wgs84(
-                            metadata.bbox_native, implicit_srs
-                        )
-                    except Exception as err:
-                        logger.warning(
-                            "Could not apply implicit CRS %s to %s: %s",
-                            mission.implicit_crs,
-                            found_path,
-                            err,
-                        )
+                bbox_4326 = None
+                if metadata is not None:
+                    bbox_4326 = metadata.bbox_4326
+                    if (native_bbox := metadata.bbox_native_needing_crs) is not None:
+                        try:
+                            implicit_srs = osr.SpatialReference()
+                            implicit_srs.ImportFromEPSG(mission.implicit_crs)
+                            bbox_4326 = extractor_common.project_bbox_to_wgs84(
+                                native_bbox, implicit_srs
+                            )
+                        except Exception as err:
+                            logger.warning(
+                                "Could not apply implicit CRS %s to %s: %s",
+                                mission.implicit_crs,
+                                found_path,
+                                err,
+                            )
                 bbox_wkt = (
                     _bbox_4326_tuple_to_wkt(bbox_4326)
                     if bbox_4326 is not None

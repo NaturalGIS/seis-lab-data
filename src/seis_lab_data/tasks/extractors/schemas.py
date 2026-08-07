@@ -95,6 +95,19 @@ class ExtractedMetadata(pydantic.BaseModel):
     temporal_extent_begin: dt.date | None = None
     temporal_extent_end: dt.date | None = None
 
+    @property
+    def bbox_native_needing_crs(self) -> tuple[float, float, float, float] | None:
+        """Native bbox that can only be mapped if someone declares its CRS.
+
+        Formats like SEG-Y and XYZ have nowhere to record a CRS, so the extractor
+        reports coordinates but no bbox_4326. Whoever knows the CRS can project
+        this bbox; the file itself never tells us.
+        """
+        declares_own_crs = self.epsg is not None or self.crs_wkt is not None
+        if self.bbox_4326 is None and not declares_own_crs:
+            return self.bbox_native
+        return None
+
     def describe(self, language: typing.Literal["en", "pt"] = "en") -> str:
         raise NotImplementedError
 
