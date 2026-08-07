@@ -204,6 +204,7 @@ services:
       SEIS_LAB_DATA__BIND_HOST: 0.0.0.0
       SEIS_LAB_DATA__BIND_PORT: 5000
       SEIS_LAB_DATA__PUBLIC_URL: https://seis-lab-data.ipma.pt
+      SEIS_LAB_DATA__DOCS_URL: https://seis-lab-data.ipma.pt/docs
       SEIS_LAB_DATA__AUTH_EXTERNAL_BASE_URL: https://auth.seis-lab-data.ipma.pt
       SEIS_LAB_DATA__AUTH_INTERNAL_BASE_URL: http://auth-webapp:9000
       SEIS_LAB_DATA__WEBMAP_BASE_TILE_LAYER_URL: https://seis-lab-data.ipma.pt/tiles/emodnet-bathymetry/{z}/{x}/{y}
@@ -305,6 +306,19 @@ services:
       - "traefik.http.routers.dozzle-router.priority=95"
       - "traefik.http.routers.dozzle-router.middlewares=authentik-auth"
       - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
+
+  docs:
+    image: *common-image
+    entrypoint: ["uv", "run", "python", "/home/ubuntu/app/docker/docs/entrypoint.py"]
+    environment:
+      MKDOCS_SITE_URL: "https://seis-lab-data.ipma.pt/docs"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.docs-router.rule=Host(`seis-lab-data.ipma.pt`) && PathPrefix(`/docs`)"
+      - "traefik.http.routers.docs-router.entrypoints=websecure"
+      - "traefik.http.routers.docs-router.tls=true"
+      - "traefik.http.routers.docs-router.priority=90"
+      - "traefik.http.services.docs.loadbalancer.server.port=8000"
 
 configs:
   traefik-conf:
