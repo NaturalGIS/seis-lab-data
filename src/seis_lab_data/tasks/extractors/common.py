@@ -33,11 +33,9 @@ def identify_srs(
 
 
 def project_bbox_to_wgs84(
-    bbox_native: tuple[float, float, float, float] | None,
-    src_srs: "osr.SpatialReference | None",
-) -> tuple[float, float, float, float] | None:
-    if bbox_native is None or src_srs is None:
-        return None
+    bbox_native: tuple[float, float, float, float],
+    src_srs: "osr.SpatialReference",
+) -> tuple[float, float, float, float]:
     wgs84 = osr.SpatialReference()
     wgs84.ImportFromEPSG(4326)
     wgs84.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)

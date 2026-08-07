@@ -180,7 +180,7 @@ services:
       test: "redis-cli PING | grep PONG"
 
   db:
-    image: postgis/postgis:17-3.5-alpine
+    image: postgis/postgis:17-3.5
     environment:
       POSTGRES_DB: seis_lab_data
       POSTGRES_USER: sld

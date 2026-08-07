@@ -265,6 +265,38 @@ def test_describe_crs_unknown():
     assert "CRS: unknown." in text
 
 
+def test_bbox_native_needing_crs_when_file_declares_none():
+    # the SEG-Y / XYZ case: coordinates, but nothing saying which CRS they are in
+    metadata = schemas.SegyMetadata(bbox_native=(0.0, 1900.0, 100.0, 2000.0))
+    assert metadata.bbox_native_needing_crs == (0.0, 1900.0, 100.0, 2000.0)
+
+
+def test_bbox_native_needing_crs_is_none_when_epsg_is_known():
+    metadata = schemas.SegyMetadata(bbox_native=(0.0, 1900.0, 100.0, 2000.0), epsg=3763)
+    assert metadata.bbox_native_needing_crs is None
+
+
+def test_bbox_native_needing_crs_is_none_when_only_wkt_is_known():
+    # AutoIdentifyEPSG fails on some archive files, leaving wkt as the only CRS
+    metadata = schemas.SegyMetadata(
+        bbox_native=(0.0, 1900.0, 100.0, 2000.0),
+        crs_wkt='PROJCS["ETRS89 / Portugal TM06"]',
+    )
+    assert metadata.bbox_native_needing_crs is None
+
+
+def test_bbox_native_needing_crs_is_none_when_already_projected():
+    metadata = schemas.SegyMetadata(
+        bbox_native=(0.0, 1900.0, 100.0, 2000.0),
+        bbox_4326=(-8.2, 39.6, -8.1, 39.7),
+    )
+    assert metadata.bbox_native_needing_crs is None
+
+
+def test_bbox_native_needing_crs_is_none_without_coordinates():
+    assert schemas.SegyMetadata().bbox_native_needing_crs is None
+
+
 def test_raster_describe_pt(synthetic_geotiff):
     text = extract_raster_metadata(synthetic_geotiff).describe("pt")
     assert text.startswith("Extração automática: raster GTiff")

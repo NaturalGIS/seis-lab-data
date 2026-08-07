@@ -280,6 +280,8 @@ class SurveyMission(SQLModel, table=True):
         sa_column=Column(JSONB), default_factory=list
     )
     relative_path: str = ""
+    # fallback EPSG code for discovered files whose format cannot declare a CRS
+    implicit_crs: int = Field(default=4326, sa_column_kwargs={"server_default": "4326"})
     status: constants.SurveyMissionStatus = constants.SurveyMissionStatus.DRAFT
     is_valid: bool = False
     validation_result: ValidationResult = Field(sa_column=Column(JSONB))

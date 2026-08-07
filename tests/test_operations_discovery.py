@@ -41,6 +41,8 @@ from seis_lab_data.tasks.extractors import schemas as extractor_schemas  # noqa:
 gdal.UseExceptions()
 
 _MISSION_RELATIVE_PATH = "surveys/test-mission"
+# ETRS89/PT-TM06 metres, around the projection origin in central Portugal
+_NATIVE_BBOX_TM06 = (0.0, 1900.0, 100.0, 2000.0)
 
 
 class _EventCollector:
@@ -406,3 +408,128 @@ async def test_discovery_passes_temporal_extent_through(
     assert to_shape(record.bbox_4326).bounds == pytest.approx(
         (-8.2001, 39.5999, -8.0999, 39.7001)
     )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discovery_applies_mission_implicit_crs(
+    db_session_maker, admin_user, discovery_env, monkeypatch
+):
+    # formats that cannot carry a CRS (XYZ grids, SEG-Y) only yield a native
+    # bbox: the mission's implicit CRS is what turns it into a map bbox
+    target = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/implicit.tif"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"content is irrelevant, dispatch is faked")
+
+    def fake_dispatch(path):
+        return extractor_schemas.RasterMetadata(
+            driver="XYZ",
+            width=10,
+            height=10,
+            band_count=1,
+            bbox_native=_NATIVE_BBOX_TM06,
+        )
+
+    monkeypatch.setattr(
+        discovery_ops.extractor_dispatch, "dispatch_extractor", fake_dispatch
+    )
+    async with db_session_maker() as session:
+        mission = await session.get(models.SurveyMission, discovery_env["mission"].id)
+        mission.implicit_crs = 3763
+        session.add(mission)
+        await session.commit()
+
+    await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+
+    records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
+    assert len(records) == 1
+    # the native bbox reprojects from ETRS89/PT-TM06 to central Portugal
+    minx, miny, maxx, maxy = to_shape(records[0].bbox_4326).bounds
+    assert -8.2 < minx <= maxx < -8.0
+    assert 39.6 < miny <= maxy < 39.8
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discovery_implicit_crs_default_discards_projected_coordinates(
+    db_session_maker, admin_user, discovery_env, monkeypatch, caplog
+):
+    # the 4326 default is a placeholder: metre coordinates then fail the lon/lat
+    # range check and the bbox correctly stays NULL
+    assert discovery_env["mission"].implicit_crs == 4326
+    target = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/metres.tif"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"content is irrelevant, dispatch is faked")
+
+    def fake_dispatch(path):
+        return extractor_schemas.RasterMetadata(
+            driver="XYZ",
+            width=10,
+            height=10,
+            band_count=1,
+            bbox_native=_NATIVE_BBOX_TM06,
+        )
+
+    monkeypatch.setattr(
+        discovery_ops.extractor_dispatch, "dispatch_extractor", fake_dispatch
+    )
+
+    with caplog.at_level(logging.WARNING, logger=discovery_ops.logger.name):
+        await _run_discovery(
+            db_session_maker,
+            discovery_env["mission"].id,
+            discovery_env["settings"],
+            admin_user,
+        )
+
+    records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
+    assert len(records) == 1
+    assert records[0].bbox_4326 is None
+    assert any("Discarding extracted bbox" in r.message for r in caplog.records)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discovery_survives_invalid_implicit_crs(
+    db_session_maker, admin_user, discovery_env, monkeypatch
+):
+    target = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/bogus.tif"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"content is irrelevant, dispatch is faked")
+
+    def fake_dispatch(path):
+        return extractor_schemas.RasterMetadata(
+            driver="XYZ",
+            width=10,
+            height=10,
+            band_count=1,
+            bbox_native=_NATIVE_BBOX_TM06,
+        )
+
+    monkeypatch.setattr(
+        discovery_ops.extractor_dispatch, "dispatch_extractor", fake_dispatch
+    )
+    async with db_session_maker() as session:
+        mission = await session.get(models.SurveyMission, discovery_env["mission"].id)
+        mission.implicit_crs = 999999
+        session.add(mission)
+        await session.commit()
+
+    collector = await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+
+    ended = _ended_events(collector)
+    assert len(ended) == 1
+    assert ended[0].succeeded is True
+    records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
+    assert len(records) == 1
+    assert records[0].bbox_4326 is None
