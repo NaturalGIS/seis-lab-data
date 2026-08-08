@@ -12,6 +12,7 @@ from typing import (
 
 import shapely
 from geoalchemy2 import (
+    Geography,
     Geometry,
     WKBElement,
 )
@@ -20,10 +21,12 @@ from pydantic import (
     PlainSerializer,
     computed_field,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.exc import SAWarning
 from sqlalchemy import (
+    Enum,
     Index,
+    LargeBinary,
     select,
 )
 from sqlalchemy.orm import (
@@ -397,6 +400,8 @@ class RecordAsset(SQLModel, table=True):
     __table_args__ = (
         Index("idx_recordasset_name_gin", "name", postgresql_using="gin"),
     )
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
         Field(sa_column=Column(JSONB))
@@ -408,8 +413,30 @@ class RecordAsset(SQLModel, table=True):
     survey_related_record_id: uuid.UUID = Field(
         foreign_key="surveyrelatedrecord.id", ondelete="CASCADE", index=True
     )
-    relative_path: str = ""
-    media_type: str | None = Field(default=None)
+    # derived assets (previews, thumbnails) have no file in the archive
+    relative_path: str | None = None
+    media_type: str
+    asset_type: list[constants.AssetType] = Field(
+        default_factory=lambda: [constants.AssetType.DATA],
+        sa_column=Column(
+            ARRAY(Enum(constants.AssetType, name="assettype")), nullable=False
+        ),
+    )
+    # spatial extent of derived assets - deliberately not one single geometry type
+    geom: Annotated[
+        WKBElement | None,
+        PlainSerializer(
+            serialize_wkbelement, return_type=dict, when_used="json-unless-none"
+        ),
+    ] = Field(default=None, sa_column=Column(Geography(srid=4326, spatial_index=True)))
+    # the payload of derived assets - serialized as its length, since raw bytes
+    # cannot cross model_dump_json()
+    data: Annotated[
+        bytes | None,
+        PlainSerializer(
+            lambda v: len(v), return_type=int, when_used="json-unless-none"
+        ),
+    ] = Field(default=None, sa_column=Column(LargeBinary))
     links: Annotated[list[Link], PlainSerializer(serialize_localizable_field)] = Field(
         sa_column=Column(JSONB), default_factory=list
     )

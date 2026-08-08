@@ -22,7 +22,10 @@ from sqlalchemy.dialects.postgresql import (
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import errors
-from ...constants import SurveyRelatedRecordStatus
+from ...constants import (
+    AssetType,
+    SurveyRelatedRecordStatus,
+)
 from ...schemas import (
     filters as filter_schemas,
     identifiers,
@@ -277,6 +280,15 @@ async def update_survey_related_record(
     survey_related_record.bbox_4326 = updated_bbox_4326
     session.add(survey_related_record)
 
+    # taken before the proposed changes are applied, in order to detect whether
+    # the record's data files end up different
+    previous_data_paths = {
+        a.relative_path
+        for a in survey_related_record.assets
+        if AssetType.DATA in a.asset_type
+    }
+    current_data_paths = set()
+
     for proposed_asset in to_update.assets:
         try:
             existing_asset = [
@@ -299,6 +311,7 @@ async def update_survey_related_record(
                 survey_related_record_id=survey_related_record.id,
             )
             session.add(db_asset)
+            current_data_paths.add(db_asset.relative_path)
         else:  # this is an existing asset that needs to be updated
             for key, value in proposed_asset.model_dump(exclude_unset=True).items():
                 setattr(existing_asset, key, value)
@@ -306,8 +319,20 @@ async def update_survey_related_record(
 
     proposed_asset_ids = [s.id for s in to_update.assets]
     for existing_asset in survey_related_record.assets:
-        if identifiers.RecordAssetId(existing_asset.id) not in proposed_asset_ids:
+        if AssetType.DATA not in existing_asset.asset_type:
+            # derived assets are never part of an update's payload, so their
+            # absence from it must not be taken as a removal
+            continue
+        if identifiers.RecordAssetId(existing_asset.id) in proposed_asset_ids:
+            current_data_paths.add(existing_asset.relative_path)
+        else:
             await session.delete(existing_asset)
+    if current_data_paths != previous_data_paths:
+        # previews and thumbnails are derived from the record's data files, so
+        # they become stale as soon as those change
+        for existing_asset in survey_related_record.assets:
+            if AssetType.DATA not in existing_asset.asset_type:
+                await session.delete(existing_asset)
 
     already_related_to = (
         await record_queries.list_survey_related_record_related_to_records(

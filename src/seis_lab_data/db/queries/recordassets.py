@@ -5,6 +5,7 @@ from sqlmodel import (
     select,
 )
 
+from ...constants import AssetType
 from ...db import models
 from ...schemas import identifiers
 from .common import _get_total_num_records
@@ -59,25 +60,15 @@ async def get_record_asset(
     return (await session.exec(statement)).first()
 
 
-async def get_record_asset_by_english_name(
-    session: AsyncSession,
-    survey_related_record_id: identifiers.SurveyRelatedRecordId,
-    english_name: str,
-) -> models.RecordAsset | None:
-    statement = (
-        select(models.RecordAsset)
-        .where(models.RecordAsset.name["en"].astext == english_name)
-        .where(models.RecordAsset.survey_related_record_id == survey_related_record_id)
-        .options(_SELECT_IN_LOAD_OPTIONS)
-    )
-    return (await session.exec(statement)).first()
-
-
 async def get_record_asset_by_file_path(
     session: AsyncSession,
-    file_path: str,
+    file_path: str | None,
     survey_mission_id: identifiers.SurveyMissionId,
 ) -> models.RecordAsset | None:
+    if file_path is None:
+        # derived assets have no file, so they are exempt from the per-mission
+        # path uniqueness rule - and a NULL comparison would match all of them
+        return None
     # Scoped per mission: the same relative path may legitimately exist in
     # several missions, each deserving its own record.
     statement = (
@@ -100,6 +91,9 @@ def _get_media_type_list_statement(
     statement = (
         select(models.RecordAsset.media_type)
         .distinct()
+        # derived assets are an implementation detail - they must not show up
+        # among the media types offered to users
+        .where(models.RecordAsset.asset_type.any(AssetType.DATA))
         .order_by(models.RecordAsset.media_type)
     )
     if name_filter:
