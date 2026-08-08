@@ -1,11 +1,16 @@
 import logging
 import datetime as dt
+import re
 from typing import Annotated
 
 import pydantic
+from typing_extensions import Self
 
 from ..db import models
-from ..constants import SurveyRelatedRecordStatus
+from ..constants import (
+    AssetType,
+    SurveyRelatedRecordStatus,
+)
 from .common import (
     LinkSchema,
     LocalizableDraftDescription,
@@ -33,6 +38,17 @@ from .workflowstages import WorkflowStageReadListItem
 logger = logging.getLogger(__name__)
 
 
+def derive_media_type(relative_path: str | None) -> str:
+    """Derive an asset's media type from its file extension.
+
+    Follows the `application/prs.ipma.<ext>` convention of the seeded asset
+    discovery configurations.
+    """
+    if relative_path and (match := re.search(r"\.([A-Za-z0-9]+)$", relative_path)):
+        return f"application/prs.ipma.{match.group(1).lower()}"
+    return "application/octet-stream"
+
+
 class RecordAssetCreate(pydantic.BaseModel):
     id: RecordAssetId
     name: LocalizableDraftName
@@ -40,6 +56,13 @@ class RecordAssetCreate(pydantic.BaseModel):
     media_type: str | None = None
     relative_path: str
     links: list[LinkSchema] = []
+
+    @pydantic.model_validator(mode="after")
+    def _derive_media_type(self) -> Self:
+        # creation stores the full model, so a media type must always be there
+        if not self.media_type:
+            self.media_type = derive_media_type(self.relative_path)
+        return self
 
 
 class RecordAssetUpdate(pydantic.BaseModel):
@@ -50,16 +73,27 @@ class RecordAssetUpdate(pydantic.BaseModel):
     relative_path: str | None = None
     links: list[LinkSchema] | None = None
 
+    @pydantic.model_validator(mode="after")
+    def _derive_media_type(self) -> Self:
+        # only derive when the caller did send the field (the update form always
+        # does, currently as an empty string) - assigning it here would otherwise
+        # add it to `model_fields_set` and clobber the stored value, since
+        # updates are applied with `exclude_unset`
+        if "media_type" in self.model_fields_set and not self.media_type:
+            self.media_type = derive_media_type(self.relative_path)
+        return self
+
 
 class RecordAssetReadListItem(pydantic.BaseModel):
     id: Annotated[RecordAssetId, pydantic.PlainSerializer(serialize_id)]
     name: LocalizableDraftName
+    asset_type: list[AssetType]
     is_valid: bool
 
 
 class RecordAssetReadDetailEmbedded(RecordAssetReadListItem):
     description: LocalizableDraftDescription
-    relative_path: str
+    relative_path: str | None
     media_type: str | None
     links: list[LinkSchema] = []
 

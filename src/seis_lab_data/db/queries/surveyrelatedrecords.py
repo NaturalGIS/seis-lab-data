@@ -10,7 +10,10 @@ from sqlmodel import (
     select,
 )
 
-from ...constants import SurveyRelatedRecordStatus
+from ...constants import (
+    AssetType,
+    SurveyRelatedRecordStatus,
+)
 from ...db import models
 from ...schemas import (
     identifiers,
@@ -123,6 +126,9 @@ def _apply_survey_related_record_filters(
                 .where(
                     models.RecordAsset.media_type.ilike(f"%{asset_media_type_filter}%")
                 )
+                # derived assets carry their own media type, which users never
+                # search for
+                .where(models.RecordAsset.asset_type.any(AssetType.DATA))
             )
         )
     return statement
