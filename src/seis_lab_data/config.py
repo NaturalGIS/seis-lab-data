@@ -42,6 +42,7 @@ class SeisLabDataIconSettings(BaseModel):
     dataset_category: str = "category"
     delete_item: str = "delete"
     discover_contents: str = "travel_explore"
+    docs: str = "menu_book"
     edit_item: str = "edit"
     home: str = "home"
     # list: str = "list"
@@ -55,6 +56,7 @@ class SeisLabDataIconSettings(BaseModel):
     settings: str = "settings"
     expand_less: str = "expand_less"
     expand_more: str = "expand_more"
+    source_code: str = "code"
     status_draft: str = "design_services"
     status_other: str = "question_mark"
     status_published: str = "visibility"
@@ -96,6 +98,8 @@ class SeisLabDataSettings(BaseSettings):
     log_config_file: Path | None = None
     num_web_worker_processes: int = 8
     public_url: str = "http://localhost:5001"
+    docs_url: str = "http://localhost:8000"
+    source_code_repository_url: str = "https://github.com/naturalgis/seis-lab-data"
     static_dir: Optional[Path] = Path(__file__).parent / "webapp/static"
     templates_dir: Optional[Path] = Path(__file__).parent / "webapp/templates"
     message_broker_dsn: Optional[RedisDsn] = RedisDsn("redis://localhost:6379")

@@ -1,21 +1,30 @@
 name: Build and publish Documentation
 
-on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'docs/**'
-      - 'mkdocs/**'
-      - 'mkdocs.yml'
+# Disabled - docs are now built into the main docker image and served internally.
+# Kept around (manual trigger only) until the new setup is verified in staging, at which
+# point this workflow can be deleted.
+#
+# Previous triggers:
+#
+# on:
+#   push:
+#     branches:
+#       - main
+#     paths:
+#       - 'docs/**'
+#       - 'mkdocs/**'
+#       - 'mkdocs.yml'
+#
+#   pull_request:
+#     branches:
+#       - main
+#     paths:
+#       - 'docs/**'
+#       - 'mkdocs/**'
+#       - 'mkdocs.yml'
 
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'docs/**'
-      - 'mkdocs/**'
-      - 'mkdocs.yml'
+on:
+  workflow_dispatch:
 
 jobs:
   build-docs:

@@ -20,12 +20,12 @@ class PdfResourceConfig:
 PDF_RESOURCES = (
     PdfResourceConfig(
         pdf_name="seis-lab-data-development-guide.pdf",
-        mkdocs_conf="mkdocs/mkdocs-pdf-dev-guide.yml",
+        mkdocs_conf="mkdocs/pdf-configs/mkdocs-pdf-dev-guide.yml",
         build_dir_name="site-dev-guide-pdf",
     ),
     PdfResourceConfig(
         pdf_name="seis-lab-data-administration-guide.pdf",
-        mkdocs_conf="mkdocs/mkdocs-pdf-admin-guide.yml",
+        mkdocs_conf="mkdocs/pdf-configs/mkdocs-pdf-admin-guide.yml",
         build_dir_name="site-admin-guide-pdf",
     ),
 )

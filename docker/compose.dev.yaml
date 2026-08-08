@@ -12,7 +12,7 @@ name: seis-lab-data
 x-common-image: &common-image "ghcr.io/naturalgis/seis-lab-data/seis-lab-data:${CURRENT_GIT_BRANCH:-latest}"
 x-auth-image: &auth-image "ghcr.io/goauthentik/server:2026.2.1"
 x-auth-admin-token: &auth-admin-token "admin123"
-x-db-image: &db-image "postgis/postgis:17-3.5-alpine"
+x-db-image: &db-image "postgis/postgis:17-3.5"
 x-auth-client-id: &auth-client-id "sld-client-id"
 x-auth-client-secret: &auth-client-secret "sld-client-secret"
 x-auth-redirect-url: &auth-redirect-url "http://localhost:8888/oauth2/callback"
@@ -155,6 +155,8 @@ services:
 
   db:
     image: *db-image
+    # the Debian postgis image has no arm64 build - run it emulated on Apple Silicon
+    platform: linux/amd64
     environment:
       POSTGRES_DB: seis_lab_data
       POSTGRES_USER: sld
@@ -178,6 +180,7 @@ services:
       SEIS_LAB_DATA__BIND_HOST: 0.0.0.0
       SEIS_LAB_DATA__BIND_PORT: 5000
       SEIS_LAB_DATA__PUBLIC_URL: http://localhost:8888
+      SEIS_LAB_DATA__DOCS_URL: http://docs.localhost:8888
       SEIS_LAB_DATA__AUTH_EXTERNAL_BASE_URL: http://auth.localhost:8888
       SEIS_LAB_DATA__AUTH_INTERNAL_BASE_URL: http://auth-webapp:9000
       SEIS_LAB_DATA__AUTH_CLIENT_ID: *auth-client-id
@@ -273,6 +276,8 @@ services:
 
   test-db:
     image: *db-image
+    # the Debian postgis image has no arm64 build - run it emulated on Apple Silicon
+    platform: linux/amd64
     environment:
       POSTGRES_DB: seis_lab_data_test
       POSTGRES_USER: sld
@@ -326,6 +331,27 @@ services:
         mode: 0600
         uid: "5050"
         gid: "5050"
+
+  docs:
+    image: *common-image
+    entrypoint: ["uv", "run", "mkdocs"]
+    command: ["serve", "--dev-addr=0.0.0.0:8000"]
+    volumes:
+      - type: bind
+        source: ../mkdocs.yml
+        target: /home/ubuntu/app/mkdocs.yml
+      - type: bind
+        source: ../docs
+        target: /home/ubuntu/app/docs
+      - type: bind
+        source: ../mkdocs
+        target: /home/ubuntu/app/mkdocs
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.docs-router.entrypoints=web"
+      - "traefik.http.routers.docs-router.rule=Host(`docs.localhost`)"
+      - "traefik.http.routers.docs-router.priority=90"
+      - "traefik.http.services.docs.loadbalancer.server.port=8000"
 
 
 configs:

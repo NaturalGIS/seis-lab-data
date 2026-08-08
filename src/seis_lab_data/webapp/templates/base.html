@@ -5,6 +5,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <title>{% block title %}Page Title{% endblock %}</title>
+        <link rel="icon" href="{{ url_for('static', path='/img/favicon.ico') }}">
         <link rel="stylesheet" href="{{ url_for('static', path='/css/bootstrap.min.css') }}">
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
         <link rel="stylesheet" href="{{ url_for('static', path='/css/custom.css') }}">
@@ -163,7 +164,7 @@
 {% if breadcrumbs %}
     {% include 'breadcrumbs.html' %}
 {% endif %}
-<div class="container-fluid">
+<div class="container-fluid min-vh-100">
     <div class="row m-5">
         <div class="col">
             {% block content %}
@@ -188,6 +189,33 @@
         </div>
     </div>
 </div>
+<footer class="bg-dark py-3" data-bs-theme="dark">
+    <div class="container-fluid px-4 px-lg-5">
+        <div class="row">
+            <div class="col-12">
+                <span class="fs-4 fw-semibold text-light d-block mb-2">SeisLabData</span>
+            </div>
+        </div>
+        <div class="row gy-3">
+            <div class="col-12 col-md-4">
+                <ul class="nav flex-column">
+                    <li class="nav-item"><a class="nav-link link-light p-0 pb-1" href="{{ url_for('projects:list') }}"><span class="material-icons-outlined" aria-hidden="true">{{ icons.projects }}</span>{{ _("Projects") }}</a></li>
+                    <li class="nav-item"><a class="nav-link link-light p-0 pb-1" href="{{ url_for('survey_missions:list') }}"><span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_missions }}</span>{{ _("Survey Missions") }}</a></li>
+                    <li class="nav-item"><a class="nav-link link-light p-0" href="{{ url_for('survey_related_records:list') }}"><span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_related_records }}</span>{{ _("Survey-related Records") }}</a></li>
+                </ul>
+            </div>
+            <div class="col-12 col-md-4">
+                <ul class="nav flex-column">
+                    <li class="nav-item"><a class="nav-link link-light p-0 pb-1" href="{{ settings.docs_url }}" target="_blank" title="{{ _('opens in a new tab') }}"><span class="material-icons-outlined" aria-hidden="true">{{ icons.docs }}</span>{{ _("Documentation") }}</a></li>
+                    <li class="nav-item"><a class="nav-link link-light p-0" href="{{ settings.source_code_repository_url }}" target="_blank" title="{{ _('opens in a new tab') }}"><span class="material-icons-outlined" aria-hidden="true">{{ icons.source_code }}</span>{{ _("Source code") }}</a></li>
+                </ul>
+            </div>
+            <div class="col-12 col-md-4 d-flex align-items-end justify-content-md-end">
+                <p class="mb-0 text-light-emphasis">{{ _("Made by") }} <a class="link-light" href="https://naturalgis.pt" target="_blank" title="{{ _('opens in a new tab') }}">NaturalGIS</a></p>
+            </div>
+        </div>
+    </div>
+</footer>
 {#
     Flash messages via localStorage.
 

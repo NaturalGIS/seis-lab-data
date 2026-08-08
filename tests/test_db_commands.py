@@ -2,7 +2,10 @@ import uuid
 
 import pytest
 
-from seis_lab_data import constants
+from seis_lab_data import (
+    constants,
+    errors,
+)
 from seis_lab_data.db.commands import (
     datasetcategories as category_commands,
     projects as project_commands,
@@ -121,6 +124,44 @@ async def test_create_project(db, db_session_maker, admin_user):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+async def test_create_project_rejects_duplicate_english_name(
+    db, db_session_maker, admin_user
+):
+    async with db_session_maker() as session:
+        await project_commands.create_project(
+            session,
+            project_schemas.ProjectCreate(
+                id=identifiers.ProjectId(
+                    uuid.UUID("e620b64d-6f0a-4e8e-9e0a-1a2b3c4d5e6f")
+                ),
+                owner_id=admin_user.id,
+                name=common_schemas.LocalizableDraftName(en="A fake project"),
+                description=common_schemas.LocalizableDraftDescription(
+                    en="A description for fake project"
+                ),
+                root_path="/fake-path/to/first-project/",
+            ),
+        )
+        with pytest.raises(errors.DuplicateResourceError):
+            await project_commands.create_project(
+                session,
+                project_schemas.ProjectCreate(
+                    id=identifiers.ProjectId(
+                        uuid.UUID("f6a1c75e-7a1b-4f9f-8a1b-2c3d4e5f6a7b")
+                    ),
+                    owner_id=admin_user.id,
+                    # same english name as the project already created above
+                    name=common_schemas.LocalizableDraftName(en="A fake project"),
+                    description=common_schemas.LocalizableDraftDescription(
+                        en="A description for fake project"
+                    ),
+                    root_path="/fake-path/to/second-project/",
+                ),
+            )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_delete_project(db, db_session_maker, admin_user):
     to_create = project_schemas.ProjectCreate(
         id=identifiers.ProjectId(uuid.UUID("0637d5d9-6381-4ba8-b9ec-89750baa93a4")),
@@ -166,6 +207,50 @@ async def test_create_survey_mission(db, db_session_maker, sample_projects, admi
         assert created.id == to_create.id
         assert created.name["en"] == to_create.name.en
         assert created.name["pt"] == to_create.name.pt
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_create_survey_mission_rejects_duplicate_english_name_in_same_project(
+    db, db_session_maker, sample_projects, admin_user
+):
+    project_id = identifiers.ProjectId(sample_projects[0].id)
+    async with db_session_maker() as session:
+        await mission_commands.create_survey_mission(
+            session,
+            mission_schemas.SurveyMissionCreate(
+                id=identifiers.SurveyMissionId(
+                    uuid.UUID("a1b2c3d4-e5f6-4a1b-8c2d-3e4f5a6b7c8d")
+                ),
+                project_id=project_id,
+                owner_id=admin_user.id,
+                name=common_schemas.LocalizableDraftName(en="A fake survey mission"),
+                description=common_schemas.LocalizableDraftDescription(
+                    en="A description for fake survey mission"
+                ),
+                relative_path="first-fake-mission",
+            ),
+        )
+        with pytest.raises(errors.DuplicateResourceError):
+            await mission_commands.create_survey_mission(
+                session,
+                mission_schemas.SurveyMissionCreate(
+                    id=identifiers.SurveyMissionId(
+                        uuid.UUID("b2c3d4e5-f6a7-4b2c-9d3e-4f5a6b7c8d9e")
+                    ),
+                    project_id=project_id,
+                    owner_id=admin_user.id,
+                    # same english name as the survey mission already created
+                    # above, on the same project
+                    name=common_schemas.LocalizableDraftName(
+                        en="A fake survey mission"
+                    ),
+                    description=common_schemas.LocalizableDraftDescription(
+                        en="A description for fake survey mission"
+                    ),
+                    relative_path="second-fake-mission",
+                ),
+            )
 
 
 @pytest.mark.integration
@@ -665,3 +750,213 @@ async def test_bulk_unpublish_survey_missions_for_project(
         assert untouched_second.status != constants.SurveyMissionStatus.PUBLISHED
         # other_project_mission belongs to a different project and stays published
         assert untouched_other.status == constants.SurveyMissionStatus.PUBLISHED
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_create_survey_related_record_rejects_duplicate_asset_path_in_same_mission(
+    db,
+    db_session_maker,
+    sample_survey_missions,
+    bootstrap_dataset_categories,
+    bootstrap_workflow_stages,
+    admin_user,
+):
+    dataset_category = [
+        c for c in bootstrap_dataset_categories if c.name["en"] == "bathymetry"
+    ][0]
+    workflow_stage = [
+        w for w in bootstrap_workflow_stages if w.name["en"] == "raw data"
+    ][0]
+    mission_id = identifiers.SurveyMissionId(sample_survey_missions[0].id)
+    async with db_session_maker() as session:
+        await record_commands.create_survey_related_record(
+            session,
+            record_schemas.SurveyRelatedRecordCreate(
+                id=identifiers.SurveyRelatedRecordId(
+                    uuid.UUID("3a68f0e2-6cd1-4b0e-9e2e-9d6f5f36f7d1")
+                ),
+                survey_mission_id=mission_id,
+                owner_id=admin_user.id,
+                name=common_schemas.LocalizableDraftName(en="First record"),
+                description=common_schemas.LocalizableDraftDescription(
+                    en="Description for first record"
+                ),
+                dataset_category_id=identifiers.DatasetCategoryId(dataset_category.id),
+                workflow_stage_id=identifiers.WorkflowStageId(workflow_stage.id),
+                relative_path="first-record",
+                assets=[
+                    record_schemas.RecordAssetCreate(
+                        id=identifiers.RecordAssetId(
+                            uuid.UUID("c14a8ee3-46f2-4b23-9d8a-7f6e51b0e3a1")
+                        ),
+                        name=common_schemas.LocalizableDraftName(en="First asset"),
+                        description=common_schemas.LocalizableDraftDescription(
+                            en="Description for first asset"
+                        ),
+                        relative_path="shared/asset-path.sgy",
+                    )
+                ],
+            ),
+        )
+        with pytest.raises(errors.DuplicateResourceError):
+            await record_commands.create_survey_related_record(
+                session,
+                record_schemas.SurveyRelatedRecordCreate(
+                    id=identifiers.SurveyRelatedRecordId(
+                        uuid.UUID("8b2f2e8f-2a4e-4f8e-9c2a-2e6d4c1b8a90")
+                    ),
+                    survey_mission_id=mission_id,
+                    owner_id=admin_user.id,
+                    name=common_schemas.LocalizableDraftName(en="Second record"),
+                    description=common_schemas.LocalizableDraftDescription(
+                        en="Description for second record"
+                    ),
+                    dataset_category_id=identifiers.DatasetCategoryId(
+                        dataset_category.id
+                    ),
+                    workflow_stage_id=identifiers.WorkflowStageId(workflow_stage.id),
+                    relative_path="second-record",
+                    assets=[
+                        record_schemas.RecordAssetCreate(
+                            id=identifiers.RecordAssetId(
+                                uuid.UUID("1d4e5f6a-7b8c-4d9e-8f0a-1b2c3d4e5f6a")
+                            ),
+                            name=common_schemas.LocalizableDraftName(en="Second asset"),
+                            description=common_schemas.LocalizableDraftDescription(
+                                en="Description for second asset"
+                            ),
+                            # same relative_path as the asset already registered
+                            # above, on the same survey mission
+                            relative_path="shared/asset-path.sgy",
+                        )
+                    ],
+                ),
+            )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_create_survey_related_record_allows_duplicate_asset_path_in_different_mission(
+    db,
+    db_session_maker,
+    sample_survey_missions,
+    bootstrap_dataset_categories,
+    bootstrap_workflow_stages,
+    admin_user,
+):
+    dataset_category = [
+        c for c in bootstrap_dataset_categories if c.name["en"] == "bathymetry"
+    ][0]
+    workflow_stage = [
+        w for w in bootstrap_workflow_stages if w.name["en"] == "raw data"
+    ][0]
+    async with db_session_maker() as session:
+        await record_commands.create_survey_related_record(
+            session,
+            record_schemas.SurveyRelatedRecordCreate(
+                id=identifiers.SurveyRelatedRecordId(
+                    uuid.UUID("d4f5a6b7-c8d9-4e0f-9a1b-2c3d4e5f6a7b")
+                ),
+                survey_mission_id=identifiers.SurveyMissionId(
+                    sample_survey_missions[0].id
+                ),
+                owner_id=admin_user.id,
+                name=common_schemas.LocalizableDraftName(en="First record"),
+                description=common_schemas.LocalizableDraftDescription(
+                    en="Description for first record"
+                ),
+                dataset_category_id=identifiers.DatasetCategoryId(dataset_category.id),
+                workflow_stage_id=identifiers.WorkflowStageId(workflow_stage.id),
+                relative_path="first-record",
+                assets=[
+                    record_schemas.RecordAssetCreate(
+                        id=identifiers.RecordAssetId(
+                            uuid.UUID("e5f6a7b8-d9e0-4f1a-8b2c-3d4e5f6a7b8c")
+                        ),
+                        name=common_schemas.LocalizableDraftName(en="First asset"),
+                        description=common_schemas.LocalizableDraftDescription(
+                            en="Description for first asset"
+                        ),
+                        relative_path="shared/asset-path.sgy",
+                    )
+                ],
+            ),
+        )
+        created = await record_commands.create_survey_related_record(
+            session,
+            record_schemas.SurveyRelatedRecordCreate(
+                id=identifiers.SurveyRelatedRecordId(
+                    uuid.UUID("f6a7b8c9-e0f1-4a2b-9c3d-4e5f6a7b8c9d")
+                ),
+                survey_mission_id=identifiers.SurveyMissionId(
+                    sample_survey_missions[1].id
+                ),
+                owner_id=admin_user.id,
+                name=common_schemas.LocalizableDraftName(en="Second record"),
+                description=common_schemas.LocalizableDraftDescription(
+                    en="Description for second record"
+                ),
+                dataset_category_id=identifiers.DatasetCategoryId(dataset_category.id),
+                workflow_stage_id=identifiers.WorkflowStageId(workflow_stage.id),
+                relative_path="second-record",
+                assets=[
+                    record_schemas.RecordAssetCreate(
+                        id=identifiers.RecordAssetId(
+                            uuid.UUID("a7b8c9d0-f1a2-4b3c-8d4e-5f6a7b8c9d0e")
+                        ),
+                        name=common_schemas.LocalizableDraftName(en="Second asset"),
+                        description=common_schemas.LocalizableDraftDescription(
+                            en="Description for second asset"
+                        ),
+                        # same relative_path as the asset already registered above,
+                        # but on a different survey mission - this must be allowed
+                        relative_path="shared/asset-path.sgy",
+                    )
+                ],
+            ),
+        )
+        assert created.assets[0].relative_path == "shared/asset-path.sgy"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_update_survey_related_record_rejects_duplicate_asset_path_for_new_asset(
+    db,
+    db_session_maker,
+    sample_survey_related_records,
+    admin_user,
+):
+    first_record, _second_record = sample_survey_related_records
+    async with db_session_maker() as session:
+        fresh_first = await record_queries.get_survey_related_record(
+            session, identifiers.SurveyRelatedRecordId(first_record.id)
+        )
+        with pytest.raises(errors.DuplicateResourceError):
+            await record_commands.update_survey_related_record(
+                session,
+                fresh_first,
+                record_schemas.SurveyRelatedRecordUpdate(
+                    assets=[
+                        record_schemas.RecordAssetUpdate(
+                            id=identifiers.RecordAssetId(a.id),
+                            relative_path=a.relative_path,
+                        )
+                        for a in fresh_first.assets
+                    ]
+                    + [
+                        # "second-asset" is already registered on this same
+                        # mission (via first_record itself)
+                        record_schemas.RecordAssetUpdate(
+                            id=identifiers.RecordAssetId(uuid.uuid4()),
+                            name=common_schemas.LocalizableDraftName(
+                                en="Conflicting asset"
+                            ),
+                            description=common_schemas.LocalizableDraftDescription(
+                                en="Conflicting asset"
+                            ),
+                            relative_path="second-asset",
+                        )
+                    ],
+                ),
+            )

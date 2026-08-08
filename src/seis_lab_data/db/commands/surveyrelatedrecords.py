@@ -29,7 +29,10 @@ from ...schemas import (
     surveyrelatedrecords as record_schemas,
 )
 from .. import models
-from ..queries import surveyrelatedrecords as record_queries
+from ..queries import (
+    recordassets as asset_queries,
+    surveyrelatedrecords as record_queries,
+)
 from .common import get_bbox_4326_for_db
 
 logger = logging.getLogger(__name__)
@@ -47,16 +50,18 @@ async def create_survey_related_record(
             else bbox
         ),
     )
-    # need to ensure english name is unique for combination of mission and record
-    if await record_queries.get_survey_related_record_by_english_name(
-        session,
-        identifiers.SurveyMissionId(to_create.survey_mission_id),
-        to_create.name.en,
-    ):
-        raise errors.SeisLabDataError(
-            f"There is already a survey-related record with english name {to_create.name.en!r} for "
-            f"the same survey mission."
-        )
+    # need to ensure record assets' paths are unique for the mission
+    for asset_to_create in to_create.assets:
+        if await asset_queries.get_record_asset_by_file_path(
+            session,
+            asset_to_create.relative_path,
+            identifiers.SurveyMissionId(to_create.survey_mission_id),
+        ):
+            raise errors.DuplicateResourceError(
+                f"There is already a survey-related record with asset path {asset_to_create.relative_path!r} for "
+                f"the same survey mission."
+            )
+
     session.add(survey_record)
     for asset_to_create in to_create.assets:
         db_asset = models.RecordAsset(
@@ -280,6 +285,15 @@ async def update_survey_related_record(
                 if identifiers.RecordAssetId(a.id) == proposed_asset.id
             ][0]
         except IndexError:  # this is a new asset that needs to be created
+            if await asset_queries.get_record_asset_by_file_path(
+                session,
+                proposed_asset.relative_path,
+                identifiers.SurveyMissionId(survey_related_record.survey_mission_id),
+            ):
+                raise errors.DuplicateResourceError(
+                    f"There is already a survey-related record with asset path "
+                    f"{proposed_asset.relative_path!r} for the same survey mission."
+                )
             db_asset = models.RecordAsset(
                 **proposed_asset.model_dump(),
                 survey_related_record_id=survey_related_record.id,
