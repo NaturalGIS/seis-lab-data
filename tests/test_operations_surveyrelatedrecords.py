@@ -2,6 +2,14 @@ import uuid
 
 import pytest
 
+from seis_lab_data import (
+    constants,
+    errors,
+)
+from seis_lab_data.db.commands import (
+    recordassets as asset_commands,
+    surveyrelatedrecords as record_commands,
+)
 from seis_lab_data.operations import surveyrelatedrecords as record_ops
 from seis_lab_data.schemas import (
     identifiers,
@@ -19,6 +27,65 @@ class _EventCollector:
 
     async def __call__(self, event: event_schemas.SeisLabDataEvent) -> None:
         self.events.append(event)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_published_record_gives_anonymous_visitors_its_derived_asset_data(
+    db,
+    db_session_maker,
+    sample_survey_related_records,
+):
+    # this is what the record asset data endpoint relies on in order to serve
+    # previews of published records to visitors who are not logged in
+    record = sample_survey_related_records[0]
+    preview_id = identifiers.RecordAssetId(uuid.uuid4())
+    async with db_session_maker() as session:
+        await asset_commands.replace_derived_record_assets(
+            session,
+            record,
+            [
+                record_schemas.DerivedRecordAssetCreate(
+                    id=preview_id,
+                    name=common_schemas.LocalizableDraftName(en="A preview"),
+                    media_type="image/webp",
+                    asset_type=[
+                        constants.AssetType.THUMBNAIL,
+                        constants.AssetType.PREVIEW,
+                    ],
+                    data=b"not really a webp",
+                )
+            ],
+        )
+        # sample records are created as drafts
+        await record_commands.set_survey_related_record_status(
+            session,
+            identifiers.SurveyRelatedRecordId(record.id),
+            constants.SurveyRelatedRecordStatus.PUBLISHED,
+        )
+        found, _related_to, _subject_for = await record_ops.get_survey_related_record(
+            identifiers.SurveyRelatedRecordId(record.id), None, session
+        )
+    assert [a.data for a in found.assets if a.id == preview_id] == [
+        b"not really a webp"
+    ]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_draft_record_denies_anonymous_visitors_its_derived_asset_data(
+    db,
+    db_session_maker,
+    sample_survey_related_records,
+):
+    # the record asset data endpoint turns this error into a 404, so that a
+    # draft record's previews are not even known to exist
+    record = sample_survey_related_records[0]
+    async with db_session_maker() as session:
+        with pytest.raises(errors.UserNotAllowedError):
+            await record_ops.get_survey_related_record(
+                identifiers.SurveyRelatedRecordId(record.id), None, session
+            )
 
 
 @pytest.mark.integration
