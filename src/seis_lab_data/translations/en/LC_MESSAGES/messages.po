@@ -186,8 +186,20 @@ msgstr ""
 msgid "Survey mission"
 msgstr ""
 
+#: webapp/routes/surveyrelatedrecords.py:209
+msgid "Asset data not found."
+msgstr ""
+
+#: webapp/templates/survey-related-records/detail-component.html:32
+msgid "preview unavailable"
+msgstr ""
+
 #: webapp/templates/survey-related-records/list-component.html:5
 msgid "No survey-related records found"
+msgstr ""
+
+#: webapp/templates/survey-related-records/list-item.html:23
+msgid "record preview"
 msgstr ""
 
 #~ msgid "Survey-Related Records"

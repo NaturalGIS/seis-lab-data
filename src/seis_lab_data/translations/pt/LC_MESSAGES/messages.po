@@ -186,6 +186,18 @@ msgstr "Estádio"
 msgid "Survey mission"
 msgstr "Missão"
 
+#: webapp/routes/surveyrelatedrecords.py:209
+msgid "Asset data not found."
+msgstr "Dados do recurso não encontrados."
+
+#: webapp/templates/survey-related-records/detail-component.html:32
+msgid "preview unavailable"
+msgstr "pré-visualização indisponível"
+
 #: webapp/templates/survey-related-records/list-component.html:5
 msgid "No survey-related records found"
 msgstr "Nenhum registo encontrado"
+
+#: webapp/templates/survey-related-records/list-item.html:23
+msgid "record preview"
+msgstr "pré-visualização do registo"

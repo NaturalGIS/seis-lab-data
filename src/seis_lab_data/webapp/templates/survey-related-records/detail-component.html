@@ -1,6 +1,5 @@
 {% import "macros.html" as macros %}
 {% import "macros-buttons.html" as macros_buttons %}
-{% import "macros-maps.html" as macros_maps %}
 {% from "macros/button.html" import render_post_button %}
 <div class="row"
      data-signals:is-valid="{{ item.validation_result.is_valid | default(False, True) | tojson }}"
@@ -11,12 +10,32 @@
         <div class="row mb-5">
             <div class="col">
                 <div class="card">
-                    {% if item.bbox_4326 is not none %}
-                        {{ macros_maps.render_bbox_display_component(
-                            settings.webmap_base_tile_layer_url,
-                            settings.webmap_default_zoom_level,
-                            item.bbox_4326
-                        ) }}
+                    {% if item.bbox_4326 is not none or item.preview_bounds is not none %}
+                        <record-map
+                                data-tile-url="{{ settings.webmap_base_tile_layer_url }}"
+                                data-max-zoom="{{ settings.webmap_base_tile_layer_max_zoom }}"
+                                data-center-lon="{{ settings.webmap_default_center_lon }}"
+                                data-center-lat="{{ settings.webmap_default_center_lat }}"
+                                data-zoom="{{ settings.webmap_default_zoom_level }}"
+                                data-polygon-fill-color="{{ settings.webmap_default_polygon_fill_color }}"
+                                data-polygon-fill-opacity="{{ settings.webmap_default_polygon_fill_opacity }}"
+                                data-polygon-outline-color="{{ settings.webmap_default_polygon_outline_color }}"
+                                data-polygon-outline-width="{{ settings.webmap_default_polygon_outline_width }}"
+                                {% if item.bbox_4326 is not none %}
+                                    data-min-lon="{{ item.bbox_4326.bounds[0] }}"
+                                    data-min-lat="{{ item.bbox_4326.bounds[1] }}"
+                                    data-max-lon="{{ item.bbox_4326.bounds[2] }}"
+                                    data-max-lat="{{ item.bbox_4326.bounds[3] }}"
+                                {% endif %}
+                                {% if item.preview_asset_id is not none %}
+                                    data-preview-url="{{ url_for('survey_related_records:get_record_asset_data', survey_related_record_id=item.id, record_asset_id=item.preview_asset_id) }}"
+                                    data-preview-unavailable-text="{{ _('preview unavailable') }}"
+                                    {% if item.preview_bounds is not none %}
+                                        data-preview-bounds="{{ item.preview_bounds.bounds | tojson }}"
+                                    {% endif %}
+                                {% endif %}
+                                style="display: block; width: 100%; height: 30vh"
+                        ></record-map>
                     {% endif %}
                     <div class="card-body">
                         <div class="row">
