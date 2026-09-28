@@ -53,7 +53,7 @@ async def test_published_record_gives_anonymous_visitors_its_derived_asset_data(
                         constants.AssetType.THUMBNAIL,
                         constants.AssetType.PREVIEW,
                     ],
-                    data=b"not really a webp",
+                    data=b"not a webp",
                 )
             ],
         )
@@ -66,9 +66,7 @@ async def test_published_record_gives_anonymous_visitors_its_derived_asset_data(
         found, _related_to, _subject_for = await record_ops.get_survey_related_record(
             identifiers.SurveyRelatedRecordId(record.id), None, session
         )
-    assert [a.data for a in found.assets if a.id == preview_id] == [
-        b"not really a webp"
-    ]
+    assert [a.data for a in found.assets if a.id == preview_id] == [b"not a webp"]
 
 
 @pytest.mark.integration

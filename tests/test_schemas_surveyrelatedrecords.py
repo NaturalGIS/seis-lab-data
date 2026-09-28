@@ -129,7 +129,7 @@ async def test_read_schemas_expose_a_records_derived_asset(
                         constants.AssetType.THUMBNAIL,
                         constants.AssetType.PREVIEW,
                     ],
-                    data=b"not really a webp",
+                    data=b"not a webp",
                     geog=shapely.box(0.0, 0.0, 1.0, 1.0).wkt,
                 ),
                 record_schemas.DerivedRecordAssetCreate(
@@ -140,7 +140,7 @@ async def test_read_schemas_expose_a_records_derived_asset(
                         constants.AssetType.THUMBNAIL,
                         constants.AssetType.PREVIEW,
                     ],
-                    data=b"not really a webp",
+                    data=b"not a webp",
                     geog=shapely.box(-9.7, 39.8, -9.3, 40.5).wkt,
                 ),
             ],
