@@ -1,9 +1,6 @@
 import logging
 
-from sqlalchemy import (
-    delete,
-    text,
-)
+from sqlalchemy import delete
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import errors
@@ -39,17 +36,10 @@ async def replace_derived_record_assets(
     """Replace a record's derived assets with the given ones.
 
     Existing derived assets are deleted and the given ones stored in their
-    place; the record's data assets are never touched.
-
-    Two discovery runs may ask for previews of the same record at the same time,
-    and interleaved deletes and inserts would then commit duplicates, so the
-    replacement is serialized per record with an advisory lock and done in a
-    single transaction.
+    place, in a single transaction; the record's data assets are never touched.
+    Concurrent writers are kept out by the caller, which holds the record
+    under derivation meanwhile.
     """
-    await session.execute(
-        text("SELECT pg_advisory_xact_lock(hashtext(:record_id))"),
-        {"record_id": str(survey_related_record.id)},
-    )
     await session.execute(
         delete(models.RecordAsset)
         .where(models.RecordAsset.survey_related_record_id == survey_related_record.id)

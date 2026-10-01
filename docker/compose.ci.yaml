@@ -180,17 +180,6 @@ services:
     volumes:
       *common-volumes
 
-  previews-worker:
-    image: *common-image
-    command:
-      - "run-processing-worker"
-      - "--queues"
-      - "previews"
-    environment:
-      <<: *common-env
-    volumes:
-      *common-volumes
-
   martin-tile-server:
     image: ghcr.io/maplibre/martin:martin-v0.19.3
     command: ["--config", "/martin-conf"]

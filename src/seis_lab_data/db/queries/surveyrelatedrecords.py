@@ -366,6 +366,16 @@ async def count_survey_related_records_matching(
     return await _get_total_num_records(session, ids_statement)
 
 
+async def collect_all_survey_mission_record_ids(
+    session: AsyncSession,
+    survey_mission_id: identifiers.SurveyMissionId,
+) -> list[identifiers.SurveyRelatedRecordId]:
+    statement = build_survey_related_record_id_statement(
+        survey_mission_id=survey_mission_id
+    )
+    return (await session.exec(statement)).all()
+
+
 async def list_survey_related_records(
     session: AsyncSession,
     survey_mission_ids: list[identifiers.SurveyMissionId] | None = None,

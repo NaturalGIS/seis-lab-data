@@ -24,7 +24,7 @@ gdal.UseExceptions()
 # central Portugal, so the warped bounds fall in a checkable lon/lat window.
 _PT_TM06 = 3763
 _NODATA = -9999.0
-_PREVIEW_FOLDERS = frozenset(
+_PREVIEW_DIRECTORIES = frozenset(
     {"s04-gis-master-survey/s01-final", "s06-mbes/s05-processed-data"}
 )
 
@@ -118,7 +118,7 @@ def test_is_previewable_accepts_a_listed_family_and_stage(tmp_path):
     path = tmp_path / "grid.tif"
     path.touch()
     assert dispatch.is_previewable(
-        path, "s04-gis-master-survey/s01-final/sub/grid.tif", _PREVIEW_FOLDERS
+        path, "s04-gis-master-survey/s01-final/sub/grid.tif", _PREVIEW_DIRECTORIES
     )
 
 
@@ -126,7 +126,7 @@ def test_is_previewable_rejects_an_unlisted_family_and_stage(tmp_path):
     path = tmp_path / "grid.tif"
     path.touch()
     assert not dispatch.is_previewable(
-        path, "s06-mbes/s02-raw-data/sub/grid.tif", _PREVIEW_FOLDERS
+        path, "s06-mbes/s02-raw-data/sub/grid.tif", _PREVIEW_DIRECTORIES
     )
 
 
@@ -134,7 +134,7 @@ def test_is_previewable_rejects_an_extension_without_a_deriver(tmp_path):
     path = tmp_path / "grid.xyz"
     path.touch()
     assert not dispatch.is_previewable(
-        path, "s06-mbes/s05-processed-data/grid.xyz", _PREVIEW_FOLDERS
+        path, "s06-mbes/s05-processed-data/grid.xyz", _PREVIEW_DIRECTORIES
     )
 
 

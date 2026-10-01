@@ -22,7 +22,7 @@ def can_derive(path: Path | str) -> bool:
 
 
 def is_previewable(
-    path: Path | str, relative_path: str, folder_prefixes: frozenset[str]
+    path: Path | str, relative_path: str, directory_prefixes: frozenset[str]
 ) -> bool:
     """Whether an archive file is to get a preview.
 
@@ -30,7 +30,7 @@ def is_previewable(
     asset's mission-relative path
     """
     family_and_stage = "/".join(PurePath(relative_path).parts[:2])
-    return family_and_stage in folder_prefixes and can_derive(path)
+    return family_and_stage in directory_prefixes and can_derive(path)
 
 
 def dispatch_deriver(path: Path | str) -> DerivedPreview | None:

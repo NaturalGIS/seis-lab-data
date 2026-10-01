@@ -38,14 +38,12 @@ from ..schemas import (
 )
 from .. import dispatch
 from ..tasks import previews as preview_tasks
-from ..tasks.derivers import dispatch as deriver_dispatch
 from ..tasks.extractors import (
     common as extractor_common,
     dispatch as extractor_dispatch,
 )
 
 from . import (
-    previews as preview_ops,
     surveymissions as mission_ops,
     surveyrelatedrecords as record_ops,
 )
@@ -270,7 +268,6 @@ async def run_mission_discovery(
         )
     )
     try:
-        preview_folders = await preview_ops.load_preview_folders(settings)
         await _discover_mission_records(
             request_id=request_id,
             mission=mission,
@@ -279,7 +276,6 @@ async def run_mission_discovery(
             settings=settings,
             user=user,
             asset_discovery_configs=asset_discovery_configs,
-            preview_folders=preview_folders,
         )
     except FileNotFoundError as err:
         await event_dispatcher(
@@ -304,6 +300,13 @@ async def run_mission_discovery(
                 succeeded=True,
             )
         )
+        # previews are derived by an operation of their own, which discovery
+        # only kicks off once all of the mission's records exist
+        preview_tasks.generate_mission_previews.send(
+            raw_request_id=str(request_id),
+            raw_survey_mission_id=str(mission.id),
+            raw_initiator=json.dumps(dataclasses.asdict(user)),
+        )
     finally:
         await mission_ops.change_survey_mission_status(
             request_id=request_id,
@@ -324,7 +327,6 @@ async def _discover_mission_records(
     settings: config.SeisLabDataSettings,
     user: user_schemas.User,
     asset_discovery_configs: list[models.AssetDiscoveryConfiguration],
-    preview_folders: frozenset[str],
 ) -> None:
     mission_root_path = Path(
         "/".join(
@@ -348,7 +350,7 @@ async def _discover_mission_records(
             # each found_path is to become a record with a single asset
             relative_file_path = str(found_path.relative_to(mission_root_path))
             if (
-                existing_asset := await asset_queries.get_record_asset_by_file_path(
+                await asset_queries.get_record_asset_by_file_path(
                     session,
                     relative_file_path,
                     identifiers.SurveyMissionId(mission.id),
@@ -389,11 +391,10 @@ async def _discover_mission_records(
                     else None
                 )
                 # create a new record and a new asset
-                record_id = identifiers.SurveyRelatedRecordId(uuid.uuid4())
                 await record_ops.create_survey_related_record(
                     request_id=request_id,
                     to_create=record_schemas.SurveyRelatedRecordCreate(
-                        id=record_id,
+                        id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
                         owner_id=identifiers.UserId(user.id),
                         survey_mission_id=identifiers.SurveyMissionId(mission.id),
                         name=common.LocalizableDraftName(en=found_path.name),
@@ -427,38 +428,10 @@ async def _discover_mission_records(
                     session=session,
                     event_dispatcher=event_dispatcher,
                 )
-                if deriver_dispatch.is_previewable(
-                    str(found_path), relative_file_path, preview_folders
-                ):
-                    preview_tasks.generate_record_previews.send(
-                        raw_request_id=str(request_id),
-                        raw_survey_related_record_id=str(record_id),
-                        raw_initiator=json.dumps(dataclasses.asdict(user)),
-                    )
             else:
                 logger.debug(
                     f"file {found_path!r} is already tracked in the DB - ignoring..."
                 )
-                # re-running discovery is the recovery path for records whose
-                # previews are missing, so only those get enqueued again
-                if deriver_dispatch.is_previewable(
-                    str(found_path), relative_file_path, preview_folders
-                ):
-                    existing_record_id = identifiers.SurveyRelatedRecordId(
-                        existing_asset.survey_related_record_id
-                    )
-                    has_derived_assets = any(
-                        constants.AssetType.DATA not in asset.asset_type
-                        for asset in await asset_queries.collect_all_record_assets(
-                            session, existing_record_id
-                        )
-                    )
-                    if not has_derived_assets:
-                        preview_tasks.generate_record_previews.send(
-                            raw_request_id=str(request_id),
-                            raw_survey_related_record_id=str(existing_record_id),
-                            raw_initiator=json.dumps(dataclasses.asdict(user)),
-                        )
 
 
 def _bbox_4326_tuple_to_wkt(

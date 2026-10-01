@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "description": "Survey folders where asset previews (issues #145/#154) are generated, as family/stage prefixes. Derived from the folder list provided by the IPMA team. Eligibility is a prefix match on the first two path segments of an asset's relative path. Everything under is included. This list gates preview generation only, discovery is not affected.",
-  "folders": [
+  "description": "Survey directories where asset previews (issues #145/#154) are generated, as family/stage prefixes. Derived from the directory list provided by the IPMA team. Eligibility is a prefix match on the first two path segments of an asset's relative path. Everything under is included. This list gates preview generation only, discovery is not affected.",
+  "directories": [
     "s04-gis-master-survey/s01-final",
     "s06-mbes/s02-raw-data",
     "s06-mbes/s05-processed-data",
