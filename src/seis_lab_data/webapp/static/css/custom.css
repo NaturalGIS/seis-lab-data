@@ -125,6 +125,20 @@
     height: 100%;
 }
 
+/* with height: 100% an img takes the height of its picture and stretches the
+   card with it; from md up it fills the column like the placeholder divs, on
+   small screens it gets a fixed height */
+img.placeholder-rectangle {
+    height: 200px;
+}
+
+@media (min-width: 768px) {
+    img.placeholder-rectangle {
+        height: 0;
+        min-height: 100%;
+    }
+}
+
 .material-icons-outlined {
     vertical-align: middle;
     font-size: 24px;
