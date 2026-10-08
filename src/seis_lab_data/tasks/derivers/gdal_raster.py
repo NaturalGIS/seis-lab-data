@@ -21,6 +21,28 @@ _WEBP_QUALITY = 85
 _HISTOGRAM_BUCKETS = 256
 _LOWER_PERCENTILE = 0.02
 _UPPER_PERCENTILE = 0.98
+# Single-band rasters render with the turbo colour ramp, the one the IPMA team
+# applies in QGIS. The values are matplotlib's turbo table sampled at 17
+# points, as (fraction, r, g, b). gdaldem interpolates linearly between stops.
+_TURBO_RAMP = (
+    (0.0, 48, 18, 59),
+    (0.0625, 64, 64, 162),
+    (0.125, 70, 107, 227),
+    (0.1875, 66, 148, 255),
+    (0.25, 40, 188, 235),
+    (0.3125, 24, 221, 194),
+    (0.375, 50, 242, 152),
+    (0.4375, 109, 254, 98),
+    (0.5, 164, 252, 60),
+    (0.5625, 203, 237, 52),
+    (0.625, 236, 209, 58),
+    (0.6875, 253, 174, 53),
+    (0.75, 251, 129, 34),
+    (0.8125, 236, 83, 15),
+    (0.875, 210, 49, 5),
+    (0.9375, 172, 23, 1),
+    (1.0, 122, 4, 3),
+)
 
 
 def derive_raster_preview(path: Path | str) -> DerivedPreview:
@@ -96,20 +118,43 @@ def derive_raster_preview(path: Path | str) -> DerivedPreview:
                 )
         else:
             low, high = _percentile_cuts(warped.GetRasterBand(1))
+            # the ramp spans the percentile cuts, values beyond them take the
+            # end colours; the colour table lives in GDAL's virtual memory,
+            # never on disk
+            vsi_color_path = f"/vsimem/{uuid.uuid4().hex}.txt"
+            gdal.FileFromMemBuffer(
+                vsi_color_path,
+                "\n".join(
+                    f"{low + fraction * (high - low)} {r} {g} {b}"
+                    for fraction, r, g, b in _TURBO_RAMP
+                ),
+            )
+            try:
+                colored = gdal.DEMProcessing(
+                    "",
+                    warped,
+                    processing="color-relief",
+                    colorFilename=vsi_color_path,
+                    format="MEM",
+                )
+            finally:
+                gdal.Unlink(vsi_color_path)
+            # the warp's alpha covers nodata and fill alike; separate=True
+            # stacks all bands of each input, so the warped bands follow R, G, B
+            stacked = gdal.BuildVRT("", [colored, warped], separate=True)
             rgba = gdal.Translate(
                 "",
-                warped,
+                stacked,
                 format="MEM",
                 outputType=gdal.GDT_Byte,
-                # the single band is replicated into RGB: WEBP takes 3 or 4
-                # bands, a grey+alpha pair cannot be written
-                bandList=[1, 1, 1, alpha_band],
-                scaleParams=[[low, high, 1, 255]] * 3 + [[0, 255, 0, 255]],
+                bandList=[1, 2, 3, 3 + alpha_band],
             )
         return DerivedPreview(image=_to_webp(rgba), bounds_4326=bounds)
     finally:
         # Clear / close gdal used datasets
         rgba = None  # noqa: F841
+        stacked = None  # noqa: F841
+        colored = None  # noqa: F841
         warped = None  # noqa: F841
         dataset = None  # noqa: F841
 

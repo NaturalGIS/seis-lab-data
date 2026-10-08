@@ -80,6 +80,23 @@ def test_derive_raster_preview_renders_a_downscaled_webp(tmp_path):
     assert 39.6 < min_y < max_y < 39.7
 
 
+def test_derive_raster_preview_pseudocolours_a_single_band(tmp_path):
+    values = np.tile(np.arange(256, dtype=np.float32), (128, 1))
+    path = _write_geotiff(tmp_path / "gradient.tif", 256, 128, values)
+
+    preview = derive_raster_preview(path)
+
+    *_, bands = _read_webp(preview.image)
+    # a greyscale rendering would have R == G == B everywhere
+    assert not np.array_equal(bands[0], bands[2])
+    # turbo runs from blue (low values) to red (high values);
+    # columns at 20-30% and 70-80% of the width keep the dark ends of the ramp
+    # and lossy noise out of the comparison
+    low_columns, high_columns = slice(51, 77), slice(179, 205)
+    assert bands[2][:, low_columns].mean() > bands[0][:, low_columns].mean()
+    assert bands[0][:, high_columns].mean() > bands[2][:, high_columns].mean()
+
+
 def test_derive_raster_preview_makes_nodata_transparent(tmp_path):
     values = np.tile(np.arange(100, dtype=np.float32), (100, 1))
     values[:50, :] = _NODATA
