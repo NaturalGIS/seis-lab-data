@@ -445,6 +445,16 @@ async def update_survey_related_record(
             raise errors.SeisLabDataError(
                 "User not allowed to update survey-related record."
             )
+        # any other status means a task, e.g. the derivation of its previews,
+        # is writing to the record right now
+        if (record_status := survey_related_record.status) not in (
+            constants.SurveyRelatedRecordStatus.DRAFT,
+            constants.SurveyRelatedRecordStatus.PUBLISHED,
+        ):
+            raise errors.SeisLabDataError(
+                f"Cannot update survey-related record because its status is "
+                f"{record_status}"
+            )
         await record_commands.update_survey_related_record(
             session, survey_related_record, to_update
         )

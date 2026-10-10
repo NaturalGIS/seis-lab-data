@@ -1,11 +1,15 @@
-"""Integration tests for mission discovery with metadata extraction.
+"""Integration tests for mission discovery with metadata extraction, and for the
+derivation of previews which it kicks off.
 
 These run against the test database and a fake archive built under tmp_path.
 GDAL is required to build the synthetic fixture files; the module self-skips
 where it is unavailable.
 """
 
+import dataclasses
 import datetime as dt
+import inspect
+import json
 import logging
 import math
 import uuid
@@ -27,7 +31,11 @@ from seis_lab_data.db.commands import (  # noqa: E402
     projects as project_commands,
     surveymissions as mission_commands,
 )
-from seis_lab_data.operations import discovery as discovery_ops  # noqa: E402
+from seis_lab_data.db.queries import surveyrelatedrecords as record_queries  # noqa: E402
+from seis_lab_data.operations import (  # noqa: E402
+    discovery as discovery_ops,
+    previews as preview_ops,
+)
 from seis_lab_data.schemas import (  # noqa: E402
     common as common_schemas,
     discovery as discovery_schemas,
@@ -36,6 +44,8 @@ from seis_lab_data.schemas import (  # noqa: E402
     projects as project_schemas,
     surveymissions as mission_schemas,
 )
+from seis_lab_data.tasks import previews as preview_tasks  # noqa: E402
+from seis_lab_data.tasks.derivers import schemas as deriver_schemas  # noqa: E402
 from seis_lab_data.tasks.extractors import schemas as extractor_schemas  # noqa: E402
 
 gdal.UseExceptions()
@@ -154,6 +164,14 @@ async def _get_mission_records(db_session_maker, mission_id):
     async with db_session_maker() as session:
         statement = sqlmodel.select(models.SurveyRelatedRecord).where(
             models.SurveyRelatedRecord.survey_mission_id == mission_id
+        )
+        return (await session.exec(statement)).all()
+
+
+async def _get_record_assets(db_session_maker, record_id):
+    async with db_session_maker() as session:
+        statement = sqlmodel.select(models.RecordAsset).where(
+            models.RecordAsset.survey_related_record_id == record_id
         )
         return (await session.exec(statement)).all()
 
@@ -537,3 +555,211 @@ async def test_discovery_survives_invalid_implicit_crs(
     records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
     assert len(records) == 1
     assert records[0].bbox_4326 is None
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discovery_enqueues_one_mission_derivation(
+    db_session_maker, admin_user, discovery_env, monkeypatch
+):
+    enqueued = []
+    monkeypatch.setattr(
+        discovery_ops.preview_tasks.generate_mission_previews,
+        "send",
+        lambda **kwargs: enqueued.append(kwargs),
+    )
+    # the mission's directory is not in the archive yet, so discovery fails
+    await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+    assert enqueued == []
+
+    for name in ("first.tif", "second.tif"):
+        _write_geotiff(
+            discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01" / name
+        )
+    await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+    # a single derivation for the whole mission, however many files were found
+    assert [e["raw_survey_mission_id"] for e in enqueued] == [
+        str(discovery_env["mission"].id)
+    ]
+
+    # every discovery enqueues it again, it is the derivation which skips the
+    # records that already have previews
+    await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+    assert len(enqueued) == 2
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_mission_previews_are_derived_for_missing_only(
+    db_session_maker, admin_user, discovery_env, monkeypatch
+):
+    mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
+    # s01/s02 both matches the fixture's discovery configuration regexp and
+    # serves as the family/stage prefix for preview eligibility
+    for name in ("first.tif", "second.tif", "derived.tif"):
+        _write_geotiff(mission_root / "s01/s02" / name)
+    await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+    records = {
+        r.name["en"]: r
+        for r in await _get_mission_records(
+            db_session_maker, discovery_env["mission"].id
+        )
+    }
+    async with db_session_maker() as session:
+        session.add(
+            models.RecordAsset(
+                id=uuid.uuid4(),
+                survey_related_record_id=records["derived.tif"].id,
+                name={"en": "derived.tif preview"},
+                description={"en": ""},
+                media_type="image/webp",
+                asset_type=[constants.AssetType.THUMBNAIL, constants.AssetType.PREVIEW],
+                data=b"fake webp payload",
+            )
+        )
+        await session.commit()
+        collected = await preview_ops.collect_survey_mission_records_missing_previews(
+            session, identifiers.SurveyMissionId(discovery_env["mission"].id)
+        )
+    missing = sorted(str(records[name].id) for name in ("first.tif", "second.tif"))
+    # derived.tif already has a preview, so it is left out
+    assert sorted(str(record_id) for record_id in collected) == missing
+
+    enqueued = []
+    monkeypatch.setattr(
+        preview_tasks.generate_record_previews,
+        "send",
+        lambda **kwargs: enqueued.append(kwargs),
+    )
+    # unwrapped, as the actors only run inside a worker
+    await inspect.unwrap(preview_tasks.generate_mission_previews.fn)(
+        raw_request_id=str(uuid.uuid4()),
+        raw_survey_mission_id=str(discovery_env["mission"].id),
+        raw_initiator=json.dumps(dataclasses.asdict(admin_user)),
+        settings=discovery_env["settings"],
+    )
+    # one derivation per record which is missing its previews
+    assert sorted(e["raw_survey_related_record_id"] for e in enqueued) == missing
+
+    preview_directories = discovery_env["archive_root"] / "preview-directories.json"
+    preview_directories.write_text('{"directories": ["s01/s02"]}')
+    monkeypatch.setattr(
+        discovery_env["settings"], "preview_directories_path", preview_directories
+    )
+    # the test settings have no message broker to dispatch the events through
+    monkeypatch.setattr(
+        discovery_env["settings"], "_event_dispatcher", _EventCollector()
+    )
+
+    def fake_dispatch(path):
+        return deriver_schemas.DerivedPreview(
+            image=b"fake webp payload", bounds_4326=(-8.2, 39.6, -8.1, 39.7)
+        )
+
+    monkeypatch.setattr(preview_ops.deriver_dispatch, "dispatch_deriver", fake_dispatch)
+
+    # and each message runs the record derivation as it was sent
+    for message in enqueued:
+        await inspect.unwrap(preview_tasks.generate_record_previews.fn)(
+            **message, settings=discovery_env["settings"]
+        )
+    for name in ("first.tif", "second.tif"):
+        assets = await _get_record_assets(db_session_maker, records[name].id)
+        assert [a.asset_type for a in assets if a.relative_path is None] == [
+            [constants.AssetType.THUMBNAIL, constants.AssetType.PREVIEW]
+        ]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_record_previews_skip_a_record_whose_status_moved(
+    db_session_maker, admin_user, discovery_env, monkeypatch, caplog
+):
+    mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
+    for name in ("untouched.tif", "moved.tif"):
+        _write_geotiff(mission_root / "s01/s02" / name)
+    await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+    records = {
+        r.name["en"]: r
+        for r in await _get_mission_records(
+            db_session_maker, discovery_env["mission"].id
+        )
+    }
+
+    def fake_dispatch(path):
+        return deriver_schemas.DerivedPreview(
+            image=b"fake webp payload", bounds_4326=(-8.2, 39.6, -8.1, 39.7)
+        )
+
+    monkeypatch.setattr(preview_ops.deriver_dispatch, "dispatch_deriver", fake_dispatch)
+
+    async with db_session_maker() as session:
+        untouched = await record_queries.get_survey_related_record(
+            session, records["untouched.tif"].id
+        )
+        moved = await record_queries.get_survey_related_record(
+            session, records["moved.tif"].id
+        )
+        # another derivation takes hold of moved.tif after it was fetched
+        async with db_session_maker() as concurrent_session:
+            concurrent = await concurrent_session.get(
+                models.SurveyRelatedRecord, moved.id
+            )
+            concurrent.status = constants.SurveyRelatedRecordStatus.UNDER_DERIVATION
+            concurrent_session.add(concurrent)
+            await concurrent_session.commit()
+        with caplog.at_level(logging.WARNING, logger=preview_ops.logger.name):
+            for record in (untouched, moved):
+                await preview_ops.generate_record_previews(
+                    request_id=identifiers.RequestId(uuid.uuid4()),
+                    survey_related_record=record,
+                    directory_prefixes=frozenset({"s01/s02"}),
+                    initiator=admin_user,
+                    session=session,
+                    event_dispatcher=_EventCollector(),
+                    settings=discovery_env["settings"],
+                )
+
+    untouched_assets = await _get_record_assets(db_session_maker, untouched.id)
+    moved_assets = await _get_record_assets(db_session_maker, moved.id)
+    async with db_session_maker() as session:
+        untouched_status = (
+            await session.get(models.SurveyRelatedRecord, untouched.id)
+        ).status
+        moved_status = (await session.get(models.SurveyRelatedRecord, moved.id)).status
+    # the untouched record gets its preview, and was only held under derivation
+    # while the preview was stored
+    assert [a.asset_type for a in untouched_assets if a.relative_path is None] == [
+        [constants.AssetType.THUMBNAIL, constants.AssetType.PREVIEW]
+    ]
+    assert untouched_status == records["untouched.tif"].status
+    # the moved one is skipped with a warning: its preview is not stored, nor is
+    # the status set by the other derivation undone
+    assert any("changed status" in r.message for r in caplog.records)
+    assert [a.asset_type for a in moved_assets] == [[constants.AssetType.DATA]]
+    assert moved_status == constants.SurveyRelatedRecordStatus.UNDER_DERIVATION

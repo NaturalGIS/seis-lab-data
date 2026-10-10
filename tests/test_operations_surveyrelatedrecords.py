@@ -2,6 +2,11 @@ import uuid
 
 import pytest
 
+from seis_lab_data import (
+    constants,
+    errors,
+)
+from seis_lab_data.db.commands import surveyrelatedrecords as record_commands
 from seis_lab_data.operations import surveyrelatedrecords as record_ops
 from seis_lab_data.schemas import (
     identifiers,
@@ -165,3 +170,36 @@ async def test_bulk_update_manually_selected_records_via_operation(
     assert result == 1
     assert dispatcher.events[0].succeeded is True
     assert dispatcher.events[0].affected_count == 1
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_update_refuses_record_under_derivation(
+    db,
+    db_session_maker,
+    sample_survey_related_records,
+    admin_user,
+):
+    first_record, _ = sample_survey_related_records
+    record_id = identifiers.SurveyRelatedRecordId(first_record.id)
+    async with db_session_maker() as session:
+        await record_commands.set_survey_related_record_status(
+            session, record_id, constants.SurveyRelatedRecordStatus.UNDER_DERIVATION
+        )
+    dispatcher = _EventCollector()
+    async with db_session_maker() as session:
+        with pytest.raises(errors.SeisLabDataError):
+            await record_ops.update_survey_related_record(
+                request_id=RequestId(uuid.uuid4()),
+                survey_related_record_id=record_id,
+                to_update=record_schemas.SurveyRelatedRecordUpdate(
+                    description=common_schemas.LocalizableDraftDescription(
+                        en="Should not apply"
+                    )
+                ),
+                initiator=admin_user,
+                session=session,
+                event_dispatcher=dispatcher,
+            )
+    assert len(dispatcher.events) == 1
+    assert dispatcher.events[0].succeeded is False
