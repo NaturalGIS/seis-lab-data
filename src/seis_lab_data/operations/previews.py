@@ -37,29 +37,22 @@ async def load_preview_directories(
     return frozenset(json.loads(contents)["directories"])
 
 
-async def generate_mission_previews(
-    *,
-    request_id: identifiers.RequestId,
-    survey_mission_id: identifiers.SurveyMissionId,
-    initiator: user_schemas.User,
+async def collect_survey_mission_records_missing_previews(
     session: AsyncSession,
-    event_dispatcher: dispatch.EventDispatcherProtocol,
-    settings: config.SeisLabDataSettings,
-) -> None:
-    """Generate previews for the records of a survey mission which have none.
+    survey_mission_id: identifiers.SurveyMissionId,
+) -> list[identifiers.SurveyRelatedRecordId]:
+    """Collect the ids of the records of a survey mission which have no previews.
 
-    Records which already have derived assets are left alone, so running this
-    again only derives what is still missing: the previews of new records and
-    of those whose generation failed before.
+    Records which already have derived assets are left out, so generating the
+    mission's previews again only derives what is still missing: the previews
+    of new records and of those whose generation failed before.
     """
     # no permission check, unlike user-facing operations: generation is
     # system-initiated, authorized when the discovery that enqueued it ran
-    directory_prefixes = await load_preview_directories(settings)
+    missing = []
     for record_id in await record_queries.collect_all_survey_mission_record_ids(
         session, survey_mission_id
     ):
-        # records are fetched one at a time, right before their turn, because
-        # rendering takes a while and the derivation relies on a fresh status
         if (
             record := await record_queries.get_survey_related_record(session, record_id)
         ) is None:  # deleted in the meantime
@@ -68,15 +61,8 @@ async def generate_mission_previews(
             constants.AssetType.DATA not in asset.asset_type for asset in record.assets
         ):
             continue
-        await generate_record_previews(
-            request_id=request_id,
-            survey_related_record=record,
-            directory_prefixes=directory_prefixes,
-            initiator=initiator,
-            session=session,
-            event_dispatcher=event_dispatcher,
-            settings=settings,
-        )
+        missing.append(record_id)
+    return missing
 
 
 async def generate_record_previews(
