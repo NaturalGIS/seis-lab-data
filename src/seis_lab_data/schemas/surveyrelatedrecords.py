@@ -16,6 +16,7 @@ from .common import (
     LocalizableDraftDescription,
     LocalizableDraftName,
     LocalizableDraftRelationship,
+    parse_wkbelement_polygon_into_geom,
     PolygonOut,
     PossiblyInvalidPolygon,
     serialize_id,
@@ -289,11 +290,22 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
         dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
     ]
     record_assets: list[RecordAssetReadDetailEmbedded]
+    thumbnail_asset_id: (
+        Annotated[RecordAssetId, pydantic.PlainSerializer(serialize_id)] | None
+    )
 
     @classmethod
     def from_db_instance(
         cls, instance: models.SurveyRelatedRecord
     ) -> "SurveyRelatedRecordReadListItem":
+        # sorted so the same thumbnail is shown across renders and the format badge
+        # fed from record_assets
+        assets_by_name = sorted(
+            instance.assets, key=lambda a: (a.name.get("en", ""), str(a.id))
+        )
+        thumbnail = next(
+            (a for a in assets_by_name if AssetType.THUMBNAIL in a.asset_type), None
+        )
         return cls(
             **instance.model_dump(),
             survey_mission=SurveyMissionReadEmbedded.from_db_instance(
@@ -313,8 +325,9 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
                 RecordAssetReadDetailEmbedded.model_validate(
                     db_asset, from_attributes=True
                 )
-                for db_asset in instance.assets
+                for db_asset in assets_by_name
             ],
+            thumbnail_asset_id=thumbnail.id if thumbnail is not None else None,
         )
 
 
@@ -326,6 +339,11 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
     subject_for_records: list[
         tuple[LocalizableDraftDescription, SurveyRelatedRecordReadEmbedded]
     ]
+    preview_asset_id: (
+        Annotated[RecordAssetId, pydantic.PlainSerializer(serialize_id)] | None
+    )
+    # the preview image's own extent, which is not necessarily the record's bbox
+    preview_bounds: PolygonOut | None
 
     @classmethod
     def from_db_instance(
@@ -334,6 +352,31 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
         records_related_to: list[tuple[dict, models.SurveyRelatedRecord]],
         records_subject_for: list[tuple[dict, models.SurveyRelatedRecord]],
     ) -> "SurveyRelatedRecordReadDetail":
+        # a record holds one derived asset per previewable data asset, taking the
+        # first by name + id keeps both the thumbnail and the preview the same across
+        # renders
+        assets_by_name = sorted(
+            instance.assets, key=lambda a: (a.name.get("en", ""), str(a.id))
+        )
+        thumbnail = next(
+            (a for a in assets_by_name if AssetType.THUMBNAIL in a.asset_type), None
+        )
+        preview = next(
+            (a for a in assets_by_name if AssetType.PREVIEW in a.asset_type), None
+        )
+        preview_bounds = None
+        if preview is not None and preview.geog is not None:
+            try:
+                # parsed here only to find out whether the PolygonOut field below
+                # will accept it, degenerate geometries are rejected, and a single
+                # bad one must not take the whole detail page down
+                parse_wkbelement_polygon_into_geom(preview.geog)
+            except ValueError:
+                logger.warning(
+                    f"Ignoring unusable bounds of preview asset {preview.id!r}"
+                )
+            else:
+                preview_bounds = preview.geog
         return cls(
             **instance.model_dump(),
             survey_mission=SurveyMissionReadEmbedded.from_db_instance(
@@ -363,4 +406,7 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
                 (relation, SurveyRelatedRecordReadEmbedded.from_db_instance(record))
                 for relation, record in records_subject_for
             ],
+            thumbnail_asset_id=thumbnail.id if thumbnail is not None else None,
+            preview_asset_id=preview.id if preview is not None else None,
+            preview_bounds=preview_bounds,
         )

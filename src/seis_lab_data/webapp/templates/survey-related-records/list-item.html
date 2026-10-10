@@ -16,7 +16,28 @@
         </div>
         <div class="row g-0">
             <div class="col-md-3">
-                <div class="placeholder-rectangle bg-secondary"></div>
+                {% if item.thumbnail_asset_id is not none %}
+                    <img
+                            class="placeholder-rectangle bg-light object-fit-contain"
+                            src="{{ url_for('survey_related_records:get_record_asset_data', survey_related_record_id=item.id, record_asset_id=item.thumbnail_asset_id) }}"
+                            alt="{{ _('record preview') }}"
+                            loading="lazy"
+                    >
+                {% else %}
+                    {# every record without a preview (seg-y, kmall, ...) shows this
+                       icon instead of an empty rectangle. The short label under it is
+                       the tail of an application/prs.ipma.* media type. Other media
+                       types have no obvious short form, therefore only the icon is shown #}
+                    {% set ipma_media_type_prefix = "application/prs.ipma." %}
+                    <div class="placeholder-rectangle bg-secondary d-flex flex-column align-items-center justify-content-center text-white">
+                        <span class="material-icons-outlined" aria-hidden="true">{{ icons.data_format }}</span>
+                        {% for asset in item.record_assets if AssetType.DATA in asset.asset_type %}
+                            {% if loop.first and asset.media_type and asset.media_type.startswith(ipma_media_type_prefix) %}
+                                <small>{{ asset.media_type | replace(ipma_media_type_prefix, "") | upper }}</small>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </div>
             <div class="col-md-9">
                 <div class="card-body">
