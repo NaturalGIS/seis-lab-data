@@ -39,6 +39,7 @@ warnings.filterwarnings(
 
 class SeisLabDataIconSettings(BaseModel):
     asset_discovery_configuration: str = "insert_drive_file"
+    data_format: str = "insert_drive_file"
     dataset_category: str = "category"
     delete_item: str = "delete"
     discover_contents: str = "travel_explore"
@@ -102,6 +103,10 @@ class SeisLabDataSettings(BaseSettings):
     source_code_repository_url: str = "https://github.com/naturalgis/seis-lab-data"
     static_dir: Optional[Path] = Path(__file__).parent / "webapp/static"
     templates_dir: Optional[Path] = Path(__file__).parent / "webapp/templates"
+    # survey directories where asset previews are generated, as family/stage prefixes
+    preview_directories_path: Path = (
+        Path(__file__).parents[2] / "config" / "preview-directories.json"
+    )
     message_broker_dsn: Optional[RedisDsn] = RedisDsn("redis://localhost:6379")
     message_broker_channels: list[str] = ["demo-channel"]
     locales: list[str] = ["pt", "en"]
@@ -110,6 +115,9 @@ class SeisLabDataSettings(BaseSettings):
     webmap_base_tile_layer_url: str = (
         "https://localhost:8888/tiles/world-bathymetry/{z}/{x}/{y}.png"
     )
+    # deepest zoom level served by the base tile layer, beyond it maps overscale
+    # last available tiles instead of showing a blank background,
+    webmap_base_tile_layer_max_zoom: int = 6
     webmap_default_center_lon: float = 0.0
     webmap_default_center_lat: float = 0.0
     webmap_default_zoom_level: int = 3

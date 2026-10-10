@@ -1,3 +1,5 @@
+import dataclasses
+import json
 import logging
 import math
 import re
@@ -35,6 +37,7 @@ from ..schemas import (
     user as user_schemas,
 )
 from .. import dispatch
+from ..tasks import previews as preview_tasks
 from ..tasks.extractors import (
     common as extractor_common,
     dispatch as extractor_dispatch,
@@ -296,6 +299,13 @@ async def run_mission_discovery(
                 modification=constants.DiscoveryStage.ENDED,
                 succeeded=True,
             )
+        )
+        # previews are derived by an operation of their own, which discovery
+        # only kicks off once all of the mission's records exist
+        preview_tasks.generate_mission_previews.send(
+            raw_request_id=str(request_id),
+            raw_survey_mission_id=str(mission.id),
+            raw_initiator=json.dumps(dataclasses.asdict(user)),
         )
     finally:
         await mission_ops.change_survey_mission_status(
