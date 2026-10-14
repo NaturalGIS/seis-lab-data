@@ -2,6 +2,7 @@ import datetime as dt
 import logging
 import math
 import struct
+import typing
 from pathlib import Path
 
 from .schemas import KmallMetadata
@@ -48,42 +49,13 @@ def extract_kmall_metadata(path: Path | str) -> KmallMetadata:
     fix_counts = {dgm_type: 0 for dgm_type in _POSITION_DATAGRAMS}
 
     with p.open("rb") as fh:
-        position = 0
-        while position + _DATAGRAM_HEADER.size <= size:
-            fh.seek(position)
-            (
-                num_bytes,
-                dgm_type,
-                _dgm_version,
-                _system_id,
-                sounder_id,
-                time_sec,
-                time_nanosec,
-            ) = _DATAGRAM_HEADER.unpack(fh.read(_DATAGRAM_HEADER.size))
-            if (
-                num_bytes < _MIN_DATAGRAM_BYTES
-                or position + num_bytes > size
-                or not dgm_type.startswith(b"#")
-            ):
-                if datagram_count == 0:
-                    raise ValueError(f"{p.name} does not look like a KMALL file")
-                logger.debug(
-                    "Truncated or corrupt datagram at offset %d in %s - keeping "
-                    "the metadata gathered so far",
-                    position,
-                    p,
-                )
-                break
+        for dgm_type, timestamp, sounder_id, body in _walk_datagrams(fh, size):
             datagram_count += 1
-            timestamp = time_sec + time_nanosec / 1e9
             if echo_sounder_id is None:
                 echo_sounder_id = sounder_id
             min_time = timestamp if min_time is None else min(min_time, timestamp)
             max_time = timestamp if max_time is None else max(max_time, timestamp)
-            if dgm_type in _POSITION_DATAGRAMS:
-                body = fh.read(
-                    min(num_bytes - _DATAGRAM_HEADER.size, _POSITION_BODY_BYTES)
-                )
+            if body is not None:
                 fix = _parse_position_fix(body)
                 if fix is not None:
                     lon, lat = fix
@@ -99,10 +71,6 @@ def extract_kmall_metadata(path: Path | str) -> KmallMetadata:
                             max(box[3], lat),
                         )
                     )
-            position += num_bytes
-
-    if datagram_count == 0:
-        raise ValueError(f"{p.name} does not look like a KMALL file")
 
     bbox = None
     position_count = 0
@@ -127,6 +95,76 @@ def extract_kmall_metadata(path: Path | str) -> KmallMetadata:
         datagram_count=datagram_count,
         position_count=position_count,
     )
+
+
+def collect_position_fixes(path: Path | str) -> list[tuple[float, float]]:
+    """Every usable (lon, lat) position fix of a KMALL file, in file order.
+
+    Same filter and precedence as the bbox of extract_kmall_metadata: the #SPO
+    fixes, or the #CPO when no single #SPO fix is usable. An empty list
+    is a valid outcome since a file may hold no position datagram at all.
+    """
+    p = Path(path)
+    size = p.stat().st_size
+    fixes: dict[bytes, list[tuple[float, float]]] = {
+        dgm_type: [] for dgm_type in _POSITION_DATAGRAMS
+    }
+    with p.open("rb") as fh:
+        for dgm_type, _timestamp, _sounder_id, body in _walk_datagrams(fh, size):
+            if body is not None:
+                fix = _parse_position_fix(body)
+                if fix is not None:
+                    fixes[dgm_type].append(fix)
+    for dgm_type in _POSITION_DATAGRAMS:
+        if fixes[dgm_type]:
+            return fixes[dgm_type]
+    return []
+
+
+def _walk_datagrams(
+    fh: typing.BinaryIO, size: int
+) -> typing.Iterator[tuple[bytes, float, int, bytes | None]]:
+    """Yield (dgm_type, timestamp, sounder_id, body) for each valid datagram.
+
+    body is the head of a #SPO/#CPO datagram, None for every other type. A
+    truncated or corrupt datagram ends the walk; a file without a valid first
+    datagram raises ValueError.
+    """
+    position = 0
+    while position + _DATAGRAM_HEADER.size <= size:
+        fh.seek(position)
+        (
+            num_bytes,
+            dgm_type,
+            _dgm_version,
+            _system_id,
+            sounder_id,
+            time_sec,
+            time_nanosec,
+        ) = _DATAGRAM_HEADER.unpack(fh.read(_DATAGRAM_HEADER.size))
+        if (
+            num_bytes < _MIN_DATAGRAM_BYTES
+            or position + num_bytes > size
+            or not dgm_type.startswith(b"#")
+        ):
+            if position > 0:
+                logger.debug(
+                    "Truncated or corrupt datagram at offset %d in %s - keeping "
+                    "the metadata gathered so far",
+                    position,
+                    fh.name,
+                )
+            break
+        body = None
+        if dgm_type in _POSITION_DATAGRAMS:
+            # capped here, once: the cap decides which fixes are usable, so the
+            # bbox and the collected fixes must share it
+            body = fh.read(min(num_bytes - _DATAGRAM_HEADER.size, _POSITION_BODY_BYTES))
+        yield dgm_type, time_sec + time_nanosec / 1e9, sounder_id, body
+        position += num_bytes
+    if position == 0:
+        # empty, smaller than one header, or invalid from its first datagram
+        raise ValueError(f"{Path(fh.name).name} does not look like a KMALL file")
 
 
 def _parse_position_fix(body: bytes) -> tuple[float, float] | None:
