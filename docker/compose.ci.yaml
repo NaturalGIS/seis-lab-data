@@ -173,6 +173,8 @@ services:
     image: *common-image
     command:
       - "run-processing-worker"
+      - "--queues"
+      - "default"
     environment:
       <<: *common-env
     volumes:

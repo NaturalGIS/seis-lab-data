@@ -37,7 +37,11 @@ def base_callback(ctx: typer.Context) -> None:
     context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
 )
 def run_processing_worker(ctx: typer.Context) -> None:
-    """Start a processing worker"""
+    """Start a processing worker
+
+    Extra arguments are passed straight to dramatiq, which is how a worker gets
+    pinned to a queue (`run-processing-worker --queues previews`).
+    """
     context: config.SeisLabDataCliContext = ctx.obj["main"]
     panel = Panel(
         "SeisLabData processing worker",
@@ -61,6 +65,7 @@ def run_processing_worker(ctx: typer.Context) -> None:
                 "--watch-exclude=__pycache__/*",
             ]
         )
+    dramatiq_args.extend(ctx.args)
     sys.stdout.flush()
     sys.stderr.flush()
     context.status_console.print(

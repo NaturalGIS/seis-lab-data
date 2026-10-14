@@ -423,6 +423,28 @@ async def set_survey_related_record_status(
     )
 
 
+async def compare_and_set_survey_related_record_status(
+    session: AsyncSession,
+    survey_related_record_id: identifiers.SurveyRelatedRecordId,
+    expected_status: SurveyRelatedRecordStatus,
+    status: SurveyRelatedRecordStatus,
+) -> bool:
+    """Sets the survey-related record's status, but only if it is the expected one.
+
+    Comparison and change are a single UPDATE, so of several callers which
+    expect the same status only one gets to change it. Returns whether the
+    status was changed.
+    """
+    result = await session.execute(
+        update(models.SurveyRelatedRecord)
+        .where(models.SurveyRelatedRecord.id == survey_related_record_id)
+        .where(models.SurveyRelatedRecord.status == expected_status)
+        .values(status=status)
+    )
+    await session.commit()
+    return result.rowcount == 1
+
+
 async def bulk_publish_valid_survey_related_records(
     session: AsyncSession,
     survey_mission_id: identifiers.SurveyMissionId,
