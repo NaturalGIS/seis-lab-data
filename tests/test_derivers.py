@@ -5,6 +5,8 @@ module self-skips where it is unavailable. Everything is exercised against
 synthetic files built in-test, so the suite needs no sample-data archive.
 """
 
+import struct
+
 import numpy as np
 import pytest
 
@@ -20,6 +22,9 @@ from seis_lab_data.tasks.derivers.gdal_raster import (  # noqa: E402
 from seis_lab_data.tasks.derivers.gdal_vector import (  # noqa: E402
     derive_vector_preview,
 )
+from seis_lab_data.tasks.derivers.kmall import (  # noqa: E402
+    derive_kmall_preview,
+)
 
 gdal.UseExceptions()
 
@@ -33,6 +38,12 @@ _PREVIEW_DIRECTORIES = frozenset(
 # A diagonal in metres from the EPSG:3763 false origin; the asserted lon/lat
 # window only fits ~2.8 km east and ~3.5 km north of it
 _LINE = [(200.0, 200.0), (2000.0, 1000.0)]
+# numBytesDgm, dgmType, dgmVersion, systemID, echoSounderID, time_sec, time_nanosec
+_KMALL_HEADER = struct.Struct("<I4sBBHII")
+# (lat, lon) fixes, the order KMALL stores them in: a straight run inside the
+# asserted window, dense like a real track, since lone pixels lose much of their
+# red to WEBP's lossy chroma
+_KMALL_FIXES = [(39.645 + index * 4e-5, -8.145 + index * 6e-5) for index in range(500)]
 
 
 def _write_geotiff(path, width, height, values, epsg=_PT_TM06):
@@ -67,6 +78,23 @@ def _write_shapefile(path, lines, epsg=_PT_TM06):
         layer.CreateFeature(feature)
         feature = None
     ds = None  # noqa: F841
+    return path
+
+
+def _kmall_datagram(dgm_type, body):
+    total = _KMALL_HEADER.size + len(body) + 4
+    header = _KMALL_HEADER.pack(total, dgm_type, 0, 0, 0, 0, 0)
+    return header + body + struct.pack("<I", total)
+
+
+def _write_kmall_track(path, fixes):
+    datagrams = []
+    for lat, lon in fixes:
+        # common part (8 bytes) + sensor data: two times, fix quality, lat/lon
+        common = struct.pack("<HHHH", 8, 0, 0, 0)
+        sensor = struct.pack("<IIf", 0, 0, 1.0) + struct.pack("<dd", lat, lon)
+        datagrams.append(_kmall_datagram(b"#SPO", common + sensor))
+    path.write_bytes(b"".join(datagrams))
     return path
 
 
@@ -188,6 +216,14 @@ def test_is_previewable_accepts_a_vector_extension(tmp_path):
     )
 
 
+def test_is_previewable_accepts_a_kmall_extension(tmp_path):
+    path = tmp_path / "track.kmall"
+    path.touch()
+    assert dispatch.is_previewable(
+        path, "s06-mbes/s05-processed-data/sub/track.kmall", _PREVIEW_DIRECTORIES
+    )
+
+
 def test_derive_raster_preview_expands_a_palette(tmp_path):
     ds = gdal.GetDriverByName("GTiff").Create(str(tmp_path / "map.tif"), 64, 64, 1)
     ds.SetGeoTransform((0.0, 1.0, 0.0, 64.0, 0.0, -1.0))
@@ -270,3 +306,35 @@ def test_derive_vector_preview_requires_features(tmp_path):
 
     with pytest.raises(ValueError):
         derive_vector_preview(path)
+
+
+def test_derive_kmall_preview_renders_track(tmp_path):
+    path = _write_kmall_track(tmp_path / "line.kmall", _KMALL_FIXES)
+
+    preview = derive_kmall_preview(path)
+
+    # rendered by the vector deriver, so the same checks as for the vector lines
+    driver, width, height, bands = _read_webp(preview.image)
+    assert driver == "WEBP"
+    assert max(width, height) == 1024
+    assert len(bands) == 4
+    alpha = bands[3]
+    assert alpha.min() == 0
+    assert alpha.max() == 255
+    reds = bands[0][alpha == 255]
+    blues = bands[2][alpha == 255]
+    assert reds.max() > 150
+    assert (reds.astype(int) - blues.astype(int)).max() > 60
+    min_x, min_y, max_x, max_y = preview.bounds_4326
+    # lon first: a lat/lon swap would miss both windows
+    assert -8.2 < min_x < max_x < -8.1
+    assert 39.6 < min_y < max_y < 39.7
+
+
+def test_derive_kmall_preview_requires_fixes(tmp_path):
+    # a valid KMALL file whose only datagram carries no position
+    path = tmp_path / "startup.kmall"
+    path.write_bytes(_kmall_datagram(b"#MRZ", bytes(32)))
+
+    with pytest.raises(ValueError, match="no position fixes"):
+        derive_kmall_preview(path)
