@@ -5,16 +5,13 @@ from pathlib import Path
 
 from osgeo import gdal
 
+from . import common
 from .schemas import DerivedPreview
 
 logger = logging.getLogger(__name__)
 
 gdal.UseExceptions()
 
-# The preview serves both as a list thumbnail and as a map overlay, so it is
-# sized for the screen, not for analysis.
-_MAX_PREVIEW_PIXELS = 1024
-_WEBP_QUALITY = 85
 # Percentile stretch, cumulative count cut: the extremes of a
 # bathymetry grid are almost always outliers and a min/max stretch washes the
 # image out.
@@ -149,7 +146,7 @@ def derive_raster_preview(path: Path | str) -> DerivedPreview:
                 outputType=gdal.GDT_Byte,
                 bandList=[1, 2, 3, 3 + alpha_band],
             )
-        return DerivedPreview(image=_to_webp(rgba), bounds_4326=bounds)
+        return DerivedPreview(image=common.to_webp(rgba), bounds_4326=bounds)
     finally:
         # Clear / close gdal used datasets
         rgba = None  # noqa: F841
@@ -161,9 +158,9 @@ def derive_raster_preview(path: Path | str) -> DerivedPreview:
 
 def _preview_size(width: int, height: int) -> tuple[int, int]:
     longest_side = max(width, height)
-    if longest_side <= _MAX_PREVIEW_PIXELS:
+    if longest_side <= common.MAX_PREVIEW_PIXELS:
         return width, height
-    scale = _MAX_PREVIEW_PIXELS / longest_side
+    scale = common.MAX_PREVIEW_PIXELS / longest_side
     return max(1, round(width * scale)), max(1, round(height * scale))
 
 
@@ -208,18 +205,3 @@ def _percentile_cuts(band) -> tuple[float, float]:
     if low is None or high is None or high <= low:
         return minimum, maximum
     return low, high
-
-
-def _to_webp(dataset) -> bytes:
-    vsi_path = f"/vsimem/{uuid.uuid4().hex}.webp"
-    # PAM would leak a .aux.xml sidecar into /vsimem per preview
-    with gdal.config_option("GDAL_PAM_ENABLED", "NO"):
-        webp = gdal.GetDriverByName("WEBP").CreateCopy(
-            vsi_path, dataset, options=[f"QUALITY={_WEBP_QUALITY}"]
-        )
-        webp = None  # noqa: F841
-    try:
-        with gdal.VSIFile(vsi_path, "rb") as file_handler:
-            return file_handler.read()
-    finally:
-        gdal.Unlink(vsi_path)
