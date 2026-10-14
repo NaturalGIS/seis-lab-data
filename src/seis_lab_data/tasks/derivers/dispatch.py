@@ -6,16 +6,16 @@ from pathlib import (
 
 from .gdal_raster import derive_raster_preview
 from .gdal_vector import derive_vector_preview
+from .kmall import derive_kmall_preview
 from .schemas import DerivedPreview
 
 logger = logging.getLogger(__name__)
 
-# Only rasters and vectors which carry their own CRS are derived. Rasters that
-# depend on a sidecar (.asc, .flt) or on the mission's implicit CRS (.xyz),
-# KMALL, SEG-Y and the other vector formats (DXF, KML, KMZ, S57) come with the
-# later derivers tracked in issue #210
+# Rasters and vectors which carry their own CRS, plus KMALL vessel tracks.
+# The remaining formats are tracked in issue #210
 _RASTER_EXTENSIONS = frozenset({".tif", ".tiff"})
 _VECTOR_EXTENSIONS = frozenset({".shp", ".gpkg", ".geojson"})
+_KMALL_EXTENSIONS = frozenset({".kmall"})
 
 
 def can_derive(path: Path | str) -> bool:
@@ -23,7 +23,9 @@ def can_derive(path: Path | str) -> bool:
     suffix = p.suffix.lower()
     # Because directories such as "F3_2022.tif" exist in the archive
     return (
-        suffix in _RASTER_EXTENSIONS or suffix in _VECTOR_EXTENSIONS
+        suffix in _RASTER_EXTENSIONS
+        or suffix in _VECTOR_EXTENSIONS
+        or suffix in _KMALL_EXTENSIONS
     ) and p.is_file()
 
 
@@ -51,4 +53,6 @@ def dispatch_deriver(path: Path | str) -> DerivedPreview | None:
         return None
     if p.suffix.lower() in _VECTOR_EXTENSIONS:
         return derive_vector_preview(p)
+    if p.suffix.lower() in _KMALL_EXTENSIONS:
+        return derive_kmall_preview(p)
     return derive_raster_preview(p)
