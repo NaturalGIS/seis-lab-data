@@ -174,6 +174,49 @@ async def get_details_component(request: Request):
     return DatastarResponse(event_streamer())
 
 
+async def get_record_asset_data(request: Request):
+    """Serve the payload of a derived asset, i.e. a record's preview image."""
+    user = request.user if request.user.is_authenticated else None
+    survey_related_record_id = get_id_from_request_path(
+        request, "survey_related_record_id", identifiers.SurveyRelatedRecordId
+    )
+    record_asset_id = get_id_from_request_path(
+        request, "record_asset_id", identifiers.RecordAssetId
+    )
+    async with request.state.settings.get_db_session_maker()() as session:
+        try:
+            survey_related_record_info = (
+                await survey_related_record_ops.get_survey_related_record(
+                    survey_related_record_id,
+                    user,
+                    session,
+                )
+            )
+        except errors.UserNotAllowedError:
+            # same reasoning as the STAC API's own handler (see
+            # webapp/stacapi/app.py): a private resource must be
+            # indistinguishable from a nonexistent one
+            survey_related_record_info = None
+        asset = None
+        if survey_related_record_info is not None:
+            survey_related_record, _related_to, _subject_for = (
+                survey_related_record_info
+            )
+            asset = next(
+                (a for a in survey_related_record.assets if a.id == record_asset_id),
+                None,
+            )
+    if asset is None or asset.data is None:
+        raise HTTPException(status_code=404, detail=_("Asset data not found."))
+    return Response(
+        content=asset.data,
+        media_type=asset.media_type,
+        # previews are regenerated as brand new assets, so the contents served
+        # under a given asset id never change
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
+
+
 FormType = TypeVar(
     "FormType",
     bound=forms.FormProtocol,
@@ -1639,6 +1682,12 @@ routes = [
         get_details_component,
         methods=["GET"],
         name="get_details_component",
+    ),
+    Route(
+        "/{survey_related_record_id}/assets/{record_asset_id}/data",
+        get_record_asset_data,
+        methods=["GET"],
+        name="get_record_asset_data",
     ),
     Route(
         "/{survey_related_record_id}/update",

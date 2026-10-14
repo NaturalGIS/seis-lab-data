@@ -1,6 +1,7 @@
 import uuid
 
 import pytest
+import sqlalchemy
 
 from seis_lab_data import constants
 from seis_lab_data.db import models
@@ -131,3 +132,33 @@ async def test_media_type_queries_ignore_derived_assets(
             session, asset_media_type_filter="image/webp", include_total=True
         )
         assert total == 0
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_listing_records_does_not_load_derived_asset_payloads(
+    sample_survey_related_records, db_session_maker
+):
+    # listings never show a preview image, so loading one per record would only
+    # weigh their pages down
+    first_record, _second_record = sample_survey_related_records
+    async with db_session_maker() as session:
+        session.add(
+            models.RecordAsset(
+                id=uuid.uuid4(),
+                name={"en": "A derived asset"},
+                description={"en": ""},
+                survey_related_record_id=first_record.id,
+                media_type="image/webp",
+                asset_type=[constants.AssetType.PREVIEW],
+                data=b"not a webp",
+            )
+        )
+        await session.commit()
+
+        records, _total = await record_queries.list_survey_related_records(session)
+        listed = [r for r in records if r.id == first_record.id][0]
+        preview = [
+            a for a in listed.assets if constants.AssetType.PREVIEW in a.asset_type
+        ][0]
+        assert "data" in sqlalchemy.inspect(preview).unloaded

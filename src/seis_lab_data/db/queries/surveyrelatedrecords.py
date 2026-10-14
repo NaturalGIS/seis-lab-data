@@ -156,9 +156,16 @@ def _build_survey_related_record_statement(
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
-        # adding all assets too, since they will always be a small list
-        .options(selectinload(models.SurveyRelatedRecord.assets))
-        # also adding relationships with other records - only first order relationships are loaded, not the full tree
+        # adding all assets too, since they will always be a small list. The
+        # data column stays unloaded: it stores the preview image bytes, and
+        # list pages never show images. Skipping the column must happen here at
+        # query level, as sqlmodel ignores one declared as deferred on the model
+        .options(
+            selectinload(models.SurveyRelatedRecord.assets).defer(
+                models.RecordAsset.data
+            )
+        )
+        # also adding relationships with other records, only first order relationships are loaded, not the entire tree
         .options(selectinload(models.SurveyRelatedRecord.related_to_links))
         .options(selectinload(models.SurveyRelatedRecord.subject_links))
     )

@@ -39,6 +39,7 @@ warnings.filterwarnings(
 
 class SeisLabDataIconSettings(BaseModel):
     asset_discovery_configuration: str = "insert_drive_file"
+    data_format: str = "insert_drive_file"
     dataset_category: str = "category"
     delete_item: str = "delete"
     discover_contents: str = "travel_explore"
@@ -114,6 +115,9 @@ class SeisLabDataSettings(BaseSettings):
     webmap_base_tile_layer_url: str = (
         "https://localhost:8888/tiles/world-bathymetry/{z}/{x}/{y}.png"
     )
+    # deepest zoom level served by the base tile layer, beyond it maps overscale
+    # last available tiles instead of showing a blank background,
+    webmap_base_tile_layer_max_zoom: int = 6
     webmap_default_center_lon: float = 0.0
     webmap_default_center_lat: float = 0.0
     webmap_default_zoom_level: int = 3
