@@ -28,6 +28,7 @@ from seis_lab_data.tasks.extractors.gdal_vector import (  # noqa: E402
     extract_vector_metadata,
 )
 from seis_lab_data.tasks.extractors.kmall import (  # noqa: E402
+    collect_position_fixes,
     extract_kmall_metadata,
 )
 from seis_lab_data.tasks.extractors.segy import (  # noqa: E402
@@ -420,6 +421,21 @@ def test_kmall_spo_takes_precedence_over_cpo(tmp_path):
     assert result.bbox_4326 == (-9.3, 40.5, -9.1, 40.7)
 
 
+def test_kmall_collect_position_fixes_prefers_spo(tmp_path):
+    path = tmp_path / "line.kmall"
+    _write_kmall(path, [(40.5, -9.3), (40.7, -9.1)], cpo_fixes=[(50.0, 5.0)])
+
+    assert collect_position_fixes(path) == [(-9.3, 40.5), (-9.1, 40.7)]
+
+
+def test_kmall_collect_position_fixes_falls_back_to_cpo(tmp_path):
+    # a #SPO datagram is present but holds no usable fix, so #CPO takes over
+    path = tmp_path / "line.kmall"
+    _write_kmall(path, [(0.0, 0.0)], cpo_fixes=[(40.5, -9.3), (40.7, -9.1)])
+
+    assert collect_position_fixes(path) == [(-9.3, 40.5), (-9.1, 40.7)]
+
+
 def test_kmall_short_position_body_skipped(tmp_path):
     # a position datagram whose body ends before the lat/lon doubles must be
     # skipped without crashing
@@ -508,6 +524,14 @@ def test_kmall_too_small_raises(tmp_path, content):
     path.write_bytes(content)
     with pytest.raises(ValueError):
         extract_kmall_metadata(path)
+
+
+@pytest.mark.parametrize("content", [b"", b"tiny"])
+def test_kmall_collect_position_fixes_rejects_non_kmall(tmp_path, content):
+    path = tmp_path / "empty.kmall"
+    path.write_bytes(content)
+    with pytest.raises(ValueError):
+        collect_position_fixes(path)
 
 
 def test_dispatch_routes_kmall(tmp_path):
