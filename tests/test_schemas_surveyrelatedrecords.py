@@ -4,7 +4,10 @@ import pytest
 import shapely
 
 from seis_lab_data import constants
-from seis_lab_data.db.commands import recordassets as asset_commands
+from seis_lab_data.db.commands import (
+    recordassets as asset_commands,
+    surveyrelatedrecords as record_commands,
+)
 from seis_lab_data.db.queries import surveyrelatedrecords as record_queries
 from seis_lab_data.schemas import (
     common as common_schemas,
@@ -95,8 +98,8 @@ def test_record_asset_update_keeps_explicit_media_type():
     assert asset.media_type == "image/tiff"
 
 
-def test_derived_record_asset_create_requires_data_or_geog():
-    with pytest.raises(ValueError, match="Either data or geog must be provided"):
+def test_derived_record_asset_create_requires_data():
+    with pytest.raises(ValueError, match=r"data\s+Field required"):
         record_schemas.DerivedRecordAssetCreate(
             id=identifiers.RecordAssetId(uuid.uuid4()),
             name=common_schemas.LocalizableDraftName(en="A preview"),
@@ -110,11 +113,18 @@ def test_derived_record_asset_create_requires_data_or_geog():
 async def test_read_schemas_expose_a_records_derived_asset(
     sample_survey_related_records, db_session_maker
 ):
-    # list card and detail map both need to reach preview image, and
-    # its bounds are the image's, not the record's bbox
+    # list card and detail map both need to reach the preview image, whose
+    # bounds on the map are the record's bbox
     first_record, _second_record = sample_survey_related_records
     preview_id = identifiers.RecordAssetId(uuid.uuid4())
     async with db_session_maker() as session:
+        await record_commands.bulk_update_manually_selected_records(
+            session,
+            record_schemas.SurveyRelatedRecordBulkUpdate(
+                bbox_4326=shapely.box(-9.7, 39.8, -9.3, 40.5).wkt
+            ),
+            [identifiers.SurveyRelatedRecordId(first_record.id)],
+        )
         await asset_commands.replace_derived_record_assets(
             session,
             first_record,
@@ -130,7 +140,6 @@ async def test_read_schemas_expose_a_records_derived_asset(
                         constants.AssetType.PREVIEW,
                     ],
                     data=b"not a webp",
-                    geog=shapely.box(0.0, 0.0, 1.0, 1.0).wkt,
                 ),
                 record_schemas.DerivedRecordAssetCreate(
                     id=preview_id,
@@ -141,7 +150,6 @@ async def test_read_schemas_expose_a_records_derived_asset(
                         constants.AssetType.PREVIEW,
                     ],
                     data=b"not a webp",
-                    geog=shapely.box(-9.7, 39.8, -9.3, 40.5).wkt,
                 ),
             ],
         )

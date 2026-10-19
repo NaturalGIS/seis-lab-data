@@ -10,10 +10,14 @@ from ...db import models
 from ...schemas import identifiers
 from .common import _get_total_num_records
 
+# assets never show the mission and project thumbnails, so they stay unloaded, at
+# query level, since sqlmodel ignores a column declared as deferred on the model
 _SELECT_IN_LOAD_OPTIONS = (
     selectinload(models.RecordAsset.survey_related_record)
     .selectinload(models.SurveyRelatedRecord.survey_mission)
+    .defer(models.SurveyMission.thumbnail)
     .selectinload(models.SurveyMission.project)
+    .defer(models.Project.thumbnail)
 )
 
 

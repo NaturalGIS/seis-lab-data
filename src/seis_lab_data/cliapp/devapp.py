@@ -93,7 +93,6 @@ async def generate_many_projects(
         )
         workflow_stages = await stage_queries.collect_all_workflow_stages(session)
         project_generator = sampledata.generate_sample_projects(
-            owners=[admin_],
             dataset_categories=[
                 identifiers.DatasetCategoryId(dc.id) for dc in dataset_categories
             ],
@@ -154,7 +153,7 @@ async def load_sample_projects(ctx: typer.Context):
     redis_client: aioredis.Redis = ctx.obj["main"].redis_client
     admin_ = ctx.obj["admin_user"]
 
-    projects_to_create = list(sampledata.get_projects_to_create(owner=admin_))
+    projects_to_create = list(sampledata.get_projects_to_create())
     remaining = len(projects_to_create)
 
     async def handle_message(
@@ -203,7 +202,7 @@ async def load_sample_survey_missions(ctx: typer.Context):
     redis_client: aioredis.Redis = ctx.obj["main"].redis_client
     admin_ = ctx.obj["admin_user"]
 
-    missions_to_create = list(sampledata.get_survey_missions_to_create(owner=admin_))
+    missions_to_create = list(sampledata.get_survey_missions_to_create())
     remaining = len(missions_to_create)
 
     async def handle_message(
@@ -258,7 +257,6 @@ async def load_sample_survey_related_records(ctx: typer.Context):
         )
         all_workflow_stages = await stage_queries.collect_all_workflow_stages(session)
         for to_create in sampledata.get_survey_related_records_to_create(
-            owner=admin_,
             dataset_categories={c.name["en"]: c for c in all_dataset_categories},
             workflow_stages={w.name["en"]: w for w in all_workflow_stages},
         ):

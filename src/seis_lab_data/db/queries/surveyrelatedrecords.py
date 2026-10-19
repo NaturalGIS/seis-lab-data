@@ -70,8 +70,6 @@ def _apply_survey_related_record_filters(
             models.SurveyRelatedRecord.survey_mission_id.in_(survey_mission_ids)
         )
     if project_id is not None:
-        # aliased so this join doesn't collide with the unaliased SurveyMission
-        # join that `_restrict_to_accessible`/`_restrict_to_owned` add later
         mission = aliased(models.SurveyMission)
         statement = statement.join(
             mission, models.SurveyRelatedRecord.survey_mission_id == mission.id
@@ -149,10 +147,12 @@ def _build_survey_related_record_statement(
 ):
     statement = (
         select(models.SurveyRelatedRecord)
+        # the mission and project thumbnails stay unloaded, records never show them
         .options(
-            selectinload(models.SurveyRelatedRecord.survey_mission).selectinload(
-                models.SurveyMission.project
-            )
+            selectinload(models.SurveyRelatedRecord.survey_mission)
+            .defer(models.SurveyMission.thumbnail)
+            .selectinload(models.SurveyMission.project)
+            .defer(models.Project.thumbnail)
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
@@ -316,45 +316,6 @@ def build_survey_related_record_id_statement(
     return statement
 
 
-def build_owned_survey_related_record_id_statement(
-    survey_mission_id: identifiers.SurveyMissionId | None = None,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
-    spatial_intersect: shapely.Polygon | None = None,
-    temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
-    asset_path_fragment_filter: str | None = None,
-    asset_media_type_filter: str | None = None,
-    record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
-    excluded_record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
-    dataset_category_id: identifiers.DatasetCategoryId | None = None,
-    workflow_stage_id: identifiers.WorkflowStageId | None = None,
-    only_data_assets: bool = True,
-):
-    """Build a statement selecting the ids of matching records a user owns.
-
-    Intended for non-admin editors, who may only bulk-update records they
-    own, or whose survey mission or project they own.
-    """
-    statement = _build_survey_related_record_id_statement(
-        survey_mission_id,
-        en_name_filter,
-        pt_name_filter,
-        spatial_intersect,
-        temporal_extent,
-        asset_path_fragment_filter,
-        asset_media_type_filter,
-        record_ids,
-        dataset_category_id,
-        workflow_stage_id,
-        only_data_assets,
-    )
-    if excluded_record_ids:
-        statement = statement.where(
-            models.SurveyRelatedRecord.id.notin_(excluded_record_ids)
-        )
-    return statement
-
-
 async def count_survey_related_records_matching(
     session: AsyncSession, ids_statement
 ) -> int:
@@ -429,9 +390,10 @@ async def get_survey_related_record(
         select(models.SurveyRelatedRecord)
         .where(models.SurveyRelatedRecord.id == survey_related_record_id)
         .options(
-            selectinload(models.SurveyRelatedRecord.survey_mission).selectinload(
-                models.SurveyMission.project
-            )
+            selectinload(models.SurveyRelatedRecord.survey_mission)
+            .defer(models.SurveyMission.thumbnail)
+            .selectinload(models.SurveyMission.project)
+            .defer(models.Project.thumbnail)
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
@@ -454,9 +416,10 @@ async def get_survey_related_record_by_english_name(
         .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
         .where(models.SurveyRelatedRecord.name["en"].astext == english_name)
         .options(
-            selectinload(models.SurveyRelatedRecord.survey_mission).selectinload(
-                models.SurveyMission.project
-            )
+            selectinload(models.SurveyRelatedRecord.survey_mission)
+            .defer(models.SurveyMission.thumbnail)
+            .selectinload(models.SurveyMission.project)
+            .defer(models.Project.thumbnail)
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
@@ -493,9 +456,10 @@ async def list_survey_related_record_related_to_records(
             models.SurveyRelatedRecordSelfLink.subject_id == survey_related_record_id
         )
         .options(
-            selectinload(models.SurveyRelatedRecord.survey_mission).selectinload(
-                models.SurveyMission.project
-            )
+            selectinload(models.SurveyRelatedRecord.survey_mission)
+            .defer(models.SurveyMission.thumbnail)
+            .selectinload(models.SurveyMission.project)
+            .defer(models.Project.thumbnail)
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
@@ -527,9 +491,10 @@ async def list_survey_related_record_subject_records(
             models.SurveyRelatedRecordSelfLink.related_to_id == survey_related_record_id
         )
         .options(
-            selectinload(models.SurveyRelatedRecord.survey_mission).selectinload(
-                models.SurveyMission.project
-            )
+            selectinload(models.SurveyRelatedRecord.survey_mission)
+            .defer(models.SurveyMission.thumbnail)
+            .selectinload(models.SurveyMission.project)
+            .defer(models.Project.thumbnail)
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))

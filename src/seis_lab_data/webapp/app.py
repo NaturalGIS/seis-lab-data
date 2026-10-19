@@ -6,7 +6,6 @@ from typing import (
 
 import jinja2
 import shapely
-from pygments.formatters import HtmlFormatter
 from authlib.integrations.starlette_client import OAuth
 from redis import asyncio as aioredis
 from starlette.applications import Starlette
@@ -99,7 +98,6 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
                 "min_lat": min_lat,
                 "max_lat": max_lat,
             },
-            "pygments_css": HtmlFormatter().get_style_defs(".highlight"),
         }
     )
     jinja_env.filters["translate_localizable_string"] = (
@@ -112,7 +110,6 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
     jinja_env.filters["is_publishable"] = jinjafilters.is_publishable
     jinja_env.filters["is_updatable"] = jinjafilters.is_updatable
     jinja_env.filters["is_unpublishable"] = jinjafilters.is_unpublishable
-    jinja_env.filters["highlight_json"] = jinjafilters.highlight_json
     jinja_env.filters["asset_url"] = jinjafilters.get_url_for_asset
     configure_jinja_env(jinja_env)
     templates = Jinja2Templates(env=jinja_env)

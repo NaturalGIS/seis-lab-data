@@ -2,7 +2,6 @@ import json
 import logging
 import uuid
 
-import shapely
 from anyio import Path, to_thread
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -135,7 +134,6 @@ async def generate_record_previews(
                     constants.AssetType.PREVIEW,
                 ],
                 data=preview.image,
-                geog=shapely.box(*preview.bounds_4326).wkt,
             )
         )
     if not derived:

@@ -717,7 +717,6 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             return DatastarResponse(stream_validation_failed_events(), status_code=200)
 
         to_update = mission_schemas.SurveyMissionUpdate(
-            owner_id=user.id,
             name=common_schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,
@@ -821,7 +820,6 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         to_create = record_schemas.SurveyRelatedRecordCreate(
             id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
             survey_mission_id=survey_mission_id,
-            owner_id=user.id,
             name=common_schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,

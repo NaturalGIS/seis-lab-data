@@ -148,9 +148,7 @@ def item_from_survey_related_record(
         end_datetime=end_datetime,
         **{
             "sld:status": record.status.value,
-            "sld:is_valid": record.is_valid,
             "sld:validation_result": record.validation_result,
-            "sld:owner_id": record.owner_id,
             "sld:dataset_category_id": (
                 str(record.dataset_category_id) if record.dataset_category_id else None
             ),

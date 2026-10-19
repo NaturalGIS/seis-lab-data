@@ -8,8 +8,6 @@
     <script type="module"
             src="{{ url_for('static', path='/js/terra-draw-maplibre-gl-adapter-v1.0.0.umd.js') }}"></script>
     <script type="module" src="{{ url_for('static', path='/js/bbox-map.js') }}"></script>
-    <link rel="stylesheet" href="{{ url_for('static', path='/css/jsoneditor.min.css') }}">
-    <script src="{{ url_for('static', path='/js/jsoneditor.min.js') }}"></script>
 {% endblock head %}
 
 {% block title %}{{ _("edit project") | capitalize }} - SeisLabData{% endblock %}

@@ -275,7 +275,6 @@ class SurveyRelatedRecordCreateForm(_SurveyRelatedRecordForm):
             record_schemas.SurveyRelatedRecordCreate(
                 # these are not part of the form, but we must provide something
                 id=None,
-                owner_id=None,
                 survey_mission_id=None,
                 name={**get_form_field_by_name(self, "name").data},
                 description={**get_form_field_by_name(self, "description").data},

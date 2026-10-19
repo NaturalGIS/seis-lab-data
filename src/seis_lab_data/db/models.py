@@ -5,7 +5,6 @@ import uuid
 import warnings
 from functools import partial
 from typing import (
-    Any,
     Annotated,
     Optional,
     TypedDict,
@@ -13,7 +12,6 @@ from typing import (
 
 import shapely
 from geoalchemy2 import (
-    Geography,
     Geometry,
     WKBElement,
 )
@@ -153,7 +151,6 @@ class SurveyRelatedRecord(SQLModel, table=True):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    owner_id: str = Field(max_length=100, index=True, foreign_key="appuser.id")
     name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
         Field(sa_column=Column(JSONB))
     )
@@ -163,7 +160,6 @@ class SurveyRelatedRecord(SQLModel, table=True):
     status: constants.SurveyRelatedRecordStatus = (
         constants.SurveyRelatedRecordStatus.DRAFT
     )
-    is_valid: bool = False
     validation_result: ValidationResult = Field(sa_column=Column(JSONB))
     survey_mission_id: uuid.UUID = Field(
         foreign_key="surveymission.id",
@@ -268,7 +264,6 @@ class SurveyMission(SQLModel, table=True):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    owner_id: str = Field(max_length=100, index=True, foreign_key="appuser.id")
     name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
         Field(sa_column=Column(JSONB))
     )
@@ -287,7 +282,6 @@ class SurveyMission(SQLModel, table=True):
     # fallback EPSG code for discovered files whose format cannot declare a CRS
     implicit_crs: int = Field(default=4326, sa_column_kwargs={"server_default": "4326"})
     status: constants.SurveyMissionStatus = constants.SurveyMissionStatus.DRAFT
-    is_valid: bool = False
     validation_result: ValidationResult = Field(sa_column=Column(JSONB))
     bbox_4326: Annotated[
         WKBElement,
@@ -301,6 +295,15 @@ class SurveyMission(SQLModel, table=True):
             ),
         )
     )
+    # always a WEBP image, so no media type is stored alongside it
+    thumbnail: Annotated[
+        bytes | None,
+        PlainSerializer(
+            lambda v: base64.b64encode(v).decode(),
+            return_type=str,
+            when_used="json-unless-none",
+        ),
+    ] = Field(default=None, sa_column=Column(LargeBinary))
     created_at: dt.datetime | None = Field(default_factory=now_)
     updated_at: dt.datetime | None = Field(
         sa_column=Column(DateTime(), onupdate=func.now())
@@ -333,7 +336,6 @@ class Project(SQLModel, table=True):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    owner_id: str = Field(max_length=100, index=True, foreign_key="appuser.id")
     name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
         Field(sa_column=Column(JSONB))
     )
@@ -342,7 +344,6 @@ class Project(SQLModel, table=True):
     ] = Field(sa_column=Column(JSONB))
     status: constants.ProjectStatus = constants.ProjectStatus.DRAFT
     root_path: str = ""
-    is_valid: bool = False
     validation_result: ValidationResult = Field(sa_column=Column(JSONB))
     links: Annotated[list[Link], PlainSerializer(serialize_localizable_field)] = Field(
         sa_column=Column(JSONB), default_factory=list
@@ -359,7 +360,15 @@ class Project(SQLModel, table=True):
             ),
         )
     )
-    discovery_configuration: dict[str, Any] | None = Field(sa_column=Column(JSONB))
+    # always a WEBP image, so no media type is stored alongside it
+    thumbnail: Annotated[
+        bytes | None,
+        PlainSerializer(
+            lambda v: base64.b64encode(v).decode(),
+            return_type=str,
+            when_used="json-unless-none",
+        ),
+    ] = Field(default=None, sa_column=Column(LargeBinary))
     created_at: dt.datetime | None = Field(default_factory=now_)
     updated_at: dt.datetime | None = Field(
         sa_column=Column(DateTime(), onupdate=func.now())
@@ -410,7 +419,6 @@ class RecordAsset(SQLModel, table=True):
     description: Annotated[
         LocalizableString, PlainSerializer(serialize_localizable_field)
     ] = Field(sa_column=Column(JSONB))
-    is_valid: bool = False
     survey_related_record_id: uuid.UUID = Field(
         foreign_key="surveyrelatedrecord.id", ondelete="CASCADE", index=True
     )
@@ -422,13 +430,6 @@ class RecordAsset(SQLModel, table=True):
             ARRAY(Enum(constants.AssetType, name="assettype")), nullable=False
         ),
     )
-    # simplified version of the main data asset - deliberately not one single geometry type
-    geog: Annotated[
-        WKBElement | None,
-        PlainSerializer(
-            serialize_wkbelement, return_type=dict, when_used="json-unless-none"
-        ),
-    ] = Field(default=None, sa_column=Column(Geography(srid=4326, spatial_index=True)))
     # simplified version of the main data asset (low-res raster, histogram, ...)
     data: Annotated[
         bytes | None,

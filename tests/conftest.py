@@ -3,6 +3,7 @@ import pytest_asyncio
 
 import sqlmodel
 from anyio import Path
+from sqlalchemy.ext.asyncio import create_async_engine
 from starlette.applications import Starlette
 from starlette.routing import Mount
 from starlette.testclient import TestClient
@@ -24,8 +25,8 @@ from seis_lab_data.db.commands import (
     users as user_commands,
     workflowstages as stage_commands,
 )
+from seis_lab_data.db import engine as engine_module
 from seis_lab_data.db.engine import (
-    get_engine,
     get_session_maker,
     get_sync_engine,
 )
@@ -53,14 +54,32 @@ def settings():
     return original_settings
 
 
+@pytest.fixture(scope="session", autouse=True)
+def shared_db_engine():
+    # the db fixture drops and recreates tables and enum types for every test,
+    # which leaves psycopg's automatically prepared statements pointing at stale
+    # types on the pooled connections ("cached plan must not change result type").
+    # Both engine caches (db.engine and settings) are seeded up front with
+    # statement preparing turned off. The sync engine only runs DDL, which has no
+    # result row type to go stale, so it is left alone
+    settings = config.get_settings()
+    engine = create_async_engine(
+        settings.test_database_dsn.unicode_string(),
+        connect_args={"prepare_threshold": None},
+    )
+    engine_module._DB_ENGINE = engine
+    settings._db_engine = engine
+    yield engine
+
+
 @pytest.fixture
 def sync_db_engine(settings: config.SeisLabDataSettings):
     yield get_sync_engine(settings)
 
 
 @pytest.fixture()
-def db_engine(settings: config.SeisLabDataSettings):
-    yield get_engine(settings.database_dsn.unicode_string(), debug=False)
+def db_engine(shared_db_engine):
+    yield shared_db_engine
 
 
 @pytest.fixture()
@@ -163,10 +182,10 @@ async def bootstrap_asset_discovery_configurations(
 
 
 @pytest_asyncio.fixture
-async def sample_projects(db, db_session_maker, admin_user):
+async def sample_projects(db, db_session_maker):
     created = []
     async with db_session_maker() as session:
-        for project_to_create in sampledata.get_projects_to_create(admin_user):
+        for project_to_create in sampledata.get_projects_to_create():
             created.append(
                 await project_commands.create_project(session, project_to_create)
             )
@@ -174,12 +193,10 @@ async def sample_projects(db, db_session_maker, admin_user):
 
 
 @pytest_asyncio.fixture
-async def sample_survey_missions(db, db_session_maker, sample_projects, admin_user):
+async def sample_survey_missions(db, db_session_maker, sample_projects):
     created = []
     async with db_session_maker() as session:
-        for survey_mission_to_create in sampledata.get_survey_missions_to_create(
-            admin_user
-        ):
+        for survey_mission_to_create in sampledata.get_survey_missions_to_create():
             created.append(
                 await mission_commands.create_survey_mission(
                     session, survey_mission_to_create
@@ -195,14 +212,12 @@ async def sample_survey_related_records(
     sample_survey_missions,
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
-    admin_user,
 ):
     created = []
     async with db_session_maker() as session:
         for survey_record_to_create in sampledata.get_survey_related_records_to_create(
             dataset_categories={c.name["en"]: c for c in bootstrap_dataset_categories},
             workflow_stages={w.name["en"]: w for w in bootstrap_workflow_stages},
-            owner=admin_user,
         ):
             created.append(
                 await record_commands.create_survey_related_record(

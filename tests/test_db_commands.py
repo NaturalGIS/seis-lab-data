@@ -103,10 +103,9 @@ async def test_delete_workflow_stage(db, db_session_maker):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_create_project(db, db_session_maker, admin_user):
+async def test_create_project(db, db_session_maker):
     to_create = project_schemas.ProjectCreate(
         id=identifiers.ProjectId(uuid.UUID("5fe24752-5919-4a05-be46-aed53a6936db")),
-        owner_id=admin_user.id,
         name=common_schemas.LocalizableDraftName(
             en="A fake project", pt="Um projeto falso"
         ),
@@ -119,7 +118,6 @@ async def test_create_project(db, db_session_maker, admin_user):
     async with db_session_maker() as session:
         created = await project_commands.create_project(session, to_create)
         assert created.id == to_create.id
-        assert created.owner_id == to_create.owner_id
         assert created.id == to_create.id
         assert created.name["en"] == to_create.name.en
         assert created.name["pt"] == to_create.name.pt
@@ -127,9 +125,7 @@ async def test_create_project(db, db_session_maker, admin_user):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_create_project_rejects_duplicate_english_name(
-    db, db_session_maker, admin_user
-):
+async def test_create_project_rejects_duplicate_english_name(db, db_session_maker):
     async with db_session_maker() as session:
         await project_commands.create_project(
             session,
@@ -137,7 +133,6 @@ async def test_create_project_rejects_duplicate_english_name(
                 id=identifiers.ProjectId(
                     uuid.UUID("e620b64d-6f0a-4e8e-9e0a-1a2b3c4d5e6f")
                 ),
-                owner_id=admin_user.id,
                 name=common_schemas.LocalizableDraftName(en="A fake project"),
                 description=common_schemas.LocalizableDraftDescription(
                     en="A description for fake project"
@@ -152,7 +147,6 @@ async def test_create_project_rejects_duplicate_english_name(
                     id=identifiers.ProjectId(
                         uuid.UUID("f6a1c75e-7a1b-4f9f-8a1b-2c3d4e5f6a7b")
                     ),
-                    owner_id=admin_user.id,
                     # same english name as the project already created above
                     name=common_schemas.LocalizableDraftName(en="A fake project"),
                     description=common_schemas.LocalizableDraftDescription(
@@ -165,10 +159,9 @@ async def test_create_project_rejects_duplicate_english_name(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_delete_project(db, db_session_maker, admin_user):
+async def test_delete_project(db, db_session_maker):
     to_create = project_schemas.ProjectCreate(
         id=identifiers.ProjectId(uuid.UUID("0637d5d9-6381-4ba8-b9ec-89750baa93a4")),
-        owner_id=admin_user.id,
         name=common_schemas.LocalizableDraftName(
             en="A fake project", pt="Um projeto falso"
         ),
@@ -187,13 +180,12 @@ async def test_delete_project(db, db_session_maker, admin_user):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_create_survey_mission(db, db_session_maker, sample_projects, admin_user):
+async def test_create_survey_mission(db, db_session_maker, sample_projects):
     to_create = mission_schemas.SurveyMissionCreate(
         id=identifiers.SurveyMissionId(
             uuid.UUID("1aad09c3-d606-445e-9216-d9620586c332")
         ),
         project_id=identifiers.ProjectId(sample_projects[0].id),
-        owner_id=admin_user.id,
         name=common_schemas.LocalizableDraftName(
             en="A fake survey mission", pt="Uma missão falsa"
         ),
@@ -206,7 +198,6 @@ async def test_create_survey_mission(db, db_session_maker, sample_projects, admi
     async with db_session_maker() as session:
         created = await mission_commands.create_survey_mission(session, to_create)
         assert created.id == to_create.id
-        assert created.owner_id == to_create.owner_id
         assert created.id == to_create.id
         assert created.name["en"] == to_create.name.en
         assert created.name["pt"] == to_create.name.pt
@@ -215,7 +206,7 @@ async def test_create_survey_mission(db, db_session_maker, sample_projects, admi
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_create_survey_mission_rejects_duplicate_english_name_in_same_project(
-    db, db_session_maker, sample_projects, admin_user
+    db, db_session_maker, sample_projects
 ):
     project_id = identifiers.ProjectId(sample_projects[0].id)
     async with db_session_maker() as session:
@@ -226,7 +217,6 @@ async def test_create_survey_mission_rejects_duplicate_english_name_in_same_proj
                     uuid.UUID("a1b2c3d4-e5f6-4a1b-8c2d-3e4f5a6b7c8d")
                 ),
                 project_id=project_id,
-                owner_id=admin_user.id,
                 name=common_schemas.LocalizableDraftName(en="A fake survey mission"),
                 description=common_schemas.LocalizableDraftDescription(
                     en="A description for fake survey mission"
@@ -242,7 +232,6 @@ async def test_create_survey_mission_rejects_duplicate_english_name_in_same_proj
                         uuid.UUID("b2c3d4e5-f6a7-4b2c-9d3e-4f5a6b7c8d9e")
                     ),
                     project_id=project_id,
-                    owner_id=admin_user.id,
                     # same english name as the survey mission already created
                     # above, on the same project
                     name=common_schemas.LocalizableDraftName(
@@ -258,13 +247,12 @@ async def test_create_survey_mission_rejects_duplicate_english_name_in_same_proj
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_delete_survey_mission(db, db_session_maker, sample_projects, admin_user):
+async def test_delete_survey_mission(db, db_session_maker, sample_projects):
     to_create = mission_schemas.SurveyMissionCreate(
         id=identifiers.SurveyMissionId(
             uuid.UUID("449a96e4-9b3b-41ad-a08b-75d31332b846")
         ),
         project_id=identifiers.ProjectId(sample_projects[0].id),
-        owner_id=admin_user.id,
         name=common_schemas.LocalizableDraftName(
             en="A fake survey mission", pt="Uma missão falsa"
         ),
@@ -291,7 +279,6 @@ async def test_create_survey_related_record(
     sample_survey_missions,
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
-    admin_user,
 ):
     dataset_category = [
         c for c in bootstrap_dataset_categories if c.name["en"] == "bathymetry"
@@ -304,7 +291,6 @@ async def test_create_survey_related_record(
             uuid.UUID("cabe6a5f-d81c-496c-80cc-c3505b9121c2")
         ),
         survey_mission_id=identifiers.SurveyMissionId(sample_survey_missions[0].id),
-        owner_id=admin_user.id,
         name=common_schemas.LocalizableDraftName(
             en="A fake survey-related record", pt="Um registo falso"
         ),
@@ -351,7 +337,6 @@ async def test_create_survey_related_record(
     async with db_session_maker() as session:
         created = await record_commands.create_survey_related_record(session, to_create)
         assert created.id == to_create.id
-        assert created.owner_id == to_create.owner_id
         assert created.id == to_create.id
         assert created.name["en"] == to_create.name.en
         assert created.name["pt"] == to_create.name.pt
@@ -365,7 +350,6 @@ async def test_delete_survey_related_record(
     sample_survey_missions,
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
-    admin_user,
 ):
     dataset_category = [
         c for c in bootstrap_dataset_categories if c.name["en"] == "bathymetry"
@@ -378,7 +362,6 @@ async def test_delete_survey_related_record(
             uuid.UUID("d0f6cb56-e942-4fd7-a0a9-083c3069d698")
         ),
         survey_mission_id=identifiers.SurveyMissionId(sample_survey_missions[0].id),
-        owner_id=admin_user.id,
         name=common_schemas.LocalizableDraftName(
             en="A fake survey-related record", pt="Um registo falso"
         ),
@@ -555,7 +538,6 @@ async def test_bulk_publish_valid_survey_related_records(
     sample_survey_related_records,
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
-    admin_user,
 ):
     # first_record and second_record belong to different survey missions
     first_record, second_record = sample_survey_related_records
@@ -574,7 +556,6 @@ async def test_bulk_publish_valid_survey_related_records(
                 survey_mission_id=identifiers.SurveyMissionId(
                     first_record.survey_mission_id
                 ),
-                owner_id=admin_user.id,
                 name=common_schemas.LocalizableDraftName(en="Invalid sibling record"),
                 description=common_schemas.LocalizableDraftDescription(
                     en="An invalid sibling record"
@@ -765,7 +746,6 @@ async def test_create_survey_related_record_rejects_duplicate_asset_path_in_same
     sample_survey_missions,
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
-    admin_user,
 ):
     dataset_category = [
         c for c in bootstrap_dataset_categories if c.name["en"] == "bathymetry"
@@ -782,7 +762,6 @@ async def test_create_survey_related_record_rejects_duplicate_asset_path_in_same
                     uuid.UUID("3a68f0e2-6cd1-4b0e-9e2e-9d6f5f36f7d1")
                 ),
                 survey_mission_id=mission_id,
-                owner_id=admin_user.id,
                 name=common_schemas.LocalizableDraftName(en="First record"),
                 description=common_schemas.LocalizableDraftDescription(
                     en="Description for first record"
@@ -812,7 +791,6 @@ async def test_create_survey_related_record_rejects_duplicate_asset_path_in_same
                         uuid.UUID("8b2f2e8f-2a4e-4f8e-9c2a-2e6d4c1b8a90")
                     ),
                     survey_mission_id=mission_id,
-                    owner_id=admin_user.id,
                     name=common_schemas.LocalizableDraftName(en="Second record"),
                     description=common_schemas.LocalizableDraftDescription(
                         en="Description for second record"
@@ -848,7 +826,6 @@ async def test_create_survey_related_record_allows_duplicate_asset_path_in_diffe
     sample_survey_missions,
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
-    admin_user,
 ):
     dataset_category = [
         c for c in bootstrap_dataset_categories if c.name["en"] == "bathymetry"
@@ -866,7 +843,6 @@ async def test_create_survey_related_record_allows_duplicate_asset_path_in_diffe
                 survey_mission_id=identifiers.SurveyMissionId(
                     sample_survey_missions[0].id
                 ),
-                owner_id=admin_user.id,
                 name=common_schemas.LocalizableDraftName(en="First record"),
                 description=common_schemas.LocalizableDraftDescription(
                     en="Description for first record"
@@ -897,7 +873,6 @@ async def test_create_survey_related_record_allows_duplicate_asset_path_in_diffe
                 survey_mission_id=identifiers.SurveyMissionId(
                     sample_survey_missions[1].id
                 ),
-                owner_id=admin_user.id,
                 name=common_schemas.LocalizableDraftName(en="Second record"),
                 description=common_schemas.LocalizableDraftDescription(
                     en="Description for second record"
@@ -1064,7 +1039,6 @@ async def test_update_survey_related_record_preserves_derived_assets(
                     constants.AssetType.THUMBNAIL,
                     constants.AssetType.PREVIEW,
                 ],
-                geog="POINT(-9.1 38.7)",
                 data=derived_payload,
             )
         )
@@ -1103,7 +1077,6 @@ async def test_update_survey_related_record_preserves_derived_assets(
         assert derived.media_type == "image/webp"
         assert derived.relative_path is None
         assert derived.data == derived_payload
-        assert derived.geog is not None
 
 
 @pytest.mark.integration
@@ -1146,10 +1119,6 @@ async def test_replace_derived_record_assets(
                             constants.AssetType.PREVIEW,
                         ],
                         data=b"fake webp payload",
-                        geog=(
-                            "POLYGON((-9.1 38.7, -9.0 38.7, -9.0 38.8, "
-                            "-9.1 38.8, -9.1 38.7))"
-                        ),
                     )
                 ],
             )
@@ -1161,7 +1130,6 @@ async def test_replace_derived_record_assets(
     assert len(derived_assets) == 1
     assert derived_assets[0].name["en"] == "second preview"
     assert derived_assets[0].relative_path is None
-    assert derived_assets[0].geog is not None
     assert {
         a.id for a in assets if constants.AssetType.DATA in a.asset_type
     } == data_asset_ids

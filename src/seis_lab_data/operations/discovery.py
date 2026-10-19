@@ -395,7 +395,6 @@ async def _discover_mission_records(
                     request_id=request_id,
                     to_create=record_schemas.SurveyRelatedRecordCreate(
                         id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
-                        owner_id=identifiers.UserId(user.id),
                         survey_mission_id=identifiers.SurveyMissionId(mission.id),
                         name=common.LocalizableDraftName(en=found_path.name),
                         description=common.LocalizableDraftDescription(

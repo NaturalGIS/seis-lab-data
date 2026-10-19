@@ -148,7 +148,6 @@ class SurveyMissionCreateForm(_SurveyMissionForm):
             survey_mission_schemas.SurveyMissionCreate(
                 # these are not part of the form, but we must provide something
                 id=None,
-                owner_id=None,
                 project_id=None,
                 name={
                     **get_form_field_by_name(self, "name").data,

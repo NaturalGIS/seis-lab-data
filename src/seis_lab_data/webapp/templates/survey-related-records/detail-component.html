@@ -191,7 +191,7 @@
                 {% include "partial-validation.html" %}
             {% endif %}
             <li class="list-group-item">
-                <p>{{ _("Survey-related records with a status of DRAFT are only visible to their owners") }}</p>
+                <p>{{ _("Survey-related records with a status of DRAFT are only visible to authenticated users") }}</p>
                 <p>{{ _("In order to become viewable by all users, a survey-related record must be published. Publication is only possible once the record is considered valid.") }}</p>
                 <p>{{ _("Valid survey-related records can be published. When published, a survey-related record becomes visible for all users") }}</p>
             </li>
@@ -212,8 +212,6 @@
                 <dd class="col-sm-9">{{ asset.name|translate_localizable_string }}</dd>
                 <dt class="col-sm-3">{{ _("Description") }}</dt>
                 <dd class="col-sm-9">{{ asset.description|translate_localizable_string }}</dd>
-                <dt class="col-sm-3">{{ _("Is valid") }}</dt>
-                <dd class="col-sm-9">{{ asset.is_valid }}</dd>
                 <dt class="col-sm-3">{{ _("media type") | capitalize }}</dt>
                 <dd class="col-sm-9">{{ asset.media_type | default(_("unknown"), true) }}</dd>
                 <dt class="col-sm-3">{{ _("Relative path") }}</dt>

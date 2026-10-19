@@ -14,12 +14,11 @@ from .common import (
     serialize_id,
     serialize_possibly_empty_date,
 )
-from .identifiers import ProjectId, UserId
+from .identifiers import ProjectId
 
 
 class ProjectCreate(pydantic.BaseModel):
     id: ProjectId
-    owner_id: UserId
     name: LocalizableDraftName
     description: LocalizableDraftDescription | None = None
     root_path: str
@@ -27,7 +26,6 @@ class ProjectCreate(pydantic.BaseModel):
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
     temporal_extent_end: dt.date | None = None
-    # discovery_configuration: "ProjectDiscoveryConfiguration | None" = None
 
 
 class ProjectUpdate(pydantic.BaseModel):
@@ -38,7 +36,6 @@ class ProjectUpdate(pydantic.BaseModel):
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
     temporal_extent_end: dt.date | None = None
-    # discovery_configuration: "ProjectDiscoveryConfiguration | None" = None
 
 
 class ProjectReadEmbedded(pydantic.BaseModel):
@@ -73,7 +70,6 @@ class ProjectReadListItem(ProjectReadEmbedded):
 class ProjectReadDetail(ProjectReadListItem):
     links: list[LinkSchema] = []
     bbox_4326: PolygonOut | None
-    # discovery_configuration: "ProjectDiscoveryConfiguration | None"
 
     @classmethod
     def from_db_instance(cls, instance: models.Project) -> "ProjectReadDetail":
