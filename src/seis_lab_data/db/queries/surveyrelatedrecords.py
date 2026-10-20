@@ -147,12 +147,10 @@ def _build_survey_related_record_statement(
 ):
     statement = (
         select(models.SurveyRelatedRecord)
-        # the mission and project thumbnails stay unloaded, records never show them
         .options(
-            selectinload(models.SurveyRelatedRecord.survey_mission)
-            .defer(models.SurveyMission.thumbnail)
-            .selectinload(models.SurveyMission.project)
-            .defer(models.Project.thumbnail)
+            selectinload(models.SurveyRelatedRecord.survey_mission).selectinload(
+                models.SurveyMission.project
+            )
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
@@ -390,10 +388,9 @@ async def get_survey_related_record(
         select(models.SurveyRelatedRecord)
         .where(models.SurveyRelatedRecord.id == survey_related_record_id)
         .options(
-            selectinload(models.SurveyRelatedRecord.survey_mission)
-            .defer(models.SurveyMission.thumbnail)
-            .selectinload(models.SurveyMission.project)
-            .defer(models.Project.thumbnail)
+            selectinload(models.SurveyRelatedRecord.survey_mission).selectinload(
+                models.SurveyMission.project
+            )
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
@@ -416,10 +413,9 @@ async def get_survey_related_record_by_english_name(
         .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
         .where(models.SurveyRelatedRecord.name["en"].astext == english_name)
         .options(
-            selectinload(models.SurveyRelatedRecord.survey_mission)
-            .defer(models.SurveyMission.thumbnail)
-            .selectinload(models.SurveyMission.project)
-            .defer(models.Project.thumbnail)
+            selectinload(models.SurveyRelatedRecord.survey_mission).selectinload(
+                models.SurveyMission.project
+            )
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
@@ -456,10 +452,9 @@ async def list_survey_related_record_related_to_records(
             models.SurveyRelatedRecordSelfLink.subject_id == survey_related_record_id
         )
         .options(
-            selectinload(models.SurveyRelatedRecord.survey_mission)
-            .defer(models.SurveyMission.thumbnail)
-            .selectinload(models.SurveyMission.project)
-            .defer(models.Project.thumbnail)
+            selectinload(models.SurveyRelatedRecord.survey_mission).selectinload(
+                models.SurveyMission.project
+            )
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
@@ -491,10 +486,9 @@ async def list_survey_related_record_subject_records(
             models.SurveyRelatedRecordSelfLink.related_to_id == survey_related_record_id
         )
         .options(
-            selectinload(models.SurveyRelatedRecord.survey_mission)
-            .defer(models.SurveyMission.thumbnail)
-            .selectinload(models.SurveyMission.project)
-            .defer(models.Project.thumbnail)
+            selectinload(models.SurveyRelatedRecord.survey_mission).selectinload(
+                models.SurveyMission.project
+            )
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))

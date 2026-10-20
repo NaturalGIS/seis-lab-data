@@ -1,8 +1,5 @@
 import shapely
-from sqlalchemy.orm import (
-    defer,
-    selectinload,
-)
+from sqlalchemy.orm import selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import (
     func,
@@ -26,11 +23,8 @@ def _build_survey_mission_statement(
     spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ):
-    # list pages never show the thumbnail bytes, so they stay unloaded, at query
-    # level, since sqlmodel ignores a column declared as deferred on the model
     statement = select(models.SurveyMission).options(
-        defer(models.SurveyMission.thumbnail),
-        selectinload(models.SurveyMission.project).defer(models.Project.thumbnail),
+        selectinload(models.SurveyMission.project)
     )
     if en_name_filter:
         statement = statement.where(
@@ -149,9 +143,7 @@ async def get_survey_mission(
     statement = (
         select(models.SurveyMission)
         .where(models.SurveyMission.id == survey_mission_id)
-        .options(
-            selectinload(models.SurveyMission.project).defer(models.Project.thumbnail)
-        )
+        .options(selectinload(models.SurveyMission.project))
     )
     return (await session.exec(statement)).first()
 
@@ -165,9 +157,7 @@ async def get_survey_mission_by_english_name(
         select(models.SurveyMission)
         .where(models.SurveyMission.name["en"].astext == english_name)
         .where(models.SurveyMission.project_id == project_id)
-        .options(
-            selectinload(models.SurveyMission.project).defer(models.Project.thumbnail)
-        )
+        .options(selectinload(models.SurveyMission.project))
     )
     return (await session.exec(statement)).first()
 
@@ -181,8 +171,6 @@ async def get_survey_mission_by_path(
         select(models.SurveyMission)
         .where(models.SurveyMission.project_id == project_id)
         .where(models.SurveyMission.relative_path == mission_path)
-        .options(
-            selectinload(models.SurveyMission.project).defer(models.Project.thumbnail)
-        )
+        .options(selectinload(models.SurveyMission.project))
     )
     return (await session.exec(statement)).first()

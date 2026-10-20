@@ -1,7 +1,6 @@
 import logging
 
 import shapely
-from sqlalchemy.orm import defer
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import (
     func,
@@ -26,9 +25,7 @@ def _build_project_statement(
     spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ):
-    # list pages never show the thumbnail bytes, so they stay unloaded, at query
-    # level, since sqlmodel ignores a column declared as deferred on the model
-    statement = select(models.Project).options(defer(models.Project.thumbnail))
+    statement = select(models.Project)
     if en_name_filter:
         statement = statement.where(
             models.Project.name["en"].astext.ilike(f"%{en_name_filter}%")
@@ -144,9 +141,7 @@ async def get_project_by_english_name(
     session: AsyncSession,
     english_name: str,
 ) -> models.Project | None:
-    statement = (
-        select(models.Project)
-        .where(models.Project.name["en"].astext == english_name)
-        .options(defer(models.Project.thumbnail))
+    statement = select(models.Project).where(
+        models.Project.name["en"].astext == english_name
     )
     return (await session.exec(statement)).first()
