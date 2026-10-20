@@ -25,7 +25,6 @@ from seis_lab_data.db.commands import (
     users as user_commands,
     workflowstages as stage_commands,
 )
-from seis_lab_data.db import engine as engine_module
 from seis_lab_data.db.engine import (
     get_session_maker,
     get_sync_engine,
@@ -54,32 +53,19 @@ def settings():
     return original_settings
 
 
-@pytest.fixture(scope="session", autouse=True)
-def shared_db_engine():
-    # the db fixture drops and recreates tables and enum types for every test,
-    # which leaves psycopg's automatically prepared statements pointing at stale
-    # types on the pooled connections ("cached plan must not change result type").
-    # Both engine caches (db.engine and settings) are seeded up front with
-    # statement preparing turned off. The sync engine only runs DDL, which has no
-    # result row type to go stale, so it is left alone
-    settings = config.get_settings()
-    engine = create_async_engine(
-        settings.test_database_dsn.unicode_string(),
-        connect_args={"prepare_threshold": None},
-    )
-    engine_module._DB_ENGINE = engine
-    settings._db_engine = engine
-    yield engine
-
-
 @pytest.fixture
 def sync_db_engine(settings: config.SeisLabDataSettings):
     yield get_sync_engine(settings)
 
 
-@pytest.fixture()
-def db_engine(shared_db_engine):
-    yield shared_db_engine
+@pytest.fixture(scope="session")
+def db_engine():
+    # per-test schema recreation breaks psycopg prepared statements
+    # with error: "cached plan must not change result type", therefore prepare is off
+    yield create_async_engine(
+        config.get_settings().test_database_dsn.unicode_string(),
+        connect_args={"prepare_threshold": None},
+    )
 
 
 @pytest.fixture()
