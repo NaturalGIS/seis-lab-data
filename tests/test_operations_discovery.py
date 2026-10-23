@@ -75,14 +75,11 @@ def _write_geotiff(path):
     ds = None
 
 
-async def _create_mission(
-    session, admin_user, project_id, mission_relative_path, name_suffix=""
-):
+async def _create_mission(session, project_id, mission_relative_path, name_suffix=""):
     mission = await mission_commands.create_survey_mission(
         session,
         mission_schemas.SurveyMissionCreate(
             id=identifiers.SurveyMissionId(uuid.uuid4()),
-            owner_id=identifiers.UserId(admin_user.id),
             project_id=project_id,
             name=common_schemas.LocalizableDraftName(
                 en=f"Discovery test mission{name_suffix}"
@@ -100,7 +97,6 @@ async def discovery_env(
     settings,
     db,
     db_session_maker,
-    admin_user,
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
 ):
@@ -111,14 +107,12 @@ async def discovery_env(
             session,
             project_schemas.ProjectCreate(
                 id=identifiers.ProjectId(uuid.uuid4()),
-                owner_id=identifiers.UserId(admin_user.id),
                 name=common_schemas.LocalizableDraftName(en="Discovery test project"),
                 root_path="",
             ),
         )
         mission = await _create_mission(
             session,
-            admin_user,
             identifiers.ProjectId(project.id),
             _MISSION_RELATIVE_PATH,
         )
@@ -336,7 +330,6 @@ async def test_discovery_dedup_is_scoped_per_mission(
     async with db_session_maker() as session:
         second_mission = await _create_mission(
             session,
-            admin_user,
             identifiers.ProjectId(discovery_env["project"].id),
             second_mission_relative_path,
             name_suffix=" 2",

@@ -100,7 +100,6 @@ class ValidProject(pydantic.BaseModel):
     status: constants.ProjectStatus
     temporal_extent_begin: dt.date | None
     temporal_extent_end: dt.date | None
-    owner_id: identifiers.UserId
     root_path: Annotated[str, pydantic.PlainValidator(ensure_root_path_exists)]
     links: list[ValidLinkSchema] = []
     bbox_4326: Annotated[
@@ -118,7 +117,6 @@ class ValidSurveyMission(pydantic.BaseModel):
     status: constants.SurveyMissionStatus
     temporal_extent_begin: dt.date | None
     temporal_extent_end: dt.date | None
-    owner_id: identifiers.UserId
     relative_path: Annotated[str, pydantic.PlainValidator(ensure_relative_path_exists)]
     links: list[ValidLinkSchema] = []
     bbox_4326: Annotated[
@@ -138,7 +136,6 @@ class ValidSurveyRelatedRecord(pydantic.BaseModel):
     status: constants.SurveyMissionStatus
     temporal_extent_begin: dt.date | None
     temporal_extent_end: dt.date | None
-    owner_id: identifiers.UserId
     links: list[ValidLinkSchema] = []
     bbox_4326: Annotated[
         shapely.Polygon,

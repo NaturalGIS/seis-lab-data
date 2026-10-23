@@ -1,4 +1,5 @@
 import contextlib
+import functools
 from typing import (
     AsyncIterator,
     TypedDict,
@@ -6,7 +7,6 @@ from typing import (
 
 import jinja2
 import shapely
-from pygments.formatters import HtmlFormatter
 from authlib.integrations.starlette_client import OAuth
 from redis import asyncio as aioredis
 from starlette.applications import Starlette
@@ -62,12 +62,13 @@ class State(TypedDict):
     templates: Jinja2Templates
     auth_config: AuthConfig
     oauth_manager: OAuth
-    redis_client: aioredis.Redis
+    redis_client: aioredis.Redis | None
 
 
 @contextlib.asynccontextmanager
-async def lifespan(app: Starlette) -> AsyncIterator[State]:
-    settings = config.get_settings()
+async def lifespan(
+    app: Starlette, settings: config.SeisLabDataSettings
+) -> AsyncIterator[State]:
     auth_config = AuthConfig.from_settings(settings)
     shared_translator = get_translator()
     shared_translator.load_from_directory(settings.translations_dir)
@@ -99,7 +100,6 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
                 "min_lat": min_lat,
                 "max_lat": max_lat,
             },
-            "pygments_css": HtmlFormatter().get_style_defs(".highlight"),
         }
     )
     jinja_env.filters["translate_localizable_string"] = (
@@ -112,7 +112,6 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
     jinja_env.filters["is_publishable"] = jinjafilters.is_publishable
     jinja_env.filters["is_updatable"] = jinjafilters.is_updatable
     jinja_env.filters["is_unpublishable"] = jinjafilters.is_unpublishable
-    jinja_env.filters["highlight_json"] = jinjafilters.highlight_json
     jinja_env.filters["asset_url"] = jinjafilters.get_url_for_asset
     configure_jinja_env(jinja_env)
     templates = Jinja2Templates(env=jinja_env)
@@ -121,7 +120,11 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
         templates=templates,
         auth_config=auth_config,
         oauth_manager=get_oauth_manager(auth_config),
-        redis_client=aioredis.from_url(settings.message_broker_dsn.unicode_string()),
+        redis_client=(
+            aioredis.from_url(settings.message_broker_dsn.unicode_string())
+            if settings.message_broker_dsn is not None
+            else None
+        ),
     )
 
 
@@ -166,7 +169,7 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
             ),
             Mount("/stac", app=api_app, name="stac"),
         ],
-        lifespan=lifespan,
+        lifespan=functools.partial(lifespan, settings=settings),
         middleware=[
             Middleware(PublicURLMiddleware, public_url=str(settings.public_url)),
             Middleware(

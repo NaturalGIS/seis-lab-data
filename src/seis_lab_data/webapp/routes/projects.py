@@ -154,11 +154,6 @@ async def get_project_update_form(request: Request):
                 }
                 for li in project.links
             ],
-            "discovery_configuration": (
-                json.dumps(project.discovery_configuration)
-                if project.discovery_configuration
-                else ""
-            ),
         },
     )
     update_form.request_id.data = uuid.uuid4()
@@ -630,7 +625,6 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
 
         to_create = project_schemas.ProjectCreate(
             id=identifiers.ProjectId(uuid.uuid4()),
-            owner_id=user.id,
             name=common_schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,
@@ -649,7 +643,6 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                 f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}"
                 f"))"
             ),
-            discovery_configuration=form_instance.discovery_configuration.data,
             temporal_extent_begin=form_instance.temporal_extent_begin.data,
             temporal_extent_end=form_instance.temporal_extent_end.data,
             links=[
@@ -745,9 +738,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
             return DatastarResponse(event_streamer(), status_code=200)
 
-        raw_dc = form_instance.discovery_configuration.data
         to_update = project_schemas.ProjectUpdate(
-            owner_id=user.id,
             name=common_schemas.LocalizableDraftName(
                 en=form_instance.name.en.data,
                 pt=form_instance.name.pt.data,
@@ -780,7 +771,6 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 )
                 for lf in form_instance.links.entries
             ],
-            discovery_configuration=json.loads(raw_dc) if raw_dc else None,
         )
         project_tasks.update_project.send(
             raw_request_id=str(identifiers.RequestId(uuid.uuid4())),
@@ -873,7 +863,6 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         to_create = mission_schemas.SurveyMissionCreate(
             id=identifiers.SurveyMissionId(uuid.uuid4()),
             project_id=identifiers.ProjectId(project.id),
-            owner_id=user.id,
             name=common_schemas.LocalizableDraftName(
                 en=creation_form.name.en.data,
                 pt=creation_form.name.pt.data,

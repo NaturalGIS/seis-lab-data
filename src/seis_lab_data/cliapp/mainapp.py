@@ -74,7 +74,6 @@ def survey_related_records_app_callback(ctx: typer.Context):
 async def create_survey_related_record(
     ctx: typer.Context,
     parent_survey_mission_id: uuid.UUID,
-    owner: str,
     name_en: str,
     name_pt: str,
     description_en: str,
@@ -119,7 +118,6 @@ async def create_survey_related_record(
             request_id=identifiers.RequestId(uuid.uuid4()),
             to_create=record_schemas.SurveyRelatedRecordCreate(
                 id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
-                owner_id=identifiers.UserId(owner),
                 name=common_schemas.LocalizableDraftName(en=name_en, pt=name_pt),
                 description=common_schemas.LocalizableDraftDescription(
                     en=description_en, pt=description_pt
@@ -220,7 +218,6 @@ def survey_missions_app_callback(ctx: typer.Context):
 async def create_survey_mission(
     ctx: typer.Context,
     parent_project_id: uuid.UUID,
-    owner: str,
     name_en: str,
     name_pt: str,
     description_en: str,
@@ -247,7 +244,6 @@ async def create_survey_mission(
             to_create=mission_schemas.SurveyMissionCreate(
                 id=identifiers.SurveyMissionId(uuid.uuid4()),
                 project_id=identifiers.ProjectId(project.id),
-                owner_id=identifiers.UserId(owner),
                 name=common_schemas.LocalizableDraftName(en=name_en, pt=name_pt),
                 description=common_schemas.LocalizableDraftDescription(
                     en=description_en, pt=description_pt

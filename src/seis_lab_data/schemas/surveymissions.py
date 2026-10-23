@@ -17,14 +17,12 @@ from .common import (
 from .identifiers import (
     ProjectId,
     SurveyMissionId,
-    UserId,
 )
 from .projects import ProjectReadEmbedded
 
 
 class SurveyMissionCreate(pydantic.BaseModel):
     id: SurveyMissionId
-    owner_id: UserId
     project_id: ProjectId
     name: LocalizableDraftName
     description: LocalizableDraftDescription

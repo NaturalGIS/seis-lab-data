@@ -42,7 +42,6 @@ def _parse_bbox_bounds(raw_bounds: str) -> shapely.Polygon:
 @app.async_command(name="create")
 async def create_project(
     ctx: typer.Context,
-    owner: str,
     name_en: str,
     root_path: str,
     link: Annotated[list[dict], typer.Option(parser=json.loads)] = None,
@@ -67,7 +66,6 @@ async def create_project(
             request_id=identifiers.RequestId(uuid.uuid4()),
             to_create=project_schemas.ProjectCreate(
                 id=identifiers.ProjectId(uuid.uuid4()),
-                owner_id=identifiers.UserId(owner),
                 name=common_schemas.LocalizableDraftName(en=name_en, pt=name_pt),
                 description=common_schemas.LocalizableDraftDescription(
                     en=description_en, pt=description_pt

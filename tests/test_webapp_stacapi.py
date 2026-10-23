@@ -49,7 +49,7 @@ async def published_sample_data(
 
 
 @pytest_asyncio.fixture
-async def draft_project(db_session_maker, admin_user):
+async def draft_project(db, db_session_maker):
     from seis_lab_data.schemas import (
         common as common_schemas,
         projects as project_schemas,
@@ -58,7 +58,6 @@ async def draft_project(db_session_maker, admin_user):
 
     to_create = project_schemas.ProjectCreate(
         id=identifiers.ProjectId(uuid.uuid4()),
-        owner_id=identifiers.UserId(admin_user.id),
         name=common_schemas.LocalizableDraftName(en="a draft project"),
         description=common_schemas.LocalizableDraftDescription(en="draft"),
         root_path="projects/a-draft-project",

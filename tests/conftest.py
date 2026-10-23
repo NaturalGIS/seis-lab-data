@@ -3,6 +3,7 @@ import pytest_asyncio
 
 import sqlmodel
 from anyio import Path
+from sqlalchemy.ext.asyncio import create_async_engine
 from starlette.applications import Starlette
 from starlette.routing import Mount
 from starlette.testclient import TestClient
@@ -25,7 +26,6 @@ from seis_lab_data.db.commands import (
     workflowstages as stage_commands,
 )
 from seis_lab_data.db.engine import (
-    get_engine,
     get_session_maker,
     get_sync_engine,
 )
@@ -46,10 +46,12 @@ async def bootstrap_data():
 
 
 @pytest.fixture
-def settings():
+def settings(db_engine):
     original_settings = config.get_settings()
     original_settings.message_broker_dsn = None
     original_settings.database_dsn = original_settings.test_database_dsn
+    # make the app under test share the tests' engine instead of creating its own
+    original_settings._db_engine = db_engine
     return original_settings
 
 
@@ -58,9 +60,15 @@ def sync_db_engine(settings: config.SeisLabDataSettings):
     yield get_sync_engine(settings)
 
 
-@pytest.fixture()
-def db_engine(settings: config.SeisLabDataSettings):
-    yield get_engine(settings.database_dsn.unicode_string(), debug=False)
+@pytest.fixture(scope="session")
+def db_engine():
+    # the `db` fixture recreates the schema (and its enum types) for each test, which
+    # makes statements psycopg prepared on a pooled connection fail with "cached plan
+    # must not change result type", therefore prepare is off
+    yield create_async_engine(
+        config.get_settings().test_database_dsn.unicode_string(),
+        connect_args={"prepare_threshold": None},
+    )
 
 
 @pytest.fixture()
@@ -163,10 +171,10 @@ async def bootstrap_asset_discovery_configurations(
 
 
 @pytest_asyncio.fixture
-async def sample_projects(db, db_session_maker, admin_user):
+async def sample_projects(db, db_session_maker):
     created = []
     async with db_session_maker() as session:
-        for project_to_create in sampledata.get_projects_to_create(admin_user):
+        for project_to_create in sampledata.get_projects_to_create():
             created.append(
                 await project_commands.create_project(session, project_to_create)
             )
@@ -174,12 +182,10 @@ async def sample_projects(db, db_session_maker, admin_user):
 
 
 @pytest_asyncio.fixture
-async def sample_survey_missions(db, db_session_maker, sample_projects, admin_user):
+async def sample_survey_missions(db, db_session_maker, sample_projects):
     created = []
     async with db_session_maker() as session:
-        for survey_mission_to_create in sampledata.get_survey_missions_to_create(
-            admin_user
-        ):
+        for survey_mission_to_create in sampledata.get_survey_missions_to_create():
             created.append(
                 await mission_commands.create_survey_mission(
                     session, survey_mission_to_create
@@ -195,14 +201,12 @@ async def sample_survey_related_records(
     sample_survey_missions,
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
-    admin_user,
 ):
     created = []
     async with db_session_maker() as session:
         for survey_record_to_create in sampledata.get_survey_related_records_to_create(
             dataset_categories={c.name["en"]: c for c in bootstrap_dataset_categories},
             workflow_stages={w.name["en"]: w for w in bootstrap_workflow_stages},
-            owner=admin_user,
         ):
             created.append(
                 await record_commands.create_survey_related_record(
