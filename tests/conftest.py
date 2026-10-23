@@ -46,10 +46,12 @@ async def bootstrap_data():
 
 
 @pytest.fixture
-def settings():
+def settings(db_engine):
     original_settings = config.get_settings()
     original_settings.message_broker_dsn = None
     original_settings.database_dsn = original_settings.test_database_dsn
+    # make the app under test share the tests' engine instead of creating its own
+    original_settings._db_engine = db_engine
     return original_settings
 
 
@@ -60,8 +62,9 @@ def sync_db_engine(settings: config.SeisLabDataSettings):
 
 @pytest.fixture(scope="session")
 def db_engine():
-    # per-test schema recreation breaks psycopg prepared statements
-    # with error: "cached plan must not change result type", therefore prepare is off
+    # the `db` fixture recreates the schema (and its enum types) for each test, which
+    # makes statements psycopg prepared on a pooled connection fail with "cached plan
+    # must not change result type", therefore prepare is off
     yield create_async_engine(
         config.get_settings().test_database_dsn.unicode_string(),
         connect_args={"prepare_threshold": None},
