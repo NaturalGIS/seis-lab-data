@@ -26,7 +26,6 @@ from ... import (
     constants,
     errors,
     geojson,
-    localization,
     subscribers,
 )
 from ...constants import SURVEY_RELATED_RECORD_MAX_RELATED
@@ -124,7 +123,7 @@ async def _get_survey_related_record_details(
                 icon=settings.icons.projects,
             ),
             webui_schemas.BreadcrumbItem(
-                name=str(survey_related_record.survey_mission.project.name["en"]),
+                name=str(survey_related_record.survey_mission.project.name),
                 url=str(
                     request.url_for(
                         "projects:detail",
@@ -134,7 +133,7 @@ async def _get_survey_related_record_details(
                 icon=settings.icons.projects,
             ),
             webui_schemas.BreadcrumbItem(
-                name=str(survey_related_record.survey_mission.name["en"]),
+                name=str(survey_related_record.survey_mission.name),
                 url=str(
                     request.url_for(
                         "survey_missions:detail",
@@ -144,7 +143,7 @@ async def _get_survey_related_record_details(
                 icon=settings.icons.survey_missions,
             ),
             webui_schemas.BreadcrumbItem(
-                name=str(survey_related_record.name["en"]),
+                name=str(survey_related_record.name),
                 icon=settings.icons.survey_related_records,
             ),
         ],
@@ -227,21 +226,14 @@ async def build_survey_related_record_form_instance(
     request: Request, form_type: type[FormType]
 ) -> FormType:
     form_instance = await form_type.from_formdata(request)
-    current_language = request.state.language
     async with request.state.settings.get_db_session_maker()() as session:
         form_instance.dataset_category_id.choices = [
-            (dc.id, dc.name.get(current_language, dc.name["en"]))
-            for dc in await category_queries.collect_all_dataset_categories(
-                session,
-                order_by_clause=models.DatasetCategory.name[current_language].astext,
-            )
+            (dc.id, dc.name)
+            for dc in await category_queries.collect_all_dataset_categories(session)
         ]
         form_instance.workflow_stage_id.choices = [
-            (ws.id, ws.name.get(current_language, ws.name["en"]))
-            for ws in await stage_queries.collect_all_workflow_stages(
-                session,
-                order_by_clause=models.WorkflowStage.name[current_language].astext,
-            )
+            (ws.id, ws.name)
+            for ws in await stage_queries.collect_all_workflow_stages(session)
         ]
     return form_instance
 
@@ -293,14 +285,14 @@ async def get_creation_form(request: Request):
                     icon=settings.icons.projects,
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=parent_survey_mission.project.name["en"],
+                    name=parent_survey_mission.project.name,
                     url=request.url_for(
                         "projects:detail", project_id=parent_survey_mission.project.id
                     ),
                     icon=settings.icons.projects,
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=parent_survey_mission.name["en"],
+                    name=parent_survey_mission.name,
                     url=request.url_for(
                         "survey_missions:detail", survey_mission_id=survey_mission_id
                     ),
@@ -547,14 +539,8 @@ async def get_update_form(request: Request):
     form_instance = await forms.SurveyRelatedRecordUpdateForm.from_request(
         request,
         data={
-            "name": {
-                "en": details.item.name.en,
-                "pt": details.item.name.pt,
-            },
-            "description": {
-                "en": details.item.description.en,
-                "pt": details.item.description.pt,
-            },
+            "name": details.item.name,
+            "description": details.item.description,
             "dataset_category_id": details.item.dataset_category.id
             if details.item.dataset_category
             else None,
@@ -576,24 +562,15 @@ async def get_update_form(request: Request):
                     "url": li.url,
                     "media_type": li.media_type,
                     "relation": li.relation,
-                    "link_description": {
-                        "en": li.link_description.en,
-                        "pt": li.link_description.pt,
-                    },
+                    "link_description": li.link_description,
                 }
                 for li in details.item.links
             ],
             "assets": [
                 {
                     "asset_id": str(ass.id),
-                    "asset_name": {
-                        "en": ass.name.en,
-                        "pt": ass.name.pt,
-                    },
-                    "asset_description": {
-                        "en": ass.description.en,
-                        "pt": ass.description.pt,
-                    },
+                    "asset_name": ass.name,
+                    "asset_description": ass.description,
                     "media_type": ass.media_type,
                     "relative_path": ass.relative_path,
                     "asset_links": [
@@ -601,10 +578,7 @@ async def get_update_form(request: Request):
                             "url": ali.url,
                             "media_type": ali.media_type,
                             "relation": ali.relation,
-                            "link_description": {
-                                "en": ali.link_description.en,
-                                "pt": ali.link_description.pt,
-                            },
+                            "link_description": ali.link_description,
                         }
                         for ali in ass.links
                     ],
@@ -617,10 +591,7 @@ async def get_update_form(request: Request):
             "related_records": [
                 {
                     "related_record": build_related_record_compound_name(request, r[1]),
-                    "relationship": {
-                        "en": r[0].en,
-                        "pt": r[0].pt,
-                    },
+                    "relationship": r[0],
                 }
                 for r in details.item.related_to_records
             ],
@@ -637,9 +608,7 @@ async def get_update_form(request: Request):
             session,
             initiator=user,
         )
-    initial_related_records = [
-        (i.id, i.name["en"]) for i in initial_related_records_list
-    ]
+    initial_related_records = [(i.id, i.name) for i in initial_related_records_list]
     settings: config.SeisLabDataSettings = request.state.settings
     return template_processor.TemplateResponse(
         request,
@@ -660,7 +629,7 @@ async def get_update_form(request: Request):
                     icon=settings.icons.projects,
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=details.item.survey_mission.project.name.en,
+                    name=details.item.survey_mission.project.name,
                     url=request.url_for(
                         "projects:detail",
                         project_id=details.item.survey_mission.project.id,
@@ -668,7 +637,7 @@ async def get_update_form(request: Request):
                     icon=settings.icons.projects,
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=details.item.survey_mission.name.en,
+                    name=details.item.survey_mission.name,
                     url=request.url_for(
                         "survey_missions:detail",
                         survey_mission_id=details.item.survey_mission.id,
@@ -676,7 +645,7 @@ async def get_update_form(request: Request):
                     icon=settings.icons.survey_missions,
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=details.item.name.en,
+                    name=details.item.name,
                     url=request.url_for(
                         "survey_related_records:detail",
                         survey_related_record_id=details.item.id,
@@ -768,9 +737,7 @@ async def add_update_form_related_to_record(request: Request):
             session,
             initiator=user,
         )
-    initial_related_records = [
-        (i.id, i.name["en"]) for i in initial_related_records_list
-    ]
+    initial_related_records = [(i.id, i.name) for i in initial_related_records_list]
     rendered = template.render(
         form=form_instance,
         request=request,
@@ -938,7 +905,6 @@ async def remove_update_form_asset_link(request: Request):
 
 async def list_by_name(request: Request):
     """Specialized endpoint that provides record names for building datalists."""
-    current_language = request.state.language
     if (target_datalist_id := request.query_params.get("target")) is None:
         raise HTTPException(status_code=400, detail="target is required")
     if (search_param_name := request.query_params.get("searchParam")) is None:
@@ -951,11 +917,7 @@ async def list_by_name(request: Request):
     except json.decoder.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid search params")
 
-    record_name_filter = filters.SearchNameFilter(
-        internal_name=f"{current_language}_name_filter",
-        public_name=f"{current_language}_name",
-        value=search_value,
-    )
+    record_name_filter = filters.NameFilter(value=search_value)
     internal_filter_kwargs = record_name_filter.as_kwargs()
     logger.debug(f"{internal_filter_kwargs=}")
     user = request.user if request.user.is_authenticated else None
@@ -987,7 +949,7 @@ async def get_list_component(request: Request):
     if (raw_search_params := request.query_params.get("datastar")) is not None:
         try:
             list_filters = filters.SurveyRelatedRecordListFilters.from_json(
-                raw_search_params, request.state.language
+                raw_search_params
             )
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid search params")
@@ -1088,9 +1050,8 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
     async def get(self, request: Request):
         """List survey-related records."""
         current_page = get_page_from_request_params(request)
-        current_language = request.state.language
         list_filters = filters.SurveyRelatedRecordListFilters.from_params(
-            request.query_params, current_language
+            request.query_params
         )
         settings: config.SeisLabDataSettings = request.state.settings
         user = request.user if request.user.is_authenticated else None
@@ -1122,9 +1083,7 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
                 dataset_category_filter_options.append(
                     (
                         dataset_category.id,
-                        localization.translate_localizable_dict(
-                            dataset_category.name, request.state.language
-                        ),
+                        dataset_category.name,
                     )
                 )
             workflow_stage_filter_options = []
@@ -1134,9 +1093,7 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
                 workflow_stage_filter_options.append(
                     (
                         workflow_stage.id,
-                        localization.translate_localizable_dict(
-                            workflow_stage.name, request.state.language
-                        ),
+                        workflow_stage.name,
                     )
                 )
             list_filter_kwargs = list_filters.as_kwargs()
@@ -1215,9 +1172,7 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
                         icon=settings.icons.survey_related_records,
                     ),
                 ],
-                "search_initial_value": list_filters.get_text_search_filter(
-                    current_language
-                ),
+                "search_initial_value": list_filters.get_text_search_filter(),
                 "map_popup_detail_base_url": str(
                     request.url_for(
                         "survey_related_records:detail", survey_related_record_id="_"
@@ -1352,22 +1307,13 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                             )
                         )
                     ),
-                    relationship=common_schemas.LocalizableDraftRelationship(
-                        en=related_.relationship.en.data,
-                        pt=related_.relationship.pt.data,
-                    ),
+                    relationship=related_.relationship.data,
                 )
             )
         to_update = record_schemas.SurveyRelatedRecordUpdate(
             survey_mission_id=parent_survey_mission_id,
-            name=common_schemas.LocalizableDraftName(
-                en=form_instance.name.en.data,
-                pt=form_instance.name.pt.data,
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en=form_instance.description.en.data,
-                pt=form_instance.description.pt.data,
-            ),
+            name=form_instance.name.data,
+            description=form_instance.description.data,
             dataset_category_id=form_instance.dataset_category_id.data,
             workflow_stage_id=form_instance.workflow_stage_id.data,
             bbox_4326=(
@@ -1386,24 +1332,15 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                     url=lf.url.data,
                     media_type=lf.media_type.data,
                     relation=lf.relation.data,
-                    link_description=common_schemas.LocalizableDraftDescription(
-                        en=lf.link_description.en.data,
-                        pt=lf.link_description.pt.data,
-                    ),
+                    link_description=lf.link_description.data,
                 )
                 for lf in form_instance.links.entries
             ],
             assets=[
                 record_schemas.DataRecordAssetUpdate(
                     id=identifiers.RecordAssetId(uuid.UUID(af.asset_id.data)),
-                    name=common_schemas.LocalizableDraftName(
-                        en=af.asset_name.en.data,
-                        pt=af.asset_name.pt.data,
-                    ),
-                    description=common_schemas.LocalizableDraftDescription(
-                        en=af.asset_description.en.data,
-                        pt=af.asset_description.pt.data,
-                    ),
+                    name=af.asset_name.data,
+                    description=af.asset_description.data,
                     media_type=af.media_type.data,
                     relative_path=af.relative_path.data,
                     links=[
@@ -1411,10 +1348,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                             url=afl.url.data,
                             media_type=afl.media_type.data,
                             relation=afl.relation.data,
-                            link_description=common_schemas.LocalizableDraftDescription(
-                                en=afl.link_description.en.data,
-                                pt=afl.link_description.pt.data,
-                            ),
+                            link_description=afl.link_description.data,
                         )
                         for afl in af.asset_links.entries
                     ],

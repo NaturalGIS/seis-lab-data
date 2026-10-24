@@ -113,8 +113,8 @@ async def test_media_type_queries_ignore_derived_assets(
         session.add(
             models.RecordAsset(
                 id=uuid.uuid4(),
-                name={"en": "A derived asset"},
-                description={"en": ""},
+                name="A derived asset",
+                description="",
                 survey_related_record_id=first_record.id,
                 media_type="image/webp",
                 asset_type=[constants.AssetType.PREVIEW],
@@ -146,8 +146,8 @@ async def test_listing_records_does_not_load_derived_asset_payloads(
         session.add(
             models.RecordAsset(
                 id=uuid.uuid4(),
-                name={"en": "A derived asset"},
-                description={"en": ""},
+                name="A derived asset",
+                description="",
                 survey_related_record_id=first_record.id,
                 media_type="image/webp",
                 asset_type=[constants.AssetType.PREVIEW],

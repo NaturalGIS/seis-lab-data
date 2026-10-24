@@ -25,7 +25,7 @@
                     <div class="card-body">
                         <div class="row">
                             <div class="col">
-                                <p>{{ item.description | translate_localizable_string }}</p>
+                                <p>{{ item.description }}</p>
                                 <dl class="row">
                                     <dt class="col-sm-3">{{ _("root path") | capitalize }}</dt>
                                     <dd class="col-sm-9">{{ item.relative_path|default(_("relative path not available"), True) }}</dd>
@@ -35,7 +35,7 @@
                                     <dd class="col-sm-9">{{ item.bbox_4326.bounds }}</dd>
                                     <dt class="col-sm-3">{{ _("project") | capitalize }}</dt>
                                     <dd class="col-sm-9"><a
-                                            href="{{ url_for('projects:detail', project_id=item.project.id) }}">{{ item.project.name|translate_localizable_string }}</a>
+                                            href="{{ url_for('projects:detail', project_id=item.project.id) }}">{{ item.project.name }}</a>
                                     </dd>
                                 </dl>
                             </div>
@@ -60,7 +60,7 @@
                                                 <span class="badge rounded-pill bg-light">{{ link.media_type }}</span>
                                                 <span class="badge rounded-pill bg-light">{{ link.relation }}</span>
                                             </h6>
-                                            <small>{{ link.link_description | translate_localizable_string }}</small>
+                                            <small>{{ link.link_description }}</small>
                                         </a>
                                     {% else %}
                                         <p class="list-group-item">{{ _("no links found") | capitalize }}</p>

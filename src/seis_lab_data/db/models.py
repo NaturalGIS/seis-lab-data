@@ -24,7 +24,6 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.exc import SAWarning
 from sqlalchemy import (
     Enum,
-    Index,
     LargeBinary,
     select,
 )
@@ -64,29 +63,16 @@ class ValidationResult(TypedDict):
     errors: list[ValidationError] | None
 
 
-class LocalizableString(TypedDict):
-    locale: str
-
-
 def serialize_wkbelement(wkbelement: WKBElement):
     geom = shapely.from_wkb(bytes(wkbelement.data))
     return json.loads(shapely.to_geojson(geom))
-
-
-def serialize_localizable_field(value: LocalizableString, _info):
-    """Serialize a localizable field.
-
-    Localizable fields use a JSONB type, which is not serialized by default, hence
-    the need for this function.
-    """
-    return value
 
 
 class Link(TypedDict):
     url: str
     media_type: str
     relation: str
-    link_description: LocalizableString
+    link_description: str
 
 
 class User(SQLModel, table=True):
@@ -99,9 +85,7 @@ class User(SQLModel, table=True):
 
 class DatasetCategory(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
-        Field(sa_column=Column(JSONB))
-    )
+    name: str = Field(max_length=constants.NAME_MAX_LENGTH)
 
     survey_related_records: list["SurveyRelatedRecord"] = Relationship(
         back_populates="dataset_category",
@@ -113,9 +97,7 @@ class DatasetCategory(SQLModel, table=True):
 
 class WorkflowStage(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
-        Field(sa_column=Column(JSONB))
-    )
+    name: str = Field(max_length=constants.NAME_MAX_LENGTH)
 
     survey_related_records: list["SurveyRelatedRecord"] = Relationship(
         back_populates="workflow_stage",
@@ -145,18 +127,11 @@ class AssetDiscoveryConfiguration(SQLModel, table=True):
 
 
 class SurveyRelatedRecord(SQLModel, table=True):
-    __table_args__ = (
-        Index("idx_surveyrelatedrecord_name_gin", "name", postgresql_using="gin"),
-    )
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
-        Field(sa_column=Column(JSONB))
-    )
-    description: Annotated[
-        LocalizableString, PlainSerializer(serialize_localizable_field)
-    ] = Field(sa_column=Column(JSONB))
+    name: str = Field(max_length=constants.NAME_MAX_LENGTH)
+    description: str = Field(default="", max_length=constants.DESCRIPTION_MAX_LENGTH)
     status: constants.SurveyRelatedRecordStatus = (
         constants.SurveyRelatedRecordStatus.DRAFT
     )
@@ -172,9 +147,7 @@ class SurveyRelatedRecord(SQLModel, table=True):
     workflow_stage_id: uuid.UUID | None = Field(
         foreign_key="workflowstage.id", default=None, ondelete="SET NULL"
     )
-    links: Annotated[list[Link], PlainSerializer(serialize_localizable_field)] = Field(
-        sa_column=Column(JSONB), default_factory=list
-    )
+    links: list[Link] = Field(sa_column=Column(JSONB), default_factory=list)
     survey_mission: "SurveyMission" = Relationship(
         back_populates="survey_related_records"
     )
@@ -239,9 +212,7 @@ class SurveyRelatedRecordSelfLink(SQLModel, table=True):
         primary_key=True,
         ondelete="CASCADE",
     )
-    relation: Annotated[
-        LocalizableString, PlainSerializer(serialize_localizable_field)
-    ] = Field(sa_column=Column(JSONB))
+    relation: str = Field(max_length=constants.RELATION_MAX_LENGTH)
 
     subject: SurveyRelatedRecord = Relationship(
         back_populates="related_to_links",
@@ -258,26 +229,17 @@ class SurveyRelatedRecordSelfLink(SQLModel, table=True):
 
 
 class SurveyMission(SQLModel, table=True):
-    __table_args__ = (
-        Index("idx_surveymission_name_gin", "name", postgresql_using="gin"),
-    )
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
-        Field(sa_column=Column(JSONB))
-    )
-    description: Annotated[
-        LocalizableString, PlainSerializer(serialize_localizable_field)
-    ] = Field(sa_column=Column(JSONB))
+    name: str = Field(max_length=constants.NAME_MAX_LENGTH)
+    description: str = Field(default="", max_length=constants.DESCRIPTION_MAX_LENGTH)
     project_id: uuid.UUID = Field(
         foreign_key="project.id",
         ondelete="CASCADE",
         index=True,
     )
-    links: Annotated[list[Link], PlainSerializer(serialize_localizable_field)] = Field(
-        sa_column=Column(JSONB), default_factory=list
-    )
+    links: list[Link] = Field(sa_column=Column(JSONB), default_factory=list)
     relative_path: str = ""
     # fallback EPSG code for discovered files whose format cannot declare a CRS
     implicit_crs: int = Field(default=4326, sa_column_kwargs={"server_default": "4326"})
@@ -332,22 +294,15 @@ class SurveyMission(SQLModel, table=True):
 
 
 class Project(SQLModel, table=True):
-    __table_args__ = (Index("idx_project_name_gin", "name", postgresql_using="gin"),)
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
-        Field(sa_column=Column(JSONB))
-    )
-    description: Annotated[
-        LocalizableString, PlainSerializer(serialize_localizable_field)
-    ] = Field(sa_column=Column(JSONB))
+    name: str = Field(max_length=constants.NAME_MAX_LENGTH)
+    description: str = Field(default="", max_length=constants.DESCRIPTION_MAX_LENGTH)
     status: constants.ProjectStatus = constants.ProjectStatus.DRAFT
     root_path: str = ""
     validation_result: ValidationResult = Field(sa_column=Column(JSONB))
-    links: Annotated[list[Link], PlainSerializer(serialize_localizable_field)] = Field(
-        sa_column=Column(JSONB), default_factory=list
-    )
+    links: list[Link] = Field(sa_column=Column(JSONB), default_factory=list)
     bbox_4326: Annotated[
         WKBElement,
         PlainSerializer(serialize_wkbelement, return_type=dict, when_used="json"),
@@ -407,18 +362,11 @@ class Project(SQLModel, table=True):
 
 
 class RecordAsset(SQLModel, table=True):
-    __table_args__ = (
-        Index("idx_recordasset_name_gin", "name", postgresql_using="gin"),
-    )
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    name: Annotated[LocalizableString, PlainSerializer(serialize_localizable_field)] = (
-        Field(sa_column=Column(JSONB))
-    )
-    description: Annotated[
-        LocalizableString, PlainSerializer(serialize_localizable_field)
-    ] = Field(sa_column=Column(JSONB))
+    name: str = Field(max_length=constants.NAME_MAX_LENGTH)
+    description: str = Field(default="", max_length=constants.DESCRIPTION_MAX_LENGTH)
     survey_related_record_id: uuid.UUID = Field(
         foreign_key="surveyrelatedrecord.id", ondelete="CASCADE", index=True
     )
@@ -439,9 +387,7 @@ class RecordAsset(SQLModel, table=True):
             when_used="json-unless-none",
         ),
     ] = Field(default=None, sa_column=Column(LargeBinary))
-    links: Annotated[list[Link], PlainSerializer(serialize_localizable_field)] = Field(
-        sa_column=Column(JSONB), default_factory=list
-    )
+    links: list[Link] = Field(sa_column=Column(JSONB), default_factory=list)
     survey_related_record: SurveyRelatedRecord = Relationship(
         back_populates="assets",
     )

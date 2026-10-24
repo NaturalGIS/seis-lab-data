@@ -8,15 +8,9 @@ from playwright.sync_api import (
 )
 
 
-def _fill_project_form(page: Page, english_name: str):
-    page.get_by_role("textbox", name="field-name-en").fill(english_name)
-    page.get_by_role("textbox", name="field-name-pt").fill("projeto de teste e2e")
-    page.get_by_role("textbox", name="field-description-en").fill(
-        "e2e test description"
-    )
-    page.get_by_role("textbox", name="field-description-pt").fill(
-        "descrição do projeto de teste"
-    )
+def _fill_project_form(page: Page, name: str):
+    page.get_by_role("textbox", name="field-name").fill(name)
+    page.get_by_role("textbox", name="field-description").fill("e2e test description")
     page.get_by_role("textbox", name="field-root_path").fill("/somewhere")
 
 
@@ -51,11 +45,8 @@ def test_project_lifecycle(authenticated_page: Page):
         "fake-relation"
     )
     authenticated_page.get_by_role(
-        "textbox", name="field-link-links-0-link_description-en"
+        "textbox", name="field-link-links-0-link_description"
     ).fill("some link description")
-    authenticated_page.get_by_role(
-        "textbox", name="field-link-links-0-link_description-pt"
-    ).fill("uma descrição do link")
 
     authenticated_page.get_by_role("button", name="add-another-link").click()
     authenticated_page.get_by_role("textbox", name="field-link-links-1-url").fill(
@@ -68,11 +59,8 @@ def test_project_lifecycle(authenticated_page: Page):
         "fake-relation2"
     )
     authenticated_page.get_by_role(
-        "textbox", name="field-link-links-1-link_description-en"
+        "textbox", name="field-link-links-1-link_description"
     ).fill("some description for link 2")
-    authenticated_page.get_by_role(
-        "textbox", name="field-link-links-1-link_description-pt"
-    ).fill("uma descrição do segundo link")
 
     authenticated_page.get_by_role("button", name="submit-create-form").click()
 
@@ -97,7 +85,7 @@ def test_project_lifecycle(authenticated_page: Page):
 
     # now actually modify the project
     authenticated_page.get_by_role("link", name="update-item").click()
-    authenticated_page.get_by_role("textbox", name="field-name-en").fill(
+    authenticated_page.get_by_role("textbox", name="field-name").fill(
         f"The modified name {project_name_id}"
     )
     authenticated_page.get_by_role("button", name="submit-update-form").click()
@@ -116,7 +104,7 @@ def test_project_lifecycle(authenticated_page: Page):
 
 
 @pytest.mark.e2e
-def test_project_creation_rejects_duplicate_english_name(authenticated_page: Page):
+def test_project_creation_rejects_duplicate_name(authenticated_page: Page):
     authenticated_page.goto("/")
     authenticated_page.get_by_role("link", name="list-projects").click()
 
@@ -132,15 +120,15 @@ def test_project_creation_rejects_duplicate_english_name(authenticated_page: Pag
     # save the detail page URL so we can navigate back for cleanup
     detail_url = authenticated_page.url
 
-    # navigate to the create form and submit with the same english name
+    # navigate to the create form and submit with the same name
     authenticated_page.get_by_role("link", name="list-projects").click()
     authenticated_page.get_by_role("link", name="new-project").click()
     _fill_project_form(authenticated_page, project_name)
     authenticated_page.get_by_role("button", name="submit-create-form").click()
 
-    # the form should re-render in place with an inline error on the english name field
+    # the form should re-render in place with an inline error on the name field
     expect(
-        authenticated_page.locator("#backend-validation-name-en-feedback")
+        authenticated_page.locator("#backend-validation-name-feedback")
     ).to_be_visible()
 
     # clean up by navigating to the detail page and deleting the project

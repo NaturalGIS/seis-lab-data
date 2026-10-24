@@ -123,14 +123,8 @@ async def get_project_update_form(request: Request):
     update_form = project_forms.ProjectUpdateForm(
         request=request,
         data={
-            "name": {
-                "en": project.name.get("en", ""),
-                "pt": project.name.get("pt", ""),
-            },
-            "description": {
-                "en": project.description.get("en", ""),
-                "pt": project.description.get("pt", ""),
-            },
+            "name": project.name,
+            "description": project.description,
             "root_path": project.root_path,
             "bounding_box": {
                 "min_lon": current_bbox.bounds[0],
@@ -147,10 +141,7 @@ async def get_project_update_form(request: Request):
                     "url": li.get("url", ""),
                     "media_type": li.get("media_type", ""),
                     "relation": li.get("relation", ""),
-                    "link_description": {
-                        "en": li.get("link_description", {}).get("en", ""),
-                        "pt": li.get("link_description", {}).get("pt", ""),
-                    },
+                    "link_description": li.get("link_description", ""),
                 }
                 for li in project.links
             ],
@@ -177,7 +168,7 @@ async def get_project_update_form(request: Request):
                     icon=settings.icons.projects,
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=project.name["en"],
+                    name=project.name,
                     url=request.url_for("projects:detail", project_id=project_id),
                     icon=settings.icons.projects,
                 ),
@@ -369,9 +360,8 @@ async def stream_to_detail_page(request: Request):
 async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails:
     """utility function to get project details and its survey missions."""
     survey_mission_current_page = get_page_from_request_params(request)
-    current_language = request.state.language
     survey_mission_list_filters = filters.SurveyMissionListFilters.from_params(
-        request.query_params, current_language
+        request.query_params
     )
     user = request.user if request.user.is_authenticated else None
     project_id = get_id_from_request_path(request, "project_id", identifiers.ProjectId)
@@ -404,9 +394,7 @@ async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails
             webui_schemas.SurveyMissionReadListItem.from_db_instance(sm)
             for sm in survey_missions
         ],
-        children_filter=survey_mission_list_filters.get_text_search_filter(
-            current_language
-        ),
+        children_filter=survey_mission_list_filters.get_text_search_filter(),
         pagination=get_pagination_info(
             survey_mission_current_page,
             settings.pagination_page_size,
@@ -437,7 +425,7 @@ async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails
                 icon=settings.icons.projects,
             ),
             webui_schemas.BreadcrumbItem(
-                name=project.name["en"],
+                name=project.name,
                 icon=settings.icons.projects,
             ),
         ],
@@ -447,9 +435,7 @@ async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails
 async def get_list_component(request: Request):
     if (raw_search_params := request.query_params.get("datastar")) is not None:
         try:
-            list_filters = filters.ProjectListFilters.from_json(
-                raw_search_params, request.state.language
-            )
+            list_filters = filters.ProjectListFilters.from_json(raw_search_params)
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid search params")
         else:
@@ -518,10 +504,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
         settings: config.SeisLabDataSettings = request.state.settings
         user = request.user if request.user.is_authenticated else None
         current_page = get_page_from_request_params(request)
-        current_language = request.state.language
-        list_filters = filters.ProjectListFilters.from_params(
-            request.query_params, current_language
-        )
+        list_filters = filters.ProjectListFilters.from_params(request.query_params)
         async with settings.get_db_session_maker()() as session:
             items, num_total = await project_ops.list_projects(
                 session,
@@ -583,9 +566,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                     ),
                 ],
                 "user_can_create": project_permissions.can_create_project(user),
-                "search_initial_value": list_filters.get_text_search_filter(
-                    current_language
-                ),
+                "search_initial_value": list_filters.get_text_search_filter(),
                 "map_popup_detail_base_url": str(
                     request.url_for("projects:detail", project_id="_")
                 ).rpartition("/")[0],
@@ -625,14 +606,8 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
 
         to_create = project_schemas.ProjectCreate(
             id=identifiers.ProjectId(uuid.uuid4()),
-            name=common_schemas.LocalizableDraftName(
-                en=form_instance.name.en.data,
-                pt=form_instance.name.pt.data,
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en=form_instance.description.en.data,
-                pt=form_instance.description.pt.data,
-            ),
+            name=form_instance.name.data,
+            description=form_instance.description.data,
             root_path=form_instance.root_path.data,
             bbox_4326=(
                 f"POLYGON(("
@@ -650,10 +625,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                     url=lf.url.data,
                     media_type=lf.media_type.data,
                     relation=lf.relation.data,
-                    link_description=common_schemas.LocalizableDraftDescription(
-                        en=lf.link_description.en.data,
-                        pt=lf.link_description.pt.data,
-                    ),
+                    link_description=lf.link_description.data,
                 )
                 for lf in form_instance.links.entries
             ],
@@ -739,14 +711,8 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             return DatastarResponse(event_streamer(), status_code=200)
 
         to_update = project_schemas.ProjectUpdate(
-            name=common_schemas.LocalizableDraftName(
-                en=form_instance.name.en.data,
-                pt=form_instance.name.pt.data,
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en=form_instance.description.en.data,
-                pt=form_instance.description.pt.data,
-            ),
+            name=form_instance.name.data,
+            description=form_instance.description.data,
             root_path=form_instance.root_path.data,
             bbox_4326=(
                 f"POLYGON(("
@@ -764,10 +730,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                     url=lf.url.data,
                     media_type=lf.media_type.data,
                     relation=lf.relation.data,
-                    link_description=common_schemas.LocalizableDraftDescription(
-                        en=lf.link_description.en.data,
-                        pt=lf.link_description.pt.data,
-                    ),
+                    link_description=lf.link_description.data,
                 )
                 for lf in form_instance.links.entries
             ],
@@ -834,9 +797,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         await creation_form.validate_on_submit()
         creation_form.validate_with_schema()
         async with session_maker() as session:
-            await creation_form.check_if_english_name_is_unique_for_project(
-                session, project_id
-            )
+            await creation_form.check_if_name_is_unique_for_project(session, project_id)
 
         if creation_form.has_validation_errors():
 
@@ -863,14 +824,8 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         to_create = mission_schemas.SurveyMissionCreate(
             id=identifiers.SurveyMissionId(uuid.uuid4()),
             project_id=identifiers.ProjectId(project.id),
-            name=common_schemas.LocalizableDraftName(
-                en=creation_form.name.en.data,
-                pt=creation_form.name.pt.data,
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en=creation_form.description.en.data,
-                pt=creation_form.description.pt.data,
-            ),
+            name=creation_form.name.data,
+            description=creation_form.description.data,
             relative_path=creation_form.relative_path.data,
             bbox_4326=(
                 f"POLYGON(("
@@ -888,10 +843,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                     url=lf.url.data,
                     media_type=lf.media_type.data,
                     relation=lf.relation.data,
-                    link_description=common_schemas.LocalizableDraftDescription(
-                        en=lf.link_description.en.data,
-                        pt=lf.link_description.pt.data,
-                    ),
+                    link_description=lf.link_description.data,
                 )
                 for lf in creation_form.links.entries
             ],
@@ -910,9 +862,7 @@ async def get_project_missions_list_component(request: Request):
     project_id = get_id_from_request_path(request, "project_id", identifiers.ProjectId)
     if (raw_search_params := request.query_params.get("datastar")) is not None:
         try:
-            list_filters = filters.SurveyMissionListFilters.from_json(
-                raw_search_params, request.state.language
-            )
+            list_filters = filters.SurveyMissionListFilters.from_json(raw_search_params)
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid search params")
         else:

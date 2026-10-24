@@ -13,7 +13,7 @@
                 <div class="card-body">
                     <div class="row justify-content-between">
                         <div class="col-8">
-                            <h5 class="card-title text-truncate"><span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.projects }}</span>{{ item.name|translate_localizable_string|default(_("name not available"), True) }}</h5>
+                            <h5 class="card-title text-truncate"><span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.projects }}</span>{{ item.name|default(_("name not available"), True) }}</h5>
                         </div>
                         <div class="col-4">
                             <small class="text-body-secondary"><span
@@ -41,7 +41,7 @@
                                     </small>
                                 </li>
                                 <li class="card-text text-truncate">
-                                    {{ item.description|translate_localizable_string|default(_("description not available"), True) }}
+                                    {{ item.description|default(_("description not available"), True) }}
                                 </li>
                             </ul>
                         </div>

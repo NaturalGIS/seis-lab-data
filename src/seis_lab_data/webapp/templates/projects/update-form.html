@@ -4,8 +4,8 @@
         data-signals="{updating: false}"
         data-on:datastar-fetch="evt.detail.type === 'error' && ($updating = false)"
 >
-    {{ macros.render_localizable_field(form.name) }}
-    {{ macros.render_localizable_field(form.description) }}
+    {{ macros.render_form_field(form.name) }}
+    {{ macros.render_form_field(form.description) }}
     {{ macros.render_form_field(form.root_path) }}
 
     {{ macros_maps.render_bbox_update_component(

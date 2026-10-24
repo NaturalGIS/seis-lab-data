@@ -13,17 +13,16 @@ from wtforms import (
 )
 
 from ... import constants
-from ...db.queries.surveymissions import get_survey_mission_by_english_name
+from ...db.queries.surveymissions import get_survey_mission_by_name
 from ...schemas import (
     identifiers,
     surveymissions as survey_mission_schemas,
 )
 from .common import (
     BoundingBoxForm,
-    NameForm,
-    DescriptionForm,
+    NameField,
+    DescriptionField,
     incorporate_schema_validation_errors_into_form,
-    get_form_field_by_name,
     LinkForm,
 )
 from .fields import OptionalDateField
@@ -45,8 +44,8 @@ class _SurveyMissionForm(StarletteForm):
     """
 
     request_id = HiddenField()
-    name = FormField(NameForm)
-    description = FormField(DescriptionForm)
+    name = NameField()
+    description = DescriptionField()
     relative_path = StringField(
         _("Relative path"),
         description=_(
@@ -64,30 +63,30 @@ class _SurveyMissionForm(StarletteForm):
         max_entries=constants.SURVEY_MISSION_MAX_LINKS,
     )
 
-    async def check_if_english_name_is_unique_for_project(
+    async def check_if_name_is_unique_for_project(
         self,
         session: AsyncSession,
         project_id: identifiers.ProjectId,
         disregard_id: identifiers.ProjectId | None = None,
     ):
-        """Check if the current english name is already used by another survey mission under the same project.
+        """Check if the current name is already used by another survey mission under the same project.
 
-        The `disregard_id` argument can be used when checking uniqueness of the english name in the
+        The `disregard_id` argument can be used when checking uniqueness of the name in the
         context of updating an already existing mission, in which case the mission itself should be
-        disregarded, as it is not a conflict for a mission to have the same english name as itself.
+        disregarded, as it is not a conflict for a mission to have the same name as itself.
         """
         error_message = _(
-            "There is already a survey mission with this english name under the same project"
+            "There is already a survey mission with this name under the same project"
         )
 
-        if candidate := await get_survey_mission_by_english_name(
-            session, project_id, self.name.en.data
+        if candidate := await get_survey_mission_by_name(
+            session, project_id, self.name.data
         ):
             if disregard_id:
                 if identifiers.SurveyMissionId(candidate.id) != disregard_id:
-                    self.name.en.errors.append(error_message)
+                    self.name.errors.append(error_message)
             else:
-                self.name.en.errors.append(error_message)
+                self.name.errors.append(error_message)
 
     def has_validation_errors(self) -> bool:
         # For some unknown reason, wtforms does not report validation errors for
@@ -131,7 +130,7 @@ class _SurveyMissionForm(StarletteForm):
         form_instance.validate_with_schema()
         session_maker = request.state.settings.get_db_session_maker()
         async with session_maker() as session:
-            await form_instance.check_if_english_name_is_unique_for_project(
+            await form_instance.check_if_name_is_unique_for_project(
                 session, project_id=project_id, disregard_id=disregard_id
             )
         return form_instance
@@ -149,12 +148,8 @@ class SurveyMissionCreateForm(_SurveyMissionForm):
                 # these are not part of the form, but we must provide something
                 id=None,
                 project_id=None,
-                name={
-                    **get_form_field_by_name(self, "name").data,
-                },
-                description={
-                    **get_form_field_by_name(self, "description").data,
-                },
+                name=self.name.data,
+                description=self.description.data,
                 relative_path=self.relative_path.data,
                 temporal_extent_begin=self.temporal_extent_begin.data or None,
                 temporal_extent_end=self.temporal_extent_end.data or None,
@@ -163,9 +158,7 @@ class SurveyMissionCreateForm(_SurveyMissionForm):
                         "url": li.url.data,
                         "media_type": li.media_type.data,
                         "relation": li.relation.data,
-                        "link_description": {
-                            **li.link_description.data,
-                        },
+                        "link_description": li.link_description.data,
                     }
                     for li in self.links.entries
                 ],
@@ -186,12 +179,8 @@ class SurveyMissionUpdateForm(_SurveyMissionForm):
             survey_mission_schemas.SurveyMissionUpdate(
                 # these are not part of the form, but we must provide something
                 project_id=None,
-                name={
-                    **get_form_field_by_name(self, "name").data,
-                },
-                description={
-                    **get_form_field_by_name(self, "description").data,
-                },
+                name=self.name.data,
+                description=self.description.data,
                 relative_path=self.relative_path.data,
                 temporal_extent_begin=self.temporal_extent_begin.data or None,
                 temporal_extent_end=self.temporal_extent_end.data or None,
@@ -200,9 +189,7 @@ class SurveyMissionUpdateForm(_SurveyMissionForm):
                         "url": li.url.data,
                         "media_type": li.media_type.data,
                         "relation": li.relation.data,
-                        "link_description": {
-                            **li.link_description.data,
-                        },
+                        "link_description": li.link_description.data,
                     }
                     for li in self.links.entries
                 ],

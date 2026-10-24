@@ -29,8 +29,7 @@ def _apply_survey_related_record_filters(
     statement,
     survey_mission_ids: list[identifiers.SurveyMissionId] | None = None,
     project_id: identifiers.ProjectId | None = None,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
+    name_filter: str | None = None,
     spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
@@ -47,13 +46,9 @@ def _apply_survey_related_record_filters(
     """
     if record_ids:
         statement = statement.where(models.SurveyRelatedRecord.id.in_(record_ids))
-    if en_name_filter:
+    if name_filter:
         statement = statement.where(
-            models.SurveyRelatedRecord.name["en"].astext.ilike(f"%{en_name_filter}%")
-        )
-    if pt_name_filter:
-        statement = statement.where(
-            models.SurveyRelatedRecord.name["pt"].astext.ilike(f"%{pt_name_filter}%")
+            models.SurveyRelatedRecord.name.ilike(f"%{name_filter}%")
         )
     if spatial_intersect is not None:
         statement = statement.where(
@@ -134,8 +129,7 @@ def _apply_survey_related_record_filters(
 def _build_survey_related_record_statement(
     survey_mission_ids: list[identifiers.SurveyMissionId] | None = None,
     project_id: identifiers.ProjectId | None = None,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
+    name_filter: str | None = None,
     spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
@@ -171,8 +165,7 @@ def _build_survey_related_record_statement(
         statement=statement,
         survey_mission_ids=survey_mission_ids,
         project_id=project_id,
-        en_name_filter=en_name_filter,
-        pt_name_filter=pt_name_filter,
+        name_filter=name_filter,
         spatial_intersect=spatial_intersect,
         temporal_extent=temporal_extent,
         asset_path_fragment_filter=asset_path_fragment_filter,
@@ -189,8 +182,7 @@ def _build_survey_related_record_statement(
 
 def _build_survey_related_record_id_statement(
     survey_mission_id: identifiers.SurveyMissionId | None = None,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
+    name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
@@ -210,8 +202,7 @@ def _build_survey_related_record_id_statement(
         survey_mission_ids=(
             [survey_mission_id] if survey_mission_id is not None else None
         ),
-        en_name_filter=en_name_filter,
-        pt_name_filter=pt_name_filter,
+        name_filter=name_filter,
         spatial_intersect=spatial_intersect,
         temporal_extent=temporal_extent,
         asset_path_fragment_filter=asset_path_fragment_filter,
@@ -244,8 +235,7 @@ async def list_published_survey_related_records(
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
+    name_filter: str | None = None,
     spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
@@ -258,8 +248,7 @@ async def list_published_survey_related_records(
     statement = _build_survey_related_record_statement(
         survey_mission_ids=survey_mission_ids,
         project_id=project_id,
-        en_name_filter=en_name_filter,
-        pt_name_filter=pt_name_filter,
+        name_filter=name_filter,
         spatial_intersect=spatial_intersect,
         temporal_extent=temporal_extent,
         asset_path_fragment_filter=asset_path_fragment_filter,
@@ -278,8 +267,7 @@ async def list_published_survey_related_records(
 
 def build_survey_related_record_id_statement(
     survey_mission_id: identifiers.SurveyMissionId | None = None,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
+    name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
@@ -296,8 +284,7 @@ def build_survey_related_record_id_statement(
     """
     statement = _build_survey_related_record_id_statement(
         survey_mission_id,
-        en_name_filter,
-        pt_name_filter,
+        name_filter,
         spatial_intersect,
         temporal_extent,
         asset_path_fragment_filter,
@@ -342,8 +329,7 @@ async def list_survey_related_records(
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
+    name_filter: str | None = None,
     spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
@@ -358,8 +344,7 @@ async def list_survey_related_records(
     statement = _build_survey_related_record_statement(
         survey_mission_ids=survey_mission_ids,
         project_id=project_id,
-        en_name_filter=en_name_filter,
-        pt_name_filter=pt_name_filter,
+        name_filter=name_filter,
         spatial_intersect=spatial_intersect,
         temporal_extent=temporal_extent,
         asset_path_fragment_filter=asset_path_fragment_filter,
@@ -403,15 +388,15 @@ async def get_survey_related_record(
     return (await session.exec(statement)).first()
 
 
-async def get_survey_related_record_by_english_name(
+async def get_survey_related_record_by_name(
     session: AsyncSession,
     survey_mission_id: identifiers.SurveyMissionId,
-    english_name: str,
+    name: str,
 ) -> models.SurveyRelatedRecord | None:
     statement = (
         select(models.SurveyRelatedRecord)
         .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
-        .where(models.SurveyRelatedRecord.name["en"].astext == english_name)
+        .where(models.SurveyRelatedRecord.name == name)
         .options(
             selectinload(models.SurveyRelatedRecord.survey_mission).selectinload(
                 models.SurveyMission.project

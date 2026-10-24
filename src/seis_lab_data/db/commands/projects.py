@@ -30,12 +30,12 @@ async def create_project(
         ),
     )
     if (
-        existing_project := await project_queries.get_project_by_english_name(
-            session, to_create.name.en
+        existing_project := await project_queries.get_project_by_name(
+            session, to_create.name
         )
     ) is not None:
         raise errors.DuplicateResourceError(
-            f"Project with english name {to_create.name.en!r} already exists ({existing_project.id})."
+            f"Project with name {to_create.name!r} already exists ({existing_project.id})."
         )
     session.add(project)
     await session.commit()

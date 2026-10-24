@@ -51,15 +51,14 @@ async def published_sample_data(
 @pytest_asyncio.fixture
 async def draft_project(db, db_session_maker):
     from seis_lab_data.schemas import (
-        common as common_schemas,
         projects as project_schemas,
     )
     import uuid
 
     to_create = project_schemas.ProjectCreate(
         id=identifiers.ProjectId(uuid.uuid4()),
-        name=common_schemas.LocalizableDraftName(en="a draft project"),
-        description=common_schemas.LocalizableDraftDescription(en="draft"),
+        name="a draft project",
+        description="draft",
         root_path="projects/a-draft-project",
     )
     async with db_session_maker() as session:
@@ -71,8 +70,8 @@ async def draft_project(db, db_session_maker):
 async def sample_asset(db_session_maker, published_sample_data):
     record = published_sample_data["records"][0]
     asset = models.RecordAsset(
-        name={"en": "a data file"},
-        description={"en": "a description"},
+        name="a data file",
+        description="a description",
         survey_related_record_id=record.id,
         relative_path="some/file.tif",
         media_type="image/tiff",

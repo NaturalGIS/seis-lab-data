@@ -205,8 +205,8 @@ async def sample_survey_related_records(
     created = []
     async with db_session_maker() as session:
         for survey_record_to_create in sampledata.get_survey_related_records_to_create(
-            dataset_categories={c.name["en"]: c for c in bootstrap_dataset_categories},
-            workflow_stages={w.name["en"]: w for w in bootstrap_workflow_stages},
+            dataset_categories={c.name: c for c in bootstrap_dataset_categories},
+            workflow_stages={w.name: w for w in bootstrap_workflow_stages},
         ):
             created.append(
                 await record_commands.create_survey_related_record(

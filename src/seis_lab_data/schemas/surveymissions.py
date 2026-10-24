@@ -7,8 +7,8 @@ from ..constants import SurveyMissionStatus
 from ..db import models
 from .common import (
     LinkSchema,
-    LocalizableDraftDescription,
-    LocalizableDraftName,
+    DraftDescription,
+    DraftName,
     PolygonOut,
     PossiblyInvalidPolygon,
     serialize_id,
@@ -24,8 +24,8 @@ from .projects import ProjectReadEmbedded
 class SurveyMissionCreate(pydantic.BaseModel):
     id: SurveyMissionId
     project_id: ProjectId
-    name: LocalizableDraftName
-    description: LocalizableDraftDescription
+    name: DraftName
+    description: DraftDescription
     relative_path: str
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
@@ -35,8 +35,8 @@ class SurveyMissionCreate(pydantic.BaseModel):
 
 class SurveyMissionUpdate(pydantic.BaseModel):
     project_id: ProjectId | None = None
-    name: LocalizableDraftName | None = None
-    description: LocalizableDraftDescription | None = None
+    name: DraftName | None = None
+    description: DraftDescription | None = None
     relative_path: str | None = None
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
@@ -46,7 +46,7 @@ class SurveyMissionUpdate(pydantic.BaseModel):
 
 class SurveyMissionReadEmbedded(pydantic.BaseModel):
     id: Annotated[SurveyMissionId, pydantic.PlainSerializer(serialize_id)]
-    name: LocalizableDraftName
+    name: DraftName
     status: SurveyMissionStatus
     validation_result: models.ValidationResult | None
     relative_path: str
@@ -72,8 +72,8 @@ class SurveyMissionReadEmbedded(pydantic.BaseModel):
 
 class SurveyMissionReadListItem(pydantic.BaseModel):
     id: Annotated[SurveyMissionId, pydantic.PlainSerializer(serialize_id)]
-    name: LocalizableDraftName
-    description: LocalizableDraftDescription
+    name: DraftName
+    description: DraftDescription
     status: SurveyMissionStatus
     validation_result: models.ValidationResult | None
     project: ProjectReadEmbedded

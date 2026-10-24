@@ -16,7 +16,6 @@ from ..db.commands import (
 )
 from ..db.queries import surveyrelatedrecords as record_queries
 from ..schemas import (
-    common,
     events as event_schemas,
     identifiers,
     surveyrelatedrecords as record_schemas,
@@ -118,15 +117,12 @@ async def generate_record_previews(
         if preview is None:  # the file went away between the two checks
             continue
         # asset names may use the full 100-char cap; leave room for the labels
-        source_name = asset.name["en"][:80]
+        source_name = asset.name[:80]
         derived.append(
             record_schemas.DerivedRecordAssetCreate(
                 id=identifiers.RecordAssetId(uuid.uuid4()),
-                name=common.LocalizableDraftName(
-                    en=f"{source_name} preview",
-                    pt=f"Pré-visualização de {source_name}",
-                ),
-                description=common.LocalizableDraftDescription(en="", pt=""),
+                name=f"{source_name} preview",
+                description="",
                 media_type="image/webp",
                 # a single image serves both the list thumbnail and the map overlay
                 asset_type=[

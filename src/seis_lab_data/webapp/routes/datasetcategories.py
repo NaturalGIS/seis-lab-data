@@ -47,7 +47,7 @@ async def get_list_component(request: Request):
     if (raw_search_params := request.query_params.get("datastar")) is not None:
         try:
             list_filters = filters.DatasetCategoryListFilters.from_json(
-                raw_search_params, request.state.language
+                raw_search_params
             )
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid search params")
@@ -95,9 +95,7 @@ async def get_list_component(request: Request):
         }
         if user is not None
         else {"can_create": False, "can_update": False, "can_delete": False},
-        search_initial_value=list_filters.get_text_search_filter(
-            request.state.language
-        ),
+        search_initial_value=list_filters.get_text_search_filter(),
     )
 
     async def event_streamer():
@@ -309,9 +307,8 @@ class DatasetCategoryCollectionEndpoint(HTTPEndpoint):
         settings: config.SeisLabDataSettings = request.state.settings
         user = request.user if request.user.is_authenticated else None
         current_page = get_page_from_request_params(request)
-        current_language = request.state.language
         list_filters = filters.DatasetCategoryListFilters.from_params(
-            request.query_params, current_language
+            request.query_params
         )
         async with settings.get_db_session_maker()() as session:
             (
@@ -372,9 +369,7 @@ class DatasetCategoryCollectionEndpoint(HTTPEndpoint):
                 }
                 if user is not None
                 else {"can_create": False, "can_update": False, "can_delete": False},
-                "search_initial_value": list_filters.get_text_search_filter(
-                    current_language
-                ),
+                "search_initial_value": list_filters.get_text_search_filter(),
             },
         )
 

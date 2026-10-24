@@ -170,7 +170,7 @@ async def bootstrap_workflow_stages(
 
     for current in to_create:
         ctx.obj["main"].status_console.print(
-            f"Queueing {current.name.en!r} for creation..."
+            f"Queueing {current.name!r} for creation..."
         )
         stage_tasks.create_workflow_stage.send(
             raw_request_id=str(request_id),
@@ -237,7 +237,7 @@ async def bootstrap_dataset_categories(
 
     for current in to_create:
         ctx.obj["main"].status_console.print(
-            f"Queueing {current.name.en!r} for creation..."
+            f"Queueing {current.name!r} for creation..."
         )
         category_tasks.create_dataset_category.send(
             raw_request_id=str(request_id),

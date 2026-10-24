@@ -13,18 +13,17 @@ from wtforms import (
 )
 
 from ... import constants
-from ...db.queries.projects import get_project_by_english_name
+from ...db.queries.projects import get_project_by_name
 from ...schemas import (
     identifiers,
     projects as project_schemas,
 )
 from .common import (
     BoundingBoxForm,
-    DescriptionForm,
+    DescriptionField,
     incorporate_schema_validation_errors_into_form,
-    get_form_field_by_name,
     LinkForm,
-    NameForm,
+    NameField,
 )
 from .fields import OptionalDateField
 
@@ -45,8 +44,8 @@ class _ProjectForm(StarletteForm):
     """
 
     request_id = HiddenField()
-    name = FormField(NameForm)
-    description = FormField(DescriptionForm)
+    name = NameField()
+    description = DescriptionField()
     root_path = StringField(
         _("Root path"),
         description=_("Base path for the project in the archive file system"),
@@ -61,23 +60,23 @@ class _ProjectForm(StarletteForm):
         max_entries=constants.PROJECT_MAX_LINKS,
     )
 
-    async def check_if_english_name_is_unique(
+    async def check_if_name_is_unique(
         self, session: AsyncSession, disregard_id: identifiers.ProjectId | None = None
     ):
-        """Check if the current english name is already used by another project.
+        """Check if the current name is already used by another project.
 
-        The `disregard_id` argument can be used when checking uniqueness of the english name in the
+        The `disregard_id` argument can be used when checking uniqueness of the name in the
          context of updating an already existing project, in which case the project itself should be
-         disregarded, as it is not a conflict for a project to have the same english name as itself.
+         disregarded, as it is not a conflict for a project to have the same name as itself.
         """
-        error_message = _("There is already a project with this english name")
+        error_message = _("There is already a project with this name")
 
-        if candidate := await get_project_by_english_name(session, self.name.en.data):
+        if candidate := await get_project_by_name(session, self.name.data):
             if disregard_id:
                 if identifiers.ProjectId(candidate.id) != disregard_id:
-                    self.name.en.errors.append(error_message)
+                    self.name.errors.append(error_message)
             else:
-                self.name.en.errors.append(error_message)
+                self.name.errors.append(error_message)
 
     def has_validation_errors(self) -> bool:
         # For some unknown reason, wtforms does not report validation errors for
@@ -116,7 +115,7 @@ class _ProjectForm(StarletteForm):
         form_instance.validate_with_schema()
         session_maker = request.state.settings.get_db_session_maker()
         async with session_maker() as session:
-            await form_instance.check_if_english_name_is_unique(
+            await form_instance.check_if_name_is_unique(
                 session, disregard_id=disregard_id
             )
         return form_instance
@@ -133,21 +132,15 @@ class ProjectCreateForm(_ProjectForm):
             project_schemas.ProjectCreate(
                 # these are not part of the form, but we must provide something
                 id=None,
-                name={
-                    **get_form_field_by_name(self, "name").data,
-                },
-                description={
-                    **get_form_field_by_name(self, "description").data,
-                },
+                name=self.name.data,
+                description=self.description.data,
                 root_path=self.root_path.data,
                 links=[
                     {
                         "url": li.url.data,
                         "media_type": li.media_type.data,
                         "relation": li.relation.data,
-                        "link_description": {
-                            **li.link_description.data,
-                        },
+                        "link_description": li.link_description.data,
                     }
                     for li in self.links.entries
                 ],
@@ -167,12 +160,8 @@ class ProjectUpdateForm(_ProjectForm):
         # pydantic validation errors with wtforms field errors
         try:
             project_schemas.ProjectUpdate(
-                name={
-                    **get_form_field_by_name(self, "name").data,
-                },
-                description={
-                    **get_form_field_by_name(self, "description").data,
-                },
+                name=self.name.data,
+                description=self.description.data,
                 root_path=self.root_path.data,
                 temporal_extent_begin=self.temporal_extent_begin.data or None,
                 temporal_extent_end=self.temporal_extent_end.data or None,
@@ -181,9 +170,7 @@ class ProjectUpdateForm(_ProjectForm):
                         "url": li.url.data,
                         "media_type": li.media_type.data,
                         "relation": li.relation.data,
-                        "link_description": {
-                            **li.link_description.data,
-                        },
+                        "link_description": li.link_description.data,
                     }
                     for li in self.links.entries
                 ],

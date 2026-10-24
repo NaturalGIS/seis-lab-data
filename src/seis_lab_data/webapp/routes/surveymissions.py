@@ -22,7 +22,6 @@ from ... import (
     constants,
     errors,
     geojson,
-    localization,
     subscribers,
 )
 from ...db.queries import (
@@ -76,11 +75,8 @@ async def _get_survey_mission_details(
 ) -> webui_schemas.SurveyMissionDetails:
     """utility function to get survey mission details and its survey-related records."""
     records_current_page = get_page_from_request_params(request)
-    current_language = request.state.language
     survey_related_records_list_filters = (
-        filters.SurveyRelatedRecordListFilters.from_params(
-            request.query_params, current_language
-        )
+        filters.SurveyRelatedRecordListFilters.from_params(request.query_params)
     )
     user = request.user if request.user.is_authenticated else None
     settings: config.SeisLabDataSettings = request.state.settings
@@ -118,9 +114,7 @@ async def _get_survey_mission_details(
         dataset_category_filter_options = [
             (
                 dataset_category.id,
-                localization.translate_localizable_dict(
-                    dataset_category.name, current_language
-                ),
+                dataset_category.name,
             )
             for dataset_category in await category_queries.collect_all_dataset_categories(
                 session
@@ -129,9 +123,7 @@ async def _get_survey_mission_details(
         workflow_stage_filter_options = [
             (
                 workflow_stage.id,
-                localization.translate_localizable_dict(
-                    workflow_stage.name, current_language
-                ),
+                workflow_stage.name,
             )
             for workflow_stage in await stage_queries.collect_all_workflow_stages(
                 session
@@ -151,9 +143,7 @@ async def _get_survey_mission_details(
             webui_schemas.SurveyRelatedRecordReadListItem.from_db_instance(srr)
             for srr in survey_related_records
         ],
-        children_filter=survey_related_records_list_filters.get_text_search_filter(
-            current_language
-        ),
+        children_filter=survey_related_records_list_filters.get_text_search_filter(),
         pagination=get_pagination_info(
             records_current_page,
             request.state.settings.pagination_page_size,
@@ -197,7 +187,7 @@ async def _get_survey_mission_details(
                 icon=settings.icons.projects,
             ),
             webui_schemas.BreadcrumbItem(
-                name=str(survey_mission.project.name["en"]),
+                name=str(survey_mission.project.name),
                 url=str(
                     request.url_for(
                         "projects:detail",
@@ -207,7 +197,7 @@ async def _get_survey_mission_details(
                 icon=settings.icons.projects,
             ),
             webui_schemas.BreadcrumbItem(
-                name=str(survey_mission.name["en"]), icon=settings.icons.survey_missions
+                name=str(survey_mission.name), icon=settings.icons.survey_missions
             ),
         ],
     )
@@ -366,7 +356,7 @@ async def get_survey_mission_creation_form(request: Request):
                     icon=settings.icons.projects,
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=project.name["en"],
+                    name=project.name,
                     url=request.url_for("projects:detail", project_id=project.id),
                     icon=settings.icons.projects,
                 ),
@@ -386,7 +376,7 @@ async def get_mission_records_list_component(request: Request):
     if (raw_search_params := request.query_params.get("datastar")) is not None:
         try:
             list_filters = filters.SurveyRelatedRecordListFilters.from_json(
-                raw_search_params, request.state.language
+                raw_search_params
             )
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid search params")
@@ -468,9 +458,7 @@ async def get_mission_records_list_component(request: Request):
 async def get_list_component(request: Request):
     if (raw_search_params := request.query_params.get("datastar")) is not None:
         try:
-            list_filters = filters.SurveyMissionListFilters.from_json(
-                raw_search_params, request.state.language
-            )
+            list_filters = filters.SurveyMissionListFilters.from_json(raw_search_params)
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid search params")
         else:
@@ -567,9 +555,8 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
     async def get(self, request: Request):
         """List survey missions."""
         current_page = get_page_from_request_params(request)
-        current_language = request.state.language
         list_filters = filters.SurveyMissionListFilters.from_params(
-            request.query_params, current_language
+            request.query_params
         )
         settings: config.SeisLabDataSettings = request.state.settings
         user = request.user if request.user.is_authenticated else None
@@ -631,9 +618,7 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
                         name=_("Survey Missions"), icon=settings.icons.survey_missions
                     ),
                 ],
-                "search_initial_value": list_filters.get_text_search_filter(
-                    current_language
-                ),
+                "search_initial_value": list_filters.get_text_search_filter(),
                 "map_popup_detail_base_url": str(
                     request.url_for("survey_missions:detail", survey_mission_id="_")
                 ).rpartition("/")[0],
@@ -717,14 +702,8 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             return DatastarResponse(stream_validation_failed_events(), status_code=200)
 
         to_update = mission_schemas.SurveyMissionUpdate(
-            name=common_schemas.LocalizableDraftName(
-                en=form_instance.name.en.data,
-                pt=form_instance.name.pt.data,
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en=form_instance.description.en.data,
-                pt=form_instance.description.pt.data,
-            ),
+            name=form_instance.name.data,
+            description=form_instance.description.data,
             relative_path=form_instance.relative_path.data,
             bbox_4326=(
                 f"POLYGON(("
@@ -742,10 +721,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                     url=lf.url.data,
                     media_type=lf.media_type.data,
                     relation=lf.relation.data,
-                    link_description=common_schemas.LocalizableDraftDescription(
-                        en=lf.link_description.en.data,
-                        pt=lf.link_description.pt.data,
-                    ),
+                    link_description=lf.link_description.data,
                 )
                 for lf in form_instance.links.entries
             ],
@@ -811,23 +787,14 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                             )
                         )
                     ),
-                    relationship=common_schemas.LocalizableDraftRelationship(
-                        en=related_.relationship.en.data,
-                        pt=related_.relationship.pt.data,
-                    ),
+                    relationship=related_.relationship.data,
                 )
             )
         to_create = record_schemas.SurveyRelatedRecordCreate(
             id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
             survey_mission_id=survey_mission_id,
-            name=common_schemas.LocalizableDraftName(
-                en=form_instance.name.en.data,
-                pt=form_instance.name.pt.data,
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en=form_instance.description.en.data,
-                pt=form_instance.description.pt.data,
-            ),
+            name=form_instance.name.data,
+            description=form_instance.description.data,
             dataset_category_id=form_instance.dataset_category_id.data,
             workflow_stage_id=form_instance.workflow_stage_id.data,
             bbox_4326=(
@@ -846,24 +813,15 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                     url=lf.url.data,
                     media_type=lf.media_type.data,
                     relation=lf.relation.data,
-                    link_description=common_schemas.LocalizableDraftDescription(
-                        en=lf.link_description.en.data,
-                        pt=lf.link_description.pt.data,
-                    ),
+                    link_description=lf.link_description.data,
                 )
                 for lf in form_instance.links.entries
             ],
             assets=[
                 record_schemas.DataRecordAssetCreate(
                     id=identifiers.RecordAssetId(uuid.uuid4()),
-                    name=common_schemas.LocalizableDraftName(
-                        en=af.asset_name.en.data,
-                        pt=af.asset_name.pt.data,
-                    ),
-                    description=common_schemas.LocalizableDraftDescription(
-                        en=af.asset_description.en.data,
-                        pt=af.asset_description.pt.data,
-                    ),
+                    name=af.asset_name.data,
+                    description=af.asset_description.data,
                     media_type=af.media_type.data,
                     relative_path=af.relative_path.data,
                     links=[
@@ -871,10 +829,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                             url=afl.url.data,
                             media_type=afl.media_type.data,
                             relation=afl.relation.data,
-                            link_description=common_schemas.LocalizableDraftDescription(
-                                en=afl.link_description.en.data,
-                                pt=afl.link_description.pt.data,
-                            ),
+                            link_description=afl.link_description.data,
                         )
                         for afl in af.asset_links.entries
                     ],
@@ -1081,14 +1036,8 @@ async def get_survey_mission_update_form(request: Request):
     update_form = forms.SurveyMissionUpdateForm(
         request=request,
         data={
-            "name": {
-                "en": survey_mission.name.get("en", ""),
-                "pt": survey_mission.name.get("pt", ""),
-            },
-            "description": {
-                "en": survey_mission.description.get("en", ""),
-                "pt": survey_mission.description.get("pt", ""),
-            },
+            "name": survey_mission.name,
+            "description": survey_mission.description,
             "relative_path": survey_mission.relative_path,
             "bounding_box": {
                 "min_lon": current_bbox.bounds[0],
@@ -1105,10 +1054,7 @@ async def get_survey_mission_update_form(request: Request):
                     "url": li.get("url", ""),
                     "media_type": li.get("media_type", ""),
                     "relation": li.get("relation", ""),
-                    "link_description": {
-                        "en": li.get("link_description", {}).get("en", ""),
-                        "pt": li.get("link_description", {}).get("pt", ""),
-                    },
+                    "link_description": li.get("link_description", ""),
                 }
                 for li in survey_mission.links
             ],
@@ -1135,14 +1081,14 @@ async def get_survey_mission_update_form(request: Request):
                     icon=settings.icons.projects,
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=survey_mission.project.name["en"],
+                    name=survey_mission.project.name,
                     url=request.url_for(
                         "projects:detail", project_id=survey_mission.project_id
                     ),
                     icon=settings.icons.projects,
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=survey_mission.name["en"],
+                    name=survey_mission.name,
                     url=request.url_for(
                         "survey_missions:detail", survey_mission_id=survey_mission_id
                     ),
@@ -1204,7 +1150,6 @@ async def stream_to_new_page(request: Request):
 
 def _parse_bulk_update_selection(
     raw_selection: str | None,
-    current_language: str,
     survey_mission_id: identifiers.SurveyMissionId,
 ) -> record_schemas.SurveyRelatedRecordBulkUpdateSelection:
     """Resolve the `selection` query param into a bulk-update selection.
@@ -1215,9 +1160,7 @@ def _parse_bulk_update_selection(
     same filter-parsing machinery applies.
     """
     params = json.loads(raw_selection) if raw_selection else {}
-    list_filters = filters.SurveyRelatedRecordListFilters.from_params(
-        params, current_language
-    )
+    list_filters = filters.SurveyRelatedRecordListFilters.from_params(params)
     valid_selection_fields = set(
         record_schemas.SurveyRelatedRecordBulkUpdateSelection.model_fields
     )
@@ -1253,8 +1196,7 @@ async def _count_bulk_update_matches(
 ) -> int:
     kwargs = dict(
         survey_mission_id=selection.survey_mission_id,
-        en_name_filter=selection.en_name_filter,
-        pt_name_filter=selection.pt_name_filter,
+        name_filter=selection.name_filter,
         spatial_intersect=selection.spatial_intersect,
         temporal_extent=selection.temporal_extent,
         asset_path_fragment_filter=selection.asset_path_fragment_filter,
@@ -1274,7 +1216,7 @@ async def _get_initial_related_records(session, user) -> list[tuple[str, str]]:
     items, _ = await survey_related_record_ops.list_survey_related_records(
         session, initiator=user
     )
-    return [(i.id, i.name["en"]) for i in items]
+    return [(i.id, i.name) for i in items]
 
 
 @requires_auth
@@ -1292,7 +1234,6 @@ async def get_bulk_update_form(request: Request):
     user = request.user
     selection = _parse_bulk_update_selection(
         request.query_params.get("selection"),
-        request.state.language,
         survey_mission_id,
     )
     async with request.state.settings.get_db_session_maker()() as session:

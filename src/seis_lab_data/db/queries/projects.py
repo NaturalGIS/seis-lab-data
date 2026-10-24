@@ -20,20 +20,13 @@ logger = logging.getLogger(__name__)
 
 
 def _build_project_statement(
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
+    name_filter: str | None = None,
     spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ):
     statement = select(models.Project)
-    if en_name_filter:
-        statement = statement.where(
-            models.Project.name["en"].astext.ilike(f"%{en_name_filter}%")
-        )
-    if pt_name_filter:
-        statement = statement.where(
-            models.Project.name["pt"].astext.ilike(f"%{pt_name_filter}%")
-        )
+    if name_filter:
+        statement = statement.where(models.Project.name.ilike(f"%{name_filter}%"))
     if spatial_intersect is not None:
         statement = statement.where(
             or_(
@@ -83,14 +76,13 @@ async def list_published_projects(
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
+    name_filter: str | None = None,
     spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.Project], int | None]:
     """Produces a paginated and filterable listing of public projects."""
     statement = _build_project_statement(
-        en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
+        name_filter, spatial_intersect, temporal_extent
     ).where(models.Project.status == ProjectStatus.PUBLISHED)
     limit = page_size
     offset = page_size * (page - 1)
@@ -102,8 +94,7 @@ async def list_projects(
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
+    name_filter: str | None = None,
     spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     only_internal: bool = False,
@@ -113,7 +104,7 @@ async def list_projects(
     Intended for registered users.
     """
     statement = _build_project_statement(
-        en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
+        name_filter, spatial_intersect, temporal_extent
     )
     if only_internal:
         statement = statement.where(models.Project.status != ProjectStatus.PUBLISHED)
@@ -137,11 +128,9 @@ async def get_project(
     return await session.get(models.Project, project_id)
 
 
-async def get_project_by_english_name(
+async def get_project_by_name(
     session: AsyncSession,
-    english_name: str,
+    name: str,
 ) -> models.Project | None:
-    statement = select(models.Project).where(
-        models.Project.name["en"].astext == english_name
-    )
+    statement = select(models.Project).where(models.Project.name == name)
     return (await session.exec(statement)).first()

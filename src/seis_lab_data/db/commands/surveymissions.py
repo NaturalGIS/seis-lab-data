@@ -32,12 +32,12 @@ async def create_survey_mission(
             else bbox
         ),
     )
-    # need to ensure english name is unique for combination of project and survey mission
-    if await mission_queries.get_survey_mission_by_english_name(
-        session, identifiers.ProjectId(to_create.project_id), to_create.name.en
+    # need to ensure name is unique for combination of project and survey mission
+    if await mission_queries.get_survey_mission_by_name(
+        session, identifiers.ProjectId(to_create.project_id), to_create.name
     ):
         raise errors.DuplicateResourceError(
-            f"There is already a survey mission with english name {to_create.name.en!r} for "
+            f"There is already a survey mission with name {to_create.name!r} for "
             f"the same project."
         )
 

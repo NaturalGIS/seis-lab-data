@@ -40,23 +40,23 @@
                     <div class="card-body">
                         <div class="row">
                             <div class="col">
-                                <p>{{ item.description | translate_localizable_string }}</p>
+                                <p>{{ item.description }}</p>
                                 <dl class="row">
                                     <dt class="col-sm-3">{{ _("dataset category") | capitalize }}</dt>
-                                    <dd class="col-sm-9"><span class="badge badge-outline text-dataset-category"><span class="material-icons-outlined me-1 fs-6">{{ icons.dataset_category }}</span>{% if item.dataset_category %}{{ item.dataset_category.name|translate_localizable_string }}{% else %}{{ _("unknown category") }}{% endif %}</span></dd>
+                                    <dd class="col-sm-9"><span class="badge badge-outline text-dataset-category"><span class="material-icons-outlined me-1 fs-6">{{ icons.dataset_category }}</span>{% if item.dataset_category %}{{ item.dataset_category.name }}{% else %}{{ _("unknown category") }}{% endif %}</span></dd>
                                     <dt class="col-sm-3">{{ _("workflow stage") | capitalize }}</dt>
-                                    <dd class="col-sm-9"><span class="badge badge-outline text-workflow-stage"><span class="material-icons-outlined me-1 fs-6">{{ icons.workflow_stage }}</span>{% if item.workflow_stage %}{{ item.workflow_stage.name|translate_localizable_string }}{% else %}{{ _("unknown stage") }}{% endif %}</span></dd>
+                                    <dd class="col-sm-9"><span class="badge badge-outline text-workflow-stage"><span class="material-icons-outlined me-1 fs-6">{{ icons.workflow_stage }}</span>{% if item.workflow_stage %}{{ item.workflow_stage.name }}{% else %}{{ _("unknown stage") }}{% endif %}</span></dd>
                                     <dt class="col-sm-3">{{ _("survey mission") | capitalize }}</dt>
                                     <dd class="col-sm-9">
                                         <a
                                                 href="{{ url_for('survey_missions:detail', survey_mission_id=item.survey_mission.id) }}"
-                                        >{{ item.survey_mission.name|translate_localizable_string }}</a>
+                                        >{{ item.survey_mission.name }}</a>
                                     </dd>
                                     <dt class="col-sm-3">{{ _("project") | capitalize }}</dt>
                                     <dd class="col-sm-9">
                                         <a
                                                 href="{{ url_for('projects:detail', project_id=item.survey_mission.project.id) }}"
-                                        >{{ item.survey_mission.project.name|translate_localizable_string }}</a>
+                                        >{{ item.survey_mission.project.name }}</a>
                                     </dd>
                                     <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
                                     <dd class="col-sm-9">{{ item.temporal_extent_begin|default(_(".."), True) }}/{{ item.temporal_extent_end|default(_(".."), True) }}</dd>
@@ -83,7 +83,7 @@
                                                 <span class="badge rounded-pill bg-light">{{ link.media_type }}</span>
                                                 <span class="badge rounded-pill bg-light">{{ link.relation }}</span>
                                             </h6>
-                                            <small>{{ link.link_description | translate_localizable_string }}</small>
+                                            <small>{{ link.link_description }}</small>
                                         </a>
                                     {% else %}
                                         <p class="list-group-item">{{ _("no links found") | capitalize }}</p>
@@ -101,7 +101,7 @@
                                                 <h6>
                                                     <span class="material-icons-outlined me-1">{{ icons.survey_related_records }}</span>
                                                     <span class="badge rounded-pill bg-light">{{ relation }}</span>
-                                                    {{ other_record.name.en }}
+                                                    {{ other_record.name }}
                                                 </h6>
                                             </a>
                                         {% endfor %}
@@ -119,7 +119,7 @@
                                                 <h6>
                                                     <span class="material-icons-outlined me-1">{{ icons.survey_related_records }}</span>
                                                     <span class="badge rounded-pill bg-light">{{ relation }}</span>
-                                                    {{ other_record.name.en }}
+                                                    {{ other_record.name }}
                                                 </h6>
                                             </a>
                                         {% endfor %}
@@ -209,9 +209,9 @@
         {% for asset in item.record_assets if AssetType.DATA in asset.asset_type %}
             <dl class="row">
                 <dt class="col-sm-3">{{ _("Name") }}</dt>
-                <dd class="col-sm-9">{{ asset.name|translate_localizable_string }}</dd>
+                <dd class="col-sm-9">{{ asset.name }}</dd>
                 <dt class="col-sm-3">{{ _("Description") }}</dt>
-                <dd class="col-sm-9">{{ asset.description|translate_localizable_string }}</dd>
+                <dd class="col-sm-9">{{ asset.description }}</dd>
                 <dt class="col-sm-3">{{ _("media type") | capitalize }}</dt>
                 <dd class="col-sm-9">{{ asset.media_type | default(_("unknown"), true) }}</dd>
                 <dt class="col-sm-3">{{ _("Relative path") }}</dt>

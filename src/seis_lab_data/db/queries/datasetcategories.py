@@ -1,5 +1,4 @@
 import logging
-from typing import Literal
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import (
@@ -19,21 +18,16 @@ async def list_dataset_categories(
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
+    name_filter: str | None = None,
 ) -> tuple[list[models.DatasetCategory], int | None]:
     limit = page_size
     offset = page_size * (page - 1)
     statement = select(models.DatasetCategory).order_by(
-        func.lower(models.DatasetCategory.name["en"].astext)
+        func.lower(models.DatasetCategory.name)
     )
-    if en_name_filter is not None:
+    if name_filter is not None:
         statement = statement.where(
-            models.DatasetCategory.name["en"].astext.ilike(f"%{en_name_filter}%")
-        )
-    if pt_name_filter is not None:
-        statement = statement.where(
-            models.DatasetCategory.name["pt"].astext.ilike(f"%{pt_name_filter}%")
+            models.DatasetCategory.name.ilike(f"%{name_filter}%")
         )
     items = (await session.exec(statement.offset(offset).limit(limit))).all()
     num_total = (
@@ -44,22 +38,14 @@ async def list_dataset_categories(
 
 async def collect_all_dataset_categories(
     session: AsyncSession,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
-    order_by: Literal["name_en", "name_pt"] = "name_en",
+    name_filter: str | None = None,
 ) -> list[models.DatasetCategory]:
-    order_by_clause = {
-        "name_pt": func.lower(models.DatasetCategory.name["pt"].astext),
-    }.get(order_by, func.lower(models.DatasetCategory.name["en"].astext))
-
-    statement = select(models.DatasetCategory).order_by(order_by_clause)
-    if en_name_filter is not None:
+    statement = select(models.DatasetCategory).order_by(
+        func.lower(models.DatasetCategory.name)
+    )
+    if name_filter is not None:
         statement = statement.where(
-            models.DatasetCategory.name["en"].astext.ilike(f"%{en_name_filter}%")
-        )
-    if pt_name_filter is not None:
-        statement = statement.where(
-            models.DatasetCategory.name["pt"].astext.ilike(f"%{pt_name_filter}%")
+            models.DatasetCategory.name.ilike(f"%{name_filter}%")
         )
     return (await session.exec(statement)).all()
 
@@ -71,10 +57,10 @@ async def get_dataset_category(
     return await session.get(models.DatasetCategory, dataset_category_id)
 
 
-async def get_dataset_category_by_english_name(
+async def get_dataset_category_by_name(
     session: AsyncSession, name: str
 ) -> models.DatasetCategory | None:
     statement = select(models.DatasetCategory).where(
-        models.DatasetCategory.name["en"].astext == name
+        models.DatasetCategory.name == name
     )
     return (await session.exec(statement)).first()

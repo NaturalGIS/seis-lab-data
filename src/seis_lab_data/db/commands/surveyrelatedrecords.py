@@ -4,6 +4,7 @@ import uuid
 import shapely
 from sqlalchemy import (
     Boolean,
+    String,
     bindparam,
     column,
     delete,
@@ -15,7 +16,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import (
     ARRAY,
-    JSONB,
     UUID as PG_UUID,
     insert as pg_insert,
 )
@@ -77,7 +77,7 @@ async def create_survey_related_record(
         db_related = models.SurveyRelatedRecordSelfLink(
             subject_id=survey_record.id,
             related_to_id=related.related_record_id,
-            relation=related.relationship.model_dump(),
+            relation=related.relationship,
         )
         session.add(db_related)
     await session.commit()
@@ -129,11 +129,9 @@ async def _replace_related_records_for_subjects(
 
     proposed = values(
         column("related_to_id", PG_UUID(as_uuid=True)),
-        column("relation", JSONB),
+        column("relation", String),
         name="proposed_related_record",
-    ).data(
-        [(r.related_record_id, r.relationship.model_dump()) for r in related_records]
-    )
+    ).data([(r.related_record_id, r.relationship) for r in related_records])
     subject_ids_table = (
         func.unnest(
             bindparam(
@@ -222,8 +220,7 @@ async def bulk_update_filtered_records(
     to_update: record_schemas.SurveyRelatedRecordBulkUpdate,
     excluded_record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
     survey_mission_id: identifiers.SurveyMissionId | None = None,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
+    name_filter: str | None = None,
     spatial_intersect: shapely.Polygon | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
@@ -233,8 +230,7 @@ async def bulk_update_filtered_records(
 ) -> int:
     filter_kwargs = dict(
         survey_mission_id=survey_mission_id,
-        en_name_filter=en_name_filter,
-        pt_name_filter=pt_name_filter,
+        name_filter=name_filter,
         spatial_intersect=spatial_intersect,
         temporal_extent=temporal_extent,
         asset_path_fragment_filter=asset_path_fragment_filter,
@@ -359,13 +355,11 @@ async def update_survey_related_record(
             db_relationship = models.SurveyRelatedRecordSelfLink(
                 subject_id=survey_related_record.id,
                 related_to_id=proposed_related_to.related_record_id,
-                relation=proposed_related_to.relationship.model_dump(),
+                relation=proposed_related_to.relationship,
             )
             session.add(db_relationship)
         else:  # this is an existing relationship that needs to be updated
-            existing_relationship.relation = (
-                proposed_related_to.relationship.model_dump()
-            )
+            existing_relationship.relation = proposed_related_to.relationship
             session.add(existing_relationship)
 
     proposed_related_to_ids = [r.related_record_id for r in to_update.related_records]

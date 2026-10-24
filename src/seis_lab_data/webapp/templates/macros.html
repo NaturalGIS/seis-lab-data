@@ -41,32 +41,11 @@
 {% endmacro %}
 
 
-{% macro render_localizable_field(localizable_field, id_prefix="") %}
-    {% for field in localizable_field %}
-        {{ render_form_field(field, id_prefix) }}
-    {% endfor %}
-{% endmacro %}
-
-
-{% macro render_name_fields(name_form_field, id_prefix="") %}
-    {% for name_field in name_form_field %}
-        {{ render_form_field(name_field, id_prefix ~ "name-") }}
-    {% endfor %}
-{% endmacro %}
-
-
-{% macro render_description_fields(description_form_field, id_prefix="") %}
-    {% for description_field in description_form_field %}
-        {{ render_form_field(description_field, id_prefix ~ "description-") }}
-    {% endfor %}
-{% endmacro %}
-
-
 {% macro render_link_form(link_field, id_prefix="") %}
     {{ render_form_field(link_field.url, id_prefix ~ "link-") }}
     {{ render_form_field(link_field.media_type, id_prefix ~ "link-") }}
     {{ render_form_field(link_field.relation, id_prefix ~ "link-") }}
-    {{ render_localizable_field(link_field.link_description, "link-") }}
+    {{ render_form_field(link_field.link_description, "link-") }}
 {% endmacro %}
 
 

@@ -178,7 +178,7 @@ async def load_sample_projects(ctx: typer.Context):
 
     for to_create in projects_to_create:
         ctx.obj["main"].status_console.print(
-            f"Queueing project {to_create.name.en!r} for creation..."
+            f"Queueing project {to_create.name!r} for creation..."
         )
         project_tasks.create_project.send(
             raw_request_id=str(request_id),
@@ -227,7 +227,7 @@ async def load_sample_survey_missions(ctx: typer.Context):
 
     for to_create in missions_to_create:
         ctx.obj["main"].status_console.print(
-            f"Queueing survey mission {to_create.name.en!r} for creation..."
+            f"Queueing survey mission {to_create.name!r} for creation..."
         )
         mission_tasks.create_survey_mission.send(
             raw_request_id=str(request_id),
@@ -257,8 +257,8 @@ async def load_sample_survey_related_records(ctx: typer.Context):
         )
         all_workflow_stages = await stage_queries.collect_all_workflow_stages(session)
         for to_create in sampledata.get_survey_related_records_to_create(
-            dataset_categories={c.name["en"]: c for c in all_dataset_categories},
-            workflow_stages={w.name["en"]: w for w in all_workflow_stages},
+            dataset_categories={c.name: c for c in all_dataset_categories},
+            workflow_stages={w.name: w for w in all_workflow_stages},
         ):
             try:
                 created.append(

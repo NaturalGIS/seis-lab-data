@@ -27,37 +27,20 @@ def ensure_relative_path_exists(value: str) -> str:
     return value
 
 
-class LocalizableValidName(pydantic.BaseModel):
-    en: Annotated[
-        str,
-        pydantic.Field(
-            min_length=constants.NAME_MIN_LENGTH, max_length=constants.NAME_MAX_LENGTH
-        ),
-    ]
-    pt: Annotated[
-        str,
-        pydantic.Field(
-            min_length=constants.NAME_MIN_LENGTH,
-            max_length=constants.NAME_MAX_LENGTH,
-        ),
-    ]
+ValidName = Annotated[
+    str,
+    pydantic.Field(
+        min_length=constants.NAME_MIN_LENGTH, max_length=constants.NAME_MAX_LENGTH
+    ),
+]
 
-
-class LocalizableValidDescription(pydantic.BaseModel):
-    en: Annotated[
-        str,
-        pydantic.Field(
-            min_length=constants.DESCRIPTION_MIN_LENGTH,
-            max_length=constants.DESCRIPTION_MAX_LENGTH,
-        ),
-    ]
-    pt: Annotated[
-        str,
-        pydantic.Field(
-            min_length=constants.DESCRIPTION_MIN_LENGTH,
-            max_length=constants.DESCRIPTION_MAX_LENGTH,
-        ),
-    ]
+ValidDescription = Annotated[
+    str,
+    pydantic.Field(
+        min_length=constants.DESCRIPTION_MIN_LENGTH,
+        max_length=constants.DESCRIPTION_MAX_LENGTH,
+    ),
+]
 
 
 class ValidLinkSchema(pydantic.BaseModel):
@@ -71,7 +54,7 @@ class ValidLinkSchema(pydantic.BaseModel):
     # same as pydantic model fields. It just so happens that links are modeled
     # in a wtforms formfield, which also has a 'description' property and this
     # naming was chosen to avoid clashes
-    link_description: LocalizableValidDescription
+    link_description: ValidDescription
 
 
 def parse_possibly_empty_wkbelement_polygon_into_valid_geometry(
@@ -95,8 +78,8 @@ def parse_possibly_empty_wkbelement_polygon_into_valid_geometry(
 
 class ValidProject(pydantic.BaseModel):
     id: identifiers.ProjectId
-    name: LocalizableValidName
-    description: LocalizableValidDescription
+    name: ValidName
+    description: ValidDescription
     status: constants.ProjectStatus
     temporal_extent_begin: dt.date | None
     temporal_extent_end: dt.date | None
@@ -112,8 +95,8 @@ class ValidProject(pydantic.BaseModel):
 
 class ValidSurveyMission(pydantic.BaseModel):
     id: identifiers.SurveyMissionId
-    name: LocalizableValidName
-    description: LocalizableValidDescription
+    name: ValidName
+    description: ValidDescription
     status: constants.SurveyMissionStatus
     temporal_extent_begin: dt.date | None
     temporal_extent_end: dt.date | None
@@ -129,10 +112,10 @@ class ValidSurveyMission(pydantic.BaseModel):
 
 class ValidSurveyRelatedRecord(pydantic.BaseModel):
     id: identifiers.SurveyRelatedRecordId
-    name: LocalizableValidName
+    name: ValidName
     dataset_category_id: identifiers.DatasetCategoryId
     workflow_stage_id: identifiers.WorkflowStageId
-    description: LocalizableValidDescription
+    description: ValidDescription
     status: constants.SurveyMissionStatus
     temporal_extent_begin: dt.date | None
     temporal_extent_end: dt.date | None
