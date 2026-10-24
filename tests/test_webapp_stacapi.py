@@ -6,46 +6,11 @@ from seis_lab_data import constants
 from seis_lab_data.db import models
 from seis_lab_data.db.commands import (
     projects as project_commands,
-    surveymissions as mission_commands,
-    surveyrelatedrecords as record_commands,
 )
 from seis_lab_data.schemas import identifiers
 from seis_lab_data.webapp.stacapi import conformance
 
 pytestmark = pytest.mark.integration
-
-
-@pytest_asyncio.fixture
-async def published_sample_data(
-    db_session_maker,
-    sample_survey_related_records,
-    sample_survey_missions,
-    sample_projects,
-):
-    async with db_session_maker() as session:
-        for project in sample_projects:
-            await project_commands.set_project_status(
-                session,
-                identifiers.ProjectId(project.id),
-                constants.ProjectStatus.PUBLISHED,
-            )
-        for mission in sample_survey_missions:
-            await mission_commands.set_survey_mission_status(
-                session,
-                identifiers.SurveyMissionId(mission.id),
-                constants.SurveyMissionStatus.PUBLISHED,
-            )
-        for record in sample_survey_related_records:
-            await record_commands.set_survey_related_record_status(
-                session,
-                identifiers.SurveyRelatedRecordId(record.id),
-                constants.SurveyRelatedRecordStatus.PUBLISHED,
-            )
-    yield {
-        "projects": sample_projects,
-        "missions": sample_survey_missions,
-        "records": sample_survey_related_records,
-    }
 
 
 @pytest_asyncio.fixture
@@ -244,26 +209,44 @@ def test_search_post_by_ids(stac_api_client: TestClient, published_sample_data):
     assert {f["id"] for f in body["features"]} == {str(record.id)}
 
 
-def test_asset_href_matches_jinja_filter(
-    stac_api_client: TestClient, settings, sample_asset
-):
+def test_asset_href_points_at_download_route(stac_api_client: TestClient, sample_asset):
     asset, record = sample_asset
     mission_id = record.survey_mission_id
     response = stac_api_client.get(f"/stac/collections/{mission_id}/items/{record.id}")
     assert response.status_code == 200
     body = response.json()
-    stac_href = body["assets"][str(asset.id)]["href"]
-    # jinjafilters.get_url_for_asset expects RecordAssetReadDetailEmbedded /
-    # SurveyRelatedRecordReadDetail-shaped objects with survey_mission.project
-    # already available on the record - build the same join manually here to
-    # cross-check byte-for-byte, since constructing those schema objects would
-    # require a full read-schema round trip.
-    expected_href = "/".join(
-        (
-            settings.public_url,
-            record.survey_mission.project.root_path,
-            record.survey_mission.relative_path,
-            asset.relative_path,
-        )
+    stac_asset = body["assets"][str(asset.id)]
+    assert stac_asset["href"] == (
+        f"http://testserver/survey-related-records/{record.id}"
+        f"/assets/{asset.id}/download"
     )
-    assert stac_href == expected_href
+    assert stac_asset["roles"] == [constants.AssetType.DATA.value]
+    assert stac_asset["type"] == asset.media_type
+
+
+@pytest_asyncio.fixture
+async def sample_shapefile_asset(db_session_maker, published_sample_data):
+    record = published_sample_data["records"][0]
+    asset = models.RecordAsset(
+        name="a shapefile",
+        survey_related_record_id=record.id,
+        relative_path="some/FOO.shp",
+        media_type="application/prs.ipma.shp",
+        asset_type=[constants.AssetType.DATA],
+    )
+    async with db_session_maker() as session:
+        session.add(asset)
+        await session.commit()
+        await session.refresh(asset)
+    yield asset, record
+
+
+def test_shapefile_asset_type_is_zip(
+    stac_api_client: TestClient, sample_shapefile_asset
+):
+    asset, record = sample_shapefile_asset
+    response = stac_api_client.get(
+        f"/stac/collections/{record.survey_mission_id}/items/{record.id}"
+    )
+    assert response.status_code == 200
+    assert response.json()["assets"][str(asset.id)]["type"] == "application/zip"

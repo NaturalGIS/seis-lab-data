@@ -15,6 +15,7 @@ x-common-env: &common-env
   SEIS_LAB_DATA__DEBUG: ${DEBUG:-false}
   SEIS_LAB_DATA__LOG_CONFIG_FILE: ${LOG_CONFIG_FILE:-/home/ubuntu/app/dev-log-config.yml}
   SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
+  SEIS_LAB_DATA__READONLY_ARCHIVE_ROOT_DIRECTORY: /data
 
 x-common-secrets: &common-secrets
   secrets:
@@ -115,7 +116,6 @@ services:
       AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTH_AUTHENTIK_BOOTSTRAP_PASSWORD?not_set}
       AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTH_AUTHENTIK_BOOTSTRAP_TOKEN?not_set}
       AUTHENTIK_BOOTSTRAP_EMAIL: ${AUTH_AUTHENTIK_BOOTSTRAP_EMAIL?not_set}
-      ARCHIVE_BASE_URL: https://sld-archive.seis-lab-data.naturalgis.pt
       DOZZLE_BASE_URL: https://seis-lab-data.naturalgis.pt/monitoring
     volumes:
       - type: bind
@@ -250,32 +250,6 @@ services:
       - traefik.http.routers.martin-router.middlewares=martin-stripprefix
       - traefik.http.services.martin.loadbalancer.server.port=3000
 
-  caddy-file-server:
-    image: caddy:2
-    volumes:
-      - type: bind
-        source: ./caddy
-        target: /etc/caddy
-        read_only: true
-      - type: bind
-        source: /opt/data
-        target: /srv/archive
-    restart: unless-stopped
-    networks:
-      - traefik-network
-      - default
-    labels:
-      - exposed.outside=true
-      - traefik.enable=true
-      - "traefik.http.middlewares.authentik-auth.forwardauth.address=http://auth-webapp:9000/outpost.goauthentik.io/auth/traefik"
-      - "traefik.http.middlewares.authentik-auth.forwardauth.trustForwardHeader=true"
-      - "traefik.http.middlewares.authentik-auth.forwardauth.authResponseHeaders=X-authentik-username,X-authentik-groups,X-authentik-email,X-authentik-name,X-authentik-uid"
-      - "traefik.http.middlewares.authentik-auth.forwardauth.maxBodySize=1048576"
-      - "traefik.http.routers.caddy-router.rule=Host(`sld-archive.seis-lab-data.naturalgis.pt`)"
-      - "traefik.http.routers.caddy-router.entrypoints=web"
-      - "traefik.http.routers.caddy-router.middlewares=authentik-auth"
-      - "traefik.http.services.caddy-service.loadbalancer.server.port=8000"
-
   dozzle:
     image: amir20/dozzle:v10
     environment:
@@ -297,6 +271,10 @@ services:
     labels:
       - exposed.outside=true
       - traefik.enable=true
+      - "traefik.http.middlewares.authentik-auth.forwardauth.address=http://auth-webapp:9000/outpost.goauthentik.io/auth/traefik"
+      - "traefik.http.middlewares.authentik-auth.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.authentik-auth.forwardauth.authResponseHeaders=X-authentik-username,X-authentik-groups,X-authentik-email,X-authentik-name,X-authentik-uid"
+      - "traefik.http.middlewares.authentik-auth.forwardauth.maxBodySize=1048576"
       - "traefik.http.routers.dozzle-router.rule=Host(`seis-lab-data.naturalgis.pt`) && PathPrefix(`/monitoring`)"
       - traefik.http.routers.dozzle-router.entrypoints=web
       - traefik.http.routers.dozzle-router.priority=95

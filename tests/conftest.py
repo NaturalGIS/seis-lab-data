@@ -30,8 +30,12 @@ from seis_lab_data.db.engine import (
     get_sync_engine,
 )
 from seis_lab_data.schemas.user import User
+from seis_lab_data.schemas import identifiers
 from seis_lab_data.schemas.identifiers import UserId
 from seis_lab_data.webapp.app import create_app_from_settings
+from seis_lab_data.webapp.routes.surveyrelatedrecords import (
+    routes as records_routes,
+)
 from seis_lab_data.webapp.stacapi.app import create_api_app_from_settings
 from seis_lab_data.webapp.stacapi.dependencies import get_settings as stac_get_settings
 
@@ -103,7 +107,8 @@ def stac_api_client(settings):
     or lifespan (auth, sessions, message broker, jinja/translations), since
     none of that is relevant to the STAC API. The named Mount is kept
     because STAC's own link-building relies on `url_for()` resolving
-    through it (see `stacapi/links.py`).
+    through it (see `stacapi/links.py`). The records Mount is there because
+    STAC asset hrefs point at the main app's download route.
 
     `get_settings` is overridden instead of relying on
     `request.state.settings`, which is normally populated by the main app's
@@ -111,7 +116,16 @@ def stac_api_client(settings):
     """
     api_app = create_api_app_from_settings(settings)
     api_app.dependency_overrides[stac_get_settings] = lambda: settings
-    wrapper_app = Starlette(routes=[Mount("/stac", app=api_app, name="stac")])
+    wrapper_app = Starlette(
+        routes=[
+            Mount("/stac", app=api_app, name="stac"),
+            Mount(
+                "/survey-related-records",
+                name="survey_related_records",
+                routes=records_routes,
+            ),
+        ]
+    )
     with TestClient(wrapper_app) as client:
         yield client
 
@@ -214,3 +228,36 @@ async def sample_survey_related_records(
                 )
             )
     yield created
+
+
+@pytest_asyncio.fixture
+async def published_sample_data(
+    db_session_maker,
+    sample_survey_related_records,
+    sample_survey_missions,
+    sample_projects,
+):
+    async with db_session_maker() as session:
+        for project in sample_projects:
+            await project_commands.set_project_status(
+                session,
+                identifiers.ProjectId(project.id),
+                constants.ProjectStatus.PUBLISHED,
+            )
+        for mission in sample_survey_missions:
+            await mission_commands.set_survey_mission_status(
+                session,
+                identifiers.SurveyMissionId(mission.id),
+                constants.SurveyMissionStatus.PUBLISHED,
+            )
+        for record in sample_survey_related_records:
+            await record_commands.set_survey_related_record_status(
+                session,
+                identifiers.SurveyRelatedRecordId(record.id),
+                constants.SurveyRelatedRecordStatus.PUBLISHED,
+            )
+    yield {
+        "projects": sample_projects,
+        "missions": sample_survey_missions,
+        "records": sample_survey_related_records,
+    }

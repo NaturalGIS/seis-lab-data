@@ -202,5 +202,18 @@ msgstr ""
 msgid "record preview"
 msgstr ""
 
+#: webapp/routes/surveyrelatedrecords.py
+msgid "Asset not found."
+msgstr ""
+
+#: webapp/templates/macros-buttons.html
+#: webapp/templates/survey-related-records/detail-component.html
+msgid "Download"
+msgstr ""
+
+#: webapp/templates/macros-buttons.html
+msgid "Download (zip)"
+msgstr ""
+
 #~ msgid "Survey-Related Records"
 #~ msgstr ""

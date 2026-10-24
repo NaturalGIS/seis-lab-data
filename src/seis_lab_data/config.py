@@ -44,6 +44,7 @@ class SeisLabDataIconSettings(BaseModel):
     delete_item: str = "delete"
     discover_contents: str = "travel_explore"
     docs: str = "menu_book"
+    download: str = "download"
     edit_item: str = "edit"
     home: str = "home"
     # list: str = "list"

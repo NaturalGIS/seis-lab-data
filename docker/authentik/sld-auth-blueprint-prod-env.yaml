@@ -8,7 +8,7 @@ context:
   client_secret: !File /run/secrets/auth-client-secret
   redirect_uri: !Env SEIS_LAB_DATA_REDIRECT_URI
   post_logout_redirect_uri: !Env SEIS_LAB_DATA_POST_LOGOUT_REDIRECT_URI
-  file_server_url: !Env ARCHIVE_BASE_URL
+  dozzle_url: !Env DOZZLE_BASE_URL
   authentik_url: !Env SEIS_LAB_DATA_AUTHENTIK_BASE_URL
   admin_group_name: seis-lab-data-catalog-admins
   admin_scope_name: catalog-admin
@@ -378,29 +378,29 @@ entries:
       meta_publisher: "NaturalGIS"
       policy_engine_mode: any
 
-  # Create a proxy provider for forward auth
+  # Create a proxy provider for dozzle forward auth
   - model: authentik_providers_proxy.proxyprovider
-    id: sld-archive-proxy-provider
+    id: sld-dozzle-proxy-provider
     identifiers:
-      name: sld-archive-proxy-provider
+      name: sld-dozzle-proxy-provider
     attrs:
-      name: sld-archive-proxy-provider
+      name: sld-dozzle-proxy-provider
       authorization_flow: !Find [authentik_flows.flow, [slug, "default-provider-authorization-implicit-consent"]]
       authentication_flow: !Find [authentik_flows.flow, [slug, "sld-authentication-flow"]]
       invalidation_flow: !Find [authentik_flows.flow, [slug, "default-invalidation-flow"]]
       mode: forward_single
-      external_host: !Context file_server_url
+      external_host: !Context dozzle_url
 
-  # Create an application for the archive
+  # Create an application for dozzle
   - model: authentik_core.application
-    id: sld-archive-app
+    id: sld-dozzle-app
     identifiers:
-      slug: sld-archive
+      slug: sld-dozzle
     attrs:
-      name: SLD Archive
-      slug: sld-archive
-      provider: !KeyOf sld-archive-proxy-provider
-      meta_description: "SeisLabData Archive File Browser"
+      name: SLD Dozzle
+      slug: sld-dozzle
+      provider: !KeyOf sld-dozzle-proxy-provider
+      meta_description: "SeisLabData Container Log Viewer"
       policy_engine_mode: any
 
   # Customize the default brand to match the webapp's Flatly theme
@@ -433,14 +433,14 @@ entries:
           display: none;
         }
 
-  # Update the embedded outpost to include our proxy provider
+  # Update the embedded outpost to include our proxy providers
   - model: authentik_outposts.outpost
     state: present
     identifiers:
       managed: goauthentik.io/outposts/embedded
     attrs:
       providers:
-        - !KeyOf sld-archive-proxy-provider
+        - !KeyOf sld-dozzle-proxy-provider
       config:
         authentik_host: !Context authentik_url
         authentik_host_browser: !Context authentik_url

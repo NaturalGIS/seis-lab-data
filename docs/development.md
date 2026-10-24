@@ -23,10 +23,8 @@ The more relevant services are:
 - `message-broker` - a [redis] instance that passes messages between the webapp and the processing worker
 - `web-gateway` - a [traefik] instance that acts as a reverse proxy for the system
 - `auth-webapp` - an [authentik] instance that takes care of user authentication
-- `caddy-file-server` - a [caddy] instance that serves local datasets via HTTP
 
 [authentik]: https://goauthentik.io/
-[caddy]: https://caddyserver.com/
 [datastar]: https://data-star.dev/
 [dramatiq]: https://dramatiq.io/
 [jinja]: https://jinja.palletsprojects.com/en/stable/

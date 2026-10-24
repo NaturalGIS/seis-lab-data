@@ -28,10 +28,8 @@ Os serviços mais relevantes são:
 - `message-broker` – uma instância [redis] que gere a passagem de mensagens entre a webapp e o processing worker.
 - `web-gateway` – uma instância [traefik] que atua como _reverse proxy_ para o sistema.
 - `auth-webapp` – uma instância [authentik] que trata da autenticação de utilizadores.
-- `caddy-file-server` – uma instância [caddy] que serve datasets locais via HTTP.
 
 [authentik]: https://goauthentik.io/
-[caddy]: https://caddyserver.com/
 [datastar]: https://data-star.dev/
 [dramatiq]: https://dramatiq.io/
 [jinja]: https://jinja.palletsprojects.com/en/stable/

@@ -201,3 +201,16 @@ msgstr "Nenhum registo encontrado"
 #: webapp/templates/survey-related-records/list-item.html:23
 msgid "record preview"
 msgstr "pré-visualização do registo"
+
+#: webapp/routes/surveyrelatedrecords.py
+msgid "Asset not found."
+msgstr "Recurso não encontrado."
+
+#: webapp/templates/macros-buttons.html
+#: webapp/templates/survey-related-records/detail-component.html
+msgid "Download"
+msgstr "Descarregar"
+
+#: webapp/templates/macros-buttons.html
+msgid "Download (zip)"
+msgstr "Descarregar (zip)"
