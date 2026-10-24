@@ -12,14 +12,12 @@ from ..tasks import broker
 from .bootstrapapp import app as bootstrap_app
 from .dbapp import app as db_app
 from .devapp import app as dev_app
-from .mainapp import app as main_app
 from .translationsapp import app as translations_app
 
 logger = logging.getLogger(__name__)
 app = typer.Typer()
 app.add_typer(translations_app, name="translations")
 app.add_typer(db_app, name="db")
-app.add_typer(main_app, name="main")
 app.add_typer(dev_app, name="dev")
 app.add_typer(bootstrap_app, name="bootstrap")
 
