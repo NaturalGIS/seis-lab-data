@@ -1,10 +1,15 @@
 import dataclasses
 import json
 import logging
-from typing import TypeVar
+from typing import (
+    Iterator,
+    TypeVar,
+)
 import uuid
+import zipfile
 
 import shapely
+from anyio import Path
 from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
 from datastar_py.starlette import DatastarResponse
@@ -14,8 +19,10 @@ from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import (
+    FileResponse,
     RedirectResponse,
     Response,
+    StreamingResponse,
 )
 from starlette.routing import Route
 from starlette.templating import Jinja2Templates
@@ -214,6 +221,136 @@ async def get_record_asset_data(request: Request):
         # under a given asset id never change
         headers={"Cache-Control": "public, max-age=31536000, immutable"},
     )
+
+
+async def download_record_asset(request: Request):
+    """Serve the archive file that a record's data asset stands for."""
+    user = request.user if request.user.is_authenticated else None
+    survey_related_record_id = get_id_from_request_path(
+        request, "survey_related_record_id", identifiers.SurveyRelatedRecordId
+    )
+    record_asset_id = get_id_from_request_path(
+        request, "record_asset_id", identifiers.RecordAssetId
+    )
+    settings: config.SeisLabDataSettings = request.state.settings
+    async with settings.get_db_session_maker()() as session:
+        try:
+            survey_related_record_info = (
+                await survey_related_record_ops.get_survey_related_record(
+                    survey_related_record_id,
+                    user,
+                    session,
+                )
+            )
+        except errors.UserNotAllowedError:
+            # a private resource must be indistinguishable from a nonexistent one
+            survey_related_record_info = None
+        asset = None
+        if survey_related_record_info is not None:
+            survey_related_record, _related_to, _subject_for = (
+                survey_related_record_info
+            )
+            asset = next(
+                (
+                    a
+                    for a in survey_related_record.assets
+                    if a.id == record_asset_id
+                    and constants.AssetType.DATA in a.asset_type
+                    and a.relative_path
+                ),
+                None,
+            )
+    if asset is None:
+        raise HTTPException(status_code=404, detail=_("Asset not found."))
+    archive_root = await Path(settings.readonly_archive_root_directory).resolve()
+    asset_path = await Path(
+        archive_root,
+        survey_related_record.survey_mission.relative_path,
+        asset.relative_path,
+    ).resolve()
+    # relative paths are user-editable, they must not be able to escape the archive
+    if not asset_path.is_relative_to(archive_root) or not await asset_path.is_file():
+        raise HTTPException(status_code=404, detail=_("Asset not found."))
+    if asset_path.suffix.lower() in constants.BUNDLED_DATA_ASSET_EXTENSIONS:
+        # sidecars share the file's stem, e.g. FOO.shp -> FOO.dbf, FOO.shp.xml.
+        # Another bundled file with a longer stem (FOO.bar.shp) is another dataset
+        sidecar_prefix = f"{asset_path.stem.lower()}."
+        members = sorted(
+            [
+                entry
+                async for entry in asset_path.parent.iterdir()
+                if entry.name.lower().startswith(sidecar_prefix)
+                and (
+                    entry == asset_path
+                    or entry.suffix.lower()
+                    not in constants.BUNDLED_DATA_ASSET_EXTENSIONS
+                )
+                and await entry.is_file()
+                and (await entry.resolve()).is_relative_to(archive_root)
+            ]
+        )
+        return StreamingResponse(
+            stream_zip_archive(members),
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": (f'attachment; filename="{asset_path.stem}.zip"')
+            },
+        )
+    return FileResponse(
+        asset_path,
+        media_type=asset.media_type or "application/octet-stream",
+        filename=asset_path.name,
+    )
+
+
+class _UnseekableBuffer:
+    """In-memory, write-only file object for zipfile to write an archive into.
+
+    It accumulates whatever zipfile writes into `data`, which the caller
+    drains as it goes.
+
+    It deliberately does not implement `tell()` nor `seek()`: when zipfile
+    cannot seek, it writes each member's CRC and sizes in a data descriptor
+    after the member's data, instead of going back to fill them in its
+    header. This means the archive can be sent out while it is still
+    being written - unfortunately this feature is not very well documented
+    in the Python docs (only appearing as a short mention in zipfile
+    docs: "Added support for writing to unseekable streams", Python 3.5).
+    """
+
+    def __init__(self) -> None:
+        self.data = bytearray()
+
+    def write(self, data: bytes) -> int:
+        self.data.extend(data)
+        return len(data)
+
+    def flush(self) -> None:
+        pass
+
+
+def stream_zip_archive(
+    members: list[Path], chunk_size: int = 1024**2
+) -> Iterator[bytes]:
+    """Build a zip archive of the input files, yielding it as it gets built.
+
+    Memory use is bounded by the chunk size, regardless of the size of the
+    files. This is a sync generator, which starlette iterates in a worker
+    thread, thus the blocking file reads do not stall the event loop.
+    """
+    buffer = _UnseekableBuffer()
+    with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for member in members:
+            with (
+                open(member, "rb") as source,
+                archive.open(member.name, mode="w", force_zip64=True) as target,
+            ):
+                while chunk := source.read(chunk_size):
+                    target.write(chunk)
+                    if buffer.data:
+                        yield bytes(buffer.data)
+                        buffer.data.clear()
+    yield bytes(buffer.data)
 
 
 FormType = TypeVar(
@@ -1621,6 +1758,12 @@ routes = [
         get_record_asset_data,
         methods=["GET"],
         name="get_record_asset_data",
+    ),
+    Route(
+        "/{survey_related_record_id}/assets/{record_asset_id}/download",
+        download_record_asset,
+        methods=["GET"],
+        name="download_record_asset",
     ),
     Route(
         "/{survey_related_record_id}/update",

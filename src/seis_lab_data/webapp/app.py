@@ -92,6 +92,9 @@ async def lifespan(
             },
             "settings": settings,
             "AssetType": constants.AssetType,
+            "BUNDLED_DATA_ASSET_EXTENSIONS": tuple(
+                constants.BUNDLED_DATA_ASSET_EXTENSIONS
+            ),
             "ProjectStatus": constants.ProjectStatus,
             "SurveyRelatedRecordStatus": constants.SurveyRelatedRecordStatus,
             "default_webmap_bounds": {
@@ -108,7 +111,6 @@ async def lifespan(
     jinja_env.filters["is_publishable"] = jinjafilters.is_publishable
     jinja_env.filters["is_updatable"] = jinjafilters.is_updatable
     jinja_env.filters["is_unpublishable"] = jinjafilters.is_unpublishable
-    jinja_env.filters["asset_url"] = jinjafilters.get_url_for_asset
     configure_jinja_env(jinja_env)
     templates = Jinja2Templates(env=jinja_env)
     yield State(

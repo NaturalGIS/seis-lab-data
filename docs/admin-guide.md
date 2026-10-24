@@ -35,7 +35,6 @@ There are four major sets of files related to the SeisLabData system:
     ├── secrets/                           # system credentials and other sensitive data
     ├── certs/                             # TLS certificates
     ├── keys/                              # TLS private keys
-    ├── Caddyfile                          # HTTP file server component configuration
     ├── compose-deployment.env             # docker compose environment variables
     ├── compose.prod-env.yaml              # docker compose stack
     ├── image-url.env                      # URL of the docker image to be used to deploy the system
@@ -172,7 +171,6 @@ SERVICE              STATUS
 auth-db              Up 2 weeks (healthy)
 auth-webapp          Up 2 weeks (healthy)
 auth-worker          Up 2 weeks (healthy)
-caddy-file-server    Up 2 weeks
 db                   Up 2 weeks (healthy)
 dozzle               Up 2 weeks
 martin-tile-server   Up 2 weeks (healthy)
@@ -201,7 +199,6 @@ Example output:
 /seis-lab-data-auth-db-1 → restart: unless-stopped
 /seis-lab-data-auth-webapp-1 → restart: unless-stopped
 /seis-lab-data-auth-worker-1 → restart: unless-stopped
-/seis-lab-data-caddy-file-server-1 → restart: unless-stopped
 /seis-lab-data-db-1 → restart: unless-stopped
 /seis-lab-data-dozzle-1 → restart: unless-stopped
 /seis-lab-data-martin-tile-server-1 → restart: unless-stopped
@@ -414,20 +411,18 @@ This section contains a brief description of the main components of the SeisLabD
 <span class="no-pdf">
 ```mermaid
 flowchart LR
-    monitor(<a href="#10-health-monitor-component">10. Health monitor</a>)
+    monitor(<a href="#9-health-monitor-component">9. Health monitor</a>)
     rev-proxy(<a href="#1-reverse-proxy-component">1. reverse proxy</a>)
     webapp(<a href="#2-web-application-component">2. web application</a>)
     db[(<a href="#3-main-system-db-component">3. main system db</a>)]
     proc-worker(<a href="#4-processing-worker-component">4. processing worker</a>)
-    file-server(<a href="#5-http-file-server-component">5. http file server</a>)
-    tile-server(<a href="#6-map-tiles-server-component">6. map tiles server</a>)
-    auth-webapp(<a href="#7-user-authentication-service-component">7. user authentication service</a>)
-    auth-db[(<a href="#71-database-for-authentication-service-component">7.1. database for authentication service</a>)]
-    auth-worker(<a href="#72-worker-for-authentication-service-component">7.2. worker for authentication service</a>)
-    message-broker(<a href="#8-message-broker-component">8. message broker</a>)
-    arch[[<a href="#9-archive-mount-component">9. archive mount</a>]]
+    tile-server(<a href="#5-map-tiles-server-component">5. map tiles server</a>)
+    auth-webapp(<a href="#6-user-authentication-service-component">6. user authentication service</a>)
+    auth-db[(<a href="#61-database-for-authentication-service-component">6.1. database for authentication service</a>)]
+    auth-worker(<a href="#62-worker-for-authentication-service-component">6.2. worker for authentication service</a>)
+    message-broker(<a href="#7-message-broker-component">7. message broker</a>)
+    arch[[<a href="#8-archive-mount-component">8. archive mount</a>]]
     rev-proxy --> webapp
-    rev-proxy --> file-server
     rev-proxy --> tile-server
     rev-proxy --- auth-webapp
     auth-webapp <--> auth-db
@@ -437,7 +432,7 @@ flowchart LR
     proc-worker <--> db
     webapp <--> message-broker
     message-broker <--> proc-worker
-    arch --> file-server
+    arch --> webapp
     arch --> tile-server
     arch <--> proc-worker
 ```
@@ -452,7 +447,6 @@ and routes them to the appropriate service, according to the rules in the table 
 |-------------------------------------------------------|---------------------------------|
 | host: `seis-lab-data.ipma.pt`                         | `web application`               |
 | host: `auth.seis-lab-data.ipma.pt`                    | `user authentication service`   |
-| host: `data.seis-lab-data.ipma.pt`                    | `http file server`              |
 | host: `seis-lab-data.ipma.pt`<br> path: `/tiles`      | `map tiles server`              |
 | host: `seis-lab-data.ipma.pt`<br> path: `/monitoring` | `log viewer`                    |
 
@@ -467,7 +461,8 @@ and routes them to the appropriate service, according to the rules in the table 
 #### 2. `web application` component
 
 This is the main component of the system. It consists of a web application that serves the graphical
-interface and the API that allows interaction with the catalogue.
+interface and the API that allows interaction with the catalogue. It also serves downloads of the
+datasets in the archive, enforcing the same access rules as the catalogue records they belong to.
 
 
 ##### Relevant configuration files
@@ -517,22 +512,7 @@ pattern[^2] application through the `message broker` component.
 [^2]: General overview of the publish/subscribe pattern: <https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern>
 
 
-#### 5. `http file server` component
-
-[Caddy](https://caddyserver.com/) instance that serves the data archive files at
-`data.seis-lab-data.ipma.pt`. Access is controlled by the authentication service via Traefik
-forward authentication[^3].
-
-[^3]: traefik forward authentication docs: <https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/forwardauth/>
-
-
-##### Relevant configuration files
-
-- `Caddyfile` - Caddy server configuration
-- `compose.prod-env.yaml` - `caddy-file-server` service
-
-
-#### 6. `map tiles server` component
+#### 5. `map tiles server` component
 
 [Martin](https://martin.maplibre.org/) instance that serves vector map tiles from the PostGIS
 database and PMTiles files. Accessible under the `/tiles` path of the main domain.
@@ -544,7 +524,7 @@ database and PMTiles files. Accessible under the `/tiles` path of the main domai
   `/opt/seis-lab-data/secrets/martin-config.yaml`
 
 
-#### 7. `user authentication service` component
+#### 6. `user authentication service` component
 
 [Authentik](https://goauthentik.io/) instance that manages user authentication and authorization
 via OpenID Connect[^4]. Accessible at `auth.seis-lab-data.ipma.pt`. The system defines two user groups:
@@ -565,18 +545,18 @@ administration panel, accessible at `auth.seis-lab-data.ipma.pt/if/admin/`.
   `auth-db-password`, `auth-email-username`, `auth-email-password`
 
 
-#### 7.1. `database for authentication service` component
+#### 6.1. `database for authentication service` component
 
 PostgreSQL instance dedicated to Authentik. Not shared with the main system database.
 
 
-#### 7.2. `worker for authentication service` component
+#### 6.2. `worker for authentication service` component
 
 Authentik worker component, responsible for background tasks such as sending emails and applying
 blueprints.
 
 
-#### 8. `message broker` component
+#### 7. `message broker` component
 
 [Redis](https://redis.io/) instance used both as a message queue and message broker between the `web application` and the
 `processing worker` components.
@@ -587,7 +567,7 @@ blueprints.
 There is no relevant configuration for this component.
 
 
-#### 9. `archive mount` component
+#### 8. `archive mount` component
 
 This component consists of the volumes that mount the archive filesystem on the node containing
 the installation.
@@ -600,12 +580,12 @@ the installation.
 These volumes are subsequently mounted inside the relevant docker containers so that they can be
 used by system services:
 
+- [2. `web application` component](#2-web-application-component)
 - [4. `processing worker` component](#4-processing-worker-component)
-- [5. `http file server` component](#5-http-file-server-component)
-- [6. `map tiles server` component](#6-map-tiles-server-component)
+- [5. `map tiles server` component](#5-map-tiles-server-component)
 
 
-#### 10. `health monitor` component
+#### 9. `health monitor` component
 
 [Dozzle](https://dozzle.dev/) instance that allows viewing the logs of all services in real time
 through a web interface. Accessible at `seis-lab-data.ipma.pt/monitoring`. Access is protected by

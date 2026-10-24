@@ -70,6 +70,9 @@ SURVEY_RELATED_RECORD_VALIDITY_CHANGED_TOPIC: typing.Final[str] = (
 SURVEY_RELATED_RECORD_DELETED_TOPIC: typing.Final[str] = (
     "survey-related-record-deleted:{survey_related_record_id}"
 )
+# data assets whose file is unusable without its sidecar files - these get
+# downloaded as a zip bundle holding the file and all of its sidecars
+BUNDLED_DATA_ASSET_EXTENSIONS: typing.Final[frozenset[str]] = frozenset({".shp"})
 
 
 class PageType(str, enum.Enum):

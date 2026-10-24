@@ -1,5 +1,6 @@
 import datetime as dt
 import json
+from pathlib import PurePosixPath
 
 import shapely
 import stac_pydantic
@@ -9,7 +10,7 @@ import stac_pydantic.shared as stac_shared
 from fastapi import Request
 from geoalchemy2 import WKBElement
 
-from ... import config
+from ... import constants
 from ...db import models
 from . import (
     conformance,
@@ -96,27 +97,29 @@ def collection_from_survey_mission(
 
 def asset_dict_from_records(
     assets: list[models.RecordAsset],
-    project: models.Project,
-    mission: models.SurveyMission,
     request: Request,
-    settings: config.SeisLabDataSettings,
 ) -> dict[str, stac_shared.Asset]:
     result = {}
     for asset in assets:
-        if not asset.relative_path:
-            # no file in the archive to point a STAC href at
+        if constants.AssetType.DATA not in asset.asset_type or not asset.relative_path:
+            # only data assets have a file in the archive to point a STAC href at
             continue
-        href = "/".join(
-            (
-                settings.public_url,
-                project.root_path,
-                mission.relative_path,
-                asset.relative_path,
-            )
-        )
         result[str(asset.id)] = stac_shared.Asset(
-            href=href,
-            type=asset.media_type,
+            # the webapp's download route, which enforces the same access rules
+            href=str(
+                request.url_for(
+                    "survey_related_records:download_record_asset",
+                    survey_related_record_id=asset.survey_related_record_id,
+                    record_asset_id=asset.id,
+                )
+            ),
+            # bundled files are downloaded as a zip holding them and their sidecars
+            type=(
+                "application/zip"
+                if PurePosixPath(asset.relative_path).suffix.lower()
+                in constants.BUNDLED_DATA_ASSET_EXTENSIONS
+                else asset.media_type
+            ),
             title=asset.name or None,
             description=asset.description or None,
             roles=[asset_type.value for asset_type in asset.asset_type],
@@ -127,9 +130,7 @@ def asset_dict_from_records(
 def item_from_survey_related_record(
     record: models.SurveyRelatedRecord,
     mission: models.SurveyMission,
-    project: models.Project,
     request: Request,
-    settings: config.SeisLabDataSettings,
 ) -> stac_api.Item:
     bbox, geometry = bbox_and_geometry(record.bbox_4326)
     start_datetime = _to_utc_datetime(record.temporal_extent_begin)
@@ -165,9 +166,7 @@ def item_from_survey_related_record(
         bbox=bbox,
         geometry=geometry,
         properties=properties,
-        assets=asset_dict_from_records(
-            record.assets, project, mission, request, settings
-        ),
+        assets=asset_dict_from_records(record.assets, request),
         links=[
             link_helpers.self_link(
                 request,

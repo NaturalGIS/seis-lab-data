@@ -8,7 +8,6 @@ context:
   client_secret: !File /run/secrets/auth-client-secret
   redirect_uri: !Env SEIS_LAB_DATA_REDIRECT_URI
   post_logout_redirect_uri: !Env SEIS_LAB_DATA_POST_LOGOUT_REDIRECT_URI
-  file_server_url: !Env ARCHIVE_BASE_URL
   dozzle_url: !Env DOZZLE_BASE_URL
   authentik_url: !Env SEIS_LAB_DATA_AUTHENTIK_BASE_URL
   admin_group_name: seis-lab-data-catalog-admins
@@ -379,31 +378,6 @@ entries:
       meta_publisher: "NaturalGIS"
       policy_engine_mode: any
 
-  # Create a proxy provider for archive forward auth
-  - model: authentik_providers_proxy.proxyprovider
-    id: sld-archive-proxy-provider
-    identifiers:
-      name: sld-archive-proxy-provider
-    attrs:
-      name: sld-archive-proxy-provider
-      authorization_flow: !Find [authentik_flows.flow, [slug, "default-provider-authorization-implicit-consent"]]
-      authentication_flow: !Find [authentik_flows.flow, [slug, "sld-authentication-flow"]]
-      invalidation_flow: !Find [authentik_flows.flow, [slug, "default-invalidation-flow"]]
-      mode: forward_single
-      external_host: !Context file_server_url
-
-  # Create an application for the archive
-  - model: authentik_core.application
-    id: sld-archive-app
-    identifiers:
-      slug: sld-archive
-    attrs:
-      name: SLD Archive
-      slug: sld-archive
-      provider: !KeyOf sld-archive-proxy-provider
-      meta_description: "SeisLabData Archive File Browser"
-      policy_engine_mode: any
-
   # Create a proxy provider for dozzle forward auth
   - model: authentik_providers_proxy.proxyprovider
     id: sld-dozzle-proxy-provider
@@ -466,7 +440,6 @@ entries:
       managed: goauthentik.io/outposts/embedded
     attrs:
       providers:
-        - !KeyOf sld-archive-proxy-provider
         - !KeyOf sld-dozzle-proxy-provider
       config:
         authentik_host: !Context authentik_url

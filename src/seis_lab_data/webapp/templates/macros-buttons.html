@@ -8,6 +8,17 @@
 {% endmacro %}
 
 
+{% macro render_download_button(download_url, is_zip_bundle=False) %}
+    <a
+            href="{{ download_url }}"
+            class="btn btn-outline-primary"
+            download
+    >
+        <span class="material-icons-outlined me-1">{{ icons.download }}</span>{% if is_zip_bundle %}{{ _("Download (zip)") }}{% else %}{{ _("Download") }}{% endif %}
+    </a>
+{% endmacro %}
+
+
 {% macro render_new_item_button(url, text, aria_label="new-item") %}
     <button
             class="btn btn-primary"

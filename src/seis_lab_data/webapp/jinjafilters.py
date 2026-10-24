@@ -10,7 +10,6 @@ from .. import constants
 from ..schemas.webui import UserPermissionDetails
 
 if typing.TYPE_CHECKING:
-    from ..config import SeisLabDataSettings
     from ..schemas import projects as project_schemas
     from ..schemas import surveymissions as mission_schemas
     from ..schemas import surveyrelatedrecords as record_schemas
@@ -126,23 +125,3 @@ def translate_enum(value: constants.TranslatableEnumProtocol) -> str:
 def get_polygon_bounds(polygon_wkt: str) -> tuple[float, float, float, float]:
     geom = shapely.from_wkt(polygon_wkt)
     return geom.bounds
-
-
-@pass_context
-def get_url_for_asset(
-    context: dict[str, typing.Any],
-    asset: "record_schemas.RecordAssetReadDetailEmbedded",
-    item: "record_schemas.SurveyRelatedRecordReadDetail",
-) -> str:
-    if constants.AssetType.DATA not in asset.asset_type:
-        # derived assets have no file in the archive
-        return ""
-    settings: SeisLabDataSettings = context.get("settings")
-    return "/".join(
-        (
-            settings.public_url,
-            item.survey_mission.project.root_path,
-            item.survey_mission.relative_path,
-            asset.relative_path,
-        )
-    )

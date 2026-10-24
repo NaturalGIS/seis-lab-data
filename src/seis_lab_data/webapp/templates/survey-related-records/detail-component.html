@@ -216,8 +216,10 @@
                 <dd class="col-sm-9">{{ asset.media_type | default(_("unknown"), true) }}</dd>
                 <dt class="col-sm-3">{{ _("Relative path") }}</dt>
                 <dd class="col-sm-9">{{ asset.relative_path }}</dd>
-                <dt class="col-sm-3">{{ _("Archive URL") }}</dt>
-                <dd class="col-sm-9">{{ asset | asset_url(item) }}</dd>
+                {% if asset.relative_path %}
+                    <dt class="col-sm-3">{{ _("Download") }}</dt>
+                    <dd class="col-sm-9">{{ macros_buttons.render_download_button(url_for('survey_related_records:download_record_asset', survey_related_record_id=item.id, record_asset_id=asset.id), asset.relative_path.lower().endswith(BUNDLED_DATA_ASSET_EXTENSIONS)) }}</dd>
+                {% endif %}
             </dl>
         {% else %}
             {{ _("No assets found") }}

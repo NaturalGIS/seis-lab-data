@@ -112,6 +112,10 @@ ESRI vector format storing point, line, or polygon geometries with attribute dat
 files `.shx` (index) and `.dbf` (attributes) are required. Used as secondary file across all
 workflow stages.
 
+Shapefiles are downloaded as a zip archive holding the `.shp` file together with all of its
+companion files (every file in the same directory that shares its name, such as `.shx`, `.dbf`,
+`.prj`, `.cpg` or `.shp.xml`).
+
 ### CSV
 
 | Property | Value |

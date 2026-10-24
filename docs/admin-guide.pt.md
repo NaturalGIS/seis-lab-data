@@ -38,7 +38,6 @@ Existem quatro conjuntos principais de ficheiros relacionados com o sistema Seis
     ├── secrets/                           # credenciais e outros dados secretos do sistema
     ├── certs/                             # Certificados TLS
     ├── keys/                              # Chaves privadas TLS
-    ├── Caddyfile                          # Configuração da componente servidor web
     ├── compose-deployment.env             # Variáveis de ambiente do docker compose
     ├── compose.prod-env.yaml              # Stack docker compose
     ├── image-url.env                      # URL da imagem docker a utilizar para instalar o sistema
@@ -179,7 +178,6 @@ SERVICE              STATUS
 auth-db              Up 2 weeks (healthy)
 auth-webapp          Up 2 weeks (healthy)
 auth-worker          Up 2 weeks (healthy)
-caddy-file-server    Up 2 weeks
 db                   Up 2 weeks (healthy)
 dozzle               Up 2 weeks
 martin-tile-server   Up 2 weeks (healthy)
@@ -209,7 +207,6 @@ Exemplo de resultado:
 /seis-lab-data-auth-db-1 → restart: unless-stopped
 /seis-lab-data-auth-webapp-1 → restart: unless-stopped
 /seis-lab-data-auth-worker-1 → restart: unless-stopped
-/seis-lab-data-caddy-file-server-1 → restart: unless-stopped
 /seis-lab-data-db-1 → restart: unless-stopped
 /seis-lab-data-dozzle-1 → restart: unless-stopped
 /seis-lab-data-martin-tile-server-1 → restart: unless-stopped
@@ -432,20 +429,18 @@ Esta secção contém uma breve descrição dos principais componentes do sistem
 <span class="no-pdf">
 ```mermaid
 flowchart LR
-    monitor(<a href="#10-componente-health-monitor">10. Health monitor</a>)
+    monitor(<a href="#9-componente-health-monitor">9. Health monitor</a>)
     rev-proxy(<a href="#1-componente-reverse-proxy">1. reverse proxy</a>)
     webapp(<a href="#2-componente-web-application">2. web application</a>)
     db[(<a href="#3-componente-main-system-db">3. main system db</a>)]
     proc-worker(<a href="#4-componente-processing-worker">4. processing worker</a>)
-    file-server(<a href="#5-componente-http-file-server">5. http file server</a>)
-    tile-server(<a href="#6-componente-map-tiles-server">6. map tiles server</a>)
-    auth-webapp(<a href="#7-componente-user-authentication-service">7. user authentication service</a>)
-    auth-db[(<a href="#71-componente-database-for-authentication-service">7.1. database for authentication service</a>)]
-    auth-worker(<a href="#72-componente-worker-for-authentication-service">7.2. worker for authentication service</a>)
-    message-broker(<a href="#8-componente-message-broker">8. message broker</a>)
-    arch[[<a href="#9-componente-archive-mount">9. archive mount</a>]]
+    tile-server(<a href="#5-componente-map-tiles-server">5. map tiles server</a>)
+    auth-webapp(<a href="#6-componente-user-authentication-service">6. user authentication service</a>)
+    auth-db[(<a href="#61-componente-database-for-authentication-service">6.1. database for authentication service</a>)]
+    auth-worker(<a href="#62-componente-worker-for-authentication-service">6.2. worker for authentication service</a>)
+    message-broker(<a href="#7-componente-message-broker">7. message broker</a>)
+    arch[[<a href="#8-componente-archive-mount">8. archive mount</a>]]
     rev-proxy --> webapp
-    rev-proxy --> file-server
     rev-proxy --> tile-server
     rev-proxy --- auth-webapp
     auth-webapp <--> auth-db
@@ -455,7 +450,7 @@ flowchart LR
     proc-worker <--> db
     webapp <--> message-broker
     message-broker <--> proc-worker
-    arch --> file-server
+    arch --> webapp
     arch --> tile-server
     arch <--> proc-worker
 ```
@@ -470,7 +465,6 @@ e direciona-os para o serviço adequado, de acordo com as regras descritas na ta
 |-------------------------------------------------------|---------------------------------|
 | host: `seis-lab-data.ipma.pt`                         | `web application`               |
 | host: `auth.seis-lab-data.ipma.pt`                    | `user authentication service`   |
-| host: `data.seis-lab-data.ipma.pt`                    | `http file server`              |
 | host: `seis-lab-data.ipma.pt`<br> path: `/tiles`      | `map tiles server`              |
 | host: `seis-lab-data.ipma.pt`<br> path: `/monitoring` | `log viewer`                    |
 
@@ -486,7 +480,8 @@ e direciona-os para o serviço adequado, de acordo com as regras descritas na ta
 #### 2. Componente `web application`
 
 Esta é a componente principal do sistema. Consiste numa aplicação web que serve a interface
-gráfica e a API que permite interagir com o catálogo.
+gráfica e a API que permite interagir com o catálogo. Serve também os _downloads_ dos conjuntos de
+dados do arquivo, aplicando as mesmas regras de acesso dos registos do catálogo a que pertencem.
 
 
 ##### Ficheiros de configuração relevantes
@@ -536,22 +531,7 @@ através de um padrão de publicação/subscrição[^2] via a componente `messag
 [^2]: Visão geral do padrão publicação/subscrição: <https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern>
 
 
-#### 5. Componente `http file server`
-
-Instância [Caddy](https://caddyserver.com/) que serve os ficheiros do arquivo de dados em
-`data.seis-lab-data.ipma.pt`. O acesso é controlado pelo serviço de autenticação via
-_forward authentication_ do Traefik[^3].
-
-[^3]: Documentação do _forward authentication_ do Traefik: <https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/forwardauth/>
-
-
-##### Ficheiros de configuração relevantes
-
-- `Caddyfile` - configuração do servidor Caddy
-- `compose.prod-env.yaml` - serviço `caddy-file-server`
-
-
-#### 6. Componente `map tiles server`
+#### 5. Componente `map tiles server`
 
 Instância [Martin](https://martin.maplibre.org/) que serve _map tiles_ vetoriais a partir da
 base de dados PostGIS e de ficheiros PMTiles. Acessível sob o caminho `/tiles` do domínio
@@ -564,7 +544,7 @@ principal.
   `/opt/seis-lab-data/secrets/martin-config.yaml`
 
 
-#### 7. Componente `user authentication service`
+#### 6. Componente `user authentication service`
 
 Instância [Authentik](https://goauthentik.io/) que gere a autenticação e autorização dos
 utilizadores via OpenID Connect[^4]. Acessível em `auth.seis-lab-data.ipma.pt`. O sistema define
@@ -587,19 +567,19 @@ A gestão de utilizadores (criação de contas, atribuição a grupos, reposiç�
   `auth-db-password`, `auth-email-username`, `auth-email-password`
 
 
-#### 7.1. Componente `database for authentication service`
+#### 6.1. Componente `database for authentication service`
 
 Instância PostgreSQL dedicada ao Authentik. Não é partilhada com a base de dados principal
 do sistema.
 
 
-#### 7.2. Componente `worker for authentication service`
+#### 6.2. Componente `worker for authentication service`
 
 Componente _worker_ do Authentik, responsável por tarefas em segundo plano como o envio de
 emails e a aplicação de _blueprints_.
 
 
-#### 8. Componente `message broker`
+#### 7. Componente `message broker`
 
 Instância [Redis](https://redis.io/) utilizada como fila de mensagens e intermediário de mensagens
 entre as componentes `web application` e `processing worker`.
@@ -610,7 +590,7 @@ entre as componentes `web application` e `processing worker`.
 Não existe configuração relevante para esta componente.
 
 
-#### 9. Componente `archive mount`
+#### 8. Componente `archive mount`
 
 Esta componente consiste nos volumes que montam o sistema de ficheiros do arquivo no nó que
 contém a instalação.
@@ -623,12 +603,12 @@ contém a instalação.
 Estes volumes são posteriormente montados dentro dos contentores docker relevantes, de modo a que
 possam ser utilizados pelos serviços do sistema:
 
+- [2. Componente `web application`](#2-componente-web-application)
 - [4. Componente `processing worker`](#4-componente-processing-worker)
-- [5. Componente `http file server`](#5-componente-http-file-server)
-- [6. Componente `map tiles server`](#6-componente-map-tiles-server)
+- [5. Componente `map tiles server`](#5-componente-map-tiles-server)
 
 
-#### 10. Componente `health monitor`
+#### 9. Componente `health monitor`
 
 Instância [Dozzle](https://dozzle.dev/) que permite visualizar os _logs_ de todos os serviços em
 tempo real, através de uma interface web. Acessível em `seis-lab-data.ipma.pt/monitoring`. O acesso

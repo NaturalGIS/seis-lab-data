@@ -118,6 +118,10 @@ Formato vetorial ESRI que armazena geometrias de pontos, linhas ou polígonos co
 atributos. Os ficheiros complementares `.shx` (índice) e `.dbf` (atributos) são obrigatórios.
 Utilizado como ficheiro secundário em todas as fases do fluxo de trabalho.
 
+As _shapefiles_ são descarregadas como um arquivo zip que contém o ficheiro `.shp` juntamente com
+todos os seus ficheiros complementares (todos os ficheiros da mesma diretoria que partilham o seu
+nome, como `.shx`, `.dbf`, `.prj`, `.cpg` ou `.shp.xml`).
+
 ### CSV
 
 | Propriedade | Valor |

@@ -100,6 +100,11 @@
                         </div>
                     </div>
                     {{ macros_buttons.render_view_details_button(url_for('survey_related_records:detail', survey_related_record_id=item.id)) }}
+                    {% for asset in item.record_assets if AssetType.DATA in asset.asset_type and asset.relative_path %}
+                        {% if loop.first %}
+                            {{ macros_buttons.render_download_button(url_for('survey_related_records:download_record_asset', survey_related_record_id=item.id, record_asset_id=asset.id), asset.relative_path.lower().endswith(BUNDLED_DATA_ASSET_EXTENSIONS)) }}
+                        {% endif %}
+                    {% endfor %}
                 </div>
             </div>
         </div>

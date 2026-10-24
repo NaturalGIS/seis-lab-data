@@ -263,9 +263,7 @@ async def collection_items(
         include_total=True,
     )
     items = [
-        serialization.item_from_survey_related_record(
-            r, mission, mission.project, request, settings
-        )
+        serialization.item_from_survey_related_record(r, mission, request)
         for r in records
     ]
     extra_params = {}
@@ -323,7 +321,6 @@ async def get_item(
     item_id: uuid.UUID,
     request: Request,
     session: AsyncSession = Depends(get_session),
-    settings: config.SeisLabDataSettings = Depends(get_settings),
 ) -> JSONResponse:
     result = await survey_related_record_ops.get_survey_related_record(
         identifiers.SurveyRelatedRecordId(item_id), None, session
@@ -334,7 +331,7 @@ async def get_item(
     if record.survey_mission_id != mission_id:
         raise HTTPException(404)
     item = serialization.item_from_survey_related_record(
-        record, record.survey_mission, record.survey_mission.project, request, settings
+        record, record.survey_mission, request
     )
     return JSONResponse(_dump(item), media_type="application/geo+json")
 
@@ -367,9 +364,7 @@ async def _execute_search(
         include_total=True,
     )
     items = [
-        serialization.item_from_survey_related_record(
-            r, r.survey_mission, r.survey_mission.project, request, settings
-        )
+        serialization.item_from_survey_related_record(r, r.survey_mission, request)
         for r in records
     ]
     extra_params = {}
