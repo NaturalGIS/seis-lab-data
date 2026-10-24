@@ -13,9 +13,9 @@ from ..constants import (
 )
 from .common import (
     LinkSchema,
-    LocalizableDraftDescription,
-    LocalizableDraftName,
-    LocalizableDraftRelationship,
+    DraftDescription,
+    DraftName,
+    DraftRelationship,
     PolygonOut,
     PossiblyInvalidPolygon,
     serialize_id,
@@ -58,11 +58,9 @@ class DataRecordAssetCreate(pydantic.BaseModel):
     """
 
     id: RecordAssetId
-    name: LocalizableDraftName
+    name: DraftName
     relative_path: str
-    description: LocalizableDraftDescription = pydantic.Field(
-        default_factory=LocalizableDraftDescription
-    )
+    description: DraftDescription = ""
     media_type: str | None = None
     links: list[LinkSchema] = []
 
@@ -76,8 +74,8 @@ class DataRecordAssetCreate(pydantic.BaseModel):
 
 class DataRecordAssetUpdate(pydantic.BaseModel):
     id: RecordAssetId
-    name: LocalizableDraftName | None = None
-    description: LocalizableDraftDescription | None = None
+    name: DraftName | None = None
+    description: DraftDescription | None = None
     media_type: str | None = None
     relative_path: str | None = None
     links: list[LinkSchema] | None = None
@@ -106,19 +104,17 @@ class DerivedRecordAssetCreate(pydantic.BaseModel):
     """
 
     id: RecordAssetId
-    name: LocalizableDraftName
+    name: DraftName
     media_type: str
     asset_type: list[AssetType]
-    description: LocalizableDraftDescription = pydantic.Field(
-        default_factory=LocalizableDraftDescription
-    )
+    description: DraftDescription = ""
     data: bytes
 
 
 class DerivedRecordAssetUpdate(pydantic.BaseModel):
     id: RecordAssetId
-    name: LocalizableDraftName | None = None
-    description: LocalizableDraftDescription | None = None
+    name: DraftName | None = None
+    description: DraftDescription | None = None
     media_type: str | None = None
     asset_type: list[AssetType] | None = None
     data: bytes | None = None
@@ -126,12 +122,12 @@ class DerivedRecordAssetUpdate(pydantic.BaseModel):
 
 class RecordAssetReadListItem(pydantic.BaseModel):
     id: Annotated[RecordAssetId, pydantic.PlainSerializer(serialize_id)]
-    name: LocalizableDraftName
+    name: DraftName
     asset_type: list[AssetType]
 
 
 class RecordAssetReadDetailEmbedded(RecordAssetReadListItem):
-    description: LocalizableDraftDescription
+    description: DraftDescription
     relative_path: str | None
     media_type: str | None
     links: list[LinkSchema] = []
@@ -139,7 +135,7 @@ class RecordAssetReadDetailEmbedded(RecordAssetReadListItem):
 
 class SurveyRelatedRecordReadEmbedded(pydantic.BaseModel):
     id: Annotated[SurveyRelatedRecordId, pydantic.PlainSerializer(serialize_id)]
-    name: LocalizableDraftName
+    name: DraftName
     status: SurveyRelatedRecordStatus
     validation_result: models.ValidationResult | None
     bbox_4326: PolygonOut | None
@@ -163,30 +159,30 @@ class SurveyRelatedRecordReadEmbedded(pydantic.BaseModel):
         )
 
 
-def check_asset_english_names_for_uniqueness(
+def check_asset_names_for_uniqueness(
     assets: list[DataRecordAssetCreate] | list[DataRecordAssetUpdate],
 ) -> list[DataRecordAssetCreate] | list[DataRecordAssetUpdate]:
     seen_names = set()
     for asset in assets:
         if asset.name is None:  # not being changed, so nothing to check here
             continue
-        if asset.name.en in seen_names:
-            raise ValueError(f"Duplicate asset english name found: {asset.name.en!r}")
-        seen_names.add(asset.name.en)
+        if asset.name in seen_names:
+            raise ValueError(f"Duplicate asset name found: {asset.name!r}")
+        seen_names.add(asset.name)
     return assets
 
 
 class RelatedRecordCreate(pydantic.BaseModel):
     related_record_id: SurveyRelatedRecordId
-    relationship: LocalizableDraftRelationship
+    relationship: DraftRelationship
 
 
 class SurveyRelatedRecordCreate(pydantic.BaseModel):
     id: SurveyRelatedRecordId
     survey_mission_id: SurveyMissionId
 
-    name: LocalizableDraftName
-    description: LocalizableDraftDescription
+    name: DraftName
+    description: DraftDescription
     dataset_category_id: DatasetCategoryId
     workflow_stage_id: WorkflowStageId
     bbox_4326: PossiblyInvalidPolygon | None = None
@@ -195,14 +191,14 @@ class SurveyRelatedRecordCreate(pydantic.BaseModel):
     links: list[LinkSchema] = []
     assets: Annotated[
         list[DataRecordAssetCreate],
-        pydantic.AfterValidator(check_asset_english_names_for_uniqueness),
+        pydantic.AfterValidator(check_asset_names_for_uniqueness),
     ] = []
     related_records: list[RelatedRecordCreate] = []
     extra_properties: dict[str, str] | None = None
 
 
 class SurveyRelatedRecordBulkUpdate(pydantic.BaseModel):
-    description: LocalizableDraftDescription | None = None
+    description: DraftDescription | None = None
     dataset_category_id: DatasetCategoryId | None = None
     workflow_stage_id: WorkflowStageId | None = None
     bbox_4326: PossiblyInvalidPolygon | None = None
@@ -228,8 +224,7 @@ class SurveyRelatedRecordBulkUpdateSelection(pydantic.BaseModel):
     excluded_record_ids: list[SurveyRelatedRecordId] | None = None
     survey_mission_id: SurveyMissionId | None = None
     project_id: ProjectId | None = None
-    en_name_filter: str | None = None
-    pt_name_filter: str | None = None
+    name_filter: str | None = None
     spatial_intersect: PossiblyInvalidPolygon | None = None
     temporal_extent: TemporalExtentFilterValue | None = None
     asset_path_fragment_filter: str | None = None
@@ -241,8 +236,8 @@ class SurveyRelatedRecordBulkUpdateSelection(pydantic.BaseModel):
 class SurveyRelatedRecordUpdate(pydantic.BaseModel):
     survey_mission_id: SurveyMissionId | None = None
 
-    name: LocalizableDraftName | None = None
-    description: LocalizableDraftDescription | None = None
+    name: DraftName | None = None
+    description: DraftDescription | None = None
     dataset_category_id: DatasetCategoryId | None = None
     workflow_stage_id: WorkflowStageId | None = None
     bbox_4326: PossiblyInvalidPolygon | None = None
@@ -251,7 +246,7 @@ class SurveyRelatedRecordUpdate(pydantic.BaseModel):
     links: list[LinkSchema] | None = None
     assets: Annotated[
         list[DataRecordAssetUpdate],
-        pydantic.AfterValidator(check_asset_english_names_for_uniqueness),
+        pydantic.AfterValidator(check_asset_names_for_uniqueness),
     ] = []
     related_records: list[RelatedRecordCreate] = []
 
@@ -262,8 +257,8 @@ class SurveyRelatedRecordPublication(pydantic.BaseModel):
 
 class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
     id: Annotated[SurveyRelatedRecordId, pydantic.PlainSerializer(serialize_id)]
-    name: LocalizableDraftName
-    description: LocalizableDraftDescription
+    name: DraftName
+    description: DraftDescription
     status: SurveyRelatedRecordStatus
     validation_result: models.ValidationResult | None
     survey_mission: SurveyMissionReadEmbedded
@@ -287,9 +282,7 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
     ) -> "SurveyRelatedRecordReadListItem":
         # sorted so the same thumbnail is shown across renders and the format badge
         # fed from record_assets
-        assets_by_name = sorted(
-            instance.assets, key=lambda a: (a.name.get("en", ""), str(a.id))
-        )
+        assets_by_name = sorted(instance.assets, key=lambda a: (a.name, str(a.id)))
         thumbnail = next(
             (a for a in assets_by_name if AssetType.THUMBNAIL in a.asset_type), None
         )
@@ -320,12 +313,8 @@ class SurveyRelatedRecordReadListItem(pydantic.BaseModel):
 
 class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
     links: list[LinkSchema] = []
-    related_to_records: list[
-        tuple[LocalizableDraftDescription, SurveyRelatedRecordReadEmbedded]
-    ]
-    subject_for_records: list[
-        tuple[LocalizableDraftDescription, SurveyRelatedRecordReadEmbedded]
-    ]
+    related_to_records: list[tuple[str, SurveyRelatedRecordReadEmbedded]]
+    subject_for_records: list[tuple[str, SurveyRelatedRecordReadEmbedded]]
     preview_asset_id: (
         Annotated[RecordAssetId, pydantic.PlainSerializer(serialize_id)] | None
     )
@@ -336,15 +325,13 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
     def from_db_instance(
         cls,
         instance: models.SurveyRelatedRecord,
-        records_related_to: list[tuple[dict, models.SurveyRelatedRecord]],
-        records_subject_for: list[tuple[dict, models.SurveyRelatedRecord]],
+        records_related_to: list[tuple[str, models.SurveyRelatedRecord]],
+        records_subject_for: list[tuple[str, models.SurveyRelatedRecord]],
     ) -> "SurveyRelatedRecordReadDetail":
         # a record holds one derived asset per previewable data asset, taking the
         # first by name + id keeps both the thumbnail and the preview the same across
         # renders
-        assets_by_name = sorted(
-            instance.assets, key=lambda a: (a.name.get("en", ""), str(a.id))
-        )
+        assets_by_name = sorted(instance.assets, key=lambda a: (a.name, str(a.id)))
         thumbnail = next(
             (a for a in assets_by_name if AssetType.THUMBNAIL in a.asset_type), None
         )

@@ -38,7 +38,6 @@ async def get_projects_datalist(request: Request) -> DatastarResponse:
     to collect relevant signals from a "datastar" query param, which is a
     JSON object.
     """
-    current_language = request.state.language
     if (target_datalist_id := request.query_params.get("target")) is None:
         raise HTTPException(status_code=400, detail="target is required")
     if (datastar_signal := request.query_params.get("signal")) is None:
@@ -49,11 +48,7 @@ async def get_projects_datalist(request: Request) -> DatastarResponse:
         raise HTTPException(
             status_code=400, detail="Could not retrieve search value"
         ) from err
-    name_filter = filters.SearchNameFilter(
-        internal_name=f"{current_language}_name_filter",
-        public_name=f"{current_language}_name",
-        value=search_value,
-    )
+    name_filter = filters.NameFilter(value=search_value)
     internal_filter_kwargs = name_filter.as_kwargs()
     logger.debug(f"{internal_filter_kwargs=}")
     user = request.user if request.user.is_authenticated else None
@@ -81,7 +76,6 @@ async def get_missions_datalist(request: Request) -> DatastarResponse:
     to collect relevant signals from a "datastar" query param, which is a
     JSON object.
     """
-    current_language = request.state.language
     if (target_datalist_id := request.query_params.get("target")) is None:
         raise HTTPException(status_code=400, detail="target is required")
     if (datastar_signal := request.query_params.get("signal")) is None:
@@ -92,11 +86,7 @@ async def get_missions_datalist(request: Request) -> DatastarResponse:
         raise HTTPException(
             status_code=400, detail="Could not retrieve search value"
         ) from err
-    name_filter = filters.SearchNameFilter(
-        internal_name=f"{current_language}_name_filter",
-        public_name=f"{current_language}_name",
-        value=search_value,
-    )
+    name_filter = filters.NameFilter(value=search_value)
     internal_filter_kwargs = name_filter.as_kwargs()
     logger.debug(f"{internal_filter_kwargs=}")
     user = request.user if request.user.is_authenticated else None
@@ -125,7 +115,6 @@ async def get_records_datalist(request: Request) -> DatastarResponse:
     to collect relevant signals from a "datastar" query param, which is a
     JSON object.
     """
-    current_language = request.state.language
     if (target_datalist_id := request.query_params.get("target")) is None:
         raise HTTPException(status_code=400, detail="target is required")
     if (datastar_signal := request.query_params.get("signal")) is None:
@@ -136,11 +125,7 @@ async def get_records_datalist(request: Request) -> DatastarResponse:
         raise HTTPException(
             status_code=400, detail="Could not retrieve search value"
         ) from err
-    name_filter = filters.SearchNameFilter(
-        internal_name=f"{current_language}_name_filter",
-        public_name=f"{current_language}_name",
-        value=search_value,
-    )
+    name_filter = filters.NameFilter(value=search_value)
     internal_filter_kwargs = name_filter.as_kwargs()
     logger.debug(f"{internal_filter_kwargs=}")
     user = request.user if request.user.is_authenticated else None

@@ -29,7 +29,6 @@ from ..permissions import (
     surveymissions as mission_permissions,
 )
 from ..schemas import (
-    common,
     events as event_schemas,
     discovery as discovery_schemas,
     identifiers,
@@ -245,7 +244,7 @@ async def run_mission_discovery(
         )
         return
 
-    logger.debug(f"Discovering contents of mission {mission.name['en']!r}...")
+    logger.debug(f"Discovering contents of mission {mission.name!r}...")
     asset_discovery_configs = (
         await discovery_queries.collect_all_asset_discovery_configurations(session)
     )
@@ -396,11 +395,8 @@ async def _discover_mission_records(
                     to_create=record_schemas.SurveyRelatedRecordCreate(
                         id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
                         survey_mission_id=identifiers.SurveyMissionId(mission.id),
-                        name=common.LocalizableDraftName(en=found_path.name),
-                        description=common.LocalizableDraftDescription(
-                            en=metadata.describe("en") if metadata is not None else "",
-                            pt=metadata.describe("pt") if metadata is not None else "",
-                        ),
+                        name=found_path.name,
+                        description=metadata.describe() if metadata is not None else "",
                         dataset_category_id=identifiers.DatasetCategoryId(
                             asset_discovery_conf.dataset_category_id
                         ),
@@ -417,8 +413,8 @@ async def _discover_mission_records(
                         assets=[
                             record_schemas.DataRecordAssetCreate(
                                 id=identifiers.RecordAssetId(uuid.uuid4()),
-                                name=common.LocalizableDraftName(en=found_path.stem),
-                                description=common.LocalizableDraftDescription(en=""),
+                                name=found_path.stem,
+                                description="",
                                 relative_path=relative_file_path,
                             )
                         ],

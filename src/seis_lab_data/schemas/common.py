@@ -4,7 +4,6 @@ import uuid
 from typing import (
     Annotated,
     cast,
-    Protocol,
 )
 
 import pydantic
@@ -14,34 +13,17 @@ from geoalchemy2 import WKBElement
 from .. import constants
 
 
-class Localizable(Protocol):
-    en: str | None
-    pt: str | None
+DraftName = Annotated[
+    str, pydantic.Field(min_length=1, max_length=constants.NAME_MAX_LENGTH)
+]
 
+DraftDescription = Annotated[
+    str, pydantic.Field(max_length=constants.DESCRIPTION_MAX_LENGTH)
+]
 
-class LocalizableDraftName(pydantic.BaseModel):
-    en: Annotated[
-        str, pydantic.Field(min_length=1, max_length=constants.NAME_MAX_LENGTH)
-    ]
-    pt: Annotated[str, pydantic.Field(max_length=constants.NAME_MAX_LENGTH)] | None = (
-        None
-    )
-
-
-class LocalizableDraftDescription(pydantic.BaseModel):
-    en: (
-        Annotated[str, pydantic.Field(max_length=constants.DESCRIPTION_MAX_LENGTH)]
-        | None
-    ) = None
-    pt: (
-        Annotated[str, pydantic.Field(max_length=constants.DESCRIPTION_MAX_LENGTH)]
-        | None
-    ) = None
-
-
-class LocalizableDraftRelationship(pydantic.BaseModel):
-    en: Annotated[str, pydantic.Field(min_length=1, max_length=50)]
-    pt: Annotated[str, pydantic.Field(max_length=50)] | None = None
+DraftRelationship = Annotated[
+    str, pydantic.Field(min_length=1, max_length=constants.RELATION_MAX_LENGTH)
+]
 
 
 class LinkSchema(pydantic.BaseModel):
@@ -55,7 +37,7 @@ class LinkSchema(pydantic.BaseModel):
     # same as pydantic model fields. It just so happens that links are modelled
     # in a wtforms formfield, which also has a 'description' property and this
     # naming was chosen to avoid clashes
-    link_description: LocalizableDraftDescription
+    link_description: DraftDescription
 
     @pydantic.field_serializer("url")
     def serialize_url(

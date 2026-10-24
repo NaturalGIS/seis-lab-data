@@ -9,10 +9,10 @@
     <script type="module" src="{{ url_for('static', path='/js/record-map.js') }}"></script>
 {% endblock head %}
 
-{% block title %}{{ item.name|translate_localizable_string }} - SeisLabData{% endblock %}
+{% block title %}{{ item.name }} - SeisLabData{% endblock %}
 
 {% block page_title %}
-    <span class="material-icons-outlined me-1">{{ icons.survey_related_records }}</span> {{ item.name|translate_localizable_string }}
+    <span class="material-icons-outlined me-1">{{ icons.survey_related_records }}</span> {{ item.name }}
 {% endblock page_title %}
 
 {% block details %}

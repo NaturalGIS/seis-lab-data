@@ -1,10 +1,10 @@
-{% from "macro-jsoneditor-field.html" import jsoneditor_field %}
+{% import "macros.html" as macros %}
 <form
         data-signals="{submitting: false}"
         data-on:datastar-fetch="evt.detail.type === 'error' && ($submitting = false)"
 >
     {{ form.request_id() }}
-    {{ jsoneditor_field(form.name) }}
+    {{ macros.render_form_field(form.name) }}
     <output></output>
     <div class="row mb-3">
         <div class="col-sm-10 offset-sm-2">

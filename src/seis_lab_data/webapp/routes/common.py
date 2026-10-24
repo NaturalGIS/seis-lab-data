@@ -12,7 +12,6 @@ from jinja2.filters import do_truncate
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
-from ...localization import translate_localizable
 from ...schemas import (
     identifiers,
     projects as project_schemas,
@@ -114,47 +113,37 @@ def build_related_record_compound_name(
     survey_related_record: record_schemas.SurveyRelatedRecordReadEmbedded
     | record_schemas.SurveyRelatedRecordReadListItem,
 ) -> str:
-    current_language = request.state.language
-    current_name = translate_localizable(survey_related_record.name, current_language)
     current_mission_name = do_truncate(
         request.state.templates.env,
-        translate_localizable(
-            survey_related_record.survey_mission.name, current_language
-        ),
+        survey_related_record.survey_mission.name,
         length=15,
         killwords=True,
         leeway=0,
     )
     current_project_name = do_truncate(
         request.state.templates.env,
-        translate_localizable(
-            survey_related_record.survey_mission.project.name, current_language
-        ),
+        survey_related_record.survey_mission.project.name,
         length=15,
         killwords=True,
         leeway=0,
     )
-    return f"{current_name} ({current_mission_name} - {current_project_name}) - {survey_related_record.id}"
+    return f"{survey_related_record.name} ({current_mission_name} - {current_project_name}) - {survey_related_record.id}"
 
 
 def build_mission_compound_name(
     request: Request, survey_mission: mission_schemas.SurveyMissionReadListItem
 ) -> str:
-    current_language = request.state.language
-    current_name = translate_localizable(survey_mission.name, current_language)
     current_project_name = do_truncate(
         request.state.templates.env,
-        translate_localizable(survey_mission.project.name, current_language),
+        survey_mission.project.name,
         length=15,
         killwords=True,
         leeway=0,
     )
-    return f"{current_name} ({current_project_name}) - {survey_mission.id}"
+    return f"{survey_mission.name} ({current_project_name}) - {survey_mission.id}"
 
 
 def build_project_compound_name(
     request: Request, project: project_schemas.ProjectReadListItem
 ) -> str:
-    current_language = request.state.language
-    current_name = translate_localizable(project.name, current_language)
-    return f"{current_name} - {project.id}"
+    return f"{project.name} - {project.id}"

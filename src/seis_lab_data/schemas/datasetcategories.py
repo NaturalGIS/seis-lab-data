@@ -14,18 +14,18 @@ logger = logging.getLogger(__name__)
 
 class DatasetCategoryCreate(pydantic.BaseModel):
     id: identifiers.DatasetCategoryId
-    name: common.LocalizableDraftName
+    name: common.DraftName
 
 
 class DatasetCategoryUpdate(pydantic.BaseModel):
-    name: common.LocalizableDraftName | None = None
+    name: common.DraftName | None = None
 
 
 class DatasetCategoryReadListItem(pydantic.BaseModel):
     id: Annotated[
         identifiers.DatasetCategoryId, pydantic.PlainSerializer(common.serialize_id)
     ]
-    name: common.LocalizableDraftName
+    name: common.DraftName
 
     @classmethod
     def from_db_instance(

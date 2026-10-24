@@ -60,14 +60,14 @@ async def get_record_asset(
     return (await session.exec(statement)).first()
 
 
-async def get_record_asset_by_english_name(
+async def get_record_asset_by_name(
     session: AsyncSession,
     survey_related_record_id: identifiers.SurveyRelatedRecordId,
-    english_name: str,
+    name: str,
 ) -> models.RecordAsset | None:
     statement = (
         select(models.RecordAsset)
-        .where(models.RecordAsset.name["en"].astext == english_name)
+        .where(models.RecordAsset.name == name)
         .where(models.RecordAsset.survey_related_record_id == survey_related_record_id)
         .options(_SELECT_IN_LOAD_OPTIONS)
     )

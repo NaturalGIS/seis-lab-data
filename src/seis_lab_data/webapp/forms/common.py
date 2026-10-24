@@ -17,7 +17,6 @@ from wtforms import (
     FormField,
 )
 
-from .fields import JsonEditorField
 from ... import constants
 
 logger = logging.getLogger(__name__)
@@ -94,9 +93,7 @@ def retrieve_form_field_by_pydantic_loc(
     logger.debug(f"{parent=} - {loc=}")
     for part in loc:
         logger.debug(f"{part=} {field=}")
-        if isinstance(field, JsonEditorField):
-            return field
-        elif isinstance(part, int):
+        if isinstance(part, int):
             field = parent.entries[part]
         else:
             for f in parent:
@@ -112,59 +109,34 @@ def retrieve_form_field_by_pydantic_loc(
     return field
 
 
-class NameForm(Form):
-    en = StringField(
-        _("English name"),
-        description=_("Name of the item in english"),
-        validators=[
-            # validators.DataRequired(message=_("English name is required")),
-            validators.Length(
-                max=constants.NAME_MAX_LENGTH,
-            ),
-        ],
-    )
-    pt = StringField(
-        _("Portuguese name"),
-        description=_("Name of the item in portuguese"),
-        validators=[
-            validators.Length(
-                max=constants.NAME_MAX_LENGTH,
-            ),
-        ],
-    )
+class NameField(StringField):
+    """A required, length-limited name field."""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Make 'en' field required
-        self.en.flags.backend_required = True
+    def __init__(self, label=_("Name"), **kwargs):
+        kwargs.setdefault("description", _("Name of the item"))
+        kwargs.setdefault(
+            "validators", [validators.Length(max=constants.NAME_MAX_LENGTH)]
+        )
+        super().__init__(label, **kwargs)
+        self.flags.backend_required = True
 
 
-class DescriptionForm(Form):
-    en = TextAreaField(
-        _("English description"),
-        description=_("Short english description about this item"),
-        validators=[
-            validators.Length(
-                max=constants.DESCRIPTION_MAX_LENGTH,
-            ),
-        ],
-    )
-    pt = TextAreaField(
-        _("Portuguese description"),
-        description=_("Short portuguese description about this item"),
-        validators=[
-            validators.Length(
-                max=constants.DESCRIPTION_MAX_LENGTH,
-            ),
-        ],
-    )
+class DescriptionField(TextAreaField):
+    """An optional, length-limited description field."""
+
+    def __init__(self, label=_("Description"), **kwargs):
+        kwargs.setdefault("description", _("Short description about this item"))
+        kwargs.setdefault(
+            "validators", [validators.Length(max=constants.DESCRIPTION_MAX_LENGTH)]
+        )
+        super().__init__(label, **kwargs)
 
 
 class LinkForm(Form):
     url = URLField(_("URL"))
     media_type = StringField(_("Media type"))
     relation = StringField(_("Relation"))
-    link_description = FormField(DescriptionForm)
+    link_description = DescriptionField()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

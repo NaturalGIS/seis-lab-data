@@ -103,7 +103,7 @@ export class BaseMap extends HTMLElement {
             console.log(evt)
             new maplibregl.Popup()
                 .setLngLat(evt.lngLat)
-                .setHTML(`<a href="${itemDetailBaseUrl}/${evt.features[0].properties.id}">${evt.features[0].properties.en}</a>`)
+                .setHTML(`<a href="${itemDetailBaseUrl}/${evt.features[0].properties.id}">${evt.features[0].properties.name}</a>`)
                 .addTo(this.map)
         })
     }

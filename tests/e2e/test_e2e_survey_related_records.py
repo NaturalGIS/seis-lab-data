@@ -8,22 +8,18 @@ from playwright.sync_api import (
 )
 
 
-def _fill_project_form_minimal(page: Page, english_name: str):
-    page.get_by_role("textbox", name="field-name-en").fill(english_name)
+def _fill_project_form_minimal(page: Page, name: str):
+    page.get_by_role("textbox", name="field-name").fill(name)
 
 
-def _fill_survey_mission_form_minimal(page: Page, english_name: str):
-    page.get_by_role("textbox", name="field-name-en").fill(english_name)
+def _fill_survey_mission_form_minimal(page: Page, name: str):
+    page.get_by_role("textbox", name="field-name").fill(name)
 
 
-def _fill_survey_related_record_form(page: Page, english_name: str):
-    page.get_by_role("textbox", name="field-name-en").fill(english_name)
-    page.get_by_role("textbox", name="field-name-pt").fill("Registo de teste e2e")
-    page.get_by_role("textbox", name="field-description-en").fill(
+def _fill_survey_related_record_form(page: Page, name: str):
+    page.get_by_role("textbox", name="field-name").fill(name)
+    page.get_by_role("textbox", name="field-description").fill(
         "e2e survey-related record description"
-    )
-    page.get_by_role("textbox", name="field-description-pt").fill(
-        "descrição do registo de teste"
     )
 
 
@@ -72,11 +68,8 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
         "fake-relation"
     )
     authenticated_page.get_by_role(
-        "textbox", name="field-link-links-0-link_description-en"
+        "textbox", name="field-link-links-0-link_description"
     ).fill("some link description")
-    authenticated_page.get_by_role(
-        "textbox", name="field-link-links-0-link_description-pt"
-    ).fill("uma descrição do link")
 
     authenticated_page.get_by_role(
         "button", name="add-another-link", exact=True
@@ -91,27 +84,18 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
         "fake-relation2"
     )
     authenticated_page.get_by_role(
-        "textbox", name="field-link-links-1-link_description-en"
+        "textbox", name="field-link-links-1-link_description"
     ).fill("some description for link 2")
-    authenticated_page.get_by_role(
-        "textbox", name="field-link-links-1-link_description-pt"
-    ).fill("uma descrição do segundo link")
 
     authenticated_page.get_by_role(
         "button", name="add-another-asset", exact=True
     ).click()
-    authenticated_page.get_by_role("textbox", name="field-asset-assets-0-name-en").fill(
+    authenticated_page.get_by_role("textbox", name="field-asset-assets-0-name").fill(
         "Sample e2e asset"
     )
-    authenticated_page.get_by_role("textbox", name="field-asset-assets-0-name-pt").fill(
-        "Recurso de teste e2e"
-    )
     authenticated_page.get_by_role(
-        "textbox", name="field-asset-assets-0-description-en"
+        "textbox", name="field-asset-assets-0-description"
     ).fill("This is a sample asset used in e2e tests")
-    authenticated_page.get_by_role(
-        "textbox", name="field-asset-assets-0-description-pt"
-    ).fill("Este é um recurso de test usado em testes e2e")
     authenticated_page.get_by_role(
         "textbox", name="field-asset-assets-0-relative_path"
     ).fill("/asset/relative/path.tif")
@@ -126,25 +110,16 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
         "textbox", name="field-asset-0-link-assets-0-links-0-relation"
     ).fill("fake-relation")
     authenticated_page.get_by_role(
-        "textbox", name="field-link-assets-0-links-0-link_description-en"
+        "textbox", name="field-link-assets-0-links-0-link_description"
     ).fill("some link description")
-    authenticated_page.get_by_role(
-        "textbox", name="field-link-assets-0-links-0-link_description-pt"
-    ).fill("uma descrição do link")
 
     authenticated_page.get_by_role("button", name="add-another-asset").click()
-    authenticated_page.get_by_role("textbox", name="field-asset-assets-1-name-en").fill(
+    authenticated_page.get_by_role("textbox", name="field-asset-assets-1-name").fill(
         "Sample e2e second asset"
     )
-    authenticated_page.get_by_role("textbox", name="field-asset-assets-1-name-pt").fill(
-        "Segundo recurso de teste e2e"
-    )
     authenticated_page.get_by_role(
-        "textbox", name="field-asset-assets-1-description-en"
+        "textbox", name="field-asset-assets-1-description"
     ).fill("This the second sample asset used in e2e tests")
-    authenticated_page.get_by_role(
-        "textbox", name="field-asset-assets-1-description-pt"
-    ).fill("Este é um segundo recurso de test usado em testes e2e")
     authenticated_page.get_by_role(
         "textbox", name="field-asset-assets-1-relative_path"
     ).fill("/asset/relative/second-path.tif")
@@ -159,11 +134,8 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
         "textbox", name="field-asset-1-link-assets-1-links-0-relation"
     ).fill("fake-relation")
     authenticated_page.get_by_role(
-        "textbox", name="field-link-assets-1-links-0-link_description-en"
+        "textbox", name="field-link-assets-1-links-0-link_description"
     ).fill("some link description")
-    authenticated_page.get_by_role(
-        "textbox", name="field-link-assets-1-links-0-link_description-pt"
-    ).fill("uma descrição do link")
 
     authenticated_page.get_by_role("button", name="submit-create-form").click()
     expect(authenticated_page).to_have_url(
@@ -176,7 +148,7 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
 
     # and now actually modify it
     authenticated_page.get_by_role("link", name="update-item").click()
-    authenticated_page.get_by_role("textbox", name="field-name-en").fill(
+    authenticated_page.get_by_role("textbox", name="field-name").fill(
         f"The modified name {record_name_id}"
     )
     authenticated_page.get_by_role("button", name="submit-update-form").click()
@@ -409,7 +381,7 @@ def test_bulk_update_survey_related_records(authenticated_page: Page):
 
 
 @pytest.mark.e2e
-def test_survey_related_record_creation_rejects_duplicate_english_name(
+def test_survey_related_record_creation_rejects_duplicate_name(
     authenticated_page: Page,
 ):
     authenticated_page.goto("/")
@@ -443,13 +415,13 @@ def test_survey_related_record_creation_rejects_duplicate_english_name(
     )
     record_detail_url = authenticated_page.url
 
-    # try to create another record with the same english name under the same mission
+    # try to create another record with the same name under the same mission
     authenticated_page.goto(mission_detail_url)
     authenticated_page.get_by_role("link", name="new-item").click()
     _fill_survey_related_record_form(authenticated_page, record_name)
     authenticated_page.get_by_role("button", name="submit-create-form").click()
     expect(
-        authenticated_page.locator("#backend-validation-name-en-feedback")
+        authenticated_page.locator("#backend-validation-name-feedback")
     ).to_be_visible()
 
     # clean up: navigate to the record detail page and delete it, then mission, then project

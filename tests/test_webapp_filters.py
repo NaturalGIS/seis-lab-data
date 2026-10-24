@@ -18,22 +18,13 @@ from seis_lab_data.webapp import filters
     ],
     [
         pytest.param(
-            filters.EnNameFilter,
+            filters.NameFilter,
             "some_name",
             "some_name",
-            "en_name_filter",
-            "en_name",
-            {"en_name_filter": "some_name"},
-            "en_name=some_name",
-        ),
-        pytest.param(
-            filters.PtNameFilter,
-            "um nome",
-            "um nome",
-            "pt_name_filter",
-            "pt_name",
-            {"pt_name_filter": "um nome"},
-            "pt_name=um nome",
+            "name_filter",
+            "search",
+            {"name_filter": "some_name"},
+            "search=some_name",
         ),
         pytest.param(
             filters.DatasetCategoryFilter,
@@ -86,7 +77,7 @@ def test_bounding_box_filter():
 
 def test_simple_filter_from_params():
     value = "fake_value"
-    filter_ = filters.EnNameFilter.from_params({"en_name": value})
+    filter_ = filters.NameFilter.from_params({"search": value})
     assert filter_.value == value
 
 
@@ -149,18 +140,18 @@ def test_survey_related_record_list_filters_omits_survey_mission_id_when_unset()
     # some routes (like the mission-scoped records listing) also pass
     # `survey_mission_id` explicitly and would blow up on a duplicate kwarg.
     list_filters = filters.SurveyRelatedRecordListFilters.from_params(
-        {"search": "something not matching"}, "en"
+        {"search": "something not matching"}
     )
     kwargs = list_filters.as_kwargs()
     assert "survey_mission_id" not in kwargs
     assert "project_id" not in kwargs
-    assert kwargs["en_name_filter"] == "something not matching"
+    assert kwargs["name_filter"] == "something not matching"
 
 
 def test_survey_related_record_list_filters_includes_survey_mission_id_when_set():
     mission_id = uuid.uuid4()
     list_filters = filters.SurveyRelatedRecordListFilters.from_params(
-        {"filterMission": f"some mission name {mission_id}"}, "en"
+        {"filterMission": f"some mission name {mission_id}"}
     )
     kwargs = list_filters.as_kwargs()
     assert kwargs["survey_mission_id"] == mission_id
@@ -169,28 +160,12 @@ def test_survey_related_record_list_filters_includes_survey_mission_id_when_set(
 @pytest.mark.parametrize(
     "filter_, expected_qs_fragment",
     [
+        pytest.param(filters.ProjectListFilters.from_params({}), ""),
         pytest.param(
-            filters.ProjectListFilters.from_params({"en_name": "a name"}, "fake_lang"),
-            "?en_name=a name",
+            filters.ProjectListFilters.from_params({"search": "stuffs"}),
+            "?search=stuffs",
         ),
-        pytest.param(
-            filters.ProjectListFilters.from_params({"en_name": ""}, "fake_lang"), ""
-        ),
-        pytest.param(
-            filters.ProjectListFilters.from_params({"pt_name": "um nome"}, "fake_lang"),
-            "?pt_name=um nome",
-        ),
-        pytest.param(
-            filters.ProjectListFilters.from_params({"pt_name": ""}, "fake_lang"), ""
-        ),
-        pytest.param(filters.ProjectListFilters.from_params({}, "fake_lang"), ""),
-        pytest.param(
-            filters.ProjectListFilters.from_params({"search": "stuffs"}, "fake_lang"),
-            "?fake_lang_name=stuffs",
-        ),
-        pytest.param(
-            filters.ProjectListFilters.from_params({"search": ""}, "fake_lang"), ""
-        ),
+        pytest.param(filters.ProjectListFilters.from_params({"search": ""}), ""),
         pytest.param(
             filters.ProjectListFilters.from_params(
                 {
@@ -199,36 +174,13 @@ def test_survey_related_record_list_filters_includes_survey_mission_id_when_set(
                     "minLat": "0",
                     "maxLon": "10",
                     "maxLat": "10",
-                },
-                "fake_lang",
+                }
             ),
-            "?minLon=0.0&minLat=0.0&maxLon=10.0&maxLat=10.0&fake_lang_name=stuffs",
+            "?minLon=0.0&minLat=0.0&maxLon=10.0&maxLat=10.0&search=stuffs",
         ),
         pytest.param(
             filters.ProjectListFilters.from_params(
-                {
-                    "search": "stuffs1",
-                    "en_name": "stuffs2",
-                },
-                "fake_lang",
-            ),
-            "?en_name=stuffs2&fake_lang_name=stuffs1",
-        ),
-        pytest.param(
-            filters.ProjectListFilters.from_params(
-                {
-                    "search": "stuffs1",
-                    "en_name": "stuffs2",
-                },
-                "en",
-            ),
-            "?en_name=stuffs1",
-            id="search_overrides_name",
-        ),
-        pytest.param(
-            filters.ProjectListFilters.from_params(
-                {"minLon": "0", "minLat": "0", "maxLon": "0", "maxLat": "0"},
-                "fake_lang",
+                {"minLon": "0", "minLat": "0", "maxLon": "0", "maxLat": "0"}
             ),
             "",
             id="only_invalid_bbox",
@@ -241,10 +193,9 @@ def test_survey_related_record_list_filters_includes_survey_mission_id_when_set(
                     "minLat": "0",
                     "maxLon": "0",
                     "maxLat": "0",
-                },
-                "fake_lang",
+                }
             ),
-            "?fake_lang_name=stuffs",
+            "?search=stuffs",
             id="invalid_bbox",
         ),
     ],

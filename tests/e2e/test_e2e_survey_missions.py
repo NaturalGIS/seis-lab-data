@@ -8,19 +8,13 @@ from playwright.sync_api import (
 )
 
 
-def _fill_project_form_minimal(page: Page, english_name: str):
-    page.get_by_role("textbox", name="field-name-en").fill(english_name)
+def _fill_project_form_minimal(page: Page, name: str):
+    page.get_by_role("textbox", name="field-name").fill(name)
 
 
-def _fill_survey_mission_form(page: Page, english_name: str):
-    page.get_by_role("textbox", name="field-name-en").fill(english_name)
-    page.get_by_role("textbox", name="field-name-pt").fill("Missão de teste e2e")
-    page.get_by_role("textbox", name="field-description-en").fill(
-        "e2e test description"
-    )
-    page.get_by_role("textbox", name="field-description-pt").fill(
-        "descrição da missão de teste"
-    )
+def _fill_survey_mission_form(page: Page, name: str):
+    page.get_by_role("textbox", name="field-name").fill(name)
+    page.get_by_role("textbox", name="field-description").fill("e2e test description")
     page.get_by_role("textbox", name="field-relative_path").fill(
         "/somewhere/survey/mission"
     )
@@ -60,11 +54,8 @@ def test_survey_mission_lifecycle(authenticated_page: Page):
         "fake-relation"
     )
     authenticated_page.get_by_role(
-        "textbox", name="field-link-links-0-link_description-en"
+        "textbox", name="field-link-links-0-link_description"
     ).fill("some link description")
-    authenticated_page.get_by_role(
-        "textbox", name="field-link-links-0-link_description-pt"
-    ).fill("uma descrição do link")
 
     authenticated_page.get_by_role("button", name="add-another-link").click()
     authenticated_page.get_by_role("textbox", name="field-link-links-1-url").fill(
@@ -77,11 +68,8 @@ def test_survey_mission_lifecycle(authenticated_page: Page):
         "fake-relation2"
     )
     authenticated_page.get_by_role(
-        "textbox", name="field-link-links-1-link_description-en"
+        "textbox", name="field-link-links-1-link_description"
     ).fill("some description for link 2")
-    authenticated_page.get_by_role(
-        "textbox", name="field-link-links-1-link_description-pt"
-    ).fill("uma descrição do segundo link")
 
     authenticated_page.get_by_role("button", name="submit-create-form").click()
     expect(authenticated_page).to_have_url(
@@ -94,7 +82,7 @@ def test_survey_mission_lifecycle(authenticated_page: Page):
 
     # and now actually modify it
     authenticated_page.get_by_role("link", name="update-item").click()
-    authenticated_page.get_by_role("textbox", name="field-name-en").fill(
+    authenticated_page.get_by_role("textbox", name="field-name").fill(
         f"The modified name {mission_name_id}"
     )
     authenticated_page.get_by_role("button", name="submit-update-form").click()
@@ -116,7 +104,7 @@ def test_survey_mission_lifecycle(authenticated_page: Page):
 
 
 @pytest.mark.e2e
-def test_survey_mission_creation_rejects_duplicate_english_name(
+def test_survey_mission_creation_rejects_duplicate_name(
     authenticated_page: Page,
 ):
     authenticated_page.goto("/")
@@ -141,13 +129,13 @@ def test_survey_mission_creation_rejects_duplicate_english_name(
     )
     mission_detail_url = authenticated_page.url
 
-    # try to create another mission with the same english name under the same project
+    # try to create another mission with the same name under the same project
     authenticated_page.goto(project_detail_url)
     authenticated_page.get_by_role("link", name="new-item").click()
     _fill_survey_mission_form(authenticated_page, mission_name)
     authenticated_page.get_by_role("button", name="submit-create-form").click()
     expect(
-        authenticated_page.locator("#backend-validation-name-en-feedback")
+        authenticated_page.locator("#backend-validation-name-feedback")
     ).to_be_visible()
 
     # clean up: navigate to the mission detail page and delete it, then the project

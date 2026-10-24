@@ -1,4 +1,3 @@
-import json
 import logging
 
 import pydantic
@@ -8,13 +7,15 @@ from starlette_babel import gettext_lazy as _
 from starlette_wtf import StarletteForm
 from wtforms import HiddenField
 
-from ...db.queries.datasetcategories import get_dataset_category_by_english_name
+from ...db.queries.datasetcategories import get_dataset_category_by_name
 from ...schemas import (
     datasetcategories as category_schemas,
     identifiers,
 )
-from .common import incorporate_schema_validation_errors_into_form
-from .fields import JsonEditorField
+from .common import (
+    incorporate_schema_validation_errors_into_form,
+    NameField,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,51 +24,23 @@ class _BaseForm(StarletteForm):
     """Base form for dataset categories."""
 
     request_id = HiddenField()
-    name = JsonEditorField(
-        label=_("name"),
-        default_structure={"en": "", "pt": ""},
-    )
+    name = NameField()
 
-    def _parse_name(self) -> dict | None:
-        value: dict[str, str] = self.name.data
-        if not value:
-            return None
-        try:
-            if value.get("en", "") == "":
-                self.name.errors.append("Must provide at least english name")
-                return None
-            return value
-        except json.JSONDecodeError:
-            self.name.errors.append(_("Invalid JSON"))
-            return None
-        except pydantic.ValidationError as exc:
-            self.name.errors.append(
-                "; ".join(
-                    f"{'.'.join(str(part) for part in e['loc'])}: {e['msg']}"
-                    for e in exc.errors()
-                )
-            )
-            return None
-
-    async def check_if_english_name_is_unique(
+    async def check_if_name_is_unique(
         self,
         session: AsyncSession,
         disregard_id: identifiers.DatasetCategoryId | None = None,
     ):
-        """Check if current english name is already used by another dataset category.
+        """Check if current name is already used by another dataset category.
 
         The `disregard_id` argument can be used when checking uniqueness of
-        the english name in the context of updating an already existing dataset
+        the name in the context of updating an already existing dataset
         category, in which case the category itself should be disregarded, as
-        it is not a conflict for a category to have the same english name
+        it is not a conflict for a category to have the same name
         as itself.
         """
-        error_message = _("There is already a dataset category with this english name")
-        if (parsed_name := self._parse_name()) is None:
-            return
-        if candidate := await get_dataset_category_by_english_name(
-            session, parsed_name["en"]
-        ):
+        error_message = _("There is already a dataset category with this name")
+        if candidate := await get_dataset_category_by_name(session, self.name.data):
             if disregard_id:
                 if identifiers.DatasetCategoryId(candidate.id) != disregard_id:
                     self.name.errors.append(error_message)
@@ -92,7 +65,7 @@ class _BaseForm(StarletteForm):
 
         - validate the form with WTForms' validation logic
         - validate the form data with our custom pydantic model
-        - validate that the English name is unique across projects
+        - validate that the name is unique across projects
 
         The already validated form instance is returned.
         """
@@ -104,7 +77,7 @@ class _BaseForm(StarletteForm):
         form_instance.validate_with_schema()
         session_maker = request.state.settings.get_db_session_maker()
         async with session_maker() as session:
-            await form_instance.check_if_english_name_is_unique(
+            await form_instance.check_if_name_is_unique(
                 session, disregard_id=disregard_id
             )
         return form_instance

@@ -7,8 +7,8 @@ from ..constants import ProjectStatus
 from ..db import models
 from .common import (
     LinkSchema,
-    LocalizableDraftDescription,
-    LocalizableDraftName,
+    DraftDescription,
+    DraftName,
     PolygonOut,
     PossiblyInvalidPolygon,
     serialize_id,
@@ -19,8 +19,8 @@ from .identifiers import ProjectId
 
 class ProjectCreate(pydantic.BaseModel):
     id: ProjectId
-    name: LocalizableDraftName
-    description: LocalizableDraftDescription | None = None
+    name: DraftName
+    description: DraftDescription = ""
     root_path: str
     links: list[LinkSchema] = []
     bbox_4326: PossiblyInvalidPolygon | None = None
@@ -29,8 +29,8 @@ class ProjectCreate(pydantic.BaseModel):
 
 
 class ProjectUpdate(pydantic.BaseModel):
-    name: LocalizableDraftName | None = None
-    description: LocalizableDraftDescription | None = None
+    name: DraftName | None = None
+    description: DraftDescription | None = None
     root_path: str | None = None
     links: list[LinkSchema] | None = None
     bbox_4326: PossiblyInvalidPolygon | None = None
@@ -40,7 +40,7 @@ class ProjectUpdate(pydantic.BaseModel):
 
 class ProjectReadEmbedded(pydantic.BaseModel):
     id: Annotated[ProjectId, pydantic.PlainSerializer(serialize_id)]
-    name: LocalizableDraftName
+    name: DraftName
     status: ProjectStatus
     validation_result: models.ValidationResult | None
     root_path: str
@@ -60,7 +60,7 @@ class ProjectReadEmbedded(pydantic.BaseModel):
 
 
 class ProjectReadListItem(ProjectReadEmbedded):
-    description: LocalizableDraftDescription
+    description: DraftDescription
 
     @classmethod
     def from_db_instance(cls, instance: models.Project) -> "ProjectReadListItem":

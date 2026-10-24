@@ -62,55 +62,35 @@ def get_projects_to_create() -> list[project_schemas.ProjectCreate]:
     return [
         project_schemas.ProjectCreate(
             id=_real_owf_seism_2024_project_id,
-            name=common_schemas.LocalizableDraftName(
-                en="prr eolicas",
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en="A description about the prr eolicas project",
-            ),
+            name="prr eolicas",
+            description="A description about the prr eolicas project",
             root_path="projects/prr-eolicas",
         ),
         project_schemas.ProjectCreate(
             id=_my_first_project_id,
-            name=common_schemas.LocalizableDraftName(
-                en="My first project", pt="O meu primeiro projeto"
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en="A Fake description for my first project",
-                pt="Uma descrição falsa para o meu primeiro projeto",
-            ),
+            name="My first project",
+            description="A Fake description for my first project",
             root_path="/projects/first",
             links=[
                 common_schemas.LinkSchema(
                     url=pydantic.AnyHttpUrl("https://fakeurl.com"),
                     media_type="text/html",
                     relation="related",
-                    link_description=common_schemas.LocalizableDraftDescription(
-                        en="A fake description for link",
-                        pt="Uma descrição falsa para o link",
-                    ),
+                    link_description="A fake description for link",
                 ),
             ],
         ),
         project_schemas.ProjectCreate(
             id=_my_second_project_id,
-            name=common_schemas.LocalizableDraftName(
-                en="My second project", pt="O meu segundo projeto"
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en="A fake description for my second project",
-                pt="Uma descrição sintética para o meu segundo projeto",
-            ),
+            name="My second project",
+            description="A fake description for my second project",
             root_path="/projects/second",
             links=[
                 common_schemas.LinkSchema(
                     url=pydantic.AnyHttpUrl("https://fakeurl.com"),
                     media_type="text/html",
                     relation="related",
-                    link_description=common_schemas.LocalizableDraftDescription(
-                        en="A fake description for link",
-                        pt="Uma descrição falsa para o link",
-                    ),
+                    link_description="A fake description for link",
                 )
             ],
         ),
@@ -122,167 +102,112 @@ def get_survey_missions_to_create() -> list[mission_schemas.SurveyMissionCreate]
         mission_schemas.SurveyMissionCreate(
             id=_owf_seism_2024_mission_id,
             project_id=_real_owf_seism_2024_project_id,
-            name=common_schemas.LocalizableDraftName(en="owf-seism-2024"),
-            description=common_schemas.LocalizableDraftDescription(en=""),
+            name="owf-seism-2024",
+            description="",
             relative_path="surveys/owf-seism-2024",
         ),
         mission_schemas.SurveyMissionCreate(
             id=_my_first_survey_mission_id,
             project_id=_my_first_project_id,
-            name=common_schemas.LocalizableDraftName(
-                en="My first survey mission", pt="A minha primeira missão"
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en="This is the description for my first survey mission",
-                pt="Esta é a descrição para a minha primeira missão",
-            ),
+            name="My first survey mission",
+            description="This is the description for my first survey mission",
             relative_path="mission1",
             links=[
                 common_schemas.LinkSchema(
                     url=pydantic.AnyHttpUrl("https://fakeurl1.com"),
                     media_type="text/html",
                     relation="related",
-                    link_description=common_schemas.LocalizableDraftDescription(
-                        en="A fake description for the first link",
-                        pt="Uma descrição falsa para o primeiro link",
-                    ),
+                    link_description="A fake description for the first link",
                 ),
                 common_schemas.LinkSchema(
                     url=pydantic.AnyHttpUrl("https://fakeurl2.com"),
                     media_type="text/html",
                     relation="also-related",
-                    link_description=common_schemas.LocalizableDraftDescription(
-                        en="A fake description for the second link",
-                        pt="Uma descrição falsa para o segundo link",
-                    ),
+                    link_description="A fake description for the second link",
                 ),
             ],
         ),
         mission_schemas.SurveyMissionCreate(
             id=_my_second_survey_mission_id,
             project_id=_my_first_project_id,
-            name=common_schemas.LocalizableDraftName(
-                en="My second survey mission", pt="A minha segunda missão"
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en="This is the description for my second survey mission",
-                pt="Esta é a descrição para a minha segunda missão",
-            ),
+            name="My second survey mission",
+            description="This is the description for my second survey mission",
             relative_path="mission2",
             links=[
                 common_schemas.LinkSchema(
                     url=pydantic.AnyHttpUrl("https://fakeurl1.com"),
                     media_type="text/html",
                     relation="related",
-                    link_description=common_schemas.LocalizableDraftDescription(
-                        en="A fake description for the first link",
-                        pt="Uma descrição falsa para o primeiro link",
-                    ),
+                    link_description="A fake description for the first link",
                 ),
                 common_schemas.LinkSchema(
                     url=pydantic.AnyHttpUrl("https://fakeurl2.com"),
                     media_type="text/html",
                     relation="also-related",
-                    link_description=common_schemas.LocalizableDraftDescription(
-                        en="A fake description for the second link",
-                        pt="Uma descrição falsa para o segundo link",
-                    ),
+                    link_description="A fake description for the second link",
                 ),
             ],
         ),
         mission_schemas.SurveyMissionCreate(
             id=_my_third_survey_mission_id,
             project_id=_my_first_project_id,
-            name=common_schemas.LocalizableDraftName(
-                en="My third survey mission", pt="A minha terceira missão"
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en="This is the description for my third survey mission",
-                pt="Esta é a descrição para a minha terceira missão",
-            ),
+            name="My third survey mission",
+            description="This is the description for my third survey mission",
             relative_path="mission3",
             links=[
                 common_schemas.LinkSchema(
                     url=pydantic.AnyHttpUrl("https://fakeurl1.com"),
                     media_type="text/html",
                     relation="related",
-                    link_description=common_schemas.LocalizableDraftDescription(
-                        en="A fake description for the first link",
-                        pt="Uma descrição falsa para o primeiro link",
-                    ),
+                    link_description="A fake description for the first link",
                 ),
                 common_schemas.LinkSchema(
                     url=pydantic.AnyHttpUrl("https://fakeurl2.com"),
                     media_type="text/html",
                     relation="also-related",
-                    link_description=common_schemas.LocalizableDraftDescription(
-                        en="A fake description for the second link",
-                        pt="Uma descrição falsa para o segundo link",
-                    ),
+                    link_description="A fake description for the second link",
                 ),
             ],
         ),
         mission_schemas.SurveyMissionCreate(
             id=_my_fourth_survey_mission_id,
             project_id=_my_second_project_id,
-            name=common_schemas.LocalizableDraftName(
-                en="My fourth survey mission", pt="A minha quarta missão"
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en="This is the description for my fourth survey mission",
-                pt="Esta é a descrição para a minha quarta missão",
-            ),
+            name="My fourth survey mission",
+            description="This is the description for my fourth survey mission",
             relative_path="mission4",
             links=[
                 common_schemas.LinkSchema(
                     url=pydantic.AnyHttpUrl("https://fakeurl1.com"),
                     media_type="text/html",
                     relation="related",
-                    link_description=common_schemas.LocalizableDraftDescription(
-                        en="A fake description for the first link",
-                        pt="Uma descrição falsa para o primeiro link",
-                    ),
+                    link_description="A fake description for the first link",
                 ),
                 common_schemas.LinkSchema(
                     url=pydantic.AnyHttpUrl("https://fakeurl2.com"),
                     media_type="text/html",
                     relation="also-related",
-                    link_description=common_schemas.LocalizableDraftDescription(
-                        en="A fake description for the second link",
-                        pt="Uma descrição falsa para o segundo link",
-                    ),
+                    link_description="A fake description for the second link",
                 ),
             ],
         ),
         mission_schemas.SurveyMissionCreate(
             id=_my_fifth_survey_mission_id,
             project_id=_my_second_project_id,
-            name=common_schemas.LocalizableDraftName(
-                en="My fifth survey mission", pt="A minha quinta missão"
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en="This is the description for my fifth survey mission",
-                pt="Esta é a descrição para a minha quinta missão",
-            ),
+            name="My fifth survey mission",
+            description="This is the description for my fifth survey mission",
             relative_path="mission5",
             links=[
                 common_schemas.LinkSchema(
                     url=pydantic.AnyHttpUrl("https://fakeurl1.com"),
                     media_type="text/html",
                     relation="related",
-                    link_description=common_schemas.LocalizableDraftDescription(
-                        en="A fake description for the first link",
-                        pt="Uma descrição falsa para o primeiro link",
-                    ),
+                    link_description="A fake description for the first link",
                 ),
                 common_schemas.LinkSchema(
                     url=pydantic.AnyHttpUrl("https://fakeurl2.com"),
                     media_type="text/html",
                     relation="also-related",
-                    link_description=common_schemas.LocalizableDraftDescription(
-                        en="A fake description for the second link",
-                        pt="Uma descrição falsa para o segundo link",
-                    ),
+                    link_description="A fake description for the second link",
                 ),
             ],
         ),
@@ -298,14 +223,8 @@ def get_survey_related_records_to_create(
             id=identifiers.SurveyRelatedRecordId(
                 uuid.UUID("f49d678b-f11a-4798-92dc-604883bc8bda")
             ),
-            name=common_schemas.LocalizableDraftName(
-                en="First record",
-                pt="Primeiro registo",
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en="Description for first record",
-                pt="Descrição do primeiro registo",
-            ),
+            name="First record",
+            description="Description for first record",
             survey_mission_id=_my_first_survey_mission_id,
             dataset_category_id=identifiers.DatasetCategoryId(
                 dataset_categories["bathymetry"].id
@@ -320,14 +239,8 @@ def get_survey_related_records_to_create(
                     id=identifiers.RecordAssetId(
                         uuid.UUID("85f4683c-7d4a-444c-8896-04278bc89e63")
                     ),
-                    name=common_schemas.LocalizableDraftName(
-                        en="First asset",
-                        pt="Primeiro recurso",
-                    ),
-                    description=common_schemas.LocalizableDraftDescription(
-                        en="Description for first asset",
-                        pt="Descrição do primeiro recurso",
-                    ),
+                    name="First asset",
+                    description="Description for first asset",
                     relative_path="first-asset",
                     media_type="application/octet-stream",
                     links=[],
@@ -336,14 +249,8 @@ def get_survey_related_records_to_create(
                     id=identifiers.RecordAssetId(
                         uuid.UUID("a9eca3df-03ba-4f46-a98d-3e30139eb035")
                     ),
-                    name=common_schemas.LocalizableDraftName(
-                        en="Second asset",
-                        pt="Segundo recurso",
-                    ),
-                    description=common_schemas.LocalizableDraftDescription(
-                        en="Description for second asset",
-                        pt="Descrição do segundo recurso",
-                    ),
+                    name="Second asset",
+                    description="Description for second asset",
                     relative_path="second-asset",
                     media_type="application/octet-stream",
                     links=[],
@@ -354,14 +261,8 @@ def get_survey_related_records_to_create(
             id=identifiers.SurveyRelatedRecordId(
                 uuid.UUID("c51e0d11-c4c4-4b4f-8d04-2a115196ff04")
             ),
-            name=common_schemas.LocalizableDraftName(
-                en="Second record",
-                pt="Segundo registo",
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en="Description for second record",
-                pt="Descrição do segundo registo",
-            ),
+            name="Second record",
+            description="Description for second record",
             survey_mission_id=_my_second_survey_mission_id,
             dataset_category_id=identifiers.DatasetCategoryId(
                 dataset_categories["bathymetry"].id
@@ -376,14 +277,8 @@ def get_survey_related_records_to_create(
                     id=identifiers.RecordAssetId(
                         uuid.UUID("a53728ed-5422-4f08-806f-3e75bbb1b3e8")
                     ),
-                    name=common_schemas.LocalizableDraftName(
-                        en="Third asset",
-                        pt="Terceiro recurso",
-                    ),
-                    description=common_schemas.LocalizableDraftDescription(
-                        en="Description for third asset",
-                        pt="Descrição do terceiro recurso",
-                    ),
+                    name="Third asset",
+                    description="Description for third asset",
                     relative_path="third-asset",
                     media_type="application/octet-stream",
                     links=[],
@@ -392,14 +287,8 @@ def get_survey_related_records_to_create(
                     id=identifiers.RecordAssetId(
                         uuid.UUID("bd4bed96-43bd-4d5c-a7b2-d04461dfb23c")
                     ),
-                    name=common_schemas.LocalizableDraftName(
-                        en="Fourth asset",
-                        pt="Quarto recurso",
-                    ),
-                    description=common_schemas.LocalizableDraftDescription(
-                        en="Description for fourth asset",
-                        pt="Descrição do quarto recurso",
-                    ),
+                    name="Fourth asset",
+                    description="Description for fourth asset",
                     relative_path="fourth-asset",
                     media_type="application/octet-stream",
                     links=[],
@@ -426,7 +315,7 @@ def generate_sample_projects(
 ]:
     """Generate large numbers of sample projects, for development and testingpurposes.
 
-    All projects will be generated with a `_sample` suffix in their english name.
+    All projects will be generated with a `_sample` suffix in their name.
     """
     for _ in count():
         links = (
@@ -440,14 +329,8 @@ def generate_sample_projects(
         temporal_extent = _generate_sample_temporal_extent()
         project = project_schemas.ProjectCreate(
             id=identifiers.ProjectId(uuid.uuid4()),
-            name=common_schemas.LocalizableDraftName(
-                en=f"sample_{_FAKE_EN.sentence()}",
-                pt=f"amostra_{_FAKE_PT.sentence()}",
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en=_FAKE_EN.paragraph(nb_sentences=4),
-                pt=_FAKE_PT.paragraph(nb_sentences=4),
-            ),
+            name=f"sample_{_FAKE_EN.sentence()}",
+            description=_FAKE_EN.paragraph(nb_sentences=4),
             root_path=f"/{root_path}/{_FAKE_EN.file_path(depth=_FAKE_EN.random_int(0, 3), absolute=False)}",
             bbox_4326=(
                 _generate_sample_bbox(
@@ -492,14 +375,8 @@ def generate_sample_survey_missions(
         mission = mission_schemas.SurveyMissionCreate(
             id=identifiers.SurveyMissionId(uuid.uuid4()),
             project_id=project_id,
-            name=common_schemas.LocalizableDraftName(
-                en=f"sample_{_FAKE_EN.sentence()}",
-                pt=f"amostra_{_FAKE_PT.sentence()}",
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en=_FAKE_EN.paragraph(nb_sentences=4),
-                pt=_FAKE_PT.paragraph(nb_sentences=4),
-            ),
+            name=f"sample_{_FAKE_EN.sentence()}",
+            description=_FAKE_EN.paragraph(nb_sentences=4),
             relative_path=_FAKE_EN.file_path(
                 depth=_FAKE_EN.random_int(1, 8), absolute=False
             ),
@@ -550,14 +427,8 @@ def generate_sample_survey_related_records(
         )
         yield record_schemas.SurveyRelatedRecordCreate(
             id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
-            name=common_schemas.LocalizableDraftName(
-                en=f"sample_{_FAKE_EN.sentence()}",
-                pt=f"amostra_{_FAKE_PT.sentence()}",
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en=_FAKE_EN.paragraph(nb_sentences=4),
-                pt=_FAKE_PT.paragraph(nb_sentences=4),
-            ),
+            name=f"sample_{_FAKE_EN.sentence()}",
+            description=_FAKE_EN.paragraph(nb_sentences=4),
             survey_mission_id=survey_mission_id,
             dataset_category_id=random.choice(dataset_categories),
             workflow_stage_id=random.choice(workflow_stages),
@@ -590,14 +461,8 @@ def generate_sample_asset() -> Iterator[record_schemas.DataRecordAssetCreate]:
         )
         yield record_schemas.DataRecordAssetCreate(
             id=identifiers.RecordAssetId(uuid.uuid4()),
-            name=common_schemas.LocalizableDraftName(
-                en=f"sample_{_FAKE_EN.sentence()}",
-                pt=f"amostra_{_FAKE_PT.sentence()}",
-            ),
-            description=common_schemas.LocalizableDraftDescription(
-                en=_FAKE_EN.paragraph(nb_sentences=4),
-                pt=_FAKE_PT.paragraph(nb_sentences=4),
-            ),
+            name=f"sample_{_FAKE_EN.sentence()}",
+            description=_FAKE_EN.paragraph(nb_sentences=4),
             relative_path=_FAKE_EN.file_path(
                 depth=_FAKE_EN.random_int(1, 4), absolute=False
             ),
@@ -757,10 +622,7 @@ def generate_sample_link() -> Iterator[common_schemas.LinkSchema]:
                     "working-copy-of",
                 )
             ),
-            link_description=common_schemas.LocalizableDraftDescription(
-                en=_FAKE_EN.paragraph(nb_sentences=3),
-                pt=_FAKE_PT.paragraph(nb_sentences=3),
-            ),
+            link_description=_FAKE_EN.paragraph(nb_sentences=3),
         )
 
 

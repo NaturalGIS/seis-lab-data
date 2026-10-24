@@ -18,22 +18,15 @@ from .common import _get_total_num_records
 
 def _build_survey_mission_statement(
     project_id: identifiers.ProjectId | None = None,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
+    name_filter: str | None = None,
     spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ):
     statement = select(models.SurveyMission).options(
         selectinload(models.SurveyMission.project)
     )
-    if en_name_filter:
-        statement = statement.where(
-            models.SurveyMission.name["en"].astext.ilike(f"%{en_name_filter}%")
-        )
-    if pt_name_filter:
-        statement = statement.where(
-            models.SurveyMission.name["pt"].astext.ilike(f"%{pt_name_filter}%")
-        )
+    if name_filter:
+        statement = statement.where(models.SurveyMission.name.ilike(f"%{name_filter}%"))
     if spatial_intersect is not None:
         statement = statement.where(
             or_(
@@ -86,13 +79,12 @@ async def list_published_survey_missions(
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
+    name_filter: str | None = None,
     spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.SurveyMission], int | None]:
     statement = _build_survey_mission_statement(
-        project_id, en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
+        project_id, name_filter, spatial_intersect, temporal_extent
     ).where(models.SurveyMission.status == SurveyMissionStatus.PUBLISHED)
     limit = page_size
     offset = page_size * (page - 1)
@@ -107,15 +99,14 @@ async def list_survey_missions(
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
-    en_name_filter: str | None = None,
-    pt_name_filter: str | None = None,
+    name_filter: str | None = None,
     spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     only_internal: bool = False,
 ) -> tuple[list[models.SurveyMission], int | None]:
     """Return all survey missions regardless of status. Intended for admin use."""
     statement = _build_survey_mission_statement(
-        project_id, en_name_filter, pt_name_filter, spatial_intersect, temporal_extent
+        project_id, name_filter, spatial_intersect, temporal_extent
     )
     if only_internal:
         statement = statement.where(
@@ -148,14 +139,14 @@ async def get_survey_mission(
     return (await session.exec(statement)).first()
 
 
-async def get_survey_mission_by_english_name(
+async def get_survey_mission_by_name(
     session: AsyncSession,
     project_id: identifiers.ProjectId,
-    english_name: str,
+    name: str,
 ) -> models.SurveyMission | None:
     statement = (
         select(models.SurveyMission)
-        .where(models.SurveyMission.name["en"].astext == english_name)
+        .where(models.SurveyMission.name == name)
         .where(models.SurveyMission.project_id == project_id)
         .options(selectinload(models.SurveyMission.project))
     )

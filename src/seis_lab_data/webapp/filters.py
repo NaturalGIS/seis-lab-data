@@ -34,11 +34,6 @@ class SimpleListFilter(ListFilter, Protocol):
     def from_params(cls, params: Mapping[str, str]) -> Self: ...
 
 
-class LanguageDependantListFilter(ListFilter, Protocol):
-    @classmethod
-    def from_params(cls, params: Mapping[str, str], current_language: str) -> Self: ...
-
-
 @dataclasses.dataclass
 class TemporalExtentFilter(SimpleListFilter):
     internal_name = "temporal_extent"
@@ -161,18 +156,6 @@ class NameFilter(_StringFilter):
 
 
 @dataclasses.dataclass
-class EnNameFilter(_StringFilter):
-    internal_name: str = "en_name_filter"
-    public_name: str = "en_name"
-
-
-@dataclasses.dataclass
-class PtNameFilter(_StringFilter):
-    internal_name: str = "pt_name_filter"
-    public_name: str = "pt_name"
-
-
-@dataclasses.dataclass
 class DatasetCategoryFilter(SimpleListFilter):
     value: identifiers.DatasetCategoryId | None
     internal_name: str = "dataset_category_id"
@@ -274,28 +257,6 @@ class SurveyMissionCompoundNameFilter(_StringFilter):
             raise ValueError(f"Cannot find a valid compound name in {raw_value!r}")
 
 
-@dataclasses.dataclass
-class SearchNameFilter(LanguageDependantListFilter):
-    internal_name: str
-    public_name: str
-    value: str
-
-    @classmethod
-    def from_params(cls, params: Mapping[str, str], current_language: str) -> Self:
-        _name = "search"
-        try:
-            return cls(
-                internal_name=f"{current_language}_name_filter",
-                public_name=f"{current_language}_name",
-                value=params[_name],
-            )
-        except KeyError as err:
-            raise ValueError(f"Cannot find {_name!r} in params") from err
-
-    def serialize_to_query_string(self) -> str:
-        return f"{self.public_name}={self.value}" if self.value else ""
-
-
 class ItemListFilters(Protocol):
     filters: dict[str, ListFilter]
 
@@ -304,16 +265,15 @@ class ItemListFilters(Protocol):
         return self.filters.get("spatial_intersect")
 
     @classmethod
-    def from_params(cls, params: Mapping[str, str], current_language: str) -> Self: ...
+    def from_params(cls, params: Mapping[str, str]) -> Self: ...
 
     @classmethod
-    def from_json(cls, raw_params: str, current_language: str):
+    def from_json(cls, raw_params: str):
         params = json.loads(raw_params)
-        return cls.from_params(params, current_language)
+        return cls.from_params(params)
 
-    def get_text_search_filter(self, current_language: str) -> str:
-        filter_internal_name = f"{current_language}_name_filter"
-        return f_.value if (f_ := self.filters.get(filter_internal_name)) else ""
+    def get_text_search_filter(self) -> str:
+        return f_.value if (f_ := self.filters.get(NameFilter.internal_name)) else ""
 
     def serialize_to_query_string(self) -> str:
         result = ""
@@ -333,24 +293,14 @@ class DatasetCategoryListFilters(ItemListFilters):
     filters: dict[str, ListFilter]
 
     @classmethod
-    def from_params(cls, params: Mapping[str, str], current_language: str) -> Self:
-        filters: dict[str, SimpleListFilter | LanguageDependantListFilter] = {}
-        for simple_type in (
-            EnNameFilter,
-            PtNameFilter,
-        ):
+    def from_params(cls, params: Mapping[str, str]) -> Self:
+        filters: dict[str, SimpleListFilter] = {}
+        for simple_type in (NameFilter,):
             try:
                 filter_: SimpleListFilter = simple_type.from_params(params)
                 filters[filter_.internal_name] = filter_
             except ValueError as err:
                 logger.info(str(err))
-        try:
-            filter_: LanguageDependantListFilter = SearchNameFilter.from_params(
-                params, current_language
-            )
-            filters[filter_.internal_name] = filter_
-        except ValueError as err:
-            logger.info(str(err))
         return cls(filters=filters)
 
 
@@ -359,24 +309,14 @@ class WorkflowStageListFilters(ItemListFilters):
     filters: dict[str, ListFilter]
 
     @classmethod
-    def from_params(cls, params: Mapping[str, str], current_language: str) -> Self:
-        filters: dict[str, SimpleListFilter | LanguageDependantListFilter] = {}
-        for simple_type in (
-            EnNameFilter,
-            PtNameFilter,
-        ):
+    def from_params(cls, params: Mapping[str, str]) -> Self:
+        filters: dict[str, SimpleListFilter] = {}
+        for simple_type in (NameFilter,):
             try:
                 filter_: SimpleListFilter = simple_type.from_params(params)
                 filters[filter_.internal_name] = filter_
             except ValueError as err:
                 logger.info(str(err))
-        try:
-            filter_: LanguageDependantListFilter = SearchNameFilter.from_params(
-                params, current_language
-            )
-            filters[filter_.internal_name] = filter_
-        except ValueError as err:
-            logger.info(str(err))
         return cls(filters=filters)
 
 
@@ -385,8 +325,8 @@ class AssetDiscoveryConfigurationListFilters(ItemListFilters):
     filters: dict[str, ListFilter]
 
     @classmethod
-    def from_params(cls, params: Mapping[str, str], current_language: str) -> Self:
-        filters: dict[str, SimpleListFilter | LanguageDependantListFilter] = {}
+    def from_params(cls, params: Mapping[str, str]) -> Self:
+        filters: dict[str, SimpleListFilter] = {}
         try:
             name_filter = NameFilter.from_params(params)
             filters[name_filter.internal_name] = name_filter
@@ -400,27 +340,19 @@ class ProjectListFilters(ItemListFilters):
     filters: dict[str, ListFilter]
 
     @classmethod
-    def from_params(cls, params: Mapping[str, str], current_language: str) -> Self:
-        filters: dict[str, SimpleListFilter | LanguageDependantListFilter] = {}
+    def from_params(cls, params: Mapping[str, str]) -> Self:
+        filters: dict[str, SimpleListFilter] = {}
         for simple_type in (
             BoundingBoxFilter,
             OnlyInternalFilter,
             TemporalExtentFilter,
-            EnNameFilter,
-            PtNameFilter,
+            NameFilter,
         ):
             try:
                 filter_: SimpleListFilter = simple_type.from_params(params)
                 filters[filter_.internal_name] = filter_
             except ValueError as err:
                 logger.info(str(err))
-        try:
-            filter_: LanguageDependantListFilter = SearchNameFilter.from_params(
-                params, current_language
-            )
-            filters[filter_.internal_name] = filter_
-        except ValueError as err:
-            logger.info(str(err))
         return cls(filters=filters)
 
 
@@ -429,14 +361,13 @@ class SurveyMissionListFilters(ItemListFilters):
     filters: dict[str, ListFilter]
 
     @classmethod
-    def from_params(cls, params: Mapping[str, str], current_language: str) -> Self:
-        filters: dict[str, SimpleListFilter | LanguageDependantListFilter] = {}
+    def from_params(cls, params: Mapping[str, str]) -> Self:
+        filters: dict[str, SimpleListFilter] = {}
         for simple_type in (
             BoundingBoxFilter,
             TemporalExtentFilter,
-            EnNameFilter,
+            NameFilter,
             OnlyInternalFilter,
-            PtNameFilter,
             ProjectIdFilter,
         ):
             try:
@@ -444,13 +375,6 @@ class SurveyMissionListFilters(ItemListFilters):
                 filters[filter_.internal_name] = filter_
             except ValueError as err:
                 logger.info(str(err))
-        try:
-            filter_: LanguageDependantListFilter = SearchNameFilter.from_params(
-                params, current_language
-            )
-            filters[filter_.internal_name] = filter_
-        except ValueError as err:
-            logger.info(str(err))
         return cls(filters=filters)
 
 
@@ -459,13 +383,12 @@ class SurveyRelatedRecordListFilters(ItemListFilters):
     filters: dict[str, ListFilter]
 
     @classmethod
-    def from_params(cls, params: Mapping[str, str], current_language: str) -> Self:
-        filters: dict[str, SimpleListFilter | LanguageDependantListFilter] = {}
+    def from_params(cls, params: Mapping[str, str]) -> Self:
+        filters: dict[str, SimpleListFilter] = {}
         for simple_type in (
             BoundingBoxFilter,
             TemporalExtentFilter,
-            EnNameFilter,
-            PtNameFilter,
+            NameFilter,
             OnlyInternalFilter,
             DatasetCategoryFilter,
             MediaTypeFilter,
@@ -480,11 +403,4 @@ class SurveyRelatedRecordListFilters(ItemListFilters):
                 filters[filter_.internal_name] = filter_
             except ValueError as err:
                 logger.info(str(err))
-        try:
-            filter_: LanguageDependantListFilter = SearchNameFilter.from_params(
-                params, current_language
-            )
-            filters[filter_.internal_name] = filter_
-        except ValueError as err:
-            logger.info(str(err))
         return cls(filters=filters)

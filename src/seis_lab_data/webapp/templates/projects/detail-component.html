@@ -22,7 +22,7 @@
                     <div class="card-body">
                         <div class="row">
                             <div class="col">
-                                <p>{{ item.description | translate_localizable_string }}</p>
+                                <p>{{ item.description }}</p>
                                 <dl class="row">
                                     <dt class="col-sm-3">{{ _("root path") | capitalize }}</dt>
                                     <dd class="col-sm-9">{{ item.root_path|default(_("root path not available"), True) }}</dd>
@@ -53,7 +53,7 @@
                                                 <span class="badge rounded-pill bg-light">{{ link.media_type }}</span>
                                                 <span class="badge rounded-pill bg-light">{{ link.relation }}</span>
                                             </h6>
-                                            <small>{{ link.link_description | translate_localizable_string }}</small>
+                                            <small>{{ link.link_description }}</small>
                                         </a>
                                     {% else %}
                                         <p class="list-group-item">{{ _("no links found") | capitalize }}</p>

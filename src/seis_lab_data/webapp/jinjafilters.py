@@ -7,9 +7,7 @@ import shapely
 from jinja2 import pass_context
 
 from .. import constants
-from ..schemas.common import Localizable
 from ..schemas.webui import UserPermissionDetails
-from ..localization import translate_localizable
 
 if typing.TYPE_CHECKING:
     from ..config import SeisLabDataSettings
@@ -33,22 +31,6 @@ if typing.TYPE_CHECKING:
     )
 
 logger = logging.getLogger(__name__)
-
-
-@pass_context
-def get_secondary_language_value(
-    context: dict[str, typing.Any], value: Localizable
-) -> str:
-    current_lang = context["request"].state.language
-    secondary_lang = "en" if current_lang == "pt" else "pt"
-    return getattr(value, secondary_lang)
-
-
-@pass_context
-def translate_localizable_string(
-    context: dict[str, typing.Any], value: Localizable
-) -> str:
-    return translate_localizable(value, context["request"].state.language)
 
 
 def is_publishable(

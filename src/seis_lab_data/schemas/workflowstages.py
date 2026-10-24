@@ -14,18 +14,18 @@ logger = logging.getLogger(__name__)
 
 class WorkflowStageCreate(pydantic.BaseModel):
     id: identifiers.WorkflowStageId
-    name: common.LocalizableDraftName
+    name: common.DraftName
 
 
 class WorkflowStageUpdate(pydantic.BaseModel):
-    name: common.LocalizableDraftName | None = None
+    name: common.DraftName | None = None
 
 
 class WorkflowStageReadListItem(pydantic.BaseModel):
     id: Annotated[
         identifiers.WorkflowStageId, pydantic.PlainSerializer(common.serialize_id)
     ]
-    name: common.LocalizableDraftName
+    name: common.DraftName
 
     @classmethod
     def from_db_instance(

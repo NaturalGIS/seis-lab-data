@@ -2,123 +2,123 @@
 
 [[dataset_categories]]
 id = "1ad54ca0-a28b-46c0-9776-3c9b7f3bc990"
-name = { en = "bathymetry", pt = "batimetria" }
+name = "bathymetry"
 
 [[dataset_categories]]
 id = "3002d462-3f2e-4957-a56e-97175f91883a"
-name = { en = "backscatter", pt = "backscatter" }
+name = "backscatter"
 
 [[dataset_categories]]
 id = "53ec7259-5fbe-48d7-9d1b-508225add0a0"
-name = { en = "seismic", pt = "sismíca" }
+name = "seismic"
 
 [[dataset_categories]]
 id = "333073eb-adc9-4ac7-b822-44f4df5575a3"
-name = { en = "magnetometer/gradiometer", pt = "magnetómetro/gradiómetro" }
+name = "magnetometer/gradiometer"
 
 [[dataset_categories]]
 id = "4b17a645-dc10-488c-ba7d-47ff052efdf8"
-name = { en = "superficial sediment samples", pt = "amostras sedimento superficial" }
+name = "superficial sediment samples"
 
 [[dataset_categories]]
 id = "fd68accf-057e-4813-b47a-aa4df3741c45"
-name = { en = "cores", pt = "núcleos" }
+name = "cores"
 
 [[dataset_categories]]
 id = "43507846-a6cf-4e54-bd80-9ef5be334cf0"
-name = { en = "CPT tests", pt = "testes CPT " }
+name = "CPT tests"
 
 
 # maps to: s07-sss
 [[dataset_categories]]
 id = "ecf90394-8196-4a1c-9edc-b236b7a0749c"
-name = { en = "side-scan sonar", pt = "sonar de varrimento lateral" }
+name = "side-scan sonar"
 
 # maps to: s22-sedimentology
 [[dataset_categories]]
 id = "016717d6-ac03-482b-9429-54dad7ccee90"
-name = { en = "sedimentology", pt = "sedimentologia" }
+name = "sedimentology"
 
 # maps to: s23-environmental
 [[dataset_categories]]
 id = "e4f12c26-8475-4260-8da0-3d82e1864b4a"
-name = { en = "environmental monitoring", pt = "monitorização ambiental" }
+name = "environmental monitoring"
 
 # maps to: s24-metocean
 [[dataset_categories]]
 id = "0b3132c6-f026-49ed-948a-54b24edacf74"
-name = { en = "metocean", pt = "meteorologia e oceanografia" }
+name = "metocean"
 
 # maps to: s25-underwater-footage
 [[dataset_categories]]
 id = "c65884b0-7ec5-4daf-a083-171c15158c1f"
-name = { en = "underwater footage", pt = "imagens subaquáticas" }
+name = "underwater footage"
 
 # maps to: s26-logs
 [[dataset_categories]]
 id = "2fa3e72f-2c71-496c-8186-92150543d2d5"
-name = { en = "survey logs", pt = "registos de operação" }
+name = "survey logs"
 
 # maps to: s27-navigation
 [[dataset_categories]]
 id = "4bf4e531-9541-42fa-8120-62883302c7ed"
-name = { en = "navigation", pt = "navegação" }
+name = "navigation"
 
 # maps to: s28-tracks
 [[dataset_categories]]
 id = "5fd1536f-dc17-425f-8530-f92548163d29"
-name = { en = "vessel/ROV tracks", pt = "trajetos de embarcação/ROV" }
+name = "vessel/ROV tracks"
 
 # maps to: s29-ground-model
 [[dataset_categories]]
 id = "78b5cb94-43fe-4346-8cba-4bb98a739d22"
-name = { en = "ground model", pt = "modelo de terreno" }
+name = "ground model"
 
 # maps to: s30-reporting
 [[dataset_categories]]
 id = "728d4cf0-b791-45ff-8c78-b6294871bc74"
-name = { en = "reporting", pt = "relatórios" }
+name = "reporting"
 
 # maps to: s32-interpretation-general
 [[dataset_categories]]
 id = "c8502a00-1856-472e-97d6-cdc752445cb5"
-name = { en = "general interpretation", pt = "interpretação geral" }
+name = "general interpretation"
 
 # maps to: s33-geophys-other
 [[dataset_categories]]
 id = "a17e2881-9d7c-4974-a312-bb2b58081cb2"
-name = { en = "other geophysical data", pt = "outros dados geofísicos" }
+name = "other geophysical data"
 
 # maps to: s34-geotech-other
 [[dataset_categories]]
 id = "6db7dc66-58b8-4055-b614-f8514fadc497"
-name = { en = "other geotechnical data", pt = "outros dados geotécnicos" }
+name = "other geotechnical data"
 
 # maps to: s35-hydrographic-other
 [[dataset_categories]]
 id = "9e7f79fb-1cb7-447d-9548-26caf5d94e20"
-name = { en = "other hydrographic data", pt = "outros dados hidrográficos" }
+name = "other hydrographic data"
 
 
 [[workflow_stages]]
 id = "ac51aa07-90e9-43d4-83b9-d079482a001e"
-name = { en = "raw data", pt = "dados brutos" }
+name = "raw data"
 
 [[workflow_stages]]
 id = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
-name = { en = "quality control data", pt = "dados controlo de qualidade" }
+name = "quality control data"
 
 [[workflow_stages]]
 id = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
-name = { en = "processed data", pt = "dados processados" }
+name = "processed data"
 
 [[workflow_stages]]
 id = "342fb236-6622-495e-ae6c-fd90f5cf0d16"
-name = { en = "interpreted data", pt = "dados interpretados" }
+name = "interpreted data"
 
 [[workflow_stages]]
 id = "5377ac1f-e7a4-42ce-bbd0-3dec66b805fe"
-name = { en = "reporting", pt = "relatórios" }
+name = "reporting"
 
 
 [[asset_discovery_configurations]]

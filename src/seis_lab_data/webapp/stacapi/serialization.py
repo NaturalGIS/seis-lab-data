@@ -44,9 +44,9 @@ def catalog_from_project(
     return stac_pydantic.Catalog(
         type="Catalog",
         id=str(project.id),
-        title=project.name.get("en"),
+        title=project.name,
         # STAC requires a non-empty description; the app allows an empty one
-        description=project.description.get("en") or project.name.get("en"),
+        description=project.description or project.name,
         stac_version=conformance.STAC_VERSION,
         links=[
             link_helpers.self_link(request, "project-catalog", project_id=project.id),
@@ -77,9 +77,9 @@ def collection_from_survey_mission(
     return stac_api.Collection(
         type="Collection",
         id=str(mission.id),
-        title=mission.name.get("en"),
+        title=mission.name,
         # STAC requires a non-empty description; the app allows an empty one
-        description=mission.description.get("en") or mission.name.get("en"),
+        description=mission.description or mission.name,
         stac_version=conformance.STAC_VERSION,
         license="other",
         extent=extent,
@@ -117,8 +117,8 @@ def asset_dict_from_records(
         result[str(asset.id)] = stac_shared.Asset(
             href=href,
             type=asset.media_type,
-            title=asset.name.get("en") or None,
-            description=asset.description.get("en") or None,
+            title=asset.name or None,
+            description=asset.description or None,
             roles=[asset_type.value for asset_type in asset.asset_type],
         )
     return result

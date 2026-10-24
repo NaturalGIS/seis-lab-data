@@ -79,21 +79,14 @@ class _AssetDiscoveryConfigurationForm(StarletteForm):
             form_instance = cls(request, data=data)
         else:
             form_instance = await cls.from_formdata(request)
-        current_language = request.state.language
         async with request.state.settings.get_db_session_maker()() as session:
             form_instance.dataset_category_id.choices = [
-                (dc.id, dc.name.get(current_language, dc.name["en"]))
-                for dc in await category_queries.collect_all_dataset_categories(
-                    session,
-                    order_by=f"name_{current_language}",
-                )
+                (dc.id, dc.name)
+                for dc in await category_queries.collect_all_dataset_categories(session)
             ]
             form_instance.workflow_stage_id.choices = [
-                (ws.id, ws.name.get(current_language, ws.name["en"]))
-                for ws in await stage_queries.collect_all_workflow_stages(
-                    session,
-                    order_by=f"name_{current_language}",
-                )
+                (ws.id, ws.name)
+                for ws in await stage_queries.collect_all_workflow_stages(session)
             ]
         return form_instance
 

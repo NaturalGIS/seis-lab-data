@@ -10,7 +10,6 @@ from seis_lab_data.db.commands import (
 )
 from seis_lab_data.db.queries import surveyrelatedrecords as record_queries
 from seis_lab_data.schemas import (
-    common as common_schemas,
     identifiers,
     surveyrelatedrecords as record_schemas,
 )
@@ -41,8 +40,8 @@ def test_derive_media_type(relative_path, expected):
 def test_record_asset_create_derives_missing_media_type(media_type):
     asset = record_schemas.DataRecordAssetCreate(
         id=identifiers.RecordAssetId(uuid.uuid4()),
-        name=common_schemas.LocalizableDraftName(en="An asset"),
-        description=common_schemas.LocalizableDraftDescription(en="An asset"),
+        name="An asset",
+        description="An asset",
         media_type=media_type,
         relative_path="s01/grid.tif",
     )
@@ -52,8 +51,8 @@ def test_record_asset_create_derives_missing_media_type(media_type):
 def test_record_asset_create_keeps_explicit_media_type():
     asset = record_schemas.DataRecordAssetCreate(
         id=identifiers.RecordAssetId(uuid.uuid4()),
-        name=common_schemas.LocalizableDraftName(en="An asset"),
-        description=common_schemas.LocalizableDraftDescription(en="An asset"),
+        name="An asset",
+        description="An asset",
         media_type="image/tiff",
         relative_path="s01/grid.tif",
     )
@@ -102,7 +101,7 @@ def test_derived_record_asset_create_requires_data():
     with pytest.raises(ValueError, match=r"data\s+Field required"):
         record_schemas.DerivedRecordAssetCreate(
             id=identifiers.RecordAssetId(uuid.uuid4()),
-            name=common_schemas.LocalizableDraftName(en="A preview"),
+            name="A preview",
             media_type="image/webp",
             asset_type=[constants.AssetType.THUMBNAIL, constants.AssetType.PREVIEW],
         )
@@ -133,7 +132,7 @@ async def test_read_schemas_expose_a_records_derived_asset(
                 # derived assets by name, not by list or insertion order
                 record_schemas.DerivedRecordAssetCreate(
                     id=identifiers.RecordAssetId(uuid.uuid4()),
-                    name=common_schemas.LocalizableDraftName(en="Z preview"),
+                    name="Z preview",
                     media_type="image/webp",
                     asset_type=[
                         constants.AssetType.THUMBNAIL,
@@ -143,7 +142,7 @@ async def test_read_schemas_expose_a_records_derived_asset(
                 ),
                 record_schemas.DerivedRecordAssetCreate(
                     id=preview_id,
-                    name=common_schemas.LocalizableDraftName(en="A preview"),
+                    name="A preview",
                     media_type="image/webp",
                     asset_type=[
                         constants.AssetType.THUMBNAIL,
@@ -202,18 +201,18 @@ def test_survey_related_record_update_allows_multiple_assets_with_unset_names():
     )
 
 
-def test_survey_related_record_update_rejects_duplicate_asset_english_names():
-    with pytest.raises(ValueError, match="Duplicate asset english name found"):
+def test_survey_related_record_update_rejects_duplicate_asset_names():
+    with pytest.raises(ValueError, match="Duplicate asset name found"):
         record_schemas.SurveyRelatedRecordUpdate(
             assets=[
                 record_schemas.DataRecordAssetUpdate(
                     id=identifiers.RecordAssetId(uuid.uuid4()),
-                    name=common_schemas.LocalizableDraftName(en="Same name"),
+                    name="Same name",
                     relative_path="first-asset",
                 ),
                 record_schemas.DataRecordAssetUpdate(
                     id=identifiers.RecordAssetId(uuid.uuid4()),
-                    name=common_schemas.LocalizableDraftName(en="Same name"),
+                    name="Same name",
                     relative_path="second-asset",
                 ),
             ]

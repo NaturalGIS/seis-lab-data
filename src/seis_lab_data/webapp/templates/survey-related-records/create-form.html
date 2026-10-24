@@ -4,8 +4,8 @@
         data-on:datastar-fetch="evt.detail.type === 'finished' && document.querySelector('bbox-map')?.initMap(); evt.detail.type === 'error' && ($posting = false)"
 >
     {{ form.request_id() }}
-    {{ macros.render_localizable_field(form.name) }}
-    {{ macros.render_localizable_field(form.description) }}
+    {{ macros.render_form_field(form.name) }}
+    {{ macros.render_form_field(form.description) }}
     {{ macros.render_form_field(form.dataset_category_id) }}
     {{ macros.render_form_field(form.workflow_stage_id) }}
 
@@ -68,8 +68,8 @@
                     >{{ _("remove asset") | capitalize }}</button>
                 </div>
                 {{ macros.render_form_field(asset.asset_id, "asset-") }}
-                {{ macros.render_localizable_field(asset.asset_name, "asset-") }}
-                {{ macros.render_localizable_field(asset.asset_description, "asset-") }}
+                {{ macros.render_form_field(asset.asset_name, "asset-") }}
+                {{ macros.render_form_field(asset.asset_description, "asset-") }}
                 {{ macros.render_form_field(asset.media_type, "asset-") }}
                 {{ macros.render_form_field(asset.relative_path, "asset-") }}
                 <h5>{{ _("asset links") | capitalize }}</h5>
@@ -127,7 +127,7 @@
                         "data-bind": search_param
                     }
                 ) }}
-                {{ macros.render_localizable_field(related_to.relationship, "related_to-") }}
+                {{ macros.render_form_field(related_to.relationship, "related_to-") }}
 
             {% endfor %}
         </div>

@@ -12,6 +12,7 @@ NAME_MAX_LENGTH: typing.Final[int] = 100
 NAME_MIN_LENGTH: typing.Final[int] = 5
 DESCRIPTION_MAX_LENGTH: typing.Final[int] = 500
 DESCRIPTION_MIN_LENGTH: typing.Final[int] = 5
+RELATION_MAX_LENGTH: typing.Final[int] = 50
 
 ASSET_MAX_LINKS: typing.Final[int] = 5
 PROJECT_MAX_LINKS: typing.Final[int] = 5

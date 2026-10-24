@@ -13,8 +13,7 @@ from playwright.sync_api import (
 def _fill_asset_discovery_configuration_form(
     page: Page, name: str, relative_path_regexp: str, media_type: str = "image/tiff"
 ):
-    # unlike dataset categories / workflow stages, the name here is a plain (not
-    # localizable) field, and there are two additional required associations
+    # in addition to the name, there are two required associations
     page.get_by_role("textbox", name="field-name").fill(name)
     page.get_by_role("textbox", name="field-relative_path_regexp").fill(
         relative_path_regexp

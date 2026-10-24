@@ -37,7 +37,6 @@ from seis_lab_data.operations import (  # noqa: E402
     previews as preview_ops,
 )
 from seis_lab_data.schemas import (  # noqa: E402
-    common as common_schemas,
     discovery as discovery_schemas,
     events as event_schemas,
     identifiers,
@@ -81,10 +80,8 @@ async def _create_mission(session, project_id, mission_relative_path, name_suffi
         mission_schemas.SurveyMissionCreate(
             id=identifiers.SurveyMissionId(uuid.uuid4()),
             project_id=project_id,
-            name=common_schemas.LocalizableDraftName(
-                en=f"Discovery test mission{name_suffix}"
-            ),
-            description=common_schemas.LocalizableDraftDescription(en=""),
+            name=f"Discovery test mission{name_suffix}",
+            description="",
             relative_path=mission_relative_path,
         ),
     )
@@ -107,7 +104,7 @@ async def discovery_env(
             session,
             project_schemas.ProjectCreate(
                 id=identifiers.ProjectId(uuid.uuid4()),
-                name=common_schemas.LocalizableDraftName(en="Discovery test project"),
+                name="Discovery test project",
                 root_path="",
             ),
         )
@@ -242,9 +239,8 @@ async def test_discovery_extracts_metadata(db_session_maker, admin_user, discove
     records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
     assert len(records) == 1
     record = records[0]
-    assert record.name["en"] == "grid.tif"
-    assert record.description["en"].startswith("Auto-extracted: GTiff raster")
-    assert record.description["pt"].startswith("Extração automática: raster GTiff")
+    assert record.name == "grid.tif"
+    assert record.description.startswith("Auto-extracted: GTiff raster")
     assert record.bbox_4326 is not None
     # the synthetic EPSG:3763 grid reprojects to central Portugal
     minx, miny, maxx, maxy = to_shape(record.bbox_4326).bounds
@@ -258,7 +254,7 @@ async def test_discovery_extracts_metadata(db_session_maker, admin_user, discove
     assert len(assets) == 1
     assert assets[0].relative_path == "s01/sub/grid.tif"
     # the extracted summary goes on the record only; the asset stays empty
-    assert assets[0].description["en"] == ""
+    assert assets[0].description == ""
     # discovered assets are the record's data files, with a media type derived
     # from the file extension
     assert assets[0].asset_type == [constants.AssetType.DATA]
@@ -375,9 +371,8 @@ async def test_discovery_survives_extraction_failure(
     records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
     assert len(records) == 1
     record = records[0]
-    assert record.name["en"] == "bad.tif"
-    assert record.description["en"] == ""
-    assert record.description["pt"] == ""
+    assert record.name == "bad.tif"
+    assert record.description == ""
     assert record.bbox_4326 is None
 
 
@@ -613,7 +608,7 @@ async def test_mission_previews_are_derived_for_missing_only(
         admin_user,
     )
     records = {
-        r.name["en"]: r
+        r.name: r
         for r in await _get_mission_records(
             db_session_maker, discovery_env["mission"].id
         )
@@ -623,8 +618,8 @@ async def test_mission_previews_are_derived_for_missing_only(
             models.RecordAsset(
                 id=uuid.uuid4(),
                 survey_related_record_id=records["derived.tif"].id,
-                name={"en": "derived.tif preview"},
-                description={"en": ""},
+                name="derived.tif preview",
+                description="",
                 media_type="image/webp",
                 asset_type=[constants.AssetType.THUMBNAIL, constants.AssetType.PREVIEW],
                 data=b"fake webp payload",
@@ -698,7 +693,7 @@ async def test_record_previews_skip_a_record_whose_status_moved(
         admin_user,
     )
     records = {
-        r.name["en"]: r
+        r.name: r
         for r in await _get_mission_records(
             db_session_maker, discovery_env["mission"].id
         )

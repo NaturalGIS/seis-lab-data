@@ -29,11 +29,10 @@ from ...schemas import (
 )
 from .common import (
     BoundingBoxForm,
-    DescriptionForm,
-    get_form_field_by_name,
+    DescriptionField,
     incorporate_schema_validation_errors_into_form,
     LinkForm,
-    NameForm,
+    NameField,
     PydanticMappableStringField,
 )
 from .fields import OptionalDateField
@@ -47,8 +46,8 @@ def _generate_new_asset_id() -> str:
 
 class AssetCreateForm(Form):
     asset_id = HiddenField("asset_id", default=_generate_new_asset_id)
-    asset_name = FormField(NameForm, name="name")
-    asset_description = FormField(DescriptionForm, name="description")
+    asset_name = NameField(name="name")
+    asset_description = DescriptionField(name="description")
     media_type = StringField(_("media type"))
     relative_path = StringField(
         _("relative path"),
@@ -66,41 +65,20 @@ class AssetCreateForm(Form):
     )
 
 
-class RelationshipForm(Form):
-    en = StringField(
-        _("English relationship name"),
-        description=_("Name of the relationship in english"),
-        validators=[
-            validators.Length(
-                max=constants.NAME_MAX_LENGTH,
-            ),
-        ],
-    )
-    pt = StringField(
-        _("Portuguese relationship name"),
-        description=_("Name of the relationship in portuguese"),
-        validators=[
-            validators.Length(
-                max=constants.NAME_MAX_LENGTH,
-            ),
-        ],
-    )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Make 'en' field required
-        self.en.flags.backend_required = True
-
-
 class RelatedRecordForm(Form):
     related_record = PydanticMappableStringField(
         _("related record"), pydantic_field_name="related_record_id"
     )
-    relationship = FormField(RelationshipForm, name="relationship")
+    relationship = StringField(
+        _("Relationship"),
+        description=_("Name of the relationship"),
+        validators=[validators.Length(max=constants.RELATION_MAX_LENGTH)],
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.related_record.flags.backend_required = True
+        self.relationship.flags.backend_required = True
 
 
 class _SurveyRelatedRecordForm(StarletteForm):
@@ -116,8 +94,8 @@ class _SurveyRelatedRecordForm(StarletteForm):
     """
 
     request_id = HiddenField()
-    name = FormField(NameForm)
-    description = FormField(DescriptionForm)
+    name = NameField()
+    description = DescriptionField()
     dataset_category_id = SelectField(_("Dataset category"))
     workflow_stage_id = SelectField(_("Workflow stage"))
     links = FieldList(
@@ -142,29 +120,29 @@ class _SurveyRelatedRecordForm(StarletteForm):
         max_entries=constants.SURVEY_RELATED_RECORD_MAX_RELATED,
     )
 
-    async def check_if_english_name_is_unique_for_survey_mission(
+    async def check_if_name_is_unique_for_survey_mission(
         self,
         session: AsyncSession,
         survey_mission_id: identifiers.SurveyMissionId,
         disregard_id: identifiers.SurveyRelatedRecordId | None = None,
     ):
-        """Check if the current english name is already used by another record under the same survey mission.
+        """Check if the current name is already used by another record under the same survey mission.
 
-        The `disregard_id` argument can be used when checking uniqueness of the english name in the
+        The `disregard_id` argument can be used when checking uniqueness of the name in the
         context of updating an already existing record, in which case the record itself should be
-        disregarded, as it is not a conflict for a record to have the same english name as itself.
+        disregarded, as it is not a conflict for a record to have the same name as itself.
         """
         error_message = _(
-            "There is already a survey-related record with this english name under the same survey mission"
+            "There is already a survey-related record with this name under the same survey mission"
         )
-        if candidate := await record_queries.get_survey_related_record_by_english_name(
-            session, survey_mission_id, self.name.en.data
+        if candidate := await record_queries.get_survey_related_record_by_name(
+            session, survey_mission_id, self.name.data
         ):
             if disregard_id:
                 if identifiers.SurveyRelatedRecordId(candidate.id) != disregard_id:
-                    self.name.en.errors.append(error_message)
+                    self.name.errors.append(error_message)
             else:
-                self.name.en.errors.append(error_message)
+                self.name.errors.append(error_message)
 
     def has_validation_errors(self) -> bool:
         # For some unknown reason, wtforms does not report validation errors for
@@ -198,20 +176,14 @@ class _SurveyRelatedRecordForm(StarletteForm):
             form_instance = cls(request, data=data)
         else:
             form_instance = await cls.from_formdata(request)
-        current_language = request.state.language
         async with request.state.settings.get_db_session_maker()() as session:
             form_instance.dataset_category_id.choices = [
-                (dc.id, dc.name.get(current_language, dc.name["en"]))
-                for dc in await category_queries.collect_all_dataset_categories(
-                    session, order_by=current_language
-                )
+                (dc.id, dc.name)
+                for dc in await category_queries.collect_all_dataset_categories(session)
             ]
             form_instance.workflow_stage_id.choices = [
-                (ws.id, ws.name.get(current_language, ws.name["en"]))
-                for ws in await stage_queries.collect_all_workflow_stages(
-                    session,
-                    order_by=current_language,
-                )
+                (ws.id, ws.name)
+                for ws in await stage_queries.collect_all_workflow_stages(session)
             ]
         return form_instance
 
@@ -239,7 +211,7 @@ class _SurveyRelatedRecordForm(StarletteForm):
         form_instance.validate_with_schema()
         session_maker = request.state.settings.get_db_session_maker()
         async with session_maker() as session:
-            await form_instance.check_if_english_name_is_unique_for_survey_mission(
+            await form_instance.check_if_name_is_unique_for_survey_mission(
                 session, survey_mission_id=survey_mission_id, disregard_id=disregard_id
             )
         return form_instance
@@ -264,11 +236,7 @@ class SurveyRelatedRecordCreateForm(_SurveyRelatedRecordForm):
             related_records.append(
                 {
                     "related_record_id": related_record_id,
-                    "relationship": {
-                        k: v
-                        for k, v in relationship_sub_form.relationship.data.items()
-                        if v
-                    },
+                    "relationship": relationship_sub_form.relationship.data,
                 }
             )
         try:
@@ -276,8 +244,8 @@ class SurveyRelatedRecordCreateForm(_SurveyRelatedRecordForm):
                 # these are not part of the form, but we must provide something
                 id=None,
                 survey_mission_id=None,
-                name={**get_form_field_by_name(self, "name").data},
-                description={**get_form_field_by_name(self, "description").data},
+                name=self.name.data,
+                description=self.description.data,
                 dataset_category_id=self.dataset_category_id.data,
                 workflow_stage_id=self.workflow_stage_id.data,
                 temporal_extent_begin=self.temporal_extent_begin.data or None,
@@ -287,9 +255,7 @@ class SurveyRelatedRecordCreateForm(_SurveyRelatedRecordForm):
                         "url": li.url.data,
                         "media_type": li.media_type.data,
                         "relation": li.relation.data,
-                        "link_description": {
-                            **li.link_description.data,
-                        },
+                        "link_description": li.link_description.data,
                     }
                     for li in self.links.entries
                 ],
@@ -297,8 +263,8 @@ class SurveyRelatedRecordCreateForm(_SurveyRelatedRecordForm):
                     {
                         # not part of the form, but we must provide something
                         "id": None,
-                        "name": {**ass.asset_name.data},
-                        "description": {**ass.asset_description.data},
+                        "name": ass.asset_name.data,
+                        "description": ass.asset_description.data,
                         "media_type": ass.media_type.data,
                         "relative_path": ass.relative_path.data,
                         "links": [
@@ -306,7 +272,7 @@ class SurveyRelatedRecordCreateForm(_SurveyRelatedRecordForm):
                                 "url": assli.url.data,
                                 "media_type": assli.media_type.data,
                                 "relation": assli.relation.data,
-                                "link_description": {**assli.link_description.data},
+                                "link_description": assli.link_description.data,
                             }
                             for assli in ass.asset_links.entries
                         ],
@@ -335,19 +301,15 @@ class SurveyRelatedRecordUpdateForm(_SurveyRelatedRecordForm):
             related_records.append(
                 {
                     "related_record_id": related_record_id,
-                    "relationship": {
-                        k: v
-                        for k, v in relationship_sub_form.relationship.data.items()
-                        if v
-                    },
+                    "relationship": relationship_sub_form.relationship.data,
                 }
             )
         try:
             record_schemas.SurveyRelatedRecordUpdate(
                 # these are not part of the form, but we must provide something
                 survey_mission_id=None,
-                name={**get_form_field_by_name(self, "name").data},
-                description={**get_form_field_by_name(self, "description").data},
+                name=self.name.data,
+                description=self.description.data,
                 dataset_category_id=self.dataset_category_id.data,
                 workflow_stage_id=self.workflow_stage_id.data,
                 temporal_extent_begin=self.temporal_extent_begin.data or None,
@@ -357,9 +319,7 @@ class SurveyRelatedRecordUpdateForm(_SurveyRelatedRecordForm):
                         "url": li.url.data,
                         "media_type": li.media_type.data,
                         "relation": li.relation.data,
-                        "link_description": {
-                            **li.link_description.data,
-                        },
+                        "link_description": li.link_description.data,
                     }
                     for li in self.links.entries
                 ],
@@ -367,8 +327,8 @@ class SurveyRelatedRecordUpdateForm(_SurveyRelatedRecordForm):
                     {
                         # not part of the form, but we must provide something
                         "id": None,
-                        "name": {**ass.asset_name.data},
-                        "description": {**ass.asset_description.data},
+                        "name": ass.asset_name.data,
+                        "description": ass.asset_description.data,
                         "media_type": ass.media_type.data,
                         "relative_path": ass.relative_path.data,
                         "links": [
@@ -376,7 +336,7 @@ class SurveyRelatedRecordUpdateForm(_SurveyRelatedRecordForm):
                                 "url": assli.url.data,
                                 "media_type": assli.media_type.data,
                                 "relation": assli.relation.data,
-                                "link_description": {**assli.link_description.data},
+                                "link_description": assli.link_description.data,
                             }
                             for assli in ass.asset_links.entries
                         ],
@@ -466,11 +426,7 @@ class SurveyRelatedRecordBulkUpdateForm(StarletteForm):
                 related_records.append(
                     {
                         "related_record_id": related_record_id,
-                        "relationship": {
-                            k: v
-                            for k, v in relationship_sub_form.relationship.data.items()
-                            if v
-                        },
+                        "relationship": relationship_sub_form.relationship.data,
                     }
                 )
             kwargs["related_records"] = related_records
@@ -507,20 +463,14 @@ class SurveyRelatedRecordBulkUpdateForm(StarletteForm):
             form_instance = cls(request, data=data)
         else:
             form_instance = await cls.from_formdata(request)
-        current_language = request.state.language
         async with request.state.settings.get_db_session_maker()() as session:
             form_instance.dataset_category_id.choices = [
-                (dc.id, dc.name.get(current_language, dc.name["en"]))
-                for dc in await category_queries.collect_all_dataset_categories(
-                    session, order_by=current_language
-                )
+                (dc.id, dc.name)
+                for dc in await category_queries.collect_all_dataset_categories(session)
             ]
             form_instance.workflow_stage_id.choices = [
-                (ws.id, ws.name.get(current_language, ws.name["en"]))
-                for ws in await stage_queries.collect_all_workflow_stages(
-                    session,
-                    order_by=current_language,
-                )
+                (ws.id, ws.name)
+                for ws in await stage_queries.collect_all_workflow_stages(session)
             ]
         return form_instance
 

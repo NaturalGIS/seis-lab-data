@@ -31,7 +31,7 @@ Each of the three main entities (`Project`, `SurveyMission`, `SurveyRelatedRecor
 - An `is_valid` flag and a `validation_result` JSONB field
 - Spatial extent (`bbox_4326`, PostGIS polygon)
 - Temporal extent (`temporal_extent_begin`, `temporal_extent_end`)
-- Localizable `name` and `description` (JSONB with `en`/`pt` keys)
+- Plain-string `name` and `description` (user data is not localized; only the UI is)
 
 `SurveyRelatedRecord` additionally references lookup tables: `DatasetCategory`, `DomainType`, and `WorkflowStage`. Records can also have self-referential relationships to other records (`SurveyRelatedRecordSelfLink`).
 
@@ -172,5 +172,4 @@ The frontend uses [Datastar](https://data-star.dev/) directives (`data-on:click`
 - Avoid single-line or thin wrapper helper functions — inline the logic instead.
 - Imports always at the top of the module, never inside functions.
 - The `appuser` table is named to avoid colliding with PostgreSQL's reserved `user` keyword.
-- Localizable fields (`name`, `description`) are JSONB with `en` and `pt` keys.
 - All IDs are `NewType` wrappers over `uuid.UUID` or `str` (e.g. `ProjectId`, `UserId`).

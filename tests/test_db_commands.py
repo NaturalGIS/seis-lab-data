@@ -24,7 +24,6 @@ from seis_lab_data.db.queries import (
     workflowstages as stage_queries,
 )
 from seis_lab_data.schemas import (
-    common as common_schemas,
     datasetcategories as category_schemas,
     identifiers,
     projects as project_schemas,
@@ -41,12 +40,12 @@ async def test_create_dataset_category(db, db_session_maker):
         id=identifiers.DatasetCategoryId(
             uuid.UUID("303cad6d-2e0e-447e-85e1-c284c1c882a7")
         ),
-        name=common_schemas.LocalizableDraftName(en="A fake category"),
+        name="A fake category",
     )
     async with db_session_maker() as session:
         created = await category_commands.create_dataset_category(session, to_create)
         assert created.id == to_create.id
-        assert created.name["en"] == to_create.name.en
+        assert created.name == to_create.name
 
 
 @pytest.mark.integration
@@ -56,7 +55,7 @@ async def test_delete_dataset_category(db, db_session_maker):
         id=identifiers.DatasetCategoryId(
             uuid.UUID("26b06713-dce1-4304-bf50-fec5c3f5efe6")
         ),
-        name=common_schemas.LocalizableDraftName(en="A fake category"),
+        name="A fake category",
     )
     async with db_session_maker() as session:
         await category_commands.create_dataset_category(session, to_create)
@@ -77,12 +76,12 @@ async def test_create_workflow_stage(db, db_session_maker):
         id=identifiers.WorkflowStageId(
             uuid.UUID("24d10a9f-8b30-4866-aa1b-5fe34a2f4ecf")
         ),
-        name=common_schemas.LocalizableDraftName(en="A fake workflow stage"),
+        name="A fake workflow stage",
     )
     async with db_session_maker() as session:
         created = await stage_commands.create_workflow_stage(session, to_create)
         assert created.id == to_create.id
-        assert created.name["en"] == to_create.name.en
+        assert created.name == to_create.name
 
 
 @pytest.mark.integration
@@ -92,7 +91,7 @@ async def test_delete_workflow_stage(db, db_session_maker):
         id=identifiers.WorkflowStageId(
             uuid.UUID("adaf887f-27a9-40da-afe4-785a169c3edd")
         ),
-        name=common_schemas.LocalizableDraftName(en="A fake workflow stage"),
+        name="A fake workflow stage",
     )
     async with db_session_maker() as session:
         await stage_commands.create_workflow_stage(session, to_create)
@@ -106,26 +105,20 @@ async def test_delete_workflow_stage(db, db_session_maker):
 async def test_create_project(db, db_session_maker):
     to_create = project_schemas.ProjectCreate(
         id=identifiers.ProjectId(uuid.UUID("5fe24752-5919-4a05-be46-aed53a6936db")),
-        name=common_schemas.LocalizableDraftName(
-            en="A fake project", pt="Um projeto falso"
-        ),
-        description=common_schemas.LocalizableDraftDescription(
-            en="A description for fake project",
-            pt="Uma descrição para o projeto falso",
-        ),
+        name="A fake project",
+        description="A description for fake project",
         root_path="/fake-path/to/fake-project/",
     )
     async with db_session_maker() as session:
         created = await project_commands.create_project(session, to_create)
         assert created.id == to_create.id
         assert created.id == to_create.id
-        assert created.name["en"] == to_create.name.en
-        assert created.name["pt"] == to_create.name.pt
+        assert created.name == to_create.name
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_create_project_rejects_duplicate_english_name(db, db_session_maker):
+async def test_create_project_rejects_duplicate_name(db, db_session_maker):
     async with db_session_maker() as session:
         await project_commands.create_project(
             session,
@@ -133,10 +126,8 @@ async def test_create_project_rejects_duplicate_english_name(db, db_session_make
                 id=identifiers.ProjectId(
                     uuid.UUID("e620b64d-6f0a-4e8e-9e0a-1a2b3c4d5e6f")
                 ),
-                name=common_schemas.LocalizableDraftName(en="A fake project"),
-                description=common_schemas.LocalizableDraftDescription(
-                    en="A description for fake project"
-                ),
+                name="A fake project",
+                description="A description for fake project",
                 root_path="/fake-path/to/first-project/",
             ),
         )
@@ -147,11 +138,9 @@ async def test_create_project_rejects_duplicate_english_name(db, db_session_make
                     id=identifiers.ProjectId(
                         uuid.UUID("f6a1c75e-7a1b-4f9f-8a1b-2c3d4e5f6a7b")
                     ),
-                    # same english name as the project already created above
-                    name=common_schemas.LocalizableDraftName(en="A fake project"),
-                    description=common_schemas.LocalizableDraftDescription(
-                        en="A description for fake project"
-                    ),
+                    # same name as the project already created above
+                    name="A fake project",
+                    description="A description for fake project",
                     root_path="/fake-path/to/second-project/",
                 ),
             )
@@ -162,13 +151,8 @@ async def test_create_project_rejects_duplicate_english_name(db, db_session_make
 async def test_delete_project(db, db_session_maker):
     to_create = project_schemas.ProjectCreate(
         id=identifiers.ProjectId(uuid.UUID("0637d5d9-6381-4ba8-b9ec-89750baa93a4")),
-        name=common_schemas.LocalizableDraftName(
-            en="A fake project", pt="Um projeto falso"
-        ),
-        description=common_schemas.LocalizableDraftDescription(
-            en="A description for fake project",
-            pt="Uma descrição para o projeto falso",
-        ),
+        name="A fake project",
+        description="A description for fake project",
         root_path="/fake-path/to/fake-project/",
     )
     async with db_session_maker() as session:
@@ -186,26 +170,20 @@ async def test_create_survey_mission(db, db_session_maker, sample_projects):
             uuid.UUID("1aad09c3-d606-445e-9216-d9620586c332")
         ),
         project_id=identifiers.ProjectId(sample_projects[0].id),
-        name=common_schemas.LocalizableDraftName(
-            en="A fake survey mission", pt="Uma missão falsa"
-        ),
-        description=common_schemas.LocalizableDraftDescription(
-            en="A description for fake survey mission",
-            pt="Uma descrição para a missão falsa",
-        ),
+        name="A fake survey mission",
+        description="A description for fake survey mission",
         relative_path="fake-mission",
     )
     async with db_session_maker() as session:
         created = await mission_commands.create_survey_mission(session, to_create)
         assert created.id == to_create.id
         assert created.id == to_create.id
-        assert created.name["en"] == to_create.name.en
-        assert created.name["pt"] == to_create.name.pt
+        assert created.name == to_create.name
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_create_survey_mission_rejects_duplicate_english_name_in_same_project(
+async def test_create_survey_mission_rejects_duplicate_name_in_same_project(
     db, db_session_maker, sample_projects
 ):
     project_id = identifiers.ProjectId(sample_projects[0].id)
@@ -217,10 +195,8 @@ async def test_create_survey_mission_rejects_duplicate_english_name_in_same_proj
                     uuid.UUID("a1b2c3d4-e5f6-4a1b-8c2d-3e4f5a6b7c8d")
                 ),
                 project_id=project_id,
-                name=common_schemas.LocalizableDraftName(en="A fake survey mission"),
-                description=common_schemas.LocalizableDraftDescription(
-                    en="A description for fake survey mission"
-                ),
+                name="A fake survey mission",
+                description="A description for fake survey mission",
                 relative_path="first-fake-mission",
             ),
         )
@@ -232,14 +208,10 @@ async def test_create_survey_mission_rejects_duplicate_english_name_in_same_proj
                         uuid.UUID("b2c3d4e5-f6a7-4b2c-9d3e-4f5a6b7c8d9e")
                     ),
                     project_id=project_id,
-                    # same english name as the survey mission already created
+                    # same name as the survey mission already created
                     # above, on the same project
-                    name=common_schemas.LocalizableDraftName(
-                        en="A fake survey mission"
-                    ),
-                    description=common_schemas.LocalizableDraftDescription(
-                        en="A description for fake survey mission"
-                    ),
+                    name="A fake survey mission",
+                    description="A description for fake survey mission",
                     relative_path="second-fake-mission",
                 ),
             )
@@ -253,13 +225,8 @@ async def test_delete_survey_mission(db, db_session_maker, sample_projects):
             uuid.UUID("449a96e4-9b3b-41ad-a08b-75d31332b846")
         ),
         project_id=identifiers.ProjectId(sample_projects[0].id),
-        name=common_schemas.LocalizableDraftName(
-            en="A fake survey mission", pt="Uma missão falsa"
-        ),
-        description=common_schemas.LocalizableDraftDescription(
-            en="A description for fake survey mission",
-            pt="Uma descrição para a missão falsa",
-        ),
+        name="A fake survey mission",
+        description="A description for fake survey mission",
         relative_path="fake-mission",
     )
     async with db_session_maker() as session:
@@ -281,23 +248,16 @@ async def test_create_survey_related_record(
     bootstrap_workflow_stages,
 ):
     dataset_category = [
-        c for c in bootstrap_dataset_categories if c.name["en"] == "bathymetry"
+        c for c in bootstrap_dataset_categories if c.name == "bathymetry"
     ][0]
-    workflow_stage = [
-        w for w in bootstrap_workflow_stages if w.name["en"] == "raw data"
-    ][0]
+    workflow_stage = [w for w in bootstrap_workflow_stages if w.name == "raw data"][0]
     to_create = record_schemas.SurveyRelatedRecordCreate(
         id=identifiers.SurveyRelatedRecordId(
             uuid.UUID("cabe6a5f-d81c-496c-80cc-c3505b9121c2")
         ),
         survey_mission_id=identifiers.SurveyMissionId(sample_survey_missions[0].id),
-        name=common_schemas.LocalizableDraftName(
-            en="A fake survey-related record", pt="Um registo falso"
-        ),
-        description=common_schemas.LocalizableDraftDescription(
-            en="A description for fake survey-related record",
-            pt="Uma descrição para o registo falso",
-        ),
+        name="A fake survey-related record",
+        description="A description for fake survey-related record",
         dataset_category_id=identifiers.DatasetCategoryId(dataset_category.id),
         workflow_stage_id=identifiers.WorkflowStageId(workflow_stage.id),
         relative_path="fake-record",
@@ -306,14 +266,8 @@ async def test_create_survey_related_record(
                 id=identifiers.RecordAssetId(
                     uuid.UUID("3cf81de8-60f3-44df-89f4-6f674a7fb94f")
                 ),
-                name=common_schemas.LocalizableDraftName(
-                    en="first asset",
-                    pt="primeiro registo",
-                ),
-                description=common_schemas.LocalizableDraftDescription(
-                    en="description for first asset",
-                    pt="descrição para o primeiro recurso",
-                ),
+                name="first asset",
+                description="description for first asset",
                 relative_path="asset1",
                 media_type="application/octet-stream",
             ),
@@ -321,14 +275,8 @@ async def test_create_survey_related_record(
                 id=identifiers.RecordAssetId(
                     uuid.UUID("85ded7b6-a794-4746-b450-c3bdfb07e5c0")
                 ),
-                name=common_schemas.LocalizableDraftName(
-                    en="second asset",
-                    pt="segundo registo",
-                ),
-                description=common_schemas.LocalizableDraftDescription(
-                    en="description for second asset",
-                    pt="descrição para o segundo recurso",
-                ),
+                name="second asset",
+                description="description for second asset",
                 relative_path="asset2",
                 media_type="application/octet-stream",
             ),
@@ -338,8 +286,7 @@ async def test_create_survey_related_record(
         created = await record_commands.create_survey_related_record(session, to_create)
         assert created.id == to_create.id
         assert created.id == to_create.id
-        assert created.name["en"] == to_create.name.en
-        assert created.name["pt"] == to_create.name.pt
+        assert created.name == to_create.name
 
 
 @pytest.mark.integration
@@ -352,23 +299,16 @@ async def test_delete_survey_related_record(
     bootstrap_workflow_stages,
 ):
     dataset_category = [
-        c for c in bootstrap_dataset_categories if c.name["en"] == "bathymetry"
+        c for c in bootstrap_dataset_categories if c.name == "bathymetry"
     ][0]
-    workflow_stage = [
-        w for w in bootstrap_workflow_stages if w.name["en"] == "raw data"
-    ][0]
+    workflow_stage = [w for w in bootstrap_workflow_stages if w.name == "raw data"][0]
     to_create = record_schemas.SurveyRelatedRecordCreate(
         id=identifiers.SurveyRelatedRecordId(
             uuid.UUID("d0f6cb56-e942-4fd7-a0a9-083c3069d698")
         ),
         survey_mission_id=identifiers.SurveyMissionId(sample_survey_missions[0].id),
-        name=common_schemas.LocalizableDraftName(
-            en="A fake survey-related record", pt="Um registo falso"
-        ),
-        description=common_schemas.LocalizableDraftDescription(
-            en="A description for fake survey-related record",
-            pt="Uma descrição para o registo falso",
-        ),
+        name="A fake survey-related record",
+        description="A description for fake survey-related record",
         dataset_category_id=identifiers.DatasetCategoryId(dataset_category.id),
         workflow_stage_id=identifiers.WorkflowStageId(workflow_stage.id),
         relative_path="fake-record",
@@ -397,7 +337,7 @@ async def test_bulk_update_filtered_records(
 ):
     first_record, second_record = sample_survey_related_records
     new_stage = [
-        w for w in bootstrap_workflow_stages if w.name["en"] == "quality control data"
+        w for w in bootstrap_workflow_stages if w.name == "quality control data"
     ][0]
     to_update = record_schemas.SurveyRelatedRecordBulkUpdate(
         workflow_stage_id=identifiers.WorkflowStageId(new_stage.id)
@@ -406,7 +346,7 @@ async def test_bulk_update_filtered_records(
         updated_count = await record_commands.bulk_update_filtered_records(
             session,
             to_update,
-            en_name_filter="First",
+            name_filter="First",
         )
         assert updated_count == 1
         updated_first = await record_queries.get_survey_related_record(
@@ -430,7 +370,7 @@ async def test_bulk_update_filtered_records_excludes_records(
 ):
     first_record, second_record = sample_survey_related_records
     new_stage = [
-        w for w in bootstrap_workflow_stages if w.name["en"] == "quality control data"
+        w for w in bootstrap_workflow_stages if w.name == "quality control data"
     ][0]
     to_update = record_schemas.SurveyRelatedRecordBulkUpdate(
         workflow_stage_id=identifiers.WorkflowStageId(new_stage.id)
@@ -462,9 +402,7 @@ async def test_bulk_update_manually_selected_records(
 ):
     first_record, second_record = sample_survey_related_records
     to_update = record_schemas.SurveyRelatedRecordBulkUpdate(
-        description=common_schemas.LocalizableDraftDescription(
-            en="Bulk-updated description"
-        )
+        description="Bulk-updated description"
     )
     async with db_session_maker() as session:
         updated_count = await record_commands.bulk_update_manually_selected_records(
@@ -479,8 +417,8 @@ async def test_bulk_update_manually_selected_records(
         untouched_first = await record_queries.get_survey_related_record(
             session, identifiers.SurveyRelatedRecordId(first_record.id)
         )
-        assert updated_second.description["en"] == "Bulk-updated description"
-        assert untouched_first.description["en"] != "Bulk-updated description"
+        assert updated_second.description == "Bulk-updated description"
+        assert untouched_first.description != "Bulk-updated description"
 
 
 @pytest.mark.integration
@@ -497,9 +435,7 @@ async def test_bulk_update_manually_selected_records_replaces_related_records(
         related_records=[
             record_schemas.RelatedRecordCreate(
                 related_record_id=identifiers.SurveyRelatedRecordId(first_record.id),
-                relationship=common_schemas.LocalizableDraftRelationship(
-                    en="duplicate of"
-                ),
+                relationship="duplicate of",
             )
         ]
     )
@@ -515,7 +451,7 @@ async def test_bulk_update_manually_selected_records_replaces_related_records(
         assert len(related_to) == 1
         relation, related_record = related_to[0]
         assert related_record.id == first_record.id
-        assert relation["en"] == "duplicate of"
+        assert relation == "duplicate of"
 
     clear_relations = record_schemas.SurveyRelatedRecordBulkUpdate(related_records=[])
     async with db_session_maker() as session:
@@ -542,11 +478,9 @@ async def test_bulk_publish_valid_survey_related_records(
     # first_record and second_record belong to different survey missions
     first_record, second_record = sample_survey_related_records
     dataset_category = [
-        c for c in bootstrap_dataset_categories if c.name["en"] == "bathymetry"
+        c for c in bootstrap_dataset_categories if c.name == "bathymetry"
     ][0]
-    workflow_stage = [
-        w for w in bootstrap_workflow_stages if w.name["en"] == "raw data"
-    ][0]
+    workflow_stage = [w for w in bootstrap_workflow_stages if w.name == "raw data"][0]
     async with db_session_maker() as session:
         # an invalid sibling record, on the same mission as first_record
         invalid_sibling = await record_commands.create_survey_related_record(
@@ -556,10 +490,8 @@ async def test_bulk_publish_valid_survey_related_records(
                 survey_mission_id=identifiers.SurveyMissionId(
                     first_record.survey_mission_id
                 ),
-                name=common_schemas.LocalizableDraftName(en="Invalid sibling record"),
-                description=common_schemas.LocalizableDraftDescription(
-                    en="An invalid sibling record"
-                ),
+                name="Invalid sibling record",
+                description="An invalid sibling record",
                 dataset_category_id=identifiers.DatasetCategoryId(dataset_category.id),
                 workflow_stage_id=identifiers.WorkflowStageId(workflow_stage.id),
                 relative_path="invalid-sibling",
@@ -748,11 +680,9 @@ async def test_create_survey_related_record_rejects_duplicate_asset_path_in_same
     bootstrap_workflow_stages,
 ):
     dataset_category = [
-        c for c in bootstrap_dataset_categories if c.name["en"] == "bathymetry"
+        c for c in bootstrap_dataset_categories if c.name == "bathymetry"
     ][0]
-    workflow_stage = [
-        w for w in bootstrap_workflow_stages if w.name["en"] == "raw data"
-    ][0]
+    workflow_stage = [w for w in bootstrap_workflow_stages if w.name == "raw data"][0]
     mission_id = identifiers.SurveyMissionId(sample_survey_missions[0].id)
     async with db_session_maker() as session:
         await record_commands.create_survey_related_record(
@@ -762,10 +692,8 @@ async def test_create_survey_related_record_rejects_duplicate_asset_path_in_same
                     uuid.UUID("3a68f0e2-6cd1-4b0e-9e2e-9d6f5f36f7d1")
                 ),
                 survey_mission_id=mission_id,
-                name=common_schemas.LocalizableDraftName(en="First record"),
-                description=common_schemas.LocalizableDraftDescription(
-                    en="Description for first record"
-                ),
+                name="First record",
+                description="Description for first record",
                 dataset_category_id=identifiers.DatasetCategoryId(dataset_category.id),
                 workflow_stage_id=identifiers.WorkflowStageId(workflow_stage.id),
                 relative_path="first-record",
@@ -774,10 +702,8 @@ async def test_create_survey_related_record_rejects_duplicate_asset_path_in_same
                         id=identifiers.RecordAssetId(
                             uuid.UUID("c14a8ee3-46f2-4b23-9d8a-7f6e51b0e3a1")
                         ),
-                        name=common_schemas.LocalizableDraftName(en="First asset"),
-                        description=common_schemas.LocalizableDraftDescription(
-                            en="Description for first asset"
-                        ),
+                        name="First asset",
+                        description="Description for first asset",
                         relative_path="shared/asset-path.sgy",
                     )
                 ],
@@ -791,10 +717,8 @@ async def test_create_survey_related_record_rejects_duplicate_asset_path_in_same
                         uuid.UUID("8b2f2e8f-2a4e-4f8e-9c2a-2e6d4c1b8a90")
                     ),
                     survey_mission_id=mission_id,
-                    name=common_schemas.LocalizableDraftName(en="Second record"),
-                    description=common_schemas.LocalizableDraftDescription(
-                        en="Description for second record"
-                    ),
+                    name="Second record",
+                    description="Description for second record",
                     dataset_category_id=identifiers.DatasetCategoryId(
                         dataset_category.id
                     ),
@@ -805,10 +729,8 @@ async def test_create_survey_related_record_rejects_duplicate_asset_path_in_same
                             id=identifiers.RecordAssetId(
                                 uuid.UUID("1d4e5f6a-7b8c-4d9e-8f0a-1b2c3d4e5f6a")
                             ),
-                            name=common_schemas.LocalizableDraftName(en="Second asset"),
-                            description=common_schemas.LocalizableDraftDescription(
-                                en="Description for second asset"
-                            ),
+                            name="Second asset",
+                            description="Description for second asset",
                             # same relative_path as the asset already registered
                             # above, on the same survey mission
                             relative_path="shared/asset-path.sgy",
@@ -828,11 +750,9 @@ async def test_create_survey_related_record_allows_duplicate_asset_path_in_diffe
     bootstrap_workflow_stages,
 ):
     dataset_category = [
-        c for c in bootstrap_dataset_categories if c.name["en"] == "bathymetry"
+        c for c in bootstrap_dataset_categories if c.name == "bathymetry"
     ][0]
-    workflow_stage = [
-        w for w in bootstrap_workflow_stages if w.name["en"] == "raw data"
-    ][0]
+    workflow_stage = [w for w in bootstrap_workflow_stages if w.name == "raw data"][0]
     async with db_session_maker() as session:
         await record_commands.create_survey_related_record(
             session,
@@ -843,10 +763,8 @@ async def test_create_survey_related_record_allows_duplicate_asset_path_in_diffe
                 survey_mission_id=identifiers.SurveyMissionId(
                     sample_survey_missions[0].id
                 ),
-                name=common_schemas.LocalizableDraftName(en="First record"),
-                description=common_schemas.LocalizableDraftDescription(
-                    en="Description for first record"
-                ),
+                name="First record",
+                description="Description for first record",
                 dataset_category_id=identifiers.DatasetCategoryId(dataset_category.id),
                 workflow_stage_id=identifiers.WorkflowStageId(workflow_stage.id),
                 relative_path="first-record",
@@ -855,10 +773,8 @@ async def test_create_survey_related_record_allows_duplicate_asset_path_in_diffe
                         id=identifiers.RecordAssetId(
                             uuid.UUID("e5f6a7b8-d9e0-4f1a-8b2c-3d4e5f6a7b8c")
                         ),
-                        name=common_schemas.LocalizableDraftName(en="First asset"),
-                        description=common_schemas.LocalizableDraftDescription(
-                            en="Description for first asset"
-                        ),
+                        name="First asset",
+                        description="Description for first asset",
                         relative_path="shared/asset-path.sgy",
                     )
                 ],
@@ -873,10 +789,8 @@ async def test_create_survey_related_record_allows_duplicate_asset_path_in_diffe
                 survey_mission_id=identifiers.SurveyMissionId(
                     sample_survey_missions[1].id
                 ),
-                name=common_schemas.LocalizableDraftName(en="Second record"),
-                description=common_schemas.LocalizableDraftDescription(
-                    en="Description for second record"
-                ),
+                name="Second record",
+                description="Description for second record",
                 dataset_category_id=identifiers.DatasetCategoryId(dataset_category.id),
                 workflow_stage_id=identifiers.WorkflowStageId(workflow_stage.id),
                 relative_path="second-record",
@@ -885,10 +799,8 @@ async def test_create_survey_related_record_allows_duplicate_asset_path_in_diffe
                         id=identifiers.RecordAssetId(
                             uuid.UUID("a7b8c9d0-f1a2-4b3c-8d4e-5f6a7b8c9d0e")
                         ),
-                        name=common_schemas.LocalizableDraftName(en="Second asset"),
-                        description=common_schemas.LocalizableDraftDescription(
-                            en="Description for second asset"
-                        ),
+                        name="Second asset",
+                        description="Description for second asset",
                         # same relative_path as the asset already registered above,
                         # but on a different survey mission - this must be allowed
                         relative_path="shared/asset-path.sgy",
@@ -929,12 +841,8 @@ async def test_update_survey_related_record_rejects_duplicate_asset_path_for_new
                         # mission (via first_record itself)
                         record_schemas.DataRecordAssetUpdate(
                             id=identifiers.RecordAssetId(uuid.uuid4()),
-                            name=common_schemas.LocalizableDraftName(
-                                en="Conflicting asset"
-                            ),
-                            description=common_schemas.LocalizableDraftDescription(
-                                en="Conflicting asset"
-                            ),
+                            name="Conflicting asset",
+                            description="Conflicting asset",
                             relative_path="second-asset",
                         )
                     ],
@@ -960,8 +868,8 @@ async def test_update_survey_related_record_allows_pathless_assets(
         session.add(
             models.RecordAsset(
                 id=uuid.uuid4(),
-                name={"en": "A thumbnail asset"},
-                description={"en": ""},
+                name="A thumbnail asset",
+                description="",
                 survey_related_record_id=first_record.id,
                 media_type="image/webp",
                 asset_type=[constants.AssetType.THUMBNAIL],
@@ -970,8 +878,8 @@ async def test_update_survey_related_record_allows_pathless_assets(
         session.add(
             models.RecordAsset(
                 id=uuid.uuid4(),
-                name={"en": "A preview asset"},
-                description={"en": ""},
+                name="A preview asset",
+                description="",
                 survey_related_record_id=first_record.id,
                 media_type="image/webp",
                 asset_type=[constants.AssetType.PREVIEW],
@@ -997,10 +905,8 @@ async def test_update_survey_related_record_allows_pathless_assets(
                 + [
                     record_schemas.DataRecordAssetUpdate(
                         id=new_asset_id,
-                        name=common_schemas.LocalizableDraftName(en="Pathless asset"),
-                        description=common_schemas.LocalizableDraftDescription(
-                            en="An asset with no file of its own"
-                        ),
+                        name="Pathless asset",
+                        description="An asset with no file of its own",
                         media_type="image/webp",
                         relative_path=None,
                     )
@@ -1031,8 +937,8 @@ async def test_update_survey_related_record_preserves_derived_assets(
         session.add(
             models.RecordAsset(
                 id=derived_asset_id,
-                name={"en": "A derived asset"},
-                description={"en": ""},
+                name="A derived asset",
+                description="",
                 survey_related_record_id=first_record.id,
                 media_type="image/webp",
                 asset_type=[
@@ -1051,9 +957,7 @@ async def test_update_survey_related_record_preserves_derived_assets(
             session,
             fresh_first,
             record_schemas.SurveyRelatedRecordUpdate(
-                description=common_schemas.LocalizableDraftDescription(
-                    en="An edited description"
-                ),
+                description="An edited description",
                 # the data assets are sent back unchanged, as the update form does
                 assets=[
                     record_schemas.DataRecordAssetUpdate(
@@ -1097,8 +1001,8 @@ async def test_replace_derived_record_assets(
             models.RecordAsset(
                 id=other_derived_id,
                 survey_related_record_id=second_record.id,
-                name={"en": "other record preview"},
-                description={"en": ""},
+                name="other record preview",
+                description="",
                 media_type="image/webp",
                 asset_type=[constants.AssetType.PREVIEW],
                 data=b"fake webp payload",
@@ -1112,7 +1016,7 @@ async def test_replace_derived_record_assets(
                 [
                     record_schemas.DerivedRecordAssetCreate(
                         id=identifiers.RecordAssetId(uuid.uuid4()),
-                        name=common_schemas.LocalizableDraftName(en=preview_name),
+                        name=preview_name,
                         media_type="image/webp",
                         asset_type=[
                             constants.AssetType.THUMBNAIL,
@@ -1128,7 +1032,7 @@ async def test_replace_derived_record_assets(
     # replacing is idempotent: only the last derived set survives, and the
     # record's data assets are never touched
     assert len(derived_assets) == 1
-    assert derived_assets[0].name["en"] == "second preview"
+    assert derived_assets[0].name == "second preview"
     assert derived_assets[0].relative_path is None
     assert {
         a.id for a in assets if constants.AssetType.DATA in a.asset_type

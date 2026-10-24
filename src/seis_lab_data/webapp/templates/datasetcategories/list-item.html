@@ -1,15 +1,9 @@
 {% import "macros-buttons.html" as macros_buttons %}
 {% set id_ = item.id | string | replace('-', '') %}
-{% set translated_name = item.name | translate_localizable_string %}
-{% set secondary_name = item.name | secondary_language %}
-{% set names_equal  = translated_name == secondary_name %}
 <div class="col">
     <div class="card list-item-stripe list-item-stripe-dataset-category">
         <div class="card-body">
-            <h5 class="card-title mb-3"><span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.dataset_category }}</span>{{ translated_name }}</h5>
-            {% if not names_equal %}
-                <p class="card-text">{{ secondary_name }}</p>
-            {% endif %}
+            <h5 class="card-title mb-3"><span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.dataset_category }}</span>{{ item.name }}</h5>
             <div class="d-flex">
                 {% if permissions.can_update %}
                     <a
