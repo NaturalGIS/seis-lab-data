@@ -54,9 +54,14 @@ def _build_survey_mission_statement(
                     models.SurveyMission.temporal_extent_end.is_(None),
                 )
             )
+    # name and id are tiebreakers - without them the order of items with the
+    # same temporal extent is undefined and pages may overlap or skip items
     return statement.order_by(
-        models.SurveyMission.temporal_extent_end.desc().nullslast()
-    ).order_by(models.SurveyMission.temporal_extent_begin.desc().nullslast())
+        models.SurveyMission.temporal_extent_end.desc().nullslast(),
+        models.SurveyMission.temporal_extent_begin.desc().nullslast(),
+        models.SurveyMission.name,
+        models.SurveyMission.id,
+    )
 
 
 async def _exec_survey_mission_list(

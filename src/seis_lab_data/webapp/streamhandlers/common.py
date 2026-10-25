@@ -327,21 +327,29 @@ async def _handle_project_modification_detail_page(
     elif message.resource_type == constants.ResourceType.MISSION and message.succeeded:
         # only care about survey_mission if it is child of project in context
         survey_mission_id = identifiers.SurveyMissionId(uuid.UUID(message.resource_id))
-        async with context.db_session_factory() as session:
-            if (
-                db_mission := await mission_ops.get_survey_mission(
-                    survey_mission_id, context.user, session
-                )
-            ) is None:
-                logger.debug(
-                    f"Could not find survey_mission with id {message.resource_id!r} in the DB"
-                )
-                return
-            if identifiers.ProjectId(db_mission.project_id) != project_id:
+        if message.parent_resource_id is not None:
+            # a deleted mission is no longer in the DB, but the message carries its parent
+            if message.parent_resource_id != context.resource_id:
                 logger.debug(
                     f"survey_mission {survey_mission_id!r} is not child of current project - skipping..."
                 )
                 return
+        else:
+            async with context.db_session_factory() as session:
+                if (
+                    db_mission := await mission_ops.get_survey_mission(
+                        survey_mission_id, context.user, session
+                    )
+                ) is None:
+                    logger.debug(
+                        f"Could not find survey_mission with id {message.resource_id!r} in the DB"
+                    )
+                    return
+                if identifiers.ProjectId(db_mission.project_id) != project_id:
+                    logger.debug(
+                        f"survey_mission {survey_mission_id!r} is not child of current project - skipping..."
+                    )
+                    return
         logger.debug(
             f"Survey mission {message.resource_id!r} is a child of the current project - asking frontend to re-fetch mission listing..."
         )
@@ -443,22 +451,33 @@ async def _handle_survey_mission_modification_detail_page(
     elif message.resource_type == constants.ResourceType.RECORD and message.succeeded:
         # only care about record if it is child of mission in context
         record_id = identifiers.SurveyRelatedRecordId(uuid.UUID(message.resource_id))
-        async with context.db_session_factory() as session:
-            if (
-                record_info := await record_ops.get_survey_related_record(
-                    record_id, context.user, session
-                )
-            ) is None:
-                logger.debug(
-                    f"Could not find survey_related_record with id {message.resource_id!r} in the DB"
-                )
-                return
-            db_record = record_info[0]
-            if identifiers.SurveyMissionId(db_record.survey_mission_id) != mission_id:
+        if message.parent_resource_id is not None:
+            # a deleted record is no longer in the DB, but the message carries its parent
+            if message.parent_resource_id != context.resource_id:
                 logger.debug(
                     f"survey_related_record {record_id!r} is not child of current mission - skipping..."
                 )
                 return
+        else:
+            async with context.db_session_factory() as session:
+                if (
+                    record_info := await record_ops.get_survey_related_record(
+                        record_id, context.user, session
+                    )
+                ) is None:
+                    logger.debug(
+                        f"Could not find survey_related_record with id {message.resource_id!r} in the DB"
+                    )
+                    return
+                db_record = record_info[0]
+                if (
+                    identifiers.SurveyMissionId(db_record.survey_mission_id)
+                    != mission_id
+                ):
+                    logger.debug(
+                        f"survey_related_record {record_id!r} is not child of current mission - skipping..."
+                    )
+                    return
         logger.debug(
             f"Survey-related record {message.resource_id!r} is a child of the current mission - asking frontend to re-fetch record listing..."
         )

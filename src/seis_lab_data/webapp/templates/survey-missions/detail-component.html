@@ -81,6 +81,8 @@
             data-signals:selected-ids="{}"
             data-signals:excluded-ids="{}"
             data-signals:select-all-matching="false"
+            data-signals:compact-listing="false"
+            data-init="$compactListing = localStorage.getItem('sld:compact-records') === 'true'"
             data-effect="$listingVersion > 0 && @get('{{ url_for('survey_missions:get_mission_records_list_component', survey_mission_id=item.id) }}')"
         >
             <div class="col">
@@ -186,7 +188,7 @@
                         </div>
                     </div>
                 </div>
-                <div id="survey-mission-records">
+                <div id="survey-mission-records" data-class:listing-compact="$compactListing">
                     {% with items = survey_related_records, bulk_update_base_url = (url_for("survey_missions:get_bulk_update_form", survey_mission_id=item.id) if permissions.can_bulk_update else none) %}
                         {% include "survey-related-records/list-component.html" %}
                     {% endwith %}

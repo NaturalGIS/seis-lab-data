@@ -175,9 +175,14 @@ def _build_survey_related_record_statement(
         workflow_stage_id=workflow_stage_id,
         only_data_assets=only_data_assets,
     )
+    # name and id are tiebreakers - without them the order of items with the
+    # same temporal extent is undefined and pages may overlap or skip items
     return statement.order_by(
-        models.SurveyRelatedRecord.temporal_extent_end.desc().nullslast()
-    ).order_by(models.SurveyRelatedRecord.temporal_extent_begin.desc().nullslast())
+        models.SurveyRelatedRecord.temporal_extent_end.desc().nullslast(),
+        models.SurveyRelatedRecord.temporal_extent_begin.desc().nullslast(),
+        models.SurveyRelatedRecord.name,
+        models.SurveyRelatedRecord.id,
+    )
 
 
 def _build_survey_related_record_id_statement(

@@ -52,9 +52,14 @@ def _build_project_statement(
                     models.Project.temporal_extent_end.is_(None),
                 )
             )
+    # name and id are tiebreakers - without them the order of items with the
+    # same temporal extent is undefined and pages may overlap or skip items
     return statement.order_by(
-        models.Project.temporal_extent_end.desc().nullslast()
-    ).order_by(models.Project.temporal_extent_begin.desc().nullslast())
+        models.Project.temporal_extent_end.desc().nullslast(),
+        models.Project.temporal_extent_begin.desc().nullslast(),
+        models.Project.name,
+        models.Project.id,
+    )
 
 
 async def _exec_project_list(

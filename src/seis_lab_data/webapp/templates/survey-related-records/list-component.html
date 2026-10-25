@@ -61,6 +61,26 @@
                             >{{ _("bulk update") | capitalize }}</a>
                         </div>
                     {% endif %}
+                    <div class="col-auto ms-auto">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="listing-layout">
+                            <button
+                                    type="button"
+                                    class="btn btn-outline-secondary"
+                                    aria-label="regular-layout"
+                                    title="{{ _('regular layout') | capitalize }}"
+                                    data-class:active="!$compactListing"
+                                    data-on:click="$compactListing = false; localStorage.setItem('sld:compact-records', 'false')"
+                            ><span class="material-icons-outlined">{{ icons.layout_regular }}</span></button>
+                            <button
+                                    type="button"
+                                    class="btn btn-outline-secondary"
+                                    aria-label="compact-layout"
+                                    title="{{ _('compact layout') | capitalize }}"
+                                    data-class:active="$compactListing"
+                                    data-on:click="$compactListing = true; localStorage.setItem('sld:compact-records', 'true')"
+                            ><span class="material-icons-outlined">{{ icons.layout_compact }}</span></button>
+                        </div>
+                    </div>
                 </div>
                 <ul class="list-inline text-center">
                     <li class="list-inline-item">
@@ -74,7 +94,7 @@
                     </li>
                 </ul>
                 {{ macros.render_pagination(pagination) }}
-                <div class="row row-cols-1 g-4">
+                <div class="row row-cols-1 g-3">
                     {% for item in items %}
                         {% include "survey-related-records/list-item.html" %}
                     {% endfor %}

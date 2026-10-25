@@ -47,6 +47,8 @@ class SeisLabDataIconSettings(BaseModel):
     download: str = "download"
     edit_item: str = "edit"
     home: str = "home"
+    layout_compact: str = "view_headline"
+    layout_regular: str = "view_agenda"
     # list: str = "list"
     list: str = "view_list"
     new_item: str = "add_circle_outline"

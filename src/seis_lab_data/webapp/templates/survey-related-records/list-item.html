@@ -1,10 +1,8 @@
 {% import "macros-buttons.html" as macros_buttons %}
 {% set id_ = item.id | string | replace('-', '') %}
-<div
-        class="col"
-        data-signals:is-valid-id{{ id_ }}="{{ 'true' if item.validation_result.is_valid else 'false' }}"
->
-    <div class="card mb-3 position-relative list-item-stripe list-item-stripe-survey-related-record">
+{% set item_permissions = list_item_permissions[item.id] if list_item_permissions else none %}
+<div class="col">
+    <div class="card position-relative overflow-hidden list-item-stripe list-item-stripe-survey-related-record">
         <div class="form-check position-absolute top-0 start-0 m-2">
             <input
                     type="checkbox"
@@ -14,8 +12,8 @@
                     data-on:change="$selectAllMatching ? ($excludedIds['{{ item.id }}'] = !evt.target.checked) : ($selectedIds['{{ item.id }}'] = evt.target.checked)"
             >
         </div>
-        <div class="row g-0">
-            <div class="col-md-3">
+        <div class="d-flex">
+            <div class="list-item-thumb">
                 {% if item.thumbnail_asset_id is not none %}
                     <img
                             class="placeholder-rectangle bg-light object-fit-contain"
@@ -39,72 +37,61 @@
                     </div>
                 {% endif %}
             </div>
-            <div class="col-md-9">
-                <div class="card-body">
-                    <h5 class="card-title"><span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.survey_related_records }}</span>{{ item.name|default(_("name not available"), True) }}</h5>
-                    <div class="row justify-content-between">
-                        <div class="d-flex align-items-center flex-wrap gap-2 my-2">
-                            <a href="{{ url_for('projects:detail', project_id=item.survey_mission.project.id) }}" class="badge bg-project text-decoration-none">
-                                <span class="material-icons-outlined me-1 fs-6">{{ icons.projects }}</span>{{ item.survey_mission.project.name }}
-                            </a>
-                            <a href="{{ url_for('survey_missions:detail', survey_mission_id=item.survey_mission.id) }}" class="badge bg-survey-mission text-decoration-none">
-                                <span class="material-icons-outlined me-1 fs-6">{{ icons.survey_missions }}</span>{{ item.survey_mission.name }}
-                            </a>
-                        </div>
-
-
-                        <small class="text-body-secondary"><span
-                                class="material-icons-outlined me-1">{{ icons['status_' + item.status.value] }}</span> {{ item.status.value }}
-                        </small>
-                        <small class="text-body-secondary">
-                        <span
-                                class="material-icons-outlined me-1"
-                                data-text="$isValidId{{ id_ }} ? window.iconNames['validation_valid'] : window.iconNames['validation_invalid']"
-                                data-class:text-success="$isValidId{{ id_ }}"
-                                data-class:text-danger="!$isValidId{{ id_ }}"
-                        ></span><span
-                                data-text="$isValidId{{ id_ }} ? 'Valid' : 'Invalid' "
-                                data-class:text-success="$isValidId{{ id_ }}"
-                                data-class:text-danger="!$isValidId{{ id_ }}"
-                        ></span>
-
-                        </small>
-                    </div>
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="d-flex align-items-center flex-wrap gap-2 my-2">
-                                <span class="badge badge-outline text-dataset-category"><span class="material-icons-outlined me-1 fs-6">{{ icons.dataset_category }}</span>{% if item.dataset_category %}{{ item.dataset_category.name }}{% else %}{{ _("unknown category") }}{% endif %}</span>
-                                <span class="badge badge-outline text-workflow-stage"><span class="material-icons-outlined me-1 fs-6">{{ icons.workflow_stage }}</span>{% if item.workflow_stage %}{{ item.workflow_stage.name }}{% else %}{{ _("unknown stage") }}{% endif %}</span>
-                            </div>
-                            <ul class="list-unstyled">
-                                <li class="card-text">
-                                    <small class="text-body-secondary">
-                                        {{ item.temporal_extent_begin | default(_(".."), True) }}/{{ item.temporal_extent_end | default(_(".."), True) }}
-                                    </small>
-                                </li>
-                                <li class="card-text text-truncate">
-                                    {{ item.description|default(_("description not available"), True) }}
-                                </li>
-                                <li class="card-text"><small>{{ item.record_assets | map(attribute="relative_path") | select | join(",") }}</small></li>
-                            </ul>
-                        </div>
-                        <div class="col">
-                            {% if not item.bbox_4326 %}
-                                <div class="row mb-3">
-                                    <div class="col">
-                                        <span class="material-icons-outlined me-1">{{ icons.validation_invalid }}</span>
-                                        {{ _("unknown spatial extent") }}
-                                    </div>
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {{ macros_buttons.render_view_details_button(url_for('survey_related_records:detail', survey_related_record_id=item.id)) }}
+            <div class="card-body list-item-body flex-grow-1 py-2">
+                <div class="d-flex flex-wrap gap-2 mb-1 list-item-regular-only">
+                    <a href="{{ url_for('projects:detail', project_id=item.survey_mission.project.id) }}" class="badge bg-project text-decoration-none">
+                        <span class="material-icons-outlined me-1 fs-6">{{ icons.projects }}</span>{{ item.survey_mission.project.name }}
+                    </a>
+                    <a href="{{ url_for('survey_missions:detail', survey_mission_id=item.survey_mission.id) }}" class="badge bg-survey-mission text-decoration-none">
+                        <span class="material-icons-outlined me-1 fs-6">{{ icons.survey_missions }}</span>{{ item.survey_mission.name }}
+                    </a>
+                </div>
+                <div class="d-flex align-items-start gap-2">
+                    <h5 class="card-title text-truncate mb-1"><span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.survey_related_records }}</span>{{ item.name|default(_("name not available"), True) }}</h5>
+                    {% if item.status != SurveyRelatedRecordStatus.PUBLISHED %}
+                        <span class="badge text-bg-danger ms-auto" aria-label="item-status">
+                            <span class="material-icons-outlined me-1 fs-6">{{ item | status_icon }}</span>{{ item.status | translate_enum }}
+                        </span>
+                    {% endif %}
+                </div>
+                <div class="small text-truncate">{{ item.record_assets | map(attribute="relative_path") | select | join(",") }}</div>
+                <div class="small text-body-secondary">
+                    {{ item.temporal_extent_begin | default(_(".."), True) }}/{{ item.temporal_extent_end | default(_(".."), True) }}
+                </div>
+                <div class="d-flex flex-wrap gap-2 mt-1 list-item-regular-only">
+                    <span class="badge badge-outline text-dataset-category"><span class="material-icons-outlined me-1 fs-6">{{ icons.dataset_category }}</span>{% if item.dataset_category %}{{ item.dataset_category.name }}{% else %}{{ _("unknown category") }}{% endif %}</span>
+                    <span class="badge badge-outline text-workflow-stage"><span class="material-icons-outlined me-1 fs-6">{{ icons.workflow_stage }}</span>{% if item.workflow_stage %}{{ item.workflow_stage.name }}{% else %}{{ _("unknown stage") }}{% endif %}</span>
+                </div>
+                <div class="d-flex align-items-center flex-wrap gap-2 mt-2">
+                    {{ macros_buttons.render_view_details_button(url_for('survey_related_records:detail', survey_related_record_id=item.id), size_css_class="btn-sm") }}
                     {% for asset in item.record_assets if AssetType.DATA in asset.asset_type and asset.relative_path %}
                         {% if loop.first %}
-                            {{ macros_buttons.render_download_button(url_for('survey_related_records:download_record_asset', survey_related_record_id=item.id, record_asset_id=asset.id), asset.relative_path.lower().endswith(BUNDLED_DATA_ASSET_EXTENSIONS)) }}
+                            {{ macros_buttons.render_download_button(url_for('survey_related_records:download_record_asset', survey_related_record_id=item.id, record_asset_id=asset.id), asset.relative_path.lower().endswith(BUNDLED_DATA_ASSET_EXTENSIONS), size_css_class="btn-sm") }}
                         {% endif %}
                     {% endfor %}
+                    {% if item_permissions and item | is_updatable(item_permissions) %}
+                        <a
+                                class="btn btn-sm btn-outline-primary list-item-regular-only"
+                                href="{{ url_for('survey_related_records:get_update_form', survey_related_record_id=item.id) }}"
+                                aria-label="update-list-item"
+                        ><span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit") | capitalize }}</a>
+                    {% endif %}
+                    {% if item_permissions and item | is_deletable(item_permissions) %}
+                        <div class="ms-auto list-item-regular-only">
+                            {{ macros_buttons.render_delete_item_button(
+                                deletion_url=url_for("survey_related_records:detail", survey_related_record_id=item.id),
+                                signal_name="deleting" ~ id_,
+                                idle_message=_("delete..."),
+                                running_message=_("deleting..."),
+                                generated_csrf_token=csrf_token(request),
+                                modal_dialog_title=_("delete survey-related record"),
+                                modal_dialog_confirmation_text=_("are you sure you want to delete this survey-related record?"),
+                                size_css_class="btn-sm",
+                                show_modal_aria_label="show-delete-list-item-confirmation-modal",
+                                confirm_aria_label="delete-list-item"
+                            ) }}
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

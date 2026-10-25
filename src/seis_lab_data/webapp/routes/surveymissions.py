@@ -61,6 +61,7 @@ from .auth import (
 )
 from .common import (
     get_id_from_request_path,
+    get_list_item_permissions,
     get_page_from_request_params,
     get_pagination_info,
     UPDATE_BASEMAP_JS_SCRIPT,
@@ -175,6 +176,12 @@ async def _get_survey_mission_details(
                 record_permissions.can_bulk_update_survey_related_records(user)
             ),
         ),
+        children_permissions=get_list_item_permissions(
+            user,
+            survey_related_records,
+            record_permissions.can_update_survey_related_record,
+            record_permissions.can_delete_survey_related_record,
+        ),
         breadcrumbs=[
             webui_schemas.BreadcrumbItem(
                 name=_("Home"),
@@ -215,6 +222,7 @@ async def get_details_component(request: Request):
         survey_related_records=details.children,
         search_initial_value=details.children_filter,
         permissions=details.permissions,
+        list_item_permissions=details.children_permissions,
         dataset_categories=details.dataset_categories,
         workflow_stages=details.workflow_stages,
         filter_media_types_datalist=details.filter_media_types_datalist,
@@ -443,6 +451,12 @@ async def get_mission_records_list_component(request: Request):
         update_current_url_with=filter_query_string,
         pagination=pagination_info,
         bulk_update_base_url=bulk_update_base_url,
+        list_item_permissions=get_list_item_permissions(
+            user,
+            items,
+            record_permissions.can_update_survey_related_record,
+            record_permissions.can_delete_survey_related_record,
+        ),
     )
 
     async def event_streamer():
@@ -503,6 +517,12 @@ async def get_list_component(request: Request):
         items=serialized_items,
         update_current_url_with=filter_query_string,
         pagination=pagination_info,
+        list_item_permissions=get_list_item_permissions(
+            user,
+            items,
+            mission_permissions.can_update_survey_mission,
+            mission_permissions.can_delete_survey_mission,
+        ),
     )
 
     async def event_streamer():
@@ -596,6 +616,12 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
             "survey-missions/list.html",
             context={
                 "items": serialized_items,
+                "list_item_permissions": get_list_item_permissions(
+                    user,
+                    items,
+                    mission_permissions.can_update_survey_mission,
+                    mission_permissions.can_delete_survey_mission,
+                ),
                 "geojson_features": json.dumps(geojson_features),
                 "pagination": pagination_info,
                 "map_bounds": {
@@ -642,6 +668,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 "survey_related_records": details.children,
                 "search_initial_value": details.children_filter,
                 "permissions": details.permissions,
+                "list_item_permissions": details.children_permissions,
                 "breadcrumbs": details.breadcrumbs,
                 "dataset_categories": details.dataset_categories,
                 "workflow_stages": details.workflow_stages,
@@ -851,8 +878,9 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
         survey_mission_id = get_id_from_request_path(
             request, "survey_mission_id", identifiers.SurveyMissionId
         )
+        # list items do not track deletion progress and therefore send no request_id
         request_id = identifiers.RequestId(
-            uuid.UUID(request.query_params["request_id"])
+            uuid.UUID(request.query_params.get("request_id", str(uuid.uuid4())))
         )
         user = request.user
         async with request.state.settings.get_db_session_maker()() as session:

@@ -54,6 +54,7 @@ from .auth import (
 )
 from .common import (
     get_id_from_request_path,
+    get_list_item_permissions,
     get_page_from_request_params,
     get_pagination_info,
     UPDATE_BASEMAP_JS_SCRIPT,
@@ -192,6 +193,7 @@ async def get_project_details_component(request: Request):
         survey_missions=details.children,
         search_initial_value=details.children_filter,
         permissions=details.permissions,
+        list_item_permissions=details.children_permissions,
     )
 
     async def event_streamer():
@@ -413,6 +415,12 @@ async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails
             can_validate=project_permissions.can_validate_project(user, project),
             can_discover=project_permissions.can_discover_project(user, project),
         ),
+        children_permissions=get_list_item_permissions(
+            user,
+            survey_missions,
+            mission_permissions.can_update_survey_mission,
+            mission_permissions.can_delete_survey_mission,
+        ),
         breadcrumbs=[
             webui_schemas.BreadcrumbItem(
                 name=_("Home"),
@@ -477,6 +485,12 @@ async def get_list_component(request: Request):
         items=serialized_items,
         update_current_url_with=filter_query_string,
         pagination=pagination_info,
+        list_item_permissions=get_list_item_permissions(
+            user,
+            items,
+            project_permissions.can_update_project,
+            project_permissions.can_delete_project,
+        ),
     )
 
     async def event_streamer():
@@ -542,6 +556,12 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             "projects/list.html",
             context={
                 "items": serialized_items,
+                "list_item_permissions": get_list_item_permissions(
+                    user,
+                    items,
+                    project_permissions.can_update_project,
+                    project_permissions.can_delete_project,
+                ),
                 "geojson_features": json.dumps(geojson_features),
                 "pagination": pagination_info,
                 "map_bounds": {
@@ -661,6 +681,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 "survey_missions": details.children,
                 "search_initial_value": details.children_filter,
                 "permissions": details.permissions,
+                "list_item_permissions": details.children_permissions,
                 "breadcrumbs": details.breadcrumbs,
             },
         )
@@ -747,8 +768,9 @@ class ProjectDetailEndpoint(HTTPEndpoint):
     @requires_auth
     async def delete(self, request: Request):
         """Delete a project."""
+        # list items do not track deletion progress and therefore send no request_id
         request_id = identifiers.RequestId(
-            uuid.UUID(request.query_params["request_id"])
+            uuid.UUID(request.query_params.get("request_id", str(uuid.uuid4())))
         )
         user = request.user
         session_maker = request.state.settings.get_db_session_maker()
@@ -906,6 +928,12 @@ async def get_project_missions_list_component(request: Request):
         items=serialized_items,
         update_current_url_with=filter_query_string,
         pagination=pagination_info,
+        list_item_permissions=get_list_item_permissions(
+            user,
+            items,
+            mission_permissions.can_update_survey_mission,
+            mission_permissions.can_delete_survey_mission,
+        ),
     )
 
     async def event_streamer():
