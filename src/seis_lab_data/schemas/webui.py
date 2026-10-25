@@ -1,5 +1,6 @@
 import dataclasses
 import typing
+import uuid
 
 import pydantic
 from starlette_babel import LazyString
@@ -86,6 +87,7 @@ class ItemDetails(typing.Generic[ItemWithDetails, ItemChildSummary]):
     children_filter: str
     pagination: common.PaginationInfo
     permissions: UserPermissionDetails
+    children_permissions: dict[uuid.UUID, UserPermissionDetails]
     breadcrumbs: list[BreadcrumbItem]
 
 

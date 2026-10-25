@@ -70,6 +70,7 @@ from .common import (
     build_mission_compound_name,
     build_project_compound_name,
     get_id_from_request_path,
+    get_list_item_permissions,
     get_page_from_request_params,
     get_pagination_info,
     UPDATE_BASEMAP_JS_SCRIPT,
@@ -1138,6 +1139,12 @@ async def get_list_component(request: Request):
         items=serialized_items,
         update_current_url_with=filter_query_string,
         pagination=pagination_info,
+        list_item_permissions=get_list_item_permissions(
+            user,
+            items,
+            record_permissions.can_update_survey_related_record,
+            record_permissions.can_delete_survey_related_record,
+        ),
     )
 
     async def event_streamer():
@@ -1277,6 +1284,12 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
             "survey-related-records/list.html",
             context={
                 "items": serialized_items,
+                "list_item_permissions": get_list_item_permissions(
+                    user,
+                    items,
+                    record_permissions.can_update_survey_related_record,
+                    record_permissions.can_delete_survey_related_record,
+                ),
                 "geojson_features": json.dumps(geojson_features),
                 "pagination": pagination_info,
                 "dataset_categories": dataset_category_filter_options,
@@ -1345,8 +1358,9 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         survey_related_record_id = get_id_from_request_path(
             request, "survey_related_record_id", identifiers.SurveyRelatedRecordId
         )
+        # list items do not track deletion progress and therefore send no request_id
         request_id = identifiers.RequestId(
-            uuid.UUID(request.query_params["request_id"])
+            uuid.UUID(request.query_params.get("request_id", str(uuid.uuid4())))
         )
         user = request.user
         async with request.state.settings.get_db_session_maker()() as session:

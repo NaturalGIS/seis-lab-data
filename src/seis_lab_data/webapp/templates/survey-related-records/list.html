@@ -44,6 +44,8 @@
                 data-signals:selected-ids="{}"
                 data-signals:excluded-ids="{}"
                 data-signals:select-all-matching="false"
+                data-signals:compact-listing="false"
+                data-init="$compactListing = localStorage.getItem('sld:compact-records') === 'true'"
                 data-effect="$listingVersion > 0 && @get('{{ url_for('survey_related_records:get_list_component') }}')"
         >
             <div class="col-8">
@@ -187,7 +189,7 @@
     <div class="row"
          data-on-intersect__once="@get('{{ url_for("survey_related_records:list_stream") }}')"
     >
-        <div class="col-9">
+        <div class="col-9" data-class:listing-compact="$compactListing">
             {% include "survey-related-records/list-component.html" %}
         </div>
         <div class="col-3">

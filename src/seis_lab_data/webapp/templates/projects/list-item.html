@@ -1,70 +1,56 @@
-{% from "macros/button.html" import render_button, render_link %}
+{% import "macros-buttons.html" as macros_buttons %}
 {% set id_ = item.id | string | replace('-', '') %}
-<div
-        class="col"
-        data-signals:is-valid-id{{ id_ }}="{{ 'true' if item.validation_result.is_valid else 'false' }}"
->
-    <div class="card mb-3 list-item-stripe list-item-stripe-project">
-        <div class="row g-0">
-            <div class="col-md-4">
+{% set item_permissions = list_item_permissions[item.id] if list_item_permissions else none %}
+<div class="col">
+    <div class="card h-100 overflow-hidden list-item-stripe list-item-stripe-project">
+        <div class="d-flex h-100">
+            <div class="list-item-thumb">
                 <div class="placeholder-rectangle bg-secondary"></div>
             </div>
-            <div class="col-md-8">
-                <div class="card-body">
-                    <div class="row justify-content-between">
-                        <div class="col-8">
-                            <h5 class="card-title text-truncate"><span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.projects }}</span>{{ item.name|default(_("name not available"), True) }}</h5>
+            <div class="card-body list-item-body flex-grow-1 d-flex flex-column py-2">
+                <div class="d-flex align-items-start gap-2">
+                    <h5 class="card-title text-truncate mb-1"><span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.projects }}</span>{{ item.name|default(_("name not available"), True) }}</h5>
+                    {% if item.status.value != "published" %}
+                        <span class="badge text-bg-danger ms-auto" aria-label="item-status">
+                            <span class="material-icons-outlined me-1 fs-6">{{ item | status_icon }}</span>{{ item.status | translate_enum }}
+                        </span>
+                    {% endif %}
+                </div>
+                <div class="small">
+                    <span class="material-icons-outlined me-1 fs-6">{{ icons.survey_missions }}</span>{{ item.num_survey_missions }}
+                    <span class="material-icons-outlined ms-3 me-1 fs-6">{{ icons.survey_related_records }}</span>{{ item.num_survey_related_records }}
+                </div>
+                <div class="small text-body-secondary">
+                    {{ item.temporal_extent_begin | default(_(".."), True) }}/{{ item.temporal_extent_end | default(_(".."), True) }}
+                </div>
+                <p class="card-text small list-item-description mt-1 mb-2">
+                    {{ item.description|default(_("description not available"), True) }}
+                </p>
+                <div class="d-flex align-items-center flex-wrap gap-2 mt-auto">
+                    {{ macros_buttons.render_view_details_button(url_for("projects:detail", project_id=item.id), size_css_class="btn-sm") }}
+                    {% if item_permissions and item_permissions.can_update %}
+                        <a
+                                class="btn btn-sm btn-outline-primary"
+                                href="{{ url_for('projects:get_update_form', project_id=item.id) }}"
+                                aria-label="update-list-item"
+                        ><span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit") | capitalize }}</a>
+                    {% endif %}
+                    {% if item_permissions and item_permissions.can_delete %}
+                        <div class="ms-auto">
+                            {{ macros_buttons.render_delete_item_button(
+                                deletion_url=url_for("projects:detail", project_id=item.id),
+                                signal_name="deleting" ~ id_,
+                                idle_message=_("delete..."),
+                                running_message=_("deleting..."),
+                                generated_csrf_token=csrf_token(request),
+                                modal_dialog_title=_("delete project"),
+                                modal_dialog_confirmation_text=_("are you sure you want to delete this project?"),
+                                size_css_class="btn-sm",
+                                show_modal_aria_label="show-delete-list-item-confirmation-modal",
+                                confirm_aria_label="delete-list-item"
+                            ) }}
                         </div>
-                        <div class="col-4">
-                            <small class="text-body-secondary"><span
-                                    class="material-icons-outlined me-1">{{ icons['status_' + item.status.value] }}</span> {{ item.status.value }}
-                            </small>
-                            <span
-                                    class="material-icons-outlined me-1"
-                                    data-text="$isValidId{{ id_ }} ? window.iconNames['validation_valid'] : window.iconNames['validation_invalid']"
-                                    data-class:text-success="$isValidId{{ id_ }}"
-                                    data-class:text-danger="!$isValidId{{ id_ }}"
-                            ></span>
-                            <span
-                                    data-text="$isValidId{{ id_ }} ? 'Valid' : 'Invalid' "
-                                    data-class:text-success="$isValidId{{ id_ }}"
-                                    data-class:text-danger="!$isValidId{{ id_ }}"
-                            ></span>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-12">
-                            <ul class="list-unstyled">
-                                <li class="card-text">
-                                    <small class="text-body-secondary">
-                                        {{ item.temporal_extent_begin | default(_(".."), True) }}/{{ item.temporal_extent_end | default(_(".."), True) }}
-                                    </small>
-                                </li>
-                                <li class="card-text text-truncate">
-                                    {{ item.description|default(_("description not available"), True) }}
-                                </li>
-                            </ul>
-                        </div>
-                        <div class="col">
-                            {% if not item.bbox_4326 %}
-                            <div class="row mb-3">
-                                <div class="col">
-                                        <span class="material-icons-outlined me-1">{{ icons.validation_invalid }}</span>
-                                        {{ _("unknown spatial extent") }}
-                                </div>
-                            </div>
-                            {% endif %}
-                            <div class="row mb-3">
-                                <div class="col">
-                                    <span class="material-icons-outlined me-1">{{ icons.survey_missions }}</span>
-                                    {{ item.num_survey_missions }}
-                                    <span class="material-icons-outlined ms-3 me-1">{{ icons.survey_related_records }}</span>
-                                    {{ item.num_survey_related_records }}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {{ render_link(url_for("projects:detail", project_id=item.id), _("View"), "view-detail", icons.view_details, "btn-outline-primary") }}
+                    {% endif %}
                 </div>
             </div>
         </div>

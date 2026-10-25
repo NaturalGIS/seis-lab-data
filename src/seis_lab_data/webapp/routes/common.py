@@ -2,7 +2,9 @@ import dataclasses
 import logging
 import uuid
 from typing import (
+    Callable,
     Final,
+    Iterable,
     Type,
     TypeVar,
 )
@@ -12,12 +14,15 @@ from jinja2.filters import do_truncate
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
+from ...db import models
 from ...schemas import (
     identifiers,
     projects as project_schemas,
     surveymissions as mission_schemas,
     surveyrelatedrecords as record_schemas,
+    webui as webui_schemas,
 )
+from ...schemas.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +74,31 @@ def get_pagination_info(
             f"{collection_url}?page={previous_page}" if previous_page else None
         ),
     )
+
+
+ListedItem = TypeVar(
+    "ListedItem",
+    models.Project,
+    models.SurveyMission,
+    models.SurveyRelatedRecord,
+)
+
+
+def get_list_item_permissions[ListedItem](
+    user: User | None,
+    items: Iterable[ListedItem],
+    can_update: Callable[[User | None, ListedItem], bool],
+    can_delete: Callable[[User | None, ListedItem], bool],
+) -> dict[uuid.UUID, webui_schemas.UserPermissionDetails]:
+    """Compute the actions a user may perform on each item of a resource listing."""
+    return {
+        item.id: webui_schemas.UserPermissionDetails(
+            can_create_children=False,
+            can_update=can_update(user, item),
+            can_delete=can_delete(user, item),
+        )
+        for item in items
+    }
 
 
 RequestPathRetrievableIdType = TypeVar(
