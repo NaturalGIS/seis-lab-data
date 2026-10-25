@@ -107,10 +107,6 @@ async def lifespan(
     )
     jinja_env.filters["translate_enum"] = jinjafilters.translate_enum
     jinja_env.filters["status_icon"] = jinjafilters.get_status_icon_name
-    jinja_env.filters["is_deletable"] = jinjafilters.is_deletable
-    jinja_env.filters["is_publishable"] = jinjafilters.is_publishable
-    jinja_env.filters["is_updatable"] = jinjafilters.is_updatable
-    jinja_env.filters["is_unpublishable"] = jinjafilters.is_unpublishable
     configure_jinja_env(jinja_env)
     templates = Jinja2Templates(env=jinja_env)
     yield State(

@@ -106,8 +106,6 @@ class ResourceModification(str, enum.Enum):
     CREATED = "created"
     DELETED = "deleted"
     UPDATED = "updated"
-    PUBLISHED = "published"
-    UNPUBLISHED = "unpublished"
 
 
 class BulkResourceModification(str, enum.Enum):

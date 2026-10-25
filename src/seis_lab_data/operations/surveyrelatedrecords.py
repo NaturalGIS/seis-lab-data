@@ -65,9 +65,10 @@ async def create_survey_related_record(
         if all(
             (
                 validated_record.validation_result.get("is_valid"),
-                (validated_record.survey_mission.validation_result or {}).get(
-                    "is_valid"
-                ),
+                # a record is only publishable when its parent is already
+                # published, otherwise it would be public while its mission is not
+                validated_record.survey_mission.status
+                == constants.SurveyMissionStatus.PUBLISHED,
             )
         ):
             await change_survey_related_record_status(
@@ -289,20 +290,6 @@ async def delete_survey_related_record(
             raise errors.SeisLabDataError(
                 "User is not allowed to delete survey-related record."
             )
-        if (
-            mission_status := survey_record.survey_mission.status
-        ) != constants.SurveyMissionStatus.DRAFT:
-            raise errors.SeisLabDataError(
-                f"Cannot update survey-related record because parent survey "
-                f"mission's status is {mission_status}"
-            )
-        if (
-            project_status := survey_record.survey_mission.project.status
-        ) != constants.ProjectStatus.DRAFT:
-            raise errors.SeisLabDataError(
-                f"Cannot update survey-related record because parent project's "
-                f"status is {project_status}"
-            )
         parent_id = survey_record.survey_mission_id
         await record_commands.delete_survey_related_record(
             session, survey_related_record_id
@@ -466,9 +453,10 @@ async def update_survey_related_record(
         if all(
             (
                 validated_record.validation_result.get("is_valid"),
-                (validated_record.survey_mission.validation_result or {}).get(
-                    "is_valid"
-                ),
+                # a record is only publishable when its parent is already
+                # published, otherwise it would be public while its mission is not
+                validated_record.survey_mission.status
+                == constants.SurveyMissionStatus.PUBLISHED,
             )
         ):
             await change_survey_related_record_status(

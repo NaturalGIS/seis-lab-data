@@ -62,7 +62,9 @@ async def create_survey_mission(
         if all(
             (
                 validated_mission.validation_result.get("is_valid"),
-                (validated_mission.project.validation_result or {}).get("is_valid"),
+                # a mission is only publishable when its parent is already
+                # published, otherwise it would be public while its project is not
+                validated_mission.project.status == constants.ProjectStatus.PUBLISHED,
             )
         ):
             await change_survey_mission_status(
@@ -286,7 +288,9 @@ async def update_survey_mission(
         if all(
             (
                 validated_mission.validation_result.get("is_valid"),
-                (validated_mission.project.validation_result or {}).get("is_valid"),
+                # a mission is only publishable when its parent is already
+                # published, otherwise it would be public while its project is not
+                validated_mission.project.status == constants.ProjectStatus.PUBLISHED,
             )
         ):
             if validated_mission.status != constants.SurveyMissionStatus.PUBLISHED:
@@ -378,15 +382,6 @@ async def delete_survey_mission(
         if not mission_permissions.can_delete_survey_mission(initiator, survey_mission):
             raise errors.SeisLabDataError(
                 "User is not allowed to delete survey missions."
-            )
-        if survey_mission.status != constants.SurveyMissionStatus.DRAFT:
-            raise errors.SeisLabDataError(
-                f"Cannot delete survey mission with status {survey_mission.status}"
-            )
-        if survey_mission.project.status != constants.ProjectStatus.DRAFT:
-            raise errors.SeisLabDataError(
-                f"Cannot delete survey mission because parent project's status "
-                f"is {survey_mission.project.status}"
             )
         parent_id = survey_mission.project_id
         await mission_commands.delete_survey_mission(session, survey_mission_id)

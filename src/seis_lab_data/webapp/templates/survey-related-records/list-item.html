@@ -69,14 +69,14 @@
                             {{ macros_buttons.render_download_button(url_for('survey_related_records:download_record_asset', survey_related_record_id=item.id, record_asset_id=asset.id), asset.relative_path.lower().endswith(BUNDLED_DATA_ASSET_EXTENSIONS), size_css_class="btn-sm") }}
                         {% endif %}
                     {% endfor %}
-                    {% if item_permissions and item | is_updatable(item_permissions) %}
+                    {% if item_permissions and item_permissions.can_update %}
                         <a
                                 class="btn btn-sm btn-outline-primary list-item-regular-only"
                                 href="{{ url_for('survey_related_records:get_update_form', survey_related_record_id=item.id) }}"
                                 aria-label="update-list-item"
                         ><span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit") | capitalize }}</a>
                     {% endif %}
-                    {% if item_permissions and item | is_deletable(item_permissions) %}
+                    {% if item_permissions and item_permissions.can_delete %}
                         <div class="ms-auto list-item-regular-only">
                             {{ macros_buttons.render_delete_item_button(
                                 deletion_url=url_for("survey_related_records:detail", survey_related_record_id=item.id),

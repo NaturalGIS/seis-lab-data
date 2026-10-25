@@ -364,10 +364,6 @@ async def delete_project(
             )
         if not project_permissions.can_delete_project(initiator, project):
             raise errors.SeisLabDataError("User is not allowed to delete projects.")
-        if project.status != constants.ProjectStatus.DRAFT:
-            raise errors.SeisLabDataError(
-                f"Cannot delete project with status {project.status}."
-            )
         await project_commands.delete_project(session, project_id)
     except errors.SeisLabDataError as err:
         await event_dispatcher(

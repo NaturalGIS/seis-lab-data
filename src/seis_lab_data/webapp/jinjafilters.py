@@ -7,7 +7,6 @@ import shapely
 from jinja2 import pass_context
 
 from .. import constants
-from ..schemas.webui import UserPermissionDetails
 
 if typing.TYPE_CHECKING:
     from ..schemas import projects as project_schemas
@@ -30,66 +29,6 @@ if typing.TYPE_CHECKING:
     )
 
 logger = logging.getLogger(__name__)
-
-
-def is_publishable(
-    item: "ItemWithStatus", permissions: "UserPermissionDetails"
-) -> bool:
-    return all(
-        (
-            {
-                constants.ProjectStatus.DRAFT: True,
-                constants.SurveyMissionStatus.DRAFT: True,
-                constants.SurveyRelatedRecordStatus.DRAFT: True,
-            }.get(item.status),
-            (item.validation_result or {}).get("is_valid"),
-            permissions.can_update,
-        )
-    )
-
-
-def is_unpublishable(
-    item: "ItemWithStatus",
-    permissions: "UserPermissionDetails",
-) -> bool:
-    return all(
-        (
-            {
-                constants.ProjectStatus.PUBLISHED: True,
-                constants.SurveyMissionStatus.PUBLISHED: True,
-                constants.SurveyRelatedRecordStatus.PUBLISHED: True,
-            }.get(item.status),
-            permissions.can_update,
-        )
-    )
-
-
-def is_deletable(
-    item: "ItemWithStatus",
-    permissions: "UserPermissionDetails",
-) -> bool:
-    return bool(
-        {
-            constants.ProjectStatus.DRAFT: True,
-            constants.SurveyMissionStatus.DRAFT: True,
-            constants.SurveyRelatedRecordStatus.DRAFT: True,
-        }.get(item.status)
-        and permissions.can_delete
-    )
-
-
-def is_updatable(
-    item: "ItemWithStatus",
-    permissions: "UserPermissionDetails",
-) -> bool:
-    return bool(
-        {
-            constants.ProjectStatus.DRAFT: True,
-            constants.SurveyMissionStatus.DRAFT: True,
-            constants.SurveyRelatedRecordStatus.DRAFT: True,
-        }.get(item.status)
-        and permissions.can_update
-    )
 
 
 @pass_context
