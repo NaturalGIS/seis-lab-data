@@ -38,10 +38,6 @@ msgstr ""
 msgid "Projects"
 msgstr ""
 
-#: webapp/routes.py:40 webapp/routes.py:43
-msgid "Hi there!"
-msgstr ""
-
 #: webapp/surveymissions.py:40 webapp/surveymissions.py:87
 #: webapp/templates/base.html:19
 msgid "Survey Missions"
@@ -79,10 +75,6 @@ msgstr ""
 
 #: webapp/templates/base.html:58
 msgid "Login / Register"
-msgstr ""
-
-#: webapp/templates/index.html:3
-msgid "A static string that needs to be translated"
 msgstr ""
 
 #: webapp/templates/projects/detail.html:51 webapp/templates/protected.html:5
@@ -217,3 +209,19 @@ msgstr ""
 
 #~ msgid "Survey-Related Records"
 #~ msgstr ""
+
+#: webapp/templates/index.html
+msgid "SeisLabData is a catalog of marine survey data. Browse projects, survey missions and their related records, explore their spatial and temporal extents and access the published datasets."
+msgstr ""
+
+#: webapp/templates/index.html
+msgid "Recent missions"
+msgstr ""
+
+#: webapp/templates/index.html
+msgid "See all survey missions"
+msgstr ""
+
+#: webapp/templates/index.html
+msgid "A survey vessel towing seismic equipment at sea, above a cross-section of seismic data"
+msgstr ""

@@ -139,6 +139,22 @@ img.placeholder-rectangle {
     }
 }
 
+/* landing page hero image area */
+.landing-hero {
+    height: auto;
+    border-radius: var(--bs-border-radius-lg);
+}
+
+/* the hero image is very wide and would be a thin strip on small screens, so
+   there it gets a min height and is cropped from the left */
+@media (max-width: 767.98px) {
+    .landing-hero {
+        min-height: 180px;
+        object-fit: cover;
+        object-position: 85% center;
+    }
+}
+
 .material-icons-outlined {
     vertical-align: middle;
     font-size: 24px;

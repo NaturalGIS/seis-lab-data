@@ -10,12 +10,8 @@ from playwright.sync_api import (
 @pytest.mark.e2e
 def test_webapp_home_is_up(page: Page):
     page.goto("/?lang=en")
-    # NOTE: the below is a bad example of how to use playwright locators
-    # this is intended just as an initial placeholder test though
-    locator = page.locator(
-        "body > div.container-fluid > div.row > div.col > p:last-child"
-    )
-    expect(locator).to_have_text("Hi there!")
+    expect(page.get_by_label("title")).to_have_text("SeisLabData")
+    expect(page.get_by_role("heading", name="Recent missions")).to_be_visible()
 
 
 @pytest.mark.e2e

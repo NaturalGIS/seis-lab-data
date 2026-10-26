@@ -1,6 +1,38 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Home") }} - SeisLabData{% endblock %}
 {% block content %}
-    <p>{{ _("A static string that needs to be translated") }}</p>
-    <p>{{ greeting }}</p>
+    <div class="row">
+        <div class="col-lg-10 col-xl-8 mx-auto">
+            <h1 class="display-1 text-center mb-5" aria-label="title">SeisLabData</h1>
+            <img
+                    class="landing-hero d-block w-100 mb-4"
+                    src="{{ url_for('static', path='/img/sld-hero-blend-ipma.jpeg') }}"
+                    alt="{{ _('A survey vessel towing seismic equipment at sea, above a cross-section of seismic data') }}"
+            >
+            <p class="lead text-center mb-5" aria-label="platform-description">
+                {{ _("SeisLabData is a catalog of marine survey data. Browse projects, survey missions and their related records, explore their spatial and temporal extents and access the published datasets.") }}
+            </p>
+            <h2 class="mb-3 title-survey-mission">
+                <span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.survey_missions }}</span>{{ _("Recent missions") }}
+            </h2>
+            {% if items | length > 0 %}
+                {# reload when missions are created/modified/deleted, e.g. via the cards' delete button #}
+                <div
+                        class="row row-cols-1 g-3"
+                        aria-label="recent-missions"
+                        data-on-intersect__once="@get('{{ url_for("survey_missions:list_stream") }}')"
+                        data-effect="$listingVersion > 0 && window.location.reload()"
+                >
+                    {% for item in items %}
+                        {% include "survey-missions/list-item.html" %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p>{{ _("No survey missions found") }}</p>
+            {% endif %}
+            <p class="text-end mt-3">
+                <a href="{{ url_for('survey_missions:list') }}" aria-label="list-all-survey-missions">{{ _("See all survey missions") }}</a>
+            </p>
+        </div>
+    </div>
 {% endblock %}
