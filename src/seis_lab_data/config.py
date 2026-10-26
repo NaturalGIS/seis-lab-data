@@ -49,8 +49,6 @@ class SeisLabDataIconSettings(BaseModel):
     home: str = "home"
     layout_compact: str = "view_headline"
     layout_regular: str = "view_agenda"
-    # list: str = "list"
-    list: str = "view_list"
     new_item: str = "add_circle_outline"
     open_link: str = "open_in_new"
     projects: str = "view_kanban"
