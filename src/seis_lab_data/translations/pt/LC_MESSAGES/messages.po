@@ -38,10 +38,6 @@ msgstr "Início"
 msgid "Projects"
 msgstr "Projetos"
 
-#: webapp/routes.py:40 webapp/routes.py:43
-msgid "Hi there!"
-msgstr "Boas tardes!"
-
 #: webapp/surveymissions.py:40 webapp/surveymissions.py:87
 #: webapp/templates/base.html:19
 msgid "Survey Missions"
@@ -80,10 +76,6 @@ msgstr "Terminar sessão"
 #: webapp/templates/base.html:58
 msgid "Login / Register"
 msgstr "Entrar / Registar-se"
-
-#: webapp/templates/index.html:3
-msgid "A static string that needs to be translated"
-msgstr "Uma frase estática que tem mesmo de ser traduzida"
 
 #: webapp/templates/projects/detail.html:51 webapp/templates/protected.html:5
 #: webapp/templates/survey-missions/detail.html:51
@@ -214,3 +206,19 @@ msgstr "Descarregar"
 #: webapp/templates/macros-buttons.html
 msgid "Download (zip)"
 msgstr "Descarregar (zip)"
+
+#: webapp/templates/index.html
+msgid "SeisLabData is a catalog of marine survey data. Browse projects, survey missions and their related records, explore their spatial and temporal extents and access the published datasets."
+msgstr "O SeisLabData é um catálogo de dados de levantamentos marinhos. Explore projetos, missões e os respetivos registos, consulte as suas extensões espaciais e temporais e aceda aos conjuntos de dados publicados."
+
+#: webapp/templates/index.html
+msgid "Recent missions"
+msgstr "Missões recentes"
+
+#: webapp/templates/index.html
+msgid "See all survey missions"
+msgstr "Ver todas as missões"
+
+#: webapp/templates/index.html
+msgid "A survey vessel towing seismic equipment at sea, above a cross-section of seismic data"
+msgstr "Um navio de levantamento a rebocar equipamento sísmico no mar, sobre um perfil de dados sísmicos"

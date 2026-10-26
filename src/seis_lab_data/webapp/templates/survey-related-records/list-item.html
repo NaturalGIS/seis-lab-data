@@ -2,7 +2,7 @@
 {% set id_ = item.id | string | replace('-', '') %}
 {% set item_permissions = list_item_permissions[item.id] if list_item_permissions else none %}
 <div class="col">
-    <div class="card position-relative overflow-hidden list-item-stripe list-item-stripe-survey-related-record">
+    <div class="card position-relative overflow-hidden list-item-stripe list-item-stripe-survey-related-record{% if item.status.value != "published" %} item-unpublished{% endif %}">
         <div class="form-check position-absolute top-0 start-0 m-2">
             <input
                     type="checkbox"

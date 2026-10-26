@@ -2,7 +2,7 @@
 {% set id_ = item.id | string | replace('-', '') %}
 {% set item_permissions = list_item_permissions[item.id] if list_item_permissions else none %}
 <div class="col">
-    <div class="card h-100 overflow-hidden list-item-stripe list-item-stripe-project">
+    <div class="card h-100 overflow-hidden list-item-stripe list-item-stripe-project{% if item.status.value != "published" %} item-unpublished{% endif %}">
         <div class="d-flex h-100">
             <div class="list-item-thumb">
                 <div class="placeholder-rectangle bg-secondary"></div>

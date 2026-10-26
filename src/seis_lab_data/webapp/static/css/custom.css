@@ -7,6 +7,12 @@
     --bs-project-color-dark: #7b2cbf;
     --bs-survey-mission-color-dark: #486b00;
     --bs-survey-related-record-color-dark: #be185d;
+    /* background of project/mission/record cards whose status is not published */
+    --sld-unpublished-item-bg: #fdecec;
+}
+
+.card.item-unpublished {
+    --bs-card-bg: var(--sld-unpublished-item-bg);
 }
 
 .bg-dataset-category {
@@ -136,6 +142,22 @@ img.placeholder-rectangle {
     img.placeholder-rectangle {
         height: 0;
         min-height: 100%;
+    }
+}
+
+/* landing page hero image area */
+.landing-hero {
+    height: auto;
+    border-radius: var(--bs-border-radius-lg);
+}
+
+/* the hero image is very wide and would be a thin strip on small screens, so
+   there it gets a min height and is cropped from the left */
+@media (max-width: 767.98px) {
+    .landing-hero {
+        min-height: 180px;
+        object-fit: cover;
+        object-position: 85% center;
     }
 }
 
