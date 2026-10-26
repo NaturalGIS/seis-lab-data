@@ -2,9 +2,18 @@ import datetime as dt
 
 import pytest
 import sqlmodel
+from starlette.authentication import AuthCredentials
 from starlette.testclient import TestClient
 
+from seis_lab_data import constants
 from seis_lab_data.db import models
+from seis_lab_data.schemas import (
+    identifiers,
+)
+from seis_lab_data.schemas import (
+    user as user_schemas,
+)
+from seis_lab_data.webapp.auth_backend import OIDCAuthBackend
 
 pytestmark = pytest.mark.integration
 
@@ -47,3 +56,21 @@ def test_home_shows_three_most_recent_missions(
     assert positions == sorted(positions)
     for mission in missions[:-3]:
         assert mission.name not in response.text
+
+
+def test_home_highlights_unpublished_missions(
+    test_client: TestClient, monkeypatch, sample_survey_missions
+):
+    async def authenticate(self, conn):
+        return AuthCredentials(["authenticated"]), user_schemas.User(
+            id=identifiers.UserId("some-admin"),
+            email="admin@example.com",
+            username="admin",
+            roles=[constants.ROLE_ADMIN],
+            active=True,
+        )
+
+    monkeypatch.setattr(OIDCAuthBackend, "authenticate", authenticate)
+    response = test_client.get("/", params={"lang": "en"})
+    assert response.status_code == 200
+    assert response.text.count("item-unpublished") == 3

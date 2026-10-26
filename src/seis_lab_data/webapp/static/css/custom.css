@@ -7,6 +7,12 @@
     --bs-project-color-dark: #7b2cbf;
     --bs-survey-mission-color-dark: #486b00;
     --bs-survey-related-record-color-dark: #be185d;
+    /* background of project/mission/record cards whose status is not published */
+    --sld-unpublished-item-bg: #fdecec;
+}
+
+.card.item-unpublished {
+    --bs-card-bg: var(--sld-unpublished-item-bg);
 }
 
 .bg-dataset-category {
