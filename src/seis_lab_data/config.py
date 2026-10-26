@@ -54,8 +54,6 @@ class SeisLabDataIconSettings(BaseModel):
     new_item: str = "add_circle_outline"
     open_link: str = "open_in_new"
     projects: str = "view_kanban"
-    publish_item: str = "visibility"
-    unpublish_item: str = "visibility_off"
     search: str = "search"
     settings: str = "settings"
     expand_less: str = "expand_less"

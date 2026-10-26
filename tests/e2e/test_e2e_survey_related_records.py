@@ -23,6 +23,17 @@ def _fill_survey_related_record_form(page: Page, name: str):
     )
 
 
+def _fill_bounding_box(page: Page):
+    # a spatial extent is required for a resource to be valid, and thus published
+    for name, value in (
+        ("min_lon", "-10"),
+        ("max_lon", "-9"),
+        ("min_lat", "38"),
+        ("max_lat", "39"),
+    ):
+        page.locator(f"[aria-label='field-bounding_box-{name}']").fill(value)
+
+
 @pytest.mark.e2e
 def test_survey_related_record_lifecycle(authenticated_page: Page):
     # NOTE: this test is perhaps overly long, but for now it covers the full creation
@@ -529,3 +540,100 @@ def test_survey_related_record_creation_rejects_duplicate_name(
     ).click()
     authenticated_page.get_by_role("button", name="delete-item").click()
     expect(authenticated_page.get_by_role("link", name="new-project")).to_be_visible()
+
+
+@pytest.mark.e2e
+def test_published_survey_related_record_can_be_edited_and_deleted(
+    authenticated_page: Page,
+):
+    # publication is automatic - valid resources are published when saved, there
+    # is no manual (un)publishing and published resources remain editable and
+    # deletable
+    authenticated_page.goto("/")
+    authenticated_page.get_by_role("link", name="list-projects").click()
+    authenticated_page.get_by_role("link", name="new-project").click()
+    authenticated_page.get_by_role("textbox", name="field-name").fill(
+        f"e2e test project {uuid.uuid4().hex[:8]}"
+    )
+    authenticated_page.get_by_role("textbox", name="field-description").fill(
+        "e2e test description"
+    )
+    authenticated_page.get_by_role("textbox", name="field-root_path").fill("/somewhere")
+    _fill_bounding_box(authenticated_page)
+    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=10_000
+    )
+
+    authenticated_page.get_by_role("link", name="new-item").click()
+    authenticated_page.get_by_role("textbox", name="field-name").fill(
+        f"e2e test survey mission {uuid.uuid4().hex[:8]}"
+    )
+    authenticated_page.get_by_role("textbox", name="field-description").fill(
+        "e2e test description"
+    )
+    authenticated_page.get_by_role("textbox", name="field-relative_path").fill(
+        "/somewhere/survey/mission"
+    )
+    _fill_bounding_box(authenticated_page)
+    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/survey-missions/[0-9a-f-]{36}$"), timeout=10_000
+    )
+
+    record_name_id = uuid.uuid4().hex[:8]
+    authenticated_page.get_by_role("link", name="new-item").click()
+    _fill_survey_related_record_form(
+        authenticated_page, f"e2e test survey-related record {record_name_id}"
+    )
+    _fill_bounding_box(authenticated_page)
+    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/survey-related-records/[0-9a-f-]{36}$"), timeout=10_000
+    )
+    record_detail_url = authenticated_page.url
+    authenticated_page.reload()
+    expect(authenticated_page.locator("[aria-label='status']")).to_contain_text(
+        "published", ignore_case=True
+    )
+    expect(
+        authenticated_page.get_by_role("button", name="publish-record")
+    ).to_have_count(0)
+    expect(
+        authenticated_page.get_by_role("button", name="unpublish-record")
+    ).to_have_count(0)
+
+    # an edit that keeps the record valid keeps it published
+    authenticated_page.get_by_role("link", name="update-item").click()
+    authenticated_page.get_by_role("textbox", name="field-name").fill(
+        f"The modified name {record_name_id}"
+    )
+    authenticated_page.get_by_role("button", name="submit-update-form").click()
+    expect(authenticated_page).to_have_url(record_detail_url, timeout=10_000)
+    authenticated_page.reload()
+    expect(authenticated_page.locator("[aria-label='status']")).to_contain_text(
+        "published", ignore_case=True
+    )
+
+    # clean up: published record, mission and project are all deletable
+    authenticated_page.get_by_role(
+        "button", name="show-delete-confirmation-modal"
+    ).click()
+    authenticated_page.get_by_role("button", name="delete-item").click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/survey-missions/[0-9a-f-]{36}$"), timeout=15_000
+    )
+
+    authenticated_page.get_by_role(
+        "button", name="show-delete-confirmation-modal"
+    ).click()
+    authenticated_page.get_by_role("button", name="delete-item").click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=15_000
+    )
+
+    authenticated_page.get_by_role(
+        "button", name="show-delete-confirmation-modal"
+    ).click()
+    authenticated_page.get_by_role("button", name="delete-item").click()
+    expect(authenticated_page).to_have_url(re.compile(r"/projects/?$"), timeout=15_000)

@@ -23,23 +23,3 @@
         <span class="material-icons-outlined me-1">{{ icon }}</span>{{ text | capitalize }}
     </a>
 {% endmacro %}
-
-
-{% macro render_post_button(
-    url,
-    text,
-    aria_label,
-    icon,
-    generated_csrf_token,
-    classes="btn-primary",
-    enabled=True
-) %}
-    <button
-            type="button"
-            aria-label="{{ aria_label }}"
-            class="btn {{ classes }}"
-            data-on:click="@post('{{ url }}', {headers: {'X-CSRFToken': '{{ generated_csrf_token }}'}})"
-    >
-        <span class="material-icons-outlined me-1">{{ icon }}</span>{{ text | capitalize }}
-    </button>
-{% endmacro %}

@@ -137,8 +137,7 @@
             {% include "partial-validation.html" %}
             <li class="list-group-item">
                 <p>{{ _("Projects with a status of DRAFT are only visible to authenticated users") }}</p>
-                <p>{{ _("In order to become viewable by all users, a project must be published. Publication is only possible once the project is considered valid.") }}</p>
-                <p>{{ _("Valid projects can be published. When published, a project becomes visible for all users") }}</p>
+                <p>{{ _("A project is published automatically, becoming visible to all users, once it is valid. If an edit makes it invalid, it goes back to DRAFT, along with its survey missions and their survey-related records.") }}</p>
             </li>
         </ul>
     </div>
