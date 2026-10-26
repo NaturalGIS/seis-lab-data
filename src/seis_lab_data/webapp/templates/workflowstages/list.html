@@ -57,20 +57,22 @@
             {% include "workflowstages/list-component.html" %}
         </div>
         <div class="col-3">
-            <div class="card border-0 mb-5">
-                <div class="card-body p-0 d-grid gap-2">
-                    <h5 class="card-title">{{ _("actions") | capitalize }}</h5>
-                    {% if permissions.can_create %}
-                        <a
-                                class="btn btn-primary"
-                                href="{{ url_for('workflow_stages:get_creation_form') }}"
-                                aria-label="new-workflow-stage"
-                        >
-                            <span class="material-icons-outlined me-1">{{ icons.new_item }}</span>{{ _("Add new workflow stage") | capitalize }}
-                        </a>
-                    {% endif %}
+            {% if request.user.is_authenticated %}
+                <div class="card border-0 mb-5">
+                    <div class="card-body p-0 d-grid gap-2">
+                        <h5 class="card-title">{{ _("actions") | capitalize }}</h5>
+                        {% if permissions.can_create %}
+                            <a
+                                    class="btn btn-primary"
+                                    href="{{ url_for('workflow_stages:get_creation_form') }}"
+                                    aria-label="new-workflow-stage"
+                            >
+                                <span class="material-icons-outlined me-1">{{ icons.new_item }}</span>{{ _("Add new workflow stage") | capitalize }}
+                            </a>
+                        {% endif %}
+                    </div>
                 </div>
-            </div>
+            {% endif %}
             <h5>{{ _("info") | capitalize }}</h5>
             <ul class="list-group">
                 <li class="list-group-item">
