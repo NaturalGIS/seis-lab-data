@@ -19,12 +19,12 @@
                         <small>{{ _("Total survey missions: %(total_unfiltered)d") | format(total_unfiltered=pagination.total_unfiltered_items) }}</small>
                     </li>
                 </ul>
-                {{ macros.render_pagination(pagination) }}
                 <div class="row row-cols-1 g-3">
                     {% for item in items %}
                         {% include "survey-missions/list-item.html" %}
                     {% endfor %}
                 </div>
+                {{ macros.render_pagination(pagination) }}
             {% else %}
                 <p>{{ _("No survey missions found") }}</p>
             {% endif %}
