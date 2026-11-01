@@ -20,7 +20,7 @@ machine has the following specifications:
 |  Processors | 6 cores Intel Xeon @2.30GHz |
 |  RAM | 30 GB |
 |  Storage | -  380 GB available on the `/home` directory<br><br> -  6 TB available on the `/mnt/seislab_swap` directory |
-|  Operating System | Ubuntu 24.04.3 LTS |
+|  Operating System | Ubuntu 26.04.1 LTS |
 
 
 ### System-relevant files and directories
@@ -71,7 +71,7 @@ System startup requires the presence of some environment variables. These are de
 2.  `image-url.env` - This file is rewritten each time an automated system deployment is performed. As such, it
     should not be manually edited. It contains a single variable:
 
-    - `IMAGE_URL` - the docker image to be used in the[web application](#2-web-application-component) and [processing worker](#4-processing-worker-component) components
+    - `IMAGE_URL` - the docker image to be used in the [web application](#2-web-application-component) and [processing worker](#4-processing-worker-component) components
 
 There are many other environment variables that can be used to configure the system. These are indicated
 in the relevant section of the docker compose file `compose.prod-env.yaml`. This file is already configured
@@ -527,15 +527,25 @@ database and PMTiles files. Accessible under the `/tiles` path of the main domai
 #### 6. `user authentication service` component
 
 [Authentik](https://goauthentik.io/) instance that manages user authentication and authorization
-via OpenID Connect[^4]. Accessible at `auth.seis-lab-data.ipma.pt`. The system defines two user groups:
+via OpenID Connect[^4]. Accessible at `auth.seis-lab-data.ipma.pt`. The system defines a single user group:
 
 [^4]: Overview OpenID connect: <https://openid.net/developers/how-connect-works/>
 
-- `seis-lab-data-editors` - users with permission to edit records
-- `seis-lab-data-catalog-admins` - catalogue administrators
+`seis-lab-data-catalog-editors` - users with permission to manage the catalog contents, including its
+  settings (dataset categories, workflow stages and asset discovery configurations)
 
 User management (account creation, group assignment, password reset) is done through the Authentik
 administration panel, accessible at `auth.seis-lab-data.ipma.pt/if/admin/`.
+
+Users are not able to self-register on the system. New user accounts must be created by a system
+administrator, as follows:
+
+1. In the Authentik administration panel, navigate to _Directory_ -> _Users_ and click _Create_
+2. Fill in the user's username, name and email and save
+3. Open the newly created user and use the _Set password_ button to define an initial password,
+   which must then be communicated to the user
+4. If the user should be able to edit the catalog, add them to the `seis-lab-data-catalog-editors` group in
+   the user's _Groups_ tab. Users that are not in this group are only able to view the catalog
 
 
 ##### Relevant configuration files

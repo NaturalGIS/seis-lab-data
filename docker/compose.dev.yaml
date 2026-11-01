@@ -10,7 +10,7 @@
 name: seis-lab-data
 
 x-common-image: &common-image "ghcr.io/naturalgis/seis-lab-data/seis-lab-data:${CURRENT_GIT_BRANCH:-latest}"
-x-auth-image: &auth-image "ghcr.io/goauthentik/server:2026.2.1"
+x-auth-image: &auth-image "ghcr.io/goauthentik/server:2026.8.5"
 x-auth-admin-token: &auth-admin-token "admin123"
 x-db-image: &db-image "postgis/postgis:17-3.5"
 x-auth-client-id: &auth-client-id "sld-client-id"
@@ -36,6 +36,7 @@ x-common-auth-env: &common-auth-env
   AUTHENTIK_POSTGRESQL__NAME: authentik
   AUTHENTIK_POSTGRESQL__PASSWORD: authentik_pass
   SEIS_LAB_DATA_AUTHENTIK_BASE_URL: http://auth.localhost:8888/
+  AUTHENTIK_WEB__BASE_URL: http://auth.localhost:8888
   SEIS_LAB_DATA_CLIENT_ID: *auth-client-id
   SEIS_LAB_DATA_CLIENT_SECRET: *auth-client-secret
   SEIS_LAB_DATA_REDIRECT_URI: *auth-redirect-url
@@ -123,6 +124,10 @@ services:
     command: worker
     environment:
       <<: *common-auth-env
+      # run blueprint applies one at a time - with concurrent worker threads, the
+      # blueprints applied on first boot can deadlock each other in the DB and authentik
+      # does not retry them, leaving the seis-lab-data application missing
+      AUTHENTIK_WORKER__THREADS: 1
       AUTHENTIK_BOOTSTRAP_PASSWORD: admin123
       AUTHENTIK_BOOTSTRAP_TOKEN: *auth-admin-token
       AUTHENTIK_BOOTSTRAP_EMAIL: akadmin@email.com

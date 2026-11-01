@@ -10,29 +10,20 @@ context:
   post_logout_redirect_uri: !Env SEIS_LAB_DATA_POST_LOGOUT_REDIRECT_URI
   dozzle_url: !Env DOZZLE_BASE_URL
   authentik_url: !Env SEIS_LAB_DATA_AUTHENTIK_BASE_URL
-  admin_group_name: seis-lab-data-catalog-admins
-  admin_scope_name: catalog-admin
   editor_group_name: seis-lab-data-catalog-editors
   editor_scope_name: catalog-editor
   system_admin_scope_name: system-admin
 
 entries:
-  # create the groups we need
+  # create the group we need
   - model: authentik_core.group
     state: present
     identifiers:
       name: !Context editor_group_name
     attrs:
       is_superuser: false
-  - model: authentik_core.group
-    state: present
-    identifiers:
-      name: !Context admin_group_name
-    attrs:
-      is_superuser: false
 
-  # in order to create the enrollment flows, we need to ensure the relevant prompts exist
-
+  # ensure the default prompts and stages used by the authentication and user settings flows exist
   # user-settings-flow creates the username, name and email prompts
   - model: authentik_blueprints.metaapplyblueprint
     attrs:
@@ -44,146 +35,13 @@ entries:
       identifiers:
         path: default/flow-password-change.yaml
 
-  # create a flow for a direct enrollment
-  - identifiers:
-      slug: simple-enrollment-flow
-    model: authentik_flows.flow
-    id: simple-enrollment-flow
-    attrs:
-      name: Simple enrollment Flow
-      title: Welcome to authentik!
-      designation: enrollment
-      authentication: require_unauthenticated
-  - identifiers:
-      name: simple-enrollment-prompt-second
-    id: simple-enrollment-prompt-second
-    model: authentik_stages_prompt.promptstage
-    attrs:
-      fields:
-        - !Find [ authentik_stages_prompt.prompt, [ field_key, "name" ]]
-        - !Find [ authentik_stages_prompt.prompt, [ field_key, "email" ]]
-  - identifiers:
-      name: simple-enrollment-prompt-first
-    id: simple-enrollment-prompt-first
-    model: authentik_stages_prompt.promptstage
-    attrs:
-      fields:
-        - !Find [ authentik_stages_prompt.prompt, [ field_key, "username" ]]
-        - !Find [ authentik_stages_prompt.prompt, [ field_key, "password" ]]
-        - !Find [ authentik_stages_prompt.prompt, [ field_key, "password_repeat" ]]
-  - identifiers:
-      name: simple-enrollment-user-login
-    id: simple-enrollment-user-login
-    model: authentik_stages_user_login.userloginstage
-  - identifiers:
-      name: simple-enrollment-user-write
-    id: simple-enrollment-user-write
-    model: authentik_stages_user_write.userwritestage
-    attrs:
-      user_creation_mode: always_create
-      group: !Find [ authentik_core.group, [ name, !Context editor_group_name ]]
-      path: users
-      user_type: internal
-  - identifiers:
-      target: !KeyOf simple-enrollment-flow
-      stage: !KeyOf simple-enrollment-prompt-first
-      order: 10
-    model: authentik_flows.flowstagebinding
-  - identifiers:
-      target: !KeyOf simple-enrollment-flow
-      stage: !KeyOf simple-enrollment-prompt-second
-      order: 11
-    model: authentik_flows.flowstagebinding
-  - identifiers:
-      target: !KeyOf simple-enrollment-flow
-      stage: !KeyOf simple-enrollment-user-write
-      order: 20
-    model: authentik_flows.flowstagebinding
-  - identifiers:
-      target: !KeyOf simple-enrollment-flow
-      stage: !KeyOf simple-enrollment-user-login
-      order: 100
-    model: authentik_flows.flowstagebinding
-
-  # create another flow for enrollment, this time with email verification
-  - identifiers:
-      slug: email-enrollment-flow
-    id: email-enrollment-flow
-    model: authentik_flows.flow
-    attrs:
-      name: Mail verification enrollment Flow
-      title: Welcome to authentik!
-      designation: enrollment
-      authentication: require_unauthenticated
-  - identifiers:
-      name: email-enrollment-email-verification
-    id: email-enrollment-email-verification
-    model: authentik_stages_email.emailstage
-    attrs:
-      use_global_settings: true
-      template: email/account_confirmation.html
-      activate_user_on_success: true
-  - identifiers:
-      name: email-enrollment-prompt-second
-    id: email-enrollment-prompt-second
-    model: authentik_stages_prompt.promptstage
-    attrs:
-      fields:
-        - !Find [ authentik_stages_prompt.prompt, [ field_key, "name" ]]
-        - !Find [ authentik_stages_prompt.prompt, [ field_key, "email" ]]
-  - identifiers:
-      name: email-enrollment-prompt-first
-    id: email-enrollment-prompt-first
-    model: authentik_stages_prompt.promptstage
-    attrs:
-      fields:
-        - !Find [ authentik_stages_prompt.prompt, [ field_key, "username" ]]
-        - !Find [ authentik_stages_prompt.prompt, [ field_key, "password" ]]
-        - !Find [ authentik_stages_prompt.prompt, [ field_key, "password_repeat" ]]
-  - identifiers:
-      name: email-enrollment-user-login
-    id: email-enrollment-user-login
-    model: authentik_stages_user_login.userloginstage
-  - identifiers:
-      name: email-enrollment-user-write
-    id: email-enrollment-user-write
-    model: authentik_stages_user_write.userwritestage
-    attrs:
-      create_users_as_inactive: true
-      user_creation_mode: always_create
-  - identifiers:
-      target: !KeyOf email-enrollment-flow
-      stage: !KeyOf email-enrollment-prompt-first
-      order: 10
-    model: authentik_flows.flowstagebinding
-  - identifiers:
-      target: !KeyOf email-enrollment-flow
-      stage: !KeyOf email-enrollment-prompt-second
-      order: 11
-    model: authentik_flows.flowstagebinding
-  - identifiers:
-      target: !KeyOf email-enrollment-flow
-      stage: !KeyOf email-enrollment-user-write
-      order: 20
-    model: authentik_flows.flowstagebinding
-  - identifiers:
-      target: !KeyOf email-enrollment-flow
-      stage: !KeyOf email-enrollment-email-verification
-      order: 30
-    model: authentik_flows.flowstagebinding
-  - identifiers:
-      target: !KeyOf email-enrollment-flow
-      stage: !KeyOf email-enrollment-user-login
-      order: 100
-    model: authentik_flows.flowstagebinding
-
   # ensure the required default flows are present
   - model: authentik_blueprints.metaapplyblueprint
     attrs:
       identifiers:
         path: default/flow-default-authentication-flow.yaml
 
-  # create an authentication flow to be used by the authorization flow, for registering users
+  # create an authentication flow to be used by the authorization flow
   # this also depends on the default flow-password-change.yaml, which was already applied above
   - identifiers:
       slug: sld-authentication-flow
@@ -204,7 +62,6 @@ entries:
     model: authentik_stages_identification.identificationstage
     attrs:
       case_insensitive_matching: true
-      enrollment_flow: !KeyOf email-enrollment-flow
       password_stage: !Find [authentik_stages_password.passwordstage, [name, "default-authentication-password"]]
       pretend_user_exists: true
       show_matched_user: true
@@ -265,19 +122,15 @@ entries:
       expression: !Format
         - |
           roles = []
-          user_groups = [group.name for group in request.user.ak_groups.all()]
+          user_groups = [group.name for group in request.user.groups.all()]
 
           if request.user.is_superuser:
-              roles.append('%s')
-          if '%s' in user_groups:
               roles.append('%s')
           if '%s' in user_groups:
               roles.append('%s')
 
           return {"roles": roles}
         - !Context system_admin_scope_name
-        - !Context admin_group_name
-        - !Context admin_scope_name
         - !Context editor_group_name
         - !Context editor_scope_name
 
@@ -339,6 +192,10 @@ entries:
     attrs:
       name: seis-lab-data-provider
       client_type: confidential
+      # since authentik 2026.5, new providers allow no grant types unless they are listed here
+      grant_types:
+        - authorization_code
+        - refresh_token
       client_id: !Context client_id
       client_secret: !Context client_secret
       redirect_uris:
@@ -389,6 +246,12 @@ entries:
       authentication_flow: !Find [authentik_flows.flow, [slug, "sld-authentication-flow"]]
       invalidation_flow: !Find [authentik_flows.flow, [slug, "default-invalidation-flow"]]
       mode: forward_single
+      # same grant types authentik sets on proxy providers - its own reconciliation only runs on
+      # startup, which on a fresh DB happens before this provider exists
+      grant_types:
+        - authorization_code
+        - client_credentials
+        - password
       external_host: !Context dozzle_url
 
   # Create an application for dozzle
