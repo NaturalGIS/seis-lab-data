@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Discovery of pre-existing data in the archive
+- Generation of previews for select datasets
+- Initial version of individual dataset downloads
+
+### Changed
+- Upgraded authentik to version 2026.8.5 in all environments
+- User self-registration is disabled; accounts are created by a system admin
+- Removed the `seis-lab-data-catalog-admins` group and `catalog-admin` role; catalog editors can now also manage dataset categories, workflow stages and asset discovery configurations
+
+### Fixed
+- Various UI fixes
+- Possible DB deadlock on the first authentik boot, which could leave the seis-lab-data application uncreated
+
 
 ## [0.5.0] - 2026-09-06
 

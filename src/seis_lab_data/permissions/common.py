@@ -5,7 +5,6 @@ from .. import constants
 def is_editor(*user_role: str) -> bool:
     return not {
         constants.ROLE_SYSTEM_ADMIN,
-        constants.ROLE_ADMIN,
         constants.ROLE_EDITOR,
     }.isdisjoint(user_role)
 

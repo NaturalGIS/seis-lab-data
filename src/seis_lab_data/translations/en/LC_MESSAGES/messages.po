@@ -74,7 +74,7 @@ msgid "Logout"
 msgstr ""
 
 #: webapp/templates/base.html:58
-msgid "Login / Register"
+msgid "Login"
 msgstr ""
 
 #: webapp/templates/projects/detail.html:51 webapp/templates/protected.html:5

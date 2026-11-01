@@ -66,7 +66,7 @@ def test_home_highlights_unpublished_missions(
             id=identifiers.UserId("some-admin"),
             email="admin@example.com",
             username="admin",
-            roles=[constants.ROLE_ADMIN],
+            roles=[constants.ROLE_EDITOR],
             active=True,
         )
 

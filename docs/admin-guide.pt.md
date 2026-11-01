@@ -548,16 +548,26 @@ principal.
 
 Instância [Authentik](https://goauthentik.io/) que gere a autenticação e autorização dos
 utilizadores via OpenID Connect[^4]. Acessível em `auth.seis-lab-data.ipma.pt`. O sistema define
-dois grupos de utilizadores:
+um único grupo de utilizadores:
 
 [^4]: Visão geral do OpenID Connect: <https://openid.net/developers/how-connect-works/>
 
-- `seis-lab-data-editors` - utilizadores com permissão de edição de registos
-- `seis-lab-data-catalog-admins` - administradores do catálogo
+`seis-lab-data-catalog-editors` - utilizadores com permissão para gerir o conteúdo do catálogo, incluindo as
+  suas configurações (categorias de conjuntos de dados, etapas de workflow e configurações de descoberta de recursos)
 
 A gestão de utilizadores (criação de contas, atribuição a grupos, reposição de palavras-passe)
 é feita através do painel de administração do Authentik, acessível em
 `auth.seis-lab-data.ipma.pt/if/admin/`.
+
+Os utilizadores não podem registar-se autonomamente no sistema. As novas contas de utilizador
+devem ser criadas por um administrador de sistema, da seguinte forma:
+
+1. No painel de administração do Authentik, navegar até _Directory_ -> _Users_ e clicar em _Create_
+2. Preencher o nome de utilizador, nome e email do utilizador e guardar
+3. Abrir o utilizador recém-criado e usar o botão _Set password_ para definir uma palavra-passe
+   inicial, que deve depois ser comunicada ao utilizador
+4. Se o utilizador puder editar o catálogo, adicioná-lo ao grupo `seis-lab-data-catalog-editors` no
+   separador _Groups_ do utilizador. Os utilizadores que não pertençam a este grupo apenas podem consultar o catálogo
 
 
 ##### Ficheiros de configuração relevantes

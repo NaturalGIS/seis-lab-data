@@ -1,19 +1,16 @@
 import logging
 
 from ..db import models
-from ..constants import (
-    ROLE_ADMIN,
-    ROLE_SYSTEM_ADMIN,
-)
 from ..schemas.user import User
 
+from .common import can_manage_item
 from .projects import can_update_project
 
 logger = logging.getLogger(__name__)
 
 
 def can_create_asset_discovery_configuration(user: User) -> bool:
-    return not {ROLE_ADMIN, ROLE_SYSTEM_ADMIN}.isdisjoint(user.roles)
+    return can_manage_item(user)
 
 
 def can_update_asset_discovery_configuration(user: User) -> bool:

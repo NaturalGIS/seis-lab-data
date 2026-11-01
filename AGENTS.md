@@ -76,11 +76,10 @@ Routes → Operations → Permissions + DB queries/commands
 Authentication uses Authentik via OIDC. After login the user's `sub`, `email`, `preferred_username`, and `groups` are stored in the Starlette session. The `schemas.User` dataclass holds `id` (the `sub`), `email`, `username`, `roles` (from `groups`), and `active`.
 
 Permission rules:
-- **Admin** (`ADMIN_ROLE = "admin"` in `constants.py`): full access to everything. Determined by checking `"admin" in user.roles`.
+- **Roles** (in `constants.py`): `ROLE_SYSTEM_ADMIN` (`"system-admin"`, Authentik superusers) and `ROLE_EDITOR` (`"catalog-editor"`, members of the `seis-lab-data-catalog-editors` Authentik group). Both have full access to everything; `permissions/common.py:can_manage_item` is the shared check.
 - **Unauthenticated**: read-only access to `PUBLISHED` resources.
-- **Authenticated non-admin**: can create projects/missions/records; can read/update/delete/validate resources they own or co-own.
-- **Co-ownership**: a project owner is co-owner of all its missions and records; a mission owner is co-owner of all its records.
-- **Lookup tables** (`DatasetCategory`, `DomainType`, `WorkflowStage`): admin only for create/delete.
+- **Authenticated without a role**: read-only access to all resources, including unpublished ones.
+- **No self-registration**: user accounts are created by a system admin in Authentik.
 
 ## Dev workflow
 

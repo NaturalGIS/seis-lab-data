@@ -4,7 +4,10 @@ import logging
 
 import httpx
 
-from .constants import ROLE_ADMIN, ROLE_EDITOR, ROLE_SYSTEM_ADMIN
+from .constants import (
+    ROLE_EDITOR,
+    ROLE_SYSTEM_ADMIN,
+)
 from .schemas import (
     identifiers,
     user as user_schemas,
@@ -12,7 +15,6 @@ from .schemas import (
 
 logger = logging.getLogger(__name__)
 
-_GROUP_ADMIN = "seis-lab-data-catalog-admins"
 _GROUP_EDITOR = "seis-lab-data-catalog-editors"
 
 
@@ -21,8 +23,6 @@ def _roles_from_raw_user(raw_user: dict) -> list[str]:
     if raw_user.get("is_superuser"):
         roles.append(ROLE_SYSTEM_ADMIN)
     group_names = {g["name"] for g in raw_user.get("groups_obj", [])}
-    if _GROUP_ADMIN in group_names:
-        roles.append(ROLE_ADMIN)
     if _GROUP_EDITOR in group_names:
         roles.append(ROLE_EDITOR)
     return roles

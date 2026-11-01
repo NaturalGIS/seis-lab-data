@@ -74,8 +74,8 @@ msgid "Logout"
 msgstr "Terminar sessão"
 
 #: webapp/templates/base.html:58
-msgid "Login / Register"
-msgstr "Entrar / Registar-se"
+msgid "Login"
+msgstr "Entrar"
 
 #: webapp/templates/projects/detail.html:51 webapp/templates/protected.html:5
 #: webapp/templates/survey-missions/detail.html:51
