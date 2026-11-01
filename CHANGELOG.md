@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [0.6.0] - 2026-11-01
+
+
 ### Added
 - Discovery of pre-existing data in the archive
 - Generation of previews for select datasets
@@ -168,7 +172,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First release, mainly for trying out the deployment workflows
 
-[unreleased]: https://github.com/naturalgis/seis-lab-data/compare/v0.5.0...HEAD
+
+[unreleased]: https://github.com/naturalgis/seis-lab-data/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/naturalgis/seis-lab-data/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/naturalgis/seis-lab-data/compare/v0.1.17...v0.5.0
 [0.1.17]: https://github.com/naturalgis/seis-lab-data/compare/v0.1.16...v0.1.17
 [0.1.16]: https://github.com/naturalgis/seis-lab-data/compare/v0.1.15...v0.1.16
