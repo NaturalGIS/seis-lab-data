@@ -191,6 +191,10 @@ entries:
     attrs:
       name: seis-lab-data-provider
       client_type: confidential
+      # since authentik 2026.5, new providers allow no grant types unless they are listed here
+      grant_types:
+        - authorization_code
+        - refresh_token
       client_id: !Context client_id
       client_secret: !Context client_secret
       redirect_uris:

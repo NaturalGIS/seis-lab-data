@@ -192,6 +192,10 @@ entries:
     attrs:
       name: seis-lab-data-provider
       client_type: confidential
+      # since authentik 2026.5, new providers allow no grant types unless they are listed here
+      grant_types:
+        - authorization_code
+        - refresh_token
       client_id: !Context client_id
       client_secret: !Context client_secret
       redirect_uris:
@@ -242,6 +246,12 @@ entries:
       authentication_flow: !Find [authentik_flows.flow, [slug, "sld-authentication-flow"]]
       invalidation_flow: !Find [authentik_flows.flow, [slug, "default-invalidation-flow"]]
       mode: forward_single
+      # same grant types authentik sets on proxy providers - its own reconciliation only runs on
+      # startup, which on a fresh DB happens before this provider exists
+      grant_types:
+        - authorization_code
+        - client_credentials
+        - password
       external_host: !Context dozzle_url
 
   # Create an application for dozzle
