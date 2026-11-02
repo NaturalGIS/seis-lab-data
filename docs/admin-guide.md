@@ -102,7 +102,7 @@ whitelisted machine's IP address.
     On Linux, for example with Google Chrome:
 
     ```shell
-    google-chrome --proxy-server="socks5://localhost:1080"
+    google-chrome --proxy-server="socks5://localhost:1080" --user-data-dir="/tmp/chrome-proxy"
     ```
 
     On macOS, invoke the browser binary through `open`, using a separate profile so the proxy is applied even
