@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- docker healthcheck for auth-db in prod and test envs now pass the correct user to `pg_isready`
+
 
 ## [0.6.0] - 2026-11-01
 
