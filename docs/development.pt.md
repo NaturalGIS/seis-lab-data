@@ -226,6 +226,32 @@ Acessível em http://pgadmin.localhost:8888 com as credenciais:
 - password: `dev`
 
 
+##### GeoNode (opcional)
+
+Instância [GeoNode](https://geonode.org/) v5.1.1, usada como destino para a exportação de registos
+relacionados com campanhas. É composta por vários serviços (`geonode-db`, `geonode-django`,
+`geonode-celery`, `geonode-nginx`, `geonode-geoserver` e `geonode-geoserver-data`). A sua
+configuração está em `docker/geonode/geonode-dev.env`.
+
+Estes serviços consomem bastantes recursos, pelo que apenas arrancam quando o perfil `geonode` do
+compose está ativo:
+
+```shell
+docker compose -f docker/compose.dev.yaml --profile geonode up -d
+```
+
+O primeiro arranque é lento, pois o GeoNode executa as migrações da BD, carrega _fixtures_ e
+recolhe os ficheiros estáticos.
+
+- O GeoNode está acessível em http://geonode.localhost:8888, com as credenciais `admin` / `admin123`
+- O GeoServer está acessível em http://geonode.localhost:8888/geoserver/, com as credenciais
+  `admin` / `geoserver`
+- Os outros serviços da stack (p. ex. `processing-worker`) podem aceder diretamente à API do
+  GeoNode em `http://django:8000`
+- Os _logs_ de pedidos do uwsgi são escritos em `/var/log/geonode.log` dentro do contentor
+  `geonode-django`
+
+
 # Execução de testes
 
 Os testes normais correm dentro do contentor `webapp`, após instalar as dependências necessárias:
