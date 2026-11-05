@@ -9,8 +9,10 @@ from wtforms import (
     FieldList,
     FormField,
     HiddenField,
+    IntegerField,
     StringField,
 )
+from wtforms.widgets import TextInput
 
 from ... import constants
 from ...db.queries.surveymissions import get_survey_mission_by_name
@@ -53,6 +55,18 @@ class _SurveyMissionForm(StarletteForm):
             "relative to its parent project root path"
         ),
     )
+    implicit_crs = IntegerField(
+        _("Implicit CRS"),
+        default=4326,
+        description=_(
+            "EPSG code assumed for discovered files that do not declare a "
+            "coordinate reference system. Leave 4326 unless the survey used "
+            "another one."
+        ),
+        # text, not number, so a CRS name can be typed to search the suggestions
+        widget=TextInput(),
+        render_kw={"list": "epsg-code-options", "autocomplete": "off"},
+    )
     bounding_box = FormField(BoundingBoxForm)
     temporal_extent_begin = OptionalDateField()
     temporal_extent_end = OptionalDateField()
@@ -62,6 +76,10 @@ class _SurveyMissionForm(StarletteForm):
         min_entries=0,
         max_entries=constants.SURVEY_MISSION_MAX_LINKS,
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.implicit_crs.flags.backend_required = True
 
     async def check_if_name_is_unique_for_project(
         self,
@@ -151,6 +169,7 @@ class SurveyMissionCreateForm(_SurveyMissionForm):
                 name=self.name.data,
                 description=self.description.data,
                 relative_path=self.relative_path.data,
+                implicit_crs=self.implicit_crs.data,
                 temporal_extent_begin=self.temporal_extent_begin.data or None,
                 temporal_extent_end=self.temporal_extent_end.data or None,
                 links=[
@@ -182,6 +201,7 @@ class SurveyMissionUpdateForm(_SurveyMissionForm):
                 name=self.name.data,
                 description=self.description.data,
                 relative_path=self.relative_path.data,
+                implicit_crs=self.implicit_crs.data,
                 temporal_extent_begin=self.temporal_extent_begin.data or None,
                 temporal_extent_end=self.temporal_extent_end.data or None,
                 links=[
