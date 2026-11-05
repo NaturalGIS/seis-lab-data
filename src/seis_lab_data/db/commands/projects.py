@@ -1,5 +1,6 @@
 import logging
 
+from sqlalchemy import update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import errors
@@ -99,3 +100,22 @@ async def set_project_status(
     await session.commit()
     await session.refresh(project)
     return await project_queries.get_project(session, identifiers.ProjectId(project_id))
+
+
+async def set_project_thumbnail(
+    session: AsyncSession,
+    project_id: identifiers.ProjectId,
+    thumbnail: bytes | None,
+) -> bool:
+    """Sets the project's thumbnail and nothing else.
+
+    `update_project` is no use here, it also overwrites the bbox.
+    Returns whether the project still exists.
+    """
+    result = await session.execute(
+        update(models.Project)
+        .where(models.Project.id == project_id)
+        .values(thumbnail=thumbnail)
+    )
+    await session.commit()
+    return result.rowcount == 1

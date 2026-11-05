@@ -2,7 +2,9 @@ import json
 import logging
 import uuid
 
+import shapely
 from anyio import Path, to_thread
+from geoalchemy2 import WKBElement
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from .. import (
@@ -11,7 +13,9 @@ from .. import (
 )
 from ..db import models
 from ..db.commands import (
+    projects as project_commands,
     recordassets as asset_commands,
+    surveymissions as mission_commands,
     surveyrelatedrecords as record_commands,
 )
 from ..db.queries import surveyrelatedrecords as record_queries
@@ -22,7 +26,10 @@ from ..schemas import (
     user as user_schemas,
 )
 from .. import dispatch
-from ..tasks.derivers import dispatch as deriver_dispatch
+from ..tasks.derivers import (
+    bbox_thumbnail,
+    dispatch as deriver_dispatch,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -176,4 +183,103 @@ async def generate_record_previews(
             modification=constants.ResourceModification.UPDATED,
             succeeded=True,
         )
+    )
+
+
+async def generate_project_thumbnail(
+    *,
+    request_id: identifiers.RequestId,
+    project: models.Project,
+    initiator: user_schemas.User,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+    settings: config.SeisLabDataSettings,
+) -> None:
+    """Render the project's bbox over the base map and store it as its thumbnail."""
+    project_id = identifiers.ProjectId(project.id)
+    if project.bbox_4326 is None:
+        # removed after the task was enqueued, the removal cleared the thumbnail too
+        logger.warning(
+            f"Project {project_id} no longer has a bbox - not generating its "
+            f"thumbnail..."
+        )
+        return
+    thumbnail = await _render_bbox_thumbnail(project.bbox_4326, settings)
+    if not await project_commands.set_project_thumbnail(session, project_id, thumbnail):
+        logger.warning(
+            f"Project {project_id} no longer exists - not storing its thumbnail..."
+        )
+        return
+    await event_dispatcher(
+        event_schemas.ResourceModificationEvent(
+            initiator=initiator.id,
+            request_id=request_id,
+            resource_type=constants.ResourceType.PROJECT,
+            resource_id=str(project_id),
+            modification=constants.ResourceModification.UPDATED,
+            succeeded=True,
+        )
+    )
+
+
+async def generate_survey_mission_thumbnail(
+    *,
+    request_id: identifiers.RequestId,
+    survey_mission: models.SurveyMission,
+    initiator: user_schemas.User,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+    settings: config.SeisLabDataSettings,
+) -> None:
+    """Render the mission's bbox over the base map and store it as its thumbnail."""
+    survey_mission_id = identifiers.SurveyMissionId(survey_mission.id)
+    if survey_mission.bbox_4326 is None:
+        # removed after the task was enqueued, the removal cleared the thumbnail too
+        logger.warning(
+            f"Survey mission {survey_mission_id} no longer has a bbox - not "
+            f"generating its thumbnail..."
+        )
+        return
+    thumbnail = await _render_bbox_thumbnail(survey_mission.bbox_4326, settings)
+    if not await mission_commands.set_survey_mission_thumbnail(
+        session, survey_mission_id, thumbnail
+    ):
+        logger.warning(
+            f"Survey mission {survey_mission_id} no longer exists - not storing "
+            f"its thumbnail..."
+        )
+        return
+    await event_dispatcher(
+        event_schemas.ResourceModificationEvent(
+            initiator=initiator.id,
+            request_id=request_id,
+            resource_type=constants.ResourceType.MISSION,
+            resource_id=str(survey_mission_id),
+            modification=constants.ResourceModification.UPDATED,
+            succeeded=True,
+        )
+    )
+
+
+async def _render_bbox_thumbnail(
+    bbox_4326: WKBElement, settings: config.SeisLabDataSettings
+) -> bytes:
+    if (tile_url_template := settings.thumbnail_base_tile_layer_url) is None:
+        raise RuntimeError(
+            "No base tile layer to render thumbnails with, set "
+            "SEIS_LAB_DATA__THUMBNAIL_BASE_TILE_LAYER_URL"
+        )
+    return await to_thread.run_sync(
+        bbox_thumbnail.render_bbox_thumbnail,
+        bbox_thumbnail.build_tms_basemap_xml(
+            tile_url_template, settings.webmap_base_tile_layer_max_zoom
+        ),
+        shapely.from_wkb(bbox_4326.data).bounds,
+        bbox_thumbnail.BboxStyle(
+            fill_color=settings.webmap_default_polygon_fill_color,
+            fill_opacity=settings.webmap_default_polygon_fill_opacity,
+            outline_color=settings.webmap_default_polygon_outline_color,
+            outline_opacity=settings.webmap_default_polygon_outline_opacity,
+            outline_width=settings.webmap_default_polygon_outline_width,
+        ),
     )

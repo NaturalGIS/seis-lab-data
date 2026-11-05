@@ -122,6 +122,25 @@ async def set_survey_mission_status(
     )
 
 
+async def set_survey_mission_thumbnail(
+    session: AsyncSession,
+    survey_mission_id: identifiers.SurveyMissionId,
+    thumbnail: bytes | None,
+) -> bool:
+    """Sets the survey mission's thumbnail and nothing else.
+
+    `update_survey_mission` is no use here, it also overwrites the bbox.
+    Returns whether the survey mission still exists.
+    """
+    result = await session.execute(
+        update(models.SurveyMission)
+        .where(models.SurveyMission.id == survey_mission_id)
+        .values(thumbnail=thumbnail)
+    )
+    await session.commit()
+    return result.rowcount == 1
+
+
 async def bulk_publish_valid_survey_missions_for_project(
     session: AsyncSession,
     project_id: identifiers.ProjectId,
