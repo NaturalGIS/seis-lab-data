@@ -225,3 +225,7 @@ msgstr ""
 #: webapp/templates/index.html
 msgid "A survey vessel towing seismic equipment at sea, above a cross-section of seismic data"
 msgstr ""
+
+#: webapp/templates/survey-related-records/list-item.html
+msgid "illustrative seg-y image"
+msgstr ""

@@ -222,3 +222,7 @@ msgstr "Ver todas as missões"
 #: webapp/templates/index.html
 msgid "A survey vessel towing seismic equipment at sea, above a cross-section of seismic data"
 msgstr "Um navio de levantamento a rebocar equipamento sísmico no mar, sobre um perfil de dados sísmicos"
+
+#: webapp/templates/survey-related-records/list-item.html
+msgid "illustrative seg-y image"
+msgstr "imagem ilustrativa de seg-y"
