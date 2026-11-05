@@ -15,6 +15,11 @@ pytest.importorskip("osgeo")
 from osgeo import gdal, ogr, osr  # noqa: E402
 
 from seis_lab_data.tasks.derivers import dispatch  # noqa: E402
+from seis_lab_data.tasks.derivers.bbox_thumbnail import (  # noqa: E402
+    BboxStyle,
+    build_tms_basemap_xml,
+    render_bbox_thumbnail,
+)
 from seis_lab_data.tasks.derivers.gdal_raster import (  # noqa: E402
     _percentile_cuts,
     derive_raster_preview,
@@ -44,6 +49,19 @@ _KMALL_HEADER = struct.Struct("<I4sBBHII")
 # asserted window, dense like a real track, since lone pixels lose much of their
 # red to WEBP's lossy chroma
 _KMALL_FIXES = [(39.645 + index * 4e-5, -8.145 + index * 6e-5) for index in range(500)]
+_SEA_RGB = (20, 60, 120)
+_BBOX_RGB = (194, 125, 14)
+# the web maps' default style
+_BBOX_STYLE = BboxStyle(
+    fill_color="#c27d0e",
+    fill_opacity=0.3,
+    outline_color="#c27d0e",
+    outline_opacity=1.0,
+    outline_width=4,
+)
+# on the 512x384 thumbnail this bbox spans columns 132-380 and rows 32-352
+_THUMBNAIL_BBOX = (-10.0, 38.0, -8.0, 40.0)
+_WEB_MERCATOR_HALF_SIDE = 20037508.342789244
 
 
 def _write_geotiff(path, width, height, values, epsg=_PT_TM06):
@@ -95,6 +113,23 @@ def _write_kmall_track(path, fixes):
         sensor = struct.pack("<IIf", 0, 0, 1.0) + struct.pack("<dd", lat, lon)
         datagrams.append(_kmall_datagram(b"#SPO", common + sensor))
     path.write_bytes(b"".join(datagrams))
+    return path
+
+
+def _write_web_mercator_basemap(path):
+    """An opaque single-colour RGBA base map over the whole web mercator square."""
+    ds = gdal.GetDriverByName("GTiff").Create(
+        str(path), 256, 256, 4, gdal.GDT_Byte, options=["ALPHA=YES"]
+    )
+    half_side = _WEB_MERCATOR_HALF_SIDE
+    pixel_size = 2 * half_side / 256
+    ds.SetGeoTransform((-half_side, pixel_size, 0.0, half_side, 0.0, -pixel_size))
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(3857)
+    ds.SetProjection(srs.ExportToWkt())
+    for band_index, value in enumerate((*_SEA_RGB, 255), start=1):
+        ds.GetRasterBand(band_index).Fill(value)
+    ds = None  # noqa: F841
     return path
 
 
@@ -338,3 +373,40 @@ def test_derive_kmall_preview_requires_fixes(tmp_path):
 
     with pytest.raises(ValueError, match="no position fixes"):
         derive_kmall_preview(path)
+
+
+def test_render_bbox_thumbnail_draws_the_bbox_over_the_base_map(tmp_path):
+    basemap = _write_web_mercator_basemap(tmp_path / "basemap.tif")
+
+    image = render_bbox_thumbnail(str(basemap), _THUMBNAIL_BBOX, _BBOX_STYLE)
+
+    driver, width, height, bands = _read_webp(image)
+    assert (driver, width, height) == ("WEBP", 512, 384)
+    rgb = np.stack(bands[:3]).astype(int)
+    fill = np.array(_SEA_RGB) * 0.7 + np.array(_BBOX_RGB) * 0.3
+    # lossy WEBP shifts the colours a little
+    assert np.abs(rgb[:, 192, 256] - fill).max() <= 10
+    assert np.abs(rgb[:, 192, 131] - _BBOX_RGB).max() <= 10
+    assert np.abs(rgb[:, 192, 60] - _SEA_RGB).max() <= 10
+
+
+def test_tms_basemap_xml_requests_the_tiles_of_the_url_template():
+    tile = gdal.GetDriverByName("MEM").Create("", 256, 256, 4, gdal.GDT_Byte)
+    for band_index, value in enumerate((*_SEA_RGB, 255), start=1):
+        tile.GetRasterBand(band_index).Fill(value)
+    # zoom 0 is a single tile, the whole base map
+    tile_path = "/vsimem/tiles/0/0/0"
+    gdal.GetDriverByName("PNG").CreateCopy(tile_path, tile)
+    try:
+        with gdal.config_option("CPL_CURL_ENABLE_VSIMEM", "YES"):
+            image = render_bbox_thumbnail(
+                build_tms_basemap_xml("/vsimem/tiles/{z}/{x}/{y}", max_zoom=0),
+                _THUMBNAIL_BBOX,
+                _BBOX_STYLE,
+            )
+    finally:
+        gdal.Unlink(tile_path)
+
+    _, _, _, bands = _read_webp(image)
+    rgb = np.stack(bands[:3]).astype(int)
+    assert np.abs(rgb[:, 192, 60] - _SEA_RGB).max() <= 10
