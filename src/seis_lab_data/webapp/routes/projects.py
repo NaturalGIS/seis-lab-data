@@ -206,6 +206,27 @@ async def get_project_details_component(request: Request):
     return DatastarResponse(event_streamer())
 
 
+async def get_project_thumbnail(request: Request):
+    """Serve the project's thumbnail, an image of its bbox over the base map."""
+    user = request.user if request.user.is_authenticated else None
+    project_id = get_id_from_request_path(request, "project_id", identifiers.ProjectId)
+    settings: config.SeisLabDataSettings = request.state.settings
+    async with settings.get_db_session_maker()() as session:
+        try:
+            project = await project_ops.get_project(project_id, user, session)
+        except errors.UserNotAllowedError:
+            # a private project must be indistinguishable from a nonexistent one
+            project = None
+    if project is None or project.thumbnail is None:
+        raise HTTPException(status_code=404, detail=_("Thumbnail not found."))
+    return Response(
+        content=project.thumbnail,
+        media_type="image/webp",
+        # a new thumbnail keeps the same URL, so caches may only hold it briefly
+        headers={"Cache-Control": "public, max-age=60"},
+    )
+
+
 async def stream_to_list_page(request: Request):
     """Stream relevant updates for the project list page."""
 
@@ -1104,6 +1125,12 @@ routes = [
         get_project_missions_list_component,
         methods=["GET"],
         name="get_project_missions_list_component",
+    ),
+    Route(
+        "/{project_id}/thumbnail",
+        get_project_thumbnail,
+        methods=["GET"],
+        name="get_thumbnail",
     ),
     Route(
         "/{project_id}/stream/{request_id}",

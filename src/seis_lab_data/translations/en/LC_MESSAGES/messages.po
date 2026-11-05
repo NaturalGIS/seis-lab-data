@@ -225,3 +225,16 @@ msgstr ""
 #: webapp/templates/index.html
 msgid "A survey vessel towing seismic equipment at sea, above a cross-section of seismic data"
 msgstr ""
+
+#: webapp/routes/projects.py
+#: webapp/routes/surveymissions.py
+msgid "Thumbnail not found."
+msgstr ""
+
+#: webapp/templates/projects/list-item.html
+msgid "project spatial extent"
+msgstr ""
+
+#: webapp/templates/survey-missions/list-item.html
+msgid "survey mission spatial extent"
+msgstr ""

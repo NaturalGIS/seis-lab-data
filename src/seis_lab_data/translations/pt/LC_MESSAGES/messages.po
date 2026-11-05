@@ -222,3 +222,16 @@ msgstr "Ver todas as missões"
 #: webapp/templates/index.html
 msgid "A survey vessel towing seismic equipment at sea, above a cross-section of seismic data"
 msgstr "Um navio de levantamento a rebocar equipamento sísmico no mar, sobre um perfil de dados sísmicos"
+
+#: webapp/routes/projects.py
+#: webapp/routes/surveymissions.py
+msgid "Thumbnail not found."
+msgstr "Miniatura não encontrada."
+
+#: webapp/templates/projects/list-item.html
+msgid "project spatial extent"
+msgstr "extensão espacial do projeto"
+
+#: webapp/templates/survey-missions/list-item.html
+msgid "survey mission spatial extent"
+msgstr "extensão espacial da missão"
