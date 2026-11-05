@@ -109,7 +109,9 @@ async def generate_record_previews(
             continue
         try:
             preview = await to_thread.run_sync(
-                deriver_dispatch.dispatch_deriver, asset_path
+                deriver_dispatch.dispatch_deriver,
+                asset_path,
+                survey_related_record.survey_mission.implicit_crs,
             )
         except Exception as err:
             logger.warning(f"Preview generation failed for {asset_path!r}: {err}")

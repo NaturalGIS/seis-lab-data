@@ -62,6 +62,18 @@ def _write_geotiff(path, width, height, values, epsg=_PT_TM06):
     return path
 
 
+def _write_xyz_grid(path):
+    # the layout the XYZ driver reads: no header, y in the outer loop and x
+    # varying fastest; metres near the EPSG:3763 false origin, with no CRS
+    rows = (
+        f"{column * 10.0} {row * 10.0} {float(column + row)}"
+        for row in range(60)
+        for column in range(120)
+    )
+    path.write_text("\n".join(rows) + "\n")
+    return path
+
+
 def _write_shapefile(path, lines, epsg=_PT_TM06):
     srs = None
     if epsg is not None:
@@ -170,6 +182,38 @@ def test_derive_raster_preview_requires_a_crs(tmp_path):
         derive_raster_preview(path)
 
 
+def test_derive_raster_preview_applies_the_implicit_crs(tmp_path):
+    path = _write_xyz_grid(tmp_path / "grid.xyz")
+
+    preview = derive_raster_preview(path, _PT_TM06)
+
+    driver, *_ = _read_webp(preview.image)
+    assert driver == "WEBP"
+    min_x, min_y, max_x, max_y = preview.bounds_4326
+    assert -8.2 < min_x < max_x < -8.1
+    assert 39.6 < min_y < max_y < 39.7
+
+
+def test_derive_raster_preview_prefers_the_declared_crs(tmp_path):
+    values = np.tile(np.arange(100, dtype=np.float32), (100, 1))
+    path = _write_geotiff(tmp_path / "grid.tif", 100, 100, values)
+
+    # applied over the declared EPSG:3763, it would read the metres as degrees
+    preview = derive_raster_preview(path, 4326)
+
+    min_x, min_y, max_x, max_y = preview.bounds_4326
+    assert -8.2 < min_x < max_x < -8.1
+    assert 39.6 < min_y < max_y < 39.7
+
+
+def test_derive_raster_preview_rejects_an_implausible_implicit_crs(tmp_path):
+    path = _write_xyz_grid(tmp_path / "grid.xyz")
+
+    # the grid's metres read as degrees reach far beyond the lon/lat range
+    with pytest.raises(ValueError, match="outside the lon/lat range"):
+        derive_raster_preview(path, 4326)
+
+
 def test_percentile_cuts_ignore_nodata():
     ds = gdal.GetDriverByName("MEM").Create("", 100, 100, 1, gdal.GDT_Float32)
     band = ds.GetRasterBand(1)
@@ -201,10 +245,19 @@ def test_is_previewable_rejects_an_unlisted_family_and_stage(tmp_path):
 
 
 def test_is_previewable_rejects_an_extension_without_a_deriver(tmp_path):
-    path = tmp_path / "grid.xyz"
+    path = tmp_path / "line.sgy"
     path.touch()
     assert not dispatch.is_previewable(
-        path, "s06-mbes/s05-processed-data/grid.xyz", _PREVIEW_DIRECTORIES
+        path, "s06-mbes/s05-processed-data/line.sgy", _PREVIEW_DIRECTORIES
+    )
+
+
+@pytest.mark.parametrize("extension", [".xyz", ".asc", ".flt"])
+def test_is_previewable_accepts_a_grid_extension(tmp_path, extension):
+    path = tmp_path / f"grid{extension}"
+    path.touch()
+    assert dispatch.is_previewable(
+        path, f"s06-mbes/s05-processed-data/sub/grid{extension}", _PREVIEW_DIRECTORIES
     )
 
 
