@@ -173,12 +173,14 @@ async def test_create_survey_mission(db, db_session_maker, sample_projects):
         name="A fake survey mission",
         description="A description for fake survey mission",
         relative_path="fake-mission",
+        implicit_crs=3763,
     )
     async with db_session_maker() as session:
         created = await mission_commands.create_survey_mission(session, to_create)
         assert created.id == to_create.id
         assert created.id == to_create.id
         assert created.name == to_create.name
+        assert created.implicit_crs == 3763
 
 
 @pytest.mark.integration
@@ -215,6 +217,35 @@ async def test_create_survey_mission_rejects_duplicate_name_in_same_project(
                     relative_path="second-fake-mission",
                 ),
             )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_update_survey_mission(db, db_session_maker, sample_projects):
+    to_create = mission_schemas.SurveyMissionCreate(
+        id=identifiers.SurveyMissionId(
+            uuid.UUID("5d3f0b8e-2c4a-4f6e-9b1d-7a8c6e4f2b10")
+        ),
+        project_id=identifiers.ProjectId(sample_projects[0].id),
+        name="A fake survey mission",
+        description="A description for fake survey mission",
+        relative_path="fake-mission",
+    )
+    async with db_session_maker() as session:
+        created = await mission_commands.create_survey_mission(session, to_create)
+        assert created.implicit_crs == 4326
+        updated = await mission_commands.update_survey_mission(
+            session, created, mission_schemas.SurveyMissionUpdate(implicit_crs=3763)
+        )
+        assert updated.implicit_crs == 3763
+        # fields left out of an update must keep their stored value
+        updated = await mission_commands.update_survey_mission(
+            session,
+            updated,
+            mission_schemas.SurveyMissionUpdate(name="A renamed fake survey mission"),
+        )
+        assert updated.name == "A renamed fake survey mission"
+        assert updated.implicit_crs == 3763
 
 
 @pytest.mark.integration

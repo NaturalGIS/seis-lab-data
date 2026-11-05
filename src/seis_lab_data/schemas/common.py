@@ -9,9 +9,12 @@ from typing import (
 import pydantic
 import shapely
 from geoalchemy2 import WKBElement
+from osgeo import osr
 
 from .. import constants
 
+# without it ImportFromEPSG returns an error code instead of raising RuntimeError
+osr.UseExceptions()
 
 DraftName = Annotated[
     str, pydantic.Field(min_length=1, max_length=constants.NAME_MAX_LENGTH)
@@ -101,6 +104,19 @@ def parse_wkbelement_polygon_into_geom(value: WKBElement) -> shapely.Polygon:
     return cast(shapely.Polygon, geom)
 
 
+def parse_epsg_code(value: int) -> int:
+    spatial_reference = osr.SpatialReference()
+    try:
+        spatial_reference.ImportFromEPSG(value)
+    # OverflowError: values beyond a C int never reach PROJ
+    except (RuntimeError, OverflowError) as err:
+        raise ValueError(f"Unknown EPSG code {value}") from err
+    # geocentric and vertical codes import fine but give silently wrong bboxes
+    if not (spatial_reference.IsProjected() or spatial_reference.IsGeographic()):
+        raise ValueError(f"EPSG code {value} is not a projected or geographic CRS")
+    return value
+
+
 def serialize_geom_to_wkt(value: shapely.Geometry) -> str:
     return shapely.to_wkt(value)
 
@@ -132,6 +148,8 @@ PossiblyInvalidPolygon = Annotated[
     pydantic.PlainValidator(parse_wkt_into_possibly_invalid_polygon),
     pydantic.PlainSerializer(serialize_geom_to_wkt),
 ]
+
+EpsgCode = Annotated[int, pydantic.AfterValidator(parse_epsg_code)]
 
 # suitable for outputting values from the API
 # parses a WKBElement into a shapely Polygon, serializes to a min_lon, min_lat, max_lon, max_lat tuple
