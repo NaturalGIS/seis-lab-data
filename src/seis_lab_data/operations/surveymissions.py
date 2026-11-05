@@ -1,3 +1,5 @@
+import dataclasses
+import json
 import logging
 
 import pydantic
@@ -25,6 +27,7 @@ from ..schemas import (
     user as user_schemas,
     validation as validation_schemas,
 )
+from ..tasks import previews as preview_tasks
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +102,12 @@ async def create_survey_mission(
             initiator=initiator.id,
         )
     )
+    if survey_mission.bbox_4326 is not None:
+        preview_tasks.generate_survey_mission_thumbnail.send(
+            raw_request_id=str(request_id),
+            raw_survey_mission_id=str(survey_mission.id),
+            raw_initiator=json.dumps(dataclasses.asdict(initiator)),
+        )
     return survey_mission
 
 
@@ -277,6 +286,7 @@ async def update_survey_mission(
             )
         if not mission_permissions.can_update_survey_mission(initiator, survey_mission):
             raise errors.SeisLabDataError("User not allowed to update survey mission.")
+        previous_bbox_4326 = survey_mission.bbox_4326
         await mission_commands.update_survey_mission(session, survey_mission, to_update)
         validated_mission = await validate_survey_mission(
             request_id=request_id,
@@ -359,6 +369,18 @@ async def update_survey_mission(
             initiator=initiator.id,
         )
     )
+    # only for a new bbox, as the task's UPDATED event flashes and redirects open pages
+    if validated_mission.bbox_4326 != previous_bbox_4326:
+        if validated_mission.bbox_4326 is None:
+            await mission_commands.set_survey_mission_thumbnail(
+                session, survey_mission_id, None
+            )
+        else:
+            preview_tasks.generate_survey_mission_thumbnail.send(
+                raw_request_id=str(request_id),
+                raw_survey_mission_id=str(survey_mission_id),
+                raw_initiator=json.dumps(dataclasses.asdict(initiator)),
+            )
     return validated_mission
 
 
