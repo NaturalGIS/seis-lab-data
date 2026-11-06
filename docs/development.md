@@ -278,6 +278,31 @@ It is accessible at http://pgadmin.localhost:8888 and login credentials are:
 - password: `dev`
 
 
+##### GeoNode (optional)
+
+A [GeoNode](https://geonode.org/) v5.1.1 instance, used as the target for exporting survey-related
+records. It is made up of several services (`geonode-db`, `geonode-django`, `geonode-celery`,
+`geonode-nginx`, `geonode-geoserver` and `geonode-geoserver-data`). Its configuration lives in
+`docker/geonode/geonode-dev.env`.
+
+These services are resource-hungry, so they only start when the `geonode` compose profile is
+active:
+
+```shell
+docker compose -f docker/compose.dev.yaml --profile geonode up -d
+```
+
+The first boot is slow, because GeoNode runs its DB migrations, loads fixtures and collects
+static files.
+
+- GeoNode is accessible at http://geonode.localhost:8888, with credentials `admin` / `admin123`
+- GeoServer is accessible at http://geonode.localhost:8888/geoserver/, with credentials
+  `admin` / `geoserver`
+- Other services in the stack (e.g. `processing-worker`) can reach the GeoNode API directly at
+  `http://django:8000`
+- uwsgi request logs are written to `/var/log/geonode.log` inside the `geonode-django` container
+
+
 # Running tests
 
 Normal tests can be run from inside the `webapp` compose container, after installing the required dependencies:

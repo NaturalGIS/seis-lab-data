@@ -42,6 +42,26 @@ x-common-auth-env: &common-auth-env
   SEIS_LAB_DATA_REDIRECT_URI: *auth-redirect-url
   SEIS_LAB_DATA_POST_LOGOUT_REDIRECT_URI: http://localhost:8888/
 
+x-geonode-env-file: &geonode-env-file ./geonode/geonode-dev.env
+
+# common configuration for the GeoNode django and celery services
+x-geonode-common: &geonode-common
+  image: geonode/geonode:5.1.1
+  profiles: ["geonode"]
+  env_file: *geonode-env-file
+  entrypoint: ["/usr/src/geonode/entrypoint.sh"]
+  volumes:
+    - geonode-statics:/mnt/volumes/statics
+    - geonode-geoserver-data:/geoserver_data/data
+    - geonode-backup-restore:/backup_restore
+    - geonode-data:/data
+    - geonode-tmp:/tmp
+  depends_on:
+    geonode-db:
+      condition: service_healthy
+    message-broker:
+      condition: service_healthy
+
 x-common-volumes: &common-volumes
   - type: bind
     source: ../src
@@ -356,6 +376,129 @@ services:
       - "traefik.http.routers.docs-router.priority=90"
       - "traefik.http.services.docs.loadbalancer.server.port=8000"
 
+  # GeoNode services - these are adapted from the upstream GeoNode v5.1.1 compose file:
+  #
+  # https://github.com/GeoNode/geonode/blob/5.1.1/docker-compose.yml
+  #
+  # They are only started when the `geonode` profile is active, e.g.:
+  #
+  #   docker compose -f docker/compose.dev.yaml --profile geonode up -d
+  #
+  # GeoNode is reachable at http://geonode.localhost:8888 (and GeoServer at
+  # http://geonode.localhost:8888/geoserver/). Other services in the stack can reach the
+  # GeoNode API directly at http://django:8000
+  #
+  # The upstream GeoNode images expect some fixed hostnames (`geonode`, `django`, `geoserver`),
+  # which are provided as network aliases
+
+  geonode-db:
+    image: geonode/postgis:15-3.5-latest
+    profiles: ["geonode"]
+    command: postgres -c "max_connections=200"
+    env_file: *geonode-env-file
+    healthcheck:
+      test: "pg_isready -d postgres -U postgres"
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    volumes:
+      - geonode-db:/var/lib/postgresql/data
+
+  geonode-django:
+    <<: *geonode-common
+    environment:
+      IS_CELERY: "False"
+    # uwsgi with fewer workers than the upstream defaults - note that uwsgi request logs
+    # go to /var/log/geonode.log inside the container
+    command:
+      - "uwsgi"
+      - "--ini"
+      - "/usr/src/geonode/uwsgi.ini"
+      - "--processes"
+      - "4"
+      - "--cheaper"
+      - "1"
+      - "--cheaper-initial"
+      - "2"
+      - "--cheaper-step"
+      - "1"
+    networks:
+      default:
+        aliases:
+          - django
+    healthcheck:
+      test: "curl -m 10 --fail --silent --output /dev/null http://django:8000/"
+      # the first boot runs migrations, loads fixtures and collects static files
+      start_period: 300s
+      start_interval: 10s
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+  geonode-celery:
+    <<: *geonode-common
+    environment:
+      IS_CELERY: "True"
+    command: "celery-cmd"
+    depends_on:
+      geonode-django:
+        condition: service_healthy
+
+  geonode-nginx:
+    image: geonode/nginx:1.31.7-latest
+    profiles: ["geonode"]
+    env_file: *geonode-env-file
+    networks:
+      default:
+        aliases:
+          - geonode
+    volumes:
+      - geonode-statics:/mnt/volumes/statics
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.geonode-router.rule=Host(`geonode.localhost`)"
+      - "traefik.http.routers.geonode-router.entrypoints=web"
+      - "traefik.http.routers.geonode-router.priority=100"
+      - "traefik.http.services.geonode.loadbalancer.server.port=80"
+
+  geonode-geoserver:
+    image: geonode/geoserver:2.28.6-latest
+    profiles: ["geonode"]
+    env_file: *geonode-env-file
+    networks:
+      default:
+        aliases:
+          - geoserver
+    healthcheck:
+      test: "curl -m 10 --fail --silent --output /dev/null http://localhost:8080/geoserver/ows"
+      start_period: 120s
+      start_interval: 10s
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - geonode-statics:/mnt/volumes/statics
+      - geonode-geoserver-data:/geoserver_data/data
+      - geonode-backup-restore:/backup_restore
+      - geonode-data:/data
+      - geonode-tmp:/tmp
+    depends_on:
+      geonode-geoserver-data:
+        condition: service_healthy
+      geonode-django:
+        condition: service_healthy
+
+  # seeds the GeoServer data directory volume
+  geonode-geoserver-data:
+    image: geonode/geoserver_data:2.28.6-latest
+    profiles: ["geonode"]
+    entrypoint: sleep infinity
+    volumes:
+      - geonode-geoserver-data:/geoserver_data/data
+    healthcheck:
+      test: "ls -A '/geoserver_data/data' | wc -l"
+
 
 configs:
 
@@ -471,3 +614,9 @@ volumes:
   authentik_db:
   db:
   test-db:
+  geonode-db:
+  geonode-statics:
+  geonode-geoserver-data:
+  geonode-backup-restore:
+  geonode-data:
+  geonode-tmp:
