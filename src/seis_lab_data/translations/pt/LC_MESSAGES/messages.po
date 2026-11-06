@@ -239,3 +239,7 @@ msgstr "Introduza um código EPSG numérico"
 #: webapp/epsgcodes.py
 msgid "Unknown EPSG code, or not a projected or geographic CRS"
 msgstr "Código EPSG desconhecido, ou não é um CRS projetado ou geográfico"
+
+#: webapp/templates/survey-related-records/list-item.html
+msgid "illustrative seg-y image"
+msgstr "imagem ilustrativa de seg-y"

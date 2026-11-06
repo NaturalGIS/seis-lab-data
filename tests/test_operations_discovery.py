@@ -659,7 +659,7 @@ async def test_mission_previews_are_derived_for_missing_only(
         discovery_env["settings"], "_event_dispatcher", _EventCollector()
     )
 
-    def fake_dispatch(path):
+    def fake_dispatch(path, implicit_epsg_code):
         return deriver_schemas.DerivedPreview(
             image=b"fake webp payload", bounds_4326=(-8.2, 39.6, -8.1, 39.7)
         )
@@ -699,7 +699,7 @@ async def test_record_previews_skip_a_record_whose_status_moved(
         )
     }
 
-    def fake_dispatch(path):
+    def fake_dispatch(path, implicit_epsg_code):
         return deriver_schemas.DerivedPreview(
             image=b"fake webp payload", bounds_4326=(-8.2, 39.6, -8.1, 39.7)
         )

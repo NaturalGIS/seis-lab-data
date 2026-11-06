@@ -42,11 +42,14 @@ _TURBO_RAMP = (
 )
 
 
-def derive_raster_preview(path: Path | str) -> DerivedPreview:
+def derive_raster_preview(
+    path: Path | str, implicit_epsg_code: int | None = None
+) -> DerivedPreview:
     """Render a raster as a small WEBP image, warped to EPSG:4326.
 
-    Only rasters which declare their own CRS are handled, a survey mission's
-    implicit CRS is not applied here.
+    A CRS declared by the raster always wins. The survey mission's implicit CRS
+    is only used for rasters which declare none (e.g. XYZ grids), the same
+    precedence discovery applies to the bbox.
 
     Pure sync and potentially slow (the whole raster is read once in order to
     build the overview), so async callers must run this in a worker thread (e.g.
@@ -58,8 +61,12 @@ def derive_raster_preview(path: Path | str) -> DerivedPreview:
         # collects the dataset from under its own bands otherwise
         if dataset.RasterCount == 0:
             raise ValueError(f"Raster {path} has no bands")
-        if not dataset.GetProjection():
+        has_declared_crs = bool(dataset.GetProjection())
+        if not has_declared_crs and implicit_epsg_code is None:
             raise ValueError(f"Raster {path} does not declare a CRS")
+        # GDAL lets srcSRS override a declared CRS, so it is only set when the
+        # raster has none
+        source_srs = None if has_declared_crs else f"EPSG:{implicit_epsg_code}"
         if (
             dataset.RasterCount == 1
             and dataset.GetRasterBand(1).GetRasterColorTable() is not None
@@ -73,6 +80,7 @@ def derive_raster_preview(path: Path | str) -> DerivedPreview:
             "",
             dataset,
             format="MEM",
+            srcSRS=source_srs,
             dstSRS="EPSG:4326",
             width=width,
             height=height,
@@ -85,6 +93,18 @@ def derive_raster_preview(path: Path | str) -> DerivedPreview:
             dstAlpha=True,
         )
         bounds = _bounds(warped)
+        min_x, min_y, max_x, max_y = bounds
+        tolerance = 1e-6
+        if not has_declared_crs and not (
+            -180 - tolerance <= min_x <= max_x <= 180 + tolerance
+            and -90 - tolerance <= min_y <= max_y <= 90 + tolerance
+        ):
+            # a wrong implicit CRS (e.g. metres read as degrees) would place the
+            # preview somewhere it does not belong, so there is none instead
+            raise ValueError(
+                f"Raster {path} falls outside the lon/lat range with the "
+                f"implicit CRS EPSG:{implicit_epsg_code}: {bounds}"
+            )
         alpha_band = warped.RasterCount
         if nodata is not None:
             for band_index in range(1, alpha_band):

@@ -242,3 +242,7 @@ msgstr ""
 #: webapp/epsgcodes.py
 msgid "Unknown EPSG code, or not a projected or geographic CRS"
 msgstr ""
+
+#: webapp/templates/survey-related-records/list-item.html
+msgid "illustrative seg-y image"
+msgstr ""
