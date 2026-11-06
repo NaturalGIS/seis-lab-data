@@ -849,6 +849,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             name=creation_form.name.data,
             description=creation_form.description.data,
             relative_path=creation_form.relative_path.data,
+            implicit_crs=creation_form.implicit_crs.data,
             bbox_4326=(
                 f"POLYGON(("
                 f"{creation_form.bounding_box.min_lon.data} {creation_form.bounding_box.min_lat.data}, "

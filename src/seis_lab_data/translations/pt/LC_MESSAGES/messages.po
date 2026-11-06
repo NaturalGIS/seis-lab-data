@@ -222,3 +222,20 @@ msgstr "Ver todas as missões"
 #: webapp/templates/index.html
 msgid "A survey vessel towing seismic equipment at sea, above a cross-section of seismic data"
 msgstr "Um navio de levantamento a rebocar equipamento sísmico no mar, sobre um perfil de dados sísmicos"
+
+#: webapp/forms/surveymissions.py
+#: webapp/templates/survey-missions/detail-component.html
+msgid "Implicit CRS"
+msgstr "CRS implícito"
+
+#: webapp/forms/surveymissions.py
+msgid "EPSG code assumed for discovered files that do not declare a coordinate reference system. Leave 4326 unless the survey used another one."
+msgstr "Código EPSG assumido para os ficheiros descobertos que não declaram um sistema de referência de coordenadas. Mantenha 4326, a menos que o levantamento tenha usado outro."
+
+#: webapp/epsgcodes.py
+msgid "Enter a numeric EPSG code"
+msgstr "Introduza um código EPSG numérico"
+
+#: webapp/epsgcodes.py
+msgid "Unknown EPSG code, or not a projected or geographic CRS"
+msgstr "Código EPSG desconhecido, ou não é um CRS projetado ou geográfico"

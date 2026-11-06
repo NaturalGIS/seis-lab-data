@@ -225,3 +225,20 @@ msgstr ""
 #: webapp/templates/index.html
 msgid "A survey vessel towing seismic equipment at sea, above a cross-section of seismic data"
 msgstr ""
+
+#: webapp/forms/surveymissions.py
+#: webapp/templates/survey-missions/detail-component.html
+msgid "Implicit CRS"
+msgstr ""
+
+#: webapp/forms/surveymissions.py
+msgid "EPSG code assumed for discovered files that do not declare a coordinate reference system. Leave 4326 unless the survey used another one."
+msgstr ""
+
+#: webapp/epsgcodes.py
+msgid "Enter a numeric EPSG code"
+msgstr ""
+
+#: webapp/epsgcodes.py
+msgid "Unknown EPSG code, or not a projected or geographic CRS"
+msgstr ""
