@@ -9,6 +9,7 @@ from .common import (
     LinkSchema,
     DraftDescription,
     DraftName,
+    EpsgCode,
     PolygonOut,
     PossiblyInvalidPolygon,
     serialize_id,
@@ -27,6 +28,7 @@ class SurveyMissionCreate(pydantic.BaseModel):
     name: DraftName
     description: DraftDescription
     relative_path: str
+    implicit_crs: EpsgCode = 4326
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
     temporal_extent_end: dt.date | None = None
@@ -38,6 +40,7 @@ class SurveyMissionUpdate(pydantic.BaseModel):
     name: DraftName | None = None
     description: DraftDescription | None = None
     relative_path: str | None = None
+    implicit_crs: EpsgCode | None = None
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
     temporal_extent_end: dt.date | None = None
@@ -100,6 +103,7 @@ class SurveyMissionReadListItem(pydantic.BaseModel):
 
 class SurveyMissionReadDetail(SurveyMissionReadListItem):
     relative_path: str
+    implicit_crs: int
     links: list[LinkSchema] = []
 
     @classmethod

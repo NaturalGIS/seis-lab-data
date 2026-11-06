@@ -1,4 +1,5 @@
 import dataclasses
+import html
 import json
 import logging
 import uuid
@@ -52,6 +53,7 @@ from ...schemas import (
     webui as webui_schemas,
 )
 from .. import (
+    epsgcodes,
     filters,
     forms,
 )
@@ -757,6 +759,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             name=form_instance.name.data,
             description=form_instance.description.data,
             relative_path=form_instance.relative_path.data,
+            implicit_crs=form_instance.implicit_crs.data,
             bbox_4326=(
                 f"POLYGON(("
                 f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}, "
@@ -1059,6 +1062,51 @@ async def remove_update_survey_mission_form_link(request: Request):
     return DatastarResponse(event_streamer())
 
 
+async def get_implicit_crs_suggestions(request: Request):
+    """Fill the implicit CRS suggestions and live feedback on the survey mission forms.
+
+    Called via datastar @get, the value is the implicitCrs signal in the datastar param.
+
+    The input itself is never patched, as that would move the caret while typing.
+    An invalid value shows only with final=1: a half-typed code is always invalid.
+    """
+    try:
+        signal_value = json.loads(request.query_params.get("datastar"))["implicitCrs"]
+    except (TypeError, KeyError, json.JSONDecodeError) as err:
+        raise HTTPException(
+            status_code=400, detail="Could not retrieve search value"
+        ) from err
+    raw_value = str(signal_value).strip()
+    is_final = request.query_params.get("final") == "1"
+    rendered_options = "".join(
+        f'<option value="{code}">{html.escape(name)}</option>'
+        for code, name in epsgcodes.find_epsg_code_suggestions(raw_value)
+    )
+    try:
+        crs_name = epsgcodes.get_epsg_crs_name(raw_value)
+    except ValueError as err:
+        feedback_class = "text-danger"
+        feedback_text = str(err) if is_final else ""
+    else:
+        feedback_class = "text-success"
+        feedback_text = crs_name
+    # no classes when empty, their margins would leave a blank gap under the field
+    rendered_feedback = (
+        f'<div id="implicit-crs-live-feedback" class="form-text mb-3 {feedback_class}">'
+        f"{html.escape(feedback_text)}</div>"
+        if feedback_text
+        else '<div id="implicit-crs-live-feedback"></div>'
+    )
+
+    async def event_streamer():
+        yield ServerSentEventGenerator.patch_elements(
+            f'<datalist id="epsg-code-options">{rendered_options}</datalist>'
+        )
+        yield ServerSentEventGenerator.patch_elements(rendered_feedback)
+
+    return DatastarResponse(event_streamer())
+
+
 @csrf_protect
 @requires_auth
 async def get_survey_mission_update_form(request: Request):
@@ -1092,6 +1140,7 @@ async def get_survey_mission_update_form(request: Request):
             "name": survey_mission.name,
             "description": survey_mission.description,
             "relative_path": survey_mission.relative_path,
+            "implicit_crs": survey_mission.implicit_crs,
             "bounding_box": {
                 "min_lon": current_bbox.bounds[0],
                 "min_lat": current_bbox.bounds[1],
@@ -1548,6 +1597,12 @@ routes = [
         remove_update_survey_mission_form_link,
         methods=["POST"],
         name="remove_update_form_link",
+    ),
+    Route(
+        "/implicit-crs-suggestions",
+        get_implicit_crs_suggestions,
+        methods=["GET"],
+        name="implicit_crs_suggestions",
     ),
     Route(
         "/{survey_mission_id}/details",

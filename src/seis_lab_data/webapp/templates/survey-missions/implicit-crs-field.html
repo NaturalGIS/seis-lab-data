@@ -1,0 +1,18 @@
+{% import "macros.html" as macros %}
+{% set suggestions_url = url_for("survey_missions:implicit_crs_suggestions") %}
+{# the debounced lookup can fire after the user has left the field, it then counts as final so it does not wipe the error the change lookup has just shown #}
+{# dropping is-invalid clears a stale submit error, otherwise it sits above the live feedback until the next submit #}
+{{ macros.render_form_field(
+    form.implicit_crs,
+    **{
+        "data-on:input__debounce.200ms": "evt.target.classList.remove('is-invalid'); @get('" ~ suggestions_url ~ "?final=' + Number(document.activeElement !== evt.target))",
+        "data-on:change": "evt.target.classList.remove('is-invalid'); @get('" ~ suggestions_url ~ "?final=1')",
+        "data-bind": "implicitCrs"
+    }
+) }}
+<datalist id="epsg-code-options"></datalist>
+<div class="row">
+    <div class="col-sm-10 offset-sm-2">
+        <div id="implicit-crs-live-feedback"></div>
+    </div>
+</div>

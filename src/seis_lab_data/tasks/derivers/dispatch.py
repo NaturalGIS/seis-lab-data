@@ -11,9 +11,11 @@ from .schemas import DerivedPreview
 
 logger = logging.getLogger(__name__)
 
-# Rasters and vectors which carry their own CRS, plus KMALL vessel tracks.
-# The remaining formats are tracked in issue #210
-_RASTER_EXTENSIONS = frozenset({".tif", ".tiff"})
+# Rasters, vectors and KMALL vessel tracks. XYZ grids cannot declare a CRS and
+# ASC/FLT grids only do so with a .prj sidecar, so rasters may fall back to the
+# survey mission's implicit CRS. SEG-Y has no deriver: its record cards show a
+# static sample image instead
+_RASTER_EXTENSIONS = frozenset({".tif", ".tiff", ".xyz", ".asc", ".flt"})
 _VECTOR_EXTENSIONS = frozenset({".shp", ".gpkg", ".geojson"})
 _KMALL_EXTENSIONS = frozenset({".kmall"})
 
@@ -41,11 +43,15 @@ def is_previewable(
     return family_and_stage in directory_prefixes and can_derive(path)
 
 
-def dispatch_deriver(path: Path | str) -> DerivedPreview | None:
+def dispatch_deriver(
+    path: Path | str, implicit_epsg_code: int
+) -> DerivedPreview | None:
     """Route a file to its preview deriver by extension.
 
     sync and slow: the whole file is read to build the overview
     Async callers must run this in a worker thread
+    The implicit EPSG code is the survey mission's, only rasters without a CRS
+    of their own use it.
     Returns None for unsupported extensions and directories.
     """
     p = Path(path)
@@ -55,4 +61,4 @@ def dispatch_deriver(path: Path | str) -> DerivedPreview | None:
         return derive_vector_preview(p)
     if p.suffix.lower() in _KMALL_EXTENSIONS:
         return derive_kmall_preview(p)
-    return derive_raster_preview(p)
+    return derive_raster_preview(p, implicit_epsg_code)
