@@ -9,7 +9,6 @@ from wtforms import (
     FieldList,
     FormField,
     HiddenField,
-    IntegerField,
     StringField,
 )
 from wtforms.widgets import TextInput
@@ -27,7 +26,10 @@ from .common import (
     incorporate_schema_validation_errors_into_form,
     LinkForm,
 )
-from .fields import OptionalDateField
+from .fields import (
+    EpsgCodeField,
+    OptionalDateField,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +57,7 @@ class _SurveyMissionForm(StarletteForm):
             "relative to its parent project root path"
         ),
     )
-    implicit_crs = IntegerField(
+    implicit_crs = EpsgCodeField(
         _("Implicit CRS"),
         default=4326,
         description=_(
