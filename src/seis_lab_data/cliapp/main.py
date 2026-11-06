@@ -1,6 +1,9 @@
+import dataclasses
+import json
 import logging
 import os
 import sys
+import uuid
 from pathlib import Path
 
 from rich.padding import Padding
@@ -8,14 +11,24 @@ from rich.panel import Panel
 import typer
 
 from .. import config
-from ..tasks import broker
+from ..db.queries import (
+    projects as project_queries,
+    surveymissions as mission_queries,
+)
+from ..schemas import identifiers
+from ..tasks import (
+    broker,
+    previews as preview_tasks,
+)
+from . import utils
+from .asynctyper import AsyncTyper
 from .bootstrapapp import app as bootstrap_app
 from .dbapp import app as db_app
 from .devapp import app as dev_app
 from .translationsapp import app as translations_app
 
 logger = logging.getLogger(__name__)
-app = typer.Typer()
+app = AsyncTyper()
 app.add_typer(translations_app, name="translations")
 app.add_typer(db_app, name="db")
 app.add_typer(dev_app, name="dev")
@@ -139,3 +152,53 @@ def run_web_server(ctx: typer.Context):
     sys.stdout.flush()
     sys.stderr.flush()
     os.execvp("uvicorn", uvicorn_args)
+
+
+@app.async_command()
+async def generate_thumbnails(
+    ctx: typer.Context,
+    admin_username: str | None = typer.Option(
+        default="akadmin",
+        help="Authentik username of the admin user to act as.",
+    ),
+    admin_user_id: str | None = typer.Option(
+        default=None,
+        help=(
+            "Authentik sub (UUID) of the admin user to act as. Takes "
+            "precedence over --admin-username."
+        ),
+    ),
+) -> None:
+    """Queue the thumbnail generation of every project and survey mission with a bbox
+
+    Thumbnails are only generated when a bbox is set or changed.
+    This fills them in for the bboxes which already existed before.
+    """
+    context: config.SeisLabDataCliContext = ctx.obj["main"]
+    admin_user = await utils.resolve_admin_user(
+        context.settings, admin_username, admin_user_id
+    )
+    raw_request_id = str(identifiers.RequestId(uuid.uuid4()))
+    raw_initiator = json.dumps(dataclasses.asdict(admin_user))
+    num_queued = 0
+    async with context.settings.get_db_session_maker()() as session:
+        for project in await project_queries.collect_all_projects(session):
+            if project.bbox_4326 is not None:
+                preview_tasks.generate_project_thumbnail.send(
+                    raw_request_id=raw_request_id,
+                    raw_project_id=str(project.id),
+                    raw_initiator=raw_initiator,
+                )
+                num_queued += 1
+            survey_missions = await mission_queries.collect_all_project_survey_missions(
+                session, identifiers.ProjectId(project.id)
+            )
+            for survey_mission in survey_missions:
+                if survey_mission.bbox_4326 is not None:
+                    preview_tasks.generate_survey_mission_thumbnail.send(
+                        raw_request_id=raw_request_id,
+                        raw_survey_mission_id=str(survey_mission.id),
+                        raw_initiator=raw_initiator,
+                    )
+                    num_queued += 1
+    context.status_console.print(f"Queued {num_queued} thumbnails for generation")

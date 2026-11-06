@@ -241,6 +241,31 @@ async def get_details_component(request: Request):
     return DatastarResponse(event_streamer())
 
 
+async def get_survey_mission_thumbnail(request: Request):
+    """Serve the survey mission's thumbnail, an image of its bbox over the base map."""
+    user = request.user if request.user.is_authenticated else None
+    survey_mission_id = get_id_from_request_path(
+        request, "survey_mission_id", identifiers.SurveyMissionId
+    )
+    settings: config.SeisLabDataSettings = request.state.settings
+    async with settings.get_db_session_maker()() as session:
+        try:
+            survey_mission = await survey_mission_ops.get_survey_mission(
+                survey_mission_id, user, session
+            )
+        except errors.UserNotAllowedError:
+            # a private survey mission must be indistinguishable from a nonexistent one
+            survey_mission = None
+    if survey_mission is None or survey_mission.thumbnail is None:
+        raise HTTPException(status_code=404, detail=_("Thumbnail not found."))
+    return Response(
+        content=survey_mission.thumbnail,
+        media_type="image/webp",
+        # a new thumbnail keeps the same URL, so caches may only hold it briefly
+        headers={"Cache-Control": "public, max-age=60"},
+    )
+
+
 @requires_auth
 async def stream_to_update_page(request: Request):
     try:
@@ -1590,6 +1615,12 @@ routes = [
         get_mission_records_list_component,
         methods=["GET"],
         name="get_mission_records_list_component",
+    ),
+    Route(
+        "/{survey_mission_id}/thumbnail",
+        get_survey_mission_thumbnail,
+        methods=["GET"],
+        name="get_thumbnail",
     ),
     Route(
         "/{survey_mission_id}/stream/{request_id}",

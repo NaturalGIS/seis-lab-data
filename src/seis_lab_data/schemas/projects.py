@@ -61,10 +61,13 @@ class ProjectReadEmbedded(pydantic.BaseModel):
 
 class ProjectReadListItem(ProjectReadEmbedded):
     description: DraftDescription
+    has_thumbnail: bool
 
     @classmethod
     def from_db_instance(cls, instance: models.Project) -> "ProjectReadListItem":
-        return cls(**instance.model_dump())
+        return cls(
+            **instance.model_dump(), has_thumbnail=instance.thumbnail is not None
+        )
 
 
 class ProjectReadDetail(ProjectReadListItem):
@@ -73,7 +76,9 @@ class ProjectReadDetail(ProjectReadListItem):
 
     @classmethod
     def from_db_instance(cls, instance: models.Project) -> "ProjectReadDetail":
-        return cls.model_validate(instance, from_attributes=True)
+        return cls(
+            **instance.model_dump(), has_thumbnail=instance.thumbnail is not None
+        )
 
 
 class AssetDiscoveryConfigurationReadListItem(pydantic.BaseModel): ...

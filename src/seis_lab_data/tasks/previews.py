@@ -5,7 +5,11 @@ import uuid
 import dramatiq
 
 from .. import config
-from ..db.queries import surveyrelatedrecords as record_queries
+from ..db.queries import (
+    projects as project_queries,
+    surveymissions as mission_queries,
+    surveyrelatedrecords as record_queries,
+)
 from ..operations import previews as preview_ops
 from ..schemas import (
     identifiers,
@@ -68,6 +72,65 @@ async def generate_record_previews(
             request_id=identifiers.RequestId(uuid.UUID(raw_request_id)),
             survey_related_record=record,
             directory_prefixes=await preview_ops.load_preview_directories(settings),
+            initiator=user_schemas.User(**json.loads(raw_initiator)),
+            session=session,
+            event_dispatcher=settings.get_event_dispatcher(),
+            settings=settings,
+        )
+
+
+# own queue, so a thumbnail never waits behind the previews of a whole discovery
+@dramatiq.actor(queue_name="thumbnails", max_retries=0, time_limit=60_000)
+@decorators.sld_settings
+async def generate_project_thumbnail(
+    raw_request_id: str,
+    raw_project_id: str,
+    raw_initiator: str,
+    *,
+    settings: config.SeisLabDataSettings,
+) -> None:
+    project_id = identifiers.ProjectId(uuid.UUID(raw_project_id))
+    async with settings.get_db_session_maker()() as session:
+        if (project := await project_queries.get_project(session, project_id)) is None:
+            logger.warning(
+                f"Project {project_id} no longer exists - not generating its "
+                f"thumbnail..."
+            )
+            return
+        await preview_ops.generate_project_thumbnail(
+            request_id=identifiers.RequestId(uuid.UUID(raw_request_id)),
+            project=project,
+            initiator=user_schemas.User(**json.loads(raw_initiator)),
+            session=session,
+            event_dispatcher=settings.get_event_dispatcher(),
+            settings=settings,
+        )
+
+
+@dramatiq.actor(queue_name="thumbnails", max_retries=0, time_limit=60_000)
+@decorators.sld_settings
+async def generate_survey_mission_thumbnail(
+    raw_request_id: str,
+    raw_survey_mission_id: str,
+    raw_initiator: str,
+    *,
+    settings: config.SeisLabDataSettings,
+) -> None:
+    survey_mission_id = identifiers.SurveyMissionId(uuid.UUID(raw_survey_mission_id))
+    async with settings.get_db_session_maker()() as session:
+        if (
+            survey_mission := await mission_queries.get_survey_mission(
+                session, survey_mission_id
+            )
+        ) is None:
+            logger.warning(
+                f"Survey mission {survey_mission_id} no longer exists - not "
+                f"generating its thumbnail..."
+            )
+            return
+        await preview_ops.generate_survey_mission_thumbnail(
+            request_id=identifiers.RequestId(uuid.UUID(raw_request_id)),
+            survey_mission=survey_mission,
             initiator=user_schemas.User(**json.loads(raw_initiator)),
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),

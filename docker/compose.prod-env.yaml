@@ -255,8 +255,10 @@ services:
       - "run-processing-worker"
       - "--queues"
       - "previews"
+      - "thumbnails"
     environment:
       <<: *common-env
+      SEIS_LAB_DATA__THUMBNAIL_BASE_TILE_LAYER_URL: http://martin-tile-server:3000/emodnet-bathymetry/{z}/{x}/{y}
     volumes:
       *common-volumes
     <<: *common-secrets

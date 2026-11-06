@@ -243,3 +243,16 @@ msgstr "Código EPSG desconhecido, ou não é um CRS projetado ou geográfico"
 #: webapp/templates/survey-related-records/list-item.html
 msgid "illustrative seg-y image"
 msgstr "imagem ilustrativa de seg-y"
+
+#: webapp/routes/projects.py
+#: webapp/routes/surveymissions.py
+msgid "Thumbnail not found."
+msgstr "Miniatura não encontrada."
+
+#: webapp/templates/projects/list-item.html
+msgid "project spatial extent"
+msgstr "extensão espacial do projeto"
+
+#: webapp/templates/survey-missions/list-item.html
+msgid "survey mission spatial extent"
+msgstr "extensão espacial da missão"

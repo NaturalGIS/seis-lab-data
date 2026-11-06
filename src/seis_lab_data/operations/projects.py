@@ -1,3 +1,5 @@
+import dataclasses
+import json
 import logging
 
 import pydantic
@@ -23,6 +25,7 @@ from ..schemas import (
     user as user_schemas,
     validation as validation_schemas,
 )
+from ..tasks import previews as preview_tasks
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +83,12 @@ async def create_project(
             succeeded=True,
         )
     )
+    if project.bbox_4326 is not None:
+        preview_tasks.generate_project_thumbnail.send(
+            raw_request_id=str(request_id),
+            raw_project_id=str(project.id),
+            raw_initiator=json.dumps(dataclasses.asdict(initiator)),
+        )
     return project
 
 
@@ -235,6 +244,7 @@ async def update_project(
             )
         if not project_permissions.can_update_project(initiator, project):
             raise errors.SeisLabDataError("User is not allowed to update project.")
+        previous_bbox_4326 = project.bbox_4326
         await project_commands.update_project(session, project, to_update)
         validated_project = await validate_project(
             request_id=request_id,
@@ -346,6 +356,16 @@ async def update_project(
             succeeded=True,
         )
     )
+    # only for a new bbox, as the task's UPDATED event flashes and redirects open pages
+    if validated_project.bbox_4326 != previous_bbox_4326:
+        if validated_project.bbox_4326 is None:
+            await project_commands.set_project_thumbnail(session, project_id, None)
+        else:
+            preview_tasks.generate_project_thumbnail.send(
+                raw_request_id=str(request_id),
+                raw_project_id=str(project_id),
+                raw_initiator=json.dumps(dataclasses.asdict(initiator)),
+            )
     return validated_project
 
 

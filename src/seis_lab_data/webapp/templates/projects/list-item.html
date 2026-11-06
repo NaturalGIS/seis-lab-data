@@ -5,7 +5,19 @@
     <div class="card h-100 overflow-hidden list-item-stripe list-item-stripe-project{% if item.status.value != "published" %} item-unpublished{% endif %}">
         <div class="d-flex h-100">
             <div class="list-item-thumb">
-                <div class="placeholder-rectangle bg-secondary"></div>
+                {% if item.has_thumbnail %}
+                    <img
+                            class="placeholder-rectangle bg-light object-fit-contain"
+                            src="{{ url_for('projects:get_thumbnail', project_id=item.id) }}"
+                            alt="{{ _('project spatial extent') }}"
+                            loading="lazy"
+                    >
+                {% else %}
+                    {# no spatial extent, or the thumbnail is still being generated #}
+                    <div class="placeholder-rectangle bg-light d-flex align-items-center justify-content-center">
+                        <span class="material-icons-outlined text-project" aria-hidden="true">{{ icons.projects }}</span>
+                    </div>
+                {% endif %}
             </div>
             <div class="card-body list-item-body flex-grow-1 d-flex flex-column py-2">
                 <div class="d-flex align-items-start gap-2">

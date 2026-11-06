@@ -35,8 +35,16 @@
     background-color: var(--bs-project-color) !important;
 }
 
+.text-project {
+    color: var(--bs-project-color) !important;
+}
+
 .bg-survey-mission {
     background-color: var(--bs-survey-mission-color) !important;
+}
+
+.text-survey-mission {
+    color: var(--bs-survey-mission-color) !important;
 }
 
 .bg-survey-related-record {

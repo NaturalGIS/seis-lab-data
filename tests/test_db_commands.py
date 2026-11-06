@@ -164,6 +164,36 @@ async def test_delete_project(db, db_session_maker):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+async def test_set_project_thumbnail_leaves_the_bbox_alone(db, db_session_maker):
+    project_id = identifiers.ProjectId(
+        uuid.UUID("7b0f6c2e-3d4a-4e5b-8c6d-9e0f1a2b3c4d")
+    )
+    async with db_session_maker() as session:
+        created = await project_commands.create_project(
+            session,
+            project_schemas.ProjectCreate(
+                id=project_id,
+                name="A fake project",
+                description="A description for fake project",
+                root_path="/fake-path/to/fake-project/",
+                bbox_4326="POLYGON((-10 38, -8 38, -8 40, -10 40, -10 38))",
+            ),
+        )
+        assert await project_commands.set_project_thumbnail(
+            session, project_id, b"fake webp payload"
+        )
+        # a project deleted in the meantime is reported as such
+        assert not await project_commands.set_project_thumbnail(
+            session, identifiers.ProjectId(uuid.uuid4()), b"fake webp payload"
+        )
+    async with db_session_maker() as session:
+        stored = await project_queries.get_project(session, project_id)
+        assert stored.thumbnail == b"fake webp payload"
+        assert stored.bbox_4326 == created.bbox_4326
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_create_survey_mission(db, db_session_maker, sample_projects):
     to_create = mission_schemas.SurveyMissionCreate(
         id=identifiers.SurveyMissionId(

@@ -88,6 +88,7 @@ class SurveyMissionReadListItem(pydantic.BaseModel):
     ]
     bbox_4326: PolygonOut | None
     num_survey_related_records: int
+    has_thumbnail: bool
 
     @classmethod
     def from_db_instance(
@@ -96,6 +97,7 @@ class SurveyMissionReadListItem(pydantic.BaseModel):
         return cls(
             **instance.model_dump(),
             project=ProjectReadEmbedded.from_db_instance(instance.project),
+            has_thumbnail=instance.thumbnail is not None,
         )
 
 
@@ -111,4 +113,5 @@ class SurveyMissionReadDetail(SurveyMissionReadListItem):
         return cls(
             **instance.model_dump(),
             project=ProjectReadEmbedded.from_db_instance(instance.project),
+            has_thumbnail=instance.thumbnail is not None,
         )

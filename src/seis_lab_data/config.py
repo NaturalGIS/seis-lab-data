@@ -117,6 +117,8 @@ class SeisLabDataSettings(BaseSettings):
     # deepest zoom level served by the base tile layer, beyond it maps overscale
     # last available tiles instead of showing a blank background,
     webmap_base_tile_layer_max_zoom: int = 6
+    # base tiles as the workers reach them, for thumbnails; any default would be a guess
+    thumbnail_base_tile_layer_url: str | None = None
     webmap_default_center_lon: float = 0.0
     webmap_default_center_lat: float = 0.0
     webmap_default_zoom_level: int = 3
