@@ -1079,7 +1079,7 @@ async def get_implicit_crs_suggestions(request: Request):
     raw_value = str(signal_value).strip()
     is_final = request.query_params.get("final") == "1"
     rendered_options = "".join(
-        f'<option value="{code}">{html.escape(name)}</option>'
+        f'<option value="{html.escape(f"{code} - {name}")}"></option>'
         for code, name in epsgcodes.find_epsg_code_suggestions(raw_value)
     )
     try:

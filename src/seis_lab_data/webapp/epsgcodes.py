@@ -1,4 +1,5 @@
 import functools
+import re
 
 from osgeo import osr
 from starlette_babel import gettext_lazy as _
@@ -46,15 +47,20 @@ def find_epsg_code_suggestions(search_value: str) -> list[tuple[str, str]]:
     return (code_matches + name_matches)[:_MAX_SUGGESTIONS]
 
 
+def extract_epsg_code(raw_value: str) -> int:
+    """Return the EPSG code at the start of a typed value, e.g. "3763 - name"."""
+    code_match = re.match(r"\s*\+?(\d+)", raw_value)
+    if code_match is None:
+        raise ValueError(_("Enter a numeric EPSG code"))
+    return int(code_match.group(1))
+
+
 def get_epsg_crs_name(raw_value: str) -> str:
     """Return the name of the CRS behind a typed EPSG code.
 
     Raises ValueError with a message for the user when the value is not a usable code.
     """
-    try:
-        epsg_code = int(raw_value)
-    except ValueError as err:
-        raise ValueError(_("Enter a numeric EPSG code")) from err
+    epsg_code = extract_epsg_code(raw_value)
     try:
         parse_epsg_code(epsg_code)
     except ValueError as err:
