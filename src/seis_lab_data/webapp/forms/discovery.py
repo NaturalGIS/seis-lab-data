@@ -5,6 +5,7 @@ from starlette.requests import Request
 from starlette_babel import gettext_lazy as _
 from starlette_wtf import StarletteForm
 from wtforms import (
+    BooleanField,
     HiddenField,
     SelectField,
     StringField,
@@ -52,6 +53,12 @@ class _AssetDiscoveryConfigurationForm(StarletteForm):
     )
     dataset_category_id = SelectField(_("Dataset category"))
     workflow_stage_id = SelectField(_("Workflow stage"))
+    generate_previews = BooleanField(
+        _("Generate previews"),
+        description=_(
+            "Whether previews are generated for the assets discovered by this configuration"
+        ),
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -120,6 +127,7 @@ class AssetDiscoveryConfigurationCreateForm(_AssetDiscoveryConfigurationForm):
                 name=self.name.data,
                 relative_path_regexp=self.relative_path_regexp.data,
                 media_type=self.media_type.data,
+                generate_previews=self.generate_previews.data,
                 dataset_category_id=self.dataset_category_id.data,
                 workflow_stage_id=self.workflow_stage_id.data,
             )
@@ -134,6 +142,7 @@ class AssetDiscoveryConfigurationUpdateForm(_AssetDiscoveryConfigurationForm):
                 name=self.name.data,
                 media_type=self.media_type.data,
                 relative_path_regexp=self.relative_path_regexp.data,
+                generate_previews=self.generate_previews.data,
                 dataset_category_id=self.dataset_category_id.data,
                 workflow_stage_id=self.workflow_stage_id.data,
             )

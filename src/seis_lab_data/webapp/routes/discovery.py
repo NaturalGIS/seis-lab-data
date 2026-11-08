@@ -428,6 +428,7 @@ class AssetDiscoveryConfigurationCollectionEndpoint(HTTPEndpoint):
             name=form_instance.name.data,
             relative_path_regexp=form_instance.relative_path_regexp.data,
             media_type=form_instance.media_type.data,
+            generate_previews=form_instance.generate_previews.data,
             dataset_category_id=form_instance.dataset_category_id.data,
             workflow_stage_id=form_instance.workflow_stage_id.data,
         )
@@ -505,6 +506,7 @@ class AssetDiscoveryConfigurationDetailEndpoint(HTTPEndpoint):
                 name=form_instance.name.data,
                 relative_path_regexp=form_instance.relative_path_regexp.data,
                 media_type=form_instance.media_type.data,
+                generate_previews=form_instance.generate_previews.data,
                 dataset_category_id=form_instance.dataset_category_id.data,
                 workflow_stage_id=form_instance.workflow_stage_id.data,
             ).model_dump_json(),
