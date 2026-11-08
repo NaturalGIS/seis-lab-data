@@ -180,6 +180,7 @@ services:
       - "run-processing-worker"
       - "--queues"
       - "default"
+      - "exports"
     environment:
       <<: *common-env
     volumes:

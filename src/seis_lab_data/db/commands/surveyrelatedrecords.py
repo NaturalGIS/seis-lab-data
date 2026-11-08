@@ -1,3 +1,4 @@
+import datetime as dt
 import logging
 import uuid
 
@@ -161,6 +162,25 @@ async def _apply_bulk_update_to_matched_records(
     to_update: record_schemas.SurveyRelatedRecordBulkUpdate,
     matched_ids: list[uuid.UUID],
 ) -> int:
+    # records in any other status are being worked on by a task, e.g. an export
+    matched_ids = (
+        (
+            await session.execute(
+                select(models.SurveyRelatedRecord.id)
+                .where(models.SurveyRelatedRecord.id.in_(matched_ids))
+                .where(
+                    models.SurveyRelatedRecord.status.in_(
+                        (
+                            SurveyRelatedRecordStatus.DRAFT,
+                            SurveyRelatedRecordStatus.PUBLISHED,
+                        )
+                    )
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
     if not matched_ids:
         return 0
 
@@ -453,7 +473,8 @@ async def bulk_publish_valid_survey_related_records(
     result = await session.execute(
         update(models.SurveyRelatedRecord)
         .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
-        .where(models.SurveyRelatedRecord.status != SurveyRelatedRecordStatus.PUBLISHED)
+        # records in any other status are being worked on by a task
+        .where(models.SurveyRelatedRecord.status == SurveyRelatedRecordStatus.DRAFT)
         .where(
             models.SurveyRelatedRecord.validation_result["is_valid"].astext.cast(
                 Boolean
@@ -478,8 +499,59 @@ async def bulk_unpublish_survey_related_records(
     result = await session.execute(
         update(models.SurveyRelatedRecord)
         .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
-        .where(models.SurveyRelatedRecord.status == SurveyRelatedRecordStatus.PUBLISHED)
+        # a record under export was published when its export started. Unpublishing
+        # it right away means the export's final status restore finds it no longer
+        # under export and leaves it alone
+        .where(
+            models.SurveyRelatedRecord.status.in_(
+                (
+                    SurveyRelatedRecordStatus.PUBLISHED,
+                    SurveyRelatedRecordStatus.UNDER_EXPORT,
+                )
+            )
+        )
         .values(status=SurveyRelatedRecordStatus.DRAFT)
     )
     await session.commit()
     return result.rowcount
+
+
+async def set_survey_related_record_geonode_export(
+    session: AsyncSession,
+    survey_related_record_id: identifiers.SurveyRelatedRecordId,
+    geonode_resource_url: str,
+    exported_at: dt.datetime,
+) -> None:
+    await session.execute(
+        update(models.SurveyRelatedRecord)
+        .where(models.SurveyRelatedRecord.id == survey_related_record_id)
+        .values(
+            geonode_resource_url=geonode_resource_url,
+            geonode_exported_at=exported_at,
+        )
+    )
+    await session.commit()
+
+
+async def recover_stale_geonode_exports(
+    session: AsyncSession,
+    stale_after: dt.timedelta,
+) -> list[identifiers.SurveyRelatedRecordId]:
+    """Publish again the records whose export was abandoned by a dead worker.
+
+    A record's `updated_at` is set when its status changes to under export and
+    nothing else may write to it while it is under export. Hence, one which has
+    been under export for longer than any export may last was abandoned.
+    Returns the ids of the recovered records.
+    """
+    result = await session.execute(
+        update(models.SurveyRelatedRecord)
+        .where(
+            models.SurveyRelatedRecord.status == SurveyRelatedRecordStatus.UNDER_EXPORT
+        )
+        .where(models.SurveyRelatedRecord.updated_at < func.now() - stale_after)
+        .values(status=SurveyRelatedRecordStatus.PUBLISHED)
+        .returning(models.SurveyRelatedRecord.id)
+    )
+    await session.commit()
+    return [identifiers.SurveyRelatedRecordId(id_) for id_ in result.scalars().all()]

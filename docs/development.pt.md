@@ -251,6 +251,35 @@ recolhe os ficheiros estáticos.
 - Os _logs_ de pedidos do uwsgi são escritos em `/var/log/geonode.log` dentro do contentor
   `geonode-django`
 
+A exportação de registos relacionados com campanhas para o GeoNode é configurada com as seguintes
+definições (a exportação fica desativada quando o URL não está definido):
+
+- `SEIS_LAB_DATA__TARGET_GEONODE__URL` - URL através do qual o _backend_ acede à API do GeoNode
+- `SEIS_LAB_DATA__TARGET_GEONODE__PUBLIC_URL` - URL através do qual os utilizadores acedem ao
+  GeoNode, apenas necessário se for diferente do anterior, como acontece na stack de
+  desenvolvimento
+- `SEIS_LAB_DATA__TARGET_GEONODE__TOKEN` - _token_ da API do GeoNode, enviado como _bearer token_
+- `SEIS_LAB_DATA__PUBLIC_URL` - tem de estar definido também para os _workers_, uma vez que os
+  recursos exportados para o GeoNode contêm uma ligação para a página do respetivo registo
+
+As exportações correm na fila `exports`, consumida pelo serviço `previews-worker`. A stack de
+desenvolvimento já define os URLs; o _token_ é lido da variável de ambiente `GEONODE_API_TOKEN` ao
+arrancar o compose. É possível obter um _token_ da API para o utilizador `admin` do GeoNode com:
+
+```shell
+docker compose -f docker/compose.dev.yaml exec geonode-django python manage.py shell -c "
+from django.contrib.auth import get_user_model
+from geonode.base.auth import get_or_create_token
+print(get_or_create_token(get_user_model().objects.get(username='admin')))
+"
+```
+
+Após o que os serviços que o utilizam têm de ser recriados:
+
+```shell
+GEONODE_API_TOKEN=<token> docker compose -f docker/compose.dev.yaml --profile geonode up -d
+```
+
 
 # Execução de testes
 

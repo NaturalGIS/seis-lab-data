@@ -73,6 +73,24 @@ SURVEY_RELATED_RECORD_DELETED_TOPIC: typing.Final[str] = (
 # downloaded as a zip bundle holding the file and all of its sidecars
 BUNDLED_DATA_ASSET_EXTENSIONS: typing.Final[frozenset[str]] = frozenset({".shp"})
 
+# data asset formats which GeoNode is able to import
+GEONODE_EXPORTABLE_DATA_ASSET_EXTENSIONS: typing.Final[frozenset[str]] = frozenset(
+    {".tif", ".tiff", ".gpkg", ".geojson", ".shp"}
+)
+# names of the GeoNode upload form fields which carry each shapefile sidecar
+GEONODE_SHAPEFILE_SIDECAR_FIELDS: typing.Final[dict[str, str]] = {
+    ".dbf": "dbf_file",
+    ".shx": "shx_file",
+    ".prj": "prj_file",
+}
+GEONODE_EXPORT_TIME_LIMIT_SECONDS: typing.Final[int] = 60 * 60
+# a record that is under export for longer than this was abandoned by a worker
+# which died mid-export, as the export task is killed at its time limit
+GEONODE_EXPORT_STALE_AFTER_SECONDS: typing.Final[int] = (
+    GEONODE_EXPORT_TIME_LIMIT_SECONDS + 15 * 60
+)
+GEONODE_EXECUTION_POLL_INTERVAL_SECONDS: typing.Final[float] = 3.0
+
 
 class PageType(str, enum.Enum):
     HOME = "home"
@@ -120,6 +138,12 @@ class DiscoveryStage(str, enum.Enum):
 
 class ValidationStage(str, enum.Enum):
     STARTED = "started"
+    ENDED = "ended"
+
+
+class ExportStage(str, enum.Enum):
+    STARTED = "started"
+    PROGRESS = "progress"
     ENDED = "ended"
 
 

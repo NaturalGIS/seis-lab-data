@@ -185,6 +185,8 @@ class SurveyRelatedRecord(SQLModel, table=True):
     )
     temporal_extent_begin: dt.date | None = Field(sa_column=Column(Date()))
     temporal_extent_end: dt.date | None = Field(sa_column=Column(Date()))
+    geonode_resource_url: str | None = None
+    geonode_exported_at: dt.datetime | None = None
 
     related_to_links: list["SurveyRelatedRecordSelfLink"] = Relationship(
         back_populates="subject",

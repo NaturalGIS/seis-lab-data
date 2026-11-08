@@ -43,10 +43,12 @@ The local `appuser` table is a write-through cache of Authentik user data (`id`,
 src/seis_lab_data/
   auth.py              # OAuth config, get_user(), requires_auth decorator
   authentik.py         # Authentik admin API helper (fetch user by UUID)
+  geonode.py           # GeoNode API helpers (upload, execution polling)
   config.py            # Settings (pydantic-settings)
   constants.py         # Enums, string constants (ADMIN_ROLE, status enums, etc.)
   errors.py            # SeisLabDataError
-  events.py            # Event emitter protocol and helpers
+  dispatch.py          # Event dispatcher protocol and its Redis implementation
+  subscribers.py       # Redis pub/sub subscription and message routing to handlers
   permissions/         # Pure sync permission functions (no DB calls)
   operations/          # Business logic: fetch → check permission → command → emit event
   db/
@@ -54,11 +56,13 @@ src/seis_lab_data/
     commands/          # Write operations (create, update, delete, upsert)
     queries/           # Read operations (get, list_published, list_accessible, list_*)
     engine.py          # Async engine and session maker
-  schemas/             # Pydantic schemas (request/response shapes, IDs)
+  schemas/             # Pydantic schemas (request/response shapes, IDs, events, messages)
+  tasks/               # Dramatiq actors, broker and middleware
   migrations/          # Alembic migrations
   webapp/
     app.py             # Starlette app factory and lifespan
     routes/            # Route handlers (auth, projects, surveymissions, surveyrelatedrecords)
+    streamhandlers/    # Handlers turning pub/sub messages into Datastar SSE events
     forms/             # WTForms form definitions
 ```
 
@@ -102,68 +106,61 @@ Browser (Datastar) → Route → Dramatiq actor (enqueue) → Redis broker
                   ↑                                           ↓
              SSE stream                            Worker process (actor runs)
                   ↑                                           ↓
-           Route (pubsub)  ←─── Redis pub/sub ───  Progress published to topic
+           Route (pubsub)  ←─── Redis pub/sub ───  Events published to topic
 ```
 
-### 1. Route enqueues task and opens SSE stream
+### 1. Page opens an SSE stream, route enqueues the task
 
-The route immediately enqueues the actor via `.send(...)`, then subscribes to a per-request Redis progress topic and streams results back to the browser as SSE using `DatastarResponse`. The request ID is generated in the route and passed to the actor so both sides use the same topic name (`progress:{request_id}`).
+Pages that trigger tasks open a long-lived SSE stream when they load (e.g. `survey_related_records:detail_stream`), carrying a request ID generated when the page was rendered. The mutating route receives that same request ID as a query param, enqueues the actor via `.send(...)` and returns immediately.
 
 ```python
-tasks.create_project.send(
+record_tasks.delete_survey_related_record.send(
     raw_request_id=str(request_id),
-    raw_to_create=to_create.model_dump_json(),
+    raw_survey_related_record_id=str(survey_related_record_id),
     raw_initiator=json.dumps(dataclasses.asdict(user)),
 )
-# then stream SSE from produce_event_stream_for_topic(...)
-return DatastarResponse(event_streamer(), status_code=202)
+return Response(status_code=200)
 ```
 
 ### 2. Dramatiq actor executes in a worker process
 
-Actors are defined in `processing/tasks.py` with `@dramatiq.actor`. Dependencies (DB session, Redis client, settings) are injected via custom middleware and decorators (`@decorators.sld_settings`, `@decorators.redis_client`, `@decorators.session_maker`). The actor calls the same operations layer as the route would, publishing `ProcessingMessage` objects to the Redis topic as it progresses.
+Actors are defined in `tasks/<entity>.py` with `@dramatiq.actor`. Dependencies are injected via custom middleware and decorators (`@decorators.sld_settings`, `@decorators.redis_client`). The actor calls the operations layer, passing it an event dispatcher (`settings.get_event_dispatcher()`). Operations report what happened by calling the dispatcher with typed events from `schemas/events.py` (`ResourceModificationEvent`, `ResourceStatusChangedEvent`, `ValidationEvent`, `DiscoveryEvent`, `ExportEvent`, ...).
 
 ```python
-await redis_client.publish(
-    topic_name,
-    schemas.ProcessingMessage(
+await event_dispatcher(
+    event_schemas.ResourceModificationEvent(
+        initiator=initiator.id,
+        resource_type=constants.ResourceType.RECORD,
+        resource_id=str(survey_related_record_id),
         request_id=request_id,
-        status=ProcessingStatus.RUNNING,
-        message="Creating project...",
-    ).model_dump_json(),
+        modification=constants.ResourceModification.DELETED,
+        succeeded=True,
+    )
 )
 ```
 
-### 3. Route relays progress to the browser via SSE
+`dispatch.RedisEventDispatcher` turns each event into its message (`schemas/messages.py`, discriminated by `type`) and publishes it on the topic of its resource type (`ResourceType.get_topic_name()`, e.g. `survey_related_records`).
 
-`produce_event_stream_for_topic()` in `webapp/routes/common.py` loops over Redis pubsub messages and yields Datastar SSE events:
-- `RUNNING` messages are appended to a feedback `<output>` element in the page.
-- `SUCCESS` or `FAILED` triggers the appropriate handler, which may redirect, patch other DOM elements, or chain another task.
+### 3. Route relays messages to the browser via SSE
 
-There is also `produce_event_stream_for_item_updates()` for long-lived subscriptions to entity-specific topics (e.g. `project-updated:{project_id}`), used by detail pages to receive live updates while the user is viewing an item.
+The stream routes subscribe with `subscribers.open_topic_subscription()` and `subscribers.iter_topic_messages()`, which parses each message and hands it to the handler registered for its `type`. Handlers live in `webapp/streamhandlers/` and yield Datastar SSE events: they filter on `resource_id`/`request_id`, then show notifications, patch signals or redirect (often to the same page, to re-render it).
 
 ### 4. Datastar updates the DOM
 
-The frontend uses [Datastar](https://data-star.dev/) directives (`data-on:click`, `data-attr`, `data-text`, etc.) on HTML elements. Form submissions go via `@post(...)` which keeps the SSE connection open. The server pushes `patch_elements` SSE events that Datastar applies directly to the DOM, either appending progress messages or replacing whole sections of the page.
+The frontend uses [Datastar](https://data-star.dev/) directives (`data-on:click`, `data-attr`, `data-text`, etc.) on HTML elements. Mutating requests go via `@post(...)`/`@delete(...)` with the CSRF token in a header. The server pushes SSE events that Datastar applies to the page.
 
-### Redis topic naming
+### Long-running tasks
 
-| Template | Used for |
-|---|---|
-| `progress:{request_id}` | Per-operation progress during task execution |
-| `project-updated:{project_id}` | Project field changes |
-| `project-status-changed:{project_id}` | Project status transitions |
-| `project-validity-changed:{project_id}` | Project validation result changes |
-| `project-deleted:{project_id}` | Project deletion |
-| (same pattern for survey missions and records) | |
+Tasks which may take long run in their own queues (`previews`, `thumbnails`, `exports`), consumed by the `previews-worker` service, so they never delay the interactive tasks of the `default` queue. While a task works on a record it holds it in a busy status (`UNDER_DERIVATION`, `UNDER_EXPORT`, ...), flipped with `compare_and_set_survey_related_record_status`; records in any status other than `DRAFT`/`PUBLISHED` cannot be updated or deleted.
 
 ### Broker setup
 
-`processing/broker.py` configures a `RedisBroker` with four middleware layers:
+`tasks/broker.py` configures a `RedisBroker` with these middleware layers:
 - `AsyncIO` — runs actors in an async event loop
 - `SeisLabDataSettingsMiddleware` — provides app settings
 - `AsyncRedisPubSubMiddleware` — manages the Redis client for pub/sub
 - `AsyncSqlAlchemyDbMiddleware` — manages the async DB engine and session maker
+- `StaleGeoNodeExportRecoveryMiddleware` — recovers records left under export by a dead worker, at worker boot
 
 ## Key conventions
 

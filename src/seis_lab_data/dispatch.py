@@ -88,5 +88,17 @@ class RedisEventDispatcher:
                         details=event.details,
                     ).model_dump_json(),
                 )
+            case events.ExportEvent():
+                await self._redis.publish(
+                    channel=event.resource_type.get_topic_name(),
+                    message=messages.ExportMessage(
+                        resource_type=event.resource_type,
+                        resource_id=event.resource_id,
+                        request_id=event.request_id,
+                        stage=event.stage,
+                        succeeded=event.succeeded,
+                        details=event.details,
+                    ).model_dump_json(),
+                )
             case _:
                 logger.debug(f"no Redis dispatch configured for {event=}")

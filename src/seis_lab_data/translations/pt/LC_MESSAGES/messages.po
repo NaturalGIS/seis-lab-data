@@ -268,3 +268,38 @@ msgstr "Indica se são geradas pré-visualizações para os recursos descobertos
 #: webapp/forms/surveyrelatedrecords.py
 msgid "Path for the asset in the archive file system, relative to its parent survey mission root path"
 msgstr "Caminho do recurso no sistema de ficheiros do arquivo, relativo à raiz da missão do registo"
+
+#: webapp/templates/survey-related-records/detail-component.html
+msgid "GeoNode resource"
+msgstr "recurso GeoNode"
+
+#: webapp/templates/survey-related-records/detail-component.html
+#, python-format
+msgid "exported %(date)s"
+msgstr "exportado em %(date)s"
+
+#: webapp/templates/survey-related-records/detail-component.html
+msgid "export to GeoNode..."
+msgstr "exportar para o GeoNode..."
+
+#: webapp/templates/survey-related-records/detail-component.html
+msgid "export survey-related record to GeoNode"
+msgstr "exportar registo para o GeoNode"
+
+#: webapp/templates/survey-related-records/detail-component.html
+#, python-format
+msgid "Are you sure you want to export this survey-related record to GeoNode at %(geonode_url)s?"
+msgstr "Tem a certeza de que pretende exportar este registo para o GeoNode em %(geonode_url)s?"
+
+#: webapp/templates/survey-related-records/detail-component.html
+#, python-format
+msgid "This record has already been exported to GeoNode on %(date)s and should be available at: %(resource_url)s"
+msgstr "Este registo já foi exportado para o GeoNode em %(date)s e deverá estar disponível em: %(resource_url)s"
+
+#: webapp/templates/survey-related-records/detail-component.html
+msgid "If you choose to export the record again, it will replace the one already present on the GeoNode instance."
+msgstr "Se optar por exportar o registo novamente, este irá substituir o que já existe na instância GeoNode."
+
+#: webapp/templates/survey-related-records/detail-component.html
+msgid "Export record"
+msgstr "Exportar registo"

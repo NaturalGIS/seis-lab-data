@@ -833,3 +833,50 @@ async def handle_discovery_detail_page(
             webui_schemas.Notification(message=notification_msg)
         ):
             yield event
+
+
+async def handle_export_detail_page(
+    message: message_schemas.ExportMessage,
+    context: subscribers.HandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    """Relay the progress of an item's export, reloading the page as its status changes."""
+    if message.resource_id != context.resource_id:
+        return
+    match message.stage:
+        case constants.ExportStage.PROGRESS:
+            async for event in flash_ui_message_same_page(
+                webui_schemas.Notification(message=message.details)
+            ):
+                yield event
+            return
+        case constants.ExportStage.STARTED:
+            notification = webui_schemas.Notification(
+                message=f"{message.resource_type.capitalize()} export started"
+            )
+        case _ if message.succeeded:
+            notification = webui_schemas.Notification(
+                message=(
+                    f"{message.resource_type.capitalize()} was exported to "
+                    f"GeoNode: {message.details}"
+                ),
+                category="success",
+            )
+        case _:
+            notification = webui_schemas.Notification(
+                message=(
+                    f"{message.resource_type.capitalize()} export failed: "
+                    f"{message.details}"
+                ),
+                category="error",
+            )
+    async for event in flash_ui_message_after_redirect(notification):
+        yield event
+    yield ServerSentEventGenerator.redirect(
+        str(
+            context.url_resolver(
+                "survey_related_records:detail",
+                survey_related_record_id=message.resource_id,
+            )
+        )
+    )

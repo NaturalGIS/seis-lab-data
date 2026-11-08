@@ -68,12 +68,23 @@ class ValidationMessage(pydantic.BaseModel):
     details: str | None = None
 
 
+class ExportMessage(pydantic.BaseModel):
+    type: Literal["export"] = "export"
+    resource_type: constants.ResourceType
+    resource_id: str
+    request_id: identifiers.RequestId
+    stage: constants.ExportStage
+    succeeded: bool
+    details: str | None = None
+
+
 SldPubSubMessage: TypeAlias = Annotated[
     ResourceModificationMessage
     | BulkResourceModificationMessage
     | DiscoveryMessage
     | ValidationMessage
-    | ResourceStatusChangedMessage,
+    | ResourceStatusChangedMessage
+    | ExportMessage,
     pydantic.Field(discriminator="type"),
 ]
 

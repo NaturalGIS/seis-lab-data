@@ -52,3 +52,10 @@ def can_change_survey_related_record_status(
 def can_bulk_update_survey_related_records(user: User) -> bool:
     """Coarse-grained gate for attempting a bulk update."""
     return can_manage_item(user)
+
+
+def can_export_survey_related_record(
+    user: User | None,
+    record: models.SurveyRelatedRecord,
+) -> bool:
+    return can_manage_item(user)

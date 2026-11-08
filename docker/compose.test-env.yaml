@@ -208,6 +208,7 @@ services:
       - "run-processing-worker"
       - "--queues"
       - "default"
+      - "exports"
     volumes:
       *common-volumes
     environment:

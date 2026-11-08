@@ -280,6 +280,11 @@ It is accessible at http://pgadmin.localhost:8888 and login credentials are:
 
 ##### GeoNode (optional)
 
+!!! note
+
+    The GeoNode service is only meant for use during development, as the production environment will have
+    an externally managed GeoNode as its target.
+
 A [GeoNode](https://geonode.org/) v5.1.1 instance, used as the target for exporting survey-related
 records. It is made up of several services (`geonode-db`, `geonode-django`, `geonode-celery`,
 `geonode-nginx`, `geonode-geoserver` and `geonode-geoserver-data`). Its configuration lives in
@@ -301,6 +306,34 @@ static files.
 - Other services in the stack (e.g. `processing-worker`) can reach the GeoNode API directly at
   `http://django:8000`
 - uwsgi request logs are written to `/var/log/geonode.log` inside the `geonode-django` container
+
+Exporting survey-related records to GeoNode is configured with these settings (exporting is
+disabled when the URL is not set):
+
+- `SEIS_LAB_DATA__TARGET_GEONODE__URL` - URL where the backend reaches the GeoNode API
+- `SEIS_LAB_DATA__TARGET_GEONODE__PUBLIC_URL` - URL where users reach GeoNode, only needed if it
+  differs from the previous one, as happens in the dev stack
+- `SEIS_LAB_DATA__TARGET_GEONODE__TOKEN` - GeoNode API token, sent as a bearer token
+- `SEIS_LAB_DATA__PUBLIC_URL` - must also be set for the workers, as exported GeoNode resources
+  link back to their record's page
+
+Exports run in the `exports` queue, consumed by the `previews-worker` service. The dev stack already
+sets the URLs; the token is read from the `GEONODE_API_TOKEN` environment variable when starting
+compose. An API token for the GeoNode `admin` user can be obtained with:
+
+```shell
+docker compose -f docker/compose.dev.yaml exec geonode-django python manage.py shell -c "
+from django.contrib.auth import get_user_model
+from geonode.base.auth import get_or_create_token
+print(get_or_create_token(get_user_model().objects.get(username='admin')))
+"
+```
+
+After which the services that use it need to be recreated:
+
+```shell
+GEONODE_API_TOKEN=<token> docker compose -f docker/compose.dev.yaml --profile geonode up -d
+```
 
 
 # Running tests

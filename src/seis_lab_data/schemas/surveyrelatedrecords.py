@@ -320,6 +320,8 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
     )
     # approximated by the record's bbox, as previews do not store their own extent
     preview_bounds: PolygonOut | None
+    geonode_resource_url: str | None = None
+    geonode_exported_at: dt.datetime | None = None
 
     @classmethod
     def from_db_instance(

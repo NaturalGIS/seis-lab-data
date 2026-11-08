@@ -26,6 +26,10 @@ x-common-env: &common-env
   SEIS_LAB_DATA__MESSAGE_BROKER_DSN: redis://message-broker:6379
   SEIS_LAB_DATA__TEST_DATABASE_DSN: postgresql+psycopg://sld:sldpass@test-db:5432/seis_lab_data_test
   SEIS_LAB_DATA__READONLY_ARCHIVE_ROOT_DIRECTORY: /data/production_archive
+  SEIS_LAB_DATA__PUBLIC_URL: http://localhost:8888
+  SEIS_LAB_DATA__TARGET_GEONODE__URL: http://django:8000
+  SEIS_LAB_DATA__TARGET_GEONODE__PUBLIC_URL: http://geonode.localhost:8888
+  SEIS_LAB_DATA__TARGET_GEONODE__TOKEN: ${GEONODE_API_TOKEN:-}
 
 x-common-auth-env: &common-auth-env
   AUTHENTIK_LOG_LEVEL: debug
@@ -44,7 +48,6 @@ x-common-auth-env: &common-auth-env
 
 x-geonode-env-file: &geonode-env-file ./geonode/geonode-dev.env
 
-# common configuration for the GeoNode django and celery services
 x-geonode-common: &geonode-common
   image: geonode/geonode:5.1.1
   profiles: ["geonode"]
@@ -234,6 +237,7 @@ services:
       - "run-processing-worker"
       - "--queues"
       - "default"
+      - "exports"
     environment:
       <<: *common-env
     volumes:
