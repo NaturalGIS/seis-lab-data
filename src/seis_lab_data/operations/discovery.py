@@ -349,7 +349,7 @@ async def _discover_mission_records(
             # each found_path is to become a record with a single asset
             relative_file_path = str(found_path.relative_to(mission_root_path))
             if (
-                await asset_queries.get_record_asset_by_file_path(
+                tracked_asset := await asset_queries.get_record_asset_by_file_path(
                     session,
                     relative_file_path,
                     identifiers.SurveyMissionId(mission.id),
@@ -403,6 +403,9 @@ async def _discover_mission_records(
                         workflow_stage_id=identifiers.WorkflowStageId(
                             asset_discovery_conf.workflow_stage_id
                         ),
+                        asset_discovery_configuration_id=identifiers.AssetDiscoveryConfId(
+                            asset_discovery_conf.id
+                        ),
                         bbox_4326=bbox_wkt,
                         temporal_extent_begin=(
                             metadata.temporal_extent_begin if metadata else None
@@ -427,6 +430,15 @@ async def _discover_mission_records(
                 logger.debug(
                     f"file {found_path!r} is already tracked in the DB - ignoring..."
                 )
+                # records discovered before the configuration was stored on them
+                # get it now, which makes them eligible for previews
+                tracked_record = tracked_asset.survey_related_record
+                if tracked_record.asset_discovery_configuration_id is None:
+                    tracked_record.asset_discovery_configuration_id = (
+                        asset_discovery_conf.id
+                    )
+                    session.add(tracked_record)
+                    await session.commit()
 
 
 def _bbox_4326_tuple_to_wkt(

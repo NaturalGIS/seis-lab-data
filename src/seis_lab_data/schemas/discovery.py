@@ -26,6 +26,7 @@ class AssetDiscoveryConfigurationCreate(pydantic.BaseModel):
     ]
     relative_path_regexp: str
     media_type: str
+    generate_previews: bool
     workflow_stage_id: identifiers.WorkflowStageId
     dataset_category_id: identifiers.DatasetCategoryId
 
@@ -34,6 +35,7 @@ class AssetDiscoveryConfigurationUpdate(pydantic.BaseModel):
     name: str | None = None
     relative_path_regexp: str | None = None
     media_type: str | None = None
+    generate_previews: bool | None = None
     workflow_stage_id: identifiers.WorkflowStageId | None = None
     dataset_category_id: identifiers.DatasetCategoryId | None = None
 
@@ -45,6 +47,7 @@ class AssetDiscoveryConfigurationReadListItem(pydantic.BaseModel):
     name: str
     relative_path_regexp: str
     media_type: str
+    generate_previews: bool
     workflow_stage: stage_schemas.WorkflowStageReadListItem
     dataset_category: category_schemas.DatasetCategoryReadListItem
 

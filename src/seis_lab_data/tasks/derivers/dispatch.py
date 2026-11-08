@@ -1,8 +1,5 @@
 import logging
-from pathlib import (
-    Path,
-    PurePath,
-)
+from pathlib import Path
 
 from .gdal_raster import derive_raster_preview
 from .gdal_vector import derive_vector_preview
@@ -29,18 +26,6 @@ def can_derive(path: Path | str) -> bool:
         or suffix in _VECTOR_EXTENSIONS
         or suffix in _KMALL_EXTENSIONS
     ) and p.is_file()
-
-
-def is_previewable(
-    path: Path | str, relative_path: str, directory_prefixes: frozenset[str]
-) -> bool:
-    """Whether an archive file is to get a preview.
-
-    Eligibility is a family/stage prefix match on the first two segments of the
-    asset's mission-relative path
-    """
-    family_and_stage = "/".join(PurePath(relative_path).parts[:2])
-    return family_and_stage in directory_prefixes and can_derive(path)
 
 
 def dispatch_deriver(

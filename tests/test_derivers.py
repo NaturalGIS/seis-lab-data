@@ -37,9 +37,6 @@ gdal.UseExceptions()
 # central Portugal, so the warped bounds fall in a checkable lon/lat window.
 _PT_TM06 = 3763
 _NODATA = -9999.0
-_PREVIEW_DIRECTORIES = frozenset(
-    {"s04-gis-master-survey/s01-final", "s06-mbes/s05-processed-data"}
-)
 # A diagonal in metres from the EPSG:3763 false origin; the asserted lon/lat
 # window only fits ~2.8 km east and ~3.5 km north of it
 _LINE = [(200.0, 200.0), (2000.0, 1000.0)]
@@ -263,53 +260,30 @@ def test_percentile_cuts_ignore_nodata():
     ds = None  # noqa: F841
 
 
-def test_is_previewable_accepts_a_listed_family_and_stage(tmp_path):
-    path = tmp_path / "grid.tif"
-    path.touch()
-    assert dispatch.is_previewable(
-        path, "s04-gis-master-survey/s01-final/sub/grid.tif", _PREVIEW_DIRECTORIES
-    )
-
-
-def test_is_previewable_rejects_an_unlisted_family_and_stage(tmp_path):
-    path = tmp_path / "grid.tif"
-    path.touch()
-    assert not dispatch.is_previewable(
-        path, "s06-mbes/s02-raw-data/sub/grid.tif", _PREVIEW_DIRECTORIES
-    )
-
-
-def test_is_previewable_rejects_an_extension_without_a_deriver(tmp_path):
-    path = tmp_path / "line.sgy"
-    path.touch()
-    assert not dispatch.is_previewable(
-        path, "s06-mbes/s05-processed-data/line.sgy", _PREVIEW_DIRECTORIES
-    )
-
-
-@pytest.mark.parametrize("extension", [".xyz", ".asc", ".flt"])
-def test_is_previewable_accepts_a_grid_extension(tmp_path, extension):
-    path = tmp_path / f"grid{extension}"
-    path.touch()
-    assert dispatch.is_previewable(
-        path, f"s06-mbes/s05-processed-data/sub/grid{extension}", _PREVIEW_DIRECTORIES
-    )
-
-
-def test_is_previewable_accepts_a_vector_extension(tmp_path):
-    path = tmp_path / "track.shp"
-    path.touch()
-    assert dispatch.is_previewable(
-        path, "s06-mbes/s05-processed-data/sub/track.shp", _PREVIEW_DIRECTORIES
-    )
-
-
-def test_is_previewable_accepts_a_kmall_extension(tmp_path):
-    path = tmp_path / "track.kmall"
-    path.touch()
-    assert dispatch.is_previewable(
-        path, "s06-mbes/s05-processed-data/sub/track.kmall", _PREVIEW_DIRECTORIES
-    )
+@pytest.mark.parametrize(
+    "name, is_directory, expected",
+    [
+        ("grid.tif", False, True),
+        ("grid.tiff", False, True),
+        ("grid.xyz", False, True),
+        ("grid.asc", False, True),
+        ("grid.flt", False, True),
+        ("track.shp", False, True),
+        ("track.gpkg", False, True),
+        ("track.geojson", False, True),
+        ("track.kmall", False, True),
+        ("line.sgy", False, False),
+        # the archive holds directories such as "F3_2022.tif"
+        ("grid.tif", True, False),
+    ],
+)
+def test_can_derive(tmp_path, name, is_directory, expected):
+    path = tmp_path / name
+    if is_directory:
+        path.mkdir()
+    else:
+        path.touch()
+    assert dispatch.can_derive(path) is expected
 
 
 def test_derive_raster_preview_expands_a_palette(tmp_path):

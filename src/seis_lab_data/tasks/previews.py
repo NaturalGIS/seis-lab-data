@@ -71,7 +71,6 @@ async def generate_record_previews(
         await preview_ops.generate_record_previews(
             request_id=identifiers.RequestId(uuid.UUID(raw_request_id)),
             survey_related_record=record,
-            directory_prefixes=await preview_ops.load_preview_directories(settings),
             initiator=user_schemas.User(**json.loads(raw_initiator)),
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
