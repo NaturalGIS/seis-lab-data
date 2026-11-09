@@ -267,3 +267,7 @@ msgstr ""
 #: webapp/forms/discovery.py
 msgid "Whether previews are generated for the assets discovered by this configuration"
 msgstr ""
+
+#: webapp/forms/surveyrelatedrecords.py
+msgid "Path for the asset in the archive file system, relative to its parent survey mission root path"
+msgstr ""

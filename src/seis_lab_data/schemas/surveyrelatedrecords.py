@@ -12,6 +12,7 @@ from ..constants import (
     SurveyRelatedRecordStatus,
 )
 from .common import (
+    ArchivePath,
     LinkSchema,
     DraftDescription,
     DraftName,
@@ -60,7 +61,7 @@ class DataRecordAssetCreate(pydantic.BaseModel):
 
     id: RecordAssetId
     name: DraftName
-    relative_path: str
+    relative_path: ArchivePath
     description: DraftDescription = ""
     media_type: str | None = None
     links: list[LinkSchema] = []
@@ -78,7 +79,7 @@ class DataRecordAssetUpdate(pydantic.BaseModel):
     name: DraftName | None = None
     description: DraftDescription | None = None
     media_type: str | None = None
-    relative_path: str | None = None
+    relative_path: ArchivePath | None = None
     links: list[LinkSchema] | None = None
 
     @pydantic.model_validator(mode="after")
@@ -242,6 +243,7 @@ class SurveyRelatedRecordUpdate(pydantic.BaseModel):
     description: DraftDescription | None = None
     dataset_category_id: DatasetCategoryId | None = None
     workflow_stage_id: WorkflowStageId | None = None
+    asset_discovery_configuration_id: AssetDiscoveryConfId | None = None
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
     temporal_extent_end: dt.date | None = None
