@@ -339,6 +339,16 @@ async def _discover_mission_records(
         )
     )
     logger.debug(f"{mission_root_path=}")
+    # under a geographic CRS a re-read can never place metre coordinates
+    heal_enabled = _is_projected_crs(mission.implicit_crs)
+    if not heal_enabled:
+        logger.info(
+            "Records without a bbox are not read again: the mission's EPSG:%s is not "
+            "a projected CRS",
+            mission.implicit_crs,
+        )
+    # configurations overlap, so a file is found more than once, but read once
+    attempted_record_ids: set[identifiers.SurveyRelatedRecordId] = set()
     for asset_discovery_conf in asset_discovery_configs:
         logger.debug(f"Searching for asset {asset_discovery_conf=}...")
         full_path_regexp = "/".join(
@@ -361,11 +371,13 @@ async def _discover_mission_records(
                 metadata, bbox_wkt = await _extract_file_metadata(
                     str(found_path), mission.implicit_crs
                 )
+                record_id = identifiers.SurveyRelatedRecordId(uuid.uuid4())
+                attempted_record_ids.add(record_id)
                 # create a new record and a new asset
                 await record_ops.create_survey_related_record(
                     request_id=request_id,
                     to_create=record_schemas.SurveyRelatedRecordCreate(
-                        id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
+                        id=record_id,
                         survey_mission_id=identifiers.SurveyMissionId(mission.id),
                         name=found_path.name,
                         description=metadata.describe() if metadata is not None else "",
@@ -399,9 +411,7 @@ async def _discover_mission_records(
                     event_dispatcher=event_dispatcher,
                 )
             else:
-                logger.debug(
-                    f"file {found_path!r} is already tracked in the DB - ignoring..."
-                )
+                logger.debug(f"file {found_path!r} is already tracked in the DB")
                 # records discovered before the configuration was stored on them
                 # get it now, which makes them eligible for previews
                 tracked_record = tracked_asset.survey_related_record
@@ -411,6 +421,90 @@ async def _discover_mission_records(
                     )
                     session.add(tracked_record)
                     await session.commit()
+                record_id = identifiers.SurveyRelatedRecordId(
+                    tracked_asset.survey_related_record_id
+                )
+                # e.g. discovered while the mission's CRS was still the 4326 default
+                if (
+                    heal_enabled
+                    and tracked_record.bbox_4326 is None
+                    and record_id not in attempted_record_ids
+                ):
+                    attempted_record_ids.add(record_id)
+                    await _heal_record_without_bbox(
+                        request_id=request_id,
+                        record_id=record_id,
+                        tracked_record=tracked_record,
+                        file_path=str(found_path),
+                        implicit_crs=mission.implicit_crs,
+                        session=session,
+                        event_dispatcher=event_dispatcher,
+                        user=user,
+                    )
+
+
+async def _heal_record_without_bbox(
+    *,
+    request_id: identifiers.RequestId,
+    record_id: identifiers.SurveyRelatedRecordId,
+    tracked_record: models.SurveyRelatedRecord,
+    file_path: str,
+    implicit_crs: int,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+    user: user_schemas.User,
+) -> None:
+    """Read once more the file of a tracked record that has no bbox.
+
+    Nothing is written unless the file now gets a bbox.
+    Then the bbox, description and dates are replaced, as on a manual update.
+    """
+    metadata, bbox_wkt = await _extract_file_metadata(file_path, implicit_crs)
+    if bbox_wkt is None:
+        logger.debug(
+            "%s still gives no bbox, record %s is left as it is", file_path, record_id
+        )
+        return
+    # the extraction can take a minute, so the record is read again
+    # expire_all() would also expire the mission and configurations (MissingGreenlet)
+    session.expire(tracked_record)
+    record = await record_queries.get_survey_related_record(session, record_id)
+    # a bbox drawn by hand meanwhile wins
+    if record is None or record.bbox_4326 is not None:
+        return
+    # the update deletes the data assets and relations its payload leaves out
+    # (db/commands/surveyrelatedrecords.py), so all of them are restated
+    current_assets_and_relations = {
+        "assets": [
+            {"id": asset.id}
+            for asset in record.assets
+            if constants.AssetType.DATA in asset.asset_type
+        ],
+        "related_records": [
+            {"related_record_id": link.related_to_id, "relationship": link.relation}
+            for link in record.related_to_links
+        ],
+    }
+    to_update = record_schemas.SurveyRelatedRecordUpdate.model_validate(
+        _extracted_record_fields(metadata, bbox_wkt) | current_assets_and_relations
+    )
+    try:
+        await record_ops.update_survey_related_record(
+            request_id=request_id,
+            survey_related_record_id=record_id,
+            to_update=to_update,
+            initiator=user,
+            session=session,
+            event_dispatcher=event_dispatcher,
+        )
+    # a busy record must not abort the sweep, the next one tries it again
+    except errors.SeisLabDataError as err:
+        logger.warning(
+            "Could not update record %s with the bbox of %s: %s",
+            record_id,
+            file_path,
+            err,
+        )
 
 
 async def create_manual_survey_related_record(
@@ -566,6 +660,14 @@ async def _discover_record_fields(
     metadata, bbox_wkt = await _extract_file_metadata(
         file_path, survey_mission.implicit_crs
     )
+    return fields | _extracted_record_fields(metadata, bbox_wkt)
+
+
+def _extracted_record_fields(
+    metadata: extractor_schemas.ExtractionResult | None, bbox_wkt: str | None
+) -> dict:
+    """The record fields an extraction produced, which replace the record's own."""
+    fields = {}
     if bbox_wkt is not None:
         fields["bbox_4326"] = bbox_wkt
     if metadata is None:
@@ -587,6 +689,8 @@ async def _extract_file_metadata(
 
     Best-effort: a failure must never abort discovery or record creation.
     It is logged and comes out as None.
+    A file without a CRS takes the one its SEG-Y header quotes, else the mission's.
+    The metadata then names the CRS that placed it.
     """
     metadata = None
     try:
@@ -597,24 +701,69 @@ async def _extract_file_metadata(
         logger.warning("Metadata extraction failed for %s: %s", file_path, err)
         logger.debug("Extraction failure detail", exc_info=True)
     bbox_4326 = None
+    applied_crs_name = None
     if metadata is not None:
         bbox_4326 = metadata.bbox_4326
         if (native_bbox := metadata.bbox_native_needing_crs) is not None:
-            try:
-                implicit_srs = osr.SpatialReference()
-                implicit_srs.ImportFromEPSG(implicit_crs)
-                bbox_4326 = extractor_common.project_bbox_to_wgs84(
-                    native_bbox, implicit_srs
+            header_crs = _header_crs(metadata)
+            applied_crs = header_crs if header_crs is not None else implicit_crs
+            if header_crs is not None and header_crs != implicit_crs:
+                logger.info(
+                    "Applying EPSG:%s from the header of %s instead of the mission's "
+                    "EPSG:%s",
+                    header_crs,
+                    file_path,
+                    implicit_crs,
                 )
+            try:
+                srs = osr.SpatialReference()
+                srs.ImportFromEPSG(applied_crs)
+                bbox_4326 = extractor_common.project_bbox_to_wgs84(native_bbox, srs)
+                applied_crs_name = srs.GetName()
             except Exception as err:
                 logger.warning(
-                    "Could not apply implicit CRS %s to %s: %s",
-                    implicit_crs,
+                    "Could not apply CRS EPSG:%s to %s: %s",
+                    applied_crs,
                     file_path,
                     err,
                 )
     bbox_wkt = _bbox_4326_tuple_to_wkt(bbox_4326) if bbox_4326 is not None else None
+    if applied_crs_name is not None and bbox_wkt is not None:
+        metadata = metadata.model_copy(
+            update={
+                "epsg": applied_crs,
+                "crs_name": applied_crs_name,
+                "crs_from_mission": header_crs is None,
+            }
+        )
     return metadata, bbox_wkt
+
+
+def _header_crs(metadata: extractor_schemas.ExtractionResult) -> int | None:
+    """The projected CRS a SEG-Y header quotes, when it quotes exactly one.
+
+    Several leave the choice open, so none of them is taken.
+    """
+    if not isinstance(metadata, extractor_schemas.SegyMetadata):
+        return None
+    projected_codes = {
+        code for code in metadata.header_epsg_codes if _is_projected_crs(code)
+    }
+    return projected_codes.pop() if len(projected_codes) == 1 else None
+
+
+def _is_projected_crs(epsg: int) -> bool:
+    """Tell whether an EPSG code is a projected CRS, the only kind that places metres.
+
+    An unknown code is not one.
+    """
+    spatial_reference = osr.SpatialReference()
+    try:
+        spatial_reference.ImportFromEPSG(epsg)
+    # OverflowError: values beyond a C int never reach PROJ
+    except (RuntimeError, OverflowError):
+        return False
+    return bool(spatial_reference.IsProjected())
 
 
 def _bbox_4326_tuple_to_wkt(

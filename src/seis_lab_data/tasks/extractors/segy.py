@@ -1,6 +1,7 @@
 import collections
 import datetime as dt
 import math
+import re
 import struct
 import typing
 from pathlib import Path
@@ -19,6 +20,9 @@ _TRACE_DATA_START = _TEXTUAL_HEADER_BYTES + _BINARY_HEADER_BYTES
 _MINIMUM_FILE_BYTES = _TRACE_DATA_START + _TRACE_HEADER_BYTES
 # Extended textual header counts beyond this are treated as garbage.
 _MAX_EXTENDED_HEADERS = 100
+# An EPSG code quoted in the free-text header, as in "PORTUGAL TM06 (EPSG 3763)".
+# Names, zones and bare numbers would need guessing, so they are deliberately not read.
+_EPSG_CODE = re.compile(r"EPSG\W{0,3}(\d{4,5})(?!\d)", re.IGNORECASE)
 # How many trace headers to sample per file; the first and last trace are always
 # included, so the cost is constant regardless of file size.
 _SAMPLE_TARGET = 100
@@ -125,13 +129,18 @@ def extract_segy_metadata(path: Path | str) -> SegyMetadata:
     units go into the description instead). A file too small to hold a single
     trace, or whose binary header is not recognisable in either byte order,
     raises ValueError.
+    The EPSG codes quoted in the textual header are reported, never applied here.
     """
     p = Path(path)
     size = p.stat().st_size
     if size < _MINIMUM_FILE_BYTES:
         raise ValueError(f"{p.name} does not look like a SEG-Y file")
     with p.open("rb") as fh:
-        fh.seek(_TEXTUAL_HEADER_BYTES)
+        textual_header = fh.read(_TEXTUAL_HEADER_BYTES)
+        # EBCDIC by the standard, else ASCII; the wrong decoding never spells "EPSG"
+        epsg_codes = _EPSG_CODE.findall(textual_header.decode("cp037"))
+        if not epsg_codes:
+            epsg_codes = _EPSG_CODE.findall(textual_header.decode("latin-1"))
         headers = _parse_binary_header(fh.read(_BINARY_HEADER_BYTES))
         if headers is None:
             raise ValueError(f"{p.name} does not look like a SEG-Y file")
@@ -145,6 +154,7 @@ def extract_segy_metadata(path: Path | str) -> SegyMetadata:
             "sample_interval": binary_header.sample_interval or None,
             "samples_per_trace": binary_header.samples_per_trace or None,
             "sample_format": format_label,
+            "header_epsg_codes": tuple(int(code) for code in epsg_codes),
         }
         if (
             bytes_per_sample is None
