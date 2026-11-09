@@ -120,6 +120,7 @@ async def discovery_env(
                 name="test tif",
                 relative_path_regexp=r"s01/.*\.tif",
                 media_type="image/tiff",
+                generate_previews=True,
                 workflow_stage_id=identifiers.WorkflowStageId(
                     bootstrap_workflow_stages[0].id
                 ),
@@ -241,6 +242,7 @@ async def test_discovery_extracts_metadata(db_session_maker, admin_user, discove
     record = records[0]
     assert record.name == "grid.tif"
     assert record.description.startswith("Auto-extracted: GTiff raster")
+    assert record.asset_discovery_configuration_id == discovery_env["configuration"].id
     assert record.bbox_4326 is not None
     # the synthetic EPSG:3763 grid reprojects to central Portugal
     minx, miny, maxx, maxy = to_shape(record.bbox_4326).bounds
@@ -289,6 +291,12 @@ async def test_discovery_is_idempotent(
     first_records = await _get_mission_records(
         db_session_maker, discovery_env["mission"].id
     )
+    # as if the record had been discovered before the configuration was stored on it
+    async with db_session_maker() as session:
+        record = await session.get(models.SurveyRelatedRecord, first_records[0].id)
+        record.asset_discovery_configuration_id = None
+        session.add(record)
+        await session.commit()
     second_collector = await _run_discovery(
         db_session_maker,
         discovery_env["mission"].id,
@@ -299,6 +307,10 @@ async def test_discovery_is_idempotent(
     records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
     assert len(records) == 1
     assert records[0].id == first_records[0].id
+    # the re-run links the already tracked record to its configuration
+    assert (
+        records[0].asset_discovery_configuration_id == discovery_env["configuration"].id
+    )
     # dedup runs BEFORE extraction, so the second run must not extract at all
     assert len(extraction_calls) == 1
     # and the second run must not even attempt a record creation (a failed
@@ -597,8 +609,6 @@ async def test_mission_previews_are_derived_for_missing_only(
     db_session_maker, admin_user, discovery_env, monkeypatch
 ):
     mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
-    # s01/s02 both matches the fixture's discovery configuration regexp and
-    # serves as the family/stage prefix for preview eligibility
     for name in ("first.tif", "second.tif", "derived.tif"):
         _write_geotiff(mission_root / "s01/s02" / name)
     await _run_discovery(
@@ -649,11 +659,6 @@ async def test_mission_previews_are_derived_for_missing_only(
     # one derivation per record which is missing its previews
     assert sorted(e["raw_survey_related_record_id"] for e in enqueued) == missing
 
-    preview_directories = discovery_env["archive_root"] / "preview-directories.json"
-    preview_directories.write_text('{"directories": ["s01/s02"]}')
-    monkeypatch.setattr(
-        discovery_env["settings"], "preview_directories_path", preview_directories
-    )
     # the test settings have no message broker to dispatch the events through
     monkeypatch.setattr(
         discovery_env["settings"], "_event_dispatcher", _EventCollector()
@@ -726,7 +731,6 @@ async def test_record_previews_skip_a_record_whose_status_moved(
                 await preview_ops.generate_record_previews(
                     request_id=identifiers.RequestId(uuid.uuid4()),
                     survey_related_record=record,
-                    directory_prefixes=frozenset({"s01/s02"}),
                     initiator=admin_user,
                     session=session,
                     event_dispatcher=_EventCollector(),
@@ -751,3 +755,57 @@ async def test_record_previews_skip_a_record_whose_status_moved(
     assert any("changed status" in r.message for r in caplog.records)
     assert [a.asset_type for a in moved_assets] == [[constants.AssetType.DATA]]
     assert moved_status == constants.SurveyRelatedRecordStatus.UNDER_DERIVATION
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ineligible_by", ["configuration flag", "no configuration"])
+async def test_record_previews_need_a_configuration_that_generates_them(
+    db_session_maker, admin_user, discovery_env, monkeypatch, ineligible_by
+):
+    _write_geotiff(
+        discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
+    )
+    await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+    (discovered,) = await _get_mission_records(
+        db_session_maker, discovery_env["mission"].id
+    )
+    async with db_session_maker() as session:
+        if ineligible_by == "configuration flag":
+            configuration = await session.get(
+                models.AssetDiscoveryConfiguration, discovery_env["configuration"].id
+            )
+            configuration.generate_previews = False
+            session.add(configuration)
+        else:
+            record = await session.get(models.SurveyRelatedRecord, discovered.id)
+            record.asset_discovery_configuration_id = None
+            session.add(record)
+        await session.commit()
+
+    def fake_dispatch(path, implicit_epsg_code):
+        return deriver_schemas.DerivedPreview(
+            image=b"fake webp payload", bounds_4326=(-8.2, 39.6, -8.1, 39.7)
+        )
+
+    monkeypatch.setattr(preview_ops.deriver_dispatch, "dispatch_deriver", fake_dispatch)
+
+    async with db_session_maker() as session:
+        await preview_ops.generate_record_previews(
+            request_id=identifiers.RequestId(uuid.uuid4()),
+            survey_related_record=await record_queries.get_survey_related_record(
+                session, discovered.id
+            ),
+            initiator=admin_user,
+            session=session,
+            event_dispatcher=_EventCollector(),
+            settings=discovery_env["settings"],
+        )
+
+    assets = await _get_record_assets(db_session_maker, discovered.id)
+    assert [a.asset_type for a in assets] == [[constants.AssetType.DATA]]

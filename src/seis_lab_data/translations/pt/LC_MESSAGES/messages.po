@@ -256,3 +256,11 @@ msgstr "extensão espacial do projeto"
 #: webapp/templates/survey-missions/list-item.html
 msgid "survey mission spatial extent"
 msgstr "extensão espacial da missão"
+
+#: webapp/forms/discovery.py
+msgid "Generate previews"
+msgstr "Gerar pré-visualizações"
+
+#: webapp/forms/discovery.py
+msgid "Whether previews are generated for the assets discovered by this configuration"
+msgstr "Indica se são geradas pré-visualizações para os recursos descobertos por esta configuração"

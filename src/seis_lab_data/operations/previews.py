@@ -1,9 +1,8 @@
-import json
 import logging
 import uuid
 
 import shapely
-from anyio import Path, to_thread
+from anyio import to_thread
 from geoalchemy2 import WKBElement
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -32,14 +31,6 @@ from ..tasks.derivers import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-async def load_preview_directories(
-    settings: config.SeisLabDataSettings,
-) -> frozenset[str]:
-    """Read the family/stage directory prefixes which gate preview generation."""
-    contents = await Path(settings.preview_directories_path).read_text()
-    return frozenset(json.loads(contents)["directories"])
 
 
 async def collect_survey_mission_records_missing_previews(
@@ -74,7 +65,6 @@ async def generate_record_previews(
     *,
     request_id: identifiers.RequestId,
     survey_related_record: models.SurveyRelatedRecord,
-    directory_prefixes: frozenset[str],
     initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
@@ -97,6 +87,14 @@ async def generate_record_previews(
             f"generating its previews..."
         )
         return
+    if (
+        discovery_configuration := survey_related_record.asset_discovery_configuration
+    ) is None or not discovery_configuration.generate_previews:
+        logger.debug(
+            f"Survey-related record {record_id} does not come from a discovery "
+            f"configuration that generates previews - not generating them..."
+        )
+        return
     mission_root_path = "/".join(
         (
             str(settings.readonly_archive_root_directory),
@@ -110,9 +108,7 @@ async def generate_record_previews(
         if asset.relative_path is None:
             continue
         asset_path = "/".join((mission_root_path, asset.relative_path))
-        if not deriver_dispatch.is_previewable(
-            asset_path, asset.relative_path, directory_prefixes
-        ):
+        if not deriver_dispatch.can_derive(asset_path):
             continue
         try:
             preview = await to_thread.run_sync(

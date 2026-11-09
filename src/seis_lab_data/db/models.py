@@ -112,6 +112,9 @@ class AssetDiscoveryConfiguration(SQLModel, table=True):
     name: str = Field(unique=True)
     relative_path_regexp: str
     media_type: str
+    generate_previews: bool = Field(
+        default=False, sa_column_kwargs={"server_default": "false"}
+    )
     workflow_stage_id: uuid.UUID | None = Field(
         foreign_key="workflowstage.id", ondelete="CASCADE", index=True
     )
@@ -147,6 +150,12 @@ class SurveyRelatedRecord(SQLModel, table=True):
     workflow_stage_id: uuid.UUID | None = Field(
         foreign_key="workflowstage.id", default=None, ondelete="SET NULL"
     )
+    asset_discovery_configuration_id: uuid.UUID | None = Field(
+        foreign_key="assetdiscoveryconfiguration.id",
+        default=None,
+        ondelete="SET NULL",
+        index=True,
+    )
     links: list[Link] = Field(sa_column=Column(JSONB), default_factory=list)
     survey_mission: "SurveyMission" = Relationship(
         back_populates="survey_related_records"
@@ -157,6 +166,7 @@ class SurveyRelatedRecord(SQLModel, table=True):
     workflow_stage: WorkflowStage = Relationship(
         back_populates="survey_related_records"
     )
+    asset_discovery_configuration: AssetDiscoveryConfiguration = Relationship()
     bbox_4326: Annotated[
         WKBElement,
         PlainSerializer(serialize_wkbelement, return_type=dict, when_used="json"),

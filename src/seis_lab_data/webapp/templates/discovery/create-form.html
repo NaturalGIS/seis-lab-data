@@ -1,4 +1,5 @@
 {% import "macros.html" as macros %}
+{% from "macros/checkbox.html" import render_checkbox %}
 <form
         data-signals="{submitting: false}"
         data-on:datastar-fetch="evt.detail.type === 'error' && ($submitting = false)"
@@ -9,6 +10,7 @@
     {{ macros.render_form_field(form.media_type) }}
     {{ macros.render_form_field(form.dataset_category_id) }}
     {{ macros.render_form_field(form.workflow_stage_id) }}
+    {{ render_checkbox(form.generate_previews) }}
 
 
     <div class="row mb-3">

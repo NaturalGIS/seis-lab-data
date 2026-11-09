@@ -23,6 +23,7 @@ from .common import (
 )
 from .filters import TemporalExtentFilterValue
 from .identifiers import (
+    AssetDiscoveryConfId,
     DatasetCategoryId,
     ProjectId,
     SurveyRelatedRecordId,
@@ -185,6 +186,7 @@ class SurveyRelatedRecordCreate(pydantic.BaseModel):
     description: DraftDescription
     dataset_category_id: DatasetCategoryId
     workflow_stage_id: WorkflowStageId
+    asset_discovery_configuration_id: AssetDiscoveryConfId | None = None
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
     temporal_extent_end: dt.date | None = None

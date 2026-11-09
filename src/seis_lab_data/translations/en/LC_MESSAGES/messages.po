@@ -259,3 +259,11 @@ msgstr ""
 #: webapp/templates/survey-missions/list-item.html
 msgid "survey mission spatial extent"
 msgstr ""
+
+#: webapp/forms/discovery.py
+msgid "Generate previews"
+msgstr ""
+
+#: webapp/forms/discovery.py
+msgid "Whether previews are generated for the assets discovered by this configuration"
+msgstr ""

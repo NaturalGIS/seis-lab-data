@@ -47,9 +47,6 @@ x-common-volumes: &common-volumes
     source: ../src
     target: /home/ubuntu/app/src
   - type: bind
-    source: ../config
-    target: /home/ubuntu/app/config
-  - type: bind
     source: ../pyproject.toml
     target: /home/ubuntu/app/pyproject.toml
   - type: bind
