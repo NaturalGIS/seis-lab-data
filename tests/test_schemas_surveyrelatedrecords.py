@@ -97,6 +97,23 @@ def test_record_asset_update_keeps_explicit_media_type():
     assert asset.media_type == "image/tiff"
 
 
+def test_record_asset_relative_path_is_stripped():
+    # a pasted path with a trailing space broke configuration adoption and extraction
+    pasted_path = "  s01/x.tif  "
+    created = record_schemas.DataRecordAssetCreate(
+        id=identifiers.RecordAssetId(uuid.uuid4()),
+        name="An asset",
+        relative_path=pasted_path,
+    )
+    updated = record_schemas.SurveyRelatedRecordUpdate(
+        assets=[{"id": uuid.uuid4(), "media_type": "", "relative_path": pasted_path}]
+    ).assets[0]
+    for asset in (created, updated):
+        assert asset.relative_path == "s01/x.tif"
+        # stripped before the media type is derived from the file extension
+        assert asset.media_type == "application/prs.ipma.tif"
+
+
 def test_derived_record_asset_create_requires_data():
     with pytest.raises(ValueError, match=r"data\s+Field required"):
         record_schemas.DerivedRecordAssetCreate(

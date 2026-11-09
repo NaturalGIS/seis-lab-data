@@ -1,5 +1,6 @@
-"""Integration tests for mission discovery with metadata extraction, and for the
-derivation of previews which it kicks off.
+"""Integration tests for mission discovery with metadata extraction, for the
+derivation of previews which it kicks off and for the same pipeline run over
+records created or edited by hand.
 
 These run against the test database and a fake archive built under tmp_path.
 GDAL is required to build the synthetic fixture files; the module self-skips
@@ -35,6 +36,7 @@ from seis_lab_data.db.queries import surveyrelatedrecords as record_queries  # n
 from seis_lab_data.operations import (  # noqa: E402
     discovery as discovery_ops,
     previews as preview_ops,
+    surveyrelatedrecords as record_ops,
 )
 from seis_lab_data.schemas import (  # noqa: E402
     discovery as discovery_schemas,
@@ -42,6 +44,7 @@ from seis_lab_data.schemas import (  # noqa: E402
     identifiers,
     projects as project_schemas,
     surveymissions as mission_schemas,
+    surveyrelatedrecords as record_schemas,
 )
 from seis_lab_data.tasks import previews as preview_tasks  # noqa: E402
 from seis_lab_data.tasks.derivers import schemas as deriver_schemas  # noqa: E402
@@ -52,6 +55,8 @@ gdal.UseExceptions()
 _MISSION_RELATIVE_PATH = "surveys/test-mission"
 # ETRS89/PT-TM06 metres, around the projection origin in central Portugal
 _NATIVE_BBOX_TM06 = (0.0, 1900.0, 100.0, 2000.0)
+# a bbox drawn by the user, well away from the one of the synthetic grids
+_DRAWN_BBOX_WKT = "POLYGON((-9 38, -8.9 38, -8.9 38.1, -9 38.1, -9 38))"
 
 
 class _EventCollector:
@@ -177,6 +182,56 @@ def _ended_events(collector):
     ]
 
 
+def _record_to_create(
+    discovery_env, relative_path, asset_discovery_configuration_id=None
+):
+    configuration = discovery_env["configuration"]
+    return record_schemas.SurveyRelatedRecordCreate(
+        id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
+        survey_mission_id=identifiers.SurveyMissionId(discovery_env["mission"].id),
+        name="Manual record",
+        description="A record created by hand",
+        dataset_category_id=identifiers.DatasetCategoryId(
+            configuration.dataset_category_id
+        ),
+        workflow_stage_id=identifiers.WorkflowStageId(configuration.workflow_stage_id),
+        asset_discovery_configuration_id=asset_discovery_configuration_id,
+        assets=[
+            record_schemas.DataRecordAssetCreate(
+                id=identifiers.RecordAssetId(uuid.uuid4()),
+                name="data file",
+                relative_path=relative_path,
+            )
+        ],
+    )
+
+
+async def _create_record_without_discovery(db_session_maker, admin_user, to_create):
+    async with db_session_maker() as session:
+        await record_ops.create_survey_related_record(
+            request_id=identifiers.RequestId(uuid.uuid4()),
+            to_create=to_create,
+            initiator=admin_user,
+            session=session,
+            event_dispatcher=_EventCollector(),
+        )
+
+
+async def _update_record_by_hand(
+    db_session_maker, admin_user, settings, record_id, to_update
+):
+    async with db_session_maker() as session:
+        await discovery_ops.update_manual_survey_related_record(
+            request_id=identifiers.RequestId(uuid.uuid4()),
+            survey_related_record_id=identifiers.SurveyRelatedRecordId(record_id),
+            to_update=to_update,
+            initiator=admin_user,
+            session=session,
+            event_dispatcher=_EventCollector(),
+            settings=settings,
+        )
+
+
 def test_bbox_tuple_to_wkt_buffers_every_side():
     wkt = discovery_ops._bbox_4326_tuple_to_wkt((10.0, 40.0, 10.5, 40.5))
     assert shapely.from_wkt(wkt).bounds == pytest.approx(
@@ -217,6 +272,28 @@ def test_bbox_tuple_to_wkt_rounds_to_five_decimal_places():
     for coordinate in shapely.from_wkt(wkt).exterior.coords:
         for value in coordinate:
             assert value == round(value, 5)
+
+
+@pytest.mark.parametrize(
+    "relative_path_regexp, relative_path, expected",
+    [
+        pytest.param(r"s01/.*\.tif", "s01/a/b/x.tif", True, id="any depth"),
+        pytest.param(r"s01/.*\.tif", "s02/s01/x.tif", False, id="fixed prefix"),
+        pytest.param(r"s01/.*\.tif", "s01/x.tif.aux.xml", False, id="anchored name"),
+        pytest.param(r".*_Data/.*\.kmall", "02_Data/x/f.kmall", True, id="directory"),
+        pytest.param(r".*_Data/.*\.kmall", "f.kmall", False, id="missing directory"),
+        pytest.param("s01/grid.tif", "s01/grid.tif", True, id="literal"),
+        pytest.param(r"/s01/.*\.tif", "s01/x.tif", True, id="leading slash"),
+        pytest.param(r"s01/(.*\.tif", "s01/x.tif", False, id="invalid regexp"),
+    ],
+)
+def test_path_matches_discovery_pattern(relative_path_regexp, relative_path, expected):
+    assert (
+        discovery_ops.path_matches_discovery_pattern(
+            relative_path_regexp, relative_path
+        )
+        is expected
+    )
 
 
 @pytest.mark.integration
@@ -809,3 +886,180 @@ async def test_record_previews_need_a_configuration_that_generates_them(
 
     assets = await _get_record_assets(db_session_maker, discovered.id)
     assert [a.asset_type for a in assets] == [[constants.AssetType.DATA]]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_manual_create_adopts_config_and_extracts_extents(
+    db_session_maker, admin_user, discovery_env, monkeypatch
+):
+    data_file = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/sub/x.tif"
+    _write_geotiff(data_file)
+    async with db_session_maker() as session:
+        # matches the path as well, and comes first by name
+        first_by_name = await discovery_commands.create_asset_discovery_configuration(
+            session,
+            discovery_schemas.AssetDiscoveryConfigurationCreate(
+                id=identifiers.AssetDiscoveryConfId(uuid.uuid4()),
+                name="another tif",
+                relative_path_regexp=r"s01/sub/.*\.tif",
+                media_type="image/tiff",
+                generate_previews=True,
+                workflow_stage_id=identifiers.WorkflowStageId(
+                    discovery_env["configuration"].workflow_stage_id
+                ),
+                dataset_category_id=identifiers.DatasetCategoryId(
+                    discovery_env["configuration"].dataset_category_id
+                ),
+            ),
+        )
+    enqueued = []
+    monkeypatch.setattr(
+        discovery_ops.preview_tasks.generate_record_previews,
+        "send",
+        lambda **kwargs: enqueued.append(kwargs),
+    )
+
+    async with db_session_maker() as session:
+        await discovery_ops.create_manual_survey_related_record(
+            request_id=identifiers.RequestId(uuid.uuid4()),
+            to_create=_record_to_create(discovery_env, "s01/sub/x.tif"),
+            initiator=admin_user,
+            session=session,
+            event_dispatcher=_EventCollector(),
+            settings=discovery_env["settings"],
+        )
+
+    (record,) = await _get_mission_records(
+        db_session_maker, discovery_env["mission"].id
+    )
+    assert record.asset_discovery_configuration_id == first_by_name.id
+    minx, miny, maxx, maxy = to_shape(record.bbox_4326).bounds
+    assert -8.2 < minx <= maxx < -8.0
+    assert 39.6 < miny <= maxy < 39.8
+    # sent without a bbox: valid only if the extracted one came before validation
+    assert record.validation_result["is_valid"] is True
+    # the text discovery stores, in place of the one typed in the payload
+    extracted = discovery_ops.extractor_dispatch.dispatch_extractor(str(data_file))
+    assert record.description == extracted.describe()
+    assert [e["raw_survey_related_record_id"] for e in enqueued] == [str(record.id)]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_manual_update_new_path_readopts_and_reextracts(
+    db_session_maker, admin_user, discovery_env, monkeypatch
+):
+    _write_geotiff(
+        discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "other/x.tif"
+    )
+    to_create = _record_to_create(
+        discovery_env, "s01/grid.tif", discovery_env["configuration"].id
+    )
+    await _create_record_without_discovery(db_session_maker, admin_user, to_create)
+    asset_id = to_create.assets[0].id
+    enqueued = []
+    monkeypatch.setattr(
+        discovery_ops.preview_tasks.generate_record_previews,
+        "send",
+        lambda **kwargs: enqueued.append(kwargs),
+    )
+
+    # no configuration matches the new path
+    await _update_record_by_hand(
+        db_session_maker,
+        admin_user,
+        discovery_env["settings"],
+        to_create.id,
+        record_schemas.SurveyRelatedRecordUpdate(
+            bbox_4326=_DRAWN_BBOX_WKT,
+            assets=[
+                record_schemas.DataRecordAssetUpdate(
+                    id=asset_id, relative_path="other/x.tif"
+                )
+            ],
+        ),
+    )
+
+    (record,) = await _get_mission_records(
+        db_session_maker, discovery_env["mission"].id
+    )
+    assert record.asset_discovery_configuration_id is None
+    # the extracted bbox overrides the drawn one
+    minx, miny, maxx, maxy = to_shape(record.bbox_4326).bounds
+    assert -8.2 < minx <= maxx < -8.0
+    assert 39.6 < miny <= maxy < 39.8
+    assert len(enqueued) == 1
+
+    # same data file, so the pipeline does not run and the drawn bbox stays
+    await _update_record_by_hand(
+        db_session_maker,
+        admin_user,
+        discovery_env["settings"],
+        to_create.id,
+        record_schemas.SurveyRelatedRecordUpdate(
+            name="Renamed record",
+            bbox_4326=_DRAWN_BBOX_WKT,
+            assets=[
+                record_schemas.DataRecordAssetUpdate(
+                    id=asset_id, relative_path="other/x.tif"
+                )
+            ],
+        ),
+    )
+
+    (record,) = await _get_mission_records(
+        db_session_maker, discovery_env["mission"].id
+    )
+    assert to_shape(record.bbox_4326).bounds == pytest.approx((-9, 38, -8.9, 38.1))
+    assert len(enqueued) == 1
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_manual_update_failed_extraction_keeps_extents(
+    db_session_maker, admin_user, discovery_env, monkeypatch
+):
+    to_create = _record_to_create(discovery_env, "other/old.tif")
+    await _create_record_without_discovery(db_session_maker, admin_user, to_create)
+
+    def failing_dispatch(path):
+        raise RuntimeError("unreadable file")
+
+    monkeypatch.setattr(
+        discovery_ops.extractor_dispatch, "dispatch_extractor", failing_dispatch
+    )
+    enqueued = []
+    monkeypatch.setattr(
+        discovery_ops.preview_tasks.generate_record_previews,
+        "send",
+        lambda **kwargs: enqueued.append(kwargs),
+    )
+
+    await _update_record_by_hand(
+        db_session_maker,
+        admin_user,
+        discovery_env["settings"],
+        to_create.id,
+        record_schemas.SurveyRelatedRecordUpdate(
+            description="A description typed by hand",
+            bbox_4326=_DRAWN_BBOX_WKT,
+            temporal_extent_begin=dt.date(2024, 9, 28),
+            temporal_extent_end=dt.date(2024, 9, 29),
+            assets=[
+                record_schemas.DataRecordAssetUpdate(
+                    id=to_create.assets[0].id, relative_path="s01/broken.tif"
+                )
+            ],
+        ),
+    )
+
+    (record,) = await _get_mission_records(
+        db_session_maker, discovery_env["mission"].id
+    )
+    assert record.asset_discovery_configuration_id == discovery_env["configuration"].id
+    assert to_shape(record.bbox_4326).bounds == pytest.approx((-9, 38, -8.9, 38.1))
+    assert record.temporal_extent_begin == dt.date(2024, 9, 28)
+    assert record.temporal_extent_end == dt.date(2024, 9, 29)
+    assert record.description == "A description typed by hand"
+    assert len(enqueued) == 1

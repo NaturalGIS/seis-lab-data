@@ -6,6 +6,7 @@ import pydantic
 from ..constants import ProjectStatus
 from ..db import models
 from .common import (
+    ArchivePath,
     LinkSchema,
     DraftDescription,
     DraftName,
@@ -21,7 +22,7 @@ class ProjectCreate(pydantic.BaseModel):
     id: ProjectId
     name: DraftName
     description: DraftDescription = ""
-    root_path: str
+    root_path: ArchivePath
     links: list[LinkSchema] = []
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
@@ -31,7 +32,7 @@ class ProjectCreate(pydantic.BaseModel):
 class ProjectUpdate(pydantic.BaseModel):
     name: DraftName | None = None
     description: DraftDescription | None = None
-    root_path: str | None = None
+    root_path: ArchivePath | None = None
     links: list[LinkSchema] | None = None
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None

@@ -7,7 +7,10 @@ import dramatiq
 from .. import (
     config,
 )
-from ..operations import surveyrelatedrecords as record_ops
+from ..operations import (
+    discovery as discovery_ops,
+    surveyrelatedrecords as record_ops,
+)
 from ..schemas import (
     identifiers,
     surveyrelatedrecords as record_schemas,
@@ -32,7 +35,7 @@ async def create_survey_related_record(
     settings: config.SeisLabDataSettings,
 ):
     async with settings.get_db_session_maker()() as session:
-        await record_ops.create_survey_related_record(
+        await discovery_ops.create_manual_survey_related_record(
             request_id=identifiers.RequestId(uuid.UUID(raw_request_id)),
             to_create=record_schemas.SurveyRelatedRecordCreate.model_validate_json(
                 raw_to_create
@@ -40,6 +43,7 @@ async def create_survey_related_record(
             initiator=user_schemas.User(**json.loads(raw_initiator)),
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
+            settings=settings,
         )
 
 
@@ -75,7 +79,7 @@ async def update_survey_related_record(
     settings: config.SeisLabDataSettings,
 ):
     async with settings.get_db_session_maker()() as session:
-        await record_ops.update_survey_related_record(
+        await discovery_ops.update_manual_survey_related_record(
             request_id=identifiers.RequestId(uuid.UUID(raw_request_id)),
             survey_related_record_id=identifiers.SurveyRelatedRecordId(
                 uuid.UUID(raw_survey_related_record_id)
@@ -86,6 +90,7 @@ async def update_survey_related_record(
             initiator=user_schemas.User(**json.loads(raw_initiator)),
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
+            settings=settings,
         )
 
 

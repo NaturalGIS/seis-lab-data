@@ -107,6 +107,13 @@ async def generate_record_previews(
             continue
         if asset.relative_path is None:
             continue
+        # paths typed by hand are not checked, and a '..' segment leaves the archive
+        if ".." in asset.relative_path.split("/"):
+            logger.debug(
+                f"Asset path {asset.relative_path!r} points outside the archive - "
+                f"not generating its preview..."
+            )
+            continue
         asset_path = "/".join((mission_root_path, asset.relative_path))
         if not deriver_dispatch.can_derive(asset_path):
             continue

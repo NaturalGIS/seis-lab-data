@@ -6,6 +6,7 @@ import pydantic
 from ..constants import SurveyMissionStatus
 from ..db import models
 from .common import (
+    ArchivePath,
     LinkSchema,
     DraftDescription,
     DraftName,
@@ -27,7 +28,7 @@ class SurveyMissionCreate(pydantic.BaseModel):
     project_id: ProjectId
     name: DraftName
     description: DraftDescription
-    relative_path: str
+    relative_path: ArchivePath
     implicit_crs: EpsgCode = 4326
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
@@ -39,7 +40,7 @@ class SurveyMissionUpdate(pydantic.BaseModel):
     project_id: ProjectId | None = None
     name: DraftName | None = None
     description: DraftDescription | None = None
-    relative_path: str | None = None
+    relative_path: ArchivePath | None = None
     implicit_crs: EpsgCode | None = None
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None

@@ -264,3 +264,7 @@ msgstr "Gerar pré-visualizações"
 #: webapp/forms/discovery.py
 msgid "Whether previews are generated for the assets discovered by this configuration"
 msgstr "Indica se são geradas pré-visualizações para os recursos descobertos por esta configuração"
+
+#: webapp/forms/surveyrelatedrecords.py
+msgid "Path for the asset in the archive file system, relative to its parent survey mission root path"
+msgstr "Caminho do recurso no sistema de ficheiros do arquivo, relativo à raiz da missão do registo"

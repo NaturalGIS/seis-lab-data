@@ -21,12 +21,14 @@ from ..db import models
 from ..db.queries import (
     discovery as discovery_queries,
     surveymissions as mission_queries,
+    surveyrelatedrecords as record_queries,
     recordassets as asset_queries,
 )
 from ..db.commands import discovery as discovery_commands
 from ..permissions import (
     discovery as discovery_permissions,
     surveymissions as mission_permissions,
+    surveyrelatedrecords as record_permissions,
 )
 from ..schemas import (
     events as event_schemas,
@@ -40,6 +42,7 @@ from ..tasks import previews as preview_tasks
 from ..tasks.extractors import (
     common as extractor_common,
     dispatch as extractor_dispatch,
+    schemas as extractor_schemas,
 )
 
 from . import (
@@ -355,39 +358,8 @@ async def _discover_mission_records(
                     identifiers.SurveyMissionId(mission.id),
                 )
             ) is None:
-                # best-effort metadata extraction: a failure must never abort
-                # discovery or record creation
-                metadata = None
-                try:
-                    metadata = await to_thread.run_sync(
-                        extractor_dispatch.dispatch_extractor, str(found_path)
-                    )
-                except Exception as err:
-                    logger.warning(
-                        "Metadata extraction failed for %s: %s", found_path, err
-                    )
-                    logger.debug("Extraction failure detail", exc_info=True)
-                bbox_4326 = None
-                if metadata is not None:
-                    bbox_4326 = metadata.bbox_4326
-                    if (native_bbox := metadata.bbox_native_needing_crs) is not None:
-                        try:
-                            implicit_srs = osr.SpatialReference()
-                            implicit_srs.ImportFromEPSG(mission.implicit_crs)
-                            bbox_4326 = extractor_common.project_bbox_to_wgs84(
-                                native_bbox, implicit_srs
-                            )
-                        except Exception as err:
-                            logger.warning(
-                                "Could not apply implicit CRS %s to %s: %s",
-                                mission.implicit_crs,
-                                found_path,
-                                err,
-                            )
-                bbox_wkt = (
-                    _bbox_4326_tuple_to_wkt(bbox_4326)
-                    if bbox_4326 is not None
-                    else None
+                metadata, bbox_wkt = await _extract_file_metadata(
+                    str(found_path), mission.implicit_crs
                 )
                 # create a new record and a new asset
                 await record_ops.create_survey_related_record(
@@ -439,6 +411,210 @@ async def _discover_mission_records(
                     )
                     session.add(tracked_record)
                     await session.commit()
+
+
+async def create_manual_survey_related_record(
+    *,
+    request_id: identifiers.RequestId,
+    to_create: record_schemas.SurveyRelatedRecordCreate,
+    initiator: user_schemas.User,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+    settings: config.SeisLabDataSettings,
+) -> models.SurveyRelatedRecord:
+    """Create a record by hand, enriched by the discovery pipeline first.
+
+    The record adopts the discovery configuration matching its data asset paths.
+    The description and extents from its first data file override the payload's.
+    Its previews are enqueued once it exists.
+    """
+    survey_mission = await mission_queries.get_survey_mission(
+        session, to_create.survey_mission_id
+    )
+    # a failed check is left to the record operation, which emits the event
+    if survey_mission is not None and (
+        record_permissions.can_create_survey_related_record(initiator, survey_mission)
+    ):
+        fields = await _discover_record_fields(
+            session,
+            survey_mission,
+            [asset.relative_path for asset in to_create.assets],
+            settings,
+        )
+        # validated again, as the extracted bbox comes as WKT
+        to_create = record_schemas.SurveyRelatedRecordCreate.model_validate(
+            to_create.model_dump() | fields
+        )
+    # extraction can take a minute: the record operation's guards must see fresh state
+    session.expire_all()
+    created_record = await record_ops.create_survey_related_record(
+        request_id=request_id,
+        to_create=to_create,
+        initiator=initiator,
+        session=session,
+        event_dispatcher=event_dispatcher,
+    )
+    # whether the record gets previews is decided by the derivation itself
+    preview_tasks.generate_record_previews.send(
+        raw_request_id=str(request_id),
+        raw_survey_related_record_id=str(to_create.id),
+        raw_initiator=json.dumps(dataclasses.asdict(initiator)),
+    )
+    return created_record
+
+
+async def update_manual_survey_related_record(
+    *,
+    request_id: identifiers.RequestId,
+    survey_related_record_id: identifiers.SurveyRelatedRecordId,
+    to_update: record_schemas.SurveyRelatedRecordUpdate,
+    initiator: user_schemas.User,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+    settings: config.SeisLabDataSettings,
+) -> models.SurveyRelatedRecord:
+    """Update a record by hand, re-running discovery when its data files change.
+
+    Only a different set of data asset paths runs the pipeline.
+    The record then adopts a configuration anew and the metadata of its first file.
+    Its previews are enqueued again.
+    """
+    survey_related_record = await record_queries.get_survey_related_record(
+        session, survey_related_record_id
+    )
+    proposed_paths = [asset.relative_path for asset in to_update.assets]
+    paths_changed = survey_related_record is not None and set(proposed_paths) != {
+        asset.relative_path
+        for asset in survey_related_record.assets
+        if constants.AssetType.DATA in asset.asset_type
+    }
+    # a failed check is left to the record operation, which emits the event
+    if paths_changed and record_permissions.can_update_survey_related_record(
+        initiator, survey_related_record
+    ):
+        fields = await _discover_record_fields(
+            session, survey_related_record.survey_mission, proposed_paths, settings
+        )
+        # only the fields that were set, so that a partial update stays partial
+        to_update = record_schemas.SurveyRelatedRecordUpdate.model_validate(
+            to_update.model_dump(exclude_unset=True) | fields
+        )
+    # extraction can take a minute: the record operation's guards must see fresh state
+    session.expire_all()
+    updated_record = await record_ops.update_survey_related_record(
+        request_id=request_id,
+        survey_related_record_id=survey_related_record_id,
+        to_update=to_update,
+        initiator=initiator,
+        session=session,
+        event_dispatcher=event_dispatcher,
+    )
+    # previews only go stale with the data files, and a run redirects open edit forms
+    if paths_changed:
+        preview_tasks.generate_record_previews.send(
+            raw_request_id=str(request_id),
+            raw_survey_related_record_id=str(survey_related_record_id),
+            raw_initiator=json.dumps(dataclasses.asdict(initiator)),
+        )
+    return updated_record
+
+
+async def _discover_record_fields(
+    session: AsyncSession,
+    survey_mission: models.SurveyMission,
+    data_asset_paths: list[str | None],
+    settings: config.SeisLabDataSettings,
+) -> dict:
+    """Run the discovery pipeline over the data asset paths of a manual record.
+
+    The returned fields override the record's.
+    The configuration is always returned, None when no path matches.
+    The description and extents only when extraction produced them.
+    Otherwise the record keeps its own.
+    """
+    # a '..' segment would lead adoption and the extractor out of the archive
+    usable_paths = [
+        path for path in data_asset_paths if path and ".." not in path.split("/")
+    ]
+    configurations = await discovery_queries.collect_all_asset_discovery_configurations(
+        session
+    )
+    # configurations come in name order, and the first path that matches decides
+    adopted_configuration = next(
+        (
+            configuration
+            for path in usable_paths
+            for configuration in configurations
+            if path_matches_discovery_pattern(configuration.relative_path_regexp, path)
+        ),
+        None,
+    )
+    fields = {
+        "asset_discovery_configuration_id": (
+            adopted_configuration.id if adopted_configuration is not None else None
+        )
+    }
+    if not usable_paths:
+        return fields
+    file_path = "/".join(
+        (
+            str(settings.readonly_archive_root_directory),
+            survey_mission.relative_path,
+            usable_paths[0],
+        )
+    )
+    metadata, bbox_wkt = await _extract_file_metadata(
+        file_path, survey_mission.implicit_crs
+    )
+    if bbox_wkt is not None:
+        fields["bbox_4326"] = bbox_wkt
+    if metadata is None:
+        return fields
+    fields["description"] = metadata.describe()
+    if (
+        metadata.temporal_extent_begin is not None
+        and metadata.temporal_extent_end is not None
+    ):
+        fields["temporal_extent_begin"] = metadata.temporal_extent_begin
+        fields["temporal_extent_end"] = metadata.temporal_extent_end
+    return fields
+
+
+async def _extract_file_metadata(
+    file_path: str, implicit_crs: int
+) -> tuple[extractor_schemas.ExtractionResult | None, str | None]:
+    """Extract a file's metadata and its lon/lat bbox as WKT.
+
+    Best-effort: a failure must never abort discovery or record creation.
+    It is logged and comes out as None.
+    """
+    metadata = None
+    try:
+        metadata = await to_thread.run_sync(
+            extractor_dispatch.dispatch_extractor, file_path
+        )
+    except Exception as err:
+        logger.warning("Metadata extraction failed for %s: %s", file_path, err)
+        logger.debug("Extraction failure detail", exc_info=True)
+    bbox_4326 = None
+    if metadata is not None:
+        bbox_4326 = metadata.bbox_4326
+        if (native_bbox := metadata.bbox_native_needing_crs) is not None:
+            try:
+                implicit_srs = osr.SpatialReference()
+                implicit_srs.ImportFromEPSG(implicit_crs)
+                bbox_4326 = extractor_common.project_bbox_to_wgs84(
+                    native_bbox, implicit_srs
+                )
+            except Exception as err:
+                logger.warning(
+                    "Could not apply implicit CRS %s to %s: %s",
+                    implicit_crs,
+                    file_path,
+                    err,
+                )
+    bbox_wkt = _bbox_4326_tuple_to_wkt(bbox_4326) if bbox_4326 is not None else None
+    return metadata, bbox_wkt
 
 
 def _bbox_4326_tuple_to_wkt(
@@ -532,3 +708,46 @@ def split_pattern_path(regexp_path: str) -> tuple[Path, str]:
             return Path(*plain_parts) if plain_parts else Path("."), pattern
         plain_parts.append(part)
     return Path(regexp_path), ""
+
+
+def path_matches_discovery_pattern(
+    relative_path_regexp: str, relative_path: str
+) -> bool:
+    """Tell whether discovery would find a mission-relative file path.
+
+    Mirrors `walk_pattern` without touching the disk.
+    The pattern's literal prefix is fixed at the mission root.
+    Its last segment matches the file name, the others match directories in order.
+    Any directory may be skipped before, between or after the matched ones.
+    """
+    # the walk joins mission_root + "/" + regexp, and Path collapses a leading slash
+    prefix, pattern = split_pattern_path(relative_path_regexp.lstrip("/"))
+    path_parts = Path(relative_path.lstrip("/")).parts
+    prefix_parts = prefix.parts
+    if path_parts[: len(prefix_parts)] != prefix_parts:
+        return False
+    remaining_parts = path_parts[len(prefix_parts) :]
+    if not pattern:
+        return remaining_parts == ()
+    if not remaining_parts:
+        return False
+    *directory_patterns, file_name_pattern = Path(pattern).parts
+    *directories, file_name = remaining_parts
+    # configuration regexps are never validated; a bad one must not block manual saves
+    try:
+        # match rather than fullmatch, as in walk_pattern: `^a|b$` is not the same
+        file_name_regex = re.compile(f"^{file_name_pattern}$")
+        directory_regexes = [re.compile(f"^{p}$") for p in directory_patterns]
+    except re.error as err:
+        logger.warning(
+            "Invalid discovery configuration pattern %r: %s", relative_path_regexp, err
+        )
+        return False
+    if not file_name_regex.match(file_name):
+        return False
+    # each directory pattern consumes the directories up to the one it matches
+    unmatched_directories = iter(directories)
+    for regex in directory_regexes:
+        if not any(regex.match(directory) for directory in unmatched_directories):
+            return False
+    return True
