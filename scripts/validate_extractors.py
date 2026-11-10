@@ -298,7 +298,7 @@ def validate_segy(path):
             "sample_interval": binary_header.sample_interval or "",
             "samples_per_trace": binary_header.samples_per_trace or "",
             "sample_format": format_label,
-            "header_epsg_codes": ";".join(epsg_codes),
+            "header_epsg_codes": ";".join(str(int(code)) for code in epsg_codes),
         }
         if (
             bytes_per_sample is None
@@ -537,14 +537,6 @@ def main():
     done = set()
     has_report = os.path.exists(args.output) and os.path.getsize(args.output) > 0
     if has_report:
-        # SEG-Y needs one pass per extension (.sgy then .segy) into the same
-        # report, so refuse to silently truncate hours of work: --resume both
-        # keeps the existing rows and skips the files already in them.
-        if not args.resume:
-            sys.exit(
-                f"{args.output} already holds a report; pass --resume to add to "
-                "it (or choose another --output)"
-            )
         with open(args.output) as fh:
             reader = csv.DictReader(fh)
             # appended rows would not line up with another header's columns
@@ -552,6 +544,14 @@ def main():
                 sys.exit(
                     f"{args.output} was written with other columns; start a new "
                     "report (choose another --output)"
+                )
+            # SEG-Y needs one pass per extension (.sgy then .segy) into the same
+            # report, so refuse to silently truncate hours of work: --resume both
+            # keeps the existing rows and skips the files already in them.
+            if not args.resume:
+                sys.exit(
+                    f"{args.output} already holds a report; pass --resume to add "
+                    "to it (or choose another --output)"
                 )
             done = {row["path"] for row in reader}
 

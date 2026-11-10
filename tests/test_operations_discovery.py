@@ -388,7 +388,7 @@ async def test_discovery_is_idempotent(
     assert (
         records[0].asset_discovery_configuration_id == discovery_env["configuration"].id
     )
-    # dedup runs BEFORE extraction, so the second run must not extract at all
+    # dedup runs before extraction and the heal is off under 4326: nothing is extracted
     assert len(extraction_calls) == 1
     # and the second run must not even attempt a record creation (a failed
     # attempt would surface as a succeeded=False modification event)
@@ -590,6 +590,7 @@ async def test_discovery_implicit_crs_default_discards_projected_coordinates(
     assert len(records) == 1
     assert records[0].bbox_4326 is None
     assert any("Discarding extracted bbox" in r.message for r in caplog.records)
+    assert "CRS: unknown." in records[0].description
 
 
 @pytest.mark.integration
@@ -632,6 +633,288 @@ async def test_discovery_survives_invalid_implicit_crs(
     records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
     assert len(records) == 1
     assert records[0].bbox_4326 is None
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "implicit_crs, header_epsg_codes, expected_crs",
+    [
+        pytest.param(
+            4326,
+            (9807, 3763),
+            "CRS: ETRS89 / Portugal TM06 (EPSG:3763).",
+            id="one projected code",
+        ),
+        pytest.param(
+            3763,
+            (3763, 3763),
+            "CRS: ETRS89 / Portugal TM06 (EPSG:3763).",
+            id="code of the mission, quoted twice",
+        ),
+        pytest.param(
+            3763,
+            (3763, 32629),
+            "CRS: ETRS89 / Portugal TM06 (EPSG:3763, from the survey mission).",
+            id="two projected codes",
+        ),
+        # with the mission at 4326 too, taking the header's 4326 would go unnoticed
+        pytest.param(
+            3763,
+            (4326,),
+            "CRS: ETRS89 / Portugal TM06 (EPSG:3763, from the survey mission).",
+            id="geographic code",
+        ),
+    ],
+)
+async def test_discovery_applies_header_crs(
+    db_session_maker,
+    admin_user,
+    discovery_env,
+    monkeypatch,
+    implicit_crs,
+    header_epsg_codes,
+    expected_crs,
+):
+    # only a single projected CRS quoted by the SEG-Y header overrides the mission's
+    target = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/line.tif"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"content is irrelevant, dispatch is faked")
+
+    def fake_dispatch(path):
+        return extractor_schemas.SegyMetadata(
+            driver="SEG-Y",
+            bbox_native=_NATIVE_BBOX_TM06,
+            header_epsg_codes=header_epsg_codes,
+        )
+
+    monkeypatch.setattr(
+        discovery_ops.extractor_dispatch, "dispatch_extractor", fake_dispatch
+    )
+    async with db_session_maker() as session:
+        mission = await session.get(models.SurveyMission, discovery_env["mission"].id)
+        mission.implicit_crs = implicit_crs
+        session.add(mission)
+        await session.commit()
+
+    await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+
+    (record,) = await _get_mission_records(
+        db_session_maker, discovery_env["mission"].id
+    )
+    assert expected_crs in record.description
+    minx, miny, maxx, maxy = to_shape(record.bbox_4326).bounds
+    assert -8.2 < minx <= maxx < -8.0
+    assert 39.6 < miny <= maxy < 39.8
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discovery_heals_tracked_record_without_bbox(
+    db_session_maker, admin_user, discovery_env, monkeypatch
+):
+    # a record discovered while the mission's CRS was still the 4326 default has no
+    # bbox, and gets one from a re-run once the mission has a projected CRS
+    mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
+    for name in ("drawn.tif", "healed.tif"):
+        target = mission_root / "s01" / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"content is irrelevant, dispatch is faked")
+    drawn = record_schemas.SurveyRelatedRecordCreate.model_validate(
+        _record_to_create(discovery_env, "s01/drawn.tif").model_dump()
+        | {"bbox_4326": _DRAWN_BBOX_WKT}
+    )
+    without_bbox = _record_to_create(discovery_env, "s01/healed.tif")
+    # an update drops the data assets and relations its payload does not restate
+    without_bbox = without_bbox.model_copy(
+        update={
+            # typed by hand, and replaced by the extracted ones
+            "temporal_extent_begin": dt.date(2020, 1, 1),
+            "temporal_extent_end": dt.date(2020, 1, 2),
+            "assets": [
+                *without_bbox.assets,
+                # outside every configuration's pattern
+                record_schemas.DataRecordAssetCreate(
+                    id=identifiers.RecordAssetId(uuid.uuid4()),
+                    name="notes",
+                    relative_path="notes/healed.txt",
+                ),
+            ],
+            "related_records": [
+                record_schemas.RelatedRecordCreate(
+                    related_record_id=drawn.id, relationship="derived from"
+                )
+            ],
+        }
+    )
+    for to_create in (drawn, without_bbox):
+        await _create_record_without_discovery(db_session_maker, admin_user, to_create)
+    async with db_session_maker() as session:
+        mission = await session.get(models.SurveyMission, discovery_env["mission"].id)
+        mission.implicit_crs = 3763
+        session.add(mission)
+        await session.commit()
+    extraction_calls = []
+
+    def fake_dispatch(path):
+        extraction_calls.append(path)
+        return extractor_schemas.SegyMetadata(
+            driver="SEG-Y",
+            bbox_native=_NATIVE_BBOX_TM06,
+            temporal_extent_begin=dt.date(2024, 9, 28),
+            temporal_extent_end=dt.date(2024, 9, 29),
+        )
+
+    monkeypatch.setattr(
+        discovery_ops.extractor_dispatch, "dispatch_extractor", fake_dispatch
+    )
+
+    await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+
+    # a record that has a bbox is not read again
+    assert extraction_calls == [str(mission_root / "s01/healed.tif")]
+    records = {
+        r.id: r
+        for r in await _get_mission_records(
+            db_session_maker, discovery_env["mission"].id
+        )
+    }
+    healed = records[without_bbox.id]
+    minx, miny, maxx, maxy = to_shape(healed.bbox_4326).bounds
+    assert -8.2 < minx <= maxx < -8.0
+    assert 39.6 < miny <= maxy < 39.8
+    assert (
+        "CRS: ETRS89 / Portugal TM06 (EPSG:3763, from the survey mission)."
+        in healed.description
+    )
+    assert healed.temporal_extent_begin == dt.date(2024, 9, 28)
+    assert healed.temporal_extent_end == dt.date(2024, 9, 29)
+    assert healed.asset_discovery_configuration_id == discovery_env["configuration"].id
+    assert healed.validation_result["is_valid"] is True
+    assets = await _get_record_assets(db_session_maker, without_bbox.id)
+    assert sorted(a.relative_path for a in assets) == [
+        "notes/healed.txt",
+        "s01/healed.tif",
+    ]
+    async with db_session_maker() as session:
+        links = (
+            await session.exec(sqlmodel.select(models.SurveyRelatedRecordSelfLink))
+        ).all()
+    assert [(link.subject_id, link.related_to_id, link.relation) for link in links] == [
+        (without_bbox.id, drawn.id, "derived from")
+    ]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "implicit_crs, bbox_native, status, expected_extractions",
+    [
+        pytest.param(
+            3763,
+            None,
+            constants.SurveyRelatedRecordStatus.DRAFT,
+            1,
+            id="still no bbox",
+        ),
+        pytest.param(
+            3763,
+            _NATIVE_BBOX_TM06,
+            constants.SurveyRelatedRecordStatus.UNDER_DERIVATION,
+            1,
+            id="record busy",
+        ),
+        pytest.param(
+            4326,
+            _NATIVE_BBOX_TM06,
+            constants.SurveyRelatedRecordStatus.DRAFT,
+            0,
+            id="geographic mission crs",
+        ),
+    ],
+)
+async def test_discovery_heal_writes_nothing(
+    db_session_maker,
+    admin_user,
+    discovery_env,
+    monkeypatch,
+    implicit_crs,
+    bbox_native,
+    status,
+    expected_extractions,
+):
+    target = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/line.tif"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"content is irrelevant, dispatch is faked")
+    to_create = _record_to_create(
+        discovery_env, "s01/line.tif", discovery_env["configuration"].id
+    )
+    await _create_record_without_discovery(db_session_maker, admin_user, to_create)
+    async with db_session_maker() as session:
+        # found twice, by overlapping configurations, the file is never read twice
+        await discovery_commands.create_asset_discovery_configuration(
+            session,
+            discovery_schemas.AssetDiscoveryConfigurationCreate(
+                id=identifiers.AssetDiscoveryConfId(uuid.uuid4()),
+                name="any tif",
+                relative_path_regexp=r".*\.tif",
+                media_type="image/tiff",
+                generate_previews=True,
+                workflow_stage_id=identifiers.WorkflowStageId(
+                    discovery_env["configuration"].workflow_stage_id
+                ),
+                dataset_category_id=identifiers.DatasetCategoryId(
+                    discovery_env["configuration"].dataset_category_id
+                ),
+            ),
+        )
+        mission = await session.get(models.SurveyMission, discovery_env["mission"].id)
+        mission.implicit_crs = implicit_crs
+        record = await session.get(models.SurveyRelatedRecord, to_create.id)
+        record.status = status
+        session.add_all((mission, record))
+        await session.commit()
+    extraction_calls = []
+
+    def fake_dispatch(path):
+        extraction_calls.append(path)
+        return extractor_schemas.SegyMetadata(
+            driver="SEG-Y",
+            bbox_native=bbox_native,
+            temporal_extent_begin=dt.date(2024, 9, 28),
+            temporal_extent_end=dt.date(2024, 9, 29),
+        )
+
+    monkeypatch.setattr(
+        discovery_ops.extractor_dispatch, "dispatch_extractor", fake_dispatch
+    )
+
+    collector = await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+
+    assert len(extraction_calls) == expected_extractions
+    (record,) = await _get_mission_records(
+        db_session_maker, discovery_env["mission"].id
+    )
+    assert record.bbox_4326 is None
+    assert record.description == "A record created by hand"
+    assert record.temporal_extent_begin is None
+    assert record.temporal_extent_end is None
+    assert [e.succeeded for e in _ended_events(collector)] == [True]
 
 
 @pytest.mark.integration

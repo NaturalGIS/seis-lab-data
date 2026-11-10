@@ -339,7 +339,7 @@ async def _discover_mission_records(
         )
     )
     logger.debug(f"{mission_root_path=}")
-    # under a geographic CRS a re-read can never place metre coordinates
+    # under a geographic CRS only a header code could place metres: not worth a re-read
     heal_enabled = _is_projected_crs(mission.implicit_crs)
     if not heal_enabled:
         logger.info(
@@ -701,20 +701,23 @@ async def _extract_file_metadata(
         logger.warning("Metadata extraction failed for %s: %s", file_path, err)
         logger.debug("Extraction failure detail", exc_info=True)
     bbox_4326 = None
+    header_crs = None
+    applied_crs = implicit_crs
     applied_crs_name = None
     if metadata is not None:
         bbox_4326 = metadata.bbox_4326
         if (native_bbox := metadata.bbox_native_needing_crs) is not None:
             header_crs = _header_crs(metadata)
-            applied_crs = header_crs if header_crs is not None else implicit_crs
-            if header_crs is not None and header_crs != implicit_crs:
-                logger.info(
-                    "Applying EPSG:%s from the header of %s instead of the mission's "
-                    "EPSG:%s",
-                    header_crs,
-                    file_path,
-                    implicit_crs,
-                )
+            if header_crs is not None:
+                applied_crs = header_crs
+                if header_crs != implicit_crs:
+                    logger.info(
+                        "Applying EPSG:%s from the header of %s instead of the "
+                        "mission's EPSG:%s",
+                        header_crs,
+                        file_path,
+                        implicit_crs,
+                    )
             try:
                 srs = osr.SpatialReference()
                 srs.ImportFromEPSG(applied_crs)
