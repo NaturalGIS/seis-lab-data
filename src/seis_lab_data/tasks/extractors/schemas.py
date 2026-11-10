@@ -30,6 +30,7 @@ _WORDS: dict[str, dict[str, str]] = {
         "coordinates_in": "coordinates in",
         "partly_unreliable": "Coordinate sampling was partly unreliable.",
         "crs_unknown": "unknown",
+        "crs_from_mission": "from the survey mission",
         "native_bbox": "Native bbox",
     },
     "pt": {
@@ -50,6 +51,7 @@ _WORDS: dict[str, dict[str, str]] = {
         "coordinates_in": "coordenadas em",
         "partly_unreliable": ("A amostragem de coordenadas foi parcial, pouco fiável."),
         "crs_unknown": "desconhecido",
+        "crs_from_mission": "da missão",
         "native_bbox": "Extensão nativa",
     },
 }
@@ -65,8 +67,13 @@ _UNITS_PT = {
 }
 
 
-def _format_crs(epsg: int | None, crs_name: str | None, language: str) -> str:
+def _format_crs(
+    epsg: int | None, crs_name: str | None, crs_from_mission: bool, language: str
+) -> str:
     if crs_name and epsg is not None:
+        if crs_from_mission:
+            marker = _WORDS[language]["crs_from_mission"]
+            return f"{crs_name} (EPSG:{epsg}, {marker})"
         return f"{crs_name} (EPSG:{epsg})"
     if epsg is not None:
         return f"EPSG:{epsg}"
@@ -90,6 +97,8 @@ class ExtractedMetadata(pydantic.BaseModel):
     epsg: int | None = None
     crs_name: str | None = None
     crs_wkt: str | None = None
+    # set by discovery when the survey mission's implicit CRS placed the file
+    crs_from_mission: bool = False
     bbox_native: tuple[float, float, float, float] | None = None
     bbox_4326: tuple[float, float, float, float] | None = None
     temporal_extent_begin: dt.date | None = None
@@ -134,7 +143,8 @@ class RasterMetadata(ExtractedMetadata):
             )
         if self.nodata is not None:
             summary += f", nodata {self.nodata:g}"
-        summary += f". CRS: {_format_crs(self.epsg, self.crs_name, language)}."
+        crs = _format_crs(self.epsg, self.crs_name, self.crs_from_mission, language)
+        summary += f". CRS: {crs}."
         summary += _native_bbox_clause(self.bbox_native, language)
         return summary[: constants.DESCRIPTION_MAX_LENGTH]
 
@@ -146,13 +156,14 @@ class VectorMetadata(ExtractedMetadata):
 
     def describe(self, language: typing.Literal["en", "pt"] = "en") -> str:
         words = _WORDS[language]
+        crs = _format_crs(self.epsg, self.crs_name, self.crs_from_mission, language)
         summary = (
             f"{words['auto_extracted']}: "
             f"{words['vector_kind'].format(driver=self.driver)}, "
             f"{self.layer_count} {words['layers']}, "
             f"{self.feature_count} {words['features']}, "
             f"{words['geometry']}: {self.geometry_type}. "
-            f"CRS: {_format_crs(self.epsg, self.crs_name, language)}."
+            f"CRS: {crs}."
         )
         summary += _native_bbox_clause(self.bbox_native, language)
         return summary[: constants.DESCRIPTION_MAX_LENGTH]
@@ -170,11 +181,12 @@ class KmallMetadata(ExtractedMetadata):
             if self.echo_sounder_id
             else words["unknown_sounder"]
         )
+        crs = _format_crs(self.epsg, self.crs_name, self.crs_from_mission, language)
         summary = (
             f"{words['auto_extracted']}: Kongsberg KMALL, {sounder}, "
             f"{self.datagram_count} {words['datagrams']}, "
             f"{self.position_count} {words['position_fixes']}. "
-            f"CRS: {_format_crs(self.epsg, self.crs_name, language)}."
+            f"CRS: {crs}."
         )
         summary += _native_bbox_clause(self.bbox_native, language)
         return summary[: constants.DESCRIPTION_MAX_LENGTH]
@@ -190,6 +202,8 @@ class SegyMetadata(ExtractedMetadata):
     sample_format: str | None = None
     coordinate_units: str | None = None
     coverage: str = "full"
+    # codes quoted in the free-text header; discovery decides whether one applies
+    header_epsg_codes: tuple[int, ...] = ()
 
     def describe(self, language: typing.Literal["en", "pt"] = "en") -> str:
         words = _WORDS[language]
@@ -209,7 +223,8 @@ class SegyMetadata(ExtractedMetadata):
             if language == "pt":
                 units = _UNITS_PT.get(units, units)
             summary += f", {words['coordinates_in']} {units}"
-        summary += f". CRS: {_format_crs(self.epsg, self.crs_name, language)}."
+        crs = _format_crs(self.epsg, self.crs_name, self.crs_from_mission, language)
+        summary += f". CRS: {crs}."
         summary += _native_bbox_clause(self.bbox_native, language)
         if self.coverage == "partial":
             summary += f" {words['partly_unreliable']}"

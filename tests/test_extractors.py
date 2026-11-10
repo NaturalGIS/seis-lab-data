@@ -619,11 +619,12 @@ def _write_segy(
     revision=1,
     n_ext=0,
     order=">",
+    textual=b"",
     extended=b"",
     trailer=b"",
 ):
     path.write_bytes(
-        b" " * 3200
+        textual.ljust(3200, b" ")
         + _segy_binary_header(ns, sample_format, interval, revision, n_ext, order)
         + extended
         + b"".join(traces)
@@ -930,6 +931,43 @@ def test_segy_extended_textual_headers(tmp_path):
 
     assert result.trace_count == 2
     assert result.bbox_native == (-50000.0, 150000.0, -48000.0, 152000.0)
+
+
+@pytest.mark.parametrize(
+    "textual, expected",
+    [
+        pytest.param(
+            "C17 PROJECTION TYPE: PORTUGAL TM06 (EPSG 3763);".encode("cp037"),
+            (3763,),
+            id="ebcdic",
+        ),
+        pytest.param(
+            b"C 9 crs: etrs89 / portugal tm06, epsg : 3763",
+            (3763,),
+            id="ascii in lower case",
+        ),
+        pytest.param(
+            (
+                "C17 PROJECTION TYPE: TRANSVERSE MERCATOR(EPSG:9807); "
+                "C18 VERTICAL DATUM: ZERO HIDROGRAFICO(ZH,EPSG:10349);"
+            ).encode("cp037"),
+            (9807, 10349),
+            id="method and vertical datum",
+        ),
+        pytest.param(
+            "C24 GEODETIC: 3763 : ETRS89 / Portugal TM06 EPSG:258290".encode("cp037"),
+            (),
+            id="bare number or six digits",
+        ),
+    ],
+)
+def test_segy_header_epsg_codes(tmp_path, textual, expected):
+    # every explicit code is reported, even those that are no CRS (9807 is a
+    # method, 10349 a vertical datum): which one applies is for discovery
+    path = tmp_path / "line.sgy"
+    _write_segy(path, [_segy_trace(src=(-50000, 150000))], textual=textual)
+
+    assert extract_segy_metadata(path).header_epsg_codes == expected
 
 
 def test_segy_sampling_includes_endpoints(tmp_path):

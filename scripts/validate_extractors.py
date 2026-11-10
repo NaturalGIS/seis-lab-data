@@ -34,6 +34,7 @@ import csv
 import datetime as dt
 import math
 import os
+import re
 import struct
 import sys
 import time
@@ -80,6 +81,8 @@ _CSV_COLUMNS = [
     "garbage_count",
     "accepted_count",
     "units_counts",
+    # SEG-Y again, kept last so that earlier reports keep their column positions
+    "header_epsg_codes",
 ]
 
 
@@ -204,6 +207,8 @@ _TRACE_HEADER_BYTES = 240
 _TRACE_DATA_START = _TEXTUAL_HEADER_BYTES + _BINARY_HEADER_BYTES
 _MINIMUM_FILE_BYTES = _TRACE_DATA_START + _TRACE_HEADER_BYTES
 _MAX_EXTENDED_HEADERS = 100
+# see segy.py: only an explicit EPSG code is read, never names, zones or bare numbers
+_EPSG_CODE = re.compile(r"EPSG\W{0,3}(\d{4,5})(?!\d)", re.IGNORECASE)
 _SAMPLE_TARGET = 100
 _GARBAGE_FRACTION_LIMIT = 0.5
 _MAX_PLAUSIBLE_METRES = 1e7
@@ -277,7 +282,10 @@ def validate_segy(path):
     if size < _MINIMUM_FILE_BYTES:
         raise ValueError("does not look like a SEG-Y file")
     with open(path, "rb") as fh:
-        fh.seek(_TEXTUAL_HEADER_BYTES)
+        textual_header = fh.read(_TEXTUAL_HEADER_BYTES)
+        epsg_codes = _EPSG_CODE.findall(textual_header.decode("cp037"))
+        if not epsg_codes:
+            epsg_codes = _EPSG_CODE.findall(textual_header.decode("latin-1"))
         headers = _parse_binary_header(fh.read(_BINARY_HEADER_BYTES))
         if headers is None:
             raise ValueError("does not look like a SEG-Y file")
@@ -290,6 +298,7 @@ def validate_segy(path):
             "sample_interval": binary_header.sample_interval or "",
             "samples_per_trace": binary_header.samples_per_trace or "",
             "sample_format": format_label,
+            "header_epsg_codes": ";".join(str(int(code)) for code in epsg_codes),
         }
         if (
             bytes_per_sample is None
@@ -528,16 +537,23 @@ def main():
     done = set()
     has_report = os.path.exists(args.output) and os.path.getsize(args.output) > 0
     if has_report:
-        # SEG-Y needs one pass per extension (.sgy then .segy) into the same
-        # report, so refuse to silently truncate hours of work: --resume both
-        # keeps the existing rows and skips the files already in them.
-        if not args.resume:
-            sys.exit(
-                f"{args.output} already holds a report; pass --resume to add to "
-                "it (or choose another --output)"
-            )
         with open(args.output) as fh:
-            done = {row["path"] for row in csv.DictReader(fh)}
+            reader = csv.DictReader(fh)
+            # appended rows would not line up with another header's columns
+            if reader.fieldnames != _CSV_COLUMNS:
+                sys.exit(
+                    f"{args.output} was written with other columns; start a new "
+                    "report (choose another --output)"
+                )
+            # SEG-Y needs one pass per extension (.sgy then .segy) into the same
+            # report, so refuse to silently truncate hours of work: --resume both
+            # keeps the existing rows and skips the files already in them.
+            if not args.resume:
+                sys.exit(
+                    f"{args.output} already holds a report; pass --resume to add "
+                    "to it (or choose another --output)"
+                )
+            done = {row["path"] for row in reader}
 
     mode = "a" if has_report else "w"
     processed = ok = failed = 0
