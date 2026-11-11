@@ -26,7 +26,7 @@
                     </a>
                     {% if item.status.value != "published" %}
                         <span class="badge text-bg-danger ms-auto" aria-label="item-status">
-                            <span class="material-icons-outlined me-1 fs-6">{{ item | status_icon }}</span>{{ item.status | translate_enum }}
+                            {% with status_icon_classes="fs-6" %}{% include "partial-status-icon.html" %}{% endwith %}{{ item.status | translate_enum }}
                         </span>
                     {% endif %}
                 </div>

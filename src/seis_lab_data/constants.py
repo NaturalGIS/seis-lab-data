@@ -29,46 +29,6 @@ NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS: typing.Final[str] = (
 NEW_TOPIC_DATASET_CATEGORIES: typing.Final[str] = "dataset_categories"
 NEW_TOPIC_WORKFLOW_STAGES: typing.Final[str] = "workflow_stages"
 
-PROGRESS_TOPIC_NAME_TEMPLATE: typing.Final[str] = "progress:{request_id}"
-
-PROJECT_UPDATED_TOPIC: typing.Final[str] = "project-updated:{project_id}"
-PROJECT_STATUS_CHANGED_TOPIC: typing.Final[str] = "project-status-changed:{project_id}"
-PROJECT_VALIDITY_CHANGED_TOPIC: typing.Final[str] = (
-    "project-validity-changed:{project_id}"
-)
-PROJECT_DELETED_TOPIC: typing.Final[str] = "project-deleted:{project_id}"
-PROJECT_DISCOVERY_TOPIC: typing.Final[str] = "project-discovery:{project_id}"
-
-SURVEY_MISSION_CREATED_TOPIC: typing.Final[str] = "survey-mission-created"
-SURVEY_MISSION_DISCOVERY_TOPIC: typing.Final[str] = (
-    "survey-mission-discovery:{survey_mission_id}"
-)
-SURVEY_MISSION_UPDATED_TOPIC: typing.Final[str] = (
-    "survey-mission-updated:{survey_mission_id}"
-)
-SURVEY_MISSION_STATUS_CHANGED_TOPIC: typing.Final[str] = (
-    "survey-mission-status-changed:{survey_mission_id}"
-)
-SURVEY_MISSION_VALIDITY_CHANGED_TOPIC: typing.Final[str] = (
-    "survey-mission-validity-changed:{survey_mission_id}"
-)
-SURVEY_MISSION_DELETED_TOPIC: typing.Final[str] = (
-    "survey-mission-deleted:{survey_mission_id}"
-)
-
-SURVEY_RELATED_RECORD_CREATED_TOPIC: typing.Final[str] = "survey-related-record-created"
-SURVEY_RELATED_RECORD_UPDATED_TOPIC: typing.Final[str] = (
-    "survey-related-record-updated:{survey_related_record_id}"
-)
-SURVEY_RELATED_RECORD_STATUS_CHANGED_TOPIC: typing.Final[str] = (
-    "survey-related-record-status-changed:{survey_related_record_id}"
-)
-SURVEY_RELATED_RECORD_VALIDITY_CHANGED_TOPIC: typing.Final[str] = (
-    "survey-related-record-validity-changed:{survey_related_record_id}"
-)
-SURVEY_RELATED_RECORD_DELETED_TOPIC: typing.Final[str] = (
-    "survey-related-record-deleted:{survey_related_record_id}"
-)
 # data assets whose file is unusable without its sidecar files - these get
 # downloaded as a zip bundle holding the file and all of its sidecars
 BUNDLED_DATA_ASSET_EXTENSIONS: typing.Final[frozenset[str]] = frozenset({".shp"})

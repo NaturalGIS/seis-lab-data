@@ -313,26 +313,48 @@ disabled when the URL is not set):
 - `SEIS_LAB_DATA__TARGET_GEONODE__URL` - URL where the backend reaches the GeoNode API
 - `SEIS_LAB_DATA__TARGET_GEONODE__PUBLIC_URL` - URL where users reach GeoNode, only needed if it
   differs from the previous one, as happens in the dev stack
-- `SEIS_LAB_DATA__TARGET_GEONODE__TOKEN` - GeoNode API token, sent as a bearer token
+- `SEIS_LAB_DATA__TARGET_GEONODE__USERNAME` and `SEIS_LAB_DATA__TARGET_GEONODE__PASSWORD` -
+  credentials of the GeoNode user which seis-lab-data acts as, which becomes the owner of the
+  exported resources. This is meant to be a service account, used only by seis-lab-data
+- `SEIS_LAB_DATA__TARGET_GEONODE__CLIENT_ID` and `SEIS_LAB_DATA__TARGET_GEONODE__CLIENT_SECRET` -
+  credentials of a GeoNode OAuth2 application, which must be _confidential_ and use the
+  _resource owner password-based_ grant type. Each export exchanges the service account's
+  credentials for an access token with it, revoking the token when done
 - `SEIS_LAB_DATA__PUBLIC_URL` - must also be set for the workers, as exported GeoNode resources
   link back to their record's page
 
 Exports run in the `exports` queue, consumed by the `previews-worker` service. The dev stack already
-sets the URLs; the token is read from the `GEONODE_API_TOKEN` environment variable when starting
-compose. An API token for the GeoNode `admin` user can be obtained with:
+sets all of these settings, using fixed credentials, the GeoNode counterparts of which can be
+created with:
 
 ```shell
 docker compose -f docker/compose.dev.yaml exec geonode-django python manage.py shell -c "
+import os
 from django.contrib.auth import get_user_model
-from geonode.base.auth import get_or_create_token
-print(get_or_create_token(get_user_model().objects.get(username='admin')))
+from oauth2_provider.models import get_application_model
+
+Application = get_application_model()
+user, _ = get_user_model().objects.get_or_create(
+    username=os.environ['SLD_BOT_USERNAME'])
+user.set_password(os.environ['SLD_BOT_PASSWORD'])
+user.save()
+Application.objects.update_or_create(
+    client_id=os.environ['SLD_OAUTH_APP_CLIENT_ID'],
+    defaults=dict(
+        name=os.environ['SLD_OAUTH_APP_NAME'],
+        user=user,
+        client_secret=os.environ['SLD_OAUTH_APP_CLIENT_SECRET'],
+        client_type=Application.CLIENT_CONFIDENTIAL,
+        authorization_grant_type=Application.GRANT_PASSWORD,
+    ),
+)
 "
 ```
 
-After which the services that use it need to be recreated:
+After which the services that use them need to be recreated:
 
 ```shell
-GEONODE_API_TOKEN=<token> docker compose -f docker/compose.dev.yaml --profile geonode up -d
+docker compose -f docker/compose.dev.yaml --profile geonode up -d
 ```
 
 

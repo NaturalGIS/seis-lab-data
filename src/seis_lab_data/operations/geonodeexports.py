@@ -1,13 +1,10 @@
 import datetime as dt
 import logging
 import re
-from pathlib import PurePath
+import pathlib
 
 import httpx
-from anyio import (
-    Path,
-    to_thread,
-)
+from anyio import Path
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from .. import (
@@ -43,7 +40,7 @@ def get_geonode_exportable_data_asset(
             for asset in sorted(record.assets, key=lambda a: (a.name, str(a.id)))
             if constants.AssetType.DATA in asset.asset_type
             and asset.relative_path is not None
-            and PurePath(asset.relative_path).suffix.lower()
+            and pathlib.PurePath(asset.relative_path).suffix.lower()
             in constants.GEONODE_EXPORTABLE_DATA_ASSET_EXTENSIONS
         ),
         None,
@@ -117,7 +114,11 @@ async def export_survey_related_record(
             raise errors.SeisLabDataError(
                 "Survey-related record changed status meanwhile - not exporting it."
             )
-    except errors.SeisLabDataError as err:
+    # catching everything, as the user is waiting to hear how the export went -
+    # these are background tasks, there is no one else to tell about errors
+    except Exception as err:
+        if not isinstance(err, errors.SeisLabDataError):
+            logger.exception(f"Could not export record {survey_related_record_id}")
         await event_dispatcher(
             event_schemas.ExportEvent(
                 initiator=initiator.id,
@@ -131,6 +132,17 @@ async def export_survey_related_record(
         )
         return
 
+    # pages showing the record learn of it being busy from its status change
+    await event_dispatcher(
+        event_schemas.ResourceStatusChangedEvent(
+            initiator=initiator.id,
+            request_id=request_id,
+            resource_type=constants.ResourceType.RECORD,
+            resource_id=str(survey_related_record_id),
+            succeeded=True,
+            new_status=constants.SurveyRelatedRecordStatus.UNDER_EXPORT,
+        )
+    )
     await event_dispatcher(
         event_schemas.ExportEvent(
             initiator=initiator.id,
@@ -143,44 +155,31 @@ async def export_survey_related_record(
     )
     target = settings.target_geonode
     try:
-        async with httpx.AsyncClient(
-            base_url=target.url,
-            headers={"Authorization": f"Bearer {target.token}"},
-            timeout=30,
-        ) as client:
-            resource_pk = None
-            if record.geonode_resource_url is not None and (
-                pk_match := re.search(r"/(\d+)/?$", record.geonode_resource_url)
-            ):
-                existing = await client.get(f"/api/v2/resources/{pk_match.group(1)}")
-                if existing.status_code == 404:
-                    logger.info(
-                        f"GeoNode resource {record.geonode_resource_url!r} no longer "
-                        f"exists - exporting record as a new resource..."
+        async with httpx.AsyncClient(base_url=target.url, timeout=30) as client:
+            access_token = await geonode.get_access_token(
+                client,
+                username=target.username,
+                password=target.password,
+                client_id=target.client_id,
+                client_secret=target.client_secret,
+            )
+            client.headers["Authorization"] = f"Bearer {access_token}"
+            try:
+                resource_pk = None
+                if record.geonode_resource_url is not None and (
+                    pk_match := re.search(r"/(\d+)/?$", record.geonode_resource_url)
+                ):
+                    existing = await client.get(
+                        f"/api/v2/resources/{pk_match.group(1)}"
                     )
-                else:
-                    existing.raise_for_status()
-                    resource_pk = int(pk_match.group(1))
-            await event_dispatcher(
-                event_schemas.ExportEvent(
-                    initiator=initiator.id,
-                    request_id=request_id,
-                    resource_type=constants.ResourceType.RECORD,
-                    resource_id=str(survey_related_record_id),
-                    stage=constants.ExportStage.PROGRESS,
-                    succeeded=True,
-                    details=f"Uploading {data_path.name!r} to GeoNode...",
-                )
-            )
-            execution_id = await to_thread.run_sync(
-                geonode.upload_dataset,
-                target.url,
-                target.token,
-                geonode.get_upload_files(data_path),
-                resource_pk,
-            )
-            execution = None
-            async for execution in geonode.watch_execution(client, execution_id):
+                    if existing.status_code == 404:
+                        logger.info(
+                            f"GeoNode resource {record.geonode_resource_url!r} no longer "
+                            f"exists - exporting record as a new resource..."
+                        )
+                    else:
+                        existing.raise_for_status()
+                        resource_pk = int(pk_match.group(1))
                 await event_dispatcher(
                     event_schemas.ExportEvent(
                         initiator=initiator.id,
@@ -189,45 +188,76 @@ async def export_survey_related_record(
                         resource_id=str(survey_related_record_id),
                         stage=constants.ExportStage.PROGRESS,
                         succeeded=True,
-                        details=f"GeoNode import is {execution['status']} "
-                        f"({execution.get('step')})",
+                        details=f"Uploading {data_path.name!r} to GeoNode...",
                     )
                 )
-            resource_pk = execution["output_params"]["resources"][0]["id"]
-            # metadata is set on every export, as replacing the data resets it
-            record_url = (
-                f"{settings.public_url.rstrip('/')}/survey-related-records/"
-                f"{survey_related_record_id}"
-            )
-            metadata = {
-                "title": record.name,
-                "abstract": record.description or record.name,
-                "supplemental_information": (
-                    f"Exported from seis-lab-data survey-related record: {record_url}"
-                ),
-                "temporal_extent_start": (
-                    record.temporal_extent_begin.isoformat()
-                    if record.temporal_extent_begin is not None
-                    else None
-                ),
-                "temporal_extent_end": (
-                    record.temporal_extent_end.isoformat()
-                    if record.temporal_extent_end is not None
-                    else None
-                ),
-            }
-            metadata_response = await client.patch(
-                f"/api/v2/resources/{resource_pk}", json=metadata
-            )
-            metadata_response.raise_for_status()
-            resource_url = metadata_response.json()["resource"]["detail_url"]
+                execution_id = await geonode.upload_dataset(
+                    client, await geonode.get_upload_files(data_path), resource_pk
+                )
+                execution = None
+                async for execution in geonode.watch_execution(client, execution_id):
+                    await event_dispatcher(
+                        event_schemas.ExportEvent(
+                            initiator=initiator.id,
+                            request_id=request_id,
+                            resource_type=constants.ResourceType.RECORD,
+                            resource_id=str(survey_related_record_id),
+                            stage=constants.ExportStage.PROGRESS,
+                            succeeded=True,
+                            details=f"GeoNode import is {execution['status']} "
+                            f"({execution.get('step')})",
+                        )
+                    )
+                resource_pk = execution["output_params"]["resources"][0]["id"]
+                # metadata is set on every export, as replacing the data resets it
+                record_url = (
+                    f"{settings.public_url.rstrip('/')}/survey-related-records/"
+                    f"{survey_related_record_id}"
+                )
+                metadata = {
+                    "title": record.name,
+                    "abstract": record.description or record.name,
+                    "supplemental_information": (
+                        f"Exported from seis-lab-data survey-related record: {record_url}"
+                    ),
+                    "temporal_extent_start": (
+                        record.temporal_extent_begin.isoformat()
+                        if record.temporal_extent_begin is not None
+                        else None
+                    ),
+                    "temporal_extent_end": (
+                        record.temporal_extent_end.isoformat()
+                        if record.temporal_extent_end is not None
+                        else None
+                    ),
+                }
+                metadata_response = await client.patch(
+                    f"/api/v2/resources/{resource_pk}", json=metadata
+                )
+                metadata_response.raise_for_status()
+                resource_url = metadata_response.json()["resource"]["detail_url"]
+            finally:
+                # each export gets its own token, revoking it once done keeps
+                # them from piling up in GeoNode - not worth failing the export for
+                try:
+                    revocation = await client.post(
+                        "/o/revoke_token/",
+                        data={"token": access_token, "token_type_hint": "access_token"},
+                        auth=(target.client_id, target.client_secret),
+                    )
+                    revocation.raise_for_status()
+                except httpx.HTTPError:
+                    logger.warning(
+                        "Could not revoke GeoNode access token", exc_info=True
+                    )
         await record_commands.set_survey_related_record_geonode_export(
             session,
             survey_related_record_id,
             resource_url,
             dt.datetime.now(tz=dt.timezone.utc),
         )
-    except (httpx.HTTPError, errors.SeisLabDataError, KeyError, IndexError) as err:
+    # catching everything, so the user is always told when the export failed
+    except Exception as err:
         logger.exception(f"Could not export record {survey_related_record_id}")
         succeeded = False
         details = f"Could not export to GeoNode: {err}"
@@ -236,13 +266,24 @@ async def export_survey_related_record(
         details = resource_url
     finally:
         # conditional, so as not to undo a status which something else, such
-        # as the unpublishing of the record's mission, has set meanwhile
-        await record_commands.compare_and_set_survey_related_record_status(
+        # as the unpublishing of the record's mission, has set meanwhile -
+        # which has then announced the record's status change itself
+        if await record_commands.compare_and_set_survey_related_record_status(
             session,
             survey_related_record_id,
             constants.SurveyRelatedRecordStatus.UNDER_EXPORT,
             constants.SurveyRelatedRecordStatus.PUBLISHED,
-        )
+        ):
+            await event_dispatcher(
+                event_schemas.ResourceStatusChangedEvent(
+                    initiator=initiator.id,
+                    request_id=request_id,
+                    resource_type=constants.ResourceType.RECORD,
+                    resource_id=str(survey_related_record_id),
+                    succeeded=True,
+                    new_status=constants.SurveyRelatedRecordStatus.PUBLISHED,
+                )
+            )
     await event_dispatcher(
         event_schemas.ExportEvent(
             initiator=initiator.id,
@@ -269,6 +310,16 @@ async def recover_stale_geonode_exports(
     )
     for record_id in recovered:
         logger.warning(f"Recovered survey-related record {record_id} from export")
+        await event_dispatcher(
+            event_schemas.ResourceStatusChangedEvent(
+                initiator="system",
+                request_id=request_id,
+                resource_type=constants.ResourceType.RECORD,
+                resource_id=str(record_id),
+                succeeded=True,
+                new_status=constants.SurveyRelatedRecordStatus.PUBLISHED,
+            )
+        )
         await event_dispatcher(
             event_schemas.ExportEvent(
                 initiator="system",

@@ -31,7 +31,7 @@ async def flash_ui_message_after_redirect(
     payload = {
         "message": notification.message,
         "category": {
-            "success": "info",
+            "success": "success",
             "error": "danger",
         }.get(notification.category, "info"),
     }
@@ -47,7 +47,7 @@ async def flash_ui_message_same_page(
     payload = {
         "message": notification.message,
         "category": {
-            "success": "info",
+            "success": "success",
             "error": "danger",
         }.get(notification.category, "info"),
     }
@@ -167,6 +167,18 @@ async def handle_resource_modification_list_page(
     yield ServerSentEventGenerator.patch_signals(
         {"listingVersion": int(time.time() * 1000)}
     )
+
+
+async def handle_resource_status_changed_list_page(
+    message: message_schemas.ResourceStatusChangedMessage,
+    context: subscribers.HandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    """Re-fetch a listing as one of its items changes status."""
+    if message.succeeded:
+        yield ServerSentEventGenerator.patch_signals(
+            {"listingVersion": int(time.time() * 1000)}
+        )
 
 
 async def handle_bulk_resource_modification(
@@ -555,14 +567,6 @@ async def handle_resource_status_changed_detail_page(
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
     """Handle status changes for an item's detail page."""
-
-    async for event in flash_ui_message_after_redirect(
-        webui_schemas.Notification(
-            message=f"{message.resource_type.value} changed status to {message.new_status}"
-        )
-    ):
-        yield event
-
     match context.resource_type:
         case constants.ResourceType.PROJECT:
             async for event in _handle_project_status_changed_detail_page(
@@ -579,14 +583,24 @@ async def handle_resource_status_changed_detail_page(
                 return
             match message.resource_type:
                 case constants.ResourceType.RECORD:
-                    yield ServerSentEventGenerator.redirect(
-                        str(
-                            context.url_resolver(
-                                "survey_related_records:detail",
-                                survey_related_record_id=message.resource_id,
-                            )
+                    # re-fetching the record's details rather than reloading the
+                    # page, as for the busy statuses which come and go during
+                    # tasks such as exports, reloading makes the page jumpy
+                    if message.succeeded:
+                        notification = webui_schemas.Notification(
+                            message=f"{message.resource_type.value} changed status to {message.new_status}"
                         )
-                    )
+                    else:
+                        notification = webui_schemas.Notification(
+                            message=f"{message.resource_type.value} could not change status: {message.details}",
+                            category="error",
+                        )
+                    async for event in flash_ui_message_same_page(notification):
+                        yield event
+                    if message.succeeded:
+                        yield ServerSentEventGenerator.patch_signals(
+                            {"detailsVersion": int(time.time() * 1000)}
+                        )
                 case _:
                     logger.debug(
                         f"Don't know how to handle a status change for {message!r}"
@@ -611,6 +625,13 @@ async def _handle_survey_mission_status_changed_detail_page(
             succeeded=True, resource_type=constants.ResourceType.MISSION
         ):
             if message.resource_id == context.resource_id:
+                # stored for the page that the redirect below reloads
+                async for event in flash_ui_message_after_redirect(
+                    webui_schemas.Notification(
+                        message=f"{message.resource_type.value} changed status to {message.new_status}"
+                    )
+                ):
+                    yield event
                 yield ServerSentEventGenerator.redirect(
                     str(
                         context.url_resolver(
@@ -635,8 +656,8 @@ async def _handle_survey_mission_status_changed_detail_page(
                         session=session,
                     )
                 ) is not None and str(
-                    record_info[0].survey_mission_id == context.resource_id
-                ):
+                    record_info[0].survey_mission_id
+                ) == context.resource_id:
                     async for event in flash_ui_message_same_page(
                         notification=webui_schemas.Notification(
                             message=(
@@ -673,6 +694,13 @@ async def _handle_project_status_changed_detail_page(
             succeeded=True, resource_type=constants.ResourceType.PROJECT
         ):
             if message.resource_id == context.resource_id:
+                # stored for the page that the redirect below reloads
+                async for event in flash_ui_message_after_redirect(
+                    webui_schemas.Notification(
+                        message=f"{message.resource_type.value} changed status to {message.new_status}"
+                    )
+                ):
+                    yield event
                 yield ServerSentEventGenerator.redirect(
                     str(
                         context.url_resolver(
@@ -693,7 +721,7 @@ async def _handle_project_status_changed_detail_page(
                         initiator=context.user,
                         session=session,
                     )
-                ) is not None and str(db_mission.project_id == context.resource_id):
+                ) is not None and str(db_mission.project_id) == context.resource_id:
                     async for event in flash_ui_message_same_page(
                         notification=webui_schemas.Notification(
                             message=(
@@ -840,7 +868,12 @@ async def handle_export_detail_page(
     context: subscribers.HandlerContext,
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
-    """Relay the progress of an item's export, reloading the page as its status changes."""
+    """Relay the progress and outcome of an item's export to its detail page.
+
+    The export's start is not announced here, nor are the item's details
+    re-fetched: both come with the item's status changes, into and out of
+    being under export, which are handled on their own.
+    """
     if message.resource_id != context.resource_id:
         return
     match message.stage:
@@ -851,9 +884,7 @@ async def handle_export_detail_page(
                 yield event
             return
         case constants.ExportStage.STARTED:
-            notification = webui_schemas.Notification(
-                message=f"{message.resource_type.capitalize()} export started"
-            )
+            return
         case _ if message.succeeded:
             notification = webui_schemas.Notification(
                 message=(
@@ -870,13 +901,5 @@ async def handle_export_detail_page(
                 ),
                 category="error",
             )
-    async for event in flash_ui_message_after_redirect(notification):
+    async for event in flash_ui_message_same_page(notification):
         yield event
-    yield ServerSentEventGenerator.redirect(
-        str(
-            context.url_resolver(
-                "survey_related_records:detail",
-                survey_related_record_id=message.resource_id,
-            )
-        )
-    )

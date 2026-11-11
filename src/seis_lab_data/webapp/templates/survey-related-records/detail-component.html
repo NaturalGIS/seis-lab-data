@@ -1,6 +1,8 @@
 {% import "macros.html" as macros %}
 {% import "macros-buttons.html" as macros_buttons %}
-<div class="row"
+{# its id is what lets the re-rendered component be morphed into the page #}
+<div id="record-details"
+     class="row"
      data-signals:is-valid="{{ item.validation_result.is_valid | default(False, True) | tojson }}"
      data-signals:status="'{{ item.status.value }}'"
      data-computed:is-busy="!['draft', 'published'].includes($status)"
@@ -12,7 +14,10 @@
             <div class="col">
                 <div class="card{% if item.status.value != "published" %} item-unpublished{% endif %}" data-class:item-unpublished="$status !== 'published'">
                     {% if item.bbox_4326 is not none or item.preview_bounds is not none %}
+                        {# maplibre draws the map into the element - re-fetched details
+                           must leave it alone, or morphing them in would remove the map #}
                         <record-map
+                                data-ignore-morph
                                 data-tile-url="{{ settings.webmap_base_tile_layer_url }}"
                                 data-max-zoom="{{ settings.webmap_base_tile_layer_max_zoom }}"
                                 data-center-lon="{{ settings.webmap_default_center_lon }}"
@@ -171,10 +176,6 @@
                         >
                             <span class="material-icons-outlined me-1">{{ icons.export_item }}</span>{{ _("export to GeoNode...") | capitalize }}
                         </button>
-                        <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
-                             data-attr:hidden="!$exporting">
-                            <span class="visually-hidden">{{ _("Loading...") }}</span>
-                        </div>
                         <div
                                 id="export-item-modal"
                                 class="modal fade"

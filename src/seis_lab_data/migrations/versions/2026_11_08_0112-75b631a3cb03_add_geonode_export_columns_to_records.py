@@ -1,7 +1,7 @@
 """add geonode export columns to records
 
 Revision ID: 75b631a3cb03
-Revises: 56be2528f706
+Revises: bba69a38f980
 Create Date: 2026-11-08 01:12:34.593275
 
 """
@@ -15,7 +15,7 @@ import sqlmodel  # noqa
 
 # revision identifiers, used by Alembic.
 revision: str = "75b631a3cb03"
-down_revision: Union[str, Sequence[str], None] = "56be2528f706"
+down_revision: Union[str, Sequence[str], None] = "bba69a38f980"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

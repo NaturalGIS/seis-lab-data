@@ -1,0 +1,7 @@
+{# the icon for an item's status - temporary statuses, such as when the item is
+   under validation or under export, get a spinner instead #}
+{% if item.status.value in ("draft", "published") %}
+    <span class="material-icons-outlined me-1 {{ status_icon_classes | default('') }}">{{ item | status_icon }}</span>
+{%- else %}
+    <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+{%- endif %}

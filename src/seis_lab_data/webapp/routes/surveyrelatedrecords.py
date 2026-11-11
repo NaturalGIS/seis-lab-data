@@ -168,25 +168,29 @@ async def _get_survey_related_record_details(
     )
 
 
-@requires_auth
 async def get_details_component(request: Request):
+    """Re-render a record's details, to be morphed into its already open detail page.
+
+    The page's request id is passed along, so that the actions of the re-rendered
+    details keep reporting their progress to the page's stream.
+    """
+    try:
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid request id") from err
     details = await _get_survey_related_record_details(request)
-    template_processor = request.state.templates
-    template = template_processor.get_template(
+    rendered = request.state.templates.get_template(
         "survey-related-records/detail-component.html"
-    )
-    rendered = template.render(
+    ).render(
         request=request,
-        survey_related_record=details.item,
+        request_id=request_id,
+        item=details.item,
         permissions=details.permissions,
     )
 
     async def event_streamer():
-        yield ServerSentEventGenerator.patch_elements(
-            rendered,
-            selector=webui_schemas.selector_info.main_content_selector,
-            mode=ElementPatchMode.INNER,
-        )
+        # no selector, the details are matched by their id and morphed in place
+        yield ServerSentEventGenerator.patch_elements(rendered)
 
     return DatastarResponse(event_streamer())
 
@@ -1190,6 +1194,7 @@ async def stream_to_list_page(request: Request):
         ),
         {
             "resource_modified": common_handlers.handle_resource_modification_list_page,
+            "resource_status_changed": common_handlers.handle_resource_status_changed_list_page,
         },
     )
 
@@ -1783,7 +1788,7 @@ routes = [
         name="export_to_geonode",
     ),
     Route(
-        "/{survey_related_record_id}/details",
+        "/{survey_related_record_id}/details/{request_id}",
         get_details_component,
         methods=["GET"],
         name="get_details_component",

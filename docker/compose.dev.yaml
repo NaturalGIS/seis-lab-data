@@ -16,6 +16,12 @@ x-db-image: &db-image "postgis/postgis:17-3.5"
 x-auth-client-id: &auth-client-id "sld-client-id"
 x-auth-client-secret: &auth-client-secret "sld-client-secret"
 x-auth-redirect-url: &auth-redirect-url "http://localhost:8888/oauth2/callback"
+# GeoNode service account and OAuth2 app used for exporting records - these
+# must be created in GeoNode, as described in the development docs
+x-geonode-export-username: &geonode-export-username "sld-bot"
+x-geonode-export-password: &geonode-export-password "12345678"
+x-geonode-export-client-id: &geonode-export-client-id "sld"
+x-geonode-export-client-secret: &geonode-export-client-secret "sld-secret"
 
 x-common-env: &common-env
   SEIS_LAB_DATA__AUTH_ADMIN_TOKEN: *auth-admin-token
@@ -29,7 +35,10 @@ x-common-env: &common-env
   SEIS_LAB_DATA__PUBLIC_URL: http://localhost:8888
   SEIS_LAB_DATA__TARGET_GEONODE__URL: http://django:8000
   SEIS_LAB_DATA__TARGET_GEONODE__PUBLIC_URL: http://geonode.localhost:8888
-  SEIS_LAB_DATA__TARGET_GEONODE__TOKEN: ${GEONODE_API_TOKEN:-}
+  SEIS_LAB_DATA__TARGET_GEONODE__USERNAME: *geonode-export-username
+  SEIS_LAB_DATA__TARGET_GEONODE__PASSWORD: *geonode-export-password
+  SEIS_LAB_DATA__TARGET_GEONODE__CLIENT_ID: *geonode-export-client-id
+  SEIS_LAB_DATA__TARGET_GEONODE__CLIENT_SECRET: *geonode-export-client-secret
 
 x-common-auth-env: &common-auth-env
   AUTHENTIK_LOG_LEVEL: debug
@@ -237,7 +246,6 @@ services:
       - "run-processing-worker"
       - "--queues"
       - "default"
-      - "exports"
     environment:
       <<: *common-env
     volumes:
@@ -250,6 +258,7 @@ services:
       - "--queues"
       - "previews"
       - "thumbnails"
+      - "exports"
     environment:
       <<: *common-env
       SEIS_LAB_DATA__THUMBNAIL_BASE_TILE_LAYER_URL: http://martin-tile-server:3000/emodnet-bathymetry/{z}/{x}/{y}
@@ -410,6 +419,11 @@ services:
     <<: *geonode-common
     environment:
       IS_CELERY: "False"
+      SLD_BOT_USERNAME: *geonode-export-username
+      SLD_BOT_PASSWORD: *geonode-export-password
+      SLD_OAUTH_APP_NAME: "seis-lab-data"
+      SLD_OAUTH_APP_CLIENT_ID: *geonode-export-client-id
+      SLD_OAUTH_APP_CLIENT_SECRET: *geonode-export-client-secret
     # uwsgi with fewer workers than the upstream defaults - note that uwsgi request logs
     # go to /var/log/geonode.log inside the container
     command:

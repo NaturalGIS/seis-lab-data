@@ -36,25 +36,17 @@ def get_status_icon_name(
     context: dict[str, typing.Any],
     item: "ItemWithStatus",
 ) -> str:
+    # only for draft and published items - the others get a spinner instead
     return {
         constants.ProjectStatus.DRAFT: context["icons"]["status_draft"],
-        constants.ProjectStatus.UNDER_VALIDATION: context["icons"][
-            "status_under_validation"
-        ],
         constants.ProjectStatus.PUBLISHED: context["icons"]["status_published"],
         constants.SurveyMissionStatus.DRAFT: context["icons"]["status_draft"],
-        constants.SurveyMissionStatus.UNDER_VALIDATION: context["icons"][
-            "status_under_validation"
-        ],
         constants.SurveyMissionStatus.PUBLISHED: context["icons"]["status_published"],
         constants.SurveyRelatedRecordStatus.DRAFT: context["icons"]["status_draft"],
-        constants.SurveyRelatedRecordStatus.UNDER_VALIDATION: context["icons"][
-            "status_under_validation"
-        ],
         constants.SurveyRelatedRecordStatus.PUBLISHED: context["icons"][
             "status_published"
         ],
-    }.get(item.status, context["icons"]["status_other"])
+    }[item.status]
 
 
 def translate_enum(value: constants.TranslatableEnumProtocol) -> str:

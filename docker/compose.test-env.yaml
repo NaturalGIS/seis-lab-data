@@ -208,7 +208,6 @@ services:
       - "run-processing-worker"
       - "--queues"
       - "default"
-      - "exports"
     volumes:
       *common-volumes
     environment:
@@ -223,6 +222,7 @@ services:
       - "--queues"
       - "previews"
       - "thumbnails"
+      - "exports"
     volumes:
       *common-volumes
     environment:

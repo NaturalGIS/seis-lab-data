@@ -258,26 +258,49 @@ definições (a exportação fica desativada quando o URL não está definido):
 - `SEIS_LAB_DATA__TARGET_GEONODE__PUBLIC_URL` - URL através do qual os utilizadores acedem ao
   GeoNode, apenas necessário se for diferente do anterior, como acontece na stack de
   desenvolvimento
-- `SEIS_LAB_DATA__TARGET_GEONODE__TOKEN` - _token_ da API do GeoNode, enviado como _bearer token_
+- `SEIS_LAB_DATA__TARGET_GEONODE__USERNAME` e `SEIS_LAB_DATA__TARGET_GEONODE__PASSWORD` -
+  credenciais do utilizador do GeoNode em nome do qual o seis-lab-data atua, que fica como dono
+  dos recursos exportados. Destina-se a ser uma conta de serviço, usada apenas pelo seis-lab-data
+- `SEIS_LAB_DATA__TARGET_GEONODE__CLIENT_ID` e `SEIS_LAB_DATA__TARGET_GEONODE__CLIENT_SECRET` -
+  credenciais de uma aplicação OAuth2 do GeoNode, que tem de ser _confidential_ e usar o tipo de
+  _grant_ _resource owner password-based_. Cada exportação troca com ela as credenciais da conta
+  de serviço por um _access token_, que é revogado no final
 - `SEIS_LAB_DATA__PUBLIC_URL` - tem de estar definido também para os _workers_, uma vez que os
   recursos exportados para o GeoNode contêm uma ligação para a página do respetivo registo
 
+Tanto a conta de serviço como a aplicação OAuth2 são criadas no GeoNode, seja na sua administração
+Django (_People_ > _Users_ e _Django OAuth Toolkit_ > _Applications_) ou a partir da linha de
+comandos.
+
 As exportações correm na fila `exports`, consumida pelo serviço `previews-worker`. A stack de
-desenvolvimento já define os URLs; o _token_ é lido da variável de ambiente `GEONODE_API_TOKEN` ao
-arrancar o compose. É possível obter um _token_ da API para o utilizador `admin` do GeoNode com:
+desenvolvimento já define todas estas definições, com credenciais fixas, cujas contrapartes no
+GeoNode podem ser criadas com:
 
 ```shell
 docker compose -f docker/compose.dev.yaml exec geonode-django python manage.py shell -c "
 from django.contrib.auth import get_user_model
-from geonode.base.auth import get_or_create_token
-print(get_or_create_token(get_user_model().objects.get(username='admin')))
+from oauth2_provider.models import get_application_model
+Application = get_application_model()
+user, _ = get_user_model().objects.get_or_create(username='sld-exporter')
+user.set_password('sld-exporter-pass')
+user.save()
+Application.objects.update_or_create(
+    client_id='sld-geonode-client-id',
+    defaults=dict(
+        name='seis-lab-data',
+        user=user,
+        client_secret='sld-geonode-client-secret',
+        client_type=Application.CLIENT_CONFIDENTIAL,
+        authorization_grant_type=Application.GRANT_PASSWORD,
+    ),
+)
 "
 ```
 
-Após o que os serviços que o utilizam têm de ser recriados:
+Após o que os serviços que as utilizam têm de ser recriados:
 
 ```shell
-GEONODE_API_TOKEN=<token> docker compose -f docker/compose.dev.yaml --profile geonode up -d
+docker compose -f docker/compose.dev.yaml --profile geonode up -d
 ```
 
 

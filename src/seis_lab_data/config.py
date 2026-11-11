@@ -59,9 +59,7 @@ class SeisLabDataIconSettings(BaseModel):
     export_item: str = "cloud_upload"
     source_code: str = "code"
     status_draft: str = "design_services"
-    status_other: str = "question_mark"
     status_published: str = "visibility"
-    status_under_validation: str = "sync"
     survey_missions: str = "directions_boat"
     survey_related_records: str = "source"
     user: str = "person"
@@ -73,8 +71,11 @@ class SeisLabDataIconSettings(BaseModel):
 
 class TargetGeoNodeSettings(BaseModel):
     url: str
-    token: str
     public_url: str | None = None
+    username: str
+    password: str
+    client_id: str
+    client_secret: str
 
 
 class SeisLabDataSettings(BaseSettings):

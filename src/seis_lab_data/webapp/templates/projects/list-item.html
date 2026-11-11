@@ -24,7 +24,7 @@
                     <h5 class="card-title text-truncate mb-1"><span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.projects }}</span>{{ item.name|default(_("name not available"), True) }}</h5>
                     {% if item.status.value != "published" %}
                         <span class="badge text-bg-danger ms-auto" aria-label="item-status">
-                            <span class="material-icons-outlined me-1 fs-6">{{ item | status_icon }}</span>{{ item.status | translate_enum }}
+                            {% with status_icon_classes="fs-6" %}{% include "partial-status-icon.html" %}{% endwith %}{{ item.status | translate_enum }}
                         </span>
                     {% endif %}
                 </div>
