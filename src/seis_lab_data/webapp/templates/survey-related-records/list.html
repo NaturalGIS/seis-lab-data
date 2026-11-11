@@ -43,7 +43,7 @@
                 data-signals:select-all-matching="false"
                 data-signals:compact-listing="false"
                 data-init="$compactListing = localStorage.getItem('sld:compact-records') === 'true'"
-                data-effect="$listingVersion > 0 && @get('{{ url_for('survey_related_records:get_list_component') }}')"
+                data-effect="$listingVersion > 0 && @get('{{ url_for('survey_related_records:get_list_component') }}?page={{ pagination.current_page }}')"
         >
             <div class="col-8">
                 <search class="form-floating">

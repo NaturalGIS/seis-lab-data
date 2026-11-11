@@ -37,6 +37,7 @@ from ... import (
 )
 from ...constants import SURVEY_RELATED_RECORD_MAX_RELATED
 from ...operations import (
+    geonodeexports as export_ops,
     projects as project_ops,
     surveymissions as survey_mission_ops,
     surveyrelatedrecords as survey_related_record_ops,
@@ -48,7 +49,10 @@ from ...db.queries import (
     recordassets as asset_queries,
     workflowstages as stage_queries,
 )
-from ...tasks import surveyrelatedrecords as record_tasks
+from ...tasks import (
+    geonodeexports as export_tasks,
+    surveyrelatedrecords as record_tasks,
+)
 from ...schemas import (
     common as common_schemas,
     identifiers,
@@ -118,6 +122,12 @@ async def _get_survey_related_record_details(
             can_delete=record_permissions.can_delete_survey_related_record(
                 user, survey_related_record
             ),
+            can_export=(
+                record_permissions.can_export_survey_related_record(
+                    user, survey_related_record
+                )
+                and export_ops.is_exportable_to_geonode(survey_related_record, settings)
+            ),
         ),
         breadcrumbs=[
             webui_schemas.BreadcrumbItem(
@@ -158,25 +168,29 @@ async def _get_survey_related_record_details(
     )
 
 
-@requires_auth
 async def get_details_component(request: Request):
+    """Re-render a record's details, to be morphed into its already open detail page.
+
+    The page's request id is passed along, so that the actions of the re-rendered
+    details keep reporting their progress to the page's stream.
+    """
+    try:
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid request id") from err
     details = await _get_survey_related_record_details(request)
-    template_processor = request.state.templates
-    template = template_processor.get_template(
+    rendered = request.state.templates.get_template(
         "survey-related-records/detail-component.html"
-    )
-    rendered = template.render(
+    ).render(
         request=request,
-        survey_related_record=details.item,
+        request_id=request_id,
+        item=details.item,
         permissions=details.permissions,
     )
 
     async def event_streamer():
-        yield ServerSentEventGenerator.patch_elements(
-            rendered,
-            selector=webui_schemas.selector_info.main_content_selector,
-            mode=ElementPatchMode.INNER,
-        )
+        # no selector, the details are matched by their id and morphed in place
+        yield ServerSentEventGenerator.patch_elements(rendered)
 
     return DatastarResponse(event_streamer())
 
@@ -1180,6 +1194,7 @@ async def stream_to_list_page(request: Request):
         ),
         {
             "resource_modified": common_handlers.handle_resource_modification_list_page,
+            "resource_status_changed": common_handlers.handle_resource_status_changed_list_page,
         },
     )
 
@@ -1518,6 +1533,38 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
         return Response(status_code=200)
 
 
+@csrf_protect
+@requires_auth
+async def export_to_geonode(request: Request):
+    survey_related_record_id = get_id_from_request_path(
+        request, "survey_related_record_id", identifiers.SurveyRelatedRecordId
+    )
+    request_id = identifiers.RequestId(
+        uuid.UUID(request.query_params.get("request_id", str(uuid.uuid4())))
+    )
+    user = request.user
+    async with request.state.settings.get_db_session_maker()() as session:
+        if (
+            await survey_related_record_ops.get_survey_related_record(
+                survey_related_record_id,
+                user,
+                session,
+            )
+        ) is None:
+            raise HTTPException(
+                status_code=404,
+                detail=_(
+                    f"Survey-related record {survey_related_record_id!r} not found."
+                ),
+            )
+    export_tasks.export_survey_related_record_to_geonode.send(
+        raw_request_id=str(request_id),
+        raw_survey_related_record_id=str(survey_related_record_id),
+        raw_initiator=json.dumps(dataclasses.asdict(user)),
+    )
+    return Response(status_code=200)
+
+
 @requires_auth
 async def stream_to_new_page(request: Request):
     """Stream relevant updates for the new survey-related record page."""
@@ -1586,6 +1633,7 @@ async def stream_to_detail_page(request: Request):
         message_handlers={
             "resource_modified": common_handlers.handle_resource_modification_detail_page,
             "resource_status_changed": common_handlers.handle_resource_status_changed_detail_page,
+            "export": common_handlers.handle_export_detail_page,
         },
     )
 
@@ -1734,7 +1782,13 @@ routes = [
         name="detail_stream",
     ),
     Route(
-        "/{survey_related_record_id}/details",
+        "/{survey_related_record_id}/export",
+        export_to_geonode,
+        methods=["POST"],
+        name="export_to_geonode",
+    ),
+    Route(
+        "/{survey_related_record_id}/details/{request_id}",
         get_details_component,
         methods=["GET"],
         name="get_details_component",

@@ -18,6 +18,13 @@
 {% block details %}
     <div data-on-intersect__once="@get('{{ url_for("survey_related_records:detail_stream", survey_related_record_id=item.id, request_id=request_id) }}')"
     >
+        {# bumped by the stream when the record changes, which re-fetches its details. This
+           is an element of its own, as datastar cancels an element's ongoing request when
+           it makes another one - the stream's element would lose its stream #}
+        <div hidden
+             data-signals:details-version="0"
+             data-effect="$detailsVersion > 0 && @get('{{ url_for("survey_related_records:get_details_component", survey_related_record_id=item.id, request_id=request_id) }}')"
+        ></div>
         {% include "survey-related-records/detail-component.html" %}
     </div>
 {% endblock details %}

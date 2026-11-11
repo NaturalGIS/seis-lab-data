@@ -29,49 +29,27 @@ NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS: typing.Final[str] = (
 NEW_TOPIC_DATASET_CATEGORIES: typing.Final[str] = "dataset_categories"
 NEW_TOPIC_WORKFLOW_STAGES: typing.Final[str] = "workflow_stages"
 
-PROGRESS_TOPIC_NAME_TEMPLATE: typing.Final[str] = "progress:{request_id}"
-
-PROJECT_UPDATED_TOPIC: typing.Final[str] = "project-updated:{project_id}"
-PROJECT_STATUS_CHANGED_TOPIC: typing.Final[str] = "project-status-changed:{project_id}"
-PROJECT_VALIDITY_CHANGED_TOPIC: typing.Final[str] = (
-    "project-validity-changed:{project_id}"
-)
-PROJECT_DELETED_TOPIC: typing.Final[str] = "project-deleted:{project_id}"
-PROJECT_DISCOVERY_TOPIC: typing.Final[str] = "project-discovery:{project_id}"
-
-SURVEY_MISSION_CREATED_TOPIC: typing.Final[str] = "survey-mission-created"
-SURVEY_MISSION_DISCOVERY_TOPIC: typing.Final[str] = (
-    "survey-mission-discovery:{survey_mission_id}"
-)
-SURVEY_MISSION_UPDATED_TOPIC: typing.Final[str] = (
-    "survey-mission-updated:{survey_mission_id}"
-)
-SURVEY_MISSION_STATUS_CHANGED_TOPIC: typing.Final[str] = (
-    "survey-mission-status-changed:{survey_mission_id}"
-)
-SURVEY_MISSION_VALIDITY_CHANGED_TOPIC: typing.Final[str] = (
-    "survey-mission-validity-changed:{survey_mission_id}"
-)
-SURVEY_MISSION_DELETED_TOPIC: typing.Final[str] = (
-    "survey-mission-deleted:{survey_mission_id}"
-)
-
-SURVEY_RELATED_RECORD_CREATED_TOPIC: typing.Final[str] = "survey-related-record-created"
-SURVEY_RELATED_RECORD_UPDATED_TOPIC: typing.Final[str] = (
-    "survey-related-record-updated:{survey_related_record_id}"
-)
-SURVEY_RELATED_RECORD_STATUS_CHANGED_TOPIC: typing.Final[str] = (
-    "survey-related-record-status-changed:{survey_related_record_id}"
-)
-SURVEY_RELATED_RECORD_VALIDITY_CHANGED_TOPIC: typing.Final[str] = (
-    "survey-related-record-validity-changed:{survey_related_record_id}"
-)
-SURVEY_RELATED_RECORD_DELETED_TOPIC: typing.Final[str] = (
-    "survey-related-record-deleted:{survey_related_record_id}"
-)
 # data assets whose file is unusable without its sidecar files - these get
 # downloaded as a zip bundle holding the file and all of its sidecars
 BUNDLED_DATA_ASSET_EXTENSIONS: typing.Final[frozenset[str]] = frozenset({".shp"})
+
+# data asset formats which GeoNode is able to import
+GEONODE_EXPORTABLE_DATA_ASSET_EXTENSIONS: typing.Final[frozenset[str]] = frozenset(
+    {".tif", ".tiff", ".gpkg", ".geojson", ".shp"}
+)
+# names of the GeoNode upload form fields which carry each shapefile sidecar
+GEONODE_SHAPEFILE_SIDECAR_FIELDS: typing.Final[dict[str, str]] = {
+    ".dbf": "dbf_file",
+    ".shx": "shx_file",
+    ".prj": "prj_file",
+}
+GEONODE_EXPORT_TIME_LIMIT_SECONDS: typing.Final[int] = 60 * 60
+# a record that is under export for longer than this was abandoned by a worker
+# which died mid-export, as the export task is killed at its time limit
+GEONODE_EXPORT_STALE_AFTER_SECONDS: typing.Final[int] = (
+    GEONODE_EXPORT_TIME_LIMIT_SECONDS + 15 * 60
+)
+GEONODE_EXECUTION_POLL_INTERVAL_SECONDS: typing.Final[float] = 3.0
 
 
 class PageType(str, enum.Enum):
@@ -120,6 +98,12 @@ class DiscoveryStage(str, enum.Enum):
 
 class ValidationStage(str, enum.Enum):
     STARTED = "started"
+    ENDED = "ended"
+
+
+class ExportStage(str, enum.Enum):
+    STARTED = "started"
+    PROGRESS = "progress"
     ENDED = "ended"
 
 

@@ -85,7 +85,7 @@
             data-signals:select-all-matching="false"
             data-signals:compact-listing="false"
             data-init="$compactListing = localStorage.getItem('sld:compact-records') === 'true'"
-            data-effect="$listingVersion > 0 && @get('{{ url_for('survey_missions:get_mission_records_list_component', survey_mission_id=item.id) }}')"
+            data-effect="$listingVersion > 0 && @get('{{ url_for('survey_missions:get_mission_records_list_component', survey_mission_id=item.id) }}?page={{ pagination.current_page }}')"
         >
             <div class="col">
                 <h2>{{ _("survey-related-records") | capitalize }}</h2>

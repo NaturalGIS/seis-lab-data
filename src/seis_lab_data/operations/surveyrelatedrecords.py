@@ -290,6 +290,14 @@ async def delete_survey_related_record(
             raise errors.SeisLabDataError(
                 "User is not allowed to delete survey-related record."
             )
+        if (record_status := survey_record.status) not in (
+            constants.SurveyRelatedRecordStatus.DRAFT,
+            constants.SurveyRelatedRecordStatus.PUBLISHED,
+        ):
+            raise errors.SeisLabDataError(
+                f"Cannot delete survey-related record because its status is "
+                f"{record_status}"
+            )
         parent_id = survey_record.survey_mission_id
         await record_commands.delete_survey_related_record(
             session, survey_related_record_id

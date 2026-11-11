@@ -442,7 +442,7 @@ def test_bulk_update_survey_related_records(authenticated_page: Page):
     authenticated_page.get_by_role("button", name="submit-bulk-update-form").click()
 
     expect(authenticated_page).to_have_url(mission_detail_url, timeout=15_000)
-    expect(authenticated_page.locator(".toast.text-bg-info")).to_be_visible()
+    expect(authenticated_page.locator(".toast.text-bg-success")).to_be_visible()
 
     for record_url in record_urls:
         authenticated_page.goto(record_url)

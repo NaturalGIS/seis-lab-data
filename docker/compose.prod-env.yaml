@@ -256,6 +256,7 @@ services:
       - "--queues"
       - "previews"
       - "thumbnails"
+      - "exports"
     environment:
       <<: *common-env
       SEIS_LAB_DATA__THUMBNAIL_BASE_TILE_LAYER_URL: http://martin-tile-server:3000/emodnet-bathymetry/{z}/{x}/{y}

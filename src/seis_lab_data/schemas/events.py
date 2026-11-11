@@ -70,10 +70,21 @@ class ValidationEvent(_EventBase):
     details: str | None = None
 
 
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ExportEvent(_EventBase):
+    resource_type: constants.ResourceType
+    resource_id: str
+    request_id: identifiers.RequestId
+    stage: constants.ExportStage
+    succeeded: bool
+    details: str | None = None
+
+
 SeisLabDataEvent: TypeAlias = (
     ResourceModificationEvent
     | BulkResourceModificationEvent
     | ResourceStatusChangedEvent
     | DiscoveryEvent
     | ValidationEvent
+    | ExportEvent
 )

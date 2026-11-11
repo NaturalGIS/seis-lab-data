@@ -56,11 +56,10 @@ class SeisLabDataIconSettings(BaseModel):
     settings: str = "settings"
     expand_less: str = "expand_less"
     expand_more: str = "expand_more"
+    export_item: str = "cloud_upload"
     source_code: str = "code"
     status_draft: str = "design_services"
-    status_other: str = "question_mark"
     status_published: str = "visibility"
-    status_under_validation: str = "sync"
     survey_missions: str = "directions_boat"
     survey_related_records: str = "source"
     user: str = "person"
@@ -68,6 +67,15 @@ class SeisLabDataIconSettings(BaseModel):
     validation_valid: str = "check_circle"
     validation_invalid: str = "dangerous"
     workflow_stage: str = "stairs"
+
+
+class TargetGeoNodeSettings(BaseModel):
+    url: str
+    public_url: str | None = None
+    username: str
+    password: str
+    client_id: str
+    client_secret: str
 
 
 class SeisLabDataSettings(BaseSettings):
@@ -140,6 +148,7 @@ class SeisLabDataSettings(BaseSettings):
     readonly_archive_root_directory: Path = "/mnt/data"
     editable_archive_root_directory: Path = "/mnt/sld"
     icons: SeisLabDataIconSettings = SeisLabDataIconSettings()
+    target_geonode: TargetGeoNodeSettings | None = None
     _db_engine: AsyncEngine | None = None
     _sync_db_engine: Engine | None = None
     _db_session_maker: async_sessionmaker | None = None

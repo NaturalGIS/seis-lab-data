@@ -222,6 +222,7 @@ services:
       - "--queues"
       - "previews"
       - "thumbnails"
+      - "exports"
     volumes:
       *common-volumes
     environment:

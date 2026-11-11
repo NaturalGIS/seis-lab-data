@@ -110,3 +110,18 @@ class AsyncRedisPubSubMiddleware(dramatiq.Middleware):
             loop.run_until_complete(self.redis_client.aclose())
             logger.debug("Redis PubSub client closed.")
         self.redis_client = None
+
+
+class StaleGeoNodeExportRecoveryMiddleware(dramatiq.Middleware):
+    """
+    Dramatiq middleware that recovers abandoned GeoNode exports when a worker boots.
+
+    A worker which dies mid-export, e.g. when its container is killed, leaves
+    the record under export. Such workers usually come back by being restarted,
+    which makes worker boot a good time to look for abandoned exports.
+    """
+
+    def after_worker_boot(self, broker: dramatiq.Broker, worker: dramatiq.Worker):
+        # the actor is looked up by name, as importing the tasks module here
+        # would be circular
+        broker.get_actor("recover_stale_geonode_exports").send()

@@ -65,6 +65,7 @@ class UserPermissionDetails:
     can_validate: bool = False
     can_discover: bool = False
     can_bulk_update: bool = False
+    can_export: bool = False
 
 
 ItemWithDetails = typing.TypeVar(

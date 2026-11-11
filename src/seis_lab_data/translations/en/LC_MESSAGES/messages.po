@@ -271,3 +271,38 @@ msgstr ""
 #: webapp/forms/surveyrelatedrecords.py
 msgid "Path for the asset in the archive file system, relative to its parent survey mission root path"
 msgstr ""
+
+#: webapp/templates/survey-related-records/detail-component.html
+msgid "GeoNode resource"
+msgstr ""
+
+#: webapp/templates/survey-related-records/detail-component.html
+#, python-format
+msgid "exported %(date)s"
+msgstr ""
+
+#: webapp/templates/survey-related-records/detail-component.html
+msgid "export to GeoNode..."
+msgstr ""
+
+#: webapp/templates/survey-related-records/detail-component.html
+msgid "export survey-related record to GeoNode"
+msgstr ""
+
+#: webapp/templates/survey-related-records/detail-component.html
+#, python-format
+msgid "Are you sure you want to export this survey-related record to GeoNode at %(geonode_url)s?"
+msgstr ""
+
+#: webapp/templates/survey-related-records/detail-component.html
+#, python-format
+msgid "This record has already been exported to GeoNode on %(date)s and should be available at: %(resource_url)s"
+msgstr ""
+
+#: webapp/templates/survey-related-records/detail-component.html
+msgid "If you choose to export the record again, it will replace the one already present on the GeoNode instance."
+msgstr ""
+
+#: webapp/templates/survey-related-records/detail-component.html
+msgid "Export record"
+msgstr ""
