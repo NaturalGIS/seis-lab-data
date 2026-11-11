@@ -195,3 +195,24 @@ async def survey_mission_has_busy_records(
         .limit(1)
     )
     return (await session.exec(statement)).first() is not None
+
+
+async def count_survey_missions_per_project(
+    session: AsyncSession,
+    project_ids: list[identifiers.ProjectId],
+    published_only: bool,
+) -> dict[identifiers.ProjectId, int]:
+    """Count the survey missions of each project.
+
+    Projects without survey missions are left out of the result.
+    """
+    statement = (
+        select(models.SurveyMission.project_id, func.count(models.SurveyMission.id))
+        .where(models.SurveyMission.project_id.in_(project_ids))
+        .group_by(models.SurveyMission.project_id)
+    )
+    if published_only:
+        statement = statement.where(
+            models.SurveyMission.status == SurveyMissionStatus.PUBLISHED
+        )
+    return dict((await session.exec(statement)).all())

@@ -840,3 +840,35 @@ msgstr "Descarregar uma lista das ligações para descarregar os registos public
 #: webapp/templates/survey-related-records/list.html
 msgid "Selected records can be downloaded through a list of links to their data files, for use with the aria2c download tool. Only published records are included in the list."
 msgstr "Os registos selecionados podem ser descarregados através de uma lista de ligações para os seus ficheiros de dados, para usar com a ferramenta aria2c. Apenas os registos publicados são incluídos na lista."
+
+#: webapp/templates/macros/records-summary.html
+msgid "survey missions"
+msgstr "missões"
+
+#: webapp/templates/macros/records-summary.html
+msgid "survey-related records"
+msgstr "registos"
+
+#: webapp/templates/macros/records-summary.html
+msgid "dataset categories"
+msgstr "categorias"
+
+#: webapp/templates/macros/records-summary.html
+msgid "workflow stages"
+msgstr "estádios"
+
+#: webapp/templates/macros/records-summary.html
+msgid "show these survey-related records"
+msgstr "mostrar estes registos"
+
+#: webapp/templates/macros/records-summary.html
+#: webapp/templates/survey-related-records/list-item.html
+#: webapp/templates/survey-related-records/detail-component.html
+msgid "unknown category"
+msgstr "categoria desconhecida"
+
+#: webapp/templates/macros/records-summary.html
+#: webapp/templates/survey-related-records/list-item.html
+#: webapp/templates/survey-related-records/detail-component.html
+msgid "unknown stage"
+msgstr "estádio desconhecido"

@@ -136,7 +136,17 @@ async def _get_survey_mission_details(
             )
         ]
         media_type_filter_options = await asset_queries.list_media_types(session)
+        counts = await survey_mission_ops.count_survey_mission_contents(
+            session, user, [survey_mission_id]
+        )
+        records_summary = (
+            await survey_related_record_ops.summarize_survey_related_records(
+                session, user, survey_mission_id=survey_mission_id
+            )
+        )
     return webui_schemas.SurveyMissionDetails(
+        counts=counts[survey_mission_id],
+        records_summary=records_summary,
         dataset_categories=dataset_category_filter_options,
         workflow_stages=workflow_stage_filter_options,
         filter_media_types_datalist=media_type_filter_options,
@@ -228,6 +238,8 @@ async def get_details_component(request: Request):
         search_initial_value=details.children_filter,
         permissions=details.permissions,
         list_item_permissions=details.children_permissions,
+        counts=details.counts,
+        records_summary=details.records_summary,
         dataset_categories=details.dataset_categories,
         workflow_stages=details.workflow_stages,
         filter_media_types_datalist=details.filter_media_types_datalist,
@@ -542,6 +554,9 @@ async def get_list_component(request: Request):
                 session, initiator=user, include_total=True
             )
         )[1]
+        list_item_counts = await survey_mission_ops.count_survey_mission_contents(
+            session, user, [item.id for item in items]
+        )
 
     pagination_info = get_pagination_info(
         current_page,
@@ -566,6 +581,7 @@ async def get_list_component(request: Request):
             mission_permissions.can_update_survey_mission,
             mission_permissions.can_delete_survey_mission,
         ),
+        list_item_counts=list_item_counts,
     )
 
     async def event_streamer():
@@ -637,6 +653,9 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
                     session, initiator=user, include_total=True
                 )
             )[1]
+            list_item_counts = await survey_mission_ops.count_survey_mission_contents(
+                session, user, [item.id for item in items]
+            )
         template_processor = request.state.templates
         pagination_info = get_pagination_info(
             current_page,
@@ -665,6 +684,7 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
                     mission_permissions.can_update_survey_mission,
                     mission_permissions.can_delete_survey_mission,
                 ),
+                "list_item_counts": list_item_counts,
                 "geojson_features": json.dumps(geojson_features),
                 "pagination": pagination_info,
                 "map_bounds": {
@@ -712,6 +732,8 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 "search_initial_value": details.children_filter,
                 "permissions": details.permissions,
                 "list_item_permissions": details.children_permissions,
+                "counts": details.counts,
+                "records_summary": details.records_summary,
                 "breadcrumbs": details.breadcrumbs,
                 "dataset_categories": details.dataset_categories,
                 "workflow_stages": details.workflow_stages,

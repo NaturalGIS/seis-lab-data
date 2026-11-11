@@ -32,7 +32,7 @@
                 </div>
                 <h5 class="card-title text-truncate mb-1"><span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.survey_missions }}</span>{{ item.name|default(_("name not available"), True) }}</h5>
                 <div class="small">
-                    <span class="material-icons-outlined me-1 fs-6">{{ icons.survey_related_records }}</span>{{ item.num_survey_related_records }}
+                    <span class="material-icons-outlined me-1 fs-6">{{ icons.survey_related_records }}</span>{{ list_item_counts[item.id].num_survey_related_records }}
                 </div>
                 <div class="row small text-body-secondary">
                     <div class="col">

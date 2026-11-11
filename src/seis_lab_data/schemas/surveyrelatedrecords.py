@@ -233,6 +233,24 @@ class SurveyRelatedRecordSelection(pydantic.BaseModel):
     workflow_stage_id: WorkflowStageId | None = None
 
 
+class LookupValueCount(pydantic.BaseModel):
+    """Number of records with a given dataset category or workflow stage.
+
+    A `None` id and name stand for the records without a value.
+    """
+
+    id: DatasetCategoryId | WorkflowStageId | None
+    name: str | None
+    count: int
+
+
+class SurveyRelatedRecordSetSummary(pydantic.BaseModel):
+    """Number of records per dataset category and per workflow stage."""
+
+    dataset_categories: list[LookupValueCount]
+    workflow_stages: list[LookupValueCount]
+
+
 class SurveyRelatedRecordUpdate(pydantic.BaseModel):
     survey_mission_id: SurveyMissionId | None = None
 

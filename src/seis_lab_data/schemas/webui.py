@@ -15,6 +15,7 @@ from .surveymissions import (
 from .surveyrelatedrecords import (
     SurveyRelatedRecordReadDetail,
     SurveyRelatedRecordReadListItem,
+    SurveyRelatedRecordSetSummary,
 )
 
 
@@ -103,6 +104,11 @@ class SurveyRelatedRecordDetails:
 class ProjectDetails(ItemDetails[ProjectReadDetail, SurveyMissionReadListItem]):
     """Details for a project, including its survey missions, permissions and pagination."""
 
+    counts: common.ContentCounts
+    children_counts: dict[uuid.UUID, common.ContentCounts]
+    records_summary: SurveyRelatedRecordSetSummary
+    records_list_url: str
+
 
 @dataclasses.dataclass(frozen=True)
 class SurveyMissionDetails(
@@ -110,6 +116,8 @@ class SurveyMissionDetails(
 ):
     """Details for a survey mission, including its records, permissions and pagination."""
 
+    counts: common.ContentCounts
+    records_summary: SurveyRelatedRecordSetSummary
     dataset_categories: list[tuple[str, str]]
     workflow_stages: list[tuple[str, str]]
     filter_media_types_datalist: list[str]

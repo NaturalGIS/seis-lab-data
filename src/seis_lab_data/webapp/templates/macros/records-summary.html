@@ -1,0 +1,94 @@
+{% import "macros.html" as macros %}
+
+{# Pills with the number of records per dataset category or workflow stage.
+
+   Each pill filters the records by its value:
+
+   - with `records_list_url`, it links to the records list page
+   - with `mission_records_url`, it re-fetches the record listing of the survey mission page
+
+   Records without a value get a pill which does not filter
+#}
+{% macro render_lookup_value_pills(
+    value_counts,
+    filter_signal,
+    color_class,
+    icon,
+    label,
+    unknown_label,
+    records_list_url=None,
+    mission_records_url=None
+) %}
+    {% for value_count in value_counts %}
+        {% set pill_classes = "badge rounded-pill badge-outline " ~ color_class %}
+        {% set pill_content %}<span class="material-icons-outlined me-1 fs-6">{{ icon }}</span>{{ value_count.name if value_count.id else unknown_label }}<span class="ms-1 fw-normal">{{ value_count.count }}</span>{% endset %}
+        {% if value_count.id is none %}
+            <span class="{{ pill_classes }}" title="{{ label }}">{{ pill_content }}</span>
+        {% elif records_list_url %}
+            <a
+                    class="{{ pill_classes }} text-decoration-none"
+                    href="{{ records_list_url }}&{{ filter_signal }}={{ value_count.id }}"
+                    title="{{ label }} - {{ _('show these survey-related records') }}"
+            >{{ pill_content }}</a>
+        {% else %}
+            <button
+                    type="button"
+                    class="{{ pill_classes }}"
+                    title="{{ label }} - {{ _('show these survey-related records') }}"
+                    data-on:click="${{ filter_signal }} = '{{ value_count.id }}'; {{ macros.reset_selection_js() }}@get('{{ mission_records_url }}')"
+            >{{ pill_content }}</button>
+        {% endif %}
+    {% endfor %}
+{% endmacro %}
+
+
+{# Pills with the number and the breakdown of the survey-related records of a project or survey mission.
+
+   The counts, the dataset categories and the workflow stages each get their own row
+#}
+{% macro render_records_summary(counts, records_summary, records_list_url=None, mission_records_url=None) %}
+    <div class="d-flex flex-column gap-2 mb-3" aria-label="records-summary">
+        <div class="d-flex flex-wrap gap-2">
+            {% if counts.num_survey_missions is not none %}
+                <span
+                        class="badge rounded-pill badge-outline text-survey-mission"
+                        title="{{ _('survey missions') | capitalize }}"
+                        aria-label="num-survey-missions"
+                ><span class="material-icons-outlined me-1 fs-6">{{ icons.survey_missions }}</span>{{ counts.num_survey_missions }}</span>
+            {% endif %}
+            <span
+                    class="badge rounded-pill badge-outline text-survey-related-record"
+                    title="{{ _('survey-related records') | capitalize }}"
+                    aria-label="num-survey-related-records"
+            ><span class="material-icons-outlined me-1 fs-6">{{ icons.survey_related_records }}</span>{{ counts.num_survey_related_records }}</span>
+        </div>
+        {% if records_summary.dataset_categories %}
+        <div class="d-flex flex-wrap gap-2" aria-label="dataset-category-counts">
+            {{ render_lookup_value_pills(
+                records_summary.dataset_categories,
+                "filterDatasetCategory",
+                "text-dataset-category",
+                icons.dataset_category,
+                _("dataset category") | capitalize,
+                _("unknown category"),
+                records_list_url=records_list_url,
+                mission_records_url=mission_records_url
+            ) }}
+        </div>
+        {% endif %}
+        {% if records_summary.workflow_stages %}
+        <div class="d-flex flex-wrap gap-2" aria-label="workflow-stage-counts">
+            {{ render_lookup_value_pills(
+                records_summary.workflow_stages,
+                "filterWorkflowStage",
+                "text-workflow-stage",
+                icons.workflow_stage,
+                _("workflow stage") | capitalize,
+                _("unknown stage"),
+                records_list_url=records_list_url,
+                mission_records_url=mission_records_url
+            ) }}
+        </div>
+        {% endif %}
+    </div>
+{% endmacro %}

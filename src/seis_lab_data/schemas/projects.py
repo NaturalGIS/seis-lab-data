@@ -48,8 +48,6 @@ class ProjectReadEmbedded(pydantic.BaseModel):
     temporal_extent_end: Annotated[
         dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
     ]
-    num_survey_missions: int
-    num_survey_related_records: int
 
     @classmethod
     def from_db_instance(cls, instance: models.Project) -> "ProjectReadEmbedded":

@@ -17,9 +17,11 @@ from ..db.commands import surveyrelatedrecords as record_commands
 from ..db.queries import (
     projects as project_queries,
     surveymissions as mission_queries,
+    surveyrelatedrecords as record_queries,
 )
 from ..permissions import surveymissions as mission_permissions
 from ..schemas import (
+    common as common_schemas,
     events as event_schemas,
     filters as filter_schemas,
     identifiers,
@@ -481,6 +483,26 @@ async def list_survey_missions(
     else:
         kwargs.update(only_internal=only_internal)
         return await mission_queries.list_survey_missions(session, **kwargs)
+
+
+async def count_survey_mission_contents(
+    session: AsyncSession,
+    initiator: user_schemas.User | None,
+    survey_mission_ids: list[identifiers.SurveyMissionId],
+) -> dict[identifiers.SurveyMissionId, common_schemas.ContentCounts]:
+    """Count the survey-related records of each survey mission.
+
+    Anonymous users only get published records counted.
+    """
+    num_records = await record_queries.count_survey_related_records_per_survey_mission(
+        session, survey_mission_ids, published_only=initiator is None
+    )
+    return {
+        survey_mission_id: common_schemas.ContentCounts(
+            num_survey_related_records=num_records.get(survey_mission_id, 0)
+        )
+        for survey_mission_id in survey_mission_ids
+    }
 
 
 async def get_survey_mission(
