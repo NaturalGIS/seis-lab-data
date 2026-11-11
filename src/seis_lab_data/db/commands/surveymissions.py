@@ -122,6 +122,28 @@ async def set_survey_mission_status(
     )
 
 
+async def compare_and_set_survey_mission_status(
+    session: AsyncSession,
+    survey_mission_id: identifiers.SurveyMissionId,
+    expected_status: SurveyMissionStatus,
+    status: SurveyMissionStatus,
+) -> bool:
+    """Sets the survey mission's status, but only if it is the expected one.
+
+    Comparison and change are a single UPDATE, so of several callers which
+    expect the same status only one gets to change it. Returns whether the
+    status was changed.
+    """
+    result = await session.execute(
+        update(models.SurveyMission)
+        .where(models.SurveyMission.id == survey_mission_id)
+        .where(models.SurveyMission.status == expected_status)
+        .values(status=status)
+    )
+    await session.commit()
+    return result.rowcount == 1
+
+
 async def set_survey_mission_thumbnail(
     session: AsyncSession,
     survey_mission_id: identifiers.SurveyMissionId,
@@ -157,7 +179,8 @@ async def bulk_publish_valid_survey_missions_for_project(
     result = await session.execute(
         update(models.SurveyMission)
         .where(models.SurveyMission.project_id == project_id)
-        .where(models.SurveyMission.status != SurveyMissionStatus.PUBLISHED)
+        # missions in any other status are being worked on by a task
+        .where(models.SurveyMission.status == SurveyMissionStatus.DRAFT)
         .where(
             models.SurveyMission.validation_result["is_valid"].astext.cast(Boolean)
             == true()

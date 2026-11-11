@@ -24,7 +24,10 @@ from ..db.queries import (
     surveyrelatedrecords as record_queries,
     recordassets as asset_queries,
 )
-from ..db.commands import discovery as discovery_commands
+from ..db.commands import (
+    discovery as discovery_commands,
+    surveymissions as mission_commands,
+)
 from ..permissions import (
     discovery as discovery_permissions,
     surveymissions as mission_permissions,
@@ -233,6 +236,24 @@ async def run_mission_discovery(
             raise errors.SeisLabDataError(
                 "User is not allowed to run discovery on this survey mission."
             )
+        if (mission_status := mission.status) not in (
+            constants.SurveyMissionStatus.DRAFT,
+            constants.SurveyMissionStatus.PUBLISHED,
+        ):
+            raise errors.SeisLabDataError(
+                f"Cannot run discovery on survey mission because its status is "
+                f"{mission_status}"
+            )
+        if not await mission_commands.compare_and_set_survey_mission_status(
+            session,
+            mission_id,
+            mission_status,
+            constants.SurveyMissionStatus.UNDER_DISCOVERY,
+        ):
+            raise errors.SeisLabDataError(
+                "Cannot run discovery on survey mission because its status "
+                "changed meanwhile"
+            )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
             event_schemas.DiscoveryEvent(
@@ -251,13 +272,15 @@ async def run_mission_discovery(
     asset_discovery_configs = (
         await discovery_queries.collect_all_asset_discovery_configurations(session)
     )
-    await mission_ops.change_survey_mission_status(
-        request_id=request_id,
-        target_status=constants.SurveyMissionStatus.UNDER_DISCOVERY,
-        survey_mission_id=mission_id,
-        initiator=user,
-        session=session,
-        event_dispatcher=event_dispatcher,
+    await event_dispatcher(
+        event_schemas.ResourceStatusChangedEvent(
+            request_id=request_id,
+            initiator=user.id,
+            resource_type=constants.ResourceType.MISSION,
+            resource_id=str(mission_id),
+            succeeded=True,
+            new_status=constants.SurveyMissionStatus.UNDER_DISCOVERY,
+        )
     )
     await event_dispatcher(
         event_schemas.DiscoveryEvent(

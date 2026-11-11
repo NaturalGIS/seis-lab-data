@@ -7,7 +7,10 @@ from sqlmodel import (
     select,
 )
 
-from ...constants import SurveyMissionStatus
+from ...constants import (
+    SurveyMissionStatus,
+    SurveyRelatedRecordStatus,
+)
 from ...db import models
 from ...schemas import (
     identifiers,
@@ -170,3 +173,25 @@ async def get_survey_mission_by_path(
         .options(selectinload(models.SurveyMission.project))
     )
     return (await session.exec(statement)).first()
+
+
+async def survey_mission_has_busy_records(
+    session: AsyncSession,
+    survey_mission_id: identifiers.SurveyMissionId,
+) -> bool:
+    """Whether any of the survey mission's records is being worked on by a task.
+
+    A busy record status does not propagate to its mission, so this needs to be
+    checked before doing something to the mission which would affect its records.
+    """
+    statement = (
+        select(models.SurveyRelatedRecord.id)
+        .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
+        .where(
+            models.SurveyRelatedRecord.status.not_in(
+                (SurveyRelatedRecordStatus.DRAFT, SurveyRelatedRecordStatus.PUBLISHED)
+            )
+        )
+        .limit(1)
+    )
+    return (await session.exec(statement)).first() is not None
