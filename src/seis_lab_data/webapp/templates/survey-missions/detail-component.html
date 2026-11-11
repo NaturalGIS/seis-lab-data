@@ -5,6 +5,7 @@
 {% from "macros/checkbox.html" import search_checkbox %}
 {% from "macros/select.html" import search_select %}
 {% from "macros/datalist.html" import search_datalist %}
+{% from "macros/records-summary.html" import render_records_summary %}
 <div
         class="row"
         data-on-intersect__once="@get('{{ url_for("survey_missions:detail_stream", request_id=request_id, survey_mission_id=item.id) }}')"
@@ -27,6 +28,11 @@
                         <div class="row">
                             <div class="col">
                                 <p>{{ item.description }}</p>
+                                {{ render_records_summary(
+                                    counts,
+                                    records_summary,
+                                    mission_records_url=url_for("survey_missions:get_mission_records_list_component", survey_mission_id=item.id)
+                                ) }}
                                 <dl class="row">
                                     <dt class="col-sm-3">{{ _("root path") | capitalize }}</dt>
                                     <dd class="col-sm-9">{{ item.relative_path|default(_("relative path not available"), True) }}</dd>

@@ -51,6 +51,19 @@
     background-color: var(--bs-survey-related-record-color) !important;
 }
 
+.text-survey-related-record {
+    color: var(--bs-survey-related-record-color) !important;
+}
+
+/* the light resource colors lack contrast as the text of an outline badge */
+.badge-outline.text-survey-mission {
+    color: var(--bs-survey-mission-color-dark) !important;
+}
+
+.badge-outline.text-survey-related-record {
+    color: var(--bs-survey-related-record-color-dark) !important;
+}
+
 .badge.bg-project {
     background-color: var(--bs-project-color-dark) !important;
     color: #fff !important;

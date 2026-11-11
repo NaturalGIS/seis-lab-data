@@ -22,6 +22,9 @@ async def home(request: Request):
         recent_missions, _num_total = await survey_mission_ops.list_survey_missions(
             session, initiator=user, page=1, page_size=3
         )
+        list_item_counts = await survey_mission_ops.count_survey_mission_contents(
+            session, user, [mission.id for mission in recent_missions]
+        )
     template_processor = request.state.templates
     return template_processor.TemplateResponse(
         request,
@@ -37,6 +40,7 @@ async def home(request: Request):
                 mission_permissions.can_update_survey_mission,
                 mission_permissions.can_delete_survey_mission,
             ),
+            "list_item_counts": list_item_counts,
         },
     )
 

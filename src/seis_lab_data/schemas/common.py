@@ -49,6 +49,17 @@ class LinkSchema(pydantic.BaseModel):
         return str(url)
 
 
+@dataclasses.dataclass(frozen=True)
+class ContentCounts:
+    """Number of child resources of a project or survey mission.
+
+    Only the children visible to the requesting user are counted.
+    """
+
+    num_survey_related_records: int
+    num_survey_missions: int | None = None
+
+
 @dataclasses.dataclass
 class PaginationInfo:
     current_page: int

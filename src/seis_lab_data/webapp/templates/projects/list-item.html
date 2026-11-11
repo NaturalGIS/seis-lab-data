@@ -29,8 +29,8 @@
                     {% endif %}
                 </div>
                 <div class="small">
-                    <span class="material-icons-outlined me-1 fs-6">{{ icons.survey_missions }}</span>{{ item.num_survey_missions }}
-                    <span class="material-icons-outlined ms-3 me-1 fs-6">{{ icons.survey_related_records }}</span>{{ item.num_survey_related_records }}
+                    <span class="material-icons-outlined me-1 fs-6">{{ icons.survey_missions }}</span>{{ list_item_counts[item.id].num_survey_missions }}
+                    <span class="material-icons-outlined ms-3 me-1 fs-6">{{ icons.survey_related_records }}</span>{{ list_item_counts[item.id].num_survey_related_records }}
                 </div>
                 <div class="small text-body-secondary">
                     {{ item.temporal_extent_begin | default(_(".."), True) }}/{{ item.temporal_extent_end | default(_(".."), True) }}

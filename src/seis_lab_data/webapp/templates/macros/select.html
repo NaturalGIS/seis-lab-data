@@ -17,7 +17,7 @@
             >
                 <option value="all">{{ _("all") | capitalize }}</option>
                 {% for option in options %}
-                    <option{% if option[0] == selected_option %} selected{% endif %} value="{{ option[0] }}">{{ option[1] }}</option>
+                    <option{% if option[0] | string == selected_option %} selected{% endif %} value="{{ option[0] }}">{{ option[1] }}</option>
                 {% endfor %}
             </select>
         </div>

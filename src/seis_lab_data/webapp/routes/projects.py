@@ -28,6 +28,7 @@ from ... import (
 from ...operations import (
     projects as project_ops,
     surveymissions as survey_mission_ops,
+    surveyrelatedrecords as survey_related_record_ops,
 )
 from ...permissions import (
     projects as project_permissions,
@@ -54,6 +55,7 @@ from .auth import (
     requires_auth,
 )
 from .common import (
+    build_project_compound_name,
     get_id_from_request_path,
     get_list_item_permissions,
     get_page_count,
@@ -195,6 +197,10 @@ async def get_project_details_component(request: Request):
         search_initial_value=details.children_filter,
         permissions=details.permissions,
         list_item_permissions=details.children_permissions,
+        list_item_counts=details.children_counts,
+        counts=details.counts,
+        records_summary=details.records_summary,
+        records_list_url=details.records_list_url,
     )
 
     async def event_streamer():
@@ -412,8 +418,27 @@ async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails
             page_size=settings.pagination_page_size,
             **survey_mission_list_filters.as_kwargs(),
         )
+        counts = await project_ops.count_project_contents(session, user, [project_id])
+        children_counts = await survey_mission_ops.count_survey_mission_contents(
+            session, user, [survey_mission.id for survey_mission in survey_missions]
+        )
+        records_summary = (
+            await survey_related_record_ops.summarize_survey_related_records(
+                session, user, project_id=project_id
+            )
+        )
+    item = webui_schemas.ProjectReadDetail.from_db_instance(project)
     return webui_schemas.ProjectDetails(
-        item=webui_schemas.ProjectReadDetail.from_db_instance(project),
+        counts=counts[project_id],
+        children_counts=children_counts,
+        records_summary=records_summary,
+        # the records list page takes its project filter as a compound name
+        records_list_url=str(
+            request.url_for("survey_related_records:list").include_query_params(
+                filterProject=build_project_compound_name(request, item)
+            )
+        ),
+        item=item,
         children=[
             webui_schemas.SurveyMissionReadListItem.from_db_instance(sm)
             for sm in survey_missions
@@ -495,6 +520,9 @@ async def get_list_component(request: Request):
         num_unfiltered_total = (
             await project_ops.list_projects(session, initiator=user, include_total=True)
         )[1]
+        list_item_counts = await project_ops.count_project_contents(
+            session, user, [item.id for item in items]
+        )
 
     pagination_info = get_pagination_info(
         current_page,
@@ -519,6 +547,7 @@ async def get_list_component(request: Request):
             project_permissions.can_update_project,
             project_permissions.can_delete_project,
         ),
+        list_item_counts=list_item_counts,
     )
 
     async def event_streamer():
@@ -561,6 +590,9 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                     session, initiator=user, include_total=True
                 )
             )[1]
+            list_item_counts = await project_ops.count_project_contents(
+                session, user, [item.id for item in items]
+            )
         template_processor = request.state.templates
         pagination_info = get_pagination_info(
             current_page,
@@ -590,6 +622,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
                     project_permissions.can_update_project,
                     project_permissions.can_delete_project,
                 ),
+                "list_item_counts": list_item_counts,
                 "geojson_features": json.dumps(geojson_features),
                 "pagination": pagination_info,
                 "map_bounds": {
@@ -709,6 +742,10 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 "search_initial_value": details.children_filter,
                 "permissions": details.permissions,
                 "list_item_permissions": details.children_permissions,
+                "list_item_counts": details.children_counts,
+                "counts": details.counts,
+                "records_summary": details.records_summary,
+                "records_list_url": details.records_list_url,
                 "breadcrumbs": details.breadcrumbs,
             },
         )
@@ -944,6 +981,9 @@ async def get_project_missions_list_component(request: Request):
                 session, initiator=user, project_id=project_id, include_total=True
             )
         )[1]
+        list_item_counts = await survey_mission_ops.count_survey_mission_contents(
+            session, user, [item.id for item in items]
+        )
     pagination_info = get_pagination_info(
         current_page,
         settings.pagination_page_size,
@@ -967,6 +1007,7 @@ async def get_project_missions_list_component(request: Request):
             mission_permissions.can_update_survey_mission,
             mission_permissions.can_delete_survey_mission,
         ),
+        list_item_counts=list_item_counts,
     )
 
     async def event_streamer():

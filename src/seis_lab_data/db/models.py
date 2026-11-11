@@ -2,11 +2,9 @@ import base64
 import datetime as dt
 import json
 import uuid
-import warnings
 from functools import partial
 from typing import (
     Annotated,
-    Optional,
     TypedDict,
 )
 
@@ -18,18 +16,11 @@ from geoalchemy2 import (
 from pydantic import (
     ConfigDict,
     PlainSerializer,
-    computed_field,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
-from sqlalchemy.exc import SAWarning
 from sqlalchemy import (
     Enum,
     LargeBinary,
-    select,
-)
-from sqlalchemy.orm import (
-    column_property,
-    declared_attr,
 )
 from sqlmodel import (
     Column,
@@ -42,12 +33,6 @@ from sqlmodel import (
 )
 
 from .. import constants
-
-warnings.filterwarnings(
-    "ignore",
-    r".*Unmanaged access of declarative attribute.*",
-    SAWarning,
-)
 
 now_ = partial(dt.datetime.now, tz=dt.timezone.utc)
 
@@ -294,16 +279,6 @@ class SurveyMission(SQLModel, table=True):
         },
     )
 
-    @computed_field(return_type=Optional[int])
-    @declared_attr
-    def num_survey_related_records(self):
-        return column_property(
-            select(func.count(SurveyRelatedRecord.id))
-            .where(SurveyRelatedRecord.survey_mission_id == self.id)
-            .correlate_except(SurveyRelatedRecord)
-            .scalar_subquery()
-        )
-
 
 class Project(SQLModel, table=True):
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -349,27 +324,6 @@ class Project(SQLModel, table=True):
             "passive_deletes": True,
         },
     )
-
-    @computed_field(return_type=Optional[int])
-    @declared_attr
-    def num_survey_missions(self):
-        return column_property(
-            select(func.count(SurveyMission.id))
-            .where(SurveyMission.project_id == self.id)
-            .correlate_except(SurveyMission)
-            .scalar_subquery()
-        )
-
-    @computed_field(return_type=Optional[int])
-    @declared_attr
-    def num_survey_related_records(self):
-        return column_property(
-            select(func.count(SurveyRelatedRecord.id))
-            .join(SurveyMission)
-            .where(SurveyMission.project_id == self.id)
-            .correlate_except(SurveyRelatedRecord)
-            .scalar_subquery()
-        )
 
 
 class RecordAsset(SQLModel, table=True):

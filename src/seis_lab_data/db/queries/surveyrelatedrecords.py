@@ -485,3 +485,93 @@ async def list_survey_related_record_subject_records(
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
     )
     return (await session.exec(statement.offset(offset).limit(limit))).all()
+
+
+async def count_survey_related_records_per_project(
+    session: AsyncSession,
+    project_ids: list[identifiers.ProjectId],
+    published_only: bool,
+) -> dict[identifiers.ProjectId, int]:
+    """Count the survey-related records of each project.
+
+    Projects without survey-related records are left out of the result.
+    """
+    statement = (
+        select(
+            models.SurveyMission.project_id, func.count(models.SurveyRelatedRecord.id)
+        )
+        .select_from(models.SurveyRelatedRecord)
+        .join(
+            models.SurveyMission,
+            models.SurveyRelatedRecord.survey_mission_id == models.SurveyMission.id,
+        )
+        .where(models.SurveyMission.project_id.in_(project_ids))
+        .group_by(models.SurveyMission.project_id)
+    )
+    if published_only:
+        statement = statement.where(
+            models.SurveyRelatedRecord.status == SurveyRelatedRecordStatus.PUBLISHED
+        )
+    return dict((await session.exec(statement)).all())
+
+
+async def count_survey_related_records_per_survey_mission(
+    session: AsyncSession,
+    survey_mission_ids: list[identifiers.SurveyMissionId],
+    published_only: bool,
+) -> dict[identifiers.SurveyMissionId, int]:
+    """Count the survey-related records of each survey mission.
+
+    Survey missions without survey-related records are left out of the result.
+    """
+    statement = (
+        select(
+            models.SurveyRelatedRecord.survey_mission_id,
+            func.count(models.SurveyRelatedRecord.id),
+        )
+        .where(models.SurveyRelatedRecord.survey_mission_id.in_(survey_mission_ids))
+        .group_by(models.SurveyRelatedRecord.survey_mission_id)
+    )
+    if published_only:
+        statement = statement.where(
+            models.SurveyRelatedRecord.status == SurveyRelatedRecordStatus.PUBLISHED
+        )
+    return dict((await session.exec(statement)).all())
+
+
+async def count_survey_related_records_per_lookup_value(
+    session: AsyncSession,
+    lookup_model: type[models.DatasetCategory] | type[models.WorkflowStage],
+    published_only: bool,
+    project_id: identifiers.ProjectId | None = None,
+    survey_mission_id: identifiers.SurveyMissionId | None = None,
+) -> list[tuple[models.DatasetCategory | models.WorkflowStage | None, int]]:
+    """Count survey-related records per dataset category or per workflow stage.
+
+    Records without a value are counted under `None`. The result is sorted by
+    descending count.
+    """
+    statement = (
+        select(lookup_model, func.count(models.SurveyRelatedRecord.id))
+        .select_from(models.SurveyRelatedRecord)
+        .outerjoin(lookup_model)
+        .group_by(lookup_model.id)
+        .order_by(
+            func.count(models.SurveyRelatedRecord.id).desc(),
+            lookup_model.name.nullslast(),
+        )
+    )
+    if project_id is not None:
+        statement = statement.join(
+            models.SurveyMission,
+            models.SurveyRelatedRecord.survey_mission_id == models.SurveyMission.id,
+        ).where(models.SurveyMission.project_id == project_id)
+    if survey_mission_id is not None:
+        statement = statement.where(
+            models.SurveyRelatedRecord.survey_mission_id == survey_mission_id
+        )
+    if published_only:
+        statement = statement.where(
+            models.SurveyRelatedRecord.status == SurveyRelatedRecordStatus.PUBLISHED
+        )
+    return (await session.exec(statement)).all()

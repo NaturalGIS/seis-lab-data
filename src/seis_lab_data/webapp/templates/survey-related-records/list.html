@@ -27,13 +27,19 @@
 {% endblock page_title %}
 
 {% block details %}
+    {# filters given in the URL, e.g. by the links of a project page, are shown in the advanced search controls #}
+    {% set initial_project_filter = request.query_params.get("filterProject", "") %}
+    {% set initial_mission_filter = request.query_params.get("filterMission", "") %}
+    {% set initial_dataset_category_filter = request.query_params.get("filterDatasetCategory") %}
+    {% set initial_workflow_stage_filter = request.query_params.get("filterWorkflowStage") %}
+    {% set has_initial_advanced_filters = initial_project_filter or initial_mission_filter or initial_dataset_category_filter or initial_workflow_stage_filter %}
 
     <div class="row">
     <div class="col">
         <div
                 class="row justify-content-center m-5"
                 data-signals:search='{{ search_initial_value | default("", true) | tojson }}'
-                data-signals:advanced-search-panel-open="false"
+                data-signals:advanced-search-panel-open="{{ 'true' if has_initial_advanced_filters else 'false' }}"
                 data-signals:searching="false"
                 data-signals:listing-version="0"
                 data-signals:selected-ids="{}"
@@ -80,7 +86,7 @@
                         data-on:click="$advancedSearchPanelOpen=!$advancedSearchPanelOpen"
                         data-bs-toggle="collapse"
                         data-bs-target="#advanced-search-controls"
-                        aria-expanded="false"
+                        aria-expanded="{{ 'true' if has_initial_advanced_filters else 'false' }}"
                         aria-controls="advanced-search-controls"
                 >
                         <span
@@ -95,35 +101,39 @@
         </div>
         <div class="row">
             <div class="col mt-1 mb-5">
-                <div class="row collapse" id="advanced-search-controls">
+                <div class="row collapse{% if has_initial_advanced_filters %} show{% endif %}" id="advanced-search-controls">
                     <div class="col-4">
                         {{ search_datalist(
                               "search-project-datalist",
                               filter_projects_datalist,
                               "filterProject",
                               url_for("survey_related_records:get_list_component"),
-                              _("project") | capitalize
+                              _("project") | capitalize,
+                              initial_value=initial_project_filter
                         ) }}
                         {{ search_datalist(
                               "search-mission-datalist",
                               filter_missions_datalist,
                               "filterMission",
                               url_for("survey_related_records:get_list_component"),
-                              _("mission") | capitalize
+                              _("mission") | capitalize,
+                              initial_value=initial_mission_filter
                         ) }}
                         {{ search_select(
                             "search-dataset-category",
                             dataset_categories,
                                 "filterDatasetCategory",
                                 url_for("survey_related_records:get_list_component"),
-                                _("dataset category") | capitalize
+                                _("dataset category") | capitalize,
+                                selected_option=initial_dataset_category_filter
                         ) }}
                         {{ search_select(
                             "search-workflow-stage",
                             workflow_stages,
                                 "filterWorkflowStage",
                                 url_for("survey_related_records:get_list_component"),
-                                _("workflow stage") | capitalize
+                                _("workflow stage") | capitalize,
+                                selected_option=initial_workflow_stage_filter
                         ) }}
                         {{ search_datalist(
                               "search-asset-media-type",

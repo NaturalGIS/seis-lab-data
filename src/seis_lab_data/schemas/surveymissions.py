@@ -62,7 +62,6 @@ class SurveyMissionReadEmbedded(pydantic.BaseModel):
     ]
     project: ProjectReadEmbedded
     bbox_4326: PolygonOut | None
-    num_survey_related_records: int
 
     @classmethod
     def from_db_instance(
@@ -88,7 +87,6 @@ class SurveyMissionReadListItem(pydantic.BaseModel):
         dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
     ]
     bbox_4326: PolygonOut | None
-    num_survey_related_records: int
     has_thumbnail: bool
 
     @classmethod

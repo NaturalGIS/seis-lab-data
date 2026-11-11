@@ -3,7 +3,8 @@
     options,
     bind_signal,
     search_url,
-    label
+    label,
+    initial_value=""
 ) %}
     <div class="row mb-3">
         <datalist id="{{ id ~ '-datalist' }}">
@@ -19,6 +20,7 @@
                 class="form-control"
                 data-bind="{{ bind_signal }}"
                 data-on:input__debounce.200ms="@get('{{ search_url }}')"
+                value="{{ initial_value }}"
             >
         </div>
     </div>

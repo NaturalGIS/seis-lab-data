@@ -328,6 +328,40 @@ async def delete_survey_related_record(
     )
 
 
+async def summarize_survey_related_records(
+    session: AsyncSession,
+    initiator: user_schemas.User | None,
+    project_id: identifiers.ProjectId | None = None,
+    survey_mission_id: identifiers.SurveyMissionId | None = None,
+) -> record_schemas.SurveyRelatedRecordSetSummary:
+    """Count the survey-related records per dataset category and workflow stage.
+
+    The records are those of a project or of a survey mission. Anonymous users
+    only get published records counted.
+    """
+    summary = {}
+    for name, lookup_model in (
+        ("dataset_categories", models.DatasetCategory),
+        ("workflow_stages", models.WorkflowStage),
+    ):
+        rows = await record_queries.count_survey_related_records_per_lookup_value(
+            session,
+            lookup_model,
+            published_only=initiator is None,
+            project_id=project_id,
+            survey_mission_id=survey_mission_id,
+        )
+        summary[name] = [
+            record_schemas.LookupValueCount(
+                id=value.id if value else None,
+                name=value.name if value else None,
+                count=count,
+            )
+            for value, count in rows
+        ]
+    return record_schemas.SurveyRelatedRecordSetSummary(**summary)
+
+
 async def list_survey_related_records(
     session: AsyncSession,
     initiator: user_schemas.User | None,
