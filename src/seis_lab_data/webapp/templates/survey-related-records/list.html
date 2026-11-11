@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/info.html" import render_info_section %}
 {% import "macros.html" as macros %}
 {% from "macros/checkbox.html" import search_checkbox  %}
 {% from "macros/select.html" import search_select %}
@@ -26,9 +27,6 @@
 {% endblock page_title %}
 
 {% block details %}
-    <script>
-        window.iconNames = JSON.parse('{{ icons | tojson }}')
-    </script>
 
     <div class="row">
     <div class="col">
@@ -190,13 +188,15 @@
             {% include "survey-related-records/list-component.html" %}
         </div>
         <div class="col-3">
-            <h5>{{ _("info") | capitalize }}</h5>
-            <ul class="list-group">
-                <li class="list-group-item">
-                    <p>{{ _("Survey-related records with a status of DRAFT are only visible to authenticated users") }}</p>
-                    <p>{{ _("A survey-related record is published automatically, becoming visible to all users, once it is valid and its survey mission is published. If an edit makes it invalid, it goes back to DRAFT.") }}</p>
-                </li>
-            </ul>
+            {{ render_info_section(
+                general_info=[
+                    _("Survey-related records describe the datasets collected during a survey mission. Each record has one or more assets."),
+                ],
+                privileged_info=[
+                    _("Survey-related records with a status of DRAFT are only visible to authenticated users. A survey-related record is published automatically once it is valid and its survey mission is published."),
+                ],
+                show_privileged_info=request.user.is_authenticated
+            ) }}
         </div>
     </div>
 

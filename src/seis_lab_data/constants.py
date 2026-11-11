@@ -152,9 +152,9 @@ class ProjectStatus(str, enum.Enum):
         return {
             self.DRAFT: _("draft"),
             self.PUBLISHED: _("published"),
-            self.UNDER_DISCOVERY: _("under_discovery"),
-            self.UNDER_PARSING: _("under_parsing"),
-            self.UNDER_VALIDATION: _("under_validation"),
+            self.UNDER_DISCOVERY: _("under discovery"),
+            self.UNDER_PARSING: _("under parsing"),
+            self.UNDER_VALIDATION: _("under validation"),
         }.get(self, self.value)
 
 
@@ -169,9 +169,9 @@ class SurveyMissionStatus(str, enum.Enum):
         return {
             self.DRAFT: _("draft"),
             self.PUBLISHED: _("published"),
-            self.UNDER_DISCOVERY: _("under_discovery"),
-            self.UNDER_PARSING: _("under_parsing"),
-            self.UNDER_VALIDATION: _("under_validation"),
+            self.UNDER_DISCOVERY: _("under discovery"),
+            self.UNDER_PARSING: _("under parsing"),
+            self.UNDER_VALIDATION: _("under validation"),
         }.get(self, self.value)
 
 
@@ -188,9 +188,9 @@ class SurveyRelatedRecordStatus(str, enum.Enum):
         return {
             self.DRAFT: _("draft"),
             self.PUBLISHED: _("published"),
-            self.UNDER_DERIVATION: _("under_derivation"),
-            self.UNDER_DISCOVERY: _("under_discovery"),
-            self.UNDER_EXPORT: _("under_export"),
-            self.UNDER_PARSING: _("under_parsing"),
-            self.UNDER_VALIDATION: _("under_validation"),
+            self.UNDER_DERIVATION: _("under derivation"),
+            self.UNDER_DISCOVERY: _("under discovery"),
+            self.UNDER_EXPORT: _("under export"),
+            self.UNDER_PARSING: _("under parsing"),
+            self.UNDER_VALIDATION: _("under validation"),
         }.get(self, self.value)

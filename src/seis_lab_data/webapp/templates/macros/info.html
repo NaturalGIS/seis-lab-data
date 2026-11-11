@@ -1,0 +1,50 @@
+{# The 'info' section of display pages.
+
+   - the status is shown for every status other than published
+   - the validation result is shown only for draft items
+   - the general info is for everyone, the privileged info only for authenticated users
+
+   Listing pages pass no item, which leaves only the general info
+#}
+{% macro render_info_section(general_info, privileged_info=[], show_privileged_info=False, item=None) %}
+    <h5>{{ _("info") | capitalize }}</h5>
+    <ul class="list-group" aria-label="info-section">
+        {% if item is not none and item.status.value != "published" %}
+            <li class="list-group-item" aria-label="status">
+                {% include "partial-status-icon.html" %}{{ item.status | translate_enum | capitalize }}
+            </li>
+        {% endif %}
+        {% if item is not none and item.status.value == "draft" %}
+            {% set is_valid = item.validation_result.is_valid %}
+            {% set validation_errors = item.validation_result.errors or [] %}
+            <li
+                    class="list-group-item {{ 'list-group-item-success' if is_valid else 'list-group-item-danger' }}"
+                    aria-label="validation-result"
+            >
+                <h6 class="{{ 'mb-0' if validation_errors | length == 0 }}">
+                    <span class="material-icons-outlined me-1">{{ icons.validation_valid if is_valid else icons.validation_invalid }}</span>
+                    {{- (_("resource is valid") if is_valid else _("resource is not valid")) | capitalize }}
+                </h6>
+                {% if validation_errors | length > 0 %}
+                    <ul class="mb-0" aria-label="validation-result-details">
+                        {% for validation_error in validation_errors %}
+                            <li>{{ validation_error.name }}: {{ validation_error.message }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </li>
+        {% endif %}
+        <li class="list-group-item" aria-label="general-info">
+            {% for paragraph in general_info %}
+                <p class="{{ 'mb-0' if loop.last }}">{{ paragraph }}</p>
+            {% endfor %}
+        </li>
+        {% if show_privileged_info and privileged_info %}
+            <li class="list-group-item" aria-label="privileged-info">
+                {% for paragraph in privileged_info %}
+                    <p class="{{ 'mb-0' if loop.last }}">{{ paragraph }}</p>
+                {% endfor %}
+            </li>
+        {% endif %}
+    </ul>
+{% endmacro %}

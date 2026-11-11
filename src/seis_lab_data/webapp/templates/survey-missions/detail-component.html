@@ -1,3 +1,4 @@
+{% from "macros/info.html" import render_info_section %}
 {% import "macros.html" as macros %}
 {% import "macros-buttons.html" as macros_buttons %}
 {% import "macros-maps.html" as macros_maps %}
@@ -250,18 +251,18 @@
                 </div>
             </div>
         {% endif %}
-        <h5>{{ _("info") | capitalize }}</h5>
-        <script>
-            window.iconNames = JSON.parse('{{ icons | tojson }}')
-        </script>
-        <ul class="list-group">
-            {% include "partial-status.html" %}
-            {% include "partial-validation.html" %}
-            <li class="list-group-item">
-                <p>{{ _("Survey missions with a status of DRAFT are only visible to authenticated users") }}</p>
-                <p>{{ _("A survey mission is published automatically, becoming visible to all users, once it is valid and its project is published. If an edit makes it invalid, it goes back to DRAFT, along with its survey-related records.") }}</p>
-            </li>
-        </ul>
+        {{ render_info_section(
+            general_info=[
+                _("This page shows a survey mission and its survey-related records."),
+            ],
+            privileged_info=[
+                _("Editing a survey mission validates it again. If it becomes invalid it goes back to DRAFT, along with its survey-related records."),
+                _("Discovery scans the survey mission's path in the archive and creates a survey-related record for each file matched by the asset discovery configurations."),
+                _("Deleting a survey mission also deletes its survey-related records."),
+            ],
+            show_privileged_info=request.user.is_authenticated,
+            item=item
+        ) }}
     </div>
 
 

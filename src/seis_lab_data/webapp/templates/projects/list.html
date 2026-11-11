@@ -3,6 +3,7 @@ This template is loaded as a GET response to the /projects/ endpoint. It shows a
 Users with create permission are linked to /projects/new, which is a separate static page.
 #}
 {% extends "base.html" %}
+{% from "macros/info.html" import render_info_section %}
 {% import "macros.html" as macros %}
 {% from "macros/checkbox.html" import search_checkbox  %}
 
@@ -30,9 +31,6 @@ Users with create permission are linked to /projects/new, which is a separate st
 
 
 {% block details %}
-    <script>
-        window.iconNames = JSON.parse('{{ icons | tojson }}')
-    </script>
 
     <div class="row" data-on-intersect__once="@get('{{ url_for("projects:list_stream") }}')">
         <div class="col">
@@ -150,13 +148,15 @@ Users with create permission are linked to /projects/new, which is a separate st
                     </div>
                 </div>
             {% endif %}
-            <h5>{{ _("info") | capitalize }}</h5>
-            <ul class="list-group">
-                <li class="list-group-item">
-                    <p>{{ _("Projects with a status of DRAFT are only visible to authenticated users") }}</p>
-                    <p>{{ _("A project is published automatically, becoming visible to all users, once it is valid. If an edit makes it invalid, it goes back to DRAFT, along with its survey missions and their survey-related records.") }}</p>
-                </li>
-            </ul>
+            {{ render_info_section(
+                general_info=[
+                    _("Projects are the top level of the catalog. Each project groups survey missions, which in turn hold survey-related records."),
+                ],
+                privileged_info=[
+                    _("Projects with a status of DRAFT are only visible to authenticated users. A project is published automatically once it is valid."),
+                ],
+                show_privileged_info=request.user.is_authenticated
+            ) }}
         </div>
     </div>
 {% endblock details %}

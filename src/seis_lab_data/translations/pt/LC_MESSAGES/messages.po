@@ -719,3 +719,111 @@ msgstr "editar estádio"
 #: webapp/templates/workflowstages/update-form.html
 msgid "updating workflow stage..."
 msgstr "a atualizar estádio..."
+
+#: webapp/templates/macros/info.html
+msgid "info"
+msgstr "informação"
+
+#: webapp/templates/macros/info.html
+msgid "resource is valid"
+msgstr "o recurso é válido"
+
+#: webapp/templates/macros/info.html
+msgid "resource is not valid"
+msgstr "o recurso não é válido"
+
+#: constants.py
+msgid "under discovery"
+msgstr "em descoberta"
+
+#: constants.py
+msgid "under parsing"
+msgstr "em análise"
+
+#: constants.py
+msgid "under validation"
+msgstr "em validação"
+
+#: constants.py
+msgid "under derivation"
+msgstr "em derivação"
+
+#: constants.py
+msgid "under export"
+msgstr "em exportação"
+
+#: webapp/templates/projects/list.html
+msgid "Projects are the top level of the catalog. Each project groups survey missions, which in turn hold survey-related records."
+msgstr "Os projetos são o nível superior do catálogo. Cada projeto agrupa missões, que por sua vez contêm registos."
+
+#: webapp/templates/projects/list.html
+msgid "Projects with a status of DRAFT are only visible to authenticated users. A project is published automatically once it is valid."
+msgstr "Os projetos com o estado RASCUNHO só são visíveis para utilizadores autenticados. Um projeto é publicado automaticamente quando for válido."
+
+#: webapp/templates/projects/detail-component.html
+msgid "This page shows a project and its survey missions."
+msgstr "Esta página mostra um projeto e as suas missões."
+
+#: webapp/templates/projects/detail-component.html
+msgid "Editing a project validates it again. If it becomes invalid it goes back to DRAFT, along with its survey missions and their survey-related records."
+msgstr "Editar um projeto volta a validá-lo. Se ficar inválido, regressa a RASCUNHO, juntamente com as suas missões e os respetivos registos."
+
+#: webapp/templates/projects/detail-component.html
+msgid "Deleting a project also deletes its survey missions and their survey-related records."
+msgstr "Eliminar um projeto elimina também as suas missões e os respetivos registos."
+
+#: webapp/templates/survey-missions/list.html
+msgid "Survey missions belong to a project and hold the survey-related records collected during a survey."
+msgstr "As missões pertencem a um projeto e contêm os registos recolhidos durante um levantamento."
+
+#: webapp/templates/survey-missions/list.html
+msgid "Survey missions with a status of DRAFT are only visible to authenticated users. A survey mission is published automatically once it is valid and its project is published."
+msgstr "As missões com o estado RASCUNHO só são visíveis para utilizadores autenticados. Uma missão é publicada automaticamente quando for válida e o seu projeto estiver publicado."
+
+#: webapp/templates/survey-missions/detail-component.html
+msgid "This page shows a survey mission and its survey-related records."
+msgstr "Esta página mostra uma missão e os seus registos."
+
+#: webapp/templates/survey-missions/detail-component.html
+msgid "Editing a survey mission validates it again. If it becomes invalid it goes back to DRAFT, along with its survey-related records."
+msgstr "Editar uma missão volta a validá-la. Se ficar inválida, regressa a RASCUNHO, juntamente com os seus registos."
+
+#: webapp/templates/survey-missions/detail-component.html
+msgid "Discovery scans the survey mission's path in the archive and creates a survey-related record for each file matched by the asset discovery configurations."
+msgstr "A descoberta percorre o caminho da missão no arquivo e cria um registo para cada ficheiro encontrado pelas configurações de descoberta de recursos."
+
+#: webapp/templates/survey-missions/detail-component.html
+msgid "Deleting a survey mission also deletes its survey-related records."
+msgstr "Eliminar uma missão elimina também os seus registos."
+
+#: webapp/templates/survey-related-records/list.html
+msgid "Survey-related records describe the datasets collected during a survey mission. Each record has one or more assets."
+msgstr "Os registos descrevem os conjuntos de dados recolhidos durante uma missão. Cada registo tem um ou mais recursos."
+
+#: webapp/templates/survey-related-records/list.html
+msgid "Survey-related records with a status of DRAFT are only visible to authenticated users. A survey-related record is published automatically once it is valid and its survey mission is published."
+msgstr "Os registos com o estado RASCUNHO só são visíveis para utilizadores autenticados. Um registo é publicado automaticamente quando for válido e a sua missão estiver publicada."
+
+#: webapp/templates/survey-related-records/detail-component.html
+msgid "This page shows a survey-related record and its assets."
+msgstr "Esta página mostra um registo e os seus recursos."
+
+#: webapp/templates/survey-related-records/detail-component.html
+msgid "Editing a survey-related record validates it again. If it becomes invalid it goes back to DRAFT."
+msgstr "Editar um registo volta a validá-lo. Se ficar inválido, regressa a RASCUNHO."
+
+#: webapp/templates/survey-related-records/detail-component.html
+msgid "Published survey-related records can be exported to GeoNode. Exporting a record again replaces its GeoNode resource."
+msgstr "Os registos publicados podem ser exportados para o GeoNode. Exportar um registo novamente substitui o seu recurso no GeoNode."
+
+#: webapp/templates/datasetcategories/list.html
+msgid "Dataset categories are metadata about survey-related records"
+msgstr "As categorias são metadados sobre os registos"
+
+#: webapp/templates/workflowstages/list.html
+msgid "Workflow stages are metadata about survey-related records"
+msgstr "Os estádios são metadados sobre os registos"
+
+#: webapp/templates/discovery/list.html
+msgid "Asset discovery configurations tell the discovery process which files in a survey mission's archive path become survey-related records, and which dataset category and workflow stage those records get."
+msgstr "As configurações de descoberta de recursos indicam ao processo de descoberta que ficheiros no caminho de arquivo de uma missão se tornam registos, e que categoria e estádio esses registos recebem."
