@@ -24,7 +24,6 @@ async def draft_project(db, db_session_maker):
         id=identifiers.ProjectId(uuid.uuid4()),
         name="a draft project",
         description="draft",
-        root_path="projects/a-draft-project",
     )
     async with db_session_maker() as session:
         project = await project_commands.create_project(session, to_create)

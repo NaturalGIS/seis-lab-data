@@ -130,10 +130,6 @@ msgstr ""
 msgid "Is valid"
 msgstr ""
 
-#: webapp/templates/projects/detail.html:59
-msgid "Root path"
-msgstr ""
-
 #: webapp/templates/projects/list-component.html:5
 msgid "No projects found"
 msgstr ""
@@ -269,7 +265,7 @@ msgid "Whether previews are generated for the assets discovered by this configur
 msgstr ""
 
 #: webapp/forms/surveyrelatedrecords.py
-msgid "Path for the asset in the archive file system, relative to its parent survey mission root path"
+msgid "Path for the asset in the archive file system, relative to its parent survey mission's path"
 msgstr ""
 
 #: webapp/templates/survey-related-records/detail-component.html

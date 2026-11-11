@@ -169,7 +169,7 @@
         <div class="col">
             {% block content %}
                 {% block header %}
-                    <h1 class="display-1 text-truncate {% block header_extra_class %}{% endblock %}{% if resource_type_class == 'bg-project' %} title-project{% elif resource_type_class == 'bg-survey-mission' %} title-survey-mission{% elif resource_type_class == 'bg-survey-related-record' %} title-survey-related-record{% endif %}" aria-label="title">{% block page_title %}{% endblock page_title %}</h1>
+                    <h1 class="{% block title_size_class %}display-1{% endblock %} text-truncate {% block header_extra_class %}{% endblock %}{% if resource_type_class == 'bg-project' %} title-project{% elif resource_type_class == 'bg-survey-mission' %} title-survey-mission{% elif resource_type_class == 'bg-survey-related-record' %} title-survey-related-record{% endif %}" aria-label="title">{% block page_title %}{% endblock page_title %}</h1>
                 {% endblock %}
 
                 <div aria-label="content">

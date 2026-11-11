@@ -230,3 +230,14 @@ h1 > .material-icons-outlined {
 .list-item-body .btn-sm .material-icons-outlined {
     font-size: 18px;
 }
+
+.form-label-icon {
+    font-size: 1.1rem;
+    margin-right: 4px;
+}
+
+@media (min-width: 576px) {
+    .form-field-label {
+        width: 12rem;
+    }
+}

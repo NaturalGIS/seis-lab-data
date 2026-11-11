@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/info.html" import render_info_section %}
 {% import "macros.html" as macros %}
 
 {% block header_extra_class %}text-center{% endblock %}
@@ -10,15 +11,12 @@
 {% endblock page_title %}
 
 {% block details %}
-    <script>
-        window.iconNames = JSON.parse('{{ icons | tojson }}')
-    </script>
 
     <div class="row" data-on-intersect__once="@get('{{ url_for("workflow_stages:list_stream") }}')">
         <div class="col">
             <div
                     class="row justify-content-center m-5"
-                    data-signals:search='{{ search_initial_value }}'
+                    data-signals:search='{{ search_initial_value | default("", true) | tojson }}'
                     data-signals:advanced-search-panel-open="false"
                     data-signals:searching="false"
                     data-signals:listing-version="0"
@@ -73,12 +71,11 @@
                     </div>
                 </div>
             {% endif %}
-            <h5>{{ _("info") | capitalize }}</h5>
-            <ul class="list-group">
-                <li class="list-group-item">
-                    <p>{{ _("Workflow stages are metadata about survey-related records") }}</p>
-                </li>
-            </ul>
+            {{ render_info_section(
+                general_info=[
+                    _("Workflow stages are metadata about survey-related records"),
+                ]
+            ) }}
         </div>
     </div>
 {% endblock details %}

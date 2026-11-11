@@ -558,7 +558,6 @@ def test_published_survey_related_record_can_be_edited_and_deleted(
     authenticated_page.get_by_role("textbox", name="field-description").fill(
         "e2e test description"
     )
-    authenticated_page.get_by_role("textbox", name="field-root_path").fill("/somewhere")
     _fill_bounding_box(authenticated_page)
     authenticated_page.get_by_role("button", name="submit-create-form").click()
     expect(authenticated_page).to_have_url(
@@ -593,9 +592,9 @@ def test_published_survey_related_record_can_be_edited_and_deleted(
     )
     record_detail_url = authenticated_page.url
     authenticated_page.reload()
-    expect(authenticated_page.locator("[aria-label='status']")).to_contain_text(
-        "published", ignore_case=True
-    )
+    # the info section shows a status row for every status except published
+    expect(authenticated_page.locator("[aria-label='info-section']")).to_be_visible()
+    expect(authenticated_page.locator("[aria-label='status']")).to_have_count(0)
     expect(
         authenticated_page.get_by_role("button", name="publish-record")
     ).to_have_count(0)
@@ -611,9 +610,9 @@ def test_published_survey_related_record_can_be_edited_and_deleted(
     authenticated_page.get_by_role("button", name="submit-update-form").click()
     expect(authenticated_page).to_have_url(record_detail_url, timeout=10_000)
     authenticated_page.reload()
-    expect(authenticated_page.locator("[aria-label='status']")).to_contain_text(
-        "published", ignore_case=True
-    )
+    # the info section shows a status row for every status except published
+    expect(authenticated_page.locator("[aria-label='info-section']")).to_be_visible()
+    expect(authenticated_page.locator("[aria-label='status']")).to_have_count(0)
 
     # clean up: published record, mission and project are all deletable
     authenticated_page.get_by_role(

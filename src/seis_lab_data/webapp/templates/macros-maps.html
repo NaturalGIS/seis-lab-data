@@ -24,38 +24,54 @@
 {% macro render_bbox_update_component(
     webmap_base_tile_layer_url,
     webmap_default_zoom_level,
-    bounding_box_form_field
+    bounding_box_form_field,
+    center_lon,
+    center_lat
 ) %}
+    {% set bbox = bounding_box_form_field %}
     <div
-            class="row"
-            data-signals:bbox.min-lon="{{ bounding_box_form_field.min_lon.data }}"
-            data-signals:bbox.max-lon="{{ bounding_box_form_field.max_lon.data }}"
-            data-signals:bbox.min-lat="{{ bounding_box_form_field.min_lat.data }}"
-            data-signals:bbox.max-lat="{{ bounding_box_form_field.max_lat.data }}"
+            data-signals:bbox.min-lon="{{ bbox.min_lon.data | default(0, true) }}"
+            data-signals:bbox.max-lon="{{ bbox.max_lon.data | default(0, true) }}"
+            data-signals:bbox.min-lat="{{ bbox.min_lat.data | default(0, true) }}"
+            data-signals:bbox.max-lat="{{ bbox.max_lat.data | default(0, true) }}"
     >
-        <div class="col">
-            {# maplibre draws the map into the element - re-rendered forms must leave it alone, or morphing them in would remove the map #}
-            <bbox-map
-                    data-ignore-morph
-                    data-tile-url="{{ webmap_base_tile_layer_url }}"
-                    data-center-lon="{{ bounding_box_form_field.min_lon.data }}"
-                    data-center-lat="{{ bounding_box_form_field.min_lat.data }}"
-                    data-zoom="{{ webmap_default_zoom_level }}"
-                    data-min-lat=""
-                    data-min-lon=""
-                    data-max-lat=""
-                    data-max-lon=""
-                    data-attr:data-min-lat="$bbox.minLat"
-                    data-attr:data-min-lon="$bbox.minLon"
-                    data-attr:data-max-lat="$bbox.maxLat"
-                    data-attr:data-max-lon="$bbox.maxLon"
-                    style="display: block; width: 100%; height: 30vh"
-                    data-on:bbox-changed="$bbox = evt.detail.bbox"
-            ></bbox-map>
+        <div class="row mb-4">
+            <div class="col">
+                {# maplibre draws the map into the element - re-rendered forms must leave it alone, or morphing them in would remove the map #}
+                <bbox-map
+                        data-ignore-morph
+                        data-tile-url="{{ webmap_base_tile_layer_url }}"
+                        data-center-lon="{{ center_lon }}"
+                        data-center-lat="{{ center_lat }}"
+                        data-zoom="{{ webmap_default_zoom_level }}"
+                        data-min-lat=""
+                        data-min-lon=""
+                        data-max-lat=""
+                        data-max-lon=""
+                        data-attr:data-min-lat="$bbox.minLat"
+                        data-attr:data-min-lon="$bbox.minLon"
+                        data-attr:data-max-lat="$bbox.maxLat"
+                        data-attr:data-max-lon="$bbox.maxLon"
+                        style="display: block; width: 100%; height: 45vh; min-height: 320px"
+                        data-on:bbox-changed="$bbox = evt.detail.bbox"
+                ></bbox-map>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-lg-6">
+                {{ macros.render_form_field(bbox.min_lon, data_bind="bbox.minLon") }}
+            </div>
+            <div class="col-lg-6">
+                {{ macros.render_form_field(bbox.min_lat, data_bind="bbox.minLat") }}
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-lg-6">
+                {{ macros.render_form_field(bbox.max_lon, data_bind="bbox.maxLon") }}
+            </div>
+            <div class="col-lg-6">
+                {{ macros.render_form_field(bbox.max_lat, data_bind="bbox.maxLat") }}
+            </div>
         </div>
     </div>
-    {{ macros.render_form_field(bounding_box_form_field.min_lon, data_bind="bbox.minLon") }}
-    {{ macros.render_form_field(bounding_box_form_field.max_lon, data_bind="bbox.maxLon") }}
-    {{ macros.render_form_field(bounding_box_form_field.min_lat, data_bind="bbox.minLat") }}
-    {{ macros.render_form_field(bounding_box_form_field.max_lat, data_bind="bbox.maxLat") }}
 {% endmacro %}

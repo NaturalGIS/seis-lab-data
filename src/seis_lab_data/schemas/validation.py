@@ -18,15 +18,6 @@ def validate_polygon_geometry(value: shapely.Polygon) -> shapely.Polygon:
     return value
 
 
-def ensure_root_path_exists(value: str) -> str:
-    return value
-
-
-def ensure_relative_path_exists(value: str) -> str:
-    # TODO: this validation needs access to the parent project's root_path
-    return value
-
-
 ValidName = Annotated[
     str,
     pydantic.Field(
@@ -83,7 +74,6 @@ class ValidProject(pydantic.BaseModel):
     status: constants.ProjectStatus
     temporal_extent_begin: dt.date | None
     temporal_extent_end: dt.date | None
-    root_path: Annotated[str, pydantic.PlainValidator(ensure_root_path_exists)]
     links: list[ValidLinkSchema] = []
     bbox_4326: Annotated[
         shapely.Polygon,
@@ -100,7 +90,7 @@ class ValidSurveyMission(pydantic.BaseModel):
     status: constants.SurveyMissionStatus
     temporal_extent_begin: dt.date | None
     temporal_extent_end: dt.date | None
-    relative_path: Annotated[str, pydantic.PlainValidator(ensure_relative_path_exists)]
+    relative_path: str
     links: list[ValidLinkSchema] = []
     bbox_4326: Annotated[
         shapely.Polygon,

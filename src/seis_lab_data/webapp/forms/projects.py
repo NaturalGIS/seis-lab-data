@@ -9,7 +9,6 @@ from wtforms import (
     FieldList,
     FormField,
     HiddenField,
-    StringField,
 )
 
 from ... import constants
@@ -46,13 +45,9 @@ class _ProjectForm(StarletteForm):
     request_id = HiddenField()
     name = NameField()
     description = DescriptionField()
-    root_path = StringField(
-        _("Root path"),
-        description=_("Base path for the project in the archive file system"),
-    )
     bounding_box = FormField(BoundingBoxForm)
-    temporal_extent_begin = OptionalDateField()
-    temporal_extent_end = OptionalDateField()
+    temporal_extent_begin = OptionalDateField(_("Temporal extent begin"))
+    temporal_extent_end = OptionalDateField(_("Temporal extent end"))
     links = FieldList(
         FormField(LinkForm),
         label=_("Links"),
@@ -134,7 +129,6 @@ class ProjectCreateForm(_ProjectForm):
                 id=None,
                 name=self.name.data,
                 description=self.description.data,
-                root_path=self.root_path.data,
                 links=[
                     {
                         "url": li.url.data,
@@ -162,7 +156,6 @@ class ProjectUpdateForm(_ProjectForm):
             project_schemas.ProjectUpdate(
                 name=self.name.data,
                 description=self.description.data,
-                root_path=self.root_path.data,
                 temporal_extent_begin=self.temporal_extent_begin.data or None,
                 temporal_extent_end=self.temporal_extent_end.data or None,
                 links=[

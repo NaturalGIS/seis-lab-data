@@ -1,3 +1,4 @@
+{% from "macros/info.html" import render_info_section %}
 {% import "macros.html" as macros %}
 {% import "macros-buttons.html" as macros_buttons %}
 {% import "macros-maps.html" as macros_maps %}
@@ -24,8 +25,6 @@
                             <div class="col">
                                 <p>{{ item.description }}</p>
                                 <dl class="row">
-                                    <dt class="col-sm-3">{{ _("root path") | capitalize }}</dt>
-                                    <dd class="col-sm-9">{{ item.root_path|default(_("root path not available"), True) }}</dd>
                                     <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
                                     <dd class="col-sm-9">{{ item.temporal_extent_begin|default(_(".."), True) }}/{{ item.temporal_extent_end|default(_(".."), True) }}</dd>
                                     <dt class="col-sm-3">{{ _("spatial extent") | capitalize }}
@@ -68,7 +67,7 @@
         <div
             class="row mt-4"
             data-signals:listing-version="0"
-            data-effect="$listingVersion > 0 && @get('{{ url_for('projects:get_project_missions_list_component', project_id=item.id) }}')"
+            data-effect="$listingVersion > 0 && @get('{{ url_for('projects:get_project_missions_list_component', project_id=item.id) }}?page=' + $currentPage)"
         >
             <div class="col">
                 <h2>{{ _("survey missions") | capitalize }}</h2>
@@ -130,17 +129,16 @@
                 </div>
             </div>
         {% endif %}
-        <h5>{{ _("info") | capitalize }}</h5>
-        <script>
-            window.iconNames = JSON.parse('{{ icons | tojson }}')
-        </script>
-        <ul class="list-group">
-            {% include "partial-status.html" %}
-            {% include "partial-validation.html" %}
-            <li class="list-group-item">
-                <p>{{ _("Projects with a status of DRAFT are only visible to authenticated users") }}</p>
-                <p>{{ _("A project is published automatically, becoming visible to all users, once it is valid. If an edit makes it invalid, it goes back to DRAFT, along with its survey missions and their survey-related records.") }}</p>
-            </li>
-        </ul>
+        {{ render_info_section(
+            general_info=[
+                _("This page shows a project and its survey missions."),
+            ],
+            privileged_info=[
+                _("Editing a project validates it again. If it becomes invalid it goes back to DRAFT, along with its survey missions and their survey-related records."),
+                _("Deleting a project also deletes its survey missions and their survey-related records."),
+            ],
+            show_privileged_info=request.user.is_authenticated,
+            item=item
+        ) }}
     </div>
 </div>

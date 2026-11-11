@@ -10,14 +10,14 @@
     <div class="row border p-4 mb-3">
         <div class="col">
             {{ render_checkbox(form.update_dataset_category) }}
-            {{ macros.render_form_field(form.dataset_category_id) }}
+            {{ macros.render_form_field(form.dataset_category_id, icon=icons.dataset_category) }}
         </div>
     </div>
 
     <div class="row border p-4 mb-3">
         <div class="col">
             {{ render_checkbox(form.update_workflow_stage) }}
-            {{ macros.render_form_field(form.workflow_stage_id) }}
+            {{ macros.render_form_field(form.workflow_stage_id, icon=icons.workflow_stage) }}
         </div>
     </div>
 
@@ -27,7 +27,9 @@
             {{ macros_maps.render_bbox_update_component(
                 settings.webmap_base_tile_layer_url,
                 settings.webmap_default_zoom_level,
-                form.bounding_box
+                form.bounding_box,
+                form.bounding_box.min_lon.data,
+                form.bounding_box.min_lat.data
             ) }}
         </div>
     </div>
@@ -35,8 +37,7 @@
     <div class="row border p-4 mb-3">
         <div class="col">
             {{ render_checkbox(form.update_temporal_extent) }}
-            {{ macros.render_form_field(form.temporal_extent_begin) }}
-            {{ macros.render_form_field(form.temporal_extent_end) }}
+            {{ macros.render_temporal_extent_fields(form.temporal_extent_begin, form.temporal_extent_end) }}
         </div>
     </div>
 

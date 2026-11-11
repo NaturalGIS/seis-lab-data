@@ -85,7 +85,7 @@ async def test_project_thumbnail_follows_the_bbox(
         await project_ops.create_project(
             request_id=identifiers.RequestId(uuid.uuid4()),
             to_create=project_schemas.ProjectCreate(
-                id=project_id, name="A fake project", root_path="", bbox_4326=_BBOX
+                id=project_id, name="A fake project", bbox_4326=_BBOX
             ),
             initiator=admin_user,
             session=session,

@@ -1,3 +1,4 @@
+{% from "macros/info.html" import render_info_section %}
 {% import "macros.html" as macros %}
 {% import "macros-buttons.html" as macros_buttons %}
 {% import "macros-maps.html" as macros_maps %}
@@ -76,7 +77,7 @@
         </div>
         <div
             class="row mt-4"
-            data-signals:search="'{{ search_initial_value | default('', true) }}'"
+            data-signals:search='{{ search_initial_value | default("", true) | tojson }}'
             data-signals:advanced-search-panel-open="false"
             data-signals:searching="false"
             data-signals:listing-version="0"
@@ -85,7 +86,7 @@
             data-signals:select-all-matching="false"
             data-signals:compact-listing="false"
             data-init="$compactListing = localStorage.getItem('sld:compact-records') === 'true'"
-            data-effect="$listingVersion > 0 && @get('{{ url_for('survey_missions:get_mission_records_list_component', survey_mission_id=item.id) }}?page={{ pagination.current_page }}')"
+            data-effect="$listingVersion > 0 && @get('{{ url_for('survey_missions:get_mission_records_list_component', survey_mission_id=item.id) }}?page=' + $currentPage)"
         >
             <div class="col">
                 <h2>{{ _("survey-related-records") | capitalize }}</h2>
@@ -250,18 +251,18 @@
                 </div>
             </div>
         {% endif %}
-        <h5>{{ _("info") | capitalize }}</h5>
-        <script>
-            window.iconNames = JSON.parse('{{ icons | tojson }}')
-        </script>
-        <ul class="list-group">
-            {% include "partial-status.html" %}
-            {% include "partial-validation.html" %}
-            <li class="list-group-item">
-                <p>{{ _("Survey missions with a status of DRAFT are only visible to authenticated users") }}</p>
-                <p>{{ _("A survey mission is published automatically, becoming visible to all users, once it is valid and its project is published. If an edit makes it invalid, it goes back to DRAFT, along with its survey-related records.") }}</p>
-            </li>
-        </ul>
+        {{ render_info_section(
+            general_info=[
+                _("This page shows a survey mission and its survey-related records."),
+            ],
+            privileged_info=[
+                _("Editing a survey mission validates it again. If it becomes invalid it goes back to DRAFT, along with its survey-related records."),
+                _("Discovery scans the survey mission's path in the archive and creates a survey-related record for each file matched by the asset discovery configurations."),
+                _("Deleting a survey mission also deletes its survey-related records."),
+            ],
+            show_privileged_info=request.user.is_authenticated,
+            item=item
+        ) }}
     </div>
 
 

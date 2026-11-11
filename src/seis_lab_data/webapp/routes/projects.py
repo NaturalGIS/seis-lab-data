@@ -1,4 +1,5 @@
 import dataclasses
+import functools
 import json
 import logging
 import uuid
@@ -55,6 +56,7 @@ from .auth import (
 from .common import (
     get_id_from_request_path,
     get_list_item_permissions,
+    get_page_count,
     get_page_from_request_params,
     get_pagination_info,
     UPDATE_BASEMAP_JS_SCRIPT,
@@ -126,7 +128,6 @@ async def get_project_update_form(request: Request):
         data={
             "name": project.name,
             "description": project.description,
-            "root_path": project.root_path,
             "bounding_box": {
                 "min_lon": current_bbox.bounds[0],
                 "min_lat": current_bbox.bounds[1],
@@ -477,14 +478,20 @@ async def get_list_component(request: Request):
     settings: config.SeisLabDataSettings = request.state.settings
     user = request.user if request.user.is_authenticated else None
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await project_ops.list_projects(
+        list_page = functools.partial(
+            project_ops.list_projects,
             session,
             initiator=user,
-            page=current_page,
             page_size=settings.pagination_page_size,
             include_total=True,
             **internal_filter_kwargs,
         )
+        items, num_total = await list_page(page=current_page)
+        # deleting the only item of the last page would leave the listing empty
+        last_page = max(get_page_count(num_total, settings.pagination_page_size), 1)
+        if current_page > last_page:
+            current_page = last_page
+            items, num_total = await list_page(page=current_page)
         num_unfiltered_total = (
             await project_ops.list_projects(session, initiator=user, include_total=True)
         )[1]
@@ -649,7 +656,6 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             id=identifiers.ProjectId(uuid.uuid4()),
             name=form_instance.name.data,
             description=form_instance.description.data,
-            root_path=form_instance.root_path.data,
             bbox_4326=(
                 f"POLYGON(("
                 f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}, "
@@ -755,7 +761,6 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         to_update = project_schemas.ProjectUpdate(
             name=form_instance.name.data,
             description=form_instance.description.data,
-            root_path=form_instance.root_path.data,
             bbox_4326=(
                 f"POLYGON(("
                 f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}, "
@@ -919,15 +924,21 @@ async def get_project_missions_list_component(request: Request):
     settings: config.SeisLabDataSettings = request.state.settings
     user = request.user if request.user.is_authenticated else None
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await survey_mission_ops.list_survey_missions(
+        list_page = functools.partial(
+            survey_mission_ops.list_survey_missions,
             session,
             initiator=user,
             project_id=project_id,
-            page=current_page,
             page_size=settings.pagination_page_size,
             include_total=True,
             **internal_filter_kwargs,
         )
+        items, num_total = await list_page(page=current_page)
+        # deleting the only item of the last page would leave the listing empty
+        last_page = max(get_page_count(num_total, settings.pagination_page_size), 1)
+        if current_page > last_page:
+            current_page = last_page
+            items, num_total = await list_page(page=current_page)
         num_unfiltered_total = (
             await survey_mission_ops.list_survey_missions(
                 session, initiator=user, project_id=project_id, include_total=True

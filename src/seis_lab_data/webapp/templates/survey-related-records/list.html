@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/info.html" import render_info_section %}
 {% import "macros.html" as macros %}
 {% from "macros/checkbox.html" import search_checkbox  %}
 {% from "macros/select.html" import search_select %}
@@ -26,15 +27,12 @@
 {% endblock page_title %}
 
 {% block details %}
-    <script>
-        window.iconNames = JSON.parse('{{ icons | tojson }}')
-    </script>
 
     <div class="row">
     <div class="col">
         <div
                 class="row justify-content-center m-5"
-                data-signals:search='{{ search_initial_value }}'
+                data-signals:search='{{ search_initial_value | default("", true) | tojson }}'
                 data-signals:advanced-search-panel-open="false"
                 data-signals:searching="false"
                 data-signals:listing-version="0"
@@ -43,7 +41,7 @@
                 data-signals:select-all-matching="false"
                 data-signals:compact-listing="false"
                 data-init="$compactListing = localStorage.getItem('sld:compact-records') === 'true'"
-                data-effect="$listingVersion > 0 && @get('{{ url_for('survey_related_records:get_list_component') }}?page={{ pagination.current_page }}')"
+                data-effect="$listingVersion > 0 && @get('{{ url_for('survey_related_records:get_list_component') }}?page=' + $currentPage)"
         >
             <div class="col-8">
                 <search class="form-floating">
@@ -190,13 +188,15 @@
             {% include "survey-related-records/list-component.html" %}
         </div>
         <div class="col-3">
-            <h5>{{ _("info") | capitalize }}</h5>
-            <ul class="list-group">
-                <li class="list-group-item">
-                    <p>{{ _("Survey-related records with a status of DRAFT are only visible to authenticated users") }}</p>
-                    <p>{{ _("A survey-related record is published automatically, becoming visible to all users, once it is valid and its survey mission is published. If an edit makes it invalid, it goes back to DRAFT.") }}</p>
-                </li>
-            </ul>
+            {{ render_info_section(
+                general_info=[
+                    _("Survey-related records describe the datasets collected during a survey mission. Each record has one or more assets."),
+                ],
+                privileged_info=[
+                    _("Survey-related records with a status of DRAFT are only visible to authenticated users. A survey-related record is published automatically once it is valid and its survey mission is published."),
+                ],
+                show_privileged_info=request.user.is_authenticated
+            ) }}
         </div>
     </div>
 

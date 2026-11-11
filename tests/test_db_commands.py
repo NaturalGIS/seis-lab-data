@@ -107,7 +107,6 @@ async def test_create_project(db, db_session_maker):
         id=identifiers.ProjectId(uuid.UUID("5fe24752-5919-4a05-be46-aed53a6936db")),
         name="A fake project",
         description="A description for fake project",
-        root_path="/fake-path/to/fake-project/",
     )
     async with db_session_maker() as session:
         created = await project_commands.create_project(session, to_create)
@@ -128,7 +127,6 @@ async def test_create_project_rejects_duplicate_name(db, db_session_maker):
                 ),
                 name="A fake project",
                 description="A description for fake project",
-                root_path="/fake-path/to/first-project/",
             ),
         )
         with pytest.raises(errors.DuplicateResourceError):
@@ -141,7 +139,6 @@ async def test_create_project_rejects_duplicate_name(db, db_session_maker):
                     # same name as the project already created above
                     name="A fake project",
                     description="A description for fake project",
-                    root_path="/fake-path/to/second-project/",
                 ),
             )
 
@@ -153,7 +150,6 @@ async def test_delete_project(db, db_session_maker):
         id=identifiers.ProjectId(uuid.UUID("0637d5d9-6381-4ba8-b9ec-89750baa93a4")),
         name="A fake project",
         description="A description for fake project",
-        root_path="/fake-path/to/fake-project/",
     )
     async with db_session_maker() as session:
         await project_commands.create_project(session, to_create)
@@ -175,7 +171,6 @@ async def test_set_project_thumbnail_leaves_the_bbox_alone(db, db_session_maker)
                 id=project_id,
                 name="A fake project",
                 description="A description for fake project",
-                root_path="/fake-path/to/fake-project/",
                 bbox_4326="POLYGON((-10 38, -8 38, -8 40, -10 40, -10 38))",
             ),
         )
