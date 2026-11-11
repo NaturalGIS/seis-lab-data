@@ -48,9 +48,9 @@ class AssetCreateForm(Form):
     asset_id = HiddenField("asset_id", default=_generate_new_asset_id)
     asset_name = NameField(name="name")
     asset_description = DescriptionField(name="description")
-    media_type = StringField(_("media type"))
+    media_type = StringField(_("Media type"))
     relative_path = StringField(
-        _("relative path"),
+        _("Relative path"),
         description=_(
             "Path for the asset in the archive file system, "
             "relative to its parent survey mission root path"
@@ -67,7 +67,7 @@ class AssetCreateForm(Form):
 
 class RelatedRecordForm(Form):
     related_record = PydanticMappableStringField(
-        _("related record"), pydantic_field_name="related_record_id"
+        _("Related record"), pydantic_field_name="related_record_id"
     )
     relationship = StringField(
         _("Relationship"),
@@ -105,8 +105,8 @@ class _SurveyRelatedRecordForm(StarletteForm):
         max_entries=constants.SURVEY_RELATED_RECORD_MAX_LINKS,
     )
     bounding_box = FormField(BoundingBoxForm)
-    temporal_extent_begin = OptionalDateField()
-    temporal_extent_end = OptionalDateField()
+    temporal_extent_begin = OptionalDateField(_("Temporal extent begin"))
+    temporal_extent_end = OptionalDateField(_("Temporal extent end"))
     assets = FieldList(
         FormField(AssetCreateForm),
         label=_("assets"),
@@ -376,8 +376,8 @@ class SurveyRelatedRecordBulkUpdateForm(StarletteForm):
     bounding_box = FormField(BoundingBoxForm)
 
     update_temporal_extent = BooleanField(_("update temporal extent"))
-    temporal_extent_begin = OptionalDateField()
-    temporal_extent_end = OptionalDateField()
+    temporal_extent_begin = OptionalDateField(_("Temporal extent begin"))
+    temporal_extent_end = OptionalDateField(_("Temporal extent end"))
 
     update_related_records = BooleanField(_("update related records"))
     related_records = FieldList(

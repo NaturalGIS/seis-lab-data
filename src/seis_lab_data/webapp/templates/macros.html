@@ -1,18 +1,21 @@
-{% macro render_form_field(field, name_prefix="", test_id=None) %}
+{% macro render_form_field(field, name_prefix="", test_id=None, icon=None) %}
     {% if field.type == "HiddenField" %}
         {{ field(data_bind=field.name) }}
     {% else %}
         {% set form_element_classes = "form-control is-invalid" if field.errors else "form-control" %}
         {% set form_element_described_by = name_prefix ~ field.name ~ "-help backend-validation-" ~ name_prefix ~ field.name ~ "-feedback" if field.errors else name_prefix ~ field.name ~ "-help" %}
         {% set stable_test_id = test_id or ("field-" ~ name_prefix ~ field.name) %}
-        <div class="row mb-3">
-            <div class="col-sm-2">
-                {{ field.label(class="form-label") }}
+        <div class="row mb-4">
+            <div class="col-12 col-sm-auto col-form-label form-field-label">
+                {% if icon %}
+                    <span class="material-icons-outlined form-label-icon" aria-hidden="true">{{ icon }}</span>
+                {% endif %}
+                {{ field.label(class="mb-0") }}
                 {% if field.flags.backend_required %}
                     <span class="text-danger">*</span>
                 {% endif %}
             </div>
-            <div class="col-sm-10{% if field.errors %} has-validation{% endif %}">
+            <div class="col-12 col-sm{% if field.errors %} has-validation{% endif %}">
                 {% if field.flags.backend_required %}
                     {{ field(class=form_element_classes,
                          aria_describedby=form_element_described_by,
@@ -40,6 +43,17 @@
     {% endif %}
 {% endmacro %}
 
+
+{% macro render_temporal_extent_fields(begin_field, end_field) %}
+    <div class="row">
+        <div class="col-lg-6">
+            {{ render_form_field(begin_field) }}
+        </div>
+        <div class="col-lg-6">
+            {{ render_form_field(end_field) }}
+        </div>
+    </div>
+{% endmacro %}
 
 {% macro render_link_form(link_field, id_prefix="") %}
     {{ render_form_field(link_field.url, id_prefix ~ "link-") }}

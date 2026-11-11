@@ -145,14 +145,26 @@ class LinkForm(Form):
 
 class BoundingBoxForm(Form):
     min_lon = DecimalField(
-        "min_lon", default=Decimal(0), places=5, render_kw={"min": -180, "max": 180}
+        _("Minimum longitude"),
+        default=Decimal(0),
+        places=5,
+        render_kw={"min": -180, "max": 180},
     )
     max_lon = DecimalField(
-        "max_lon", default=Decimal(0), places=5, render_kw={"min": -180, "max": 180}
+        _("Maximum longitude"),
+        default=Decimal(0),
+        places=5,
+        render_kw={"min": -180, "max": 180},
     )
     min_lat = DecimalField(
-        "min_lat", default=Decimal(0), places=5, render_kw={"min": -90, "max": 90}
+        _("Minimum latitude"),
+        default=Decimal(0),
+        places=5,
+        render_kw={"min": -90, "max": 90},
     )
     max_lat = DecimalField(
-        "max_lat", default=Decimal(0), places=5, render_kw={"min": -90, "max": 90}
+        _("Maximum latitude"),
+        default=Decimal(0),
+        places=5,
+        render_kw={"min": -90, "max": 90},
     )

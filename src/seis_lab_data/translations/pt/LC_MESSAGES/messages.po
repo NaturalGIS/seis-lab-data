@@ -303,3 +303,427 @@ msgstr "Se optar por exportar o registo novamente, este irá substituir o que j�
 #: webapp/templates/survey-related-records/detail-component.html
 msgid "Export record"
 msgstr "Exportar registo"
+
+#: webapp/templates/projects/create-form.html
+#: webapp/templates/projects/update-form.html
+#: webapp/templates/survey-missions/create-form.html
+#: webapp/templates/survey-missions/update-form.html
+#: webapp/templates/survey-related-records/create-form.html
+#: webapp/templates/survey-related-records/update-form.html
+#: webapp/templates/projects/detail-component.html
+#: webapp/templates/survey-missions/detail-component.html
+msgid "spatial extent"
+msgstr "extensão espacial"
+
+#: webapp/templates/projects/create-form.html
+#: webapp/templates/projects/update-form.html
+#: webapp/templates/survey-missions/create-form.html
+#: webapp/templates/survey-missions/update-form.html
+#: webapp/templates/survey-related-records/create-form.html
+#: webapp/templates/survey-related-records/update-form.html
+#: webapp/templates/projects/detail-component.html
+#: webapp/templates/survey-missions/detail-component.html
+#: webapp/templates/survey-related-records/detail-component.html
+msgid "temporal extent"
+msgstr "extensão temporal"
+
+#: webapp/forms/common.py
+msgid "Minimum longitude"
+msgstr "Longitude mínima"
+
+#: webapp/forms/common.py
+msgid "Minimum latitude"
+msgstr "Latitude mínima"
+
+#: webapp/forms/common.py
+msgid "Maximum longitude"
+msgstr "Longitude máxima"
+
+#: webapp/forms/common.py
+msgid "Maximum latitude"
+msgstr "Latitude máxima"
+
+#: webapp/forms/common.py
+msgid "Name of the item"
+msgstr "Nome do item"
+
+#: webapp/forms/common.py
+msgid "Short description about this item"
+msgstr "Breve descrição deste item"
+
+#: webapp/forms/common.py
+msgid "URL"
+msgstr "URL"
+
+#: webapp/forms/common.py
+#: webapp/forms/discovery.py
+#: webapp/forms/surveyrelatedrecords.py
+msgid "Media type"
+msgstr "Tipo de media"
+
+#: webapp/forms/common.py
+msgid "Relation"
+msgstr "Relação"
+
+#: webapp/forms/discovery.py
+msgid "Name for identifying this configuration"
+msgstr "Nome para identificar esta configuração"
+
+#: webapp/forms/discovery.py
+msgid "Relative path regular expression"
+msgstr "Expressão regular do caminho relativo"
+
+#: webapp/forms/discovery.py
+msgid "A regular expression that is used to find the respective file on the filesystem"
+msgstr "Expressão regular usada para encontrar o ficheiro respetivo no sistema de ficheiros"
+
+#: webapp/forms/discovery.py
+msgid "Media type (AKA MIME type) of the asset. Discover existing media types at the <a href=\"https://www.iana.org/assignments/media-types/media-types.xhtml\">official IANA media type list</a>. If needed, define custom media types like this 'application/prs.ipma.&ltfile-format&gt' (ex: application/prs.ipma.kmall)"
+msgstr "Tipo de media (também conhecido como tipo MIME) do recurso. Consulte os tipos de media existentes na <a href=\"https://www.iana.org/assignments/media-types/media-types.xhtml\">lista oficial de tipos de media da IANA</a>. Se necessário, defina tipos de media personalizados como 'application/prs.ipma.&ltformato-do-ficheiro&gt' (ex: application/prs.ipma.kmall)"
+
+#: webapp/forms/projects.py
+msgid "Base path for the project in the archive file system"
+msgstr "Caminho base do projeto no sistema de ficheiros do arquivo"
+
+#: webapp/forms/projects.py
+#: webapp/forms/surveymissions.py
+#: webapp/forms/surveyrelatedrecords.py
+#: webapp/templates/projects/list.html
+#: webapp/templates/survey-missions/detail-component.html
+#: webapp/templates/survey-missions/list.html
+#: webapp/templates/survey-related-records/list.html
+msgid "Temporal extent begin"
+msgstr "Data de início"
+
+#: webapp/forms/projects.py
+#: webapp/forms/surveymissions.py
+#: webapp/forms/surveyrelatedrecords.py
+#: webapp/templates/projects/list.html
+#: webapp/templates/survey-missions/detail-component.html
+#: webapp/templates/survey-missions/list.html
+#: webapp/templates/survey-related-records/list.html
+msgid "Temporal extent end"
+msgstr "Data de fim"
+
+#: webapp/forms/surveymissions.py
+msgid "Path for the survey mission in the archive file system, relative to its parent project root path"
+msgstr "Caminho da missão no sistema de ficheiros do arquivo, relativo ao caminho base do projeto"
+
+#: webapp/forms/surveyrelatedrecords.py
+msgid "Related record"
+msgstr "Registo relacionado"
+
+#: webapp/forms/surveyrelatedrecords.py
+msgid "Relationship"
+msgstr "Relação"
+
+#: webapp/forms/surveyrelatedrecords.py
+msgid "Name of the relationship"
+msgstr "Nome da relação"
+
+#: webapp/forms/surveyrelatedrecords.py
+#: webapp/templates/survey-related-records/create-form.html
+#: webapp/templates/survey-related-records/detail-component.html
+#: webapp/templates/survey-related-records/update-form.html
+msgid "assets"
+msgstr "recursos"
+
+#: webapp/forms/surveyrelatedrecords.py
+#: webapp/templates/survey-missions/bulk-update-form.html
+#: webapp/templates/survey-related-records/create-form.html
+#: webapp/templates/survey-related-records/update-form.html
+msgid "related records"
+msgstr "registos relacionados"
+
+#: webapp/forms/surveyrelatedrecords.py
+#: webapp/templates/datasetcategories/update-form.html
+msgid "update dataset category"
+msgstr "atualizar categoria"
+
+#: webapp/forms/surveyrelatedrecords.py
+#: webapp/templates/workflowstages/update-form.html
+msgid "update workflow stage"
+msgstr "atualizar estádio"
+
+#: webapp/forms/surveyrelatedrecords.py
+msgid "update bounding box"
+msgstr "atualizar extensão espacial"
+
+#: webapp/forms/surveyrelatedrecords.py
+msgid "update temporal extent"
+msgstr "atualizar extensão temporal"
+
+#: webapp/forms/surveyrelatedrecords.py
+msgid "update related records"
+msgstr "atualizar registos relacionados"
+
+#: webapp/forms/datasetcategories.py
+msgid "There is already a dataset category with this name"
+msgstr "Já existe uma categoria com este nome"
+
+#: webapp/forms/projects.py
+msgid "There is already a project with this name"
+msgstr "Já existe um projeto com este nome"
+
+#: webapp/forms/surveymissions.py
+msgid "There is already a survey mission with this name under the same project"
+msgstr "Já existe uma missão com este nome no mesmo projeto"
+
+#: webapp/forms/surveyrelatedrecords.py
+msgid "There is already a survey-related record with this name under the same survey mission"
+msgstr "Já existe um registo com este nome na mesma missão"
+
+#: webapp/forms/workflowstages.py
+msgid "There is already a workflow stage with this name"
+msgstr "Já existe um estádio com este nome"
+
+#: webapp/forms/surveyrelatedrecords.py
+msgid "Select at least one field to bulk-update"
+msgstr "Selecione pelo menos um campo para atualizar em massa"
+
+#: webapp/templates/macros.html
+#: webapp/templates/macros/checkbox.html
+msgid "This is a required field"
+msgstr "Este campo é obrigatório"
+
+#: webapp/templates/macros.html
+msgid "link"
+msgstr "ligação"
+
+#: webapp/templates/macros.html
+msgid "remove link"
+msgstr "remover ligação"
+
+#: webapp/templates/macros.html
+msgid "Add another link"
+msgstr "Adicionar outra ligação"
+
+#: webapp/templates/projects/detail-component.html
+#: webapp/templates/survey-missions/detail-component.html
+#: webapp/templates/survey-missions/update-form.html
+#: webapp/templates/survey-related-records/create-form.html
+#: webapp/templates/survey-related-records/detail-component.html
+#: webapp/templates/survey-related-records/update-form.html
+msgid "links"
+msgstr "ligações"
+
+#: webapp/templates/datasetcategories/create-form.html
+#: webapp/templates/datasetcategories/update-form.html
+#: webapp/templates/discovery/create-form.html
+#: webapp/templates/discovery/update-form.html
+#: webapp/templates/projects/create-form.html
+#: webapp/templates/projects/update-form.html
+#: webapp/templates/survey-missions/bulk-update-form.html
+#: webapp/templates/survey-missions/create-form.html
+#: webapp/templates/survey-missions/update-form.html
+#: webapp/templates/survey-related-records/create-form.html
+#: webapp/templates/survey-related-records/update-form.html
+#: webapp/templates/workflowstages/create-form.html
+#: webapp/templates/workflowstages/update-form.html
+msgid "cancel"
+msgstr "cancelar"
+
+#: webapp/templates/macros-buttons.html
+#: webapp/templates/macros/delete-button.html
+#: webapp/templates/survey-missions/bulk-update-form.html
+msgid "Loading..."
+msgstr "A carregar..."
+
+#: webapp/templates/datasetcategories/create-form-page.html
+msgid "new dataset category"
+msgstr "nova categoria"
+
+#: webapp/templates/datasetcategories/create-form.html
+msgid "Creating dataset category..."
+msgstr "A criar categoria..."
+
+#: webapp/templates/datasetcategories/create-form.html
+msgid "Create dataset category"
+msgstr "Criar categoria"
+
+#: webapp/templates/datasetcategories/update-form-page.html
+msgid "edit dataset category"
+msgstr "editar categoria"
+
+#: webapp/templates/datasetcategories/update-form.html
+msgid "updating dataset category..."
+msgstr "a atualizar categoria..."
+
+#: webapp/templates/discovery/create-form-page.html
+msgid "new asset discovery configuration"
+msgstr "nova configuração de descoberta de recursos"
+
+#: webapp/templates/discovery/create-form.html
+msgid "Creating asset discovery configuration..."
+msgstr "A criar configuração de descoberta de recursos..."
+
+#: webapp/templates/discovery/create-form.html
+msgid "Create asset discovery configuration"
+msgstr "Criar configuração de descoberta de recursos"
+
+#: webapp/templates/discovery/update-form-page.html
+msgid "edit asset discovery configuration"
+msgstr "editar configuração de descoberta de recursos"
+
+#: webapp/templates/discovery/update-form.html
+msgid "updating asset discovery configuration..."
+msgstr "a atualizar configuração de descoberta de recursos..."
+
+#: webapp/templates/discovery/update-form.html
+msgid "update asset discovery configuration"
+msgstr "atualizar configuração de descoberta de recursos"
+
+#: webapp/templates/projects/create-form-page.html
+msgid "new project"
+msgstr "novo projeto"
+
+#: webapp/templates/projects/create-form.html
+msgid "Creating project..."
+msgstr "A criar projeto..."
+
+#: webapp/templates/projects/create-form.html
+msgid "Create project"
+msgstr "Criar projeto"
+
+#: webapp/templates/projects/detail-component.html
+#: webapp/templates/projects/update-form-page.html
+msgid "edit project"
+msgstr "editar projeto"
+
+#: webapp/templates/projects/update-form.html
+msgid "updating project..."
+msgstr "a atualizar projeto..."
+
+#: webapp/templates/projects/update-form.html
+msgid "update project"
+msgstr "atualizar projeto"
+
+#: webapp/templates/survey-missions/bulk-update-form-page.html
+msgid "bulk update survey-related records"
+msgstr "atualizar registos em massa"
+
+#: webapp/templates/survey-missions/bulk-update-form.html
+#, python-format
+msgid "This will update %(count)d record(s)."
+msgstr "Esta operação irá atualizar %(count)d registo(s)."
+
+#: webapp/templates/survey-missions/bulk-update-form.html
+#: webapp/templates/survey-related-records/create-form.html
+#: webapp/templates/survey-related-records/update-form.html
+msgid "record"
+msgstr "registo"
+
+#: webapp/templates/survey-missions/bulk-update-form.html
+#: webapp/templates/survey-related-records/create-form.html
+#: webapp/templates/survey-related-records/update-form.html
+msgid "remove relationship to record"
+msgstr "remover relação com o registo"
+
+#: webapp/templates/survey-missions/bulk-update-form.html
+#: webapp/templates/survey-related-records/create-form.html
+#: webapp/templates/survey-related-records/update-form.html
+msgid "add another relationship"
+msgstr "adicionar outra relação"
+
+#: webapp/templates/survey-missions/bulk-update-form.html
+#: webapp/templates/survey-related-records/create-form.html
+#: webapp/templates/survey-related-records/update-form.html
+msgid "maximum limit reached"
+msgstr "limite máximo atingido"
+
+#: webapp/templates/survey-missions/bulk-update-form.html
+msgid "Submitting bulk update..."
+msgstr "A submeter atualização em massa..."
+
+#: webapp/templates/survey-missions/bulk-update-form.html
+msgid "Submit bulk update"
+msgstr "Submeter atualização em massa"
+
+#: webapp/templates/survey-missions/create-form-page.html
+msgid "new survey mission"
+msgstr "nova missão"
+
+#: webapp/templates/survey-missions/create-form.html
+msgid "Creating survey mission..."
+msgstr "A criar missão..."
+
+#: webapp/templates/survey-missions/create-form.html
+msgid "Create survey mission"
+msgstr "Criar missão"
+
+#: webapp/templates/survey-missions/detail-component.html
+#: webapp/templates/survey-missions/update-form-page.html
+msgid "edit survey mission"
+msgstr "editar missão"
+
+#: webapp/templates/survey-missions/update-form.html
+msgid "updating survey mission..."
+msgstr "a atualizar missão..."
+
+#: webapp/templates/survey-missions/update-form.html
+msgid "update survey mission"
+msgstr "atualizar missão"
+
+#: webapp/templates/survey-related-records/create-form-page.html
+msgid "new survey-related record"
+msgstr "novo registo"
+
+#: webapp/templates/survey-related-records/create-form.html
+#: webapp/templates/survey-related-records/update-form.html
+msgid "asset"
+msgstr "recurso"
+
+#: webapp/templates/survey-related-records/create-form.html
+#: webapp/templates/survey-related-records/update-form.html
+msgid "remove asset"
+msgstr "remover recurso"
+
+#: webapp/templates/survey-related-records/create-form.html
+#: webapp/templates/survey-related-records/update-form.html
+msgid "asset links"
+msgstr "ligações do recurso"
+
+#: webapp/templates/survey-related-records/create-form.html
+#: webapp/templates/survey-related-records/update-form.html
+msgid "add another asset"
+msgstr "adicionar outro recurso"
+
+#: webapp/templates/survey-related-records/create-form.html
+msgid "Creating survey record..."
+msgstr "A criar registo..."
+
+#: webapp/templates/survey-related-records/create-form.html
+msgid "Create survey record"
+msgstr "Criar registo"
+
+#: webapp/templates/survey-related-records/update-form-page.html
+msgid "edit survey-related record"
+msgstr "editar registo"
+
+#: webapp/templates/survey-related-records/update-form.html
+msgid "Updating survey-related record..."
+msgstr "A atualizar registo..."
+
+#: webapp/templates/survey-related-records/update-form.html
+msgid "Update survey-related record"
+msgstr "Atualizar registo"
+
+#: webapp/templates/workflowstages/create-form-page.html
+msgid "new workflow stage"
+msgstr "novo estádio"
+
+#: webapp/templates/workflowstages/create-form.html
+msgid "Creating workflow stage..."
+msgstr "A criar estádio..."
+
+#: webapp/templates/workflowstages/create-form.html
+msgid "create workflow stage"
+msgstr "criar estádio"
+
+#: webapp/templates/workflowstages/update-form-page.html
+msgid "edit workflow stage"
+msgstr "editar estádio"
+
+#: webapp/templates/workflowstages/update-form.html
+msgid "updating workflow stage..."
+msgstr "a atualizar estádio..."

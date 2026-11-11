@@ -51,8 +51,8 @@ class _ProjectForm(StarletteForm):
         description=_("Base path for the project in the archive file system"),
     )
     bounding_box = FormField(BoundingBoxForm)
-    temporal_extent_begin = OptionalDateField()
-    temporal_extent_end = OptionalDateField()
+    temporal_extent_begin = OptionalDateField(_("Temporal extent begin"))
+    temporal_extent_end = OptionalDateField(_("Temporal extent end"))
     links = FieldList(
         FormField(LinkForm),
         label=_("Links"),

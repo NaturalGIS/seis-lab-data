@@ -70,8 +70,8 @@ class _SurveyMissionForm(StarletteForm):
         render_kw={"list": "epsg-code-options", "autocomplete": "off"},
     )
     bounding_box = FormField(BoundingBoxForm)
-    temporal_extent_begin = OptionalDateField()
-    temporal_extent_end = OptionalDateField()
+    temporal_extent_begin = OptionalDateField(_("Temporal extent begin"))
+    temporal_extent_end = OptionalDateField(_("Temporal extent end"))
     links = FieldList(
         FormField(LinkForm),
         label=_("Links"),

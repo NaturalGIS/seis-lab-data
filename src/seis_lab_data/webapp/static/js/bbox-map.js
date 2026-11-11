@@ -160,7 +160,7 @@ export class BoundingBoxMap extends HTMLElement {
             }
 
             this.draw.addFeatures([feature])
-            this.map.fitBounds([[minLon, minLat], [maxLon, maxLat]], {padding: 20, animate: animate})
+            this.map.fitBounds([[minLon, minLat], [maxLon, maxLat]], {padding: 60, animate: animate})
 
             this._suppressUpdate = false
         }

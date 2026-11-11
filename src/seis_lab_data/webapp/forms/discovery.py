@@ -43,13 +43,14 @@ class _AssetDiscoveryConfigurationForm(StarletteForm):
         ),
     )
     media_type = StringField(
+        _("Media type"),
         description=_(
             "Media type (AKA MIME type) of the asset. Discover existing "
             "media types at the "
             '<a href="https://www.iana.org/assignments/media-types/media-types.xhtml">official IANA media type list</a>.'
             " If needed, define custom media types like this "
             "'application/prs.ipma.&ltfile-format&gt' (ex: application/prs.ipma.kmall)"
-        )
+        ),
     )
     dataset_category_id = SelectField(_("Dataset category"))
     workflow_stage_id = SelectField(_("Workflow stage"))

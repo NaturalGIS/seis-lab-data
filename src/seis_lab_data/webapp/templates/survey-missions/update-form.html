@@ -11,15 +11,18 @@
     {{ macros.render_form_field(form.relative_path) }}
     {% include "survey-missions/implicit-crs-field.html" %}
 
+    <h3 class="mt-5 mb-3">{{ _("spatial extent") | capitalize }}</h3>
     {{ macros_maps.render_bbox_update_component(
         settings.webmap_base_tile_layer_url,
         settings.webmap_default_zoom_level,
-        form.bounding_box
+        form.bounding_box,
+        form.bounding_box.min_lon.data,
+        form.bounding_box.min_lat.data
     ) }}
-    {{ macros.render_form_field(form.temporal_extent_begin) }}
-    {{ macros.render_form_field(form.temporal_extent_end) }}
+    <h3 class="mt-5 mb-3">{{ _("temporal extent") | capitalize }}</h3>
+    {{ macros.render_temporal_extent_fields(form.temporal_extent_begin, form.temporal_extent_end) }}
 
-    <h3>{{ _("links") | capitalize }}</h3>
+    <h3 class="mt-5 mb-3">{{ _("links") | capitalize }}</h3>
     {{ macros.render_links_fields(
         form.links,
         url_for("survey_missions:add_update_form_link", survey_mission_id=survey_mission.id),
@@ -27,8 +30,8 @@
         form.csrf_token.current_token
     ) }}
 
-    <div class="row mb-3">
-        <div class="col-sm-10 offset-sm-2">
+    <div class="row mt-5 mb-3">
+        <div class="col d-flex justify-content-center gap-2">
             <a
                     href="{{ url_for('survey_missions:detail', survey_mission_id=survey_mission.id) }}"
                     class="btn btn-outline-secondary"
