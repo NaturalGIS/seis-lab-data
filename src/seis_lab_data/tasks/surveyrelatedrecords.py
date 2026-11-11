@@ -104,10 +104,8 @@ async def bulk_update_survey_related_records(
     *,
     settings: config.SeisLabDataSettings,
 ):
-    selection = (
-        record_schemas.SurveyRelatedRecordBulkUpdateSelection.model_validate_json(
-            raw_selection
-        )
+    selection = record_schemas.SurveyRelatedRecordSelection.model_validate_json(
+        raw_selection
     )
     async with settings.get_db_session_maker()() as session:
         await record_ops.bulk_update_survey_related_records(

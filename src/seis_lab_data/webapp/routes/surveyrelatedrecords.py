@@ -1,7 +1,9 @@
 import dataclasses
 import functools
+import itertools
 import json
 import logging
+from pathlib import PurePosixPath
 from typing import (
     Iterator,
     TypeVar,
@@ -79,6 +81,7 @@ from .common import (
     get_page_count,
     get_page_from_request_params,
     get_pagination_info,
+    parse_record_selection,
     UPDATE_BASEMAP_JS_SCRIPT,
 )
 
@@ -317,6 +320,84 @@ async def download_record_asset(request: Request):
         asset_path,
         media_type=asset.media_type or "application/octet-stream",
         filename=asset_path.name,
+    )
+
+
+async def get_download_links(request: Request):
+    """Serve the download links of the selected records, as an `aria2c` input file.
+
+    Regardless of the requesting user, only published records are included: links are
+    meant to be fetched by a download tool, which does not share the browser's session.
+    """
+    selection = parse_record_selection(request.query_params.get("selection"))
+    records = []
+    # an empty explicit selection would otherwise match every record
+    if selection.selected != []:
+        list_kwargs = dict(
+            survey_mission_ids=(
+                [selection.survey_mission_id]
+                if selection.survey_mission_id is not None
+                else None
+            ),
+            project_id=selection.project_id,
+            name_filter=selection.name_filter,
+            spatial_intersect=selection.spatial_intersect,
+            temporal_extent=selection.temporal_extent,
+            asset_path_fragment_filter=selection.asset_path_fragment_filter,
+            asset_media_type_filter=selection.asset_media_type_filter,
+            dataset_category_id=selection.dataset_category_id,
+            workflow_stage_id=selection.workflow_stage_id,
+            record_ids=selection.selected,
+        )
+        excluded_ids = set(selection.excluded_record_ids or [])
+        page_size = 500
+        settings: config.SeisLabDataSettings = request.state.settings
+        async with settings.get_db_session_maker()() as session:
+            for page in itertools.count(1):
+                items, _ = await survey_related_record_ops.list_survey_related_records(
+                    session,
+                    initiator=None,
+                    page=page,
+                    page_size=page_size,
+                    **list_kwargs,
+                )
+                records.extend(i for i in items if i.id not in excluded_ids)
+                if len(items) < page_size:
+                    break
+    lines = [
+        "# Download links for seis-lab-data survey-related records, only the published ones.",
+        "# Download them with: aria2c --input-file=<this file>",
+    ]
+    for record in records:
+        for asset in record.assets:
+            if (
+                constants.AssetType.DATA not in asset.asset_type
+                or not asset.relative_path
+            ):
+                continue
+            # recreate the archive's layout, without letting a path leave the download dir
+            output_path = PurePosixPath(
+                *(
+                    part
+                    for part in PurePosixPath(
+                        record.survey_mission.relative_path, asset.relative_path
+                    ).parts
+                    if part not in ("/", ".", "..")
+                )
+            )
+            # bundled formats are downloaded as a zip with their sidecar files
+            if output_path.suffix.lower() in constants.BUNDLED_DATA_ASSET_EXTENSIONS:
+                output_path = output_path.with_suffix(".zip")
+            download_url = request.url_for(
+                "survey_related_records:download_record_asset",
+                survey_related_record_id=record.id,
+                record_asset_id=asset.id,
+            )
+            lines.extend((str(download_url), f"  out={output_path}"))
+    return Response(
+        "\n".join(lines) + "\n",
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="download-links.txt"'},
     )
 
 
@@ -1765,6 +1846,12 @@ routes = [
         get_list_component,
         methods=["GET"],
         name="get_list_component",
+    ),
+    Route(
+        "/download-links",
+        get_download_links,
+        methods=["GET"],
+        name="get_download_links",
     ),
     Route(
         "/stream",

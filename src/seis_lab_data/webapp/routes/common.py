@@ -1,4 +1,5 @@
 import dataclasses
+import json
 import logging
 import uuid
 from typing import (
@@ -15,6 +16,7 @@ from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
 from ...db import models
+from .. import filters
 from ...schemas import (
     identifiers,
     projects as project_schemas,
@@ -177,3 +179,45 @@ def build_project_compound_name(
     request: Request, project: project_schemas.ProjectReadListItem
 ) -> str:
     return f"{project.name} - {project.id}"
+
+
+def parse_record_selection(
+    raw_selection: str | None,
+    survey_mission_id: identifiers.SurveyMissionId | None = None,
+) -> record_schemas.SurveyRelatedRecordSelection:
+    """Parse a `selection` query param into a record selection.
+
+    The param is a JSON object with the Datastar selection and filter signals.
+
+    A given `survey_mission_id` scopes the selection to that mission and
+    overrides any mission filter in the param.
+    """
+    params = json.loads(raw_selection) if raw_selection else {}
+    list_filters = filters.SurveyRelatedRecordListFilters.from_params(params)
+    valid_selection_fields = set(
+        record_schemas.SurveyRelatedRecordSelection.model_fields
+    )
+    filter_kwargs = {
+        k: v for k, v in list_filters.as_kwargs().items() if k in valid_selection_fields
+    }
+    if survey_mission_id is not None:
+        filter_kwargs["survey_mission_id"] = survey_mission_id
+    if params.get("selectAllMatching"):
+        excluded_ids = [
+            identifiers.SurveyRelatedRecordId(uuid.UUID(k))
+            for k, v in (params.get("excludedIds") or {}).items()
+            if v
+        ]
+        return record_schemas.SurveyRelatedRecordSelection(
+            excluded_record_ids=excluded_ids or None,
+            **filter_kwargs,
+        )
+    selected_ids = [
+        identifiers.SurveyRelatedRecordId(uuid.UUID(k))
+        for k, v in (params.get("selectedIds") or {}).items()
+        if v
+    ]
+    return record_schemas.SurveyRelatedRecordSelection(
+        survey_mission_id=survey_mission_id,
+        selected=selected_ids,
+    )

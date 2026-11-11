@@ -192,7 +192,7 @@
                     </div>
                 </div>
                 <div id="survey-mission-records" data-class:listing-compact="$compactListing">
-                    {% with items = survey_related_records, bulk_update_base_url = (url_for("survey_missions:get_bulk_update_form", survey_mission_id=item.id) if permissions.can_bulk_update else none) %}
+                    {% with items = survey_related_records, selection_mission_id = item.id, bulk_update_base_url = (url_for("survey_missions:get_bulk_update_form", survey_mission_id=item.id) if permissions.can_bulk_update else none) %}
                         {% include "survey-related-records/list-component.html" %}
                     {% endwith %}
                 </div>
@@ -254,6 +254,7 @@
         {{ render_info_section(
             general_info=[
                 _("This page shows a survey mission and its survey-related records."),
+                _("Selected records can be downloaded through a list of links to their data files, for use with the aria2c download tool. Only published records are included in the list."),
             ],
             privileged_info=[
                 _("Editing a survey mission validates it again. If it becomes invalid it goes back to DRAFT, along with its survey-related records."),
