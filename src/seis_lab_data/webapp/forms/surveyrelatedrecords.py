@@ -53,7 +53,7 @@ class AssetCreateForm(Form):
         _("Relative path"),
         description=_(
             "Path for the asset in the archive file system, "
-            "relative to its parent survey mission root path"
+            "relative to its parent survey mission's path"
         ),
     )
     asset_links = FieldList(

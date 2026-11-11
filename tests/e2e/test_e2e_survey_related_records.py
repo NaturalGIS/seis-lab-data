@@ -558,7 +558,6 @@ def test_published_survey_related_record_can_be_edited_and_deleted(
     authenticated_page.get_by_role("textbox", name="field-description").fill(
         "e2e test description"
     )
-    authenticated_page.get_by_role("textbox", name="field-root_path").fill("/somewhere")
     _fill_bounding_box(authenticated_page)
     authenticated_page.get_by_role("button", name="submit-create-form").click()
     expect(authenticated_page).to_have_url(

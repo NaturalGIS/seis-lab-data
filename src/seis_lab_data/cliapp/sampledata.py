@@ -64,13 +64,11 @@ def get_projects_to_create() -> list[project_schemas.ProjectCreate]:
             id=_real_owf_seism_2024_project_id,
             name="prr eolicas",
             description="A description about the prr eolicas project",
-            root_path="projects/prr-eolicas",
         ),
         project_schemas.ProjectCreate(
             id=_my_first_project_id,
             name="My first project",
             description="A Fake description for my first project",
-            root_path="/projects/first",
             links=[
                 common_schemas.LinkSchema(
                     url=pydantic.AnyHttpUrl("https://fakeurl.com"),
@@ -84,7 +82,6 @@ def get_projects_to_create() -> list[project_schemas.ProjectCreate]:
             id=_my_second_project_id,
             name="My second project",
             description="A fake description for my second project",
-            root_path="/projects/second",
             links=[
                 common_schemas.LinkSchema(
                     url=pydantic.AnyHttpUrl("https://fakeurl.com"),
@@ -301,7 +298,6 @@ def get_survey_related_records_to_create(
 def generate_sample_projects(
     dataset_categories: Sequence[identifiers.DatasetCategoryId],
     workflow_stages: Sequence[identifiers.WorkflowStageId],
-    root_path: str = "/archive",
 ) -> Iterator[
     tuple[
         project_schemas.ProjectCreate,
@@ -331,7 +327,6 @@ def generate_sample_projects(
             id=identifiers.ProjectId(uuid.uuid4()),
             name=f"sample_{_FAKE_EN.sentence()}",
             description=_FAKE_EN.paragraph(nb_sentences=4),
-            root_path=f"/{root_path}/{_FAKE_EN.file_path(depth=_FAKE_EN.random_int(0, 3), absolute=False)}",
             bbox_4326=(
                 _generate_sample_bbox(
                     float(_FAKE_EN.longitude()), float(_FAKE_EN.latitude())

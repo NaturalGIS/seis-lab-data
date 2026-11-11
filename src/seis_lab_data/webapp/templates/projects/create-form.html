@@ -8,8 +8,6 @@
     {{ macros.render_form_field(form.name) }}
     {{ macros.render_form_field(form.description) }}
 
-    {{ macros.render_form_field(form.root_path) }}
-
     <h3 class="mt-5 mb-3">{{ _("spatial extent") | capitalize }}</h3>
     {{ macros_maps.render_bbox_update_component(
         settings.webmap_base_tile_layer_url,

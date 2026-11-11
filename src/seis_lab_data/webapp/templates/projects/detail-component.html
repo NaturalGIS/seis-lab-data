@@ -24,8 +24,6 @@
                             <div class="col">
                                 <p>{{ item.description }}</p>
                                 <dl class="row">
-                                    <dt class="col-sm-3">{{ _("root path") | capitalize }}</dt>
-                                    <dd class="col-sm-9">{{ item.root_path|default(_("root path not available"), True) }}</dd>
                                     <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
                                     <dd class="col-sm-9">{{ item.temporal_extent_begin|default(_(".."), True) }}/{{ item.temporal_extent_end|default(_(".."), True) }}</dd>
                                     <dt class="col-sm-3">{{ _("spatial extent") | capitalize }}

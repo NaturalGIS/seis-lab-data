@@ -110,7 +110,6 @@ async def discovery_env(
             project_schemas.ProjectCreate(
                 id=identifiers.ProjectId(uuid.uuid4()),
                 name="Discovery test project",
-                root_path="",
             ),
         )
         mission = await _create_mission(

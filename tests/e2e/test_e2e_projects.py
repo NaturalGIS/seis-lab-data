@@ -11,7 +11,6 @@ from playwright.sync_api import (
 def _fill_project_form(page: Page, name: str):
     page.get_by_role("textbox", name="field-name").fill(name)
     page.get_by_role("textbox", name="field-description").fill("e2e test description")
-    page.get_by_role("textbox", name="field-root_path").fill("/somewhere")
 
 
 @pytest.mark.e2e

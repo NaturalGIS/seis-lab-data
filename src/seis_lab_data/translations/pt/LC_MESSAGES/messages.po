@@ -130,10 +130,6 @@ msgstr "Estado"
 msgid "Is valid"
 msgstr "Válido?"
 
-#: webapp/templates/projects/detail.html:59
-msgid "Root path"
-msgstr "Caminho base"
-
 #: webapp/templates/projects/list-component.html:5
 msgid "No projects found"
 msgstr "Nenhum projeto encontrado"
@@ -266,8 +262,8 @@ msgid "Whether previews are generated for the assets discovered by this configur
 msgstr "Indica se são geradas pré-visualizações para os recursos descobertos por esta configuração"
 
 #: webapp/forms/surveyrelatedrecords.py
-msgid "Path for the asset in the archive file system, relative to its parent survey mission root path"
-msgstr "Caminho do recurso no sistema de ficheiros do arquivo, relativo à raiz da missão do registo"
+msgid "Path for the asset in the archive file system, relative to its parent survey mission's path"
+msgstr "Caminho do recurso no sistema de ficheiros do arquivo, relativo ao caminho da missão"
 
 #: webapp/templates/survey-related-records/detail-component.html
 msgid "GeoNode resource"
@@ -382,10 +378,6 @@ msgid "Media type (AKA MIME type) of the asset. Discover existing media types at
 msgstr "Tipo de media (também conhecido como tipo MIME) do recurso. Consulte os tipos de media existentes na <a href=\"https://www.iana.org/assignments/media-types/media-types.xhtml\">lista oficial de tipos de media da IANA</a>. Se necessário, defina tipos de media personalizados como 'application/prs.ipma.&ltformato-do-ficheiro&gt' (ex: application/prs.ipma.kmall)"
 
 #: webapp/forms/projects.py
-msgid "Base path for the project in the archive file system"
-msgstr "Caminho base do projeto no sistema de ficheiros do arquivo"
-
-#: webapp/forms/projects.py
 #: webapp/forms/surveymissions.py
 #: webapp/forms/surveyrelatedrecords.py
 #: webapp/templates/projects/list.html
@@ -406,8 +398,8 @@ msgid "Temporal extent end"
 msgstr "Data de fim"
 
 #: webapp/forms/surveymissions.py
-msgid "Path for the survey mission in the archive file system, relative to its parent project root path"
-msgstr "Caminho da missão no sistema de ficheiros do arquivo, relativo ao caminho base do projeto"
+msgid "Path for the survey mission in the archive file system, relative to the archive root directory"
+msgstr "Caminho da missão no sistema de ficheiros do arquivo, relativo ao diretório raiz do arquivo"
 
 #: webapp/forms/surveyrelatedrecords.py
 msgid "Related record"

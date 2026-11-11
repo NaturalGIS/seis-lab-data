@@ -54,7 +54,7 @@ class _SurveyMissionForm(StarletteForm):
         _("Relative path"),
         description=_(
             "Path for the survey mission in the archive file system, "
-            "relative to its parent project root path"
+            "relative to the archive root directory"
         ),
     )
     implicit_crs = EpsgCodeField(

@@ -126,7 +126,6 @@ async def get_project_update_form(request: Request):
         data={
             "name": project.name,
             "description": project.description,
-            "root_path": project.root_path,
             "bounding_box": {
                 "min_lon": current_bbox.bounds[0],
                 "min_lat": current_bbox.bounds[1],
@@ -649,7 +648,6 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             id=identifiers.ProjectId(uuid.uuid4()),
             name=form_instance.name.data,
             description=form_instance.description.data,
-            root_path=form_instance.root_path.data,
             bbox_4326=(
                 f"POLYGON(("
                 f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}, "
@@ -755,7 +753,6 @@ class ProjectDetailEndpoint(HTTPEndpoint):
         to_update = project_schemas.ProjectUpdate(
             name=form_instance.name.data,
             description=form_instance.description.data,
-            root_path=form_instance.root_path.data,
             bbox_4326=(
                 f"POLYGON(("
                 f"{form_instance.bounding_box.min_lon.data} {form_instance.bounding_box.min_lat.data}, "

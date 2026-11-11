@@ -312,7 +312,6 @@ class Project(SQLModel, table=True):
     name: str = Field(max_length=constants.NAME_MAX_LENGTH)
     description: str = Field(default="", max_length=constants.DESCRIPTION_MAX_LENGTH)
     status: constants.ProjectStatus = constants.ProjectStatus.DRAFT
-    root_path: str = ""
     validation_result: ValidationResult = Field(sa_column=Column(JSONB))
     links: list[Link] = Field(sa_column=Column(JSONB), default_factory=list)
     bbox_4326: Annotated[
