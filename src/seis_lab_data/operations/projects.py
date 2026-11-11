@@ -244,6 +244,14 @@ async def update_project(
             )
         if not project_permissions.can_update_project(initiator, project):
             raise errors.SeisLabDataError("User is not allowed to update project.")
+        # any other status means a task is working on the project
+        if (project_status := project.status) not in (
+            constants.ProjectStatus.DRAFT,
+            constants.ProjectStatus.PUBLISHED,
+        ):
+            raise errors.SeisLabDataError(
+                f"Cannot update project because its status is {project_status}"
+            )
         previous_bbox_4326 = project.bbox_4326
         await project_commands.update_project(session, project, to_update)
         validated_project = await validate_project(
@@ -384,6 +392,18 @@ async def delete_project(
             )
         if not project_permissions.can_delete_project(initiator, project):
             raise errors.SeisLabDataError("User is not allowed to delete projects.")
+        if (project_status := project.status) not in (
+            constants.ProjectStatus.DRAFT,
+            constants.ProjectStatus.PUBLISHED,
+        ):
+            raise errors.SeisLabDataError(
+                f"Cannot delete project because its status is {project_status}"
+            )
+        if await project_queries.project_has_busy_descendants(session, project_id):
+            raise errors.SeisLabDataError(
+                "Cannot delete project because some of its survey missions or "
+                "records are currently being processed"
+            )
         await project_commands.delete_project(session, project_id)
     except errors.SeisLabDataError as err:
         await event_dispatcher(

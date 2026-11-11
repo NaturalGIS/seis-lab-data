@@ -286,6 +286,13 @@ async def update_survey_mission(
             )
         if not mission_permissions.can_update_survey_mission(initiator, survey_mission):
             raise errors.SeisLabDataError("User not allowed to update survey mission.")
+        if (mission_status := survey_mission.status) not in (
+            constants.SurveyMissionStatus.DRAFT,
+            constants.SurveyMissionStatus.PUBLISHED,
+        ):
+            raise errors.SeisLabDataError(
+                f"Cannot update survey mission because its status is {mission_status}"
+            )
         previous_bbox_4326 = survey_mission.bbox_4326
         await mission_commands.update_survey_mission(session, survey_mission, to_update)
         validated_mission = await validate_survey_mission(
@@ -404,6 +411,20 @@ async def delete_survey_mission(
         if not mission_permissions.can_delete_survey_mission(initiator, survey_mission):
             raise errors.SeisLabDataError(
                 "User is not allowed to delete survey missions."
+            )
+        if (mission_status := survey_mission.status) not in (
+            constants.SurveyMissionStatus.DRAFT,
+            constants.SurveyMissionStatus.PUBLISHED,
+        ):
+            raise errors.SeisLabDataError(
+                f"Cannot delete survey mission because its status is {mission_status}"
+            )
+        if await mission_queries.survey_mission_has_busy_records(
+            session, survey_mission_id
+        ):
+            raise errors.SeisLabDataError(
+                "Cannot delete survey mission because some of its records are "
+                "currently being processed"
             )
         parent_id = survey_mission.project_id
         await mission_commands.delete_survey_mission(session, survey_mission_id)

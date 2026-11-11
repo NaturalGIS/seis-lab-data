@@ -8,7 +8,11 @@ from sqlmodel import (
     select,
 )
 
-from ...constants import ProjectStatus
+from ...constants import (
+    ProjectStatus,
+    SurveyMissionStatus,
+    SurveyRelatedRecordStatus,
+)
 from ...schemas import (
     filters as filter_schemas,
     identifiers,
@@ -139,3 +143,38 @@ async def get_project_by_name(
 ) -> models.Project | None:
     statement = select(models.Project).where(models.Project.name == name)
     return (await session.exec(statement)).first()
+
+
+async def project_has_busy_descendants(
+    session: AsyncSession,
+    project_id: identifiers.ProjectId,
+) -> bool:
+    """Whether any of the project's missions, or their records, is being worked on.
+
+    A busy status does not propagate upwards, so this needs to be checked before
+    doing something to the project which would affect its missions and records.
+    """
+    busy_mission_statement = (
+        select(models.SurveyMission.id)
+        .where(models.SurveyMission.project_id == project_id)
+        .where(
+            models.SurveyMission.status.not_in(
+                (SurveyMissionStatus.DRAFT, SurveyMissionStatus.PUBLISHED)
+            )
+        )
+        .limit(1)
+    )
+    if (await session.exec(busy_mission_statement)).first() is not None:
+        return True
+    busy_record_statement = (
+        select(models.SurveyRelatedRecord.id)
+        .join(models.SurveyMission)
+        .where(models.SurveyMission.project_id == project_id)
+        .where(
+            models.SurveyRelatedRecord.status.not_in(
+                (SurveyRelatedRecordStatus.DRAFT, SurveyRelatedRecordStatus.PUBLISHED)
+            )
+        )
+        .limit(1)
+    )
+    return (await session.exec(busy_record_statement)).first() is not None
