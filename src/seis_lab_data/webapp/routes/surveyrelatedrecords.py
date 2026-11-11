@@ -1,4 +1,5 @@
 import dataclasses
+import functools
 import json
 import logging
 from typing import (
@@ -75,6 +76,7 @@ from .common import (
     build_project_compound_name,
     get_id_from_request_path,
     get_list_item_permissions,
+    get_page_count,
     get_page_from_request_params,
     get_pagination_info,
     UPDATE_BASEMAP_JS_SCRIPT,
@@ -1120,14 +1122,20 @@ async def get_list_component(request: Request):
     user = request.user if request.user.is_authenticated else None
     settings: config.SeisLabDataSettings = request.state.settings
     async with settings.get_db_session_maker()() as session:
-        items, num_total = await survey_related_record_ops.list_survey_related_records(
+        list_page = functools.partial(
+            survey_related_record_ops.list_survey_related_records,
             session,
             initiator=user,
-            page=current_page,
             page_size=settings.pagination_page_size,
             include_total=True,
             **internal_filter_kwargs,
         )
+        items, num_total = await list_page(page=current_page)
+        # deleting the only item of the last page would leave the listing empty
+        last_page = max(get_page_count(num_total, settings.pagination_page_size), 1)
+        if current_page > last_page:
+            current_page = last_page
+            items, num_total = await list_page(page=current_page)
         num_unfiltered_total = (
             await survey_related_record_ops.list_survey_related_records(
                 session, initiator=user, include_total=True

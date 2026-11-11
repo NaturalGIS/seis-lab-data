@@ -200,7 +200,7 @@ Object.keys($excludedIds).forEach((k) => { $excludedIds[k] = false });
 ) %}
     <div
             class="row justify-content-center m-5"
-            data-signals:search="'{{ initial_value }}'"
+            data-signals:search='{{ initial_value | default("", true) | tojson }}'
             data-signals:searching="false"
     >
         <div class="col-8">

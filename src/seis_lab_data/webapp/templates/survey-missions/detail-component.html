@@ -77,7 +77,7 @@
         </div>
         <div
             class="row mt-4"
-            data-signals:search="'{{ search_initial_value | default('', true) }}'"
+            data-signals:search='{{ search_initial_value | default("", true) | tojson }}'
             data-signals:advanced-search-panel-open="false"
             data-signals:searching="false"
             data-signals:listing-version="0"
@@ -86,7 +86,7 @@
             data-signals:select-all-matching="false"
             data-signals:compact-listing="false"
             data-init="$compactListing = localStorage.getItem('sld:compact-records') === 'true'"
-            data-effect="$listingVersion > 0 && @get('{{ url_for('survey_missions:get_mission_records_list_component', survey_mission_id=item.id) }}?page={{ pagination.current_page }}')"
+            data-effect="$listingVersion > 0 && @get('{{ url_for('survey_missions:get_mission_records_list_component', survey_mission_id=item.id) }}?page=' + $currentPage)"
         >
             <div class="col">
                 <h2>{{ _("survey-related-records") | capitalize }}</h2>

@@ -137,3 +137,47 @@ def test_project_creation_rejects_duplicate_name(authenticated_page: Page):
     ).click()
     authenticated_page.get_by_role("button", name="delete-item").click()
     expect(authenticated_page.get_by_role("link", name="new-project")).to_be_visible()
+
+
+@pytest.mark.e2e
+def test_deleting_from_listing_keeps_current_page(authenticated_page: Page):
+    # the listing page size defaults to 20: two items on the second page
+    tag = uuid.uuid4().hex[:8]
+    for index in range(22):
+        authenticated_page.goto("/projects/new")
+        _fill_project_form(authenticated_page, f"e2e paging {tag} {index:02d}")
+        authenticated_page.get_by_role("button", name="submit-create-form").click()
+        expect(authenticated_page).to_have_url(
+            re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=10_000
+        )
+
+    authenticated_page.goto(f"/projects/?search=e2e+paging+{tag}&page=2")
+    delete_buttons = authenticated_page.get_by_role(
+        "button", name="show-delete-list-item-confirmation-modal"
+    )
+    expect(delete_buttons).to_have_count(2)
+
+    # deleting an item re-fetches the listing, which stays on the second page
+    delete_buttons.first.click()
+    authenticated_page.get_by_role(
+        "button", name="delete-list-item", exact=True
+    ).filter(visible=True).click()
+    expect(delete_buttons).to_have_count(1, timeout=10_000)
+    expect(authenticated_page).to_have_url(re.compile(r"[?&]page=2(&|$)"))
+
+    # deleting the last item of the second page falls back to the first one
+    delete_buttons.first.click()
+    authenticated_page.get_by_role(
+        "button", name="delete-list-item", exact=True
+    ).filter(visible=True).click()
+    expect(delete_buttons).to_have_count(20, timeout=10_000)
+    expect(authenticated_page).not_to_have_url(re.compile(r"[?&]page="))
+
+    # clean up the remaining projects
+    for remaining in range(20, 0, -1):
+        expect(delete_buttons).to_have_count(remaining, timeout=10_000)
+        delete_buttons.first.click()
+        authenticated_page.get_by_role(
+            "button", name="delete-list-item", exact=True
+        ).filter(visible=True).click()
+    expect(delete_buttons).to_have_count(0, timeout=10_000)

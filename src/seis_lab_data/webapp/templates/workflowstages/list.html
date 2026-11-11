@@ -16,7 +16,7 @@
         <div class="col">
             <div
                     class="row justify-content-center m-5"
-                    data-signals:search='{{ search_initial_value }}'
+                    data-signals:search='{{ search_initial_value | default("", true) | tojson }}'
                     data-signals:advanced-search-panel-open="false"
                     data-signals:searching="false"
                     data-signals:listing-version="0"

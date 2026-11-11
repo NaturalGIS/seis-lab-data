@@ -1,10 +1,16 @@
 {% import "macros.html" as macros %}
 
 {% block items %}
+    {# the page is kept in the URL, and in a signal, for re-fetching this same page after a modification #}
+    {% if update_current_url_with is defined %}
+        {% set page_query = "page=" ~ pagination.current_page if pagination.current_page > 1 else "" %}
+        {% set url_query = update_current_url_with ~ ((("&" if update_current_url_with else "?") ~ page_query) if page_query else "") %}
+    {% endif %}
     <div
             class="row"
             aria-label="items"
-            {% if update_current_url_with is defined %}data-effect="window.history.replaceState({}, '', `${window.location.href.split('?')[0]}{{ update_current_url_with }}`)"{% endif %}
+            data-signals:current-page="{{ pagination.current_page }}"
+            {% if update_current_url_with is defined %}data-effect="window.history.replaceState({}, '', `${window.location.href.split('?')[0]}{{ url_query }}`)"{% endif %}
     >
         <div class="col">
             {% if items | length > 0 %}

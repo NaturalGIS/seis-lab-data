@@ -36,11 +36,11 @@ Users with create permission are linked to /projects/new, which is a separate st
         <div class="col">
             <div
                     class="row justify-content-center m-5"
-                    data-signals:search='{{ search_initial_value }}'
+                    data-signals:search='{{ search_initial_value | default("", true) | tojson }}'
                     data-signals:advanced-search-panel-open="false"
                     data-signals:searching="false"
                     data-signals:listing-version="0"
-                    data-effect="$listingVersion > 0 && @get('{{ url_for('projects:get_list_component') }}')"
+                    data-effect="$listingVersion > 0 && @get('{{ url_for('projects:get_list_component') }}?page=' + $currentPage)"
             >
                 <div class="col-8">
                     <search class="form-floating">
@@ -118,7 +118,7 @@ Users with create permission are linked to /projects/new, which is a separate st
                                     data-initial-max-lon="{{ map_bounds.max_lon }}"
                                     data-initial-max-lat="{{ map_bounds.max_lat }}"
                                     style="display: block; width: 100%; height: 30vh"
-                                    data-on:map-moveend="document.querySelector('base-map').checkVisibility() ? $currentBbox=evt.detail.map.getBounds().toArray() : $currentBbox=[[-180, -90],[180, 90]]; @get('{{ url_for('projects:get_list_component') }}')"
+                                    data-on:map-moveend="document.querySelector('base-map').checkVisibility() ? $currentBbox=evt.detail.map.getBounds().toArray() : $currentBbox=[[-180, -90],[180, 90]]; @get('{{ url_for('projects:get_list_component') }}?page=' + $currentPage)"
 
                             ></base-map>
                         </div>
