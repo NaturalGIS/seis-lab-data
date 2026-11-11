@@ -115,11 +115,12 @@ export class BoundingBoxMap extends HTMLElement {
             this.map.triggerRepaint()
         }, 50)
 
-        this.updateMapFromAttributes()
+        // show the initial extent straight away, only later edits are animated
+        this.updateMapFromAttributes(false)
 
     }
 
-    updateMapFromAttributes() {
+    updateMapFromAttributes(animate = true) {
         console.log('updateMapFromAttributes called')
         if (this._suppressUpdate || !this.draw) return
 
@@ -159,7 +160,7 @@ export class BoundingBoxMap extends HTMLElement {
             }
 
             this.draw.addFeatures([feature])
-            this.map.fitBounds([[minLon, minLat], [maxLon, maxLat]], {padding: 20})
+            this.map.fitBounds([[minLon, minLat], [maxLon, maxLat]], {padding: 20, animate: animate})
 
             this._suppressUpdate = false
         }

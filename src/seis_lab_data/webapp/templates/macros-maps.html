@@ -5,7 +5,9 @@
     webmap_default_zoom_level,
     bbox_4326
 ) %}
+    {# maplibre draws the map into the element - re-rendered details must leave it alone, or morphing them in would remove the map #}
     <bbox-map-readonly
+            data-ignore-morph
             data-tile-url="{{ webmap_base_tile_layer_url }}"
             data-center-lon="{{ bbox_4326.bounds[0] }}"
             data-center-lat="{{ bbox_4326.bounds[1] }}"
@@ -32,7 +34,9 @@
             data-signals:bbox.max-lat="{{ bounding_box_form_field.max_lat.data }}"
     >
         <div class="col">
+            {# maplibre draws the map into the element - re-rendered forms must leave it alone, or morphing them in would remove the map #}
             <bbox-map
+                    data-ignore-morph
                     data-tile-url="{{ webmap_base_tile_layer_url }}"
                     data-center-lon="{{ bounding_box_form_field.min_lon.data }}"
                     data-center-lat="{{ bounding_box_form_field.min_lat.data }}"

@@ -68,7 +68,7 @@ export class RecordMap extends HTMLElement {
             // the preview is the more precise extent of the two
             const bounds = previewBounds || boundingBox
             if (bounds !== null) {
-                this.map.fitBounds(bounds, {padding: 20})
+                this.map.fitBounds(bounds, {padding: 20, animate: false})
             }
         })
     }

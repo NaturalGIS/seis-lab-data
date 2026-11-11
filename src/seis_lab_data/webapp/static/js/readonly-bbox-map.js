@@ -87,7 +87,7 @@ export class ReadOnlyBoundingBoxMap extends HTMLElement {
                 }
             }
             this.draw.addFeatures([feature])
-            this.map.fitBounds([[minLon, minLat], [maxLon, maxLat]], {padding: 20})
+            this.map.fitBounds([[minLon, minLat], [maxLon, maxLat]], {padding: 20, animate: false})
         }
     }
 }

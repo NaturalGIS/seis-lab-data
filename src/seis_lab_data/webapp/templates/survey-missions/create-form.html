@@ -1,8 +1,7 @@
 {% import "macros.html" as macros %}
-{# implicit CRS lookups leave the map alone, and initMap() stacks a new map on every call #}
 <form
         data-signals="{submitting: false}"
-        data-on:datastar-fetch="evt.detail.type === 'finished' && evt.detail.el.id !== 'implicit_crs' && document.querySelector('bbox-map')?.initMap(); evt.detail.type === 'error' && ($submitting = false)"
+        data-on:datastar-fetch="evt.detail.type === 'error' && ($submitting = false)"
 >
     {{ form.request_id() }}
     {{ macros.render_form_field(form.name) }}
@@ -19,7 +18,9 @@
     >
         <div class="col">
             <h3>{{ _('spatial extent') }}</h3>
+            {# maplibre draws the map into the element - re-rendered forms must leave it alone, or morphing them in would remove the map #}
             <bbox-map
+                    data-ignore-morph
                     data-tile-url="{{ settings.webmap_base_tile_layer_url }}"
                     data-center-lon="{{ settings.webmap_default_center_lon }}"
                     data-center-lat="{{ settings.webmap_default_center_lat }}"
