@@ -210,17 +210,14 @@ class SurveyRelatedRecordBulkUpdate(pydantic.BaseModel):
     related_records: list[RelatedRecordCreate] = []
 
 
-class SurveyRelatedRecordBulkUpdateSelection(pydantic.BaseModel):
-    """Which records a bulk update targets.
+class SurveyRelatedRecordSelection(pydantic.BaseModel):
+    """A set of survey-related records, for operations acting on many records.
 
-    `selected` and the filter/`excluded_record_ids` fields are mutually
-    exclusive ways of specifying the target records, mirroring the two
-    selection modes offered by the UI - see
-    `operations.surveyrelatedrecords.bulk_update_survey_related_records`.
+    The records are specified either by `selected`, a list of IDs, or by the
+    filter fields minus `excluded_record_ids`. These two modes are mutually
+    exclusive.
 
-    `survey_mission_id` is an optional additional scope, not a requirement -
-    callers that aren't scoped to a single mission (e.g. a future bulk-edit
-    entry point on the general record listing) can simply omit it.
+    `survey_mission_id` and `project_id` optionally narrow the scope.
     """
 
     selected: list[SurveyRelatedRecordId] | None = None

@@ -1,5 +1,7 @@
 import io
+import json
 import os
+import urllib.parse
 import zipfile
 
 import pytest
@@ -193,3 +195,111 @@ def test_download_shapefile_is_zip_bundle_with_sidecars(
             "FOO.shp": _FILE_CONTENTS,
             **sidecars,
         }
+
+
+def _get_download_links(test_client: TestClient, selection: dict) -> dict[str, str]:
+    """Fetch the download links of a selection, as a mapping of URL path to output path."""
+    response = test_client.get(
+        "/survey-related-records/download-links",
+        params={"selection": json.dumps(selection)},
+    )
+    assert response.status_code == 200
+    assert 'filename="download-links.txt"' in response.headers["content-disposition"]
+    lines = [line for line in response.text.splitlines() if not line.startswith("#")]
+    urls, outputs = lines[::2], lines[1::2]
+    assert all(output.startswith("  out=") for output in outputs)
+    return {
+        urllib.parse.urlparse(url).path: output.removeprefix("  out=")
+        for url, output in zip(urls, outputs, strict=True)
+    }
+
+
+def _record_path(record: models.SurveyRelatedRecord) -> str:
+    return f"/survey-related-records/{record.id}/"
+
+
+def test_download_links_of_selected_records(
+    test_client: TestClient, published_sample_data, create_asset
+):
+    selected, unselected = published_sample_data["records"][:2]
+    missions = {m.id: m for m in published_sample_data["missions"]}
+    mission_path = missions[selected.survey_mission_id].relative_path
+    data_asset = create_asset(selected)
+    shapefile_asset = create_asset(selected, relative_path="shapes/FOO.shp")
+    thumbnail_asset = create_asset(selected, asset_type=[constants.AssetType.THUMBNAIL])
+    create_asset(unselected)
+
+    links = _get_download_links(test_client, {"selectedIds": {str(selected.id): True}})
+    assert links[_download_url(data_asset)] == f"{mission_path}/some/dir/file.xyz"
+    # shapefiles are downloaded as a zip bundle with their sidecars
+    assert links[_download_url(shapefile_asset)] == f"{mission_path}/shapes/FOO.zip"
+    # only data assets get a download link
+    assert _download_url(thumbnail_asset) not in links
+    assert all(url.startswith(_record_path(selected)) for url in links)
+
+
+def test_download_links_of_all_matching_records_skip_the_excluded(
+    test_client: TestClient, published_sample_data, create_asset
+):
+    excluded, included = published_sample_data["records"][:2]
+    create_asset(excluded)
+    included_asset = create_asset(included)
+    links = _get_download_links(
+        test_client,
+        {"selectAllMatching": True, "excludedIds": {str(excluded.id): True}},
+    )
+    assert _download_url(included_asset) in links
+    assert not any(url.startswith(_record_path(excluded)) for url in links)
+
+
+def test_download_links_can_be_scoped_to_a_survey_mission(
+    test_client: TestClient, published_sample_data, create_asset
+):
+    records = published_sample_data["records"]
+    for record in records:
+        create_asset(record)
+    mission_id = records[0].survey_mission_id
+    links = _get_download_links(
+        test_client,
+        {"selectAllMatching": True, "surveyMissionId": str(mission_id)},
+    )
+    in_mission = [r for r in records if r.survey_mission_id == mission_id]
+    assert all(
+        any(url.startswith(_record_path(r)) for r in in_mission) for url in links
+    )
+    assert all(
+        any(url.startswith(_record_path(r)) for url in links) for r in in_mission
+    )
+
+
+def test_download_links_only_include_published_records(
+    test_client: TestClient, sample_survey_related_records, create_asset, logged_in
+):
+    # the links are fetched by a download tool, without the browser's session
+    record = sample_survey_related_records[0]
+    create_asset(record)
+    assert _get_download_links(test_client, {"selectAllMatching": True}) == {}
+    assert (
+        _get_download_links(test_client, {"selectedIds": {str(record.id): True}}) == {}
+    )
+
+
+def test_download_links_of_an_empty_selection_are_empty(
+    test_client: TestClient, published_sample_data, create_asset
+):
+    create_asset(published_sample_data["records"][0])
+    assert _get_download_links(test_client, {}) == {}
+
+
+def test_download_links_output_paths_stay_inside_the_download_dir(
+    test_client: TestClient, published_sample_data, create_asset
+):
+    record = published_sample_data["records"][0]
+    asset = create_asset(
+        record, relative_path="../../../elsewhere/file.xyz", write_file=False
+    )
+    links = _get_download_links(test_client, {"selectedIds": {str(record.id): True}})
+    output_path = links[_download_url(asset)]
+    assert ".." not in output_path.split("/")
+    assert not output_path.startswith("/")
+    assert output_path.endswith("elsewhere/file.xyz")

@@ -66,6 +66,7 @@ from .common import (
     get_id_from_request_path,
     get_list_item_permissions,
     get_page_count,
+    parse_record_selection,
     get_page_from_request_params,
     get_pagination_info,
     UPDATE_BASEMAP_JS_SCRIPT,
@@ -486,6 +487,7 @@ async def get_mission_records_list_component(request: Request):
         update_current_url_with=filter_query_string,
         pagination=pagination_info,
         bulk_update_base_url=bulk_update_base_url,
+        selection_mission_id=survey_mission_id,
         list_item_permissions=get_list_item_permissions(
             user,
             items,
@@ -1264,51 +1266,8 @@ async def stream_to_new_page(request: Request):
     return DatastarResponse(event_streamer())
 
 
-def _parse_bulk_update_selection(
-    raw_selection: str | None,
-    survey_mission_id: identifiers.SurveyMissionId,
-) -> record_schemas.SurveyRelatedRecordBulkUpdateSelection:
-    """Resolve the `selection` query param into a bulk-update selection.
-
-    The param carries the same JSON-blob-of-signals shape Datastar's `@get`
-    auto-appends elsewhere in this app (see `get_mission_records_list_component`),
-    just arriving under a different name via a plain link instead - so the
-    same filter-parsing machinery applies.
-    """
-    params = json.loads(raw_selection) if raw_selection else {}
-    list_filters = filters.SurveyRelatedRecordListFilters.from_params(params)
-    valid_selection_fields = set(
-        record_schemas.SurveyRelatedRecordBulkUpdateSelection.model_fields
-    )
-    filter_kwargs = {
-        k: v
-        for k, v in list_filters.as_kwargs().items()
-        if k in valid_selection_fields and k != "survey_mission_id"
-    }
-    if params.get("selectAllMatching"):
-        excluded_ids = [
-            identifiers.SurveyRelatedRecordId(uuid.UUID(k))
-            for k, v in (params.get("excludedIds") or {}).items()
-            if v
-        ]
-        return record_schemas.SurveyRelatedRecordBulkUpdateSelection(
-            survey_mission_id=survey_mission_id,
-            excluded_record_ids=excluded_ids or None,
-            **filter_kwargs,
-        )
-    selected_ids = [
-        identifiers.SurveyRelatedRecordId(uuid.UUID(k))
-        for k, v in (params.get("selectedIds") or {}).items()
-        if v
-    ]
-    return record_schemas.SurveyRelatedRecordBulkUpdateSelection(
-        survey_mission_id=survey_mission_id,
-        selected=selected_ids,
-    )
-
-
 async def _count_bulk_update_matches(
-    session, user, selection: record_schemas.SurveyRelatedRecordBulkUpdateSelection
+    session, user, selection: record_schemas.SurveyRelatedRecordSelection
 ) -> int:
     kwargs = dict(
         survey_mission_id=selection.survey_mission_id,
@@ -1348,7 +1307,7 @@ async def get_bulk_update_form(request: Request):
         request, "survey_mission_id", identifiers.SurveyMissionId
     )
     user = request.user
-    selection = _parse_bulk_update_selection(
+    selection = parse_record_selection(
         request.query_params.get("selection"),
         survey_mission_id,
     )
@@ -1398,10 +1357,8 @@ async def post_bulk_update(request: Request):
     )
 
     if form_instance.has_validation_errors():
-        selection = (
-            record_schemas.SurveyRelatedRecordBulkUpdateSelection.model_validate_json(
-                form_instance.selection.data
-            )
+        selection = record_schemas.SurveyRelatedRecordSelection.model_validate_json(
+            form_instance.selection.data
         )
         async with request.state.settings.get_db_session_maker()() as session:
             matched_count = await _count_bulk_update_matches(session, user, selection)
@@ -1431,10 +1388,8 @@ async def post_bulk_update(request: Request):
         # Datastar only processes SSE streams from 2xx responses; non-2xx are treated as errors
         return DatastarResponse(stream_validation_failed_events(), status_code=200)
 
-    selection = (
-        record_schemas.SurveyRelatedRecordBulkUpdateSelection.model_validate_json(
-            form_instance.selection.data
-        )
+    selection = record_schemas.SurveyRelatedRecordSelection.model_validate_json(
+        form_instance.selection.data
     )
     record_tasks.bulk_update_survey_related_records.send(
         raw_request_id=str(form_instance.request_id.data),
@@ -1493,10 +1448,8 @@ async def add_bulk_update_form_related_to_record(request: Request):
     ):
         form_instance.related_records.append_entry()
     user = request.user if request.user.is_authenticated else None
-    selection = (
-        record_schemas.SurveyRelatedRecordBulkUpdateSelection.model_validate_json(
-            form_instance.selection.data
-        )
+    selection = record_schemas.SurveyRelatedRecordSelection.model_validate_json(
+        form_instance.selection.data
     )
     async with request.state.settings.get_db_session_maker()() as session:
         initial_related_records = await _get_initial_related_records(session, user)
@@ -1530,10 +1483,8 @@ async def remove_bulk_update_form_related_to_record(request: Request):
     index = int(request.query_params.get("index", 0))
     form_instance.related_records.entries.pop(index)
     user = request.user if request.user.is_authenticated else None
-    selection = (
-        record_schemas.SurveyRelatedRecordBulkUpdateSelection.model_validate_json(
-            form_instance.selection.data
-        )
+    selection = record_schemas.SurveyRelatedRecordSelection.model_validate_json(
+        form_instance.selection.data
     )
     async with request.state.settings.get_db_session_maker()() as session:
         matched_count = await _count_bulk_update_matches(session, user, selection)

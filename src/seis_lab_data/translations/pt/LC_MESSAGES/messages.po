@@ -827,3 +827,16 @@ msgstr "Os estádios são metadados sobre os registos"
 #: webapp/templates/discovery/list.html
 msgid "Asset discovery configurations tell the discovery process which files in a survey mission's archive path become survey-related records, and which dataset category and workflow stage those records get."
 msgstr "As configurações de descoberta de recursos indicam ao processo de descoberta que ficheiros no caminho de arquivo de uma missão se tornam registos, e que categoria e estádio esses registos recebem."
+
+#: webapp/templates/survey-related-records/list-component.html
+msgid "download links"
+msgstr "ligações para descarregar"
+
+#: webapp/templates/survey-related-records/list-component.html
+msgid "Download a list of the download links of the selected published records, for use with the aria2c download tool"
+msgstr "Descarregar uma lista das ligações para descarregar os registos publicados selecionados, para usar com a ferramenta aria2c"
+
+#: webapp/templates/survey-missions/detail-component.html
+#: webapp/templates/survey-related-records/list.html
+msgid "Selected records can be downloaded through a list of links to their data files, for use with the aria2c download tool. Only published records are included in the list."
+msgstr "Os registos selecionados podem ser descarregados através de uma lista de ligações para os seus ficheiros de dados, para usar com a ferramenta aria2c. Apenas os registos publicados são incluídos na lista."
