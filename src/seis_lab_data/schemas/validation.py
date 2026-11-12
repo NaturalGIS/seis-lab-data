@@ -25,12 +25,11 @@ ValidName = Annotated[
     ),
 ]
 
+# descriptions are optional, so that discovered items can be published without
+# requiring human intervention - an empty string is valid
 ValidDescription = Annotated[
     str,
-    pydantic.Field(
-        min_length=constants.DESCRIPTION_MIN_LENGTH,
-        max_length=constants.DESCRIPTION_MAX_LENGTH,
-    ),
+    pydantic.Field(max_length=constants.DESCRIPTION_MAX_LENGTH),
 ]
 
 
