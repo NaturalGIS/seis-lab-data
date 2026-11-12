@@ -98,7 +98,7 @@ def test_record_asset_update_keeps_explicit_media_type():
 
 
 def test_record_asset_relative_path_is_stripped():
-    # a pasted path with a trailing space broke configuration adoption and extraction
+    # a pasted path with a trailing space broke preview eligibility and extraction
     pasted_path = "  s01/x.tif  "
     created = record_schemas.DataRecordAssetCreate(
         id=identifiers.RecordAssetId(uuid.uuid4()),

@@ -1,10 +1,9 @@
+import asyncio
 import dataclasses
 import json
 import logging
 import math
-import re
 import uuid
-from collections.abc import AsyncIterator
 from typing import AsyncGenerator
 
 import shapely
@@ -15,7 +14,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from .. import (
     config,
     constants,
+    dispatch,
     errors,
+    pathpatterns,
 )
 from ..db import models
 from ..db.queries import (
@@ -40,7 +41,6 @@ from ..schemas import (
     surveyrelatedrecords as record_schemas,
     user as user_schemas,
 )
-from .. import dispatch
 from ..tasks import previews as preview_tasks
 from ..tasks.extractors import (
     common as extractor_common,
@@ -268,32 +268,41 @@ async def run_mission_discovery(
         )
         return
 
-    logger.debug(f"Discovering contents of mission {mission.name!r}...")
-    asset_discovery_configs = (
-        await discovery_queries.collect_all_asset_discovery_configurations(session)
-    )
-    await event_dispatcher(
-        event_schemas.ResourceStatusChangedEvent(
-            request_id=request_id,
-            initiator=user.id,
-            resource_type=constants.ResourceType.MISSION,
-            resource_id=str(mission_id),
-            succeeded=True,
-            new_status=constants.SurveyMissionStatus.UNDER_DISCOVERY,
-        )
-    )
-    await event_dispatcher(
-        event_schemas.DiscoveryEvent(
-            initiator=user.id,
-            resource_type=constants.ResourceType.MISSION,
-            resource_id=str(mission_id),
-            request_id=request_id,
-            modification=constants.DiscoveryStage.STARTED,
-            succeeded=True,
-        )
-    )
+    # from here on the mission is under discovery, and every way out of the
+    # block below must report the end of the run and give the mission back its
+    # status
     try:
-        await _discover_mission_records(
+        logger.debug(f"Discovering contents of mission {mission.name!r}...")
+        asset_discovery_configs = (
+            await discovery_queries.collect_all_asset_discovery_configurations(session)
+        )
+        # when there is a failure, the db session is rolled back, expiring everything it
+        # holds; we dettach the mission and asset discovery confs in order to
+        # keep them alive
+        session.expunge(mission)
+        for asset_discovery_conf in asset_discovery_configs:
+            session.expunge(asset_discovery_conf)
+        await event_dispatcher(
+            event_schemas.ResourceStatusChangedEvent(
+                request_id=request_id,
+                initiator=user.id,
+                resource_type=constants.ResourceType.MISSION,
+                resource_id=str(mission_id),
+                succeeded=True,
+                new_status=constants.SurveyMissionStatus.UNDER_DISCOVERY,
+            )
+        )
+        await event_dispatcher(
+            event_schemas.DiscoveryEvent(
+                initiator=user.id,
+                resource_type=constants.ResourceType.MISSION,
+                resource_id=str(mission_id),
+                request_id=request_id,
+                modification=constants.DiscoveryStage.STARTED,
+                succeeded=True,
+            )
+        )
+        summary = await _discover_mission_records(
             request_id=request_id,
             mission=mission,
             session=session,
@@ -302,7 +311,9 @@ async def run_mission_discovery(
             user=user,
             asset_discovery_configs=asset_discovery_configs,
         )
-    except FileNotFoundError as err:
+    # raised into the run when dramatiq interrupts it, e.g. at its time limit
+    except asyncio.CancelledError:
+        logger.warning(f"Discovery of mission {mission_id} was interrupted")
         await event_dispatcher(
             event_schemas.DiscoveryEvent(
                 initiator=user.id,
@@ -311,7 +322,29 @@ async def run_mission_discovery(
                 request_id=request_id,
                 modification=constants.DiscoveryStage.ENDED,
                 succeeded=False,
-                details=str(err),
+                details=(
+                    "discovery was interrupted - the records created so far are "
+                    "kept, run it again to resume"
+                ),
+            )
+        )
+        raise
+    except Exception as err:
+        logger.exception(f"Discovery of mission {mission_id} failed")
+        await event_dispatcher(
+            event_schemas.DiscoveryEvent(
+                initiator=user.id,
+                resource_type=constants.ResourceType.MISSION,
+                resource_id=str(mission_id),
+                request_id=request_id,
+                modification=constants.DiscoveryStage.ENDED,
+                succeeded=False,
+                # anything else may carry internals, such as SQL, which stay in the logs
+                details=(
+                    str(err)
+                    if isinstance(err, (errors.SeisLabDataError, FileNotFoundError))
+                    else f"unexpected error ({type(err).__name__})"
+                ),
             )
         )
     else:
@@ -323,19 +356,22 @@ async def run_mission_discovery(
                 request_id=request_id,
                 modification=constants.DiscoveryStage.ENDED,
                 succeeded=True,
+                details=summary,
             )
         )
         # previews are derived by an operation of their own, which discovery
         # only kicks off once all of the mission's records exist
         preview_tasks.generate_mission_previews.send(
             raw_request_id=str(request_id),
-            raw_survey_mission_id=str(mission.id),
+            raw_survey_mission_id=str(mission_id),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
         )
     finally:
+        # whatever was left half-done must not be committed with the status
+        await session.rollback()
         await mission_ops.change_survey_mission_status(
             request_id=request_id,
-            target_status=constants.SurveyMissionStatus.DRAFT,
+            target_status=mission_status,
             survey_mission_id=mission_id,
             initiator=user,
             session=session,
@@ -352,7 +388,15 @@ async def _discover_mission_records(
     settings: config.SeisLabDataSettings,
     user: user_schemas.User,
     asset_discovery_configs: list[models.AssetDiscoveryConfiguration],
-) -> None:
+) -> str:
+    """Create records for the mission files that match asset discovery configurations.
+
+    Each configuration's path pattern is searched under the mission's directory.
+    A file or a configuration whose processing raises an error is logged and skipped.
+
+    Returns a summary with the number of records created and of the files and
+    configurations that failed.
+    """
     mission_root_path = Path(
         "/".join(
             (
@@ -362,6 +406,11 @@ async def _discover_mission_records(
         )
     )
     logger.debug(f"{mission_root_path=}")
+    # without the mission's directory there is nothing to search
+    if not await mission_root_path.is_dir():
+        raise FileNotFoundError(
+            f"The mission's directory {mission.relative_path!r} is not in the archive"
+        )
     # under a geographic CRS only a header code could place metres: not worth a re-read
     heal_enabled = _is_projected_crs(mission.implicit_crs)
     if not heal_enabled:
@@ -372,6 +421,9 @@ async def _discover_mission_records(
         )
     # configurations overlap, so a file is found more than once, but read once
     attempted_record_ids: set[identifiers.SurveyRelatedRecordId] = set()
+    created_count = 0
+    failed_paths: set[str] = set()
+    failed_configuration_names: list[str] = []
     for asset_discovery_conf in asset_discovery_configs:
         logger.debug(f"Searching for asset {asset_discovery_conf=}...")
         full_path_regexp = "/".join(
@@ -381,89 +433,136 @@ async def _discover_mission_records(
             )
         )
         logger.debug(f"{full_path_regexp=}")
-        async for found_path in _discover_asset_paths(full_path_regexp):
-            # each found_path is to become a record with a single asset
-            relative_file_path = str(found_path.relative_to(mission_root_path))
-            if (
-                tracked_asset := await asset_queries.get_record_asset_by_file_path(
-                    session,
-                    relative_file_path,
-                    identifiers.SurveyMissionId(mission.id),
-                )
-            ) is None:
-                metadata, bbox_wkt = await _extract_file_metadata(
-                    str(found_path), mission.implicit_crs
-                )
-                record_id = identifiers.SurveyRelatedRecordId(uuid.uuid4())
-                attempted_record_ids.add(record_id)
-                # create a new record and a new asset
-                await record_ops.create_survey_related_record(
-                    request_id=request_id,
-                    to_create=record_schemas.SurveyRelatedRecordCreate(
-                        id=record_id,
-                        survey_mission_id=identifiers.SurveyMissionId(mission.id),
-                        name=found_path.name,
-                        description=metadata.describe() if metadata is not None else "",
-                        dataset_category_id=identifiers.DatasetCategoryId(
-                            asset_discovery_conf.dataset_category_id
-                        ),
-                        workflow_stage_id=identifiers.WorkflowStageId(
-                            asset_discovery_conf.workflow_stage_id
-                        ),
-                        asset_discovery_configuration_id=identifiers.AssetDiscoveryConfId(
-                            asset_discovery_conf.id
-                        ),
-                        bbox_4326=bbox_wkt,
-                        temporal_extent_begin=(
-                            metadata.temporal_extent_begin if metadata else None
-                        ),
-                        temporal_extent_end=(
-                            metadata.temporal_extent_end if metadata else None
-                        ),
-                        assets=[
-                            record_schemas.DataRecordAssetCreate(
-                                id=identifiers.RecordAssetId(uuid.uuid4()),
-                                name=found_path.stem,
-                                description="",
-                                relative_path=relative_file_path,
-                            )
-                        ],
-                    ),
-                    initiator=user,
-                    session=session,
-                    event_dispatcher=event_dispatcher,
-                )
-            else:
-                logger.debug(f"file {found_path!r} is already tracked in the DB")
-                # records discovered before the configuration was stored on them
-                # get it now, which makes them eligible for previews
-                tracked_record = tracked_asset.survey_related_record
-                if tracked_record.asset_discovery_configuration_id is None:
-                    tracked_record.asset_discovery_configuration_id = (
-                        asset_discovery_conf.id
-                    )
-                    session.add(tracked_record)
-                    await session.commit()
-                record_id = identifiers.SurveyRelatedRecordId(
-                    tracked_asset.survey_related_record_id
-                )
-                # e.g. discovered while the mission's CRS was still the 4326 default
-                if (
-                    heal_enabled
-                    and tracked_record.bbox_4326 is None
-                    and record_id not in attempted_record_ids
-                ):
-                    attempted_record_ids.add(record_id)
-                    await _heal_record_without_bbox(
+        # e.g. an invalid regexp, or an archive mount that goes away mid-walk
+        try:
+            async for found_path in _discover_asset_paths(full_path_regexp):
+                try:
+                    if await _discover_file(
                         request_id=request_id,
-                        record_id=record_id,
-                        tracked_record=tracked_record,
-                        file_path=str(found_path),
-                        implicit_crs=mission.implicit_crs,
+                        found_path=found_path,
+                        mission_root_path=mission_root_path,
+                        mission=mission,
+                        asset_discovery_conf=asset_discovery_conf,
+                        heal_enabled=heal_enabled,
+                        attempted_record_ids=attempted_record_ids,
                         session=session,
                         event_dispatcher=event_dispatcher,
                         user=user,
+                    ):
+                        created_count += 1
+                except Exception:
+                    logger.exception(f"Could not discover file {str(found_path)!r}")
+                    failed_paths.add(str(found_path))
+                    await session.rollback()
+        except Exception:
+            logger.exception(
+                f"Could not search for the files of asset discovery configuration "
+                f"{asset_discovery_conf.name!r}"
+            )
+            failed_configuration_names.append(asset_discovery_conf.name)
+            await session.rollback()
+    summary = f"{created_count} new records"
+    if failed_paths:
+        summary += f", {len(failed_paths)} files could not be discovered"
+    if failed_configuration_names:
+        summary += (
+            f", searching failed for configurations "
+            f"{', '.join(failed_configuration_names)}"
+        )
+    return summary
+
+
+async def _discover_file(
+    *,
+    request_id: identifiers.RequestId,
+    found_path: Path,
+    mission_root_path: Path,
+    mission: models.SurveyMission,
+    asset_discovery_conf: models.AssetDiscoveryConfiguration,
+    heal_enabled: bool,
+    attempted_record_ids: set[identifiers.SurveyRelatedRecordId],
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+    user: user_schemas.User,
+) -> bool:
+    """Create a record with a single data asset for a discovered file.
+
+    If the file is already tracked, its record is healed instead, provided that
+    healing is enabled, the record has no bbox and it was not attempted before.
+
+    Returns True if a record was created.
+    """
+    relative_file_path = str(found_path.relative_to(mission_root_path))
+    if (
+        tracked_asset := await asset_queries.get_record_asset_by_file_path(
+            session,
+            relative_file_path,
+            identifiers.SurveyMissionId(mission.id),
+        )
+    ) is None:
+        metadata, bbox_wkt = await _extract_file_metadata(
+            str(found_path), mission.implicit_crs
+        )
+        record_id = identifiers.SurveyRelatedRecordId(uuid.uuid4())
+        attempted_record_ids.add(record_id)
+        await record_ops.create_survey_related_record(
+            request_id=request_id,
+            to_create=record_schemas.SurveyRelatedRecordCreate(
+                id=record_id,
+                survey_mission_id=identifiers.SurveyMissionId(mission.id),
+                # names are capped, the full file name lives on in the asset's path
+                name=found_path.name[: constants.NAME_MAX_LENGTH],
+                description=metadata.describe() if metadata is not None else "",
+                dataset_category_id=identifiers.DatasetCategoryId(
+                    asset_discovery_conf.dataset_category_id
+                ),
+                workflow_stage_id=identifiers.WorkflowStageId(
+                    asset_discovery_conf.workflow_stage_id
+                ),
+                bbox_4326=bbox_wkt,
+                temporal_extent_begin=(
+                    metadata.temporal_extent_begin if metadata else None
+                ),
+                temporal_extent_end=(
+                    metadata.temporal_extent_end if metadata else None
+                ),
+                assets=[
+                    record_schemas.DataRecordAssetCreate(
+                        id=identifiers.RecordAssetId(uuid.uuid4()),
+                        name=found_path.stem[: constants.NAME_MAX_LENGTH],
+                        description="",
+                        relative_path=relative_file_path,
                     )
+                ],
+            ),
+            initiator=user,
+            session=session,
+            event_dispatcher=event_dispatcher,
+        )
+        return True
+    logger.debug(f"file {found_path!r} is already tracked in the DB")
+    tracked_record = tracked_asset.survey_related_record
+    record_id = identifiers.SurveyRelatedRecordId(
+        tracked_asset.survey_related_record_id
+    )
+    # e.g. discovered while the mission's CRS was still the 4326 default
+    if (
+        heal_enabled
+        and tracked_record.bbox_4326 is None
+        and record_id not in attempted_record_ids
+    ):
+        attempted_record_ids.add(record_id)
+        await _heal_record_without_bbox(
+            request_id=request_id,
+            record_id=record_id,
+            tracked_record=tracked_record,
+            file_path=str(found_path),
+            implicit_crs=mission.implicit_crs,
+            session=session,
+            event_dispatcher=event_dispatcher,
+            user=user,
+        )
+    return False
 
 
 async def _heal_record_without_bbox(
@@ -477,10 +576,11 @@ async def _heal_record_without_bbox(
     event_dispatcher: dispatch.EventDispatcherProtocol,
     user: user_schemas.User,
 ) -> None:
-    """Read once more the file of a tracked record that has no bbox.
+    """Re-extract the metadata of a tracked record that has no bbox.
 
-    Nothing is written unless the file now gets a bbox.
-    Then the bbox, description and dates are replaced, as on a manual update.
+    The record is updated only if the extraction yields a bbox. Its bbox, description
+    and temporal extent are then replaced by the extracted values. A bbox set on the
+    record while the extraction was running is kept, and the record is not updated.
     """
     metadata, bbox_wkt = await _extract_file_metadata(file_path, implicit_crs)
     if bbox_wkt is None:
@@ -539,11 +639,10 @@ async def create_manual_survey_related_record(
     event_dispatcher: dispatch.EventDispatcherProtocol,
     settings: config.SeisLabDataSettings,
 ) -> models.SurveyRelatedRecord:
-    """Create a record by hand, enriched by the discovery pipeline first.
+    """Create a record from user input, enriched with the metadata of its data files.
 
-    The record adopts the discovery configuration matching its data asset paths.
-    The description and extents from its first data file override the payload's.
-    Its previews are enqueued once it exists.
+    The description and extents extracted from the first data asset path replace
+    those of the payload. Preview generation is enqueued after the record is created.
     """
     survey_mission = await mission_queries.get_survey_mission(
         session, to_create.survey_mission_id
@@ -553,7 +652,6 @@ async def create_manual_survey_related_record(
         record_permissions.can_create_survey_related_record(initiator, survey_mission)
     ):
         fields = await _discover_record_fields(
-            session,
             survey_mission,
             [asset.relative_path for asset in to_create.assets],
             settings,
@@ -590,11 +688,11 @@ async def update_manual_survey_related_record(
     event_dispatcher: dispatch.EventDispatcherProtocol,
     settings: config.SeisLabDataSettings,
 ) -> models.SurveyRelatedRecord:
-    """Update a record by hand, re-running discovery when its data files change.
+    """Update a record from user input, re-extracting metadata if its data files change.
 
-    Only a different set of data asset paths runs the pipeline.
-    The record then adopts a configuration anew and the metadata of its first file.
-    Its previews are enqueued again.
+    Extraction runs only if the set of data asset paths differs from the stored one.
+    The description and extents extracted from the first path then replace those of
+    the payload, and preview generation is enqueued.
     """
     survey_related_record = await record_queries.get_survey_related_record(
         session, survey_related_record_id
@@ -610,7 +708,7 @@ async def update_manual_survey_related_record(
         initiator, survey_related_record
     ):
         fields = await _discover_record_fields(
-            session, survey_related_record.survey_mission, proposed_paths, settings
+            survey_related_record.survey_mission, proposed_paths, settings
         )
         # only the fields that were set, so that a partial update stays partial
         to_update = record_schemas.SurveyRelatedRecordUpdate.model_validate(
@@ -637,42 +735,23 @@ async def update_manual_survey_related_record(
 
 
 async def _discover_record_fields(
-    session: AsyncSession,
     survey_mission: models.SurveyMission,
     data_asset_paths: list[str | None],
     settings: config.SeisLabDataSettings,
 ) -> dict:
-    """Run the discovery pipeline over the data asset paths of a manual record.
+    """Extract record fields from the first usable data asset path.
 
-    The returned fields override the record's.
-    The configuration is always returned, None when no path matches.
-    The description and extents only when extraction produced them.
-    Otherwise the record keeps its own.
+    Empty paths and paths with a `..` segment are not usable.
+
+    Returns the record fields produced by the extraction, empty if there is no usable
+    path.
     """
-    # a '..' segment would lead adoption and the extractor out of the archive
+    # a '..' segment would lead the extractor out of the archive
     usable_paths = [
         path for path in data_asset_paths if path and ".." not in path.split("/")
     ]
-    configurations = await discovery_queries.collect_all_asset_discovery_configurations(
-        session
-    )
-    # configurations come in name order, and the first path that matches decides
-    adopted_configuration = next(
-        (
-            configuration
-            for path in usable_paths
-            for configuration in configurations
-            if path_matches_discovery_pattern(configuration.relative_path_regexp, path)
-        ),
-        None,
-    )
-    fields = {
-        "asset_discovery_configuration_id": (
-            adopted_configuration.id if adopted_configuration is not None else None
-        )
-    }
     if not usable_paths:
-        return fields
+        return {}
     file_path = "/".join(
         (
             str(settings.readonly_archive_root_directory),
@@ -683,13 +762,17 @@ async def _discover_record_fields(
     metadata, bbox_wkt = await _extract_file_metadata(
         file_path, survey_mission.implicit_crs
     )
-    return fields | _extracted_record_fields(metadata, bbox_wkt)
+    return _extracted_record_fields(metadata, bbox_wkt)
 
 
 def _extracted_record_fields(
     metadata: extractor_schemas.ExtractionResult | None, bbox_wkt: str | None
 ) -> dict:
-    """The record fields an extraction produced, which replace the record's own."""
+    """Build the record fields produced by a metadata extraction.
+
+    Returns the bbox, the description and the temporal extent, each one only if the
+    extraction produced it. The temporal extent requires both its begin and its end.
+    """
     fields = {}
     if bbox_wkt is not None:
         fields["bbox_4326"] = bbox_wkt
@@ -708,12 +791,14 @@ def _extracted_record_fields(
 async def _extract_file_metadata(
     file_path: str, implicit_crs: int
 ) -> tuple[extractor_schemas.ExtractionResult | None, str | None]:
-    """Extract a file's metadata and its lon/lat bbox as WKT.
+    """Extract a file's metadata and its EPSG:4326 bbox as WKT.
 
-    Best-effort: a failure must never abort discovery or record creation.
-    It is logged and comes out as None.
-    A file without a CRS takes the one its SEG-Y header quotes, else the mission's.
-    The metadata then names the CRS that placed it.
+    Extraction errors are logged, and result in None metadata. A bbox extracted in
+    native coordinates without a CRS is reprojected using the projected CRS declared
+    in the SEG-Y header, if exactly one is declared, or `implicit_crs` otherwise.
+    The metadata is then updated with the applied CRS.
+
+    Returns the metadata and the bbox WKT, each of which may be None.
     """
     metadata = None
     try:
@@ -766,9 +851,10 @@ async def _extract_file_metadata(
 
 
 def _header_crs(metadata: extractor_schemas.ExtractionResult) -> int | None:
-    """The projected CRS a SEG-Y header quotes, when it quotes exactly one.
+    """Return the projected CRS declared in a SEG-Y header.
 
-    Several leave the choice open, so none of them is taken.
+    Returns None if the metadata is not SEG-Y metadata, or if its header declares
+    either no projected CRS or more than one.
     """
     if not isinstance(metadata, extractor_schemas.SegyMetadata):
         return None
@@ -779,9 +865,9 @@ def _header_crs(metadata: extractor_schemas.ExtractionResult) -> int | None:
 
 
 def _is_projected_crs(epsg: int) -> bool:
-    """Tell whether an EPSG code is a projected CRS, the only kind that places metres.
+    """Check whether an EPSG code identifies a projected CRS.
 
-    An unknown code is not one.
+    Returns False for unknown codes.
     """
     spatial_reference = osr.SpatialReference()
     try:
@@ -795,12 +881,12 @@ def _is_projected_crs(epsg: int) -> bool:
 def _bbox_4326_tuple_to_wkt(
     bbox: tuple[float, float, float, float],
 ) -> str | None:
-    """Turn an extracted lon/lat bbox into a WKT polygon for the record.
+    """Convert an EPSG:4326 bbox tuple into a WKT polygon.
 
-    Garbage coordinates (non-finite or out of lon/lat range, e.g. from a bogus
-    CRS transform) are discarded with a warning. The surviving bbox is expanded
-    by _BBOX_BUFFER on every side. Antimeridian-crossing bboxes are not handled
-    (Portuguese waters).
+    Returns None, and logs a warning, if a coordinate is non-finite or outside the
+    longitude/latitude range. Otherwise the bbox is expanded by `_BBOX_BUFFER` on
+    every side and snapped to a 1e-5 degree grid. Bboxes crossing the antimeridian
+    are not supported.
     """
     minx, miny, maxx, maxy = bbox
     tolerance = 1e-6
@@ -827,102 +913,13 @@ def _bbox_4326_tuple_to_wkt(
 async def _discover_asset_paths(
     full_path_regexp: str,
 ) -> AsyncGenerator[Path, None]:
-    """Discover assets for a particular asset discovery configuration.
-
-    Discovery assumptions:
-
-    - One record only holds one asset. Although generally we support multiple assets per record,
-      for discovery the only supported use case is a 1:1 mapping between record and asset.
-    """
-    root, pattern = split_pattern_path(full_path_regexp)
+    """Yield the files that match a full path pattern."""
+    root, pattern = pathpatterns.split_pattern_path(full_path_regexp)
     if not pattern:
         if await root.is_file():
             yield root
         return
 
     pattern_parts = Path(pattern).parts
-    async for matched_path in walk_pattern(root, pattern_parts):
+    async for matched_path in pathpatterns.walk_pattern(root, pattern_parts):
         yield matched_path
-
-
-async def walk_pattern(
-    current: Path, remaining: tuple[str, ...]
-) -> AsyncIterator[Path]:
-    if not remaining:
-        if await current.is_file():
-            yield current
-        return
-
-    head, *tail = remaining
-    tail = tuple(tail)
-    regex = re.compile(f"^{head}$")
-    try:
-        async for entry in current.iterdir():
-            if await entry.is_dir():
-                async for matched in walk_pattern(entry, remaining):
-                    yield matched
-            if regex.match(entry.name):
-                if tail:
-                    async for matched in walk_pattern(entry, tail):
-                        yield matched
-                else:
-                    if await entry.is_file():
-                        yield entry
-    except (PermissionError, NotADirectoryError):
-        return
-
-
-def split_pattern_path(regexp_path: str) -> tuple[Path, str]:
-    """Split a regexp path into a Path component and a regexp pattern"""
-    _re_meta = re.compile(r"[.*+?^${}()\[\]|\\]")
-    parts = Path(regexp_path).parts
-    plain_parts = []
-    for i, part in enumerate(parts):
-        if _re_meta.search(part):
-            pattern = str(Path(*parts[i:])) if parts[i:] else ""
-            return Path(*plain_parts) if plain_parts else Path("."), pattern
-        plain_parts.append(part)
-    return Path(regexp_path), ""
-
-
-def path_matches_discovery_pattern(
-    relative_path_regexp: str, relative_path: str
-) -> bool:
-    """Tell whether discovery would find a mission-relative file path.
-
-    Mirrors `walk_pattern` without touching the disk.
-    The pattern's literal prefix is fixed at the mission root.
-    Its last segment matches the file name, the others match directories in order.
-    Any directory may be skipped before, between or after the matched ones.
-    """
-    # the walk joins mission_root + "/" + regexp, and Path collapses a leading slash
-    prefix, pattern = split_pattern_path(relative_path_regexp.lstrip("/"))
-    path_parts = Path(relative_path.lstrip("/")).parts
-    prefix_parts = prefix.parts
-    if path_parts[: len(prefix_parts)] != prefix_parts:
-        return False
-    remaining_parts = path_parts[len(prefix_parts) :]
-    if not pattern:
-        return remaining_parts == ()
-    if not remaining_parts:
-        return False
-    *directory_patterns, file_name_pattern = Path(pattern).parts
-    *directories, file_name = remaining_parts
-    # configuration regexps are never validated; a bad one must not block manual saves
-    try:
-        # match rather than fullmatch, as in walk_pattern: `^a|b$` is not the same
-        file_name_regex = re.compile(f"^{file_name_pattern}$")
-        directory_regexes = [re.compile(f"^{p}$") for p in directory_patterns]
-    except re.error as err:
-        logger.warning(
-            "Invalid discovery configuration pattern %r: %s", relative_path_regexp, err
-        )
-        return False
-    if not file_name_regex.match(file_name):
-        return False
-    # each directory pattern consumes the directories up to the one it matches
-    unmatched_directories = iter(directories)
-    for regex in directory_regexes:
-        if not any(regex.match(directory) for directory in unmatched_directories):
-            return False
-    return True

@@ -384,7 +384,6 @@ async def get_survey_related_record(
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
-        .options(selectinload(models.SurveyRelatedRecord.asset_discovery_configuration))
         # adding all assets too, since they will always be a small list
         .options(selectinload(models.SurveyRelatedRecord.assets))
         # also adding relationships with other records - only first order relationships are loaded, not the full tree

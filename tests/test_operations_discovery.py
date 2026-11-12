@@ -7,6 +7,7 @@ GDAL is required to build the synthetic fixture files; the module self-skips
 where it is unavailable.
 """
 
+import asyncio
 import dataclasses
 import datetime as dt
 import inspect
@@ -181,9 +182,7 @@ def _ended_events(collector):
     ]
 
 
-def _record_to_create(
-    discovery_env, relative_path, asset_discovery_configuration_id=None
-):
+def _record_to_create(discovery_env, relative_path):
     configuration = discovery_env["configuration"]
     return record_schemas.SurveyRelatedRecordCreate(
         id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
@@ -194,7 +193,6 @@ def _record_to_create(
             configuration.dataset_category_id
         ),
         workflow_stage_id=identifiers.WorkflowStageId(configuration.workflow_stage_id),
-        asset_discovery_configuration_id=asset_discovery_configuration_id,
         assets=[
             record_schemas.DataRecordAssetCreate(
                 id=identifiers.RecordAssetId(uuid.uuid4()),
@@ -273,28 +271,6 @@ def test_bbox_tuple_to_wkt_rounds_to_five_decimal_places():
             assert value == round(value, 5)
 
 
-@pytest.mark.parametrize(
-    "relative_path_regexp, relative_path, expected",
-    [
-        pytest.param(r"s01/.*\.tif", "s01/a/b/x.tif", True, id="any depth"),
-        pytest.param(r"s01/.*\.tif", "s02/s01/x.tif", False, id="fixed prefix"),
-        pytest.param(r"s01/.*\.tif", "s01/x.tif.aux.xml", False, id="anchored name"),
-        pytest.param(r".*_Data/.*\.kmall", "02_Data/x/f.kmall", True, id="directory"),
-        pytest.param(r".*_Data/.*\.kmall", "f.kmall", False, id="missing directory"),
-        pytest.param("s01/grid.tif", "s01/grid.tif", True, id="literal"),
-        pytest.param(r"/s01/.*\.tif", "s01/x.tif", True, id="leading slash"),
-        pytest.param(r"s01/(.*\.tif", "s01/x.tif", False, id="invalid regexp"),
-    ],
-)
-def test_path_matches_discovery_pattern(relative_path_regexp, relative_path, expected):
-    assert (
-        discovery_ops.path_matches_discovery_pattern(
-            relative_path_regexp, relative_path
-        )
-        is expected
-    )
-
-
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_discovery_extracts_metadata(db_session_maker, admin_user, discovery_env):
@@ -318,7 +294,6 @@ async def test_discovery_extracts_metadata(db_session_maker, admin_user, discove
     record = records[0]
     assert record.name == "grid.tif"
     assert record.description.startswith("Auto-extracted: GTiff raster")
-    assert record.asset_discovery_configuration_id == discovery_env["configuration"].id
     assert record.bbox_4326 is not None
     # the synthetic EPSG:3763 grid reprojects to central Portugal
     minx, miny, maxx, maxy = to_shape(record.bbox_4326).bounds
@@ -367,12 +342,6 @@ async def test_discovery_is_idempotent(
     first_records = await _get_mission_records(
         db_session_maker, discovery_env["mission"].id
     )
-    # as if the record had been discovered before the configuration was stored on it
-    async with db_session_maker() as session:
-        record = await session.get(models.SurveyRelatedRecord, first_records[0].id)
-        record.asset_discovery_configuration_id = None
-        session.add(record)
-        await session.commit()
     second_collector = await _run_discovery(
         db_session_maker,
         discovery_env["mission"].id,
@@ -383,10 +352,6 @@ async def test_discovery_is_idempotent(
     records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
     assert len(records) == 1
     assert records[0].id == first_records[0].id
-    # the re-run links the already tracked record to its configuration
-    assert (
-        records[0].asset_discovery_configuration_id == discovery_env["configuration"].id
-    )
     # dedup runs before extraction and the heal is off under 4326: nothing is extracted
     assert len(extraction_calls) == 1
     # and the second run must not even attempt a record creation (a failed
@@ -462,6 +427,252 @@ async def test_discovery_survives_extraction_failure(
     assert record.name == "bad.tif"
     assert record.description == ""
     assert record.bbox_4326 is None
+
+
+async def _get_mission_status(db_session_maker, mission_id):
+    async with db_session_maker() as session:
+        return (await session.get(models.SurveyMission, mission_id)).status
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discovery_survives_a_file_that_fails(
+    db_session_maker, admin_user, discovery_env, monkeypatch
+):
+    mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
+    _write_geotiff(mission_root / "s01/grid.tif")
+    _write_geotiff(mission_root / "s01/bad.tif")
+    real_create = discovery_ops.record_ops.create_survey_related_record
+
+    async def create_failing_for_bad_file(**kwargs):
+        if kwargs["to_create"].name == "bad.tif":
+            raise RuntimeError("could not create the record")
+        return await real_create(**kwargs)
+
+    monkeypatch.setattr(
+        discovery_ops.record_ops,
+        "create_survey_related_record",
+        create_failing_for_bad_file,
+    )
+
+    collector = await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+
+    ended = _ended_events(collector)
+    assert len(ended) == 1
+    assert ended[0].succeeded is True
+    assert ended[0].details == "1 new records, 1 files could not be discovered"
+    records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
+    assert [record.name for record in records] == ["grid.tif"]
+    assert (
+        await _get_mission_status(db_session_maker, discovery_env["mission"].id)
+        == constants.SurveyMissionStatus.DRAFT
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discovery_truncates_long_file_names(
+    db_session_maker, admin_user, discovery_env
+):
+    # archive file names can be longer than record and asset names may be
+    file_name = f"{'a' * constants.NAME_MAX_LENGTH}.tif"
+    _write_geotiff(
+        discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01" / file_name
+    )
+
+    for _ in range(2):
+        collector = await _run_discovery(
+            db_session_maker,
+            discovery_env["mission"].id,
+            discovery_env["settings"],
+            admin_user,
+        )
+        assert _ended_events(collector)[0].succeeded is True
+
+    # the second run finds the file tracked by its full path
+    records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
+    assert len(records) == 1
+    assert records[0].name == file_name[: constants.NAME_MAX_LENGTH]
+    assets = await _get_record_assets(db_session_maker, records[0].id)
+    assert assets[0].name == "a" * constants.NAME_MAX_LENGTH
+    assert assets[0].relative_path == f"s01/{file_name}"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discovery_skips_configuration_directories_the_mission_lacks(
+    db_session_maker,
+    admin_user,
+    discovery_env,
+    bootstrap_dataset_categories,
+    bootstrap_workflow_stages,
+):
+    _write_geotiff(
+        discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
+    )
+    async with db_session_maker() as session:
+        await discovery_commands.create_asset_discovery_configuration(
+            session,
+            discovery_schemas.AssetDiscoveryConfigurationCreate(
+                id=identifiers.AssetDiscoveryConfId(uuid.uuid4()),
+                # sorts before the test configuration, so it is searched first
+                name="a directory this mission lacks",
+                relative_path_regexp=r"s99/.*\.tif",
+                media_type="image/tiff",
+                generate_previews=False,
+                workflow_stage_id=identifiers.WorkflowStageId(
+                    bootstrap_workflow_stages[0].id
+                ),
+                dataset_category_id=identifiers.DatasetCategoryId(
+                    bootstrap_dataset_categories[0].id
+                ),
+            ),
+        )
+
+    collector = await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+
+    ended = _ended_events(collector)
+    assert len(ended) == 1
+    assert ended[0].succeeded is True
+    assert ended[0].details == "1 new records"
+    records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
+    assert len(records) == 1
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discovery_survives_a_configuration_that_fails(
+    db_session_maker,
+    admin_user,
+    discovery_env,
+    bootstrap_dataset_categories,
+    bootstrap_workflow_stages,
+):
+    _write_geotiff(
+        discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
+    )
+    async with db_session_maker() as session:
+        await discovery_commands.create_asset_discovery_configuration(
+            session,
+            discovery_schemas.AssetDiscoveryConfigurationCreate(
+                id=identifiers.AssetDiscoveryConfId(uuid.uuid4()),
+                name="a broken regexp",
+                relative_path_regexp=r"s01/(.*\.tif",
+                media_type="image/tiff",
+                generate_previews=False,
+                workflow_stage_id=identifiers.WorkflowStageId(
+                    bootstrap_workflow_stages[0].id
+                ),
+                dataset_category_id=identifiers.DatasetCategoryId(
+                    bootstrap_dataset_categories[0].id
+                ),
+            ),
+        )
+
+    collector = await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+
+    ended = _ended_events(collector)
+    assert len(ended) == 1
+    assert ended[0].succeeded is True
+    assert ended[0].details == (
+        "1 new records, searching failed for configurations a broken regexp"
+    )
+    records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
+    assert len(records) == 1
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discovery_keeps_a_published_mission_published(
+    db_session_maker, admin_user, discovery_env
+):
+    _write_geotiff(
+        discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
+    )
+    mission_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
+    async with db_session_maker() as session:
+        await mission_commands.set_survey_mission_status(
+            session, mission_id, constants.SurveyMissionStatus.PUBLISHED
+        )
+
+    collector = await _run_discovery(
+        db_session_maker, mission_id, discovery_env["settings"], admin_user
+    )
+
+    assert _ended_events(collector)[0].succeeded is True
+    assert (
+        await _get_mission_status(db_session_maker, mission_id)
+        == constants.SurveyMissionStatus.PUBLISHED
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "error, expected_details",
+    [
+        (RuntimeError("connection details"), "unexpected error (RuntimeError)"),
+        (asyncio.CancelledError(), "discovery was interrupted"),
+    ],
+)
+async def test_discovery_that_stops_reports_its_end_and_restores_the_status(
+    db_session_maker, admin_user, discovery_env, monkeypatch, error, expected_details
+):
+    async def failing_discovery(**kwargs):
+        raise error
+
+    monkeypatch.setattr(discovery_ops, "_discover_mission_records", failing_discovery)
+    enqueued = []
+    monkeypatch.setattr(
+        discovery_ops.preview_tasks.generate_mission_previews,
+        "send",
+        lambda **kwargs: enqueued.append(kwargs),
+    )
+    mission_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
+    async with db_session_maker() as session:
+        await mission_commands.set_survey_mission_status(
+            session, mission_id, constants.SurveyMissionStatus.PUBLISHED
+        )
+
+    collector = _EventCollector()
+    async with db_session_maker() as session:
+        try:
+            await discovery_ops.run_mission_discovery(
+                request_id=identifiers.RequestId(uuid.uuid4()),
+                mission_id=mission_id,
+                session=session,
+                event_dispatcher=collector,
+                settings=discovery_env["settings"],
+                user=admin_user,
+            )
+        # an interruption must go on up to dramatiq
+        except asyncio.CancelledError:
+            assert isinstance(error, asyncio.CancelledError)
+
+    ended = _ended_events(collector)
+    assert len(ended) == 1
+    assert ended[0].succeeded is False
+    assert ended[0].details.startswith(expected_details)
+    assert enqueued == []
+    assert (
+        await _get_mission_status(db_session_maker, mission_id)
+        == constants.SurveyMissionStatus.PUBLISHED
+    )
 
 
 @pytest.mark.integration
@@ -798,7 +1009,6 @@ async def test_discovery_heals_tracked_record_without_bbox(
     )
     assert healed.temporal_extent_begin == dt.date(2024, 9, 28)
     assert healed.temporal_extent_end == dt.date(2024, 9, 29)
-    assert healed.asset_discovery_configuration_id == discovery_env["configuration"].id
     assert healed.validation_result["is_valid"] is True
     assets = await _get_record_assets(db_session_maker, without_bbox.id)
     assert sorted(a.relative_path for a in assets) == [
@@ -855,9 +1065,7 @@ async def test_discovery_heal_writes_nothing(
     target = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/line.tif"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(b"content is irrelevant, dispatch is faked")
-    to_create = _record_to_create(
-        discovery_env, "s01/line.tif", discovery_env["configuration"].id
-    )
+    to_create = _record_to_create(discovery_env, "s01/line.tif")
     await _create_record_without_discovery(db_session_maker, admin_user, to_create)
     async with db_session_maker() as session:
         # found twice, by overlapping configurations, the file is never read twice
@@ -1118,9 +1326,18 @@ async def test_record_previews_skip_a_record_whose_status_moved(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-@pytest.mark.parametrize("ineligible_by", ["configuration flag", "no configuration"])
+@pytest.mark.parametrize(
+    "ineligible_by",
+    ["configuration flag", "no matching configuration", "first matching configuration"],
+)
 async def test_record_previews_need_a_configuration_that_generates_them(
-    db_session_maker, admin_user, discovery_env, monkeypatch, ineligible_by
+    db_session_maker,
+    admin_user,
+    discovery_env,
+    monkeypatch,
+    ineligible_by,
+    bootstrap_dataset_categories,
+    bootstrap_workflow_stages,
 ):
     _write_geotiff(
         discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
@@ -1135,17 +1352,36 @@ async def test_record_previews_need_a_configuration_that_generates_them(
         db_session_maker, discovery_env["mission"].id
     )
     async with db_session_maker() as session:
-        if ineligible_by == "configuration flag":
-            configuration = await session.get(
-                models.AssetDiscoveryConfiguration, discovery_env["configuration"].id
-            )
-            configuration.generate_previews = False
-            session.add(configuration)
-        else:
-            record = await session.get(models.SurveyRelatedRecord, discovered.id)
-            record.asset_discovery_configuration_id = None
-            session.add(record)
-        await session.commit()
+        configuration = await session.get(
+            models.AssetDiscoveryConfiguration, discovery_env["configuration"].id
+        )
+        match ineligible_by:
+            case "configuration flag":
+                configuration.generate_previews = False
+                session.add(configuration)
+                await session.commit()
+            case "no matching configuration":
+                configuration.relative_path_regexp = r"s02/.*\.tif"
+                session.add(configuration)
+                await session.commit()
+            case "first matching configuration":
+                await discovery_commands.create_asset_discovery_configuration(
+                    session,
+                    discovery_schemas.AssetDiscoveryConfigurationCreate(
+                        id=identifiers.AssetDiscoveryConfId(uuid.uuid4()),
+                        # sorts before the test configuration, so it decides
+                        name="a tif without previews",
+                        relative_path_regexp=r"s01/.*\.tif",
+                        media_type="image/tiff",
+                        generate_previews=False,
+                        workflow_stage_id=identifiers.WorkflowStageId(
+                            bootstrap_workflow_stages[0].id
+                        ),
+                        dataset_category_id=identifiers.DatasetCategoryId(
+                            bootstrap_dataset_categories[0].id
+                        ),
+                    ),
+                )
 
     def fake_dispatch(path, implicit_epsg_code):
         return deriver_schemas.DerivedPreview(
@@ -1172,29 +1408,48 @@ async def test_record_previews_need_a_configuration_that_generates_them(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_manual_create_adopts_config_and_extracts_extents(
+async def test_record_previews_of_a_record_created_by_hand(
+    db_session_maker, admin_user, discovery_env, monkeypatch
+):
+    _write_geotiff(
+        discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
+    )
+    to_create = _record_to_create(discovery_env, "s01/grid.tif")
+    await _create_record_without_discovery(db_session_maker, admin_user, to_create)
+
+    def fake_dispatch(path, implicit_epsg_code):
+        return deriver_schemas.DerivedPreview(
+            image=b"fake webp payload", bounds_4326=(-8.2, 39.6, -8.1, 39.7)
+        )
+
+    monkeypatch.setattr(preview_ops.deriver_dispatch, "dispatch_deriver", fake_dispatch)
+
+    async with db_session_maker() as session:
+        await preview_ops.generate_record_previews(
+            request_id=identifiers.RequestId(uuid.uuid4()),
+            survey_related_record=await record_queries.get_survey_related_record(
+                session, to_create.id
+            ),
+            initiator=admin_user,
+            session=session,
+            event_dispatcher=_EventCollector(),
+            settings=discovery_env["settings"],
+        )
+
+    assets = await _get_record_assets(db_session_maker, to_create.id)
+    assert sorted(a.asset_type for a in assets) == [
+        [constants.AssetType.DATA],
+        [constants.AssetType.THUMBNAIL, constants.AssetType.PREVIEW],
+    ]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_manual_create_extracts_extents(
     db_session_maker, admin_user, discovery_env, monkeypatch
 ):
     data_file = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/sub/x.tif"
     _write_geotiff(data_file)
-    async with db_session_maker() as session:
-        # matches the path as well, and comes first by name
-        first_by_name = await discovery_commands.create_asset_discovery_configuration(
-            session,
-            discovery_schemas.AssetDiscoveryConfigurationCreate(
-                id=identifiers.AssetDiscoveryConfId(uuid.uuid4()),
-                name="another tif",
-                relative_path_regexp=r"s01/sub/.*\.tif",
-                media_type="image/tiff",
-                generate_previews=True,
-                workflow_stage_id=identifiers.WorkflowStageId(
-                    discovery_env["configuration"].workflow_stage_id
-                ),
-                dataset_category_id=identifiers.DatasetCategoryId(
-                    discovery_env["configuration"].dataset_category_id
-                ),
-            ),
-        )
     enqueued = []
     monkeypatch.setattr(
         discovery_ops.preview_tasks.generate_record_previews,
@@ -1215,7 +1470,6 @@ async def test_manual_create_adopts_config_and_extracts_extents(
     (record,) = await _get_mission_records(
         db_session_maker, discovery_env["mission"].id
     )
-    assert record.asset_discovery_configuration_id == first_by_name.id
     minx, miny, maxx, maxy = to_shape(record.bbox_4326).bounds
     assert -8.2 < minx <= maxx < -8.0
     assert 39.6 < miny <= maxy < 39.8
@@ -1229,15 +1483,13 @@ async def test_manual_create_adopts_config_and_extracts_extents(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_manual_update_new_path_readopts_and_reextracts(
+async def test_manual_update_new_path_reextracts(
     db_session_maker, admin_user, discovery_env, monkeypatch
 ):
     _write_geotiff(
         discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "other/x.tif"
     )
-    to_create = _record_to_create(
-        discovery_env, "s01/grid.tif", discovery_env["configuration"].id
-    )
+    to_create = _record_to_create(discovery_env, "s01/grid.tif")
     await _create_record_without_discovery(db_session_maker, admin_user, to_create)
     asset_id = to_create.assets[0].id
     enqueued = []
@@ -1247,7 +1499,6 @@ async def test_manual_update_new_path_readopts_and_reextracts(
         lambda **kwargs: enqueued.append(kwargs),
     )
 
-    # no configuration matches the new path
     await _update_record_by_hand(
         db_session_maker,
         admin_user,
@@ -1266,7 +1517,6 @@ async def test_manual_update_new_path_readopts_and_reextracts(
     (record,) = await _get_mission_records(
         db_session_maker, discovery_env["mission"].id
     )
-    assert record.asset_discovery_configuration_id is None
     # the extracted bbox overrides the drawn one
     minx, miny, maxx, maxy = to_shape(record.bbox_4326).bounds
     assert -8.2 < minx <= maxx < -8.0
@@ -1339,7 +1589,6 @@ async def test_manual_update_failed_extraction_keeps_extents(
     (record,) = await _get_mission_records(
         db_session_maker, discovery_env["mission"].id
     )
-    assert record.asset_discovery_configuration_id == discovery_env["configuration"].id
     assert to_shape(record.bbox_4326).bounds == pytest.approx((-9, 38, -8.9, 38.1))
     assert record.temporal_extent_begin == dt.date(2024, 9, 28)
     assert record.temporal_extent_end == dt.date(2024, 9, 29)

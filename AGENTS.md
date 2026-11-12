@@ -44,6 +44,7 @@ src/seis_lab_data/
   auth.py              # OAuth config, get_user(), requires_auth decorator
   authentik.py         # Authentik admin API helper (fetch user by UUID)
   geonode.py           # GeoNode API helpers (upload, execution polling)
+  pathpatterns.py      # Path patterns with regexp segments, as used by asset discovery
   config.py            # Settings (pydantic-settings)
   constants.py         # Enums, string constants (ADMIN_ROLE, status enums, etc.)
   errors.py            # SeisLabDataError
