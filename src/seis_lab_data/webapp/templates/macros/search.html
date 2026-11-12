@@ -8,11 +8,11 @@
     extra_on_input_js=""
 ) %}
     <div
-            class="row justify-content-center m-5"
+            class="row justify-content-center my-4 m-lg-5"
             data-signals:search='{{ initial_value | default("", true) | tojson }}'
             data-signals:searching="false"
     >
-        <div class="col-8">
+        <div class="col-12 col-md-10 col-lg-8">
             <search class="form-floating">
                 <input
                         class="form-control form-control-lg"

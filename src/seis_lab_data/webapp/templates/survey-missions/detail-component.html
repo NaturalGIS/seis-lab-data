@@ -7,13 +7,13 @@
 {% from "macros/datalist.html" import search_datalist %}
 {% from "macros/records-summary.html" import render_records_summary %}
 <div
-        class="row"
+        class="page-layout"
         data-on-intersect__once="@get('{{ url_for("survey_missions:detail_stream", request_id=request_id, survey_mission_id=item.id) }}')"
         data-signals:is-valid="{{ item.validation_result.is_valid | default(False, True) | tojson }}"
         data-signals:status="'{{ item.status.value }}'"
         data-signals:deleting="false"
 >
-    <div class="col">
+    <div class="page-layout-main">
         <div class="row mb-5">
             <div class="col">
                 <div class="card{% if item.status.value != "published" %} item-unpublished{% endif %}" data-class:item-unpublished="$status !== 'published'">
@@ -25,8 +25,8 @@
                         ) }}
                     {% endif %}
                     <div class="card-body">
-                        <div class="row">
-                            <div class="col">
+                        <div class="row gy-3">
+                            <div class="col-12 col-md-8 col-xl-9">
                                 <p>{{ item.description }}</p>
                                 {{ render_records_summary(
                                     counts,
@@ -48,7 +48,7 @@
                                     </dd>
                                 </dl>
                             </div>
-                            <div class="col-3">
+                            <div class="col-12 col-md-4 col-xl-3">
                                 <h5>{{ _("links") | capitalize }}</h5>
                                 <div class="list-group list-group-flush">
                                     {% for link in item.links %}
@@ -98,7 +98,7 @@
                 <h2>{{ _("survey-related-records") | capitalize }}</h2>
                 {% set mission_records_url = url_for("survey_missions:get_mission_records_list_component", survey_mission_id=item.id) %}
                 <div class="row justify-content-center mb-3">
-                    <div class="col-8">
+                    <div class="col-12 col-md-10 col-lg-8">
                         <search class="form-floating">
                             <input
                                     class="form-control form-control-lg"
@@ -149,7 +149,7 @@
                     </div>
                 </div>
                 <div class="row collapse" id="mission-advanced-search-controls">
-                    <div class="col-6">
+                    <div class="col-12 col-md-6">
                         {{ search_select(
                             "search-dataset-category",
                             dataset_categories,
@@ -172,7 +172,7 @@
                               _("media type") | capitalize
                         ) }}
                     </div>
-                    <div class="col-6">
+                    <div class="col-12 col-md-6">
                         <div class="row">
                             <div class="col">
                                 {{ macros.render_temporal_extent_search_component(
@@ -205,12 +205,12 @@
             </div>
         </div>
     </div>
-    <div class="col-3">
-        {% if request.user.is_authenticated %}
-            <div class="card border-0 mb-5">
+    {% if request.user.is_authenticated %}
+        <div class="page-layout-actions">
+            <div class="card border-0 mb-4 mb-lg-5">
                 <div class="card-body p-0 d-grid gap-2">
                     <h5 class="card-title">{{ _("actions") | capitalize }}</h5>
-                    <div class="d-grid gap-2">
+                    <div class="d-grid gap-2 actions-grid">
                         {% if permissions.can_discover %}
                             <button
                                     class="btn btn-secondary"
@@ -256,7 +256,9 @@
                     {% endif %}
                 </div>
             </div>
-        {% endif %}
+        </div>
+    {% endif %}
+    <div class="page-layout-info">
         {{ render_info_section(
             general_info=[
                 _("This page shows a survey mission and its survey-related records."),

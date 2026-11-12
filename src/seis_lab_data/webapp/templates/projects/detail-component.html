@@ -5,12 +5,12 @@
 {% from "macros/search.html" import search_component %}
 {% from "macros/records-summary.html" import render_records_summary %}
 <div
-    class="row"
+    class="page-layout"
     data-on-intersect__once="@get('{{ url_for("projects:detail_stream", project_id=item.id, request_id=request_id) }}')"
     data-signals:is-valid="{{ 'true' if item.validation_result.is_valid else 'false' }}"
     data-signals:status="'{{ item.status.value }}'"
 >
-    <div class="col">
+    <div class="page-layout-main">
         <div class="row mb-5">
             <div class="col">
                 <div class="card{% if item.status.value != "published" %} item-unpublished{% endif %}" data-class:item-unpublished="$status !== 'published'">
@@ -22,8 +22,8 @@
                         ) }}
                     {% endif %}
                     <div class="card-body">
-                        <div class="row">
-                            <div class="col">
+                        <div class="row gy-3">
+                            <div class="col-12 col-md-8 col-xl-9">
                                 <p>{{ item.description }}</p>
                                 {{ render_records_summary(counts, records_summary, records_list_url=records_list_url) }}
                                 <dl class="row">
@@ -33,7 +33,7 @@
                                     <dd class="col-sm-9">{{ item.bbox_4326.bounds }}</dd>
                                 </dl>
                             </div>
-                            <div class="col-3">
+                            <div class="col-12 col-md-4 col-xl-3">
                                 <h5>{{ _("links") | capitalize }}</h5>
                                 <div class="list-group list-group-flush">
                                     {% for link in item.links %}
@@ -86,16 +86,16 @@
             </div>
         </div>
     </div>
-    <div class="col-3">
-        {% if request.user.is_authenticated %}
-            <div class="card border-0 mb-5">
+    {% if request.user.is_authenticated %}
+        <div class="page-layout-actions">
+            <div class="card border-0 mb-4 mb-lg-5">
                 <div
                         class="card-body p-0 d-grid gap-2"
                         data-signals:deleting="false"
                         data-signals:validating="false"
                 >
                     <h5 class="card-title">{{ _("actions") | capitalize }}</h5>
-                    <div class="d-grid gap-2">
+                    <div class="d-grid gap-2 actions-grid">
                         {% if permissions.can_update %}
                             <a
                                     class="btn btn-info"
@@ -130,7 +130,9 @@
                     {% endif %}
                 </div>
             </div>
-        {% endif %}
+        </div>
+    {% endif %}
+    <div class="page-layout-info">
         {{ render_info_section(
             general_info=[
                 _("This page shows a project and its survey missions."),

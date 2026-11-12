@@ -254,3 +254,124 @@ h1 > .material-icons-outlined {
         width: 12rem;
     }
 }
+
+/* page layout of listing and detail pages: the main content with a sidebar of
+   actions and info. It is a grid rather than bootstrap columns because on
+   small screens the actions must come before the main content while the info
+   goes after it, and on large screens both share the sidebar. The minmax(0, ...)
+   tracks keep long unbreakable content (e.g. paths) from widening the main
+   column and pushing the sidebar below it. The padding and negative margins
+   mirror bootstrap's row/col gutters, so nested rows line up as before */
+.page-layout {
+    --bs-gutter-x: 1.5rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+        "actions"
+        "main"
+        "info";
+    margin-inline: calc(-0.5 * var(--bs-gutter-x));
+}
+
+.page-layout > * {
+    padding-inline: calc(0.5 * var(--bs-gutter-x));
+}
+
+.page-layout-main {
+    grid-area: main;
+}
+
+.page-layout-actions {
+    grid-area: actions;
+}
+
+.page-layout-info {
+    grid-area: info;
+}
+
+.page-layout dd {
+    overflow-wrap: anywhere;
+}
+
+@media (min-width: 992px) {
+    .page-layout {
+        grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
+        grid-template-rows: auto 1fr;
+        grid-template-areas:
+            "main actions"
+            "main info";
+    }
+}
+
+/* on small screens the action buttons share a row when they fit */
+@media (max-width: 991.98px) {
+    .page-layout-actions .actions-grid {
+        grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+    }
+
+    .page-layout-info {
+        margin-block: 2rem;
+    }
+}
+
+/* page titles wrap on small screens and are truncated on large ones */
+.page-title {
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 767.98px) {
+    .page-title.display-1 {
+        font-size: calc(1.75rem + 3vw);
+    }
+
+    .page-title {
+        margin-bottom: 1.5rem;
+    }
+
+    .resource-type-bar {
+        height: 12px;
+    }
+
+    /* narrower thumbnails leave room for the item details */
+    .list-item-thumb {
+        flex-basis: 96px;
+        width: 96px;
+        min-height: 96px;
+    }
+
+    .listing-compact .list-item-thumb {
+        flex-basis: 64px;
+        width: 64px;
+        min-height: 64px;
+    }
+}
+
+@media (min-width: 768px) {
+    .page-title {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+/* bordered group of form fields (links, assets, related records, the parts of
+   the bulk update form). Sections nested inside another one, like the links
+   of an asset, get less padding on small screens so their fields keep some
+   width */
+.form-section {
+    border: var(--bs-border-width) solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-section .form-section {
+    padding: 0.75rem;
+}
+
+@media (min-width: 768px) {
+    .form-section,
+    .form-section .form-section {
+        padding: 1.5rem;
+    }
+}

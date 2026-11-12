@@ -2,7 +2,7 @@
     {% set form_element_classes = "form-check-input is-invalid" if field.errors else "form-check-input" %}
     {% set form_element_described_by = name_prefix ~ field.name ~ "-help backend-validation-" ~ name_prefix ~ field.name ~ "-feedback" if field.errors else name_prefix ~ field.name ~ "-help" %}
     {% set stable_test_id = test_id or ("field-" ~ name_prefix ~ field.name) %}
-    <div class="row mb-3">
+    <div class="mb-3">
         <div class="form-check form-switch{% if field.errors %} has-validation{% endif %}">
             {{ field(
                     class=form_element_classes,

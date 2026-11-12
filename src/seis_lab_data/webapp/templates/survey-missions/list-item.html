@@ -35,10 +35,10 @@
                     <span class="material-icons-outlined me-1 fs-6">{{ icons.survey_related_records }}</span>{{ list_item_counts[item.id].num_survey_related_records }}
                 </div>
                 <div class="row small text-body-secondary">
-                    <div class="col">
+                    <div class="col-12 col-sm">
                         {{ item.temporal_extent_begin | default(_(".."), True) }}/{{ item.temporal_extent_end | default(_(".."), True) }}
                     </div>
-                    <div class="col">
+                    <div class="col-12 col-sm">
                         {% if item.bbox_4326 %}
                             {{ item.bbox_4326.bounds | map("round", 3) | join(", ") }}
                         {% else %}
