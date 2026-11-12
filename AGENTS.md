@@ -162,6 +162,7 @@ Tasks which may take long run in their own queues (`previews`, `thumbnails`, `ex
 - `AsyncRedisPubSubMiddleware` — manages the Redis client for pub/sub
 - `AsyncSqlAlchemyDbMiddleware` — manages the async DB engine and session maker
 - `StaleGeoNodeExportRecoveryMiddleware` — recovers records left under export by a dead worker, at worker boot
+- `StaleDiscoveryRecoveryMiddleware` — recovers missions left under discovery by a dead worker, some minutes after worker boot
 
 ## Key conventions
 

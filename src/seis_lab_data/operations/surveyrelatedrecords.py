@@ -35,7 +35,13 @@ async def create_survey_related_record(
     initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
+    allow_mission_under_discovery: bool = False,
 ):
+    """Create a survey-related record, validate it and publish it if possible.
+
+    The record is refused if its survey mission is under discovery, unless
+    `allow_mission_under_discovery` is set.
+    """
     try:
         if not (
             survey_mission := await mission_queries.get_survey_mission(
@@ -50,6 +56,14 @@ async def create_survey_related_record(
         ):
             raise errors.SeisLabDataError(
                 "User is not allowed to create a survey-related record."
+            )
+        if (
+            not allow_mission_under_discovery
+            and survey_mission.status in constants.SURVEY_MISSION_DISCOVERY_STATUSES
+        ):
+            raise errors.SeisLabDataError(
+                "Cannot create survey-related record because its survey mission "
+                "is under discovery"
             )
         survey_record = await record_commands.create_survey_related_record(
             session, to_create
@@ -97,6 +111,7 @@ async def create_survey_related_record(
         event_schemas.ResourceModificationEvent(
             resource_type=constants.ResourceType.RECORD,
             resource_id=str(survey_record.id),
+            parent_resource_id=str(survey_record.survey_mission_id),
             request_id=request_id,
             modification=constants.ResourceModification.CREATED,
             succeeded=True,
@@ -298,6 +313,14 @@ async def delete_survey_related_record(
                 f"Cannot delete survey-related record because its status is "
                 f"{record_status}"
             )
+        if (
+            survey_record.survey_mission.status
+            in constants.SURVEY_MISSION_DISCOVERY_STATUSES
+        ):
+            raise errors.SeisLabDataError(
+                "Cannot delete survey-related record because its survey mission "
+                "is under discovery"
+            )
         parent_id = survey_record.survey_mission_id
         await record_commands.delete_survey_related_record(
             session, survey_related_record_id
@@ -456,7 +479,13 @@ async def update_survey_related_record(
     initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
+    allow_mission_under_discovery: bool = False,
 ) -> models.SurveyRelatedRecord:
+    """Update a survey-related record, validate it and publish or unpublish it.
+
+    The update is refused if the record is busy, or if its survey mission is under
+    discovery, unless `allow_mission_under_discovery` is set.
+    """
     try:
         if (
             survey_related_record := await record_queries.get_survey_related_record(
@@ -481,6 +510,15 @@ async def update_survey_related_record(
             raise errors.SeisLabDataError(
                 f"Cannot update survey-related record because its status is "
                 f"{record_status}"
+            )
+        if (
+            not allow_mission_under_discovery
+            and survey_related_record.survey_mission.status
+            in constants.SURVEY_MISSION_DISCOVERY_STATUSES
+        ):
+            raise errors.SeisLabDataError(
+                "Cannot update survey-related record because its survey mission "
+                "is under discovery"
             )
         await record_commands.update_survey_related_record(
             session, survey_related_record, to_update
@@ -527,6 +565,7 @@ async def update_survey_related_record(
             initiator=initiator.id,
             resource_type=constants.ResourceType.RECORD,
             resource_id=str(survey_related_record_id),
+            parent_resource_id=str(validated_record.survey_mission_id),
             request_id=request_id,
             modification=constants.ResourceModification.UPDATED,
             succeeded=True,

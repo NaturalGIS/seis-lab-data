@@ -7,6 +7,7 @@
      data-signals:is-valid="{{ item.validation_result.is_valid | default(False, True) | tojson }}"
      data-signals:status="'{{ item.status.value }}'"
      data-computed:is-busy="!['draft', 'published'].includes($status)"
+     data-signals:mission-under-discovery="{{ (item.survey_mission.status in SURVEY_MISSION_DISCOVERY_STATUSES) | tojson }}"
      data-signals:deleting="false"
      data-signals:exporting="false"
 >
@@ -159,9 +160,9 @@
                                     class="btn btn-primary"
                                     href="{{ url_for('survey_related_records:get_update_form', survey_related_record_id=item.id) }}"
                                     aria-label="update-item"
-                                    data-attr:class="$isBusy ? 'btn btn-outline-dark disabled' : 'btn btn-primary'"
-                                    data-attr:aria-disabled="$isBusy"
-                                    data-attr:tabindex="$isBusy ? '-1' : null"
+                                    data-attr:class="$isBusy || $missionUnderDiscovery ? 'btn btn-outline-dark disabled' : 'btn btn-primary'"
+                                    data-attr:aria-disabled="$isBusy || $missionUnderDiscovery"
+                                    data-attr:tabindex="$isBusy || $missionUnderDiscovery ? '-1' : null"
                             >
                                 <span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit") | capitalize }}
                             </a>
@@ -228,7 +229,7 @@
                                 generated_csrf_token=csrf_token(request),
                                 modal_dialog_title=_("delete survey-related record"),
                                 modal_dialog_confirmation_text=_("are you sure you want to delete this survey-related record?"),
-                                disabled_condition="$isBusy"
+                                disabled_condition="$isBusy || $missionUnderDiscovery"
                             ) }}
                         {% endif %}
                     </div>

@@ -3,12 +3,16 @@ import functools
 import html
 import json
 import logging
+import time
 import uuid
 
 import shapely
 from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
-from datastar_py.starlette import DatastarResponse
+from datastar_py.starlette import (
+    DatastarResponse,
+    read_signals,
+)
 from redis.asyncio import Redis
 from starlette_babel import gettext_lazy as _
 from starlette.endpoints import HTTPEndpoint
@@ -225,33 +229,46 @@ async def _get_survey_mission_details(
     )
 
 
-@requires_auth
 async def get_details_component(request: Request):
+    """Re-render a mission's summary and actions, to be morphed into its detail page.
+
+    The mission's status and validity signals are patched as well. The page's
+    request id is passed along, so that the re-rendered actions keep reporting
+    their progress to the page's stream.
+    """
+    try:
+        request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid request id") from err
     details = await _get_survey_mission_details(request)
-    template_processor = request.state.templates
-    template = template_processor.get_template("survey-missions/detail-component.html")
-    rendered = template.render(
-        request=request,
-        survey_mission=details.item,
-        pagination=details.pagination,
-        survey_related_records=details.children,
-        search_initial_value=details.children_filter,
-        permissions=details.permissions,
-        list_item_permissions=details.children_permissions,
-        counts=details.counts,
-        records_summary=details.records_summary,
-        dataset_categories=details.dataset_categories,
-        workflow_stages=details.workflow_stages,
-        filter_media_types_datalist=details.filter_media_types_datalist,
-        current_temporal_extent=details.current_temporal_extent,
+    template_context = {
+        "request": request,
+        "request_id": request_id,
+        "item": details.item,
+        "permissions": details.permissions,
+        "counts": details.counts,
+        "records_summary": details.records_summary,
+    }
+    templates = request.state.templates
+    rendered = "".join(
+        templates.get_template(template_name).render(**template_context)
+        for template_name in (
+            "survey-missions/detail-summary.html",
+            "survey-missions/detail-actions.html",
+        )
     )
 
     async def event_streamer():
-        yield ServerSentEventGenerator.patch_elements(
-            rendered,
-            selector=webui_schemas.selector_info.main_content_selector,
-            mode=ElementPatchMode.INNER,
+        yield ServerSentEventGenerator.patch_signals(
+            {
+                "status": details.item.status.value,
+                "isValid": bool(
+                    (details.item.validation_result or {}).get("is_valid", False)
+                ),
+            }
         )
+        # no selector, the summary and actions are matched by their ids and morphed
+        yield ServerSentEventGenerator.patch_elements(rendered)
 
     return DatastarResponse(event_streamer())
 
@@ -358,10 +375,27 @@ async def stream_to_detail_page(request: Request):
             "resource_modified": common_handlers.handle_resource_modification_detail_page,
             "resource_status_changed": common_handlers.handle_resource_status_changed_detail_page,
             "discovery": common_handlers.handle_discovery_detail_page,
+            "derivation": common_handlers.handle_derivation_detail_page,
         },
     )
+    # read after subscribing, so that a status change is either seen here or
+    # received as a message
+    page_status = ((await read_signals(request)) or {}).get("status")
+    async with session_maker() as session:
+        try:
+            survey_mission = await survey_mission_ops.get_survey_mission(
+                survey_mission_id, user, session
+            )
+        except errors.UserNotAllowedError:
+            survey_mission = None
 
     async def event_streamer():
+        # the status changed between rendering the page and subscribing
+        if survey_mission is not None and survey_mission.status.value != page_status:
+            refresh_version = int(time.time() * 1000)
+            yield ServerSentEventGenerator.patch_signals(
+                {"detailsVersion": refresh_version, "listingVersion": refresh_version}
+            )
         async for datastar_event in subscription:
             yield datastar_event
 
@@ -465,6 +499,18 @@ async def get_mission_records_list_component(request: Request):
                 include_total=True,
             )
         )[1]
+        # the records of a mission under discovery are left to the discovery
+        can_bulk_update = (
+            user is not None
+            and record_permissions.can_bulk_update_survey_related_records(user)
+            and (
+                survey_mission := await survey_mission_ops.get_survey_mission(
+                    survey_mission_id, user, session
+                )
+            )
+            is not None
+            and survey_mission.status not in constants.SURVEY_MISSION_DISCOVERY_STATUSES
+        )
     pagination_info = get_pagination_info(
         current_page,
         settings.pagination_page_size,
@@ -486,7 +532,7 @@ async def get_mission_records_list_component(request: Request):
                 survey_mission_id=survey_mission_id,
             )
         )
-        if user and record_permissions.can_bulk_update_survey_related_records(user)
+        if can_bulk_update
         else None
     )
     template_processor = request.state.templates
@@ -1253,6 +1299,17 @@ async def trigger_discovery(request: Request):
     return Response(status_code=200)
 
 
+@csrf_protect
+@requires_auth
+async def cancel_discovery(request: Request):
+    discovery_tasks.cancel_survey_mission_discovery.send(
+        raw_request_id=request.path_params["request_id"],
+        raw_survey_mission_id=request.path_params["survey_mission_id"],
+        raw_initiator=json.dumps(dataclasses.asdict(request.user)),
+    )
+    return Response(status_code=200)
+
+
 @requires_auth
 async def stream_to_new_page(request: Request):
     """Stream relevant updates for the new survey mission page."""
@@ -1592,7 +1649,7 @@ routes = [
         name="implicit_crs_suggestions",
     ),
     Route(
-        "/{survey_mission_id}/details",
+        "/{survey_mission_id}/details/{request_id}",
         get_details_component,
         methods=["GET"],
         name="get_details_component",
@@ -1632,6 +1689,12 @@ routes = [
         trigger_discovery,
         methods=["POST"],
         name="trigger_discovery",
+    ),
+    Route(
+        "/{survey_mission_id}/discover/{request_id}/cancel",
+        cancel_discovery,
+        methods=["POST"],
+        name="cancel_discovery",
     ),
     Route(
         "/{survey_mission_id}/records/bulk-update",

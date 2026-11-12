@@ -1,14 +1,18 @@
 import asyncio
+import contextlib
 import dataclasses
+import datetime as dt
 import json
 import logging
 import math
+import re
+import time
 import uuid
-from typing import AsyncGenerator
 
 import shapely
 from anyio import Path, to_thread
 from osgeo import osr
+from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from .. import (
@@ -225,6 +229,14 @@ async def run_mission_discovery(
     settings: config.SeisLabDataSettings,
     user: user_schemas.User,
 ) -> None:
+    """Discover the files of a survey mission and create records for them.
+
+    The mission is held under discovery while the run lasts, and its heartbeat is
+    refreshed in the background. The run stops early if the mission's status is
+    set to cancelling discovery; the records created until then are kept. The
+    mission's original status is restored at the end of the run, whatever its
+    outcome. Preview generation for the mission is enqueued unless the run fails.
+    """
     try:
         if (
             mission := await mission_queries.get_survey_mission(session, mission_id)
@@ -271,6 +283,12 @@ async def run_mission_discovery(
     # from here on the mission is under discovery, and every way out of the
     # block below must report the end of the run and give the mission back its
     # status
+    cancellation_requested = asyncio.Event()
+    heartbeat = asyncio.create_task(
+        _refresh_discovery_heartbeat(
+            mission_id, settings.get_db_session_maker(), cancellation_requested
+        )
+    )
     try:
         logger.debug(f"Discovering contents of mission {mission.name!r}...")
         asset_discovery_configs = (
@@ -302,7 +320,7 @@ async def run_mission_discovery(
                 succeeded=True,
             )
         )
-        summary = await _discover_mission_records(
+        counts = await _discover_mission_records(
             request_id=request_id,
             mission=mission,
             session=session,
@@ -310,6 +328,7 @@ async def run_mission_discovery(
             settings=settings,
             user=user,
             asset_discovery_configs=asset_discovery_configs,
+            cancellation_requested=cancellation_requested,
         )
     # raised into the run when dramatiq interrupts it, e.g. at its time limit
     except asyncio.CancelledError:
@@ -354,9 +373,13 @@ async def run_mission_discovery(
                 resource_type=constants.ResourceType.MISSION,
                 resource_id=str(mission_id),
                 request_id=request_id,
-                modification=constants.DiscoveryStage.ENDED,
+                modification=(
+                    constants.DiscoveryStage.CANCELLED
+                    if counts.cancelled
+                    else constants.DiscoveryStage.ENDED
+                ),
                 succeeded=True,
-                details=summary,
+                details=counts.describe(),
             )
         )
         # previews are derived by an operation of their own, which discovery
@@ -367,6 +390,9 @@ async def run_mission_discovery(
             raw_initiator=json.dumps(dataclasses.asdict(user)),
         )
     finally:
+        heartbeat.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await heartbeat
         # whatever was left half-done must not be committed with the status
         await session.rollback()
         await mission_ops.change_survey_mission_status(
@@ -379,6 +405,58 @@ async def run_mission_discovery(
         )
 
 
+async def _refresh_discovery_heartbeat(
+    mission_id: identifiers.SurveyMissionId,
+    session_maker: async_sessionmaker,
+    cancellation_requested: asyncio.Event,
+) -> None:
+    """Refresh the heartbeat of a survey mission under discovery, until cancelled.
+
+    The heartbeat is refreshed every `DISCOVERY_HEARTBEAT_INTERVAL_SECONDS`, each
+    time in a session of its own. `cancellation_requested` is set once the
+    mission's status is cancelling discovery. Refresh errors are logged.
+    """
+    while True:
+        try:
+            async with session_maker() as session:
+                status = (
+                    await mission_commands.refresh_survey_mission_discovery_heartbeat(
+                        session, mission_id
+                    )
+                )
+        except Exception:
+            logger.exception(
+                f"Could not refresh the discovery heartbeat of mission {mission_id}"
+            )
+        else:
+            if status == constants.SurveyMissionStatus.CANCELLING_DISCOVERY:
+                cancellation_requested.set()
+        await asyncio.sleep(constants.DISCOVERY_HEARTBEAT_INTERVAL_SECONDS)
+
+
+@dataclasses.dataclass
+class _DiscoveryCounts:
+    """Counts of the files processed by a discovery run."""
+
+    found: int = 0
+    created: int = 0
+    failed: int = 0
+    invalid_configuration_names: list[str] = dataclasses.field(default_factory=list)
+    cancelled: bool = False
+
+    def describe(self) -> str:
+        """Return a summary of the counts."""
+        summary = f"{self.found} files found, {self.created} new records"
+        if self.failed:
+            summary += f", {self.failed} files could not be discovered"
+        if self.invalid_configuration_names:
+            summary += (
+                f", invalid asset discovery configurations: "
+                f"{', '.join(self.invalid_configuration_names)}"
+            )
+        return summary
+
+
 async def _discover_mission_records(
     *,
     request_id: identifiers.RequestId,
@@ -388,14 +466,18 @@ async def _discover_mission_records(
     settings: config.SeisLabDataSettings,
     user: user_schemas.User,
     asset_discovery_configs: list[models.AssetDiscoveryConfiguration],
-) -> str:
+    cancellation_requested: asyncio.Event,
+) -> _DiscoveryCounts:
     """Create records for the mission files that match asset discovery configurations.
 
-    Each configuration's path pattern is searched under the mission's directory.
-    A file or a configuration whose processing raises an error is logged and skipped.
+    The mission's directory is walked once. Each file is assigned to the first
+    configuration, in the given order, whose path pattern matches it. Configurations
+    with an invalid path pattern are logged and skipped, as is each file whose
+    processing raises an error. A progress event is dispatched at most every
+    `DISCOVERY_PROGRESS_INTERVAL_SECONDS`. The walk stops early once
+    `cancellation_requested` is set.
 
-    Returns a summary with the number of records created and of the files and
-    configurations that failed.
+    Returns the counts of the processed files.
     """
     mission_root_path = Path(
         "/".join(
@@ -419,96 +501,113 @@ async def _discover_mission_records(
             "a projected CRS",
             mission.implicit_crs,
         )
-    # configurations overlap, so a file is found more than once, but read once
-    attempted_record_ids: set[identifiers.SurveyRelatedRecordId] = set()
-    created_count = 0
-    failed_paths: set[str] = set()
-    failed_configuration_names: list[str] = []
+    counts = _DiscoveryCounts()
+    patterns = []
+    matchable_configs = []
     for asset_discovery_conf in asset_discovery_configs:
-        logger.debug(f"Searching for asset {asset_discovery_conf=}...")
-        full_path_regexp = "/".join(
-            (
-                str(mission_root_path),
-                asset_discovery_conf.relative_path_regexp,
-            )
-        )
-        logger.debug(f"{full_path_regexp=}")
-        # e.g. an invalid regexp, or an archive mount that goes away mid-walk
         try:
-            async for found_path in _discover_asset_paths(full_path_regexp):
-                try:
-                    if await _discover_file(
-                        request_id=request_id,
-                        found_path=found_path,
-                        mission_root_path=mission_root_path,
-                        mission=mission,
-                        asset_discovery_conf=asset_discovery_conf,
-                        heal_enabled=heal_enabled,
-                        attempted_record_ids=attempted_record_ids,
-                        session=session,
-                        event_dispatcher=event_dispatcher,
-                        user=user,
-                    ):
-                        created_count += 1
-                except Exception:
-                    logger.exception(f"Could not discover file {str(found_path)!r}")
-                    failed_paths.add(str(found_path))
-                    await session.rollback()
-        except Exception:
-            logger.exception(
-                f"Could not search for the files of asset discovery configuration "
-                f"{asset_discovery_conf.name!r}"
+            patterns.append(
+                pathpatterns.compile_path_pattern(
+                    asset_discovery_conf.relative_path_regexp
+                )
             )
-            failed_configuration_names.append(asset_discovery_conf.name)
-            await session.rollback()
-    summary = f"{created_count} new records"
-    if failed_paths:
-        summary += f", {len(failed_paths)} files could not be discovered"
-    if failed_configuration_names:
-        summary += (
-            f", searching failed for configurations "
-            f"{', '.join(failed_configuration_names)}"
-        )
-    return summary
+        except re.error as err:
+            logger.warning(
+                f"Asset discovery configuration {asset_discovery_conf.name!r} has an "
+                f"invalid path pattern: {err}"
+            )
+            counts.invalid_configuration_names.append(asset_discovery_conf.name)
+        else:
+            matchable_configs.append(asset_discovery_conf)
+    pattern_set = pathpatterns.PathPatternSet(patterns)
+    tracked_file_paths = await asset_queries.collect_survey_mission_tracked_file_paths(
+        session, identifiers.SurveyMissionId(mission.id)
+    )
+    # a record with several data assets is healed once, from its first file
+    attempted_record_ids: set[identifiers.SurveyRelatedRecordId] = set()
+    last_progress_at = time.monotonic()
+    async with contextlib.aclosing(
+        pathpatterns.iter_relative_file_paths(mission_root_path, pattern_set.prefixes)
+    ) as relative_file_paths:
+        async for relative_file_path in relative_file_paths:
+            if cancellation_requested.is_set():
+                counts.cancelled = True
+                break
+            if (match_index := pattern_set.first_match(relative_file_path)) is None:
+                continue
+            asset_discovery_conf = matchable_configs[match_index]
+            counts.found += 1
+            try:
+                if await _discover_file(
+                    request_id=request_id,
+                    relative_file_path=relative_file_path,
+                    mission_root_path=mission_root_path,
+                    mission=mission,
+                    asset_discovery_conf=asset_discovery_conf,
+                    tracked_file_paths=tracked_file_paths,
+                    heal_enabled=heal_enabled,
+                    attempted_record_ids=attempted_record_ids,
+                    session=session,
+                    user=user,
+                ):
+                    counts.created += 1
+            except Exception:
+                logger.exception(f"Could not discover file {relative_file_path!r}")
+                counts.failed += 1
+                await session.rollback()
+            # nothing loaded for a file is needed afterwards, so memory stays flat
+            session.expunge_all()
+            if (
+                time.monotonic() - last_progress_at
+                >= constants.DISCOVERY_PROGRESS_INTERVAL_SECONDS
+            ):
+                last_progress_at = time.monotonic()
+                await event_dispatcher(
+                    event_schemas.DiscoveryEvent(
+                        initiator=user.id,
+                        resource_type=constants.ResourceType.MISSION,
+                        resource_id=str(mission.id),
+                        request_id=request_id,
+                        modification=constants.DiscoveryStage.PROGRESS,
+                        succeeded=True,
+                        details=counts.describe(),
+                    )
+                )
+    return counts
 
 
 async def _discover_file(
     *,
     request_id: identifiers.RequestId,
-    found_path: Path,
+    relative_file_path: str,
     mission_root_path: Path,
     mission: models.SurveyMission,
     asset_discovery_conf: models.AssetDiscoveryConfiguration,
+    tracked_file_paths: dict[str, tuple[identifiers.SurveyRelatedRecordId, bool]],
     heal_enabled: bool,
     attempted_record_ids: set[identifiers.SurveyRelatedRecordId],
     session: AsyncSession,
-    event_dispatcher: dispatch.EventDispatcherProtocol,
     user: user_schemas.User,
 ) -> bool:
     """Create a record with a single data asset for a discovered file.
 
-    If the file is already tracked, its record is healed instead, provided that
-    healing is enabled, the record has no bbox and it was not attempted before.
+    If the file is in `tracked_file_paths`, its record is healed instead, provided
+    that healing is enabled, the record has no bbox and its id is not in
+    `attempted_record_ids`. No events are dispatched for the created or healed
+    records.
 
     Returns True if a record was created.
     """
-    relative_file_path = str(found_path.relative_to(mission_root_path))
-    if (
-        tracked_asset := await asset_queries.get_record_asset_by_file_path(
-            session,
-            relative_file_path,
-            identifiers.SurveyMissionId(mission.id),
-        )
-    ) is None:
+    found_path = mission_root_path / relative_file_path
+    if (tracked := tracked_file_paths.get(relative_file_path)) is None:
         metadata, bbox_wkt = await _extract_file_metadata(
             str(found_path), mission.implicit_crs
         )
-        record_id = identifiers.SurveyRelatedRecordId(uuid.uuid4())
-        attempted_record_ids.add(record_id)
         await record_ops.create_survey_related_record(
+            allow_mission_under_discovery=True,
             request_id=request_id,
             to_create=record_schemas.SurveyRelatedRecordCreate(
-                id=record_id,
+                id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
                 survey_mission_id=identifiers.SurveyMissionId(mission.id),
                 # names are capped, the full file name lives on in the asset's path
                 name=found_path.name[: constants.NAME_MAX_LENGTH],
@@ -537,39 +636,151 @@ async def _discover_file(
             ),
             initiator=user,
             session=session,
-            event_dispatcher=event_dispatcher,
+            event_dispatcher=dispatch.no_op_dispatcher,
         )
         return True
-    logger.debug(f"file {found_path!r} is already tracked in the DB")
-    tracked_record = tracked_asset.survey_related_record
-    record_id = identifiers.SurveyRelatedRecordId(
-        tracked_asset.survey_related_record_id
-    )
+    logger.debug(f"file {relative_file_path!r} is already tracked in the DB")
+    record_id, has_bbox = tracked
     # e.g. discovered while the mission's CRS was still the 4326 default
-    if (
-        heal_enabled
-        and tracked_record.bbox_4326 is None
-        and record_id not in attempted_record_ids
-    ):
+    if heal_enabled and not has_bbox and record_id not in attempted_record_ids:
         attempted_record_ids.add(record_id)
         await _heal_record_without_bbox(
             request_id=request_id,
             record_id=record_id,
-            tracked_record=tracked_record,
             file_path=str(found_path),
             implicit_crs=mission.implicit_crs,
             session=session,
-            event_dispatcher=event_dispatcher,
+            event_dispatcher=dispatch.no_op_dispatcher,
             user=user,
         )
     return False
+
+
+async def cancel_mission_discovery(
+    *,
+    request_id: identifiers.RequestId,
+    mission_id: identifiers.SurveyMissionId,
+    initiator: user_schemas.User,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+) -> None:
+    """Request the cancellation of a survey mission's running discovery.
+
+    The mission's status is changed from under discovery to cancelling discovery.
+    A mission whose discovery heartbeat is stale is recovered instead, as by
+    `recover_stale_mission_discoveries`.
+    """
+    try:
+        if (
+            mission := await mission_queries.get_survey_mission(session, mission_id)
+        ) is None:
+            raise errors.SeisLabDataError(
+                f"Survey mission with id {mission_id} does not exist."
+            )
+        if not mission_permissions.can_discover_survey_mission(initiator, mission):
+            raise errors.SeisLabDataError(
+                "User is not allowed to cancel discovery on this survey mission."
+            )
+        if await recover_stale_mission_discoveries(
+            request_id=request_id,
+            initiator_id=initiator.id,
+            session=session,
+            event_dispatcher=event_dispatcher,
+            mission_id=mission_id,
+        ):
+            return
+        if not await mission_commands.compare_and_set_survey_mission_status(
+            session,
+            mission_id,
+            constants.SurveyMissionStatus.UNDER_DISCOVERY,
+            constants.SurveyMissionStatus.CANCELLING_DISCOVERY,
+        ):
+            raise errors.SeisLabDataError(
+                "Cannot cancel discovery because the survey mission is not under "
+                "discovery"
+            )
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.DiscoveryEvent(
+                initiator=initiator.id,
+                resource_type=constants.ResourceType.MISSION,
+                resource_id=str(mission_id),
+                request_id=request_id,
+                modification=constants.DiscoveryStage.CANCELLED,
+                succeeded=False,
+                details=str(err),
+            )
+        )
+        return
+    await event_dispatcher(
+        event_schemas.ResourceStatusChangedEvent(
+            request_id=request_id,
+            initiator=initiator.id,
+            resource_type=constants.ResourceType.MISSION,
+            resource_id=str(mission_id),
+            succeeded=True,
+            new_status=constants.SurveyMissionStatus.CANCELLING_DISCOVERY,
+        )
+    )
+
+
+async def recover_stale_mission_discoveries(
+    *,
+    request_id: identifiers.RequestId,
+    initiator_id: str,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+    mission_id: identifiers.SurveyMissionId | None = None,
+) -> list[identifiers.SurveyMissionId]:
+    """Set to draft the survey missions whose discovery heartbeat is stale.
+
+    The heartbeat is stale after `DISCOVERY_STALE_AFTER_SECONDS`. The recovery is
+    restricted to a single mission if `mission_id` is given. A status change event
+    and a failed discovery end event are dispatched for each recovered mission.
+
+    Returns the ids of the recovered missions.
+    """
+    recovered = await mission_commands.recover_stale_survey_mission_discoveries(
+        session,
+        dt.timedelta(seconds=constants.DISCOVERY_STALE_AFTER_SECONDS),
+        survey_mission_id=mission_id,
+    )
+    for recovered_mission_id in recovered:
+        logger.warning(
+            f"Recovered survey mission {recovered_mission_id} from an abandoned "
+            f"discovery"
+        )
+        await event_dispatcher(
+            event_schemas.ResourceStatusChangedEvent(
+                request_id=request_id,
+                initiator=initiator_id,
+                resource_type=constants.ResourceType.MISSION,
+                resource_id=str(recovered_mission_id),
+                succeeded=True,
+                new_status=constants.SurveyMissionStatus.DRAFT,
+            )
+        )
+        await event_dispatcher(
+            event_schemas.DiscoveryEvent(
+                initiator=initiator_id,
+                resource_type=constants.ResourceType.MISSION,
+                resource_id=str(recovered_mission_id),
+                request_id=request_id,
+                modification=constants.DiscoveryStage.ENDED,
+                succeeded=False,
+                details=(
+                    "discovery was abandoned by its worker - the records created so "
+                    "far are kept, run it again to resume"
+                ),
+            )
+        )
+    return recovered
 
 
 async def _heal_record_without_bbox(
     *,
     request_id: identifiers.RequestId,
     record_id: identifiers.SurveyRelatedRecordId,
-    tracked_record: models.SurveyRelatedRecord,
     file_path: str,
     implicit_crs: int,
     session: AsyncSession,
@@ -588,9 +799,7 @@ async def _heal_record_without_bbox(
             "%s still gives no bbox, record %s is left as it is", file_path, record_id
         )
         return
-    # the extraction can take a minute, so the record is read again
-    # expire_all() would also expire the mission and configurations (MissingGreenlet)
-    session.expire(tracked_record)
+    # read after the extraction, which can take minutes
     record = await record_queries.get_survey_related_record(session, record_id)
     # a bbox drawn by hand meanwhile wins
     if record is None or record.bbox_4326 is not None:
@@ -613,6 +822,7 @@ async def _heal_record_without_bbox(
     )
     try:
         await record_ops.update_survey_related_record(
+            allow_mission_under_discovery=True,
             request_id=request_id,
             survey_related_record_id=record_id,
             to_update=to_update,
@@ -724,7 +934,7 @@ async def update_manual_survey_related_record(
         session=session,
         event_dispatcher=event_dispatcher,
     )
-    # previews only go stale with the data files, and a run redirects open edit forms
+    # previews only go stale with the data files
     if paths_changed:
         preview_tasks.generate_record_previews.send(
             raw_request_id=str(request_id),
@@ -908,18 +1118,3 @@ def _bbox_4326_tuple_to_wkt(
     # the ~10 m buffer, and the frontend's TerraDraw silently rejects
     # coordinates with more than 9 decimal places, dropping the map rectangle.
     return shapely.set_precision(buffered, 1e-5).wkt
-
-
-async def _discover_asset_paths(
-    full_path_regexp: str,
-) -> AsyncGenerator[Path, None]:
-    """Yield the files that match a full path pattern."""
-    root, pattern = pathpatterns.split_pattern_path(full_path_regexp)
-    if not pattern:
-        if await root.is_file():
-            yield root
-        return
-
-    pattern_parts = Path(pattern).parts
-    async for matched_path in pathpatterns.walk_pattern(root, pattern_parts):
-        yield matched_path

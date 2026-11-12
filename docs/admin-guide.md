@@ -518,6 +518,10 @@ It runs as two services, so that tasks which may take long never delay the inter
 - `long-tasks-worker` - runs the tasks which may take long: archive discovery, previews, thumbnails and GeoNode
   exports (`discovery`, `previews`, `thumbnails` and `exports` queues)
 
+The `long-tasks-worker` runs `LONG_TASKS_WORKER_PROCESSES` processes (default 2) of `LONG_TASKS_WORKER_THREADS`
+threads each (default 4), which caps how many of its tasks run at the same time. These variables can be set in
+`compose-deployment.env`.
+
 [^2]: General overview of the publish/subscribe pattern: <https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern>
 
 

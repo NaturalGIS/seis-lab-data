@@ -244,6 +244,8 @@
         el.setAttribute('role', 'alert');
         el.setAttribute('aria-atomic', 'true');
         el.innerHTML = `<div class="d-flex"><div class="toast-body">${flash.message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button></div>`;
+        // hidden toasts are removed, so that many notifications do not pile up in the DOM
+        el.addEventListener('hidden.bs.toast', () => el.remove());
         document.querySelector('.toast-container').appendChild(el);
         bootstrap.Toast.getOrCreateInstance(el, {delay: 6000}).show();
     }

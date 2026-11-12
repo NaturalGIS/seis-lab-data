@@ -75,6 +75,16 @@ class RedisEventDispatcher:
                         details=event.details,
                     ).model_dump_json(),
                 )
+            case events.DerivationEvent():
+                await self._redis.publish(
+                    channel=event.resource_type.get_topic_name(),
+                    message=messages.DerivationMessage(
+                        resource_type=event.resource_type,
+                        resource_id=event.resource_id,
+                        parent_resource_id=event.parent_resource_id,
+                        request_id=event.request_id,
+                    ).model_dump_json(),
+                )
             case events.ValidationEvent():
                 await self._redis.publish(
                     channel=event.resource_type.get_topic_name(),

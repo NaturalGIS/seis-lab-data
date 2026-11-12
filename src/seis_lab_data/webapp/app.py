@@ -97,6 +97,7 @@ async def lifespan(
             ),
             "ProjectStatus": constants.ProjectStatus,
             "SurveyRelatedRecordStatus": constants.SurveyRelatedRecordStatus,
+            "SURVEY_MISSION_DISCOVERY_STATUSES": constants.SURVEY_MISSION_DISCOVERY_STATUSES,
             "default_webmap_bounds": {
                 "min_lon": min_lon,
                 "max_lon": max_lon,

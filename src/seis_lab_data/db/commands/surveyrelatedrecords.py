@@ -24,6 +24,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import errors
 from ...constants import (
+    SURVEY_MISSION_DISCOVERY_STATUSES,
     AssetType,
     SurveyRelatedRecordStatus,
 )
@@ -162,11 +163,13 @@ async def _apply_bulk_update_to_matched_records(
     to_update: record_schemas.SurveyRelatedRecordBulkUpdate,
     matched_ids: list[uuid.UUID],
 ) -> int:
-    # records in any other status are being worked on by a task, e.g. an export
+    # records in any other status are being worked on by a task, e.g. an export,
+    # as are the records of a mission under discovery
     matched_ids = (
         (
             await session.execute(
                 select(models.SurveyRelatedRecord.id)
+                .join(models.SurveyMission)
                 .where(models.SurveyRelatedRecord.id.in_(matched_ids))
                 .where(
                     models.SurveyRelatedRecord.status.in_(
@@ -174,6 +177,11 @@ async def _apply_bulk_update_to_matched_records(
                             SurveyRelatedRecordStatus.DRAFT,
                             SurveyRelatedRecordStatus.PUBLISHED,
                         )
+                    )
+                )
+                .where(
+                    models.SurveyMission.status.not_in(
+                        SURVEY_MISSION_DISCOVERY_STATUSES
                     )
                 )
             )

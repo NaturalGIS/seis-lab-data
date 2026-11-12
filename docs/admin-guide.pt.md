@@ -537,6 +537,10 @@ Corre como dois serviços, para que as tarefas que podem demorar nunca atrasem a
 - `long-tasks-worker` - executa as tarefas que podem demorar: descoberta no arquivo, pré-visualizações, miniaturas e
   exportações para o GeoNode (filas `discovery`, `previews`, `thumbnails` e `exports`)
 
+O `long-tasks-worker` corre `LONG_TASKS_WORKER_PROCESSES` processos (por omissão 2) de `LONG_TASKS_WORKER_THREADS`
+_threads_ cada (por omissão 4), o que limita quantas das suas tarefas correm em simultâneo. Estas variáveis podem ser
+definidas no ficheiro `compose-deployment.env`.
+
 [^2]: Visão geral do padrão publicação/subscrição: <https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern>
 
 

@@ -44,6 +44,13 @@ GEONODE_SHAPEFILE_SIDECAR_FIELDS: typing.Final[dict[str, str]] = {
 }
 GEONODE_EXPORT_TIME_LIMIT_SECONDS: typing.Final[int] = 60 * 60
 DISCOVERY_TIME_LIMIT_SECONDS: typing.Final[int] = 24 * 60 * 60
+# a running discovery refreshes its mission's `updated_at` this often
+DISCOVERY_HEARTBEAT_INTERVAL_SECONDS: typing.Final[int] = 30
+# a mission under discovery whose `updated_at` is older than this was abandoned
+# by a worker which died mid-discovery
+DISCOVERY_STALE_AFTER_SECONDS: typing.Final[int] = 10 * 60
+# minimum interval between two progress reports of a running discovery
+DISCOVERY_PROGRESS_INTERVAL_SECONDS: typing.Final[int] = 5
 # a record that is under export for longer than this was abandoned by a worker
 # which died mid-export, as the export task is killed at its time limit
 GEONODE_EXPORT_STALE_AFTER_SECONDS: typing.Final[int] = (
@@ -94,6 +101,7 @@ class DiscoveryStage(str, enum.Enum):
     STARTED = "started"
     ENDED = "ended"
     PROGRESS = "progress"
+    CANCELLED = "cancelled"
 
 
 class ValidationStage(str, enum.Enum):
@@ -162,6 +170,7 @@ class SurveyMissionStatus(str, enum.Enum):
     DRAFT = "draft"
     PUBLISHED = "published"
     UNDER_DISCOVERY = "under_discovery"
+    CANCELLING_DISCOVERY = "cancelling_discovery"
     UNDER_PARSING = "under_parsing"
     UNDER_VALIDATION = "under_validation"
 
@@ -170,9 +179,17 @@ class SurveyMissionStatus(str, enum.Enum):
             self.DRAFT: _("draft"),
             self.PUBLISHED: _("published"),
             self.UNDER_DISCOVERY: _("under discovery"),
+            self.CANCELLING_DISCOVERY: _("cancelling discovery"),
             self.UNDER_PARSING: _("under parsing"),
             self.UNDER_VALIDATION: _("under validation"),
         }.get(self, self.value)
+
+
+# while in these, a mission and its records are only modified by its discovery
+SURVEY_MISSION_DISCOVERY_STATUSES = (
+    SurveyMissionStatus.UNDER_DISCOVERY,
+    SurveyMissionStatus.CANCELLING_DISCOVERY,
+)
 
 
 class SurveyRelatedRecordStatus(str, enum.Enum):

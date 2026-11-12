@@ -74,6 +74,75 @@ async def get_record_asset_by_name(
     return (await session.exec(statement)).first()
 
 
+async def collect_survey_mission_tracked_file_paths(
+    session: AsyncSession,
+    survey_mission_id: identifiers.SurveyMissionId,
+) -> dict[str, tuple[identifiers.SurveyRelatedRecordId, bool]]:
+    """Collect the relative file paths of a survey mission's assets.
+
+    Returns a mapping of each relative path to the id of the record that holds
+    its asset and to whether that record has a bbox.
+    """
+    statement = (
+        select(
+            models.RecordAsset.relative_path,
+            models.SurveyRelatedRecord.id,
+            models.SurveyRelatedRecord.bbox_4326.is_not(None),
+        )
+        .join(
+            models.SurveyRelatedRecord,
+            models.RecordAsset.survey_related_record_id
+            == models.SurveyRelatedRecord.id,
+        )
+        .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
+        .where(models.RecordAsset.relative_path.is_not(None))
+    )
+    return {
+        relative_path: (identifiers.SurveyRelatedRecordId(record_id), has_bbox)
+        for relative_path, record_id, has_bbox in (await session.exec(statement)).all()
+    }
+
+
+async def collect_survey_mission_data_asset_paths_without_derived_assets(
+    session: AsyncSession,
+    survey_mission_id: identifiers.SurveyMissionId,
+) -> dict[identifiers.SurveyRelatedRecordId, list[str]]:
+    """Collect the data asset paths of a survey mission's records without derived assets.
+
+    Returns a mapping of each record id to the relative paths of its data assets.
+    Records without data asset paths are left out.
+    """
+    records_with_derived_assets = select(
+        models.RecordAsset.survey_related_record_id
+    ).where(~models.RecordAsset.asset_type.any(AssetType.DATA))
+    statement = (
+        select(
+            models.RecordAsset.survey_related_record_id,
+            models.RecordAsset.relative_path,
+        )
+        .join(
+            models.SurveyRelatedRecord,
+            models.RecordAsset.survey_related_record_id
+            == models.SurveyRelatedRecord.id,
+        )
+        .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
+        .where(models.RecordAsset.asset_type.any(AssetType.DATA))
+        .where(models.RecordAsset.relative_path.is_not(None))
+        .where(
+            models.RecordAsset.survey_related_record_id.not_in(
+                records_with_derived_assets
+            )
+        )
+        .order_by(models.RecordAsset.survey_related_record_id)
+    )
+    paths_by_record: dict[identifiers.SurveyRelatedRecordId, list[str]] = {}
+    for record_id, relative_path in (await session.exec(statement)).all():
+        paths_by_record.setdefault(
+            identifiers.SurveyRelatedRecordId(record_id), []
+        ).append(relative_path)
+    return paths_by_record
+
+
 async def get_record_asset_by_file_path(
     session: AsyncSession,
     file_path: str,

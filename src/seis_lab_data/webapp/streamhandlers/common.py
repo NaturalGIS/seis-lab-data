@@ -7,6 +7,7 @@ from collections.abc import AsyncGenerator
 
 from datastar_py.sse import ServerSentEventGenerator
 from datastar_py.starlette import DatastarEvent
+from starlette_babel import gettext_lazy as _
 
 from ... import (
     constants,
@@ -493,15 +494,6 @@ async def _handle_survey_mission_modification_detail_page(
         logger.debug(
             f"Survey-related record {message.resource_id!r} is a child of the current mission - asking frontend to re-fetch record listing..."
         )
-        async for event in flash_ui_message_same_page(
-            notification=webui_schemas.Notification(
-                message=(
-                    f"Mission {mission_id} has had child survey-related record {record_id} "
-                    f"modified - Reloaded record list"
-                )
-            )
-        ):
-            yield event
         # update datastar signal which frontend uses to check when needing to re-fetch list of mission child records
         yield ServerSentEventGenerator.patch_signals(
             {"listingVersion": int(time.time() * 1000)}
@@ -579,6 +571,16 @@ async def handle_resource_status_changed_detail_page(
             ):
                 yield event
         case _:
+            if (
+                message.succeeded
+                and message.resource_type == constants.ResourceType.MISSION
+                and message.resource_id == context.parent_resource_id
+            ):
+                # the record's actions depend on whether its mission is under discovery
+                yield ServerSentEventGenerator.patch_signals(
+                    {"detailsVersion": int(time.time() * 1000)}
+                )
+                return
             if context.resource_id != message.resource_id:
                 return
             match message.resource_type:
@@ -614,10 +616,10 @@ async def _handle_survey_mission_status_changed_detail_page(
 ) -> AsyncGenerator[DatastarEvent, None]:
     """Handle a status changed message in the context of a survey mission detail page.
 
-    If a mission status changes and the user is looking at the mission's detail page we want to refresh the page
-
-    If a survey-related record status changes and the user is looking at its parent mission detail page we want to
-    reload the list of records because it may be modified
+    A status change of the page's mission is notified, and the mission's details
+    and list of records are re-fetched in place. The page is not reloaded, as that
+    would close its stream and lose the messages published until it reopens. A
+    status change of a record of the mission re-fetches the list of records.
     """
 
     match message:
@@ -625,21 +627,24 @@ async def _handle_survey_mission_status_changed_detail_page(
             succeeded=True, resource_type=constants.ResourceType.MISSION
         ):
             if message.resource_id == context.resource_id:
-                # stored for the page that the redirect below reloads
-                async for event in flash_ui_message_after_redirect(
+                async for event in flash_ui_message_same_page(
                     webui_schemas.Notification(
                         message=f"{message.resource_type.value} changed status to {message.new_status}"
                     )
                 ):
                     yield event
-                yield ServerSentEventGenerator.redirect(
-                    str(
-                        context.url_resolver(
-                            "survey_missions:detail",
-                            survey_mission_id=message.resource_id,
-                        )
-                    )
-                )
+                refresh_version = int(time.time() * 1000)
+                signals = {
+                    "status": message.new_status,
+                    "detailsVersion": refresh_version,
+                    "listingVersion": refresh_version,
+                }
+                if message.new_status == constants.SurveyMissionStatus.UNDER_DISCOVERY:
+                    # the last progress of a previous discovery
+                    signals["discoveryProgress"] = str(
+                        _("discovery is running")
+                    ).capitalize()
+                yield ServerSentEventGenerator.patch_signals(signals)
         case message_schemas.ResourceStatusChangedMessage(
             succeeded=True,
             resource_type=constants.ResourceType.RECORD,
@@ -658,15 +663,6 @@ async def _handle_survey_mission_status_changed_detail_page(
                 ) is not None and str(
                     record_info[0].survey_mission_id
                 ) == context.resource_id:
-                    async for event in flash_ui_message_same_page(
-                        notification=webui_schemas.Notification(
-                            message=(
-                                f"Survey mission {context.resource_id!r} has had child record {record_info[0].id!r} "
-                                f"modified - Reloaded record list"
-                            )
-                        )
-                    ):
-                        yield event
                     # update datastar signal which frontend uses to check when needing to re-fetch list of project child missions
                     yield ServerSentEventGenerator.patch_signals(
                         {"listingVersion": int(time.time() * 1000)}
@@ -844,23 +840,75 @@ async def handle_discovery_detail_page(
     logger.debug(f"{message=}")
     if message.resource_id != context.resource_id:
         return
-    if not message.succeeded:
-        if message.request_id == context.request_id:
-            async for event in flash_ui_message_same_page(
-                webui_schemas.Notification(
-                    message=f"{message.resource_type.capitalize()} discovery failed: {message.details}",
-                    category="error",
-                )
-            ):
-                yield event
-    else:
-        notification_msg = f"{message.resource_type.capitalize()} discovery {message.modification.value}"
-        if message.details:
-            notification_msg += f": {message.details}"
-        async for event in flash_ui_message_same_page(
-            webui_schemas.Notification(message=notification_msg)
+    match message:
+        case message_schemas.DiscoveryMessage(
+            modification=constants.DiscoveryStage.PROGRESS
         ):
-            yield event
+            # shown in place, along with the records found so far
+            yield ServerSentEventGenerator.patch_signals(
+                {
+                    "discoveryProgress": message.details,
+                    "listingVersion": int(time.time() * 1000),
+                }
+            )
+            return
+        case message_schemas.DiscoveryMessage(
+            succeeded=False, modification=constants.DiscoveryStage.CANCELLED
+        ):
+            notification = webui_schemas.Notification(
+                message=f"Could not cancel {message.resource_type} discovery: {message.details}",
+                category="error",
+            )
+        case message_schemas.DiscoveryMessage(succeeded=False):
+            notification = webui_schemas.Notification(
+                message=f"{message.resource_type.capitalize()} discovery failed: {message.details}",
+                category="error",
+            )
+        case _:
+            notification_msg = f"{message.resource_type.capitalize()} discovery {message.modification.value}"
+            if message.details:
+                notification_msg += f": {message.details}"
+            notification = webui_schemas.Notification(message=notification_msg)
+    # failures are only shown to the page whose request failed, except for the
+    # end of a running discovery, which concerns whoever is looking at the mission
+    if (
+        notification.category == "error"
+        and message.request_id != context.request_id
+        and message.modification != constants.DiscoveryStage.ENDED
+    ):
+        return
+    async for event in flash_ui_message_same_page(notification):
+        yield event
+
+
+async def handle_derivation_detail_page(
+    message: message_schemas.DerivationMessage,
+    context: subscribers.HandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    """Refresh a detail page as derived assets are stored for its item or its children.
+
+    A record's detail page is reloaded. A mission's detail page re-fetches its list
+    of records.
+    """
+    match context.resource_type:
+        case constants.ResourceType.RECORD if (
+            message.resource_id == context.resource_id
+        ):
+            yield ServerSentEventGenerator.redirect(
+                str(
+                    context.url_resolver(
+                        "survey_related_records:detail",
+                        survey_related_record_id=message.resource_id,
+                    )
+                )
+            )
+        case constants.ResourceType.MISSION if (
+            message.parent_resource_id == context.resource_id
+        ):
+            yield ServerSentEventGenerator.patch_signals(
+                {"listingVersion": int(time.time() * 1000)}
+            )
 
 
 async def handle_export_detail_page(

@@ -219,6 +219,12 @@ services:
     image: *common-image
     command:
       - "run-worker"
+      # each thread may hold a GDAL render or a discovery, so they are capped to
+      # keep memory and database connections in check
+      - "--processes"
+      - "${LONG_TASKS_WORKER_PROCESSES:-2}"
+      - "--threads"
+      - "${LONG_TASKS_WORKER_THREADS:-4}"
       - "--queues"
       - "previews"
       - "thumbnails"

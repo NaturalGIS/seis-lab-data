@@ -338,7 +338,7 @@ class RecordAsset(SQLModel, table=True):
         foreign_key="surveyrelatedrecord.id", ondelete="CASCADE", index=True
     )
     # derived assets (previews, thumbnails) have no file in the archive
-    relative_path: str | None = None
+    relative_path: str | None = Field(default=None, index=True)
     media_type: str
     asset_type: list[constants.AssetType] = Field(
         sa_column=Column(

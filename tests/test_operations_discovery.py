@@ -19,6 +19,7 @@ import uuid
 import pytest
 import pytest_asyncio
 import shapely
+import sqlalchemy
 import sqlmodel
 from geoalchemy2.shape import to_shape
 
@@ -465,7 +466,9 @@ async def test_discovery_survives_a_file_that_fails(
     ended = _ended_events(collector)
     assert len(ended) == 1
     assert ended[0].succeeded is True
-    assert ended[0].details == "1 new records, 1 files could not be discovered"
+    assert ended[0].details == (
+        "2 files found, 1 new records, 1 files could not be discovered"
+    )
     records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
     assert [record.name for record in records] == ["grid.tif"]
     assert (
@@ -544,7 +547,7 @@ async def test_discovery_skips_configuration_directories_the_mission_lacks(
     ended = _ended_events(collector)
     assert len(ended) == 1
     assert ended[0].succeeded is True
-    assert ended[0].details == "1 new records"
+    assert ended[0].details == "1 files found, 1 new records"
     records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
     assert len(records) == 1
 
@@ -590,7 +593,8 @@ async def test_discovery_survives_a_configuration_that_fails(
     assert len(ended) == 1
     assert ended[0].succeeded is True
     assert ended[0].details == (
-        "1 new records, searching failed for configurations a broken regexp"
+        "1 files found, 1 new records, "
+        "invalid asset discovery configurations: a broken regexp"
     )
     records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
     assert len(records) == 1
@@ -673,6 +677,242 @@ async def test_discovery_that_stops_reports_its_end_and_restores_the_status(
         await _get_mission_status(db_session_maker, mission_id)
         == constants.SurveyMissionStatus.PUBLISHED
     )
+
+
+async def _set_mission_status(db_session_maker, mission_id, status, age=None):
+    """Set a mission's status directly, along with how long ago it was updated."""
+    async with db_session_maker() as session:
+        await session.execute(
+            sqlalchemy.update(models.SurveyMission)
+            .where(models.SurveyMission.id == mission_id)
+            .values(
+                status=status,
+                updated_at=(
+                    sqlalchemy.func.now()
+                    if age is None
+                    else sqlalchemy.func.now() - age
+                ),
+            )
+        )
+        await session.commit()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discovery_can_be_cancelled_and_keeps_its_records(
+    db_session_maker, admin_user, discovery_env, monkeypatch
+):
+    mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
+    for name in ("a.tif", "b.tif", "c.tif"):
+        _write_geotiff(mission_root / "s01" / name)
+    mission_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
+    monkeypatch.setattr(constants, "DISCOVERY_HEARTBEAT_INTERVAL_SECONDS", 0.01)
+    real_extract = discovery_ops._extract_file_metadata
+
+    async def extract_and_request_cancellation(file_path, implicit_crs):
+        async with db_session_maker() as session:
+            await mission_commands.compare_and_set_survey_mission_status(
+                session,
+                mission_id,
+                constants.SurveyMissionStatus.UNDER_DISCOVERY,
+                constants.SurveyMissionStatus.CANCELLING_DISCOVERY,
+            )
+        # gives the heartbeat time to see the cancellation
+        await asyncio.sleep(0.2)
+        return await real_extract(file_path, implicit_crs)
+
+    monkeypatch.setattr(
+        discovery_ops, "_extract_file_metadata", extract_and_request_cancellation
+    )
+    enqueued = []
+    monkeypatch.setattr(
+        discovery_ops.preview_tasks.generate_mission_previews,
+        "send",
+        lambda **kwargs: enqueued.append(kwargs),
+    )
+
+    collector = await _run_discovery(
+        db_session_maker, mission_id, discovery_env["settings"], admin_user
+    )
+
+    records = await _get_mission_records(db_session_maker, mission_id)
+    assert [record.name for record in records] == ["a.tif"]
+    assert _ended_events(collector) == []
+    cancelled = [
+        e
+        for e in collector.events
+        if isinstance(e, event_schemas.DiscoveryEvent)
+        and e.modification == constants.DiscoveryStage.CANCELLED
+    ]
+    assert [(e.succeeded, e.details) for e in cancelled] == [
+        (True, "1 files found, 1 new records")
+    ]
+    # the records kept get their previews
+    assert len(enqueued) == 1
+    assert (
+        await _get_mission_status(db_session_maker, mission_id)
+        == constants.SurveyMissionStatus.DRAFT
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "status, age, expected_status, expected_event",
+    [
+        pytest.param(
+            constants.SurveyMissionStatus.UNDER_DISCOVERY,
+            None,
+            constants.SurveyMissionStatus.CANCELLING_DISCOVERY,
+            "status changed",
+            id="running",
+        ),
+        pytest.param(
+            constants.SurveyMissionStatus.DRAFT,
+            None,
+            constants.SurveyMissionStatus.DRAFT,
+            "not cancelled",
+            id="not running",
+        ),
+        pytest.param(
+            constants.SurveyMissionStatus.UNDER_DISCOVERY,
+            dt.timedelta(hours=1),
+            constants.SurveyMissionStatus.DRAFT,
+            "abandoned",
+            id="abandoned",
+        ),
+    ],
+)
+async def test_cancel_mission_discovery(
+    db_session_maker,
+    admin_user,
+    discovery_env,
+    status,
+    age,
+    expected_status,
+    expected_event,
+):
+    mission_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
+    await _set_mission_status(db_session_maker, mission_id, status, age)
+
+    collector = _EventCollector()
+    async with db_session_maker() as session:
+        await discovery_ops.cancel_mission_discovery(
+            request_id=identifiers.RequestId(uuid.uuid4()),
+            mission_id=mission_id,
+            initiator=admin_user,
+            session=session,
+            event_dispatcher=collector,
+        )
+
+    assert await _get_mission_status(db_session_maker, mission_id) == expected_status
+    match expected_event:
+        case "status changed":
+            assert [
+                e.new_status
+                for e in collector.events
+                if isinstance(e, event_schemas.ResourceStatusChangedEvent)
+            ] == [constants.SurveyMissionStatus.CANCELLING_DISCOVERY]
+        case "not cancelled":
+            assert [
+                (e.modification, e.succeeded)
+                for e in collector.events
+                if isinstance(e, event_schemas.DiscoveryEvent)
+            ] == [(constants.DiscoveryStage.CANCELLED, False)]
+        case "abandoned":
+            ended = _ended_events(collector)
+            assert [e.succeeded for e in ended] == [False]
+            assert "abandoned" in ended[0].details
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_recover_stale_mission_discoveries(
+    db_session_maker, admin_user, discovery_env
+):
+    abandoned_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
+    async with db_session_maker() as session:
+        running = await _create_mission(
+            session,
+            identifiers.ProjectId(discovery_env["project"].id),
+            "surveys/running",
+            name_suffix=" running",
+        )
+    running_id = identifiers.SurveyMissionId(running.id)
+    await _set_mission_status(
+        db_session_maker,
+        abandoned_id,
+        constants.SurveyMissionStatus.CANCELLING_DISCOVERY,
+        dt.timedelta(seconds=constants.DISCOVERY_STALE_AFTER_SECONDS + 60),
+    )
+    await _set_mission_status(
+        db_session_maker, running_id, constants.SurveyMissionStatus.UNDER_DISCOVERY
+    )
+
+    async with db_session_maker() as session:
+        recovered = await discovery_ops.recover_stale_mission_discoveries(
+            request_id=identifiers.RequestId(uuid.uuid4()),
+            initiator_id="system",
+            session=session,
+            event_dispatcher=_EventCollector(),
+        )
+
+    assert recovered == [abandoned_id]
+    assert (
+        await _get_mission_status(db_session_maker, abandoned_id)
+        == constants.SurveyMissionStatus.DRAFT
+    )
+    assert (
+        await _get_mission_status(db_session_maker, running_id)
+        == constants.SurveyMissionStatus.UNDER_DISCOVERY
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discovery_reports_progress_instead_of_record_events(
+    db_session_maker, admin_user, discovery_env, monkeypatch
+):
+    mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
+    for name in ("a.tif", "b.tif"):
+        _write_geotiff(mission_root / "s01" / name)
+    monkeypatch.setattr(constants, "DISCOVERY_PROGRESS_INTERVAL_SECONDS", 0)
+
+    collector = await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+
+    assert [
+        e.details
+        for e in collector.events
+        if isinstance(e, event_schemas.DiscoveryEvent)
+        and e.modification == constants.DiscoveryStage.PROGRESS
+    ] == ["1 files found, 1 new records", "2 files found, 2 new records"]
+    assert not any(
+        getattr(e, "resource_type", None) == constants.ResourceType.RECORD
+        for e in collector.events
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_mission_previews_are_collected_for_eligible_records_only(
+    db_session_maker, admin_user, discovery_env
+):
+    eligible = _record_to_create(discovery_env, "s01/grid.tif")
+    ineligible = _record_to_create(discovery_env, "other/grid.tif")
+    for to_create in (eligible, ineligible):
+        await _create_record_without_discovery(db_session_maker, admin_user, to_create)
+
+    async with db_session_maker() as session:
+        collected = await preview_ops.collect_survey_mission_records_missing_previews(
+            session, identifiers.SurveyMissionId(discovery_env["mission"].id)
+        )
+
+    assert collected == [eligible.id]
 
 
 @pytest.mark.integration
@@ -1424,6 +1664,7 @@ async def test_record_previews_of_a_record_created_by_hand(
 
     monkeypatch.setattr(preview_ops.deriver_dispatch, "dispatch_deriver", fake_dispatch)
 
+    collector = _EventCollector()
     async with db_session_maker() as session:
         await preview_ops.generate_record_previews(
             request_id=identifiers.RequestId(uuid.uuid4()),
@@ -1432,7 +1673,7 @@ async def test_record_previews_of_a_record_created_by_hand(
             ),
             initiator=admin_user,
             session=session,
-            event_dispatcher=_EventCollector(),
+            event_dispatcher=collector,
             settings=discovery_env["settings"],
         )
 
@@ -1441,6 +1682,31 @@ async def test_record_previews_of_a_record_created_by_hand(
         [constants.AssetType.DATA],
         [constants.AssetType.THUMBNAIL, constants.AssetType.PREVIEW],
     ]
+    # a derivation event rather than a modification, which list pages would show
+    assert [
+        (e.resource_id, e.parent_resource_id)
+        for e in collector.events
+        if isinstance(e, event_schemas.DerivationEvent)
+    ] == [(str(to_create.id), str(discovery_env["mission"].id))]
+    assert not any(
+        isinstance(e, event_schemas.ResourceModificationEvent) for e in collector.events
+    )
+
+    # already derived, so a run that skips derived records leaves it alone
+    collector = _EventCollector()
+    async with db_session_maker() as session:
+        await preview_ops.generate_record_previews(
+            request_id=identifiers.RequestId(uuid.uuid4()),
+            survey_related_record=await record_queries.get_survey_related_record(
+                session, to_create.id
+            ),
+            initiator=admin_user,
+            session=session,
+            event_dispatcher=collector,
+            settings=discovery_env["settings"],
+            skip_if_derived=True,
+        )
+    assert collector.events == []
 
 
 @pytest.mark.integration

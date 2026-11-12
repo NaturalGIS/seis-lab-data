@@ -1,7 +1,9 @@
+import datetime as dt
 import logging
 
 from sqlalchemy import (
     Boolean,
+    func,
     true,
     update,
 )
@@ -142,6 +144,67 @@ async def compare_and_set_survey_mission_status(
     )
     await session.commit()
     return result.rowcount == 1
+
+
+async def refresh_survey_mission_discovery_heartbeat(
+    session: AsyncSession,
+    survey_mission_id: identifiers.SurveyMissionId,
+) -> SurveyMissionStatus | None:
+    """Set the `updated_at` of a survey mission that is under discovery to now.
+
+    Applies to survey missions whose status is either under discovery or
+    cancelling discovery. Returns the survey mission's status, or None if the
+    survey mission is not in one of those statuses.
+    """
+    result = await session.execute(
+        update(models.SurveyMission)
+        .where(models.SurveyMission.id == survey_mission_id)
+        .where(
+            models.SurveyMission.status.in_(
+                (
+                    SurveyMissionStatus.UNDER_DISCOVERY,
+                    SurveyMissionStatus.CANCELLING_DISCOVERY,
+                )
+            )
+        )
+        .values(updated_at=func.now())
+        .returning(models.SurveyMission.status)
+    )
+    await session.commit()
+    return result.scalar_one_or_none()
+
+
+async def recover_stale_survey_mission_discoveries(
+    session: AsyncSession,
+    stale_after: dt.timedelta,
+    survey_mission_id: identifiers.SurveyMissionId | None = None,
+) -> list[identifiers.SurveyMissionId]:
+    """Set to draft the survey missions whose discovery heartbeat is stale.
+
+    A survey mission's discovery heartbeat is stale if its status is either under
+    discovery or cancelling discovery and its `updated_at` is older than
+    `stale_after`. The update is restricted to a single survey mission if
+    `survey_mission_id` is given. Returns the ids of the recovered survey missions.
+    """
+    statement = (
+        update(models.SurveyMission)
+        .where(
+            models.SurveyMission.status.in_(
+                (
+                    SurveyMissionStatus.UNDER_DISCOVERY,
+                    SurveyMissionStatus.CANCELLING_DISCOVERY,
+                )
+            )
+        )
+        .where(models.SurveyMission.updated_at < func.now() - stale_after)
+        .values(status=SurveyMissionStatus.DRAFT)
+        .returning(models.SurveyMission.id)
+    )
+    if survey_mission_id is not None:
+        statement = statement.where(models.SurveyMission.id == survey_mission_id)
+    result = await session.execute(statement)
+    await session.commit()
+    return [identifiers.SurveyMissionId(id_) for id_ in result.scalars().all()]
 
 
 async def set_survey_mission_thumbnail(
