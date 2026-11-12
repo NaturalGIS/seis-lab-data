@@ -76,7 +76,7 @@ O arranque do sistema requer a presença de algumas variáveis de ambiente. Esta
     sistema. Como tal, não deve ser editado manualmente. Contém uma única variável:
 
     - `IMAGE_URL` - a imagem docker a utilizar nas componentes
-      [web application](#2-componente-web-application) e [processing worker](#4-componente-processing-worker)
+      [web application](#2-componente-web-application) e [workers](#4-componente-workers)
 
 Existem muitas outras variáveis de ambiente que podem ser usadas para configurar o sistema. Estas são
 indicadas na secção relevante do ficheiro docker compose `compose.prod-env.yaml`. Este ficheiro está
@@ -182,7 +182,8 @@ db                   Up 2 weeks (healthy)
 dozzle               Up 2 weeks
 martin-tile-server   Up 2 weeks (healthy)
 message-broker       Up 2 weeks (healthy)
-processing-worker    Up 2 weeks
+interactive-worker   Up 2 weeks
+long-tasks-worker    Up 2 weeks
 web-gateway          Up 2 weeks
 webapp               Up 2 weeks
 ```
@@ -211,7 +212,8 @@ Exemplo de resultado:
 /seis-lab-data-dozzle-1 → restart: unless-stopped
 /seis-lab-data-martin-tile-server-1 → restart: unless-stopped
 /seis-lab-data-message-broker-1 → restart: unless-stopped
-/seis-lab-data-processing-worker-1 → restart: unless-stopped
+/seis-lab-data-interactive-worker-1 → restart: unless-stopped
+/seis-lab-data-long-tasks-worker-1 → restart: unless-stopped
 /seis-lab-data-web-gateway-1 → restart: unless-stopped
 /seis-lab-data-webapp-1 → restart: unless-stopped
 ```
@@ -406,7 +408,7 @@ docker compose \
     -f compose.prod-env.yaml \
     --env-file compose-deployment.env \
     --env-file image-url.env \
-    up -d --force-recreate webapp processing-worker
+    up -d --force-recreate webapp interactive-worker long-tasks-worker
 ```
 
 4. Se a nova versão incluir migrações de base de dados, executar após o passo anterior:
@@ -433,7 +435,7 @@ flowchart LR
     rev-proxy(<a href="#1-componente-reverse-proxy">1. reverse proxy</a>)
     webapp(<a href="#2-componente-web-application">2. web application</a>)
     db[(<a href="#3-componente-main-system-db">3. main system db</a>)]
-    proc-worker(<a href="#4-componente-processing-worker">4. processing worker</a>)
+    workers(<a href="#4-componente-workers">4. workers</a>)
     tile-server(<a href="#5-componente-map-tiles-server">5. map tiles server</a>)
     auth-webapp(<a href="#6-componente-user-authentication-service">6. user authentication service</a>)
     auth-db[(<a href="#61-componente-database-for-authentication-service">6.1. database for authentication service</a>)]
@@ -447,12 +449,12 @@ flowchart LR
     auth-webapp --> auth-worker
     auth-worker <--> auth-db
     webapp <--> db
-    proc-worker <--> db
+    workers <--> db
     webapp <--> message-broker
-    message-broker <--> proc-worker
+    message-broker <--> workers
     arch --> webapp
     arch --> tile-server
-    arch <--> proc-worker
+    arch <--> workers
 ```
 </span>
 
@@ -522,11 +524,22 @@ de catálogo do sistema.
     ```
 
 
-#### 4. Componente `processing worker`
+#### 4. Componente `workers`
 
 Aplicação [Dramatiq](https://dramatiq.io/) que executa tarefas em segundo plano, nomeadamente a
 criação e processamento de registos no sistema. Comunica com a aplicação web maioritariamente
 através de um padrão de publicação/subscrição[^2] via a componente `message broker`.
+
+Corre como dois serviços, para que as tarefas que podem demorar nunca atrasem as interativas:
+
+- `interactive-worker` - executa as tarefas rápidas, iniciadas pelos utilizadores, como criar, atualizar, apagar,
+  validar e publicar itens (fila `default`)
+- `long-tasks-worker` - executa as tarefas que podem demorar: descoberta no arquivo, pré-visualizações, miniaturas e
+  exportações para o GeoNode (filas `discovery`, `previews`, `thumbnails` e `exports`)
+
+O `long-tasks-worker` corre `LONG_TASKS_WORKER_PROCESSES` processos (por omissão 2) de `LONG_TASKS_WORKER_THREADS`
+_threads_ cada (por omissão 4), o que limita quantas das suas tarefas correm em simultâneo. Estas variáveis podem ser
+definidas no ficheiro `compose-deployment.env`.
 
 [^2]: Visão geral do padrão publicação/subscrição: <https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern>
 
@@ -592,7 +605,7 @@ emails e a aplicação de _blueprints_.
 #### 7. Componente `message broker`
 
 Instância [Redis](https://redis.io/) utilizada como fila de mensagens e intermediário de mensagens
-entre as componentes `web application` e `processing worker`.
+entre as componentes `web application` e `workers`.
 
 
 ##### Ficheiros de configuração relevantes
@@ -614,7 +627,7 @@ Estes volumes são posteriormente montados dentro dos contentores docker relevan
 possam ser utilizados pelos serviços do sistema:
 
 - [2. Componente `web application`](#2-componente-web-application)
-- [4. Componente `processing worker`](#4-componente-processing-worker)
+- [4. Componente `workers`](#4-componente-workers)
 - [5. Componente `map tiles server`](#5-componente-map-tiles-server)
 
 

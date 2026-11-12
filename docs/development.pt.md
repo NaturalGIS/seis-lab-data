@@ -24,8 +24,9 @@ O ficheiro `docker/compose.dev.yaml` contém as instruções adequadas para dese
 Os serviços mais relevantes são:
 
 - `webapp` – a aplicação web principal, implementada com [starlette], [sqlmodel], [jinja] e [datastar].
-- `processing-worker` – serviço que executa a maior parte do processamento e das modificações à BD. É um _worker_ [dramatiq].
-- `message-broker` – uma instância [redis] que gere a passagem de mensagens entre a webapp e o processing worker.
+- `interactive-worker` – _worker_ [dramatiq] que executa as tarefas rápidas, iniciadas pelos utilizadores, como as modificações à BD (criar, atualizar, apagar, validar, publicar). Consome a fila `default`.
+- `long-tasks-worker` – _worker_ [dramatiq] que executa as tarefas que podem demorar: descoberta, pré-visualizações, miniaturas e exportações. Consome as filas `discovery`, `previews`, `thumbnails` e `exports`, para que estas tarefas nunca atrasem as interativas.
+- `message-broker` – uma instância [redis] que gere a passagem de mensagens entre a webapp e os _workers_.
 - `web-gateway` – uma instância [traefik] que atua como _reverse proxy_ para o sistema.
 - `auth-webapp` – uma instância [authentik] que trata da autenticação de utilizadores.
 
@@ -246,7 +247,7 @@ recolhe os ficheiros estáticos.
 - O GeoNode está acessível em http://geonode.localhost:8888, com as credenciais `admin` / `admin123`
 - O GeoServer está acessível em http://geonode.localhost:8888/geoserver/, com as credenciais
   `admin` / `geoserver`
-- Os outros serviços da stack (p. ex. `processing-worker`) podem aceder diretamente à API do
+- Os outros serviços da stack (p. ex. `long-tasks-worker`) podem aceder diretamente à API do
   GeoNode em `http://django:8000`
 - Os _logs_ de pedidos do uwsgi são escritos em `/var/log/geonode.log` dentro do contentor
   `geonode-django`
@@ -272,7 +273,7 @@ Tanto a conta de serviço como a aplicação OAuth2 são criadas no GeoNode, sej
 Django (_People_ > _Users_ e _Django OAuth Toolkit_ > _Applications_) ou a partir da linha de
 comandos.
 
-As exportações correm na fila `exports`, consumida pelo serviço `previews-worker`. A stack de
+As exportações correm na fila `exports`, consumida pelo serviço `long-tasks-worker`. A stack de
 desenvolvimento já define todas estas definições, com credenciais fixas, cujas contrapartes no
 GeoNode podem ser criadas com:
 

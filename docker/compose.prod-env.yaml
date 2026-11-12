@@ -236,10 +236,10 @@ services:
       auth-worker:
         condition: service_healthy
 
-  processing-worker:
+  interactive-worker:
     image: *common-image
     command:
-      - "run-processing-worker"
+      - "run-worker"
       - "--queues"
       - "default"
     environment:
@@ -249,14 +249,21 @@ services:
     <<: *common-secrets
     restart: unless-stopped
 
-  previews-worker:
+  long-tasks-worker:
     image: *common-image
     command:
-      - "run-processing-worker"
+      - "run-worker"
+      # each thread may hold a GDAL render or a discovery, so they are capped to
+      # keep memory and database connections in check
+      - "--processes"
+      - "${LONG_TASKS_WORKER_PROCESSES:-2}"
+      - "--threads"
+      - "${LONG_TASKS_WORKER_THREADS:-4}"
       - "--queues"
       - "previews"
       - "thumbnails"
       - "exports"
+      - "discovery"
     environment:
       <<: *common-env
       SEIS_LAB_DATA__THUMBNAIL_BASE_TILE_LAYER_URL: http://martin-tile-server:3000/emodnet-bathymetry/{z}/{x}/{y}

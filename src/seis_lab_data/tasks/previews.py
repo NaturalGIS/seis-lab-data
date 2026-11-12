@@ -39,10 +39,12 @@ async def generate_mission_previews(
             session, identifiers.SurveyMissionId(uuid.UUID(raw_survey_mission_id))
         )
     for record_id in record_ids:
+        # the same record may already be enqueued by an earlier discovery
         generate_record_previews.send(
             raw_request_id=raw_request_id,
             raw_survey_related_record_id=str(record_id),
             raw_initiator=raw_initiator,
+            raw_skip_if_derived=True,
         )
 
 
@@ -53,6 +55,7 @@ async def generate_record_previews(
     raw_request_id: str,
     raw_survey_related_record_id: str,
     raw_initiator: str,
+    raw_skip_if_derived: bool = False,
     *,
     settings: config.SeisLabDataSettings,
 ) -> None:
@@ -75,6 +78,7 @@ async def generate_record_previews(
             session=session,
             event_dispatcher=settings.get_event_dispatcher(),
             settings=settings,
+            skip_if_derived=raw_skip_if_derived,
         )
 
 

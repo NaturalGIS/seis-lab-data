@@ -4,7 +4,10 @@ import uuid
 
 import dramatiq
 
-from .. import config
+from .. import (
+    config,
+    constants,
+)
 from ..operations import discovery as discovery_ops
 from ..schemas import (
     discovery as discovery_schemas,
@@ -85,7 +88,13 @@ async def delete_asset_discovery_configuration(
         )
 
 
-@dramatiq.actor
+# We don't want discovery to delay the interactive tasks, so this runs on its
+# own queue; also, this gets no retries, we leave a re-run up to the user
+@dramatiq.actor(
+    queue_name="discovery",
+    max_retries=0,
+    time_limit=constants.DISCOVERY_TIME_LIMIT_SECONDS * 1000,
+)
 @decorators.sld_settings
 async def discover_survey_mission_contents(
     raw_request_id: str,
@@ -105,4 +114,38 @@ async def discover_survey_mission_contents(
             event_dispatcher=settings.get_event_dispatcher(),
             settings=settings,
             user=initiator,
+        )
+
+
+@dramatiq.actor(max_retries=0)
+@decorators.sld_settings
+async def cancel_survey_mission_discovery(
+    raw_request_id: str,
+    raw_survey_mission_id: str,
+    raw_initiator: str,
+    *,
+    settings: config.SeisLabDataSettings,
+) -> None:
+    async with settings.get_db_session_maker()() as session:
+        await discovery_ops.cancel_mission_discovery(
+            request_id=identifiers.RequestId(uuid.UUID(raw_request_id)),
+            mission_id=identifiers.SurveyMissionId(uuid.UUID(raw_survey_mission_id)),
+            initiator=user_schemas.User(**json.loads(raw_initiator)),
+            session=session,
+            event_dispatcher=settings.get_event_dispatcher(),
+        )
+
+
+@dramatiq.actor(max_retries=0, time_limit=60_000)
+@decorators.sld_settings
+async def recover_stale_survey_mission_discoveries(
+    *,
+    settings: config.SeisLabDataSettings,
+) -> None:
+    async with settings.get_db_session_maker()() as session:
+        await discovery_ops.recover_stale_mission_discoveries(
+            request_id=identifiers.RequestId(uuid.uuid4()),
+            initiator_id="system",
+            session=session,
+            event_dispatcher=settings.get_event_dispatcher(),
         )

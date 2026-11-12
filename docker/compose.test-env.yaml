@@ -202,10 +202,10 @@ services:
       - traefik-network
       - default
 
-  processing-worker:
+  interactive-worker:
     image: *common-image
     command:
-      - "run-processing-worker"
+      - "run-worker"
       - "--queues"
       - "default"
     volumes:
@@ -215,14 +215,21 @@ services:
     <<: *common-secrets
     restart: unless-stopped
 
-  previews-worker:
+  long-tasks-worker:
     image: *common-image
     command:
-      - "run-processing-worker"
+      - "run-worker"
+      # each thread may hold a GDAL render or a discovery, so they are capped to
+      # keep memory and database connections in check
+      - "--processes"
+      - "${LONG_TASKS_WORKER_PROCESSES:-2}"
+      - "--threads"
+      - "${LONG_TASKS_WORKER_THREADS:-4}"
       - "--queues"
       - "previews"
       - "thumbnails"
       - "exports"
+      - "discovery"
     volumes:
       *common-volumes
     environment:

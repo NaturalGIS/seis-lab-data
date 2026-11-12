@@ -6,6 +6,7 @@ import dramatiq
 from sqlalchemy.ext.asyncio import AsyncEngine
 from redis.asyncio import Redis
 
+from .. import constants
 from ..config import (
     get_settings,
     SeisLabDataSettings,
@@ -125,3 +126,25 @@ class StaleGeoNodeExportRecoveryMiddleware(dramatiq.Middleware):
         # the actor is looked up by name, as importing the tasks module here
         # would be circular
         broker.get_actor("recover_stale_geonode_exports").send()
+
+
+class StaleDiscoveryRecoveryMiddleware(dramatiq.Middleware):
+    """
+    Dramatiq middleware that recovers abandoned mission discoveries after a worker boots.
+
+    A worker which dies mid-discovery leaves the mission under discovery. Such
+    workers usually come back by being restarted. The recovery is enqueued with a
+    delay, so that the heartbeat of a discovery abandoned just before the boot has
+    become stale by the time the recovery runs.
+    """
+
+    def after_worker_boot(self, broker: dramatiq.Broker, worker: dramatiq.Worker):
+        # the actor is looked up by name, as importing the tasks module here
+        # would be circular
+        broker.get_actor("recover_stale_survey_mission_discoveries").send_with_options(
+            delay=(
+                constants.DISCOVERY_STALE_AFTER_SECONDS
+                + constants.DISCOVERY_HEARTBEAT_INTERVAL_SECONDS
+            )
+            * 1000
+        )

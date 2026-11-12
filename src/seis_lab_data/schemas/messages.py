@@ -57,6 +57,14 @@ class DiscoveryMessage(pydantic.BaseModel):
     details: str | None = None
 
 
+class DerivationMessage(pydantic.BaseModel):
+    type: Literal["derivation"] = "derivation"
+    resource_type: constants.ResourceType
+    resource_id: str
+    parent_resource_id: str | None = None
+    request_id: identifiers.RequestId
+
+
 class ValidationMessage(pydantic.BaseModel):
     type: Literal["validation"] = "validation"
     resource_type: constants.ResourceType
@@ -82,6 +90,7 @@ SldPubSubMessage: TypeAlias = Annotated[
     ResourceModificationMessage
     | BulkResourceModificationMessage
     | DiscoveryMessage
+    | DerivationMessage
     | ValidationMessage
     | ResourceStatusChangedMessage
     | ExportMessage,

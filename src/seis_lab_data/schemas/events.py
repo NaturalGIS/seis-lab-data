@@ -60,6 +60,16 @@ class DiscoveryEvent(_EventBase):
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
+class DerivationEvent(_EventBase):
+    """Derived assets, such as previews, were stored for a resource."""
+
+    resource_type: constants.ResourceType
+    resource_id: str
+    parent_resource_id: str | None = None
+    request_id: identifiers.RequestId
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
 class ValidationEvent(_EventBase):
     resource_type: constants.ResourceType
     resource_id: str
@@ -85,6 +95,7 @@ SeisLabDataEvent: TypeAlias = (
     | BulkResourceModificationEvent
     | ResourceStatusChangedEvent
     | DiscoveryEvent
+    | DerivationEvent
     | ValidationEvent
     | ExportEvent
 )

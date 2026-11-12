@@ -1,6 +1,7 @@
 {% import "macros-buttons.html" as macros_buttons %}
 {% set id_ = item.id | string | replace('-', '') %}
 {% set item_permissions = list_item_permissions[item.id] if list_item_permissions else none %}
+{% set mission_under_discovery = item.survey_mission.status in SURVEY_MISSION_DISCOVERY_STATUSES %}
 <div class="col">
     <div class="card position-relative overflow-hidden list-item-stripe list-item-stripe-survey-related-record{% if item.status.value != "published" %} item-unpublished{% endif %}">
         <div class="form-check position-absolute top-0 start-0 m-2">
@@ -92,9 +93,10 @@
                     {% endfor %}
                     {% if item_permissions and item_permissions.can_update %}
                         <a
-                                class="btn btn-sm btn-outline-primary list-item-regular-only"
+                                class="btn btn-sm btn-outline-primary list-item-regular-only{% if mission_under_discovery %} disabled{% endif %}"
                                 href="{{ url_for('survey_related_records:get_update_form', survey_related_record_id=item.id) }}"
                                 aria-label="update-list-item"
+                                {% if mission_under_discovery %}aria-disabled="true" tabindex="-1"{% endif %}
                         ><span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit") | capitalize }}</a>
                     {% endif %}
                     {% if item_permissions and item_permissions.can_delete %}
@@ -109,7 +111,8 @@
                                 modal_dialog_confirmation_text=_("are you sure you want to delete this survey-related record?"),
                                 size_css_class="btn-sm",
                                 show_modal_aria_label="show-delete-list-item-confirmation-modal",
-                                confirm_aria_label="delete-list-item"
+                                confirm_aria_label="delete-list-item",
+                                disabled_condition=("true" if mission_under_discovery else none)
                             ) }}
                         </div>
                     {% endif %}

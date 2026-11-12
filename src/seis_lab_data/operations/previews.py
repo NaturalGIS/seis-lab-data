@@ -1,4 +1,5 @@
 import logging
+import re
 import uuid
 
 import shapely
@@ -9,6 +10,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from .. import (
     config,
     constants,
+    dispatch,
+    pathpatterns,
 )
 from ..db import models
 from ..db.commands import (
@@ -17,14 +20,16 @@ from ..db.commands import (
     surveymissions as mission_commands,
     surveyrelatedrecords as record_commands,
 )
-from ..db.queries import surveyrelatedrecords as record_queries
+from ..db.queries import (
+    discovery as discovery_queries,
+    recordassets as asset_queries,
+)
 from ..schemas import (
     events as event_schemas,
     identifiers,
     surveyrelatedrecords as record_schemas,
     user as user_schemas,
 )
-from .. import dispatch
 from ..tasks.derivers import (
     bbox_thumbnail,
     dispatch as deriver_dispatch,
@@ -37,28 +42,62 @@ async def collect_survey_mission_records_missing_previews(
     session: AsyncSession,
     survey_mission_id: identifiers.SurveyMissionId,
 ) -> list[identifiers.SurveyRelatedRecordId]:
-    """Collect the ids of the records of a survey mission which have no previews.
+    """Collect the ids of a survey mission's records that are missing previews.
 
-    Records which already have derived assets are left out, so generating the
-    mission's previews again only derives what is still missing: the previews
-    of new records and of those whose generation failed before.
+    These are the records without derived assets that have at least one data asset
+    eligible for a preview, as defined in `generate_record_previews`.
     """
     # no permission check, unlike user-facing operations: generation is
     # system-initiated, authorized when the discovery that enqueued it ran
-    missing = []
-    for record_id in await record_queries.collect_all_survey_mission_record_ids(
-        session, survey_mission_id
-    ):
-        if (
-            record := await record_queries.get_survey_related_record(session, record_id)
-        ) is None:  # deleted in the meantime
-            continue
+    preview_patterns = await _collect_preview_patterns(session)
+    return [
+        record_id
+        for record_id, relative_paths in (
+            await asset_queries.collect_survey_mission_data_asset_paths_without_derived_assets(
+                session, survey_mission_id
+            )
+        ).items()
         if any(
-            constants.AssetType.DATA not in asset.asset_type for asset in record.assets
-        ):
-            continue
-        missing.append(record_id)
-    return missing
+            next(
+                (
+                    generates_previews
+                    for pattern, generates_previews in preview_patterns
+                    if pattern.matches(relative_path)
+                ),
+                False,
+            )
+            for relative_path in relative_paths
+        )
+    ]
+
+
+async def _collect_preview_patterns(
+    session: AsyncSession,
+) -> list[tuple[pathpatterns.PathPattern, bool]]:
+    """Compile the path patterns of the asset discovery configurations, in name order.
+
+    Returns each compiled pattern along with its configuration's `generate_previews`
+    flag. Configurations with an invalid path pattern are logged and skipped.
+    """
+    preview_patterns = []
+    for (
+        configuration
+    ) in await discovery_queries.collect_all_asset_discovery_configurations(session):
+        try:
+            preview_patterns.append(
+                (
+                    pathpatterns.compile_path_pattern(
+                        configuration.relative_path_regexp
+                    ),
+                    configuration.generate_previews,
+                )
+            )
+        except re.error as err:
+            logger.warning(
+                f"Asset discovery configuration {configuration.name!r} has an "
+                f"invalid path pattern: {err}"
+            )
+    return preview_patterns
 
 
 async def generate_record_previews(
@@ -69,13 +108,21 @@ async def generate_record_previews(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
     settings: config.SeisLabDataSettings,
+    skip_if_derived: bool = False,
 ) -> None:
-    """Generate previews of a record's data assets, stored as derived assets.
+    """Generate previews of a record's data assets and store them as derived assets.
 
-    A new generation replaces the record's existing derived assets. Previews
-    are best-effort: a file which cannot be rendered is logged and skipped,
-    both because the archive holds corrupt files and because no record's state
-    may depend on them.
+    A data asset is eligible if the first asset discovery configuration, in name
+    order, whose path pattern matches its path has `generate_previews` enabled.
+    Records whose status is neither draft nor published are skipped, as are
+    records that already have derived assets if `skip_if_derived` is set.
+    Generation is best-effort: an asset whose preview cannot be rendered is logged
+    and skipped.
+
+    The generated previews replace the record's existing derived assets. If no
+    preview is generated, or if the record's status changes during rendering, the
+    existing derived assets are kept. A derivation event is dispatched once the
+    previews are stored.
     """
     record_id = identifiers.SurveyRelatedRecordId(survey_related_record.id)
     if (original_status := survey_related_record.status) not in (
@@ -87,14 +134,16 @@ async def generate_record_previews(
             f"generating its previews..."
         )
         return
-    if (
-        discovery_configuration := survey_related_record.asset_discovery_configuration
-    ) is None or not discovery_configuration.generate_previews:
+    if skip_if_derived and any(
+        constants.AssetType.DATA not in asset.asset_type
+        for asset in survey_related_record.assets
+    ):
         logger.debug(
-            f"Survey-related record {record_id} does not come from a discovery "
-            f"configuration that generates previews - not generating them..."
+            f"Survey-related record {record_id} already has derived assets - not "
+            f"generating its previews..."
         )
         return
+    preview_patterns = await _collect_preview_patterns(session)
     mission_root_path = "/".join(
         (
             str(settings.readonly_archive_root_directory),
@@ -112,6 +161,20 @@ async def generate_record_previews(
             logger.debug(
                 f"Asset path {asset.relative_path!r} points outside the archive - "
                 f"not generating its preview..."
+            )
+            continue
+        if not next(
+            (
+                generates_previews
+                for pattern, generates_previews in preview_patterns
+                if pattern.matches(asset.relative_path)
+            ),
+            False,
+        ):
+            logger.debug(
+                f"Asset path {asset.relative_path!r} does not match a discovery "
+                f"configuration that generates previews - not generating its "
+                f"preview..."
             )
             continue
         asset_path = "/".join((mission_root_path, asset.relative_path))
@@ -180,13 +243,12 @@ async def generate_record_previews(
             original_status,
         )
     await event_dispatcher(
-        event_schemas.ResourceModificationEvent(
+        event_schemas.DerivationEvent(
             initiator=initiator.id,
             request_id=request_id,
             resource_type=constants.ResourceType.RECORD,
             resource_id=str(record_id),
-            modification=constants.ResourceModification.UPDATED,
-            succeeded=True,
+            parent_resource_id=str(survey_related_record.survey_mission_id),
         )
     )
 

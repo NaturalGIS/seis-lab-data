@@ -317,16 +317,6 @@ async def count_survey_related_records_matching(
     return await _get_total_num_records(session, ids_statement)
 
 
-async def collect_all_survey_mission_record_ids(
-    session: AsyncSession,
-    survey_mission_id: identifiers.SurveyMissionId,
-) -> list[identifiers.SurveyRelatedRecordId]:
-    statement = build_survey_related_record_id_statement(
-        survey_mission_id=survey_mission_id
-    )
-    return (await session.exec(statement)).all()
-
-
 async def list_survey_related_records(
     session: AsyncSession,
     survey_mission_ids: list[identifiers.SurveyMissionId] | None = None,
@@ -384,7 +374,6 @@ async def get_survey_related_record(
         )
         .options(selectinload(models.SurveyRelatedRecord.dataset_category))
         .options(selectinload(models.SurveyRelatedRecord.workflow_stage))
-        .options(selectinload(models.SurveyRelatedRecord.asset_discovery_configuration))
         # adding all assets too, since they will always be a small list
         .options(selectinload(models.SurveyRelatedRecord.assets))
         # also adding relationships with other records - only first order relationships are loaded, not the full tree

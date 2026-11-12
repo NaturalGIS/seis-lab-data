@@ -109,18 +109,178 @@ async def test_record_page_refreshes_its_details_on_status_change():
 
 
 @pytest.mark.asyncio
-async def test_status_change_notification_is_stored_for_the_reloaded_page():
+@pytest.mark.parametrize(
+    "own_mission, expected_refreshes",
+    [pytest.param(True, 1, id="own-mission"), pytest.param(False, 0, id="other")],
+)
+async def test_record_page_refreshes_its_details_on_its_mission_status_change(
+    own_mission, expected_refreshes
+):
     mission_id = uuid.uuid4()
 
     events = await _collect(
         common_handlers.handle_resource_status_changed_detail_page,
-        _status_changed(constants.ResourceType.MISSION, mission_id),
+        _status_changed(
+            constants.ResourceType.MISSION, mission_id if own_mission else uuid.uuid4()
+        ),
         subscribers.HandlerContext(
-            resource_id=str(mission_id),
-            resource_type=constants.ResourceType.MISSION,
-            url_resolver=lambda name, **params: f"/{name}/{params}",
+            resource_id=str(uuid.uuid4()),
+            parent_resource_id=str(mission_id),
+            resource_type=constants.ResourceType.RECORD,
         ),
     )
 
-    assert _STORED_NOTIFICATION in events[0]
-    assert "window.location" in events[-1]
+    assert len(events) == expected_refreshes
+    assert all("detailsVersion" in event for event in events)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "new_status, resets_progress",
+    [
+        pytest.param(constants.SurveyMissionStatus.PUBLISHED, False, id="published"),
+        pytest.param(
+            constants.SurveyMissionStatus.UNDER_DISCOVERY, True, id="under-discovery"
+        ),
+    ],
+)
+async def test_mission_page_refreshes_in_place_on_status_change(
+    new_status, resets_progress
+):
+    mission_id = uuid.uuid4()
+    message = message_schemas.ResourceStatusChangedMessage(
+        request_id=uuid.uuid4(),
+        resource_type=constants.ResourceType.MISSION,
+        resource_id=str(mission_id),
+        succeeded=True,
+        new_status=new_status.value,
+    )
+
+    events = await _collect(
+        common_handlers.handle_resource_status_changed_detail_page,
+        message,
+        subscribers.HandlerContext(
+            resource_id=str(mission_id),
+            resource_type=constants.ResourceType.MISSION,
+        ),
+    )
+
+    # a reload would close the page's stream and lose the messages sent meanwhile
+    assert len(events) == 2
+    assert _SAME_PAGE_NOTIFICATION in events[0]
+    assert not any("window.location" in event for event in events)
+    for signal in ("status", "detailsVersion", "listingVersion"):
+        assert signal in events[1]
+    assert new_status.value in events[1]
+    assert ("discoveryProgress" in events[1]) is resets_progress
+
+
+def _discovery(mission_id, modification, succeeded=True, details=None, request_id=None):
+    return message_schemas.DiscoveryMessage(
+        request_id=request_id or uuid.uuid4(),
+        resource_type=constants.ResourceType.MISSION,
+        resource_id=str(mission_id),
+        modification=modification,
+        succeeded=succeeded,
+        details=details,
+    )
+
+
+@pytest.mark.asyncio
+async def test_mission_page_shows_discovery_progress_in_place():
+    mission_id = uuid.uuid4()
+
+    events = await _collect(
+        common_handlers.handle_discovery_detail_page,
+        _discovery(mission_id, constants.DiscoveryStage.PROGRESS, details="3 files"),
+        subscribers.HandlerContext(
+            resource_id=str(mission_id), resource_type=constants.ResourceType.MISSION
+        ),
+    )
+
+    assert len(events) == 1
+    assert "discoveryProgress" in events[0] and "3 files" in events[0]
+    assert "listingVersion" in events[0]
+    assert _SAME_PAGE_NOTIFICATION not in events[0]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "modification, own_request, expected_notifications",
+    [
+        pytest.param(constants.DiscoveryStage.ENDED, False, 1, id="ended"),
+        pytest.param(
+            constants.DiscoveryStage.CANCELLED, True, 1, id="cancel failed, own"
+        ),
+        pytest.param(
+            constants.DiscoveryStage.CANCELLED, False, 0, id="cancel failed, other"
+        ),
+    ],
+)
+async def test_mission_page_discovery_failure_notifications(
+    modification, own_request, expected_notifications
+):
+    mission_id = uuid.uuid4()
+    request_id = uuid.uuid4()
+
+    events = await _collect(
+        common_handlers.handle_discovery_detail_page,
+        _discovery(
+            mission_id,
+            modification,
+            succeeded=False,
+            details="reason",
+            request_id=request_id if own_request else None,
+        ),
+        subscribers.HandlerContext(
+            resource_id=str(mission_id),
+            resource_type=constants.ResourceType.MISSION,
+            request_id=request_id,
+        ),
+    )
+
+    assert (
+        sum(_SAME_PAGE_NOTIFICATION in event for event in events)
+        == expected_notifications
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "resource_type, own_item, expected",
+    [
+        pytest.param(
+            constants.ResourceType.MISSION, True, "listingVersion", id="mission"
+        ),
+        pytest.param(constants.ResourceType.MISSION, False, None, id="other mission"),
+        pytest.param(constants.ResourceType.RECORD, True, "/detail", id="record"),
+        pytest.param(constants.ResourceType.RECORD, False, None, id="other record"),
+    ],
+)
+async def test_detail_pages_refresh_on_derivation(resource_type, own_item, expected):
+    record_id = uuid.uuid4()
+    mission_id = uuid.uuid4()
+    context_resource_id = (
+        record_id if resource_type == constants.ResourceType.RECORD else mission_id
+    )
+
+    events = await _collect(
+        common_handlers.handle_derivation_detail_page,
+        message_schemas.DerivationMessage(
+            request_id=uuid.uuid4(),
+            resource_type=constants.ResourceType.RECORD,
+            resource_id=str(record_id),
+            parent_resource_id=str(mission_id),
+        ),
+        subscribers.HandlerContext(
+            resource_id=str(context_resource_id if own_item else uuid.uuid4()),
+            resource_type=resource_type,
+            url_resolver=lambda name, **params: f"/{name.split(':')[1]}",
+        ),
+    )
+
+    if expected is None:
+        assert events == []
+    else:
+        assert len(events) == 1 and expected in events[0]
+        assert _SAME_PAGE_NOTIFICATION not in events[0]

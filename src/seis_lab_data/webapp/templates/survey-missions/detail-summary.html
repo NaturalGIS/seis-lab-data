@@ -1,0 +1,70 @@
+{% import "macros-maps.html" as macros_maps %}
+{% from "macros/records-summary.html" import render_records_summary %}
+{# its id is what lets the re-rendered summary be morphed into the page #}
+<div id="survey-mission-summary" class="row mb-5">
+    <div class="col">
+        <div class="card{% if item.status.value != "published" %} item-unpublished{% endif %}" data-class:item-unpublished="$status !== 'published'">
+            {% if item.bbox_4326 is not none %}
+                {{ macros_maps.render_bbox_display_component(
+                    settings.webmap_base_tile_layer_url,
+                    settings.webmap_default_zoom_level,
+                    item.bbox_4326
+                ) }}
+            {% endif %}
+            <div class="card-body">
+                <div class="row gy-3">
+                    <div class="col-12 col-md-8 col-xl-9">
+                        <p>{{ item.description }}</p>
+                        {{ render_records_summary(
+                            counts,
+                            records_summary,
+                            mission_records_url=url_for("survey_missions:get_mission_records_list_component", survey_mission_id=item.id)
+                        ) }}
+                        <dl class="row">
+                            <dt class="col-sm-3">{{ _("root path") | capitalize }}</dt>
+                            <dd class="col-sm-9">{{ item.relative_path|default(_("relative path not available"), True) }}</dd>
+                            <dt class="col-sm-3">{{ _("Implicit CRS") }}</dt>
+                            <dd class="col-sm-9">EPSG:{{ item.implicit_crs }}</dd>
+                            <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
+                            <dd class="col-sm-9">{{ item.temporal_extent_begin|default(_(".."), True) }}/{{ item.temporal_extent_end|default(_(".."), True) }}</dd>
+                            <dt class="col-sm-3">{{ _("spatial extent") | capitalize }}
+                            <dd class="col-sm-9">{{ item.bbox_4326.bounds }}</dd>
+                            <dt class="col-sm-3">{{ _("project") | capitalize }}</dt>
+                            <dd class="col-sm-9"><a
+                                    href="{{ url_for('projects:detail', project_id=item.project.id) }}">{{ item.project.name }}</a>
+                            </dd>
+                        </dl>
+                    </div>
+                    <div class="col-12 col-md-4 col-xl-3">
+                        <h5>{{ _("links") | capitalize }}</h5>
+                        <div class="list-group list-group-flush">
+                            {% for link in item.links %}
+                                <a
+                                        class="list-group-item list-group-item-action"
+                                        href="{{ link.url }}"
+                                        rel="{{ link.relation }}"
+                                        target="_blank"
+                                        type="{{ link.media_type }}"
+                                >
+                                    <h6>
+                            <span
+                                    class="material-icons-outlined me-1"
+                            >
+                                {{ icons.open_link }}
+                            </span>
+                                        {{ link.url }}
+                                        <span class="badge rounded-pill bg-light">{{ link.media_type }}</span>
+                                        <span class="badge rounded-pill bg-light">{{ link.relation }}</span>
+                                    </h6>
+                                    <small>{{ link.link_description }}</small>
+                                </a>
+                            {% else %}
+                                <p class="list-group-item">{{ _("no links found") | capitalize }}</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

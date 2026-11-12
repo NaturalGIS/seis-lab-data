@@ -38,6 +38,7 @@ class HandlerContext:
     target_page: constants.PageType | None = None
     resource_type: constants.ResourceType | None = None
     resource_id: str | None = None
+    parent_resource_id: str | None = None
 
 
 class MessageHandlerProtocol[T_co, TContext: HandlerContext](Protocol):

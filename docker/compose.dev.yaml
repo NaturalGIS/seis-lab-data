@@ -240,10 +240,10 @@ services:
     volumes:
       *common-volumes
 
-  processing-worker:
+  interactive-worker:
     image: *common-image
     command:
-      - "run-processing-worker"
+      - "run-worker"
       - "--queues"
       - "default"
     environment:
@@ -251,14 +251,15 @@ services:
     volumes:
       *common-volumes
 
-  previews-worker:
+  long-tasks-worker:
     image: *common-image
     command:
-      - "run-processing-worker"
+      - "run-worker"
       - "--queues"
       - "previews"
       - "thumbnails"
       - "exports"
+      - "discovery"
     environment:
       <<: *common-env
       SEIS_LAB_DATA__THUMBNAIL_BASE_TILE_LAYER_URL: http://martin-tile-server:3000/emodnet-bathymetry/{z}/{x}/{y}

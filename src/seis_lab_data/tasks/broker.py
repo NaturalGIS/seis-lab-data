@@ -9,6 +9,7 @@ from .middleware import (
     AsyncRedisPubSubMiddleware,
     AsyncSqlAlchemyDbMiddleware,
     SeisLabDataSettingsMiddleware,
+    StaleDiscoveryRecoveryMiddleware,
     StaleGeoNodeExportRecoveryMiddleware,
 )
 
@@ -71,6 +72,7 @@ def setup_broker(settings: config.SeisLabDataSettings | None = None) -> None:
             )
         )
         new_broker.add_middleware(StaleGeoNodeExportRecoveryMiddleware())
+        new_broker.add_middleware(StaleDiscoveryRecoveryMiddleware())
         old_broker = dramatiq.get_broker()
         # reconfigure actors to use the new broker
         for existing_actor_name in old_broker.get_declared_actors():

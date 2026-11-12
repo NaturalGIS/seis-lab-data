@@ -135,12 +135,6 @@ class SurveyRelatedRecord(SQLModel, table=True):
     workflow_stage_id: uuid.UUID | None = Field(
         foreign_key="workflowstage.id", default=None, ondelete="SET NULL"
     )
-    asset_discovery_configuration_id: uuid.UUID | None = Field(
-        foreign_key="assetdiscoveryconfiguration.id",
-        default=None,
-        ondelete="SET NULL",
-        index=True,
-    )
     links: list[Link] = Field(sa_column=Column(JSONB), default_factory=list)
     survey_mission: "SurveyMission" = Relationship(
         back_populates="survey_related_records"
@@ -151,11 +145,13 @@ class SurveyRelatedRecord(SQLModel, table=True):
     workflow_stage: WorkflowStage = Relationship(
         back_populates="survey_related_records"
     )
-    asset_discovery_configuration: AssetDiscoveryConfiguration = Relationship()
-    bbox_4326: Annotated[
-        WKBElement,
-        PlainSerializer(serialize_wkbelement, return_type=dict, when_used="json"),
-    ] = Field(
+    bbox_4326: (
+        Annotated[
+            WKBElement,
+            PlainSerializer(serialize_wkbelement, return_type=dict, when_used="json"),
+        ]
+        | None
+    ) = Field(
         sa_column=Column(
             Geometry(
                 srid=4326,
@@ -242,10 +238,13 @@ class SurveyMission(SQLModel, table=True):
     implicit_crs: int = Field(default=4326, sa_column_kwargs={"server_default": "4326"})
     status: constants.SurveyMissionStatus = constants.SurveyMissionStatus.DRAFT
     validation_result: ValidationResult = Field(sa_column=Column(JSONB))
-    bbox_4326: Annotated[
-        WKBElement,
-        PlainSerializer(serialize_wkbelement, return_type=dict, when_used="json"),
-    ] = Field(
+    bbox_4326: (
+        Annotated[
+            WKBElement,
+            PlainSerializer(serialize_wkbelement, return_type=dict, when_used="json"),
+        ]
+        | None
+    ) = Field(
         sa_column=Column(
             Geometry(
                 srid=4326,
@@ -289,10 +288,13 @@ class Project(SQLModel, table=True):
     status: constants.ProjectStatus = constants.ProjectStatus.DRAFT
     validation_result: ValidationResult = Field(sa_column=Column(JSONB))
     links: list[Link] = Field(sa_column=Column(JSONB), default_factory=list)
-    bbox_4326: Annotated[
-        WKBElement,
-        PlainSerializer(serialize_wkbelement, return_type=dict, when_used="json"),
-    ] = Field(
+    bbox_4326: (
+        Annotated[
+            WKBElement,
+            PlainSerializer(serialize_wkbelement, return_type=dict, when_used="json"),
+        ]
+        | None
+    ) = Field(
         sa_column=Column(
             Geometry(
                 srid=4326,
@@ -336,7 +338,7 @@ class RecordAsset(SQLModel, table=True):
         foreign_key="surveyrelatedrecord.id", ondelete="CASCADE", index=True
     )
     # derived assets (previews, thumbnails) have no file in the archive
-    relative_path: str | None = None
+    relative_path: str | None = Field(default=None, index=True)
     media_type: str
     asset_type: list[constants.AssetType] = Field(
         sa_column=Column(

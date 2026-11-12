@@ -44,6 +44,7 @@ src/seis_lab_data/
   auth.py              # OAuth config, get_user(), requires_auth decorator
   authentik.py         # Authentik admin API helper (fetch user by UUID)
   geonode.py           # GeoNode API helpers (upload, execution polling)
+  pathpatterns.py      # Path patterns with regexp segments, as used by asset discovery
   config.py            # Settings (pydantic-settings)
   constants.py         # Enums, string constants (ADMIN_ROLE, status enums, etc.)
   errors.py            # SeisLabDataError
@@ -151,7 +152,7 @@ The frontend uses [Datastar](https://data-star.dev/) directives (`data-on:click`
 
 ### Long-running tasks
 
-Tasks which may take long run in their own queues (`previews`, `thumbnails`, `exports`), consumed by the `previews-worker` service, so they never delay the interactive tasks of the `default` queue. Separate queues alone are not enough for this: all async actors of a worker process share a single event loop, whatever their queue, so it is running in a separate worker service that keeps a task's blocking work (e.g. the blocking file reads of httpx multipart uploads) from stalling the interactive tasks. While a task works on a record it holds it in a busy status (`UNDER_DERIVATION`, `UNDER_EXPORT`, ...), flipped with `compare_and_set_survey_related_record_status`; records in any status other than `DRAFT`/`PUBLISHED` cannot be updated or deleted.
+Tasks which may take long run in their own queues (`previews`, `thumbnails`, `exports`, `discovery`), consumed by the `long-tasks-worker` service, while the `interactive-worker` service consumes the `default` queue, so they never delay the interactive tasks of the `default` queue. Separate queues alone are not enough for this: all async actors of a worker process share a single event loop, whatever their queue, so it is running in a separate worker service that keeps a task's blocking work (e.g. the blocking file reads of httpx multipart uploads) from stalling the interactive tasks. While a task works on a record it holds it in a busy status (`UNDER_DERIVATION`, `UNDER_EXPORT`, ...), flipped with `compare_and_set_survey_related_record_status`; records in any status other than `DRAFT`/`PUBLISHED` cannot be updated or deleted.
 
 ### Broker setup
 
@@ -161,6 +162,7 @@ Tasks which may take long run in their own queues (`previews`, `thumbnails`, `ex
 - `AsyncRedisPubSubMiddleware` — manages the Redis client for pub/sub
 - `AsyncSqlAlchemyDbMiddleware` — manages the async DB engine and session maker
 - `StaleGeoNodeExportRecoveryMiddleware` — recovers records left under export by a dead worker, at worker boot
+- `StaleDiscoveryRecoveryMiddleware` — recovers missions left under discovery by a dead worker, some minutes after worker boot
 
 ## Key conventions
 

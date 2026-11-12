@@ -3,6 +3,7 @@ import functools
 import itertools
 import json
 import logging
+import time
 from pathlib import PurePosixPath
 from typing import (
     Iterator,
@@ -15,7 +16,10 @@ import shapely
 from anyio import Path
 from datastar_py import ServerSentEventGenerator
 from datastar_py.consts import ElementPatchMode
-from datastar_py.starlette import DatastarResponse
+from datastar_py.starlette import (
+    DatastarResponse,
+    read_signals,
+)
 from redis.asyncio import Redis
 from starlette_babel import gettext_lazy as _
 from starlette.endpoints import HTTPEndpoint
@@ -176,8 +180,9 @@ async def _get_survey_related_record_details(
 async def get_details_component(request: Request):
     """Re-render a record's details, to be morphed into its already open detail page.
 
-    The page's request id is passed along, so that the actions of the re-rendered
-    details keep reporting their progress to the page's stream.
+    The signal telling whether the record's mission is under discovery is patched
+    as well. The page's request id is passed along, so that the actions of the
+    re-rendered details keep reporting their progress to the page's stream.
     """
     try:
         request_id = identifiers.RequestId(uuid.UUID(request.path_params["request_id"]))
@@ -194,6 +199,12 @@ async def get_details_component(request: Request):
     )
 
     async def event_streamer():
+        yield ServerSentEventGenerator.patch_signals(
+            {
+                "missionUnderDiscovery": details.item.survey_mission.status
+                in constants.SURVEY_MISSION_DISCOVERY_STATUSES
+            }
+        )
         # no selector, the details are matched by their id and morphed in place
         yield ServerSentEventGenerator.patch_elements(rendered)
 
@@ -1704,13 +1715,40 @@ async def stream_to_detail_page(request: Request):
     redis_client: Redis = request.state.redis_client
     user = request.user if request.user.is_authenticated else None
 
-    topic_names = [constants.NEW_TOPIC_SURVEY_RELATED_RECORDS]
+    async with session_maker() as session:
+        try:
+            record_info = await survey_related_record_ops.get_survey_related_record(
+                record_id, user, session
+            )
+        except errors.UserNotAllowedError:
+            record_info = None
+    mission_id = str(record_info[0].survey_mission_id) if record_info else None
+    # the missions topic carries the status changes of the record's mission
+    topic_names = [
+        constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
+        constants.NEW_TOPIC_SURVEY_MISSIONS,
+    ]
     pubsub = await subscribers.open_topic_subscription(redis_client, topic_names)
+    # read after subscribing, so that a status change of the mission is either
+    # seen here or received as a message
+    page_signals = (await read_signals(request)) or {}
+    async with session_maker() as session:
+        try:
+            survey_mission = (
+                await survey_mission_ops.get_survey_mission(
+                    identifiers.SurveyMissionId(uuid.UUID(mission_id)), user, session
+                )
+                if mission_id is not None
+                else None
+            )
+        except errors.UserNotAllowedError:
+            survey_mission = None
     subscription = subscribers.iter_topic_messages(
         pubsub,
         topic_names,
         subscribers.HandlerContext(
             resource_id=str(record_id),
+            parent_resource_id=mission_id,
             user=user,
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
@@ -1723,10 +1761,19 @@ async def stream_to_detail_page(request: Request):
             "resource_modified": common_handlers.handle_resource_modification_detail_page,
             "resource_status_changed": common_handlers.handle_resource_status_changed_detail_page,
             "export": common_handlers.handle_export_detail_page,
+            "derivation": common_handlers.handle_derivation_detail_page,
         },
     )
 
     async def event_streamer():
+        # the mission entered or left discovery between rendering the page and
+        # subscribing
+        if survey_mission is not None and (
+            survey_mission.status in constants.SURVEY_MISSION_DISCOVERY_STATUSES
+        ) != page_signals.get("missionUnderDiscovery"):
+            yield ServerSentEventGenerator.patch_signals(
+                {"detailsVersion": int(time.time() * 1000)}
+            )
         async for datastar_event in subscription:
             yield datastar_event
 

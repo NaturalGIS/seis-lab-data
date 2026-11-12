@@ -872,3 +872,24 @@ msgstr "categoria desconhecida"
 #: webapp/templates/survey-related-records/detail-component.html
 msgid "unknown stage"
 msgstr "estádio desconhecido"
+
+#: constants.py
+#: webapp/templates/survey-missions/detail-component.html
+msgid "cancelling discovery"
+msgstr "a cancelar descoberta"
+
+#: webapp/templates/survey-missions/detail-component.html
+msgid "cancel discovery"
+msgstr "cancelar descoberta"
+
+#: webapp/templates/survey-missions/detail-component.html
+msgid "discovery is running"
+msgstr "descoberta em curso"
+
+#: webapp/templates/survey-missions/detail-component.html
+msgid ""
+"A running discovery can be cancelled. The survey-related records it created "
+"until then are kept, and running discovery again resumes it."
+msgstr ""
+"Uma descoberta em curso pode ser cancelada. Os registos que criou até então "
+"são mantidos, e correr a descoberta novamente retoma-a."
