@@ -628,6 +628,50 @@ async def test_discovery_keeps_a_published_mission_published(
 @pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
+    "relative_path",
+    [
+        pytest.param("", id="empty"),
+        pytest.param("/", id="root"),
+        pytest.param("surveys/..", id="back to root"),
+        pytest.param("../elsewhere", id="outside archive"),
+    ],
+)
+async def test_discovery_refuses_a_path_outside_the_mission_directory(
+    db_session_maker, admin_user, discovery_env, relative_path
+):
+    # a file the mission would find if it walked the whole archive
+    _write_geotiff(discovery_env["archive_root"] / "s01" / "other.tif")
+    mission_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
+    async with db_session_maker() as session:
+        await session.execute(
+            sqlalchemy.update(models.SurveyMission)
+            .where(models.SurveyMission.id == mission_id)
+            .values(relative_path=relative_path)
+        )
+        await session.commit()
+
+    collector = await _run_discovery(
+        db_session_maker, mission_id, discovery_env["settings"], admin_user
+    )
+
+    ended = _ended_events(collector)
+    assert [e.succeeded for e in ended] == [False]
+    assert "does not name a directory inside the archive" in ended[0].details
+    # refused before the mission was ever under discovery
+    assert not any(
+        isinstance(e, event_schemas.ResourceStatusChangedEvent)
+        for e in collector.events
+    )
+    assert await _get_mission_records(db_session_maker, mission_id) == []
+    assert (
+        await _get_mission_status(db_session_maker, mission_id)
+        == constants.SurveyMissionStatus.DRAFT
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
     "error, expected_details",
     [
         (RuntimeError("connection details"), "unexpected error (RuntimeError)"),
@@ -781,6 +825,20 @@ async def test_discovery_can_be_cancelled_and_keeps_its_records(
             "abandoned",
             id="abandoned",
         ),
+        pytest.param(
+            constants.SurveyMissionStatus.CANCELLING_DISCOVERY,
+            None,
+            constants.SurveyMissionStatus.CANCELLING_DISCOVERY,
+            "not cancelled",
+            id="already cancelling",
+        ),
+        pytest.param(
+            constants.SurveyMissionStatus.CANCELLING_DISCOVERY,
+            dt.timedelta(hours=1),
+            constants.SurveyMissionStatus.DRAFT,
+            "abandoned",
+            id="cancelling abandoned",
+        ),
     ],
 )
 async def test_cancel_mission_discovery(
@@ -823,6 +881,36 @@ async def test_cancel_mission_discovery(
             ended = _ended_events(collector)
             assert [e.succeeded for e in ended] == [False]
             assert "abandoned" in ended[0].details
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_cancelling_discovery_keeps_the_heartbeat(
+    db_session_maker, admin_user, discovery_env
+):
+    mission_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
+    await _set_mission_status(
+        db_session_maker,
+        mission_id,
+        constants.SurveyMissionStatus.UNDER_DISCOVERY,
+        dt.timedelta(minutes=5),
+    )
+    async with db_session_maker() as session:
+        heartbeat = (await session.get(models.SurveyMission, mission_id)).updated_at
+
+    async with db_session_maker() as session:
+        await discovery_ops.cancel_mission_discovery(
+            request_id=identifiers.RequestId(uuid.uuid4()),
+            mission_id=mission_id,
+            initiator=admin_user,
+            session=session,
+            event_dispatcher=_EventCollector(),
+        )
+
+    async with db_session_maker() as session:
+        mission = await session.get(models.SurveyMission, mission_id)
+    assert mission.status == constants.SurveyMissionStatus.CANCELLING_DISCOVERY
+    assert mission.updated_at == heartbeat
 
 
 @pytest.mark.integration

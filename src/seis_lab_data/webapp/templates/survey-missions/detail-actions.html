@@ -12,26 +12,35 @@
                             <button
                                     class="btn btn-warning"
                                     aria-label="cancel-mission-discovery"
-                                    data-on:click="@post('{{ url_for("survey_missions:cancel_discovery", survey_mission_id=item.id, request_id=request_id) }}', {
-                                        headers: {'X-CSRFToken': '{{ csrf_token(request) }}'}
-                                    })"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#cancel-discovery-modal"
                             >
-                            <span class="material-icons-outlined me-1">{{ icons.discover_contents }}</span>{{ _("cancel discovery") | capitalize }}
+                            <span class="material-icons-outlined me-1">{{ icons.discover_contents }}</span>{{ _("cancel discovery...") | capitalize }}
                             </button>
                         {% elif item.status.value == "cancelling_discovery" %}
-                            <button class="btn btn-outline-dark" aria-label="cancelling-mission-discovery" disabled>
+                            {# clicking again recovers a discovery whose worker died before cancelling it #}
+                            <button
+                                    class="btn btn-outline-warning"
+                                    aria-label="cancelling-mission-discovery"
+                                    title="{{ _("cancel discovery again") | capitalize }}"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#cancel-discovery-modal"
+                            >
                             <span class="material-icons-outlined me-1">{{ icons.discover_contents }}</span>{{ _("cancelling discovery") | capitalize }}
                             </button>
                         {% else %}
                             <button
                                     class="btn btn-secondary"
                                     aria-label="discover-mission"
+                                    {% if item.relative_path %}
                                     data-attr:disabled="$isBusy"
-                                    data-on:click="@post('{{ url_for("survey_missions:trigger_discovery", survey_mission_id=item.id, request_id=request_id) }}', {
-                                        headers: {'X-CSRFToken': '{{ csrf_token(request) }}'}
-                                    })"
+                                    {% else %}
+                                    disabled
+                                    {% endif %}
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#discover-records-modal"
                             >
-                            <span class="material-icons-outlined me-1">{{ icons.discover_contents }}</span>{{ _("discover survey mission resources") | capitalize }}
+                            <span class="material-icons-outlined me-1">{{ icons.discover_contents }}</span>{{ _("discover records...") | capitalize }}
                             </button>
                         {% endif %}
                         {% if under_discovery %}

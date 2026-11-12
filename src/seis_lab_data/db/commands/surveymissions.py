@@ -133,14 +133,21 @@ async def compare_and_set_survey_mission_status(
     """Sets the survey mission's status, but only if it is the expected one.
 
     Comparison and change are a single UPDATE, so of several callers which
-    expect the same status only one gets to change it. Returns whether the
-    status was changed.
+    expect the same status only one gets to change it. A change to cancelling
+    discovery keeps `updated_at`, the discovery heartbeat, as it is: the request
+    to cancel is not a sign of the discovery being alive, and refreshing the
+    heartbeat would delay the recovery of a discovery whose worker died. Returns
+    whether the status was changed.
     """
+    values = {"status": status}
+    if status == SurveyMissionStatus.CANCELLING_DISCOVERY:
+        # an explicit value prevents the column's `onupdate`
+        values["updated_at"] = models.SurveyMission.updated_at
     result = await session.execute(
         update(models.SurveyMission)
         .where(models.SurveyMission.id == survey_mission_id)
         .where(models.SurveyMission.status == expected_status)
-        .values(status=status)
+        .values(**values)
     )
     await session.commit()
     return result.rowcount == 1

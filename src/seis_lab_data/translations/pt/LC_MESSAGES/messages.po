@@ -886,6 +886,54 @@ msgstr "cancelar descoberta"
 msgid "discovery is running"
 msgstr "descoberta em curso"
 
+#: webapp/templates/survey-missions/detail-summary.html
+msgid "invalid"
+msgstr "inválido"
+
+#: webapp/templates/survey-missions/detail-actions.html
+msgid "discover records"
+msgstr "descobrir registos"
+
+#: webapp/templates/survey-missions/detail-actions.html
+msgid "discover records..."
+msgstr "descobrir registos..."
+
+#: webapp/templates/survey-missions/detail-actions.html
+msgid "cancel discovery..."
+msgstr "cancelar descoberta..."
+
+#: webapp/templates/survey-missions/detail-component.html
+msgid "start discovery"
+msgstr "iniciar descoberta"
+
+#: webapp/templates/survey-missions/detail-component.html
+msgid ""
+"Are you sure you want to discover records for this survey mission? "
+"Discovery may take a long time to finish."
+msgstr ""
+"Tem a certeza de que pretende descobrir registos para esta missão? A "
+"descoberta pode demorar bastante tempo a terminar."
+
+#: webapp/templates/survey-missions/detail-component.html
+msgid ""
+"Are you sure you want to cancel this survey mission's discovery? The "
+"survey-related records it created until now are kept."
+msgstr ""
+"Tem a certeza de que pretende cancelar a descoberta desta missão? Os "
+"registos que criou até agora são mantidos."
+
+#: webapp/templates/survey-missions/detail-actions.html
+msgid "cancel discovery again"
+msgstr "cancelar descoberta novamente"
+
+#: webapp/templates/survey-missions/detail-component.html
+msgid ""
+"Discovery is only available for survey missions that have a relative "
+"path. Edit the survey mission to set it."
+msgstr ""
+"A descoberta só está disponível para missões que tenham um caminho "
+"relativo. Edite a missão para o definir."
+
 #: webapp/templates/survey-missions/detail-component.html
 msgid ""
 "A running discovery can be cancelled. The survey-related records it created "

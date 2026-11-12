@@ -5,6 +5,7 @@ import datetime as dt
 import json
 import logging
 import math
+import posixpath
 import re
 import time
 import uuid
@@ -255,6 +256,17 @@ async def run_mission_discovery(
             raise errors.SeisLabDataError(
                 f"Cannot run discovery on survey mission because its status is "
                 f"{mission_status}"
+            )
+        # an empty path would be the archive root, and `..` could lead out of the
+        # mission's directory: either one would have the files of other missions
+        # discovered as this mission's
+        if (
+            normalized_path := posixpath.normpath(mission.relative_path.strip("/"))
+        ) == "." or normalized_path.split("/")[0] == "..":
+            raise errors.SeisLabDataError(
+                f"Cannot run discovery on survey mission because its relative path "
+                f"{mission.relative_path!r} does not name a directory inside the "
+                f"archive"
             )
         if not await mission_commands.compare_and_set_survey_mission_status(
             session,
@@ -668,7 +680,9 @@ async def cancel_mission_discovery(
 
     The mission's status is changed from under discovery to cancelling discovery.
     A mission whose discovery heartbeat is stale is recovered instead, as by
-    `recover_stale_mission_discoveries`.
+    `recover_stale_mission_discoveries`. Requesting it again while the mission is
+    cancelling discovery only attempts that recovery, which frees a mission whose
+    worker died before honouring the first request.
     """
     try:
         if (
@@ -689,6 +703,12 @@ async def cancel_mission_discovery(
             mission_id=mission_id,
         ):
             return
+        if mission.status == constants.SurveyMissionStatus.CANCELLING_DISCOVERY:
+            raise errors.SeisLabDataError(
+                f"Discovery is already being cancelled. If it is no longer running, "
+                f"the survey mission can be recovered once its discovery has been "
+                f"silent for {constants.DISCOVERY_STALE_AFTER_SECONDS // 60} minutes"
+            )
         if not await mission_commands.compare_and_set_survey_mission_status(
             session,
             mission_id,
