@@ -47,15 +47,15 @@ def base_callback(ctx: typer.Context) -> None:
 @app.command(
     context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
 )
-def run_processing_worker(ctx: typer.Context) -> None:
-    """Start a processing worker
+def run_worker(ctx: typer.Context) -> None:
+    """Start a dramatiq worker
 
     Extra arguments are passed straight to dramatiq, which is how a worker gets
-    pinned to a queue (`run-processing-worker --queues previews`).
+    pinned to a queue (`run-worker --queues previews`).
     """
     context: config.SeisLabDataCliContext = ctx.obj["main"]
     panel = Panel(
-        "SeisLabData processing worker",
+        "SeisLabData worker",
         title="seis-lab-data",
         expand=False,
         padding=(1, 2),

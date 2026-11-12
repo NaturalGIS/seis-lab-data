@@ -174,13 +174,15 @@ services:
     volumes:
       *common-volumes
 
-  processing-worker:
+  # CI runs a single worker, consuming both the interactive and the long-running queues
+  worker:
     image: *common-image
     command:
-      - "run-processing-worker"
+      - "run-worker"
       - "--queues"
       - "default"
       - "exports"
+      - "discovery"
     environment:
       <<: *common-env
     volumes:

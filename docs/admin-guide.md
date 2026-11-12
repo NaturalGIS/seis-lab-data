@@ -71,7 +71,7 @@ System startup requires the presence of some environment variables. These are de
 2.  `image-url.env` - This file is rewritten each time an automated system deployment is performed. As such, it
     should not be manually edited. It contains a single variable:
 
-    - `IMAGE_URL` - the docker image to be used in the [web application](#2-web-application-component) and [processing worker](#4-processing-worker-component) components
+    - `IMAGE_URL` - the docker image to be used in the [web application](#2-web-application-component) and [workers](#4-workers-component) components
 
 There are many other environment variables that can be used to configure the system. These are indicated
 in the relevant section of the docker compose file `compose.prod-env.yaml`. This file is already configured
@@ -175,7 +175,8 @@ db                   Up 2 weeks (healthy)
 dozzle               Up 2 weeks
 martin-tile-server   Up 2 weeks (healthy)
 message-broker       Up 2 weeks (healthy)
-processing-worker    Up 2 weeks
+interactive-worker   Up 2 weeks
+long-tasks-worker    Up 2 weeks
 web-gateway          Up 2 weeks
 webapp               Up 2 weeks
 ```
@@ -203,7 +204,8 @@ Example output:
 /seis-lab-data-dozzle-1 → restart: unless-stopped
 /seis-lab-data-martin-tile-server-1 → restart: unless-stopped
 /seis-lab-data-message-broker-1 → restart: unless-stopped
-/seis-lab-data-processing-worker-1 → restart: unless-stopped
+/seis-lab-data-interactive-worker-1 → restart: unless-stopped
+/seis-lab-data-long-tasks-worker-1 → restart: unless-stopped
 /seis-lab-data-web-gateway-1 → restart: unless-stopped
 /seis-lab-data-webapp-1 → restart: unless-stopped
 ```
@@ -388,7 +390,7 @@ docker compose \
     -f compose.prod-env.yaml \
     --env-file compose-deployment.env \
     --env-file image-url.env \
-    up -d --force-recreate webapp processing-worker
+    up -d --force-recreate webapp interactive-worker long-tasks-worker
 ```
 
 4. If the new version includes database migrations, run after the previous step:
@@ -415,7 +417,7 @@ flowchart LR
     rev-proxy(<a href="#1-reverse-proxy-component">1. reverse proxy</a>)
     webapp(<a href="#2-web-application-component">2. web application</a>)
     db[(<a href="#3-main-system-db-component">3. main system db</a>)]
-    proc-worker(<a href="#4-processing-worker-component">4. processing worker</a>)
+    workers(<a href="#4-workers-component">4. workers</a>)
     tile-server(<a href="#5-map-tiles-server-component">5. map tiles server</a>)
     auth-webapp(<a href="#6-user-authentication-service-component">6. user authentication service</a>)
     auth-db[(<a href="#61-database-for-authentication-service-component">6.1. database for authentication service</a>)]
@@ -429,12 +431,12 @@ flowchart LR
     auth-webapp --> auth-worker
     auth-worker <--> auth-db
     webapp <--> db
-    proc-worker <--> db
+    workers <--> db
     webapp <--> message-broker
-    message-broker <--> proc-worker
+    message-broker <--> workers
     arch --> webapp
     arch --> tile-server
-    arch <--> proc-worker
+    arch <--> workers
 ```
 </span>
 
@@ -503,11 +505,18 @@ catalog records.
     ```
 
 
-#### 4. `processing worker` component
+#### 4. `workers` component
 
 [Dramatiq](https://dramatiq.io/) application that executes background tasks, like the creation
 and processing of records in the system. Communicates with the webapplication mostly via a publish/subscribe
 pattern[^2] application through the `message broker` component.
+
+It runs as two services, so that tasks which may take long never delay the interactive ones:
+
+- `interactive-worker` - runs the quick, user-facing tasks, such as creating, updating, deleting, validating and
+  publishing items (`default` queue)
+- `long-tasks-worker` - runs the tasks which may take long: archive discovery, previews, thumbnails and GeoNode
+  exports (`discovery`, `previews`, `thumbnails` and `exports` queues)
 
 [^2]: General overview of the publish/subscribe pattern: <https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern>
 
@@ -569,7 +578,7 @@ blueprints.
 #### 7. `message broker` component
 
 [Redis](https://redis.io/) instance used both as a message queue and message broker between the `web application` and the
-`processing worker` components.
+`workers` components.
 
 
 ##### Relevant configuration files
@@ -591,7 +600,7 @@ These volumes are subsequently mounted inside the relevant docker containers so 
 used by system services:
 
 - [2. `web application` component](#2-web-application-component)
-- [4. `processing worker` component](#4-processing-worker-component)
+- [4. `workers` component](#4-workers-component)
 - [5. `map tiles server` component](#5-map-tiles-server-component)
 
 

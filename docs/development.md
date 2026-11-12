@@ -18,9 +18,13 @@ This project is composed of a set of multiple services which are deployed with `
 The more relevant services are:
 
 - `webapp` - the main web application, which is implemented with [starlette], [sqlmodel], [jinja] and [datastar]
-- `processing-worker` - the background worker that does most processing and
-  state-changing DB modifications. It is a [dramatiq] worker
-- `message-broker` - a [redis] instance that passes messages between the webapp and the processing worker
+- `interactive-worker` - the [dramatiq] worker that runs the quick, user-facing tasks, such as
+  the state-changing DB modifications (create, update, delete, validate, publish). It consumes the
+  `default` queue
+- `long-tasks-worker` - the [dramatiq] worker that runs the tasks which may take long: discovery,
+  previews, thumbnails and exports. It consumes the `discovery`, `previews`, `thumbnails` and
+  `exports` queues, so these tasks never delay the interactive ones
+- `message-broker` - a [redis] instance that passes messages between the webapp and the workers
 - `web-gateway` - a [traefik] instance that acts as a reverse proxy for the system
 - `auth-webapp` - an [authentik] instance that takes care of user authentication
 
@@ -303,7 +307,7 @@ static files.
 - GeoNode is accessible at http://geonode.localhost:8888, with credentials `admin` / `admin123`
 - GeoServer is accessible at http://geonode.localhost:8888/geoserver/, with credentials
   `admin` / `geoserver`
-- Other services in the stack (e.g. `processing-worker`) can reach the GeoNode API directly at
+- Other services in the stack (e.g. `long-tasks-worker`) can reach the GeoNode API directly at
   `http://django:8000`
 - uwsgi request logs are written to `/var/log/geonode.log` inside the `geonode-django` container
 
@@ -323,7 +327,7 @@ disabled when the URL is not set):
 - `SEIS_LAB_DATA__PUBLIC_URL` - must also be set for the workers, as exported GeoNode resources
   link back to their record's page
 
-Exports run in the `exports` queue, consumed by the `previews-worker` service. The dev stack already
+Exports run in the `exports` queue, consumed by the `long-tasks-worker` service. The dev stack already
 sets all of these settings, using fixed credentials, the GeoNode counterparts of which can be
 created with:
 

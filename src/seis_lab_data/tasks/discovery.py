@@ -4,7 +4,10 @@ import uuid
 
 import dramatiq
 
-from .. import config
+from .. import (
+    config,
+    constants,
+)
 from ..operations import discovery as discovery_ops
 from ..schemas import (
     discovery as discovery_schemas,
@@ -85,7 +88,13 @@ async def delete_asset_discovery_configuration(
         )
 
 
-@dramatiq.actor
+# We don't want discovery to delay the interactive tasks, so this runs on its
+# own queue; also, this gets no retries, we leave a re-run up to the user
+@dramatiq.actor(
+    queue_name="discovery",
+    max_retries=0,
+    time_limit=constants.DISCOVERY_TIME_LIMIT_SECONDS * 1000,
+)
 @decorators.sld_settings
 async def discover_survey_mission_contents(
     raw_request_id: str,

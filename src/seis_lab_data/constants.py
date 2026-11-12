@@ -43,6 +43,7 @@ GEONODE_SHAPEFILE_SIDECAR_FIELDS: typing.Final[dict[str, str]] = {
     ".prj": "prj_file",
 }
 GEONODE_EXPORT_TIME_LIMIT_SECONDS: typing.Final[int] = 60 * 60
+DISCOVERY_TIME_LIMIT_SECONDS: typing.Final[int] = 24 * 60 * 60
 # a record that is under export for longer than this was abandoned by a worker
 # which died mid-export, as the export task is killed at its time limit
 GEONODE_EXPORT_STALE_AFTER_SECONDS: typing.Final[int] = (

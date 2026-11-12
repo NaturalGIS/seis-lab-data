@@ -76,7 +76,7 @@ steps:
       docker compose \
         --env-file $${ENV_FILE_NAME} \
         --file $${COMPOSE_FILE_NAME} \
-        down || true
+        down --remove-orphans || true
 
       echo "Starting deployment..."
       docker compose \
