@@ -22,7 +22,8 @@
                         ) }}
                         <dl class="row">
                             <dt class="col-sm-3">{{ _("root path") | capitalize }}</dt>
-                            <dd class="col-sm-9">{{ item.relative_path|default(_("relative path not available"), True) }}</dd>
+                            {# a leading slash would otherwise replace the archive root #}
+                            <dd class="col-sm-9">{{ settings.readonly_archive_root_directory / item.relative_path.lstrip("/") if item.relative_path else _("invalid") }}</dd>
                             <dt class="col-sm-3">{{ _("Implicit CRS") }}</dt>
                             <dd class="col-sm-9">EPSG:{{ item.implicit_crs }}</dd>
                             <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>

@@ -147,6 +147,61 @@
         </div>
     </div>
     {% include "survey-missions/detail-actions.html" %}
+    {# outside of the actions, which are morphed on status changes: a dialog
+       morphed while closing would leave its backdrop behind #}
+    {% if permissions.can_discover %}
+        <div id="discover-records-modal" class="modal fade" tabindex="-1" aria-labelledby="discover-records-modal-label" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="discover-records-modal-label">{{ _("discover records") | capitalize }}</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _("Close") }}"></button>
+                    </div>
+                    <div class="modal-body">
+                        {{ _("Are you sure you want to discover records for this survey mission? Discovery may take a long time to finish.") }}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                        <button
+                                type="button"
+                                aria-label="confirm-mission-discovery"
+                                class="btn btn-primary"
+                                data-on:click="@post('{{ url_for("survey_missions:trigger_discovery", survey_mission_id=item.id, request_id=request_id) }}', {
+                                    headers: {'X-CSRFToken': '{{ csrf_token(request) }}'}
+                                })"
+                                data-bs-dismiss="modal"
+                        >{{ _("start discovery") | capitalize }}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="cancel-discovery-modal" class="modal fade" tabindex="-1" aria-labelledby="cancel-discovery-modal-label" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="cancel-discovery-modal-label">{{ _("cancel discovery") | capitalize }}</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _("Close") }}"></button>
+                    </div>
+                    <div class="modal-body">
+                        {{ _("Are you sure you want to cancel this survey mission's discovery? The survey-related records it created until now are kept.") }}
+                    </div>
+                    <div class="modal-footer">
+                        {# not 'cancel', which would be confusing next to cancelling the discovery #}
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _("Close") }}</button>
+                        <button
+                                type="button"
+                                aria-label="confirm-mission-discovery-cancellation"
+                                class="btn btn-warning"
+                                data-on:click="@post('{{ url_for("survey_missions:cancel_discovery", survey_mission_id=item.id, request_id=request_id) }}', {
+                                    headers: {'X-CSRFToken': '{{ csrf_token(request) }}'}
+                                })"
+                                data-bs-dismiss="modal"
+                        >{{ _("cancel discovery") | capitalize }}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
     <div class="page-layout-info">
         {{ render_info_section(
             general_info=[
@@ -156,6 +211,7 @@
             privileged_info=[
                 _("Editing a survey mission validates it again. If it becomes invalid it goes back to DRAFT, along with its survey-related records."),
                 _("Discovery scans the survey mission's path in the archive and creates a survey-related record for each file matched by the asset discovery configurations."),
+                _("Discovery is only available for survey missions that have a relative path. Edit the survey mission to set it."),
                 _("A running discovery can be cancelled. The survey-related records it created until then are kept, and running discovery again resumes it."),
                 _("Deleting a survey mission also deletes its survey-related records."),
             ],

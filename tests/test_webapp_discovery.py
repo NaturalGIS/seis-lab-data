@@ -78,6 +78,45 @@ async def test_mission_page_shows_the_discovery_action_of_its_status(
         assert f'aria-label="{action}"' not in response.text
 
 
+@pytest.mark.parametrize(
+    "status",
+    [
+        constants.SurveyMissionStatus.DRAFT,
+        constants.SurveyMissionStatus.UNDER_DISCOVERY,
+    ],
+)
+@pytest.mark.asyncio
+async def test_mission_page_guards_discovery_actions_behind_dialogs(
+    test_client: TestClient,
+    db_session_maker,
+    sample_survey_missions,
+    logged_in_as_admin,
+    status,
+):
+    mission = sample_survey_missions[0]
+    async with db_session_maker() as session:
+        await mission_commands.set_survey_mission_status(
+            session, identifiers.SurveyMissionId(mission.id), status
+        )
+
+    response = test_client.get(f"/survey-missions/{mission.id}", params={"lang": "en"})
+
+    assert response.status_code == 200
+    # both dialogs are always there, as status changes only morph the actions
+    for modal_id, confirm_label in (
+        ("discover-records-modal", "confirm-mission-discovery"),
+        ("cancel-discovery-modal", "confirm-mission-discovery-cancellation"),
+    ):
+        assert f'id="{modal_id}"' in response.text
+        assert f'aria-label="{confirm_label}"' in response.text
+    assert response.text.count('data-bs-target="#discover-records-modal"') == (
+        status == constants.SurveyMissionStatus.DRAFT
+    )
+    assert response.text.count('data-bs-target="#cancel-discovery-modal"') == (
+        status == constants.SurveyMissionStatus.UNDER_DISCOVERY
+    )
+
+
 def test_cancel_discovery_requires_a_csrf_token(
     test_client: TestClient, sample_survey_missions, logged_in_as_admin, monkeypatch
 ):
