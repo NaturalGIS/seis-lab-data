@@ -30,14 +30,14 @@
     <div class="row">
         <div class="col">
             <div
-                    class="row justify-content-center m-5"
+                    class="row justify-content-center my-4 m-lg-5"
                     data-signals:search='{{ search_initial_value | default("", true) | tojson }}'
                     data-signals:advanced-search-panel-open="false"
                     data-signals:searching="false"
                     data-signals:listing-version="0"
                     data-effect="$listingVersion > 0 && @get('{{ url_for('survey_missions:get_list_component') }}?page=' + $currentPage)"
             >
-                <div class="col-8">
+                <div class="col-12 col-md-10 col-lg-8">
                     <search class="form-floating">
                         <input
                                 class="form-control form-control-lg"
@@ -88,9 +88,9 @@
                 </div>
             </div>
             <div class="row">
-                <div class="col mt-1 mb-5">
+                <div class="col mt-1 mb-3 mb-lg-5">
                     <div class="row collapse" id="advanced-search-controls">
-                        <div class="col-4">
+                        <div class="col-12 col-md-4">
                             {{ macros.render_temporal_extent_search_component(
                                         url_for("survey_missions:get_list_component"),
                                         _("Temporal extent begin"),
@@ -100,7 +100,7 @@
                                     ) }}
                         </div>
                         <div
-                                class="col"
+                                class="col-12 col-md"
                                 data-signals:current-bbox="null"
                                 data-computed:min-lon="$currentBbox?.[0]?.[0]"
                                 data-computed:min-lat="$currentBbox?.[0]?.[1]"
@@ -132,13 +132,13 @@
         </div>
 
     </div>
-    <div class="row"
+    <div class="page-layout"
          data-on-intersect__once="@get('{{ url_for("survey_missions:list_stream") }}')"
     >
-        <div class="col-9">
+        <div class="page-layout-main">
             {% include "survey-missions/list-component.html" %}
         </div>
-        <div class="col-3">
+        <div class="page-layout-info">
             {{ render_info_section(
                 general_info=[
                     _("Survey missions belong to a project and hold the survey-related records collected during a survey."),

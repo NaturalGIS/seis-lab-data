@@ -20,13 +20,13 @@ Users with create permission are linked to /asset-discovery-configurations/new, 
     <div class="row" data-on-intersect__once="@get('{{ url_for("asset_discovery_configurations:list_stream") }}')">
         <div class="col">
             <div
-                    class="row justify-content-center m-5"
+                    class="row justify-content-center my-4 m-lg-5"
                     data-signals:search='{{ search_initial_value | default("", true) | tojson }}'
                     data-signals:searching="false"
                     data-signals:listing-version="0"
                     data-effect="$listingVersion > 0 && @get('{{ url_for('asset_discovery_configurations:get_list_component') }}')"
             >
-                <div class="col-8">
+                <div class="col-12 col-md-10 col-lg-8">
                     <search class="form-floating">
                         <input
                                 class="form-control form-control-lg"
@@ -54,13 +54,13 @@ Users with create permission are linked to /asset-discovery-configurations/new, 
             </div>
         </div>
     </div>
-    <div class="row">
-        <div class="col-9">
+    <div class="page-layout">
+        <div class="page-layout-main">
             {% include "discovery/list-component.html" %}
         </div>
-        <div class="col-3">
-            {% if request.user.is_authenticated %}
-                <div class="card border-0 mb-5">
+        {% if request.user.is_authenticated %}
+            <div class="page-layout-actions">
+                <div class="card border-0 mb-4 mb-lg-5">
                     <div class="card-body p-0 d-grid gap-2">
                         <h5 class="card-title">{{ _("actions") | capitalize }}</h5>
                         {% if permissions.can_create %}
@@ -74,7 +74,9 @@ Users with create permission are linked to /asset-discovery-configurations/new, 
                         {% endif %}
                     </div>
                 </div>
-            {% endif %}
+            </div>
+        {% endif %}
+        <div class="page-layout-info">
             {{ render_info_section(
                 general_info=[
                     _("Asset discovery configurations tell the discovery process which files in a survey mission's archive path become survey-related records, and which dataset category and workflow stage those records get."),

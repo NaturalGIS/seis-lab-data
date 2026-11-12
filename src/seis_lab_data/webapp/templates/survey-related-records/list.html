@@ -37,7 +37,7 @@
     <div class="row">
     <div class="col">
         <div
-                class="row justify-content-center m-5"
+                class="row justify-content-center my-4 m-lg-5"
                 data-signals:search='{{ search_initial_value | default("", true) | tojson }}'
                 data-signals:advanced-search-panel-open="{{ 'true' if has_initial_advanced_filters else 'false' }}"
                 data-signals:searching="false"
@@ -49,7 +49,7 @@
                 data-init="$compactListing = localStorage.getItem('sld:compact-records') === 'true'"
                 data-effect="$listingVersion > 0 && @get('{{ url_for('survey_related_records:get_list_component') }}?page=' + $currentPage)"
         >
-            <div class="col-8">
+            <div class="col-12 col-md-10 col-lg-8">
                 <search class="form-floating">
                     <input
                             class="form-control form-control-lg"
@@ -100,9 +100,9 @@
             </div>
         </div>
         <div class="row">
-            <div class="col mt-1 mb-5">
+            <div class="col mt-1 mb-3 mb-lg-5">
                 <div class="row collapse{% if has_initial_advanced_filters %} show{% endif %}" id="advanced-search-controls">
-                    <div class="col-4">
+                    <div class="col-12 col-md-4">
                         {{ search_datalist(
                               "search-project-datalist",
                               filter_projects_datalist,
@@ -162,7 +162,7 @@
                         </div>
                     </div>
                     <div
-                            class="col"
+                            class="col-12 col-md"
                             data-signals:current-bbox="null"
                             data-computed:min-lon="$currentBbox?.[0]?.[0]"
                             data-computed:min-lat="$currentBbox?.[0]?.[1]"
@@ -191,13 +191,13 @@
         </div>
     </div>
     </div>
-    <div class="row"
+    <div class="page-layout"
          data-on-intersect__once="@get('{{ url_for("survey_related_records:list_stream") }}')"
     >
-        <div class="col-9" data-class:listing-compact="$compactListing">
+        <div class="page-layout-main" data-class:listing-compact="$compactListing">
             {% include "survey-related-records/list-component.html" %}
         </div>
-        <div class="col-3">
+        <div class="page-layout-info">
             {{ render_info_section(
                 general_info=[
                     _("Survey-related records describe the datasets collected during a survey mission. Each record has one or more assets."),
