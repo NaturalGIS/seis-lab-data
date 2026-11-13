@@ -375,3 +375,20 @@ h1 > .material-icons-outlined {
         padding: 1.5rem;
     }
 }
+
+/* notifications: a light card, its header marked with the category's colour */
+.toast.notification {
+    --bs-toast-bg: var(--bs-tertiary-bg);
+    --bs-toast-header-bg: var(--bs-tertiary-bg);
+}
+
+.notification-swatch {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+}
+
+.notification .toast-body {
+    overflow-wrap: anywhere;
+}

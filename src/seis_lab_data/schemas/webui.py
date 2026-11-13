@@ -6,6 +6,7 @@ import pydantic
 from starlette_babel import LazyString
 from starlette.datastructures import URL
 
+from .. import constants
 from . import common
 from .projects import ProjectReadDetail
 from .surveymissions import (
@@ -22,6 +23,8 @@ from .surveyrelatedrecords import (
 class Notification(pydantic.BaseModel):
     message: str
     category: typing.Literal["info", "success", "error"] = "info"
+    # shown in the notification's header, along with its category
+    resource_type: constants.ResourceType | None = None
 
 
 class BreadcrumbItem(pydantic.BaseModel):

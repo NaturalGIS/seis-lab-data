@@ -657,6 +657,7 @@ async def test_discovery_refuses_a_path_outside_the_mission_directory(
     ended = _ended_events(collector)
     assert [e.succeeded for e in ended] == [False]
     assert "does not name a directory inside the archive" in ended[0].details
+    assert ended[0].resource_name == discovery_env["mission"].name
     # refused before the mission was ever under discovery
     assert not any(
         isinstance(e, event_schemas.ResourceStatusChangedEvent)

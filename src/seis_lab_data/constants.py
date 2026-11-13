@@ -75,6 +75,16 @@ class ResourceType(str, enum.Enum):
     RECORD = "survey_related_record"
     WORKFLOW_STAGE = "workflow_stage"
 
+    def get_translated_value(self) -> str:
+        return {
+            self.ASSET_DISCOVERY_CONFIG: _("asset discovery configuration"),
+            self.CATEGORY: _("dataset category"),
+            self.MISSION: _("survey mission"),
+            self.PROJECT: _("project"),
+            self.RECORD: _("survey-related record"),
+            self.WORKFLOW_STAGE: _("workflow stage"),
+        }.get(self, self.value)
+
     def get_topic_name(self) -> str:
         return {
             self.ASSET_DISCOVERY_CONFIG: NEW_TOPIC_ASSET_DISCOVERY_CONFIGURATIONS,

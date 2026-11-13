@@ -93,6 +93,7 @@ async def create_asset_discovery_configuration(
                 request_id=request_id,
                 resource_type=constants.ResourceType.ASSET_DISCOVERY_CONFIG,
                 resource_id=None,
+                resource_name=to_create.name,
                 modification=constants.ResourceModification.CREATED,
                 succeeded=False,
                 details=str(err),
@@ -105,9 +106,10 @@ async def create_asset_discovery_configuration(
             initiator=initiator.id,
             request_id=request_id,
             resource_type=constants.ResourceType.ASSET_DISCOVERY_CONFIG,
+            resource_id=str(asset_discovery_configuration.id),
+            resource_name=asset_discovery_configuration.name,
             modification=constants.ResourceModification.CREATED,
             succeeded=True,
-            resource_id=str(asset_discovery_configuration.id),
         )
     )
     return asset_discovery_configuration
@@ -121,6 +123,7 @@ async def update_asset_discovery_configuration(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.AssetDiscoveryConfiguration | None:
+    resource_name = None
     try:
         if (
             asset_discovery_conf
@@ -131,6 +134,7 @@ async def update_asset_discovery_configuration(
             raise errors.SeisLabDataError(
                 f"asset discovery configuration with id {asset_discovery_configuration_id} does not exist."
             )
+        resource_name = asset_discovery_conf.name
         if not discovery_permissions.can_update_asset_discovery_configuration(
             initiator
         ):
@@ -149,6 +153,7 @@ async def update_asset_discovery_configuration(
                 request_id=request_id,
                 resource_type=constants.ResourceType.ASSET_DISCOVERY_CONFIG,
                 resource_id=str(asset_discovery_configuration_id),
+                resource_name=resource_name,
                 modification=constants.ResourceModification.UPDATED,
                 succeeded=False,
                 details=str(err),
@@ -162,6 +167,7 @@ async def update_asset_discovery_configuration(
             request_id=request_id,
             resource_type=constants.ResourceType.ASSET_DISCOVERY_CONFIG,
             resource_id=str(asset_discovery_configuration_id),
+            resource_name=updated_asset_discovery_conf.name,
             modification=constants.ResourceModification.UPDATED,
             succeeded=True,
         )
@@ -177,15 +183,18 @@ async def delete_asset_discovery_configuration(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> None:
+    resource_name = None
     try:
         if (
-            await discovery_queries.get_asset_discovery_configuration(
+            asset_discovery_conf
+            := await discovery_queries.get_asset_discovery_configuration(
                 session, asset_discovery_configuration_id
             )
         ) is None:
             raise errors.SeisLabDataError(
                 f"asset discovery configuration with id {asset_discovery_configuration_id} does not exist."
             )
+        resource_name = asset_discovery_conf.name
         if not discovery_permissions.can_delete_asset_discovery_configuration(
             initiator
         ):
@@ -202,6 +211,7 @@ async def delete_asset_discovery_configuration(
                 request_id=request_id,
                 resource_type=constants.ResourceType.ASSET_DISCOVERY_CONFIG,
                 resource_id=str(asset_discovery_configuration_id),
+                resource_name=resource_name,
                 modification=constants.ResourceModification.DELETED,
                 succeeded=False,
                 details=str(err),
@@ -215,6 +225,7 @@ async def delete_asset_discovery_configuration(
             request_id=request_id,
             resource_type=constants.ResourceType.ASSET_DISCOVERY_CONFIG,
             resource_id=str(asset_discovery_configuration_id),
+            resource_name=resource_name,
             modification=constants.ResourceModification.DELETED,
             succeeded=True,
         ),
@@ -238,6 +249,7 @@ async def run_mission_discovery(
     mission's original status is restored at the end of the run, whatever its
     outcome. Preview generation for the mission is enqueued unless the run fails.
     """
+    mission_name = None
     try:
         if (
             mission := await mission_queries.get_survey_mission(session, mission_id)
@@ -245,6 +257,7 @@ async def run_mission_discovery(
             raise errors.SeisLabDataError(
                 f"Survey mission with id {mission_id} does not exist."
             )
+        mission_name = mission.name
         if not mission_permissions.can_discover_survey_mission(user, mission):
             raise errors.SeisLabDataError(
                 "User is not allowed to run discovery on this survey mission."
@@ -284,6 +297,7 @@ async def run_mission_discovery(
                 initiator=user.id,
                 resource_type=constants.ResourceType.MISSION,
                 resource_id=str(mission_id),
+                resource_name=mission_name,
                 request_id=request_id,
                 modification=constants.DiscoveryStage.ENDED,
                 succeeded=False,
@@ -318,6 +332,7 @@ async def run_mission_discovery(
                 initiator=user.id,
                 resource_type=constants.ResourceType.MISSION,
                 resource_id=str(mission_id),
+                resource_name=mission_name,
                 succeeded=True,
                 new_status=constants.SurveyMissionStatus.UNDER_DISCOVERY,
             )
@@ -327,6 +342,7 @@ async def run_mission_discovery(
                 initiator=user.id,
                 resource_type=constants.ResourceType.MISSION,
                 resource_id=str(mission_id),
+                resource_name=mission_name,
                 request_id=request_id,
                 modification=constants.DiscoveryStage.STARTED,
                 succeeded=True,
@@ -350,6 +366,7 @@ async def run_mission_discovery(
                 initiator=user.id,
                 resource_type=constants.ResourceType.MISSION,
                 resource_id=str(mission_id),
+                resource_name=mission_name,
                 request_id=request_id,
                 modification=constants.DiscoveryStage.ENDED,
                 succeeded=False,
@@ -367,6 +384,7 @@ async def run_mission_discovery(
                 initiator=user.id,
                 resource_type=constants.ResourceType.MISSION,
                 resource_id=str(mission_id),
+                resource_name=mission_name,
                 request_id=request_id,
                 modification=constants.DiscoveryStage.ENDED,
                 succeeded=False,
@@ -384,6 +402,7 @@ async def run_mission_discovery(
                 initiator=user.id,
                 resource_type=constants.ResourceType.MISSION,
                 resource_id=str(mission_id),
+                resource_name=mission_name,
                 request_id=request_id,
                 modification=(
                     constants.DiscoveryStage.CANCELLED
@@ -579,6 +598,7 @@ async def _discover_mission_records(
                         initiator=user.id,
                         resource_type=constants.ResourceType.MISSION,
                         resource_id=str(mission.id),
+                        resource_name=mission.name,
                         request_id=request_id,
                         modification=constants.DiscoveryStage.PROGRESS,
                         succeeded=True,
@@ -684,6 +704,7 @@ async def cancel_mission_discovery(
     cancelling discovery only attempts that recovery, which frees a mission whose
     worker died before honouring the first request.
     """
+    mission_name = None
     try:
         if (
             mission := await mission_queries.get_survey_mission(session, mission_id)
@@ -691,6 +712,7 @@ async def cancel_mission_discovery(
             raise errors.SeisLabDataError(
                 f"Survey mission with id {mission_id} does not exist."
             )
+        mission_name = mission.name
         if not mission_permissions.can_discover_survey_mission(initiator, mission):
             raise errors.SeisLabDataError(
                 "User is not allowed to cancel discovery on this survey mission."
@@ -725,6 +747,7 @@ async def cancel_mission_discovery(
                 initiator=initiator.id,
                 resource_type=constants.ResourceType.MISSION,
                 resource_id=str(mission_id),
+                resource_name=mission_name,
                 request_id=request_id,
                 modification=constants.DiscoveryStage.CANCELLED,
                 succeeded=False,
@@ -738,6 +761,7 @@ async def cancel_mission_discovery(
             initiator=initiator.id,
             resource_type=constants.ResourceType.MISSION,
             resource_id=str(mission_id),
+            resource_name=mission_name,
             succeeded=True,
             new_status=constants.SurveyMissionStatus.CANCELLING_DISCOVERY,
         )
@@ -765,7 +789,7 @@ async def recover_stale_mission_discoveries(
         dt.timedelta(seconds=constants.DISCOVERY_STALE_AFTER_SECONDS),
         survey_mission_id=mission_id,
     )
-    for recovered_mission_id in recovered:
+    for recovered_mission_id, recovered_mission_name in recovered:
         logger.warning(
             f"Recovered survey mission {recovered_mission_id} from an abandoned "
             f"discovery"
@@ -776,6 +800,7 @@ async def recover_stale_mission_discoveries(
                 initiator=initiator_id,
                 resource_type=constants.ResourceType.MISSION,
                 resource_id=str(recovered_mission_id),
+                resource_name=recovered_mission_name,
                 succeeded=True,
                 new_status=constants.SurveyMissionStatus.DRAFT,
             )
@@ -785,6 +810,7 @@ async def recover_stale_mission_discoveries(
                 initiator=initiator_id,
                 resource_type=constants.ResourceType.MISSION,
                 resource_id=str(recovered_mission_id),
+                resource_name=recovered_mission_name,
                 request_id=request_id,
                 modification=constants.DiscoveryStage.ENDED,
                 succeeded=False,
@@ -794,7 +820,7 @@ async def recover_stale_mission_discoveries(
                 ),
             )
         )
-    return recovered
+    return [recovered_mission_id for recovered_mission_id, _ in recovered]
 
 
 async def _heal_record_without_bbox(

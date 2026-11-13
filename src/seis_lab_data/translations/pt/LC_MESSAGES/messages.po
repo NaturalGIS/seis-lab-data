@@ -941,3 +941,103 @@ msgid ""
 msgstr ""
 "Uma descoberta em curso pode ser cancelada. Os registos que criou até então "
 "são mantidos, e correr a descoberta novamente retoma-a."
+
+#: constants.py
+msgid "asset discovery configuration"
+msgstr "configuração de descoberta de recursos"
+
+#: constants.py
+msgid "dataset category"
+msgstr "categoria"
+
+#: constants.py
+msgid "survey mission"
+msgstr "missão"
+
+#: constants.py
+msgid "project"
+msgstr "projeto"
+
+#: constants.py
+msgid "survey-related record"
+msgstr "registo"
+
+#: constants.py
+msgid "workflow stage"
+msgstr "estádio"
+
+#: webapp/streamhandlers/common.py
+msgid "success"
+msgstr "sucesso"
+
+#: webapp/streamhandlers/common.py
+msgid "error"
+msgstr "erro"
+
+#: webapp/streamhandlers/common.py
+msgid "“%(name)s” was created."
+msgstr "Criação de «%(name)s» concluída."
+
+#: webapp/streamhandlers/common.py
+msgid "“%(name)s” was updated."
+msgstr "Atualização de «%(name)s» concluída."
+
+#: webapp/streamhandlers/common.py
+msgid "“%(name)s” was deleted."
+msgstr "Eliminação de «%(name)s» concluída."
+
+#: webapp/streamhandlers/common.py
+msgid "Could not create “%(name)s”: %(details)s"
+msgstr "Não foi possível criar «%(name)s»: %(details)s"
+
+#: webapp/streamhandlers/common.py
+msgid "Could not update “%(name)s”: %(details)s"
+msgstr "Não foi possível atualizar «%(name)s»: %(details)s"
+
+#: webapp/streamhandlers/common.py
+msgid "Could not delete “%(name)s”: %(details)s"
+msgstr "Não foi possível eliminar «%(name)s»: %(details)s"
+
+#: webapp/streamhandlers/common.py
+msgid "Could not change the status of “%(name)s”: %(details)s"
+msgstr "Não foi possível alterar o estado de «%(name)s»: %(details)s"
+
+#: webapp/streamhandlers/common.py
+msgid "“%(name)s” changed status to %(status)s."
+msgstr "O estado de «%(name)s» passou a %(status)s."
+
+#: webapp/streamhandlers/common.py
+msgid "Bulk update succeeded. Updated: %(count)s."
+msgstr "Atualização em massa concluída. Atualizados: %(count)s."
+
+#: webapp/streamhandlers/common.py
+msgid "Bulk update failed: %(details)s"
+msgstr "A atualização em massa falhou: %(details)s"
+
+#: webapp/streamhandlers/common.py
+msgid "Could not cancel the discovery of “%(name)s”: %(details)s"
+msgstr "Não foi possível cancelar a descoberta de «%(name)s»: %(details)s"
+
+#: webapp/streamhandlers/common.py
+msgid "Discovery of “%(name)s” failed: %(details)s"
+msgstr "A descoberta de «%(name)s» falhou: %(details)s"
+
+#: webapp/streamhandlers/common.py
+msgid "Discovery of “%(name)s” was cancelled: %(details)s"
+msgstr "A descoberta de «%(name)s» foi cancelada: %(details)s"
+
+#: webapp/streamhandlers/common.py
+msgid "Discovery of “%(name)s” ended: %(details)s"
+msgstr "A descoberta de «%(name)s» terminou: %(details)s"
+
+#: webapp/streamhandlers/common.py
+msgid "Discovery of “%(name)s” started."
+msgstr "A descoberta de «%(name)s» começou."
+
+#: webapp/streamhandlers/common.py
+msgid "“%(name)s” was exported to GeoNode: %(details)s"
+msgstr "Exportação de «%(name)s» para o GeoNode concluída: %(details)s"
+
+#: webapp/streamhandlers/common.py
+msgid "Could not export “%(name)s” to GeoNode: %(details)s"
+msgstr "Não foi possível exportar «%(name)s» para o GeoNode: %(details)s"

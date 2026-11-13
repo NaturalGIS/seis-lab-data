@@ -42,6 +42,7 @@ async def create_workflow_stage(
                 request_id=request_id,
                 resource_type=constants.ResourceType.WORKFLOW_STAGE,
                 resource_id=None,
+                resource_name=to_create.name,
                 modification=constants.ResourceModification.CREATED,
                 succeeded=False,
                 details=str(err),
@@ -54,6 +55,7 @@ async def create_workflow_stage(
             request_id=request_id,
             resource_type=constants.ResourceType.WORKFLOW_STAGE,
             resource_id=str(resource.id),
+            resource_name=resource.name,
             modification=constants.ResourceModification.CREATED,
             succeeded=True,
         )
@@ -70,6 +72,7 @@ async def update_workflow_stage(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.WorkflowStage | None:
+    resource_name = None
     try:
         if (
             resource := await stage_queries.get_workflow_stage(session, resource_id)
@@ -77,6 +80,7 @@ async def update_workflow_stage(
             raise errors.SeisLabDataError(
                 f"Workflow stage {resource_id!r} does not exist."
             )
+        resource_name = resource.name
         if not stage_permissions.can_update_workflow_stage(initiator):
             raise errors.SeisLabDataError("User not allowed to update workflow stage.")
         updated_resource = await stage_commands.update_workflow_stage(
@@ -89,6 +93,7 @@ async def update_workflow_stage(
                 request_id=request_id,
                 resource_type=constants.ResourceType.WORKFLOW_STAGE,
                 resource_id=str(resource_id),
+                resource_name=resource_name,
                 modification=constants.ResourceModification.UPDATED,
                 succeeded=False,
                 details=str(err),
@@ -102,6 +107,7 @@ async def update_workflow_stage(
             request_id=request_id,
             resource_type=constants.ResourceType.WORKFLOW_STAGE,
             resource_id=str(resource_id),
+            resource_name=updated_resource.name,
             modification=constants.ResourceModification.UPDATED,
             succeeded=True,
         )
@@ -117,11 +123,15 @@ async def delete_workflow_stage(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> None:
+    resource_name = None
     try:
-        if (await stage_queries.get_workflow_stage(session, resource_id)) is None:
+        if (
+            resource := await stage_queries.get_workflow_stage(session, resource_id)
+        ) is None:
             raise errors.SeisLabDataError(
                 f"Workflow stage {resource_id!r} does not exist."
             )
+        resource_name = resource.name
         if not stage_permissions.can_delete_workflow_stage(initiator):
             raise errors.SeisLabDataError("User not allowed to delete workflow stages.")
         await stage_commands.delete_workflow_stage(session, resource_id)
@@ -132,6 +142,7 @@ async def delete_workflow_stage(
                 request_id=request_id,
                 resource_type=constants.ResourceType.WORKFLOW_STAGE,
                 resource_id=str(resource_id),
+                resource_name=resource_name,
                 modification=constants.ResourceModification.DELETED,
                 succeeded=False,
                 details=str(err),
@@ -144,6 +155,7 @@ async def delete_workflow_stage(
             request_id=request_id,
             resource_type=constants.ResourceType.WORKFLOW_STAGE,
             resource_id=str(resource_id),
+            resource_name=resource_name,
             modification=constants.ResourceModification.DELETED,
             succeeded=True,
         )

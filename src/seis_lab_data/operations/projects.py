@@ -71,6 +71,7 @@ async def create_project(
                 request_id=request_id,
                 resource_type=constants.ResourceType.PROJECT,
                 resource_id=None,
+                resource_name=to_create.name,
                 modification=constants.ResourceModification.CREATED,
                 succeeded=False,
                 details=str(err),
@@ -84,6 +85,7 @@ async def create_project(
             request_id=request_id,
             resource_type=constants.ResourceType.PROJECT,
             resource_id=str(project.id),
+            resource_name=project.name,
             modification=constants.ResourceModification.CREATED,
             succeeded=True,
         )
@@ -105,11 +107,13 @@ async def change_project_status(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.Project | None:
+    project_name = None
     try:
         if (project := await project_queries.get_project(session, project_id)) is None:
             raise errors.SeisLabDataError(
                 f"Project with id {project_id} does not exist."
             )
+        project_name = project.name
         if not project_permissions.can_change_project_status(initiator, project):
             raise errors.SeisLabDataError(
                 "User is not allowed to change project status."
@@ -129,6 +133,7 @@ async def change_project_status(
                 request_id=request_id,
                 resource_type=constants.ResourceType.PROJECT,
                 resource_id=str(project_id),
+                resource_name=project_name,
                 succeeded=False,
                 details=str(err),
                 new_status=None,
@@ -141,6 +146,7 @@ async def change_project_status(
             request_id=request_id,
             resource_type=constants.ResourceType.PROJECT,
             resource_id=str(project_id),
+            resource_name=updated_project.name,
             succeeded=True,
             new_status=updated_project.status,
         )
@@ -242,11 +248,13 @@ async def update_project(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.Project | None:
+    project_name = None
     try:
         if (project := await project_queries.get_project(session, project_id)) is None:
             raise errors.SeisLabDataError(
                 f"Project with id {project_id} does not exist."
             )
+        project_name = project.name
         if not project_permissions.can_update_project(initiator, project):
             raise errors.SeisLabDataError("User is not allowed to update project.")
         # any other status means a task is working on the project
@@ -351,6 +359,7 @@ async def update_project(
                 initiator=initiator.id,
                 resource_type=constants.ResourceType.PROJECT,
                 resource_id=str(project_id),
+                resource_name=project_name,
                 request_id=request_id,
                 modification=constants.ResourceModification.UPDATED,
                 succeeded=False,
@@ -364,6 +373,7 @@ async def update_project(
             initiator=initiator.id,
             resource_type=constants.ResourceType.PROJECT,
             resource_id=str(project_id),
+            resource_name=validated_project.name,
             request_id=request_id,
             modification=constants.ResourceModification.UPDATED,
             succeeded=True,
@@ -390,11 +400,13 @@ async def delete_project(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> None:
+    project_name = None
     try:
         if (project := await project_queries.get_project(session, project_id)) is None:
             raise errors.SeisLabDataError(
                 f"Project with id {project_id} does not exist."
             )
+        project_name = project.name
         if not project_permissions.can_delete_project(initiator, project):
             raise errors.SeisLabDataError("User is not allowed to delete projects.")
         if (project_status := project.status) not in (
@@ -415,6 +427,7 @@ async def delete_project(
             event_schemas.ResourceModificationEvent(
                 resource_type=constants.ResourceType.PROJECT,
                 resource_id=str(project_id),
+                resource_name=project_name,
                 request_id=request_id,
                 modification=constants.ResourceModification.DELETED,
                 succeeded=False,
@@ -428,6 +441,7 @@ async def delete_project(
         event_schemas.ResourceModificationEvent(
             resource_type=constants.ResourceType.PROJECT,
             resource_id=str(project_id),
+            resource_name=project_name,
             request_id=request_id,
             modification=constants.ResourceModification.DELETED,
             succeeded=True,

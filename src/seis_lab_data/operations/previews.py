@@ -283,6 +283,7 @@ async def generate_project_thumbnail(
             request_id=request_id,
             resource_type=constants.ResourceType.PROJECT,
             resource_id=str(project_id),
+            resource_name=project.name,
             modification=constants.ResourceModification.UPDATED,
             succeeded=True,
         )
@@ -322,6 +323,7 @@ async def generate_survey_mission_thumbnail(
             request_id=request_id,
             resource_type=constants.ResourceType.MISSION,
             resource_id=str(survey_mission_id),
+            resource_name=survey_mission.name,
             modification=constants.ResourceModification.UPDATED,
             succeeded=True,
         )

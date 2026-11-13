@@ -240,14 +240,28 @@
 <script>
     function showFlash(flash) {
         const el = document.createElement('div');
-        el.className = `toast align-items-center text-bg-${flash.category} border-0`;
-        el.setAttribute('role', 'alert');
+        el.className = 'toast notification';
+        // the category, for whatever needs to find a kind of notification, such as tests
+        el.dataset.category = flash.category;
+        el.setAttribute('role', flash.category === 'danger' ? 'alert' : 'status');
         el.setAttribute('aria-atomic', 'true');
-        el.innerHTML = `<div class="d-flex"><div class="toast-body">${flash.message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button></div>`;
+        el.innerHTML = `<div class="toast-header">
+            <span class="notification-swatch rounded me-2" aria-hidden="true"></span>
+            <strong class="me-auto"></strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body"></div>`;
+        el.querySelector('.notification-swatch').classList.add(`text-bg-${flash.category}`);
+        el.querySelector('.btn-close').setAttribute('aria-label', {{ _("Close") | tojson }});
+        // as text, never as HTML: messages include user data, such as names
+        el.querySelector('strong').textContent = flash.title || '';
+        el.querySelector('.toast-body').textContent = flash.message;
         // hidden toasts are removed, so that many notifications do not pile up in the DOM
         el.addEventListener('hidden.bs.toast', () => el.remove());
         document.querySelector('.toast-container').appendChild(el);
-        bootstrap.Toast.getOrCreateInstance(el, {delay: 6000}).show();
+        bootstrap.Toast.getOrCreateInstance(
+            el, {autohide: flash.autohide ?? true, delay: 6000}
+        ).show();
     }
     const flash = JSON.parse(localStorage.getItem('sld:flash') || 'null');
     if (flash) {

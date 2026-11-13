@@ -98,6 +98,7 @@ async def create_survey_related_record(
             event_schemas.ResourceModificationEvent(
                 resource_type=constants.ResourceType.RECORD,
                 resource_id=None,
+                resource_name=to_create.name,
                 request_id=request_id,
                 modification=constants.ResourceModification.CREATED,
                 succeeded=False,
@@ -111,6 +112,7 @@ async def create_survey_related_record(
         event_schemas.ResourceModificationEvent(
             resource_type=constants.ResourceType.RECORD,
             resource_id=str(survey_record.id),
+            resource_name=survey_record.name,
             parent_resource_id=str(survey_record.survey_mission_id),
             request_id=request_id,
             modification=constants.ResourceModification.CREATED,
@@ -130,6 +132,7 @@ async def change_survey_related_record_status(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.SurveyRelatedRecord | None:
+    record_name = None
     try:
         if (
             survey_related_record := await record_queries.get_survey_related_record(
@@ -139,6 +142,7 @@ async def change_survey_related_record_status(
             raise errors.SeisLabDataError(
                 f"Survey-related record with id {survey_related_record_id} does not exist."
             )
+        record_name = survey_related_record.name
         if survey_related_record.status == target_status:
             logger.info(
                 f"Survey-related record status is already "
@@ -165,6 +169,7 @@ async def change_survey_related_record_status(
                 initiator=initiator.id,
                 resource_type=constants.ResourceType.RECORD,
                 resource_id=str(survey_related_record_id),
+                resource_name=record_name,
                 succeeded=False,
                 new_status=None,
                 details=str(err),
@@ -177,6 +182,7 @@ async def change_survey_related_record_status(
             initiator=initiator.id,
             resource_type=constants.ResourceType.RECORD,
             resource_id=str(survey_related_record_id),
+            resource_name=updated_survey_related_record.name,
             succeeded=True,
             new_status=updated_survey_related_record.status,
         )
@@ -290,6 +296,7 @@ async def delete_survey_related_record(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> None:
+    record_name = None
     try:
         if (
             survey_record := await record_queries.get_survey_related_record(
@@ -299,6 +306,7 @@ async def delete_survey_related_record(
             raise errors.SeisLabDataError(
                 f"Survey-related record with id {survey_related_record_id!r} does not exist."
             )
+        record_name = survey_record.name
         if not record_permissions.can_delete_survey_related_record(
             initiator, survey_record
         ):
@@ -331,6 +339,7 @@ async def delete_survey_related_record(
                 initiator=initiator.id,
                 resource_type=constants.ResourceType.RECORD,
                 resource_id=str(survey_related_record_id),
+                resource_name=record_name,
                 request_id=request_id,
                 modification=constants.ResourceModification.DELETED,
                 succeeded=False,
@@ -343,6 +352,7 @@ async def delete_survey_related_record(
             initiator=initiator.id,
             resource_type=constants.ResourceType.RECORD,
             resource_id=str(survey_related_record_id),
+            resource_name=record_name,
             parent_resource_id=str(parent_id),
             request_id=request_id,
             modification=constants.ResourceModification.DELETED,
@@ -486,6 +496,7 @@ async def update_survey_related_record(
     The update is refused if the record is busy, or if its survey mission is under
     discovery, unless `allow_mission_under_discovery` is set.
     """
+    record_name = None
     try:
         if (
             survey_related_record := await record_queries.get_survey_related_record(
@@ -495,6 +506,7 @@ async def update_survey_related_record(
             raise errors.SeisLabDataError(
                 f"Survey-related id {survey_related_record_id!r} does not exist."
             )
+        record_name = survey_related_record.name
         if not record_permissions.can_update_survey_related_record(
             initiator, survey_related_record
         ):
@@ -553,6 +565,7 @@ async def update_survey_related_record(
                 initiator=initiator.id,
                 resource_type=constants.ResourceType.RECORD,
                 resource_id=str(survey_related_record_id),
+                resource_name=record_name,
                 request_id=request_id,
                 modification=constants.ResourceModification.UPDATED,
                 succeeded=False,
@@ -565,6 +578,7 @@ async def update_survey_related_record(
             initiator=initiator.id,
             resource_type=constants.ResourceType.RECORD,
             resource_id=str(survey_related_record_id),
+            resource_name=validated_record.name,
             parent_resource_id=str(validated_record.survey_mission_id),
             request_id=request_id,
             modification=constants.ResourceModification.UPDATED,

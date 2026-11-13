@@ -86,6 +86,7 @@ async def create_survey_mission(
             event_schemas.ResourceModificationEvent(
                 resource_type=constants.ResourceType.MISSION,
                 resource_id=None,
+                resource_name=to_create.name,
                 request_id=request_id,
                 modification=constants.ResourceModification.CREATED,
                 succeeded=False,
@@ -98,6 +99,7 @@ async def create_survey_mission(
         event_schemas.ResourceModificationEvent(
             resource_type=constants.ResourceType.MISSION,
             resource_id=str(survey_mission.id),
+            resource_name=survey_mission.name,
             request_id=request_id,
             modification=constants.ResourceModification.CREATED,
             succeeded=True,
@@ -122,6 +124,7 @@ async def change_survey_mission_status(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.SurveyMission | None:
+    mission_name = None
     try:
         if (
             survey_mission := await mission_queries.get_survey_mission(
@@ -131,6 +134,7 @@ async def change_survey_mission_status(
             raise errors.SeisLabDataError(
                 f"Survey mission with id {survey_mission_id} does not exist."
             )
+        mission_name = survey_mission.name
         if not mission_permissions.can_change_survey_mission_status(
             initiator, survey_mission
         ):
@@ -152,6 +156,7 @@ async def change_survey_mission_status(
                 initiator=initiator.id,
                 resource_type=constants.ResourceType.MISSION,
                 resource_id=str(survey_mission_id),
+                resource_name=mission_name,
                 succeeded=False,
                 new_status=None,
                 details=str(err),
@@ -164,6 +169,7 @@ async def change_survey_mission_status(
             initiator=initiator.id,
             resource_type=constants.ResourceType.MISSION,
             resource_id=str(survey_mission_id),
+            resource_name=updated_survey_mission.name,
             succeeded=True,
             new_status=updated_survey_mission.status,
         )
@@ -277,6 +283,7 @@ async def update_survey_mission(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.SurveyMission | None:
+    mission_name = None
     try:
         if (
             survey_mission := await mission_queries.get_survey_mission(
@@ -286,6 +293,7 @@ async def update_survey_mission(
             raise errors.SeisLabDataError(
                 f"Survey mission {survey_mission_id!r} does not exist."
             )
+        mission_name = survey_mission.name
         if not mission_permissions.can_update_survey_mission(initiator, survey_mission):
             raise errors.SeisLabDataError("User not allowed to update survey mission.")
         if (mission_status := survey_mission.status) not in (
@@ -359,6 +367,7 @@ async def update_survey_mission(
             event_schemas.ResourceModificationEvent(
                 resource_type=constants.ResourceType.MISSION,
                 resource_id=str(survey_mission_id),
+                resource_name=mission_name,
                 request_id=request_id,
                 modification=constants.ResourceModification.UPDATED,
                 succeeded=False,
@@ -372,6 +381,7 @@ async def update_survey_mission(
         event_schemas.ResourceModificationEvent(
             resource_type=constants.ResourceType.MISSION,
             resource_id=str(survey_mission_id),
+            resource_name=validated_mission.name,
             request_id=request_id,
             modification=constants.ResourceModification.UPDATED,
             succeeded=True,
@@ -401,6 +411,7 @@ async def delete_survey_mission(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> None:
+    mission_name = None
     try:
         if (
             survey_mission := await mission_queries.get_survey_mission(
@@ -410,6 +421,7 @@ async def delete_survey_mission(
             raise errors.SeisLabDataError(
                 f"Survey mission with id {survey_mission_id!r} does not exist."
             )
+        mission_name = survey_mission.name
         if not mission_permissions.can_delete_survey_mission(initiator, survey_mission):
             raise errors.SeisLabDataError(
                 "User is not allowed to delete survey missions."
@@ -435,6 +447,7 @@ async def delete_survey_mission(
             event_schemas.ResourceModificationEvent(
                 resource_type=constants.ResourceType.MISSION,
                 resource_id=str(survey_mission_id),
+                resource_name=mission_name,
                 request_id=request_id,
                 modification=constants.ResourceModification.DELETED,
                 succeeded=False,
@@ -448,6 +461,7 @@ async def delete_survey_mission(
         event_schemas.ResourceModificationEvent(
             resource_type=constants.ResourceType.MISSION,
             resource_id=str(survey_mission_id),
+            resource_name=mission_name,
             parent_resource_id=str(parent_id),
             request_id=request_id,
             modification=constants.ResourceModification.DELETED,

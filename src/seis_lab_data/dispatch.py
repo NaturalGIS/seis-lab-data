@@ -33,6 +33,7 @@ class RedisEventDispatcher:
                         resource_type=event.resource_type,
                         request_id=event.request_id,
                         resource_id=event.resource_id,
+                        resource_name=event.resource_name,
                         parent_resource_id=event.parent_resource_id,
                         modification=event.modification,
                         succeeded=event.succeeded,
@@ -58,6 +59,7 @@ class RedisEventDispatcher:
                         request_id=event.request_id,
                         resource_type=event.resource_type,
                         resource_id=event.resource_id,
+                        resource_name=event.resource_name,
                         succeeded=event.succeeded,
                         new_status=event.new_status,
                         details=event.details,
@@ -69,6 +71,7 @@ class RedisEventDispatcher:
                     message=messages.DiscoveryMessage(
                         resource_type=event.resource_type,
                         resource_id=event.resource_id,
+                        resource_name=event.resource_name,
                         request_id=event.request_id,
                         modification=event.modification,
                         succeeded=event.succeeded,
@@ -104,6 +107,7 @@ class RedisEventDispatcher:
                     message=messages.ExportMessage(
                         resource_type=event.resource_type,
                         resource_id=event.resource_id,
+                        resource_name=event.resource_name,
                         request_id=event.request_id,
                         stage=event.stage,
                         succeeded=event.succeeded,

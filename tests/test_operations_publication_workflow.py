@@ -56,6 +56,10 @@ async def test_delete_published_project(
         assert await project_queries.get_project(session, project_id) is None
     assert dispatcher.events[-1].modification == constants.ResourceModification.DELETED
     assert dispatcher.events[-1].succeeded is True
+    # gone from the DB, the name is still there for its notification
+    assert (
+        dispatcher.events[-1].resource_name == published_sample_data["projects"][0].name
+    )
 
 
 @pytest.mark.integration
@@ -76,6 +80,10 @@ async def test_delete_published_survey_mission_of_published_project(
         assert await mission_queries.get_survey_mission(session, mission_id) is None
     assert dispatcher.events[-1].modification == constants.ResourceModification.DELETED
     assert dispatcher.events[-1].succeeded is True
+    # gone from the DB, the name is still there for its notification
+    assert (
+        dispatcher.events[-1].resource_name == published_sample_data["missions"][0].name
+    )
 
 
 @pytest.mark.integration
@@ -100,6 +108,10 @@ async def test_delete_published_survey_related_record_of_published_mission(
         )
     assert dispatcher.events[-1].modification == constants.ResourceModification.DELETED
     assert dispatcher.events[-1].succeeded is True
+    # gone from the DB, the name is still there for its notification
+    assert (
+        dispatcher.events[-1].resource_name == published_sample_data["records"][0].name
+    )
 
 
 # a valid resource is only published if its parent is already published, which
