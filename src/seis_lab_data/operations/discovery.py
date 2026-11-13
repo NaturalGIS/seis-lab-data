@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import dataclasses
 import datetime as dt
+import heapq
 import json
 import logging
 import math
@@ -465,15 +466,24 @@ async def _refresh_discovery_heartbeat(
         await asyncio.sleep(constants.DISCOVERY_HEARTBEAT_INTERVAL_SECONDS)
 
 
+# number of slowest files named in the discovery timings
+_SLOWEST_FILES_LOGGED = 5
+
+
 @dataclasses.dataclass
 class _DiscoveryCounts:
-    """Counts of the files processed by a discovery run."""
+    """Counts and timings of the files processed by a discovery run."""
 
     found: int = 0
     created: int = 0
     failed: int = 0
     invalid_configuration_names: list[str] = dataclasses.field(default_factory=list)
     cancelled: bool = False
+    started_at: float = dataclasses.field(default_factory=time.monotonic)
+    extraction_seconds: float = 0.0
+    db_seconds: float = 0.0
+    # min-heap of (seconds, relative path), holding the slowest files
+    slowest_files: list[tuple[float, str]] = dataclasses.field(default_factory=list)
 
     def describe(self) -> str:
         """Return a summary of the counts."""
@@ -486,6 +496,26 @@ class _DiscoveryCounts:
                 f"{', '.join(self.invalid_configuration_names)}"
             )
         return summary
+
+    def describe_timings(self) -> str:
+        """Return a summary of where the run's time went, for the logs.
+
+        The time not spent in extraction or in DB work goes to walking the archive,
+        matching paths and loading the tracked paths.
+        """
+        elapsed = time.monotonic() - self.started_at
+        rate = self.found / elapsed if elapsed > 0 else 0.0
+        other = elapsed - self.extraction_seconds - self.db_seconds
+        slowest = ", ".join(
+            f"{path} ({seconds:.1f} s)"
+            for seconds, path in sorted(self.slowest_files, reverse=True)
+        )
+        return (
+            f"{self.found} files in {elapsed:.1f} s ({rate:.2f} files/s): "
+            f"extraction {self.extraction_seconds:.1f} s, "
+            f"DB {self.db_seconds:.1f} s, other {other:.1f} s; "
+            f"slowest files: {slowest or 'none'}"
+        )
 
 
 async def _discover_mission_records(
@@ -557,54 +587,91 @@ async def _discover_mission_records(
     # a record with several data assets is healed once, from its first file
     attempted_record_ids: set[identifiers.SurveyRelatedRecordId] = set()
     last_progress_at = time.monotonic()
-    async with contextlib.aclosing(
-        pathpatterns.iter_relative_file_paths(mission_root_path, pattern_set.prefixes)
-    ) as relative_file_paths:
-        async for relative_file_path in relative_file_paths:
-            if cancellation_requested.is_set():
-                counts.cancelled = True
-                break
-            if (match_index := pattern_set.first_match(relative_file_path)) is None:
-                continue
-            asset_discovery_conf = matchable_configs[match_index]
-            counts.found += 1
-            try:
-                if await _discover_file(
-                    request_id=request_id,
-                    relative_file_path=relative_file_path,
-                    mission_root_path=mission_root_path,
-                    mission=mission,
-                    asset_discovery_conf=asset_discovery_conf,
-                    tracked_file_paths=tracked_file_paths,
-                    heal_enabled=heal_enabled,
-                    attempted_record_ids=attempted_record_ids,
-                    session=session,
-                    user=user,
-                ):
-                    counts.created += 1
-            except Exception:
-                logger.exception(f"Could not discover file {relative_file_path!r}")
-                counts.failed += 1
-                await session.rollback()
-            # nothing loaded for a file is needed afterwards, so memory stays flat
-            session.expunge_all()
-            if (
-                time.monotonic() - last_progress_at
-                >= constants.DISCOVERY_PROGRESS_INTERVAL_SECONDS
-            ):
-                last_progress_at = time.monotonic()
-                await event_dispatcher(
-                    event_schemas.DiscoveryEvent(
-                        initiator=user.id,
-                        resource_type=constants.ResourceType.MISSION,
-                        resource_id=str(mission.id),
-                        resource_name=mission.name,
+    try:
+        async with contextlib.aclosing(
+            pathpatterns.iter_relative_file_paths(
+                mission_root_path, pattern_set.prefixes
+            )
+        ) as relative_file_paths:
+            async for relative_file_path in relative_file_paths:
+                if cancellation_requested.is_set():
+                    counts.cancelled = True
+                    break
+                if (match_index := pattern_set.first_match(relative_file_path)) is None:
+                    continue
+                asset_discovery_conf = matchable_configs[match_index]
+                counts.found += 1
+                file_started_at = time.monotonic()
+                extraction_seconds_before = counts.extraction_seconds
+                try:
+                    if await _discover_file(
                         request_id=request_id,
-                        modification=constants.DiscoveryStage.PROGRESS,
-                        succeeded=True,
-                        details=counts.describe(),
-                    )
+                        relative_file_path=relative_file_path,
+                        mission_root_path=mission_root_path,
+                        mission=mission,
+                        asset_discovery_conf=asset_discovery_conf,
+                        tracked_file_paths=tracked_file_paths,
+                        heal_enabled=heal_enabled,
+                        attempted_record_ids=attempted_record_ids,
+                        session=session,
+                        user=user,
+                        counts=counts,
+                    ):
+                        counts.created += 1
+                except Exception:
+                    logger.exception(f"Could not discover file {relative_file_path!r}")
+                    counts.failed += 1
+                    await session.rollback()
+                # nothing loaded for a file is needed afterwards, so memory stays flat
+                session.expunge_all()
+                file_seconds = time.monotonic() - file_started_at
+                file_extraction_seconds = (
+                    counts.extraction_seconds - extraction_seconds_before
                 )
+                # all of a file's time other than extraction is DB work
+                counts.db_seconds += file_seconds - file_extraction_seconds
+                logger.debug(
+                    "Discovered %r in %.3f s: extraction %.3f s, DB %.3f s",
+                    relative_file_path,
+                    file_seconds,
+                    file_extraction_seconds,
+                    file_seconds - file_extraction_seconds,
+                )
+                if len(counts.slowest_files) < _SLOWEST_FILES_LOGGED:
+                    heapq.heappush(
+                        counts.slowest_files, (file_seconds, relative_file_path)
+                    )
+                else:
+                    heapq.heappushpop(
+                        counts.slowest_files, (file_seconds, relative_file_path)
+                    )
+                if (
+                    time.monotonic() - last_progress_at
+                    >= constants.DISCOVERY_PROGRESS_INTERVAL_SECONDS
+                ):
+                    last_progress_at = time.monotonic()
+                    logger.info(
+                        f"Discovery of mission {mission.name!r} in progress: "
+                        f"{counts.describe_timings()}"
+                    )
+                    await event_dispatcher(
+                        event_schemas.DiscoveryEvent(
+                            initiator=user.id,
+                            resource_type=constants.ResourceType.MISSION,
+                            resource_id=str(mission.id),
+                            resource_name=mission.name,
+                            request_id=request_id,
+                            modification=constants.DiscoveryStage.PROGRESS,
+                            succeeded=True,
+                            details=counts.describe(),
+                        )
+                    )
+    finally:
+        # also when the run fails or is interrupted, as a long run's timings are
+        # what tells how to size discovery
+        logger.info(
+            f"Discovery of mission {mission.name!r} ended: {counts.describe_timings()}"
+        )
     return counts
 
 
@@ -620,21 +687,24 @@ async def _discover_file(
     attempted_record_ids: set[identifiers.SurveyRelatedRecordId],
     session: AsyncSession,
     user: user_schemas.User,
+    counts: _DiscoveryCounts,
 ) -> bool:
     """Create a record with a single data asset for a discovered file.
 
     If the file is in `tracked_file_paths`, its record is healed instead, provided
     that healing is enabled, the record has no bbox and its id is not in
     `attempted_record_ids`. No events are dispatched for the created or healed
-    records.
+    records. The time spent in extraction is added to `counts`.
 
     Returns True if a record was created.
     """
     found_path = mission_root_path / relative_file_path
     if (tracked := tracked_file_paths.get(relative_file_path)) is None:
+        extraction_started_at = time.monotonic()
         metadata, bbox_wkt = await _extract_file_metadata(
             str(found_path), mission.implicit_crs
         )
+        counts.extraction_seconds += time.monotonic() - extraction_started_at
         await record_ops.create_survey_related_record(
             allow_mission_under_discovery=True,
             request_id=request_id,
@@ -684,6 +754,7 @@ async def _discover_file(
             session=session,
             event_dispatcher=dispatch.no_op_dispatcher,
             user=user,
+            counts=counts,
         )
     return False
 
@@ -832,14 +903,18 @@ async def _heal_record_without_bbox(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
     user: user_schemas.User,
+    counts: _DiscoveryCounts,
 ) -> None:
     """Re-extract the metadata of a tracked record that has no bbox.
 
     The record is updated only if the extraction yields a bbox. Its bbox, description
     and temporal extent are then replaced by the extracted values. A bbox set on the
     record while the extraction was running is kept, and the record is not updated.
+    The time spent in extraction is added to `counts`.
     """
+    extraction_started_at = time.monotonic()
     metadata, bbox_wkt = await _extract_file_metadata(file_path, implicit_crs)
+    counts.extraction_seconds += time.monotonic() - extraction_started_at
     if bbox_wkt is None:
         logger.debug(
             "%s still gives no bbox, record %s is left as it is", file_path, record_id

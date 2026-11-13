@@ -988,6 +988,37 @@ async def test_discovery_reports_progress_instead_of_record_events(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+async def test_discovery_logs_its_timings(
+    db_session_maker, admin_user, discovery_env, monkeypatch, caplog
+):
+    mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
+    names = ("a.tif", "b.tif", "c.tif")
+    for name in names:
+        _write_geotiff(mission_root / "s01" / name)
+    monkeypatch.setattr(constants, "DISCOVERY_PROGRESS_INTERVAL_SECONDS", 0)
+    monkeypatch.setattr(discovery_ops, "_SLOWEST_FILES_LOGGED", 2)
+
+    with caplog.at_level(logging.INFO, logger=discovery_ops.logger.name):
+        await _run_discovery(
+            db_session_maker,
+            discovery_env["mission"].id,
+            discovery_env["settings"],
+            admin_user,
+        )
+
+    progress = [r.message for r in caplog.records if "in progress: " in r.message]
+    assert len(progress) == 3
+    assert progress[0].split("in progress: ")[1].startswith("1 files in ")
+    (ended,) = [r.message for r in caplog.records if " ended: " in r.message]
+    timings = ended.split(" ended: ")[1]
+    assert timings.startswith("3 files in ")
+    assert "extraction " in timings and "DB " in timings and "other " in timings
+    slowest = timings.split("slowest files: ")[1]
+    assert sum(f"s01/{name} (" in slowest for name in names) == 2
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_mission_previews_are_collected_for_eligible_records_only(
     db_session_maker, admin_user, discovery_env
 ):
