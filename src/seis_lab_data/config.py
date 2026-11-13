@@ -10,6 +10,7 @@ import yaml
 from pydantic import (
     BaseModel,
     ConfigDict,
+    NonNegativeInt,
     PositiveFloat,
     PositiveInt,
 )
@@ -104,6 +105,12 @@ class SeisLabDataSettings(BaseSettings):
     test_database_dsn: PostgresDsn = PostgresDsn(
         "postgresql+psycopg://sld:sldpass@localhost/seis_lab_data_test"
     )
+    # connections each process keeps open to the database, plus those it may open
+    # temporarily beyond them; a request for a connection fails after waiting
+    # `db_pool_timeout` seconds for one to be free
+    db_pool_size: PositiveInt = 5
+    db_max_overflow: NonNegativeInt = 5
+    db_pool_timeout: PositiveFloat = 30.0
     debug: bool = False
     log_config_file: Path | None = None
     num_web_worker_processes: int = 8
@@ -166,7 +173,12 @@ class SeisLabDataSettings(BaseSettings):
 
     def get_db_engine(self) -> AsyncEngine:
         if self._db_engine is None:
-            self._db_engine = create_async_engine(self.database_dsn.unicode_string())
+            self._db_engine = create_async_engine(
+                self.database_dsn.unicode_string(),
+                pool_size=self.db_pool_size,
+                max_overflow=self.db_max_overflow,
+                pool_timeout=self.db_pool_timeout,
+            )
         return self._db_engine
 
     def get_sync_db_engine(self) -> Engine:
