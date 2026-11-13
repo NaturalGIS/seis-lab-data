@@ -19,6 +19,7 @@ class ResourceModificationMessage(pydantic.BaseModel):
     request_id: identifiers.RequestId
     resource_type: constants.ResourceType
     resource_id: str | None
+    resource_name: str | None = None
     parent_resource_id: str | None = (
         None  # mostly useful for when resource is deleted to figure out where to redirect
     )
@@ -42,6 +43,7 @@ class ResourceStatusChangedMessage(pydantic.BaseModel):
     request_id: identifiers.RequestId
     resource_type: constants.ResourceType
     resource_id: str | None
+    resource_name: str | None = None
     succeeded: bool
     new_status: str | None
     details: str | None = None
@@ -51,6 +53,7 @@ class DiscoveryMessage(pydantic.BaseModel):
     type: Literal["discovery"] = "discovery"
     resource_type: constants.ResourceType
     resource_id: str
+    resource_name: str | None = None
     request_id: identifiers.RequestId
     modification: constants.DiscoveryStage
     succeeded: bool
@@ -80,6 +83,7 @@ class ExportMessage(pydantic.BaseModel):
     type: Literal["export"] = "export"
     resource_type: constants.ResourceType
     resource_id: str
+    resource_name: str | None = None
     request_id: identifiers.RequestId
     stage: constants.ExportStage
     succeeded: bool

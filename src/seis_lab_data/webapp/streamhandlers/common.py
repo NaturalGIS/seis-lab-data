@@ -4,6 +4,7 @@ import logging
 import time
 import uuid
 from collections.abc import AsyncGenerator
+from typing import Any
 
 from datastar_py.sse import ServerSentEventGenerator
 from datastar_py.starlette import DatastarEvent
@@ -25,34 +26,133 @@ from ...schemas import (
 
 logger = logging.getLogger(__name__)
 
+# The notification's header names the type of its resource, so these sentences
+# leave it out - which also spares translations from agreeing with its gender.
+# User data, such as names, is inserted into them untranslated.
+_MODIFICATION_SUCCEEDED = {
+    constants.ResourceModification.CREATED: _("“%(name)s” was created."),
+    constants.ResourceModification.UPDATED: _("“%(name)s” was updated."),
+    constants.ResourceModification.DELETED: _("“%(name)s” was deleted."),
+}
+_MODIFICATION_FAILED = {
+    constants.ResourceModification.CREATED: _(
+        "Could not create “%(name)s”: %(details)s"
+    ),
+    constants.ResourceModification.UPDATED: _(
+        "Could not update “%(name)s”: %(details)s"
+    ),
+    constants.ResourceModification.DELETED: _(
+        "Could not delete “%(name)s”: %(details)s"
+    ),
+}
+_STATUS_ENUMS = {
+    constants.ResourceType.PROJECT: constants.ProjectStatus,
+    constants.ResourceType.MISSION: constants.SurveyMissionStatus,
+    constants.ResourceType.RECORD: constants.SurveyRelatedRecordStatus,
+}
+_CATEGORY_LABELS = {
+    "info": _("info"),
+    "success": _("success"),
+    "error": _("error"),
+}
 
-async def flash_ui_message_after_redirect(
-    notification: webui_schemas.Notification,
-) -> AsyncGenerator[DatastarEvent, None]:
-    payload = {
+
+def _get_flash_payload(notification: webui_schemas.Notification) -> dict[str, Any]:
+    """Return what the page's `showFlash` needs, translated to the current locale."""
+    title = str(_CATEGORY_LABELS[notification.category])
+    if notification.resource_type is not None:
+        title += f" — {notification.resource_type.get_translated_value()}"
+    return {
+        "title": title[:1].upper() + title[1:],
         "message": notification.message,
         "category": {
             "success": "success",
             "error": "danger",
         }.get(notification.category, "info"),
+        # errors stay until dismissed, as their details may take a while to read
+        "autohide": notification.category != "error",
     }
+
+
+def _get_modification_notification(
+    message: message_schemas.ResourceModificationMessage,
+) -> webui_schemas.Notification:
+    """Return the notification of a resource modification's outcome."""
+    variables = {
+        "name": message.resource_name or message.resource_id,
+        "details": message.details,
+    }
+    if message.succeeded:
+        return webui_schemas.Notification(
+            message=_MODIFICATION_SUCCEEDED[message.modification] % variables,
+            category="success",
+            resource_type=message.resource_type,
+        )
+    return webui_schemas.Notification(
+        message=_MODIFICATION_FAILED[message.modification] % variables,
+        category="error",
+        resource_type=message.resource_type,
+    )
+
+
+def _get_status_changed_notification(
+    message: message_schemas.ResourceStatusChangedMessage,
+) -> webui_schemas.Notification:
+    """Return the notification of a resource status change's outcome."""
+    name = message.resource_name or message.resource_id
+    if not message.succeeded:
+        return webui_schemas.Notification(
+            message=_("Could not change the status of “%(name)s”: %(details)s")
+            % {"name": name, "details": message.details},
+            category="error",
+            resource_type=message.resource_type,
+        )
+    status_enum = _STATUS_ENUMS.get(message.resource_type)
+    return webui_schemas.Notification(
+        message=_("“%(name)s” changed status to %(status)s.")
+        % {
+            "name": name,
+            "status": (
+                status_enum(message.new_status).get_translated_value()
+                if status_enum is not None
+                else message.new_status
+            ),
+        },
+        resource_type=message.resource_type,
+    )
+
+
+def _to_script_literal(value: Any) -> str:
+    """Serialize a value as a JavaScript literal that is safe inside a script tag.
+
+    Scripts are sent as HTML, where a `</script>` within a string, such as a
+    resource name, would end the script early and have the rest parsed as HTML.
+    """
+    return (
+        json.dumps(value)
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+    )
+
+
+async def flash_ui_message_after_redirect(
+    notification: webui_schemas.Notification,
+) -> AsyncGenerator[DatastarEvent, None]:
+    payload = _get_flash_payload(notification)
     logger.debug(f"{payload=}")
     yield ServerSentEventGenerator.execute_script(
-        f"localStorage.setItem('sld:flash', {json.dumps(json.dumps(payload))});"
+        f"localStorage.setItem('sld:flash', {_to_script_literal(json.dumps(payload))});"
     )
 
 
 async def flash_ui_message_same_page(
     notification: webui_schemas.Notification,
 ) -> AsyncGenerator[DatastarEvent, None]:
-    payload = {
-        "message": notification.message,
-        "category": {
-            "success": "success",
-            "error": "danger",
-        }.get(notification.category, "info"),
-    }
-    yield ServerSentEventGenerator.execute_script(f"showFlash({json.dumps(payload)})")
+    payload = _get_flash_payload(notification)
+    yield ServerSentEventGenerator.execute_script(
+        f"showFlash({_to_script_literal(payload)})"
+    )
 
 
 async def handle_resource_modification_new_page(
@@ -75,21 +175,10 @@ async def handle_resource_modification_new_page(
     }.get(message.resource_type)
 
     if list_page_route_name is not None:
-        if message.succeeded:
-            async for event in flash_ui_message_after_redirect(
-                webui_schemas.Notification(
-                    message=f"{message.resource_type.capitalize()} was {message.modification} successfully!"
-                )
-            ):
-                yield event
-        else:
-            async for event in flash_ui_message_after_redirect(
-                webui_schemas.Notification(
-                    message=f"{message.resource_type.capitalize()} could not be {message.modification}: {message.details}",
-                    category="error",
-                )
-            ):
-                yield event
+        async for event in flash_ui_message_after_redirect(
+            _get_modification_notification(message)
+        ):
+            yield event
         yield ServerSentEventGenerator.redirect(
             str(context.url_resolver(list_page_route_name))
         )
@@ -98,18 +187,13 @@ async def handle_resource_modification_new_page(
     if not message.succeeded:
         yield ServerSentEventGenerator.patch_signals({"submitting": False})
         async for event in flash_ui_message_same_page(
-            webui_schemas.Notification(
-                message=f"{message.resource_type.capitalize()} could not be {message.modification}: {message.details}",
-                category="error",
-            )
+            _get_modification_notification(message)
         ):
             yield event
         return
 
     async for event in flash_ui_message_after_redirect(
-        webui_schemas.Notification(
-            message=f"{message.resource_type.capitalize()} was {message.modification} successfully!"
-        )
+        _get_modification_notification(message)
     ):
         yield event
 
@@ -151,17 +235,12 @@ async def handle_resource_modification_list_page(
     ):  # only send notification if the context has the same request_id
         if context.request_id == message.request_id:
             async for event in flash_ui_message_same_page(
-                webui_schemas.Notification(
-                    message=f"{message.resource_type.capitalize()} could not be {message.modification}: {message.details}",
-                    category="error",
-                )
+                _get_modification_notification(message)
             ):
                 yield event
     else:
         async for event in flash_ui_message_same_page(
-            webui_schemas.Notification(
-                message=f"{message.resource_type.capitalize()} {message.resource_id} was {message.modification.value}",
-            )
+            _get_modification_notification(message)
         ):
             yield event
     # update datastar signal that frontend recognizes as needing to re-fetch listing
@@ -198,13 +277,16 @@ async def handle_bulk_resource_modification(
 
     if message.succeeded:
         notification = webui_schemas.Notification(
-            message=f"Bulk update succeeded: {message.affected_count} record(s) updated.",
+            message=_("Bulk update succeeded. Updated: %(count)s.")
+            % {"count": message.affected_count},
             category="success",
+            resource_type=message.resource_type,
         )
     else:
         notification = webui_schemas.Notification(
-            message=f"Bulk update failed: {message.details}",
+            message=_("Bulk update failed: %(details)s") % {"details": message.details},
             category="error",
+            resource_type=message.resource_type,
         )
     async for event in flash_ui_message_after_redirect(notification):
         yield event
@@ -228,18 +310,9 @@ async def handle_resource_modification_edit_page(
     if message.resource_id != context.resource_id:
         return
 
-    if message.succeeded:
-        notification = webui_schemas.Notification(
-            message=f"{message.resource_type.capitalize()} updated successfully!",
-            category="success",
-        )
-    else:
-        notification = webui_schemas.Notification(
-            message=f"{message.resource_type.capitalize()} could not be updated: {message.details}",
-            category="error",
-        )
-
-    async for event in flash_ui_message_after_redirect(notification):
+    async for event in flash_ui_message_after_redirect(
+        _get_modification_notification(message)
+    ):
         yield event
 
     match message.resource_type:
@@ -296,10 +369,7 @@ async def _handle_project_modification_detail_page(
         if not message.succeeded:  # if same request_id, show a notification
             if message.request_id == context.request_id:
                 async for event in flash_ui_message_same_page(
-                    webui_schemas.Notification(
-                        message=f"{message.resource_type.capitalize()} {message.modification} failed: {message.details}",
-                        category="error",
-                    )
+                    _get_modification_notification(message)
                 ):
                     yield event
 
@@ -310,9 +380,7 @@ async def _handle_project_modification_detail_page(
                         f"Project {message.resource_id!r} has been updated - re-rendering its details..."
                     )
                     async for event in flash_ui_message_after_redirect(
-                        webui_schemas.Notification(
-                            message=f"{message.resource_type.capitalize()} {message.resource_id} was {message.modification}",
-                        )
+                        _get_modification_notification(message)
                     ):
                         yield event
                     yield ServerSentEventGenerator.redirect(
@@ -324,9 +392,7 @@ async def _handle_project_modification_detail_page(
                     )
                 case constants.ResourceModification.DELETED:
                     async for event in flash_ui_message_after_redirect(
-                        webui_schemas.Notification(
-                            message=f"{message.resource_type.capitalize()} {message.resource_id} was deleted",
-                        )
+                        _get_modification_notification(message)
                     ):
                         yield event
                     yield ServerSentEventGenerator.redirect(
@@ -367,12 +433,7 @@ async def _handle_project_modification_detail_page(
             f"Survey mission {message.resource_id!r} is a child of the current project - asking frontend to re-fetch mission listing..."
         )
         async for event in flash_ui_message_same_page(
-            notification=webui_schemas.Notification(
-                message=(
-                    f"Project {project_id} has had child survey mission {survey_mission_id} "
-                    f"modified - Reloaded mission list"
-                )
-            )
+            _get_modification_notification(message)
         ):
             yield event
         # update datastar signal which frontend uses to check when needing to re-fetch list of project child missions
@@ -402,9 +463,8 @@ async def _handle_project_modification_detail_page(
         logger.debug(
             f"Survey-related record {message.resource_id!r} is grandchild of current project - asking frontend to re-fetch mission listing..."
         )
-        message = f"Project {project_id} has had grandchild survey-related record {record_id} modified - Reloaded mission list"
         async for event in flash_ui_message_same_page(
-            notification=webui_schemas.Notification(message=message)
+            _get_modification_notification(message)
         ):
             yield event
         # update datastar signal which frontend uses to check when needing to re-fetch list of project child missions
@@ -427,10 +487,7 @@ async def _handle_survey_mission_modification_detail_page(
         if not message.succeeded:  # if same request_id, show a notification
             if message.request_id == context.request_id:
                 async for event in flash_ui_message_same_page(
-                    webui_schemas.Notification(
-                        message=f"{message.resource_type.capitalize()} {message.modification} failed: {message.details}",
-                        category="error",
-                    )
+                    _get_modification_notification(message)
                 ):
                     yield event
 
@@ -443,9 +500,7 @@ async def _handle_survey_mission_modification_detail_page(
                     # TODO: yield re-render of mission details
                 case constants.ResourceModification.DELETED:
                     async for event in flash_ui_message_after_redirect(
-                        webui_schemas.Notification(
-                            message=f"{message.resource_type.capitalize()} {message.resource_id} was deleted",
-                        )
+                        _get_modification_notification(message)
                     ):
                         yield event
                     if (project_id := message.parent_resource_id) is not None:
@@ -512,10 +567,7 @@ async def _handle_survey_related_record_modification_detail_page(
     if not message.succeeded:  # if same request_id, show a notification
         if message.request_id == context.request_id:
             async for event in flash_ui_message_same_page(
-                webui_schemas.Notification(
-                    message=f"{message.resource_type.capitalize()} {message.modification} failed: {message.details}",
-                    category="error",
-                )
+                _get_modification_notification(message)
             ):
                 yield event
     else:
@@ -534,9 +586,7 @@ async def _handle_survey_related_record_modification_detail_page(
                 )
             case constants.ResourceModification.DELETED:
                 async for event in flash_ui_message_after_redirect(
-                    webui_schemas.Notification(
-                        message=f"{message.resource_type.capitalize()} {message.resource_id} was deleted",
-                    )
+                    _get_modification_notification(message)
                 ):
                     yield event
                 if (mission_id := message.parent_resource_id) is not None:
@@ -588,16 +638,9 @@ async def handle_resource_status_changed_detail_page(
                     # re-fetching the record's details rather than reloading the
                     # page, as for the busy statuses which come and go during
                     # tasks such as exports, reloading makes the page jumpy
-                    if message.succeeded:
-                        notification = webui_schemas.Notification(
-                            message=f"{message.resource_type.value} changed status to {message.new_status}"
-                        )
-                    else:
-                        notification = webui_schemas.Notification(
-                            message=f"{message.resource_type.value} could not change status: {message.details}",
-                            category="error",
-                        )
-                    async for event in flash_ui_message_same_page(notification):
+                    async for event in flash_ui_message_same_page(
+                        _get_status_changed_notification(message)
+                    ):
                         yield event
                     if message.succeeded:
                         yield ServerSentEventGenerator.patch_signals(
@@ -628,9 +671,7 @@ async def _handle_survey_mission_status_changed_detail_page(
         ):
             if message.resource_id == context.resource_id:
                 async for event in flash_ui_message_same_page(
-                    webui_schemas.Notification(
-                        message=f"{message.resource_type.value} changed status to {message.new_status}"
-                    )
+                    _get_status_changed_notification(message)
                 ):
                     yield event
                 refresh_version = int(time.time() * 1000)
@@ -692,9 +733,7 @@ async def _handle_project_status_changed_detail_page(
             if message.resource_id == context.resource_id:
                 # stored for the page that the redirect below reloads
                 async for event in flash_ui_message_after_redirect(
-                    webui_schemas.Notification(
-                        message=f"{message.resource_type.value} changed status to {message.new_status}"
-                    )
+                    _get_status_changed_notification(message)
                 ):
                     yield event
                 yield ServerSentEventGenerator.redirect(
@@ -719,12 +758,7 @@ async def _handle_project_status_changed_detail_page(
                     )
                 ) is not None and str(db_mission.project_id) == context.resource_id:
                     async for event in flash_ui_message_same_page(
-                        notification=webui_schemas.Notification(
-                            message=(
-                                f"Project {context.resource_id!r} has had child survey mission {db_mission.id!r} "
-                                f"modified - Reloaded mission list"
-                            )
-                        )
+                        _get_status_changed_notification(message)
                     ):
                         yield event
                     # update datastar signal which frontend uses to check when needing to re-fetch list of project child missions
@@ -750,12 +784,7 @@ async def _handle_project_status_changed_detail_page(
                     record_info[0].survey_mission.project_id
                 ) == context.resource_id:
                     async for event in flash_ui_message_same_page(
-                        notification=webui_schemas.Notification(
-                            message=(
-                                f"Project {context.resource_id!r} has had child survey-related record {record_info[0].id!r} "
-                                f"modified - Reloaded mission list"
-                            )
-                        )
+                        _get_status_changed_notification(message)
                     ):
                         yield event
                     # update datastar signal which frontend uses to check when needing to re-fetch list of project child missions
@@ -801,17 +830,12 @@ async def handle_resource_modification_detail_page(
             if not message.succeeded:  # if same request_id, show a notification
                 if message.request_id == context.request_id:
                     async for event in flash_ui_message_same_page(
-                        webui_schemas.Notification(
-                            message=f"{message.resource_type.capitalize()} {message.modification} failed: {message.details}",
-                            category="error",
-                        )
+                        _get_modification_notification(message)
                     ):
                         yield event
                 return
             async for event in flash_ui_message_after_redirect(
-                webui_schemas.Notification(
-                    message=f"{message.resource_type} {message.resource_id} was {message.modification}"
-                )
+                _get_modification_notification(message)
             ):
                 yield event
             match message.resource_type:
@@ -840,6 +864,10 @@ async def handle_discovery_detail_page(
     logger.debug(f"{message=}")
     if message.resource_id != context.resource_id:
         return
+    variables = {
+        "name": message.resource_name or message.resource_id,
+        "details": message.details,
+    }
     match message:
         case message_schemas.DiscoveryMessage(
             modification=constants.DiscoveryStage.PROGRESS
@@ -856,19 +884,38 @@ async def handle_discovery_detail_page(
             succeeded=False, modification=constants.DiscoveryStage.CANCELLED
         ):
             notification = webui_schemas.Notification(
-                message=f"Could not cancel {message.resource_type} discovery: {message.details}",
+                message=_("Could not cancel the discovery of “%(name)s”: %(details)s")
+                % variables,
                 category="error",
+                resource_type=message.resource_type,
             )
         case message_schemas.DiscoveryMessage(succeeded=False):
             notification = webui_schemas.Notification(
-                message=f"{message.resource_type.capitalize()} discovery failed: {message.details}",
+                message=_("Discovery of “%(name)s” failed: %(details)s") % variables,
                 category="error",
+                resource_type=message.resource_type,
+            )
+        case message_schemas.DiscoveryMessage(
+            modification=constants.DiscoveryStage.CANCELLED
+        ):
+            notification = webui_schemas.Notification(
+                message=_("Discovery of “%(name)s” was cancelled: %(details)s")
+                % variables,
+                resource_type=message.resource_type,
+            )
+        case message_schemas.DiscoveryMessage(
+            modification=constants.DiscoveryStage.ENDED
+        ):
+            notification = webui_schemas.Notification(
+                message=_("Discovery of “%(name)s” ended: %(details)s") % variables,
+                category="success",
+                resource_type=message.resource_type,
             )
         case _:
-            notification_msg = f"{message.resource_type.capitalize()} discovery {message.modification.value}"
-            if message.details:
-                notification_msg += f": {message.details}"
-            notification = webui_schemas.Notification(message=notification_msg)
+            notification = webui_schemas.Notification(
+                message=_("Discovery of “%(name)s” started.") % variables,
+                resource_type=message.resource_type,
+            )
     # failures are only shown to the page whose request failed, except for the
     # end of a running discovery, which concerns whoever is looking at the mission
     if (
@@ -926,8 +973,11 @@ async def handle_export_detail_page(
         return
     match message.stage:
         case constants.ExportStage.PROGRESS:
+            # reported by the worker, which has no locale
             async for event in flash_ui_message_same_page(
-                webui_schemas.Notification(message=message.details)
+                webui_schemas.Notification(
+                    message=message.details, resource_type=message.resource_type
+                )
             ):
                 yield event
             return
@@ -935,19 +985,23 @@ async def handle_export_detail_page(
             return
         case _ if message.succeeded:
             notification = webui_schemas.Notification(
-                message=(
-                    f"{message.resource_type.capitalize()} was exported to "
-                    f"GeoNode: {message.details}"
-                ),
+                message=_("“%(name)s” was exported to GeoNode: %(details)s")
+                % {
+                    "name": message.resource_name or message.resource_id,
+                    "details": message.details,
+                },
                 category="success",
+                resource_type=message.resource_type,
             )
         case _:
             notification = webui_schemas.Notification(
-                message=(
-                    f"{message.resource_type.capitalize()} export failed: "
-                    f"{message.details}"
-                ),
+                message=_("Could not export “%(name)s” to GeoNode: %(details)s")
+                % {
+                    "name": message.resource_name or message.resource_id,
+                    "details": message.details,
+                },
                 category="error",
+                resource_type=message.resource_type,
             )
     async for event in flash_ui_message_same_page(notification):
         yield event

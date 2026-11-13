@@ -42,6 +42,7 @@ async def create_dataset_category(
                 request_id=request_id,
                 resource_type=constants.ResourceType.CATEGORY,
                 resource_id=None,
+                resource_name=to_create.name,
                 modification=constants.ResourceModification.CREATED,
                 succeeded=False,
                 details=str(err),
@@ -55,6 +56,7 @@ async def create_dataset_category(
             request_id=request_id,
             resource_type=constants.ResourceType.CATEGORY,
             resource_id=str(resource.id),
+            resource_name=resource.name,
             modification=constants.ResourceModification.CREATED,
             succeeded=True,
         )
@@ -71,6 +73,7 @@ async def update_dataset_category(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.DatasetCategory | None:
+    resource_name = None
     try:
         if (
             resource := await category_queries.get_dataset_category(
@@ -80,6 +83,7 @@ async def update_dataset_category(
             raise errors.SeisLabDataError(
                 f"Dataset category {resource_id!r} does not exist."
             )
+        resource_name = resource.name
         if not category_permissions.can_update_dataset_category(initiator):
             raise errors.SeisLabDataError(
                 "User not allowed to update dataset categories."
@@ -94,6 +98,7 @@ async def update_dataset_category(
                 request_id=request_id,
                 resource_type=constants.ResourceType.CATEGORY,
                 resource_id=str(resource_id),
+                resource_name=resource_name,
                 modification=constants.ResourceModification.UPDATED,
                 succeeded=False,
                 details=str(err),
@@ -107,6 +112,7 @@ async def update_dataset_category(
             request_id=request_id,
             resource_type=constants.ResourceType.CATEGORY,
             resource_id=str(resource_id),
+            resource_name=updated_resource.name,
             modification=constants.ResourceModification.UPDATED,
             succeeded=True,
         )
@@ -122,11 +128,17 @@ async def delete_dataset_category(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> None:
+    resource_name = None
     try:
-        if (await category_queries.get_dataset_category(session, resource_id)) is None:
+        if (
+            resource := await category_queries.get_dataset_category(
+                session, resource_id
+            )
+        ) is None:
             raise errors.SeisLabDataError(
                 f"Dataset category {resource_id!r} does not exist."
             )
+        resource_name = resource.name
         if not category_permissions.can_delete_dataset_category(initiator):
             raise errors.SeisLabDataError(
                 "User not allowed to delete dataset categories."
@@ -137,6 +149,7 @@ async def delete_dataset_category(
             event_schemas.ResourceModificationEvent(
                 resource_type=constants.ResourceType.CATEGORY,
                 resource_id=str(resource_id),
+                resource_name=resource_name,
                 request_id=request_id,
                 modification=constants.ResourceModification.DELETED,
                 succeeded=False,
@@ -149,6 +162,7 @@ async def delete_dataset_category(
         event_schemas.ResourceModificationEvent(
             resource_type=constants.ResourceType.CATEGORY,
             resource_id=str(resource_id),
+            resource_name=resource_name,
             request_id=request_id,
             modification=constants.ResourceModification.DELETED,
             succeeded=True,

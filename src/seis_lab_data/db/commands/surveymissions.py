@@ -185,13 +185,14 @@ async def recover_stale_survey_mission_discoveries(
     session: AsyncSession,
     stale_after: dt.timedelta,
     survey_mission_id: identifiers.SurveyMissionId | None = None,
-) -> list[identifiers.SurveyMissionId]:
+) -> list[tuple[identifiers.SurveyMissionId, str]]:
     """Set to draft the survey missions whose discovery heartbeat is stale.
 
     A survey mission's discovery heartbeat is stale if its status is either under
     discovery or cancelling discovery and its `updated_at` is older than
     `stale_after`. The update is restricted to a single survey mission if
-    `survey_mission_id` is given. Returns the ids of the recovered survey missions.
+    `survey_mission_id` is given. Returns the ids and names of the recovered survey
+    missions.
     """
     statement = (
         update(models.SurveyMission)
@@ -205,13 +206,13 @@ async def recover_stale_survey_mission_discoveries(
         )
         .where(models.SurveyMission.updated_at < func.now() - stale_after)
         .values(status=SurveyMissionStatus.DRAFT)
-        .returning(models.SurveyMission.id)
+        .returning(models.SurveyMission.id, models.SurveyMission.name)
     )
     if survey_mission_id is not None:
         statement = statement.where(models.SurveyMission.id == survey_mission_id)
     result = await session.execute(statement)
     await session.commit()
-    return [identifiers.SurveyMissionId(id_) for id_ in result.scalars().all()]
+    return [(identifiers.SurveyMissionId(id_), name) for id_, name in result.all()]
 
 
 async def set_survey_mission_thumbnail(

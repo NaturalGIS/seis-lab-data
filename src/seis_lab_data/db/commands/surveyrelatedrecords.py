@@ -544,13 +544,13 @@ async def set_survey_related_record_geonode_export(
 async def recover_stale_geonode_exports(
     session: AsyncSession,
     stale_after: dt.timedelta,
-) -> list[identifiers.SurveyRelatedRecordId]:
+) -> list[tuple[identifiers.SurveyRelatedRecordId, str]]:
     """Publish again the records whose export was abandoned by a dead worker.
 
     A record's `updated_at` is set when its status changes to under export and
     nothing else may write to it while it is under export. Hence, one which has
     been under export for longer than any export may last was abandoned.
-    Returns the ids of the recovered records.
+    Returns the ids and names of the recovered records.
     """
     result = await session.execute(
         update(models.SurveyRelatedRecord)
@@ -559,7 +559,9 @@ async def recover_stale_geonode_exports(
         )
         .where(models.SurveyRelatedRecord.updated_at < func.now() - stale_after)
         .values(status=SurveyRelatedRecordStatus.PUBLISHED)
-        .returning(models.SurveyRelatedRecord.id)
+        .returning(models.SurveyRelatedRecord.id, models.SurveyRelatedRecord.name)
     )
     await session.commit()
-    return [identifiers.SurveyRelatedRecordId(id_) for id_ in result.scalars().all()]
+    return [
+        (identifiers.SurveyRelatedRecordId(id_), name) for id_, name in result.all()
+    ]

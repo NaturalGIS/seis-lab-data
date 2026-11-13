@@ -76,6 +76,7 @@ async def export_survey_related_record(
     created. The record is held under export for the whole duration, which
     prevents modifying it meanwhile.
     """
+    record_name = None
     try:
         if (
             record := await record_queries.get_survey_related_record(
@@ -85,6 +86,7 @@ async def export_survey_related_record(
             raise errors.SeisLabDataError(
                 f"Survey-related record with id {survey_related_record_id} does not exist."
             )
+        record_name = record.name
         if not record_permissions.can_export_survey_related_record(initiator, record):
             raise errors.UserNotAllowedError(
                 "User is not allowed to export survey-related record."
@@ -125,6 +127,7 @@ async def export_survey_related_record(
                 request_id=request_id,
                 resource_type=constants.ResourceType.RECORD,
                 resource_id=str(survey_related_record_id),
+                resource_name=record_name,
                 stage=constants.ExportStage.ENDED,
                 succeeded=False,
                 details=str(err),
@@ -139,6 +142,7 @@ async def export_survey_related_record(
             request_id=request_id,
             resource_type=constants.ResourceType.RECORD,
             resource_id=str(survey_related_record_id),
+            resource_name=record_name,
             succeeded=True,
             new_status=constants.SurveyRelatedRecordStatus.UNDER_EXPORT,
         )
@@ -149,6 +153,7 @@ async def export_survey_related_record(
             request_id=request_id,
             resource_type=constants.ResourceType.RECORD,
             resource_id=str(survey_related_record_id),
+            resource_name=record_name,
             stage=constants.ExportStage.STARTED,
             succeeded=True,
         )
@@ -186,6 +191,7 @@ async def export_survey_related_record(
                         request_id=request_id,
                         resource_type=constants.ResourceType.RECORD,
                         resource_id=str(survey_related_record_id),
+                        resource_name=record_name,
                         stage=constants.ExportStage.PROGRESS,
                         succeeded=True,
                         details=f"Uploading {data_path.name!r} to GeoNode...",
@@ -202,6 +208,7 @@ async def export_survey_related_record(
                             request_id=request_id,
                             resource_type=constants.ResourceType.RECORD,
                             resource_id=str(survey_related_record_id),
+                            resource_name=record_name,
                             stage=constants.ExportStage.PROGRESS,
                             succeeded=True,
                             details=f"GeoNode import is {execution['status']} "
@@ -280,6 +287,7 @@ async def export_survey_related_record(
                     request_id=request_id,
                     resource_type=constants.ResourceType.RECORD,
                     resource_id=str(survey_related_record_id),
+                    resource_name=record_name,
                     succeeded=True,
                     new_status=constants.SurveyRelatedRecordStatus.PUBLISHED,
                 )
@@ -290,6 +298,7 @@ async def export_survey_related_record(
             request_id=request_id,
             resource_type=constants.ResourceType.RECORD,
             resource_id=str(survey_related_record_id),
+            resource_name=record_name,
             stage=constants.ExportStage.ENDED,
             succeeded=succeeded,
             details=details,
@@ -308,7 +317,7 @@ async def recover_stale_geonode_exports(
     recovered = await record_commands.recover_stale_geonode_exports(
         session, dt.timedelta(seconds=constants.GEONODE_EXPORT_STALE_AFTER_SECONDS)
     )
-    for record_id in recovered:
+    for record_id, record_name in recovered:
         logger.warning(f"Recovered survey-related record {record_id} from export")
         await event_dispatcher(
             event_schemas.ResourceStatusChangedEvent(
@@ -316,6 +325,7 @@ async def recover_stale_geonode_exports(
                 request_id=request_id,
                 resource_type=constants.ResourceType.RECORD,
                 resource_id=str(record_id),
+                resource_name=record_name,
                 succeeded=True,
                 new_status=constants.SurveyRelatedRecordStatus.PUBLISHED,
             )
@@ -326,6 +336,7 @@ async def recover_stale_geonode_exports(
                 request_id=request_id,
                 resource_type=constants.ResourceType.RECORD,
                 resource_id=str(record_id),
+                resource_name=record_name,
                 stage=constants.ExportStage.ENDED,
                 succeeded=False,
                 details="Export was abandoned - it did not finish in time",

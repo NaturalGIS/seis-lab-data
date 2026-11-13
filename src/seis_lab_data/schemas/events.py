@@ -21,6 +21,8 @@ class ResourceModificationEvent(_EventBase):
     request_id: identifiers.RequestId
     resource_type: constants.ResourceType
     resource_id: str | None
+    # shown in notifications; None if the resource could not be found
+    resource_name: str | None
     parent_resource_id: str | None = (
         None  # mostly useful for when resource is deleted to figure out where to redirect
     )
@@ -44,6 +46,8 @@ class ResourceStatusChangedEvent(_EventBase):
     request_id: identifiers.RequestId
     resource_type: constants.ResourceType
     resource_id: str | None
+    # shown in notifications; None if the resource could not be found
+    resource_name: str | None
     succeeded: bool
     new_status: str | None
     details: str | None = None
@@ -53,6 +57,8 @@ class ResourceStatusChangedEvent(_EventBase):
 class DiscoveryEvent(_EventBase):
     resource_type: constants.ResourceType
     resource_id: str
+    # shown in notifications; None if the resource could not be found
+    resource_name: str | None
     request_id: identifiers.RequestId
     modification: constants.DiscoveryStage
     succeeded: bool
@@ -84,6 +90,8 @@ class ValidationEvent(_EventBase):
 class ExportEvent(_EventBase):
     resource_type: constants.ResourceType
     resource_id: str
+    # shown in notifications; None if the resource could not be found
+    resource_name: str | None
     request_id: identifiers.RequestId
     stage: constants.ExportStage
     succeeded: bool
