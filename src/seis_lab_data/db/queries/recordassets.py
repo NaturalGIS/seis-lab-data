@@ -1,3 +1,5 @@
+from collections.abc import Collection
+
 from sqlalchemy.orm import selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import (
@@ -77,11 +79,12 @@ async def get_record_asset_by_name(
 async def collect_survey_mission_tracked_file_paths(
     session: AsyncSession,
     survey_mission_id: identifiers.SurveyMissionId,
+    relative_paths: Collection[str],
 ) -> dict[str, tuple[identifiers.SurveyRelatedRecordId, bool]]:
-    """Collect the relative file paths of a survey mission's assets.
+    """Collect the assets of a survey mission located at any of `relative_paths`.
 
-    Returns a mapping of each relative path to the id of the record that holds
-    its asset and to whether that record has a bbox.
+    Returns a mapping of each matching path to the id of its asset's record and a
+    flag set when that record has a bbox.
     """
     statement = (
         select(
@@ -95,7 +98,7 @@ async def collect_survey_mission_tracked_file_paths(
             == models.SurveyRelatedRecord.id,
         )
         .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
-        .where(models.RecordAsset.relative_path.is_not(None))
+        .where(models.RecordAsset.relative_path.in_(relative_paths))
     )
     return {
         relative_path: (identifiers.SurveyRelatedRecordId(record_id), has_bbox)

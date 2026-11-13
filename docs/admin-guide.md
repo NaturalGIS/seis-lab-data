@@ -522,6 +522,15 @@ The `long-tasks-worker` runs `LONG_TASKS_WORKER_PROCESSES` processes (default 2)
 threads each (default 4), which caps how many of its tasks run at the same time. These variables can be set in
 `compose-deployment.env`.
 
+Each archive discovery keeps `DISCOVERY_EXTRACTION_CONCURRENCY` metadata extractions in flight (default 4), which can
+also be set in `compose-deployment.env`. Reading files from the archive is mostly waiting on the storage, so a higher
+value speeds up discovery on slow storage, at the cost of more load on it. Discovery writes its records in batches
+of up to 500 files, each one written at most 5 seconds after it began. These rarely need changing; if they do, set
+`SEIS_LAB_DATA__DISCOVERY_BATCH_SIZE` and `SEIS_LAB_DATA__DISCOVERY_BATCH_MAX_SECONDS` in the environment of the
+`long-tasks-worker` service in `compose.prod-env.yaml`. At the end of each run, and with each
+progress update, the worker logs where the run's time went (walking the archive, extracting metadata and database
+work) and its slowest extractions, which helps in choosing these values.
+
 [^2]: General overview of the publish/subscribe pattern: <https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern>
 
 

@@ -10,6 +10,8 @@ import yaml
 from pydantic import (
     BaseModel,
     ConfigDict,
+    PositiveFloat,
+    PositiveInt,
 )
 from pydantic.networks import (
     PostgresDsn,
@@ -146,6 +148,14 @@ class SeisLabDataSettings(BaseSettings):
     default_temporal_extent_begin: str = ""
     default_temporal_extent_end: str = ""
     readonly_archive_root_directory: Path = "/mnt/data"
+    # concurrency of a discovery run's metadata extractions, i.e. how many files are
+    # read at once; reading the archive is mostly waiting on storage, so concurrent
+    # extractions overlap those waits
+    discovery_extraction_concurrency: PositiveInt = 4
+    # a discovery run looks up matched paths and writes records in batches of up to
+    # this many files, each batch held for at most `discovery_batch_max_seconds`
+    discovery_batch_size: PositiveInt = 500
+    discovery_batch_max_seconds: PositiveFloat = 5.0
     editable_archive_root_directory: Path = "/mnt/sld"
     icons: SeisLabDataIconSettings = SeisLabDataIconSettings()
     target_geonode: TargetGeoNodeSettings | None = None

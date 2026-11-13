@@ -541,6 +541,16 @@ O `long-tasks-worker` corre `LONG_TASKS_WORKER_PROCESSES` processos (por omissã
 _threads_ cada (por omissão 4), o que limita quantas das suas tarefas correm em simultâneo. Estas variáveis podem ser
 definidas no ficheiro `compose-deployment.env`.
 
+Cada descoberta do arquivo mantém `DISCOVERY_EXTRACTION_CONCURRENCY` extrações de metadados em curso (por omissão 4),
+variável que também pode ser definida no ficheiro `compose-deployment.env`. Ler ficheiros do arquivo é sobretudo
+esperar pelo armazenamento, pelo que um valor mais alto acelera a descoberta em armazenamento lento, à custa de mais
+carga sobre ele. A descoberta escreve os seus registos em lotes de até 500 ficheiros, cada um escrito no máximo 5
+segundos depois de começado. Estes valores raramente precisam de ser alterados; se for o caso, defina
+`SEIS_LAB_DATA__DISCOVERY_BATCH_SIZE` e `SEIS_LAB_DATA__DISCOVERY_BATCH_MAX_SECONDS` no ambiente do serviço
+`long-tasks-worker` em `compose.prod-env.yaml`. No fim de cada execução, e a cada atualização do progresso, o _worker_ regista nos _logs_ onde foi
+gasto o tempo da execução (percorrer o arquivo, extrair metadados e trabalho na base de dados) e as suas extrações mais
+lentas, o que ajuda a escolher estes valores.
+
 [^2]: Visão geral do padrão publicação/subscrição: <https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern>
 
 

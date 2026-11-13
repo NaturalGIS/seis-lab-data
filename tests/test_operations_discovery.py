@@ -353,7 +353,7 @@ async def test_discovery_is_idempotent(
     records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
     assert len(records) == 1
     assert records[0].id == first_records[0].id
-    # dedup runs before extraction and the heal is off under 4326: nothing is extracted
+    # dedup runs before extraction and extent updates are off under 4326: nothing is extracted
     assert len(extraction_calls) == 1
     # and the second run must not even attempt a record creation (a failed
     # attempt would surface as a succeeded=False modification event)
@@ -361,6 +361,136 @@ async def test_discovery_is_idempotent(
         isinstance(e, event_schemas.ResourceModificationEvent) and e.succeeded is False
         for e in second_collector.events
     )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "concurrency, batch_size",
+    [
+        pytest.param(1, 1, id="sequential, file by file"),
+        pytest.param(2, 2, id="concurrent, small batches"),
+        pytest.param(4, 500, id="defaults"),
+    ],
+)
+async def test_discovery_gives_the_same_records_whatever_its_pipelining(
+    db_session_maker, admin_user, discovery_env, concurrency, batch_size
+):
+    mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
+    names = [f"grid-{index}.tif" for index in range(5)]
+    for name in names:
+        _write_geotiff(mission_root / "s01" / name)
+    discovery_env["settings"].discovery_extraction_concurrency = concurrency
+    discovery_env["settings"].discovery_batch_size = batch_size
+
+    collector = await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+
+    assert [e.details for e in _ended_events(collector)] == [
+        "5 files found, 5 new records"
+    ]
+    records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
+    assert sorted(record.name for record in records) == names
+    assert all(record.bbox_4326 is not None for record in records)
+    assert all(record.validation_result["is_valid"] for record in records)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discovered_records_match_those_of_the_record_create_operation(
+    db_session_maker, admin_user, discovery_env
+):
+    # discovery writes its records without the ORM: for the same input, the rows
+    # must be those of the record create operation
+    mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
+    _write_geotiff(mission_root / "s01/grid.tif")
+    # nothing is extracted from it, so its record has no bbox and is invalid
+    (mission_root / "s01/broken.tif").write_bytes(b"not a GeoTIFF")
+
+    await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+    discovered_records = await _get_mission_records(
+        db_session_maker, discovery_env["mission"].id
+    )
+    async with db_session_maker() as session:
+        other_mission = await _create_mission(
+            session,
+            identifiers.ProjectId(discovery_env["project"].id),
+            "surveys/other-mission",
+            name_suffix=" for the create operation",
+        )
+    for discovered in discovered_records:
+        (discovered_asset,) = await _get_record_assets(db_session_maker, discovered.id)
+        to_create = record_schemas.SurveyRelatedRecordCreate(
+            id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
+            survey_mission_id=identifiers.SurveyMissionId(other_mission.id),
+            name=discovered.name,
+            description=discovered.description,
+            dataset_category_id=discovered.dataset_category_id,
+            workflow_stage_id=discovered.workflow_stage_id,
+            bbox_4326=(
+                to_shape(discovered.bbox_4326).wkt
+                if discovered.bbox_4326 is not None
+                else None
+            ),
+            temporal_extent_begin=discovered.temporal_extent_begin,
+            temporal_extent_end=discovered.temporal_extent_end,
+            assets=[
+                record_schemas.DataRecordAssetCreate(
+                    id=identifiers.RecordAssetId(uuid.uuid4()),
+                    name=discovered_asset.name,
+                    description=discovered_asset.description,
+                    relative_path=discovered_asset.relative_path,
+                )
+            ],
+        )
+        await _create_record_without_discovery(db_session_maker, admin_user, to_create)
+        async with db_session_maker() as session:
+            created = await session.get(models.SurveyRelatedRecord, to_create.id)
+        (created_asset,) = await _get_record_assets(db_session_maker, created.id)
+
+        compared_fields = (
+            "name",
+            "description",
+            "status",
+            "validation_result",
+            "dataset_category_id",
+            "workflow_stage_id",
+            "links",
+            "temporal_extent_begin",
+            "temporal_extent_end",
+        )
+        assert {field: getattr(discovered, field) for field in compared_fields} == {
+            field: getattr(created, field) for field in compared_fields
+        }
+        assert (discovered.bbox_4326 is None) == (created.bbox_4326 is None)
+        if discovered.bbox_4326 is not None:
+            assert to_shape(discovered.bbox_4326).equals(to_shape(created.bbox_4326))
+        assert discovered.created_at is not None
+        compared_asset_fields = (
+            "name",
+            "description",
+            "relative_path",
+            "media_type",
+            "asset_type",
+            "links",
+            "data",
+        )
+        assert {
+            field: getattr(discovered_asset, field) for field in compared_asset_fields
+        } == {field: getattr(created_asset, field) for field in compared_asset_fields}
+    assert sorted(
+        (record.name, record.validation_result["is_valid"])
+        for record in discovered_records
+    ) == [("broken.tif", False), ("grid.tif", True)]
 
 
 @pytest.mark.integration
@@ -443,17 +573,20 @@ async def test_discovery_survives_a_file_that_fails(
     mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
     _write_geotiff(mission_root / "s01/grid.tif")
     _write_geotiff(mission_root / "s01/bad.tif")
-    real_create = discovery_ops.record_ops.create_survey_related_record
+    real_write = (
+        discovery_ops.discovery_commands.write_discovered_survey_related_records
+    )
 
-    async def create_failing_for_bad_file(**kwargs):
-        if kwargs["to_create"].name == "bad.tif":
+    async def write_failing_for_bad_file(session, records, assets, extent_updates):
+        # fails the batch holding the bad file, and then the bad file alone
+        if any(record["name"] == "bad.tif" for record in records):
             raise RuntimeError("could not create the record")
-        return await real_create(**kwargs)
+        return await real_write(session, records, assets, extent_updates)
 
     monkeypatch.setattr(
-        discovery_ops.record_ops,
-        "create_survey_related_record",
-        create_failing_for_bad_file,
+        discovery_ops.discovery_commands,
+        "write_discovered_survey_related_records",
+        write_failing_for_bad_file,
     )
 
     collector = await _run_discovery(
@@ -744,12 +877,27 @@ async def _set_mission_status(db_session_maker, mission_id, status, age=None):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "concurrency, expected_names",
+    [
+        # b.tif and c.tif are still queued when cancellation is requested
+        pytest.param(1, ["a.tif"], id="queued files left alone"),
+        # all three are being extracted when it is requested, and are kept
+        pytest.param(3, ["a.tif", "b.tif", "c.tif"], id="files in flight kept"),
+    ],
+)
 async def test_discovery_can_be_cancelled_and_keeps_its_records(
-    db_session_maker, admin_user, discovery_env, monkeypatch
+    db_session_maker,
+    admin_user,
+    discovery_env,
+    monkeypatch,
+    concurrency,
+    expected_names,
 ):
     mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
     for name in ("a.tif", "b.tif", "c.tif"):
         _write_geotiff(mission_root / "s01" / name)
+    discovery_env["settings"].discovery_extraction_concurrency = concurrency
     mission_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
     monkeypatch.setattr(constants, "DISCOVERY_HEARTBEAT_INTERVAL_SECONDS", 0.01)
     real_extract = discovery_ops._extract_file_metadata
@@ -781,7 +929,7 @@ async def test_discovery_can_be_cancelled_and_keeps_its_records(
     )
 
     records = await _get_mission_records(db_session_maker, mission_id)
-    assert [record.name for record in records] == ["a.tif"]
+    assert sorted(record.name for record in records) == expected_names
     assert _ended_events(collector) == []
     cancelled = [
         e
@@ -789,8 +937,9 @@ async def test_discovery_can_be_cancelled_and_keeps_its_records(
         if isinstance(e, event_schemas.DiscoveryEvent)
         and e.modification == constants.DiscoveryStage.CANCELLED
     ]
+    n = len(expected_names)
     assert [(e.succeeded, e.details) for e in cancelled] == [
-        (True, "1 files found, 1 new records")
+        (True, f"{n} files found, {n} new records")
     ]
     # the records kept get their previews
     assert len(enqueued) == 1
@@ -966,6 +1115,8 @@ async def test_discovery_reports_progress_instead_of_record_events(
     for name in ("a.tif", "b.tif"):
         _write_geotiff(mission_root / "s01" / name)
     monkeypatch.setattr(constants, "DISCOVERY_PROGRESS_INTERVAL_SECONDS", 0)
+    # progress is reported per written batch
+    discovery_env["settings"].discovery_batch_size = 1
 
     collector = await _run_discovery(
         db_session_maker,
@@ -996,7 +1147,8 @@ async def test_discovery_logs_its_timings(
     for name in names:
         _write_geotiff(mission_root / "s01" / name)
     monkeypatch.setattr(constants, "DISCOVERY_PROGRESS_INTERVAL_SECONDS", 0)
-    monkeypatch.setattr(discovery_ops, "_SLOWEST_FILES_LOGGED", 2)
+    monkeypatch.setattr(discovery_ops, "_SLOWEST_EXTRACTIONS_LOGGED", 2)
+    discovery_env["settings"].discovery_batch_size = 1
 
     with caplog.at_level(logging.INFO, logger=discovery_ops.logger.name):
         await _run_discovery(
@@ -1012,8 +1164,8 @@ async def test_discovery_logs_its_timings(
     (ended,) = [r.message for r in caplog.records if " ended: " in r.message]
     timings = ended.split(" ended: ")[1]
     assert timings.startswith("3 files in ")
-    assert "extraction " in timings and "DB " in timings and "other " in timings
-    slowest = timings.split("slowest files: ")[1]
+    assert "walk " in timings and "extraction " in timings and "DB " in timings
+    slowest = timings.split("slowest extractions: ")[1]
     assert sum(f"s01/{name} (" in slowest for name in names) == 2
 
 
@@ -1285,13 +1437,13 @@ async def test_discovery_applies_header_crs(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_discovery_heals_tracked_record_without_bbox(
+async def test_discovery_updates_extent_of_tracked_record_without_bbox(
     db_session_maker, admin_user, discovery_env, monkeypatch
 ):
     # a record discovered while the mission's CRS was still the 4326 default has no
     # bbox, and gets one from a re-run once the mission has a projected CRS
     mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
-    for name in ("drawn.tif", "healed.tif"):
+    for name in ("drawn.tif", "updated.tif"):
         target = mission_root / "s01" / name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(b"content is irrelevant, dispatch is faked")
@@ -1299,7 +1451,7 @@ async def test_discovery_heals_tracked_record_without_bbox(
         _record_to_create(discovery_env, "s01/drawn.tif").model_dump()
         | {"bbox_4326": _DRAWN_BBOX_WKT}
     )
-    without_bbox = _record_to_create(discovery_env, "s01/healed.tif")
+    without_bbox = _record_to_create(discovery_env, "s01/updated.tif")
     # an update drops the data assets and relations its payload does not restate
     without_bbox = without_bbox.model_copy(
         update={
@@ -1312,7 +1464,7 @@ async def test_discovery_heals_tracked_record_without_bbox(
                 record_schemas.DataRecordAssetCreate(
                     id=identifiers.RecordAssetId(uuid.uuid4()),
                     name="notes",
-                    relative_path="notes/healed.txt",
+                    relative_path="notes/updated.txt",
                 ),
             ],
             "related_records": [
@@ -1352,28 +1504,28 @@ async def test_discovery_heals_tracked_record_without_bbox(
     )
 
     # a record that has a bbox is not read again
-    assert extraction_calls == [str(mission_root / "s01/healed.tif")]
+    assert extraction_calls == [str(mission_root / "s01/updated.tif")]
     records = {
         r.id: r
         for r in await _get_mission_records(
             db_session_maker, discovery_env["mission"].id
         )
     }
-    healed = records[without_bbox.id]
-    minx, miny, maxx, maxy = to_shape(healed.bbox_4326).bounds
+    updated = records[without_bbox.id]
+    minx, miny, maxx, maxy = to_shape(updated.bbox_4326).bounds
     assert -8.2 < minx <= maxx < -8.0
     assert 39.6 < miny <= maxy < 39.8
     assert (
         "CRS: ETRS89 / Portugal TM06 (EPSG:3763, from the survey mission)."
-        in healed.description
+        in updated.description
     )
-    assert healed.temporal_extent_begin == dt.date(2024, 9, 28)
-    assert healed.temporal_extent_end == dt.date(2024, 9, 29)
-    assert healed.validation_result["is_valid"] is True
+    assert updated.temporal_extent_begin == dt.date(2024, 9, 28)
+    assert updated.temporal_extent_end == dt.date(2024, 9, 29)
+    assert updated.validation_result["is_valid"] is True
     assets = await _get_record_assets(db_session_maker, without_bbox.id)
     assert sorted(a.relative_path for a in assets) == [
-        "notes/healed.txt",
-        "s01/healed.tif",
+        "notes/updated.txt",
+        "s01/updated.tif",
     ]
     async with db_session_maker() as session:
         links = (
@@ -1412,7 +1564,7 @@ async def test_discovery_heals_tracked_record_without_bbox(
         ),
     ],
 )
-async def test_discovery_heal_writes_nothing(
+async def test_discovery_extent_update_writes_nothing(
     db_session_maker,
     admin_user,
     discovery_env,

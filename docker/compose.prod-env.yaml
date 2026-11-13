@@ -266,6 +266,7 @@ services:
       - "discovery"
     environment:
       <<: *common-env
+      SEIS_LAB_DATA__DISCOVERY_EXTRACTION_CONCURRENCY: ${DISCOVERY_EXTRACTION_CONCURRENCY:-4}
       SEIS_LAB_DATA__THUMBNAIL_BASE_TILE_LAYER_URL: http://martin-tile-server:3000/emodnet-bathymetry/{z}/{x}/{y}
     volumes:
       *common-volumes
