@@ -550,20 +550,29 @@ definidos no ficheiro `compose-deployment.env`:
 | `long-tasks-worker` | `LONG_TASKS_WORKER_PROCESSES` (2) | `LONG_TASKS_WORKER_THREADS` (4) |
 | `discovery-worker` | `DISCOVERY_WORKER_PROCESSES` (3) | 1 |
 
-Cada processo do `discovery-worker` descobre uma missão de cada vez e usa cerca de um núcleo de CPU, pelo que o
-número de processos é o número de missões que podem ser descobertas em paralelo. Mais processos não aceleram a
-descoberta de uma única missão. Numa máquina que também corre a base de dados e os outros serviços, mantenha-o bem
-abaixo do número de núcleos de CPU.
+Cada processo do `discovery-worker` descobre uma missão de cada vez, pelo que o número de processos é o número de
+missões que podem ser descobertas em paralelo.
 
-Cada descoberta do arquivo lê `DISCOVERY_EXTRACTION_CONCURRENCY` ficheiros em simultâneo (por omissão 4),
-variável que também pode ser definida no ficheiro `compose-deployment.env`. Ler ficheiros do arquivo é sobretudo
-esperar pelo armazenamento, pelo que um valor mais alto acelera a descoberta em armazenamento lento, à custa de mais
-carga sobre ele. A descoberta escreve os seus registos em lotes de até 500 ficheiros, cada um escrito no máximo 5
-segundos depois de começado. Estes valores raramente precisam de ser alterados; se for o caso, defina
+Cada descoberta do arquivo lê `DISCOVERY_EXTRACTION_CONCURRENCY` ficheiros em simultâneo (por omissão 4), cada um num
+processo próprio, variável que também pode ser definida no ficheiro `compose-deployment.env`. Ler ficheiros do arquivo
+é em parte esperar pelo armazenamento e em parte trabalho de CPU (p. ex. percorrer os datagramas de um ficheiro
+KMALL), pelo que um valor mais alto acelera a descoberta, à custa de mais carga sobre o armazenamento e o CPU.
+Descobrir várias missões em simultâneo corre até `DISCOVERY_WORKER_PROCESSES` × `DISCOVERY_EXTRACTION_CONCURRENCY`
+destes processos; numa máquina que também corre a base de dados e os outros serviços, mantenha esse número bem abaixo
+do número de núcleos de CPU.
+
+Uma descoberta para ao fim de `DISCOVERY_TIME_LIMIT_HOURS` horas (por omissão 24, no máximo 168), variável que também
+pode ser definida no ficheiro `compose-deployment.env`. Os registos criados até então são mantidos, e correr a
+descoberta de novo retoma-a, pois os ficheiros que já têm registos são ignorados.
+
+A descoberta escreve os seus registos em lotes de até 500 ficheiros, cada um escrito no máximo 5 segundos depois de
+começado. Estes valores raramente precisam de ser alterados; se for o caso, defina
 `SEIS_LAB_DATA__DISCOVERY_BATCH_SIZE` e `SEIS_LAB_DATA__DISCOVERY_BATCH_MAX_SECONDS` no ambiente do serviço
-`discovery-worker` em `compose.prod-env.yaml`. No fim de cada execução, e a cada atualização do progresso, o _worker_ regista nos _logs_ onde foi
-gasto o tempo da execução (percorrer o arquivo, extrair metadados e trabalho na base de dados) e as suas extrações mais
-lentas, o que ajuda a escolher estes valores.
+`discovery-worker` em `compose.prod-env.yaml`. As pré-visualizações dos registos são pedidas à medida que cada lote é
+escrito, pelo que são geradas pelo `long-tasks-worker` enquanto a descoberta ainda decorre. No fim de cada execução, e
+a cada atualização do progresso, o _worker_ regista nos _logs_ onde foi gasto o tempo da execução (percorrer o
+arquivo, extrair metadados e trabalho na base de dados) e as suas extrações mais lentas, o que ajuda a escolher estes
+valores.
 
 ##### Ligações à base de dados
 

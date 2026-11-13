@@ -25,7 +25,10 @@ from geoalchemy2.shape import to_shape
 
 pytest.importorskip("osgeo")
 
-from osgeo import gdal, osr  # noqa: E402
+from osgeo import (  # noqa: E402
+    gdal,
+    osr,
+)
 
 from seis_lab_data import constants  # noqa: E402
 from seis_lab_data.db import models  # noqa: E402
@@ -59,6 +62,8 @@ _MISSION_RELATIVE_PATH = "surveys/test-mission"
 _NATIVE_BBOX_TM06 = (0.0, 1900.0, 100.0, 2000.0)
 # a bbox drawn by the user, well away from the one of the synthetic grids
 _DRAWN_BBOX_WKT = "POLYGON((-9 38, -8.9 38, -8.9 38.1, -9 38.1, -9 38))"
+# kept before the `discovery_env` fixture replaces it with a run in threads
+_RUN_SYNC_IN_WORKER_PROCESS = discovery_ops.to_process.run_sync
 
 
 class _EventCollector:
@@ -103,9 +108,15 @@ async def discovery_env(
     db_session_maker,
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
+    monkeypatch,
 ):
     """A fake archive plus one project, mission and discovery configuration."""
     settings.readonly_archive_root_directory = tmp_path
+    # discovery extracts in worker processes, which would run the real extractors
+    # instead of those that tests put in their place: run them in threads
+    monkeypatch.setattr(
+        discovery_ops.to_process, "run_sync", discovery_ops.to_thread.run_sync
+    )
     async with db_session_maker() as session:
         project = await project_commands.create_project(
             session,
@@ -402,10 +413,14 @@ async def test_discovery_gives_the_same_records_whatever_its_pipelining(
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_discovered_records_match_those_of_the_record_create_operation(
-    db_session_maker, admin_user, discovery_env
+    db_session_maker, admin_user, discovery_env, monkeypatch
 ):
     # discovery writes its records without the ORM: for the same input, the rows
     # must be those of the record create operation
+    # real extractions, in worker processes as in production
+    monkeypatch.setattr(
+        discovery_ops.to_process, "run_sync", _RUN_SYNC_IN_WORKER_PROCESS
+    )
     mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
     _write_geotiff(mission_root / "s01/grid.tif")
     # nothing is extracted from it, so its record has no bbox and is invalid
@@ -857,6 +872,33 @@ async def test_discovery_that_stops_reports_its_end_and_restores_the_status(
     )
 
 
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discovery_stops_at_its_time_limit(
+    db_session_maker, admin_user, discovery_env, monkeypatch
+):
+    async def slow_discovery(**kwargs):
+        await asyncio.sleep(10)
+
+    monkeypatch.setattr(discovery_ops, "_discover_mission_records", slow_discovery)
+    # 0.1 seconds
+    discovery_env["settings"].discovery_time_limit_hours = 0.1 / 3600
+    mission_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
+
+    collector = await _run_discovery(
+        db_session_maker, mission_id, discovery_env["settings"], admin_user
+    )
+
+    ended = _ended_events(collector)
+    assert len(ended) == 1
+    assert ended[0].succeeded is False
+    assert ended[0].details.startswith("discovery exceeded its time limit")
+    assert (
+        await _get_mission_status(db_session_maker, mission_id)
+        == constants.SurveyMissionStatus.DRAFT
+    )
+
+
 async def _set_mission_status(db_session_maker, mission_id, status, age=None):
     """Set a mission's status directly, along with how long ago it was updated."""
     async with db_session_maker() as session:
@@ -902,7 +944,7 @@ async def test_discovery_can_be_cancelled_and_keeps_its_records(
     monkeypatch.setattr(constants, "DISCOVERY_HEARTBEAT_INTERVAL_SECONDS", 0.01)
     real_extract = discovery_ops._extract_file_metadata
 
-    async def extract_and_request_cancellation(file_path, implicit_crs):
+    async def extract_and_request_cancellation(file_path, implicit_crs, **kwargs):
         async with db_session_maker() as session:
             await mission_commands.compare_and_set_survey_mission_status(
                 session,
@@ -912,7 +954,7 @@ async def test_discovery_can_be_cancelled_and_keeps_its_records(
             )
         # gives the heartbeat time to see the cancellation
         await asyncio.sleep(0.2)
-        return await real_extract(file_path, implicit_crs)
+        return await real_extract(file_path, implicit_crs, **kwargs)
 
     monkeypatch.setattr(
         discovery_ops, "_extract_file_metadata", extract_and_request_cancellation
@@ -1180,11 +1222,44 @@ async def test_mission_previews_are_collected_for_eligible_records_only(
         await _create_record_without_discovery(db_session_maker, admin_user, to_create)
 
     async with db_session_maker() as session:
-        collected = await preview_ops.collect_survey_mission_records_missing_previews(
-            session, identifiers.SurveyMissionId(discovery_env["mission"].id)
-        )
+        collected = [
+            record_id
+            async for page in preview_ops.iter_survey_mission_records_missing_previews(
+                session, identifiers.SurveyMissionId(discovery_env["mission"].id)
+            )
+            for record_id in page
+        ]
 
     assert collected == [eligible.id]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_mission_previews_are_collected_by_page_and_creation_time(
+    db_session_maker, admin_user, discovery_env
+):
+    older = [_record_to_create(discovery_env, f"s01/old{i}.tif") for i in range(3)]
+    for to_create in older:
+        await _create_record_without_discovery(db_session_maker, admin_user, to_create)
+    created_before = models.now_()
+    newer = _record_to_create(discovery_env, "s01/new.tif")
+    await _create_record_without_discovery(db_session_maker, admin_user, newer)
+
+    async with db_session_maker() as session:
+        pages = [
+            page
+            async for page in preview_ops.iter_survey_mission_records_missing_previews(
+                session,
+                identifiers.SurveyMissionId(discovery_env["mission"].id),
+                created_before=created_before,
+                page_size=2,
+            )
+        ]
+
+    assert [len(page) for page in pages] == [2, 1]
+    assert sorted(record_id for page in pages for record_id in page) == sorted(
+        to_create.id for to_create in older
+    )
 
 
 @pytest.mark.integration
@@ -1638,7 +1713,7 @@ async def test_discovery_extent_update_writes_nothing(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_discovery_enqueues_one_mission_derivation(
+async def test_discovery_enqueues_previews_of_its_records_and_of_older_ones(
     db_session_maker, admin_user, discovery_env, monkeypatch
 ):
     enqueued = []
@@ -1647,6 +1722,13 @@ async def test_discovery_enqueues_one_mission_derivation(
         "send",
         lambda **kwargs: enqueued.append(kwargs),
     )
+    records_enqueued = []
+    monkeypatch.setattr(
+        discovery_ops.preview_tasks.generate_records_previews,
+        "send",
+        lambda **kwargs: records_enqueued.append(kwargs),
+    )
+    monkeypatch.setattr(constants, "PREVIEW_BATCH_SIZE", 1)
     # the mission's directory is not in the archive yet, so discovery fails
     await _run_discovery(
         db_session_maker,
@@ -1666,10 +1748,29 @@ async def test_discovery_enqueues_one_mission_derivation(
         discovery_env["settings"],
         admin_user,
     )
-    # a single derivation for the whole mission, however many files were found
+    records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
+    # the run's records, as they were written, in batches of `PREVIEW_BATCH_SIZE`
+    assert sorted(e["raw_survey_related_record_ids"] for e in records_enqueued) == (
+        sorted([str(record.id)] for record in records)
+    )
+    # and a single derivation for the older records of the mission
     assert [e["raw_survey_mission_id"] for e in enqueued] == [
         str(discovery_env["mission"].id)
     ]
+    # created before the run started, so that its own records are not derived twice
+    async with db_session_maker() as session:
+        older = [
+            record_id
+            async for page in preview_ops.iter_survey_mission_records_missing_previews(
+                session,
+                identifiers.SurveyMissionId(discovery_env["mission"].id),
+                created_before=dt.datetime.fromisoformat(
+                    enqueued[0]["raw_created_before"]
+                ),
+            )
+            for record_id in page
+        ]
+    assert older == []
 
     # every discovery enqueues it again, it is the derivation which skips the
     # records that already have previews
@@ -1680,6 +1781,8 @@ async def test_discovery_enqueues_one_mission_derivation(
         admin_user,
     )
     assert len(enqueued) == 2
+    # no new records, no new record derivations
+    assert len(records_enqueued) == 2
 
 
 @pytest.mark.integration
@@ -1715,16 +1818,20 @@ async def test_mission_previews_are_derived_for_missing_only(
             )
         )
         await session.commit()
-        collected = await preview_ops.collect_survey_mission_records_missing_previews(
-            session, identifiers.SurveyMissionId(discovery_env["mission"].id)
-        )
+        collected = [
+            record_id
+            async for page in preview_ops.iter_survey_mission_records_missing_previews(
+                session, identifiers.SurveyMissionId(discovery_env["mission"].id)
+            )
+            for record_id in page
+        ]
     missing = sorted(str(records[name].id) for name in ("first.tif", "second.tif"))
     # derived.tif already has a preview, so it is left out
     assert sorted(str(record_id) for record_id in collected) == missing
 
     enqueued = []
     monkeypatch.setattr(
-        preview_tasks.generate_record_previews,
+        preview_tasks.generate_records_previews,
         "send",
         lambda **kwargs: enqueued.append(kwargs),
     )
@@ -1735,8 +1842,8 @@ async def test_mission_previews_are_derived_for_missing_only(
         raw_initiator=json.dumps(dataclasses.asdict(admin_user)),
         settings=discovery_env["settings"],
     )
-    # one derivation per record which is missing its previews
-    assert sorted(e["raw_survey_related_record_id"] for e in enqueued) == missing
+    # one derivation for the records which are missing their previews
+    assert [sorted(e["raw_survey_related_record_ids"]) for e in enqueued] == [missing]
 
     # the test settings have no message broker to dispatch the events through
     monkeypatch.setattr(
@@ -1752,7 +1859,7 @@ async def test_mission_previews_are_derived_for_missing_only(
 
     # and each message runs the record derivation as it was sent
     for message in enqueued:
-        await inspect.unwrap(preview_tasks.generate_record_previews.fn)(
+        await inspect.unwrap(preview_tasks.generate_records_previews.fn)(
             **message, settings=discovery_env["settings"]
         )
     for name in ("first.tif", "second.tif"):
@@ -1990,7 +2097,7 @@ async def test_manual_create_extracts_extents(
     _write_geotiff(data_file)
     enqueued = []
     monkeypatch.setattr(
-        discovery_ops.preview_tasks.generate_record_previews,
+        discovery_ops.preview_tasks.generate_records_previews,
         "send",
         lambda **kwargs: enqueued.append(kwargs),
     )
@@ -2016,7 +2123,7 @@ async def test_manual_create_extracts_extents(
     # the text discovery stores, in place of the one typed in the payload
     extracted = discovery_ops.extractor_dispatch.dispatch_extractor(str(data_file))
     assert record.description == extracted.describe()
-    assert [e["raw_survey_related_record_id"] for e in enqueued] == [str(record.id)]
+    assert [e["raw_survey_related_record_ids"] for e in enqueued] == [[str(record.id)]]
 
 
 @pytest.mark.integration
@@ -2032,7 +2139,7 @@ async def test_manual_update_new_path_reextracts(
     asset_id = to_create.assets[0].id
     enqueued = []
     monkeypatch.setattr(
-        discovery_ops.preview_tasks.generate_record_previews,
+        discovery_ops.preview_tasks.generate_records_previews,
         "send",
         lambda **kwargs: enqueued.append(kwargs),
     )
@@ -2101,7 +2208,7 @@ async def test_manual_update_failed_extraction_keeps_extents(
     )
     enqueued = []
     monkeypatch.setattr(
-        discovery_ops.preview_tasks.generate_record_previews,
+        discovery_ops.preview_tasks.generate_records_previews,
         "send",
         lambda **kwargs: enqueued.append(kwargs),
     )

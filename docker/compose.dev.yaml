@@ -281,9 +281,10 @@ services:
       - "discovery"
     environment:
       <<: *common-env
-      # number of files whose metadata discovery reads at the same time (default: 4);
-      # raised because reads from a network-mounted archive (e.g. sshfs) are slow,
-      # and concurrent reads overlap their waiting time
+      # number of files whose metadata discovery reads at the same time, each in a
+      # worker process of its own (default: 4); raised because reads from a
+      # network-mounted archive (e.g. sshfs) are slow, and concurrent reads overlap
+      # their waiting time
       SEIS_LAB_DATA__DISCOVERY_EXTRACTION_CONCURRENCY: 8
     volumes:
       *common-volumes

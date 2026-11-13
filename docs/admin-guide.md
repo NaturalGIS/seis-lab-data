@@ -531,19 +531,27 @@ set in `compose-deployment.env`:
 | `long-tasks-worker` | `LONG_TASKS_WORKER_PROCESSES` (2) | `LONG_TASKS_WORKER_THREADS` (4) |
 | `discovery-worker` | `DISCOVERY_WORKER_PROCESSES` (3) | 1 |
 
-Each `discovery-worker` process discovers one mission at a time and uses about one CPU core, so the number of
-processes is the number of missions that can be discovered in parallel. More processes do not speed up the
-discovery of a single mission. On a machine that also runs the database and the other services, keep it well below
-the number of CPU cores.
+Each `discovery-worker` process discovers one mission at a time, so the number of processes is the number of
+missions that can be discovered in parallel.
 
-Each archive discovery reads `DISCOVERY_EXTRACTION_CONCURRENCY` files at the same time (default 4), which can
-also be set in `compose-deployment.env`. Reading files from the archive is mostly waiting on the storage, so a higher
-value speeds up discovery on slow storage, at the cost of more load on it. Discovery writes its records in batches
-of up to 500 files, each one written at most 5 seconds after it began. These rarely need changing; if they do, set
-`SEIS_LAB_DATA__DISCOVERY_BATCH_SIZE` and `SEIS_LAB_DATA__DISCOVERY_BATCH_MAX_SECONDS` in the environment of the
-`discovery-worker` service in `compose.prod-env.yaml`. At the end of each run, and with each
-progress update, the worker logs where the run's time went (walking the archive, extracting metadata and database
-work) and its slowest extractions, which helps in choosing these values.
+Each archive discovery reads `DISCOVERY_EXTRACTION_CONCURRENCY` files at the same time (default 4), each one in a
+worker process of its own, which can also be set in `compose-deployment.env`. Reading files from the archive is
+partly waiting on the storage and partly CPU work (e.g. walking the datagrams of a KMALL file), so a higher value
+speeds up discovery, at the cost of more load on the storage and on the CPU. Discovering several missions at once
+runs up to `DISCOVERY_WORKER_PROCESSES` × `DISCOVERY_EXTRACTION_CONCURRENCY` of these worker processes; on a
+machine that also runs the database and the other services, keep that well below the number of CPU cores.
+
+A discovery run stops after `DISCOVERY_TIME_LIMIT_HOURS` hours (default 24, at most 168), which can also be set in
+`compose-deployment.env`. The records it created until then are kept, and running the discovery again resumes it,
+as the files that already have records are skipped.
+
+Discovery writes its records in batches of up to 500 files, each one written at most 5 seconds after it began. These
+rarely need changing; if they do, set `SEIS_LAB_DATA__DISCOVERY_BATCH_SIZE` and
+`SEIS_LAB_DATA__DISCOVERY_BATCH_MAX_SECONDS` in the environment of the `discovery-worker` service in
+`compose.prod-env.yaml`. The previews of the records are requested as each batch is written, so they are generated
+by the `long-tasks-worker` while discovery is still running. At the end of each run, and with each progress update,
+the worker logs where the run's time went (walking the archive, extracting metadata and database work) and its
+slowest extractions, which helps in choosing these values.
 
 ##### Database connections
 

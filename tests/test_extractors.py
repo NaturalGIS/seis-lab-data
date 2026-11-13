@@ -14,7 +14,11 @@ import pytest
 
 pytest.importorskip("osgeo")
 
-from osgeo import gdal, ogr, osr  # noqa: E402
+from osgeo import (  # noqa: E402
+    gdal,
+    ogr,
+    osr,
+)
 
 from seis_lab_data.tasks.extractors import (  # noqa: E402
     dispatch,

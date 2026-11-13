@@ -17,7 +17,10 @@ from pydantic import (
     ConfigDict,
     PlainSerializer,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.dialects.postgresql import (
+    ARRAY,
+    JSONB,
+)
 from sqlalchemy import (
     Enum,
     LargeBinary,

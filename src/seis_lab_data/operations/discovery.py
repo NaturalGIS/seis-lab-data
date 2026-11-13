@@ -14,7 +14,11 @@ import uuid
 
 import pydantic
 import shapely
-from anyio import Path, to_thread
+from anyio import (
+    Path,
+    to_process,
+    to_thread,
+)
 from geoalchemy2 import WKBElement
 from osgeo import osr
 from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -316,6 +320,8 @@ async def run_mission_discovery(
     # block below must report the end of the run and give the mission back its
     # status
     cancellation_requested = asyncio.Event()
+    time_limit = asyncio.timeout(settings.discovery_time_limit_hours * 60 * 60)
+    started_at = models.now_()
     heartbeat = asyncio.create_task(
         _refresh_discovery_heartbeat(
             mission_id, settings.get_db_session_maker(), cancellation_requested
@@ -354,16 +360,17 @@ async def run_mission_discovery(
                 succeeded=True,
             )
         )
-        counts = await _discover_mission_records(
-            request_id=request_id,
-            mission=mission,
-            session=session,
-            event_dispatcher=event_dispatcher,
-            settings=settings,
-            user=user,
-            asset_discovery_configs=asset_discovery_configs,
-            cancellation_requested=cancellation_requested,
-        )
+        async with time_limit:
+            counts = await _discover_mission_records(
+                request_id=request_id,
+                mission=mission,
+                session=session,
+                event_dispatcher=event_dispatcher,
+                settings=settings,
+                user=user,
+                asset_discovery_configs=asset_discovery_configs,
+                cancellation_requested=cancellation_requested,
+            )
     # raised into the run when dramatiq interrupts it, e.g. at its time limit
     except asyncio.CancelledError:
         logger.warning(f"Discovery of mission {mission_id} was interrupted")
@@ -396,7 +403,11 @@ async def run_mission_discovery(
                 succeeded=False,
                 # anything else may carry internals, such as SQL, which stay in the logs
                 details=(
-                    str(err)
+                    f"discovery exceeded its time limit of "
+                    f"{settings.discovery_time_limit_hours:g} hours - the records "
+                    f"created so far are kept, run it again to resume"
+                    if time_limit.expired()
+                    else str(err)
                     if isinstance(err, (errors.SeisLabDataError, FileNotFoundError))
                     else f"unexpected error ({type(err).__name__})"
                 ),
@@ -419,12 +430,13 @@ async def run_mission_discovery(
                 details=counts.describe(),
             )
         )
-        # previews are derived by an operation of their own, which discovery
-        # only kicks off once all of the mission's records exist
+        # the records created by this run had their previews requested as they
+        # were written; this covers the older records still missing previews
         preview_tasks.generate_mission_previews.send(
             raw_request_id=str(request_id),
             raw_survey_mission_id=str(mission_id),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
+            raw_created_before=started_at.isoformat(),
         )
     finally:
         heartbeat.cancel()
@@ -745,6 +757,9 @@ async def _discover_mission_records(
             discovered.metadata, discovered.bbox_wkt = await _extract_file_metadata(
                 str(mission_root_path / discovered.relative_path),
                 mission.implicit_crs,
+                # the extractors' Python code holds the GIL: in threads, concurrent
+                # extractions would share a single CPU core
+                in_worker_process=True,
             )
             extraction_seconds = time.monotonic() - extraction_started_at
             counts.extraction_seconds += extraction_seconds
@@ -816,6 +831,7 @@ async def _discover_mission_records(
                 f"them one by one",
                 exc_info=True,
             )
+            written = []
             for discovered, record_row, asset_row in creations:
                 try:
                     await discovery_commands.write_discovered_survey_related_records(
@@ -832,6 +848,7 @@ async def _discover_mission_records(
                     await session.rollback()
                 else:
                     counts.created += 1
+                    written.append((discovered, record_row))
             for discovered, extent_update in extent_updates:
                 try:
                     await discovery_commands.write_discovered_survey_related_records(
@@ -845,7 +862,24 @@ async def _discover_mission_records(
                     await session.rollback()
         else:
             counts.created += len(creations)
+            written = [
+                (discovered, record_row) for discovered, record_row, _ in creations
+            ]
         counts.db_seconds += time.monotonic() - write_started_at
+        # whether a record gets previews is decided by the derivation itself
+        preview_record_ids = [
+            str(record_row["id"])
+            for discovered, record_row in written
+            if discovered.configuration.generate_previews
+        ]
+        for start in range(0, len(preview_record_ids), constants.PREVIEW_BATCH_SIZE):
+            preview_tasks.generate_records_previews.send(
+                raw_request_id=str(request_id),
+                raw_survey_related_record_ids=preview_record_ids[
+                    start : start + constants.PREVIEW_BATCH_SIZE
+                ],
+                raw_initiator=json.dumps(dataclasses.asdict(user)),
+            )
         await report_progress()
 
     async def write_record_batches() -> None:
@@ -1208,9 +1242,9 @@ async def create_manual_survey_related_record(
         event_dispatcher=event_dispatcher,
     )
     # whether the record gets previews is decided by the derivation itself
-    preview_tasks.generate_record_previews.send(
+    preview_tasks.generate_records_previews.send(
         raw_request_id=str(request_id),
-        raw_survey_related_record_id=str(to_create.id),
+        raw_survey_related_record_ids=[str(to_create.id)],
         raw_initiator=json.dumps(dataclasses.asdict(initiator)),
     )
     return created_record
@@ -1264,9 +1298,9 @@ async def update_manual_survey_related_record(
     )
     # previews only go stale with the data files
     if paths_changed:
-        preview_tasks.generate_record_previews.send(
+        preview_tasks.generate_records_previews.send(
             raw_request_id=str(request_id),
-            raw_survey_related_record_id=str(survey_related_record_id),
+            raw_survey_related_record_ids=[str(survey_related_record_id)],
             raw_initiator=json.dumps(dataclasses.asdict(initiator)),
         )
     return updated_record
@@ -1327,22 +1361,32 @@ def _extracted_record_fields(
 
 
 async def _extract_file_metadata(
-    file_path: str, implicit_crs: int
+    file_path: str, implicit_crs: int, in_worker_process: bool = False
 ) -> tuple[extractor_schemas.ExtractionResult | None, str | None]:
     """Extract a file's metadata and its EPSG:4326 bbox as WKT.
 
-    Extraction errors are logged, and result in None metadata. A bbox extracted in
-    native coordinates without a CRS is reprojected using the projected CRS declared
-    in the SEG-Y header, if exactly one is declared, or `implicit_crs` otherwise.
-    The metadata is then updated with the applied CRS.
+    The extractor runs in a worker thread, or in a worker process if
+    `in_worker_process` is set. The extractors' Python code holds the GIL, so
+    concurrent extractions in threads share a single CPU core, while worker
+    processes use one core each, at the cost of starting a process that loads GDAL
+    on first use. Mission discovery, which extracts many files concurrently, sets
+    it; the extraction of a single file for a record created or updated by hand
+    does not, as it would gain nothing from another core and would wait for the
+    process to start.
+
+    Extraction errors, including a crashed worker process, are logged and result in
+    None metadata. A bbox extracted in native coordinates without a CRS is
+    reprojected using the projected CRS declared in the SEG-Y header, if exactly one
+    is declared, or `implicit_crs` otherwise. The metadata is then updated with the
+    applied CRS.
 
     Returns the metadata and the bbox WKT, each of which may be None.
     """
     metadata = None
     try:
-        metadata = await to_thread.run_sync(
-            extractor_dispatch.dispatch_extractor, file_path
-        )
+        metadata = await (
+            to_process.run_sync if in_worker_process else to_thread.run_sync
+        )(extractor_dispatch.dispatch_extractor, file_path)
     except Exception as err:
         logger.warning("Metadata extraction failed for %s: %s", file_path, err)
         logger.debug("Extraction failure detail", exc_info=True)

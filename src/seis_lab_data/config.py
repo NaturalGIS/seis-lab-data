@@ -2,7 +2,10 @@ import logging
 import logging.config
 import warnings
 from pathlib import Path
-from typing import Optional
+from typing import (
+    Annotated,
+    Optional,
+)
 
 import jinja2
 import sqlmodel
@@ -10,6 +13,7 @@ import yaml
 from pydantic import (
     BaseModel,
     ConfigDict,
+    Field,
     NonNegativeInt,
     PositiveFloat,
     PositiveInt,
@@ -156,13 +160,16 @@ class SeisLabDataSettings(BaseSettings):
     default_temporal_extent_end: str = ""
     readonly_archive_root_directory: Path = "/mnt/data"
     # concurrency of a discovery run's metadata extractions, i.e. how many files are
-    # read at once; reading the archive is mostly waiting on storage, so concurrent
-    # extractions overlap those waits
+    # read at once; concurrent extractions overlap their waits on storage and, in
+    # worker processes, use as many CPU cores
     discovery_extraction_concurrency: PositiveInt = 4
     # a discovery run looks up matched paths and writes records in batches of up to
     # this many files, each batch held for at most `discovery_batch_max_seconds`
     discovery_batch_size: PositiveInt = 500
     discovery_batch_max_seconds: PositiveFloat = 5.0
+    # a discovery run stops after this long, keeping the records it created; at most
+    # 7 days
+    discovery_time_limit_hours: Annotated[PositiveFloat, Field(le=7 * 24)] = 24.0
     editable_archive_root_directory: Path = "/mnt/sld"
     icons: SeisLabDataIconSettings = SeisLabDataIconSettings()
     target_geonode: TargetGeoNodeSettings | None = None

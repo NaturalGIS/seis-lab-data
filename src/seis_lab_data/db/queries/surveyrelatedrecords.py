@@ -2,7 +2,10 @@ import logging
 from collections.abc import Collection
 
 import shapely
-from sqlalchemy.orm import aliased, selectinload
+from sqlalchemy.orm import (
+    aliased,
+    selectinload,
+)
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import (
     exists,

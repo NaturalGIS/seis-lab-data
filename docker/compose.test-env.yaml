@@ -264,6 +264,7 @@ services:
     environment:
       <<: *common-env
       SEIS_LAB_DATA__DISCOVERY_EXTRACTION_CONCURRENCY: ${DISCOVERY_EXTRACTION_CONCURRENCY:-4}
+      SEIS_LAB_DATA__DISCOVERY_TIME_LIMIT_HOURS: ${DISCOVERY_TIME_LIMIT_HOURS:-24}
     <<: *common-secrets
     restart: unless-stopped
 
