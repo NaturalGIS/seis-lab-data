@@ -160,7 +160,7 @@ def test_asset_discovery_configuration_creation_rejects_duplicate_name(
     expect(authenticated_page).to_have_url(
         re.compile(r"/asset-discovery-configurations/$"), timeout=10_000
     )
-    expect(authenticated_page.locator(".toast.text-bg-danger")).to_be_visible(
+    expect(authenticated_page.locator('.toast[data-category="danger"]')).to_be_visible(
         timeout=10_000
     )
 

@@ -241,6 +241,8 @@
     function showFlash(flash) {
         const el = document.createElement('div');
         el.className = 'toast notification';
+        // the category, for whatever needs to find a kind of notification, such as tests
+        el.dataset.category = flash.category;
         el.setAttribute('role', flash.category === 'danger' ? 'alert' : 'status');
         el.setAttribute('aria-atomic', 'true');
         el.innerHTML = `<div class="toast-header">
