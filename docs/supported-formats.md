@@ -246,6 +246,10 @@ Standard seismic data exchange format (SEG-Y Revision 2.0). Structure:
 
 Python libraries: **segyio** (actively maintained, by Equinor) and **segpy**.
 
+The text file header has no dedicated CRS field. Discovery searches it for EPSG codes, and uses the
+code found when it identifies exactly one projected CRS. Otherwise, the mission's implicit CRS is
+used.
+
 ### JSF
 
 | Property | Value |

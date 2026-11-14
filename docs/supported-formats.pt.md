@@ -256,6 +256,10 @@ Formato padrão de troca de dados sísmicos (SEG-Y Revisão 2.0). Estrutura:
 
 Bibliotecas Python: **segyio** (mantida ativamente, pela Equinor) e **segpy**.
 
+O cabeçalho de texto não tem um campo dedicado ao CRS. A descoberta procura nele códigos EPSG e usa
+o código encontrado quando este identifica exatamente um CRS projetado. Caso contrário, é usado o
+CRS implícito da missão.
+
 ### JSF
 
 | Propriedade | Valor |
