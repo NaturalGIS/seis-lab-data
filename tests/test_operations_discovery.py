@@ -307,6 +307,9 @@ async def test_discovery_extracts_metadata(db_session_maker, admin_user, discove
     assert len(records) == 1
     record = records[0]
     assert record.name == "grid.tif"
+    # a valid record stays a draft while its mission is a draft
+    assert record.validation_result["is_valid"] is True
+    assert record.status == constants.SurveyRelatedRecordStatus.DRAFT
     assert record.description.startswith("Auto-extracted: GTiff raster")
     assert record.bbox_4326 is not None
     # the synthetic EPSG:3763 grid reprojects to central Portugal
@@ -773,6 +776,11 @@ async def test_discovery_keeps_a_published_mission_published(
         await _get_mission_status(db_session_maker, mission_id)
         == constants.SurveyMissionStatus.PUBLISHED
     )
+    # the valid records of a published mission are published at the end of the run
+    records = await _get_mission_records(db_session_maker, mission_id)
+    assert [record.status for record in records] == [
+        constants.SurveyRelatedRecordStatus.PUBLISHED
+    ]
 
 
 @pytest.mark.integration

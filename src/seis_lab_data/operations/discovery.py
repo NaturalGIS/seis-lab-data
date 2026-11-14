@@ -41,6 +41,7 @@ from ..db.queries import (
 from ..db.commands import (
     discovery as discovery_commands,
     surveymissions as mission_commands,
+    surveyrelatedrecords as record_commands,
 )
 from ..db.commands.common import get_bbox_4326_for_db
 from ..permissions import (
@@ -257,7 +258,9 @@ async def run_mission_discovery(
     refreshed in the background. The run stops early if the mission's status is
     set to cancelling discovery; the records created until then are kept. The
     mission's original status is restored at the end of the run, whatever its
-    outcome. Preview generation for the mission is enqueued unless the run fails.
+    outcome. When that status is published, the mission's valid draft records are
+    then published, the records of this run among them, as are those of a mission
+    update. Preview generation for the mission is enqueued unless the run fails.
     """
     mission_name = None
     try:
@@ -452,6 +455,23 @@ async def run_mission_discovery(
             session=session,
             event_dispatcher=event_dispatcher,
         )
+        if mission_status == constants.SurveyMissionStatus.PUBLISHED:
+            published_count = (
+                await record_commands.bulk_publish_valid_survey_related_records(
+                    session, mission_id
+                )
+            )
+            if published_count:
+                await event_dispatcher(
+                    event_schemas.BulkResourceModificationEvent(
+                        initiator=user.id,
+                        request_id=request_id,
+                        resource_type=constants.ResourceType.RECORD,
+                        modification=constants.BulkResourceModification.UPDATED,
+                        succeeded=True,
+                        affected_count=published_count,
+                    )
+                )
 
 
 async def _refresh_discovery_heartbeat(
