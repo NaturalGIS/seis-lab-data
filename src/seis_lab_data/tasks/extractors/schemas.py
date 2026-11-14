@@ -60,6 +60,11 @@ _WORDS: dict[str, dict[str, str]] = {
     },
 }
 
+# the beginnings of the summaries produced by describe(), in every language
+EXTRACTED_SUMMARY_PREFIXES: typing.Final[tuple[str, ...]] = tuple(
+    f"{words['auto_extracted']}: " for words in _WORDS.values()
+)
+
 # The closed set of SEG-Y coordinate-unit labels that translate; "dms" and the
 # dynamic "code N" fallback pass through unchanged. A test pins that every
 # segy._UNITS_LABELS value except "dms" has an entry here.

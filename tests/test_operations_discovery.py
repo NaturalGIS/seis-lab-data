@@ -14,6 +14,7 @@ import inspect
 import json
 import logging
 import math
+import types
 import uuid
 
 import pytest
@@ -283,6 +284,43 @@ def test_bbox_tuple_to_wkt_rounds_to_five_decimal_places():
     for coordinate in shapely.from_wkt(wkt).exterior.coords:
         for value in coordinate:
             assert value == round(value, 5)
+
+
+@pytest.mark.parametrize(
+    "description, expected",
+    [
+        pytest.param("", "Auto-extracted: new.", id="empty"),
+        pytest.param(
+            "Typed by hand.", "Typed by hand.\nAuto-extracted: new.", id="appended"
+        ),
+        pytest.param(
+            "Typed by hand.\nAuto-extracted: old.",
+            "Typed by hand.\nAuto-extracted: new.",
+            id="earlier summary replaced",
+        ),
+        pytest.param("Auto-extracted: old.", "Auto-extracted: new.", id="summary only"),
+        pytest.param(
+            "Typed by hand.\nExtração automática: antiga.",
+            "Typed by hand.\nAuto-extracted: new.",
+            id="earlier portuguese summary replaced",
+        ),
+        pytest.param(
+            "x" * 490, "x" * 490 + "\nAuto-extr", id="summary truncated to fit"
+        ),
+        pytest.param("x" * 499, "x" * 499, id="no room for the summary"),
+    ],
+)
+def test_extracted_record_fields_keep_the_typed_description(description, expected):
+    metadata = types.SimpleNamespace(
+        describe=lambda: "Auto-extracted: new.",
+        temporal_extent_begin=None,
+        temporal_extent_end=None,
+    )
+
+    fields = discovery_ops._extracted_record_fields(metadata, None, description)
+
+    assert fields["description"] == expected
+    assert len(fields["description"]) <= constants.DESCRIPTION_MAX_LENGTH
 
 
 @pytest.mark.integration
@@ -2130,9 +2168,9 @@ async def test_manual_create_extracts_extents(
     assert 39.6 < miny <= maxy < 39.8
     # sent without a bbox: valid only if the extracted one came before validation
     assert record.validation_result["is_valid"] is True
-    # the text discovery stores, in place of the one typed in the payload
+    # the text typed in the payload, followed by the summary discovery stores
     extracted = discovery_ops.extractor_dispatch.dispatch_extractor(str(data_file))
-    assert record.description == extracted.describe()
+    assert record.description == f"A record created by hand\n{extracted.describe()}"
     assert [e["raw_survey_related_record_ids"] for e in enqueued] == [[str(record.id)]]
 
 
@@ -2176,6 +2214,10 @@ async def test_manual_update_new_path_reextracts(
     minx, miny, maxx, maxy = to_shape(record.bbox_4326).bounds
     assert -8.2 < minx <= maxx < -8.0
     assert 39.6 < miny <= maxy < 39.8
+    # the payload has no description, so the summary follows the stored one
+    assert record.description.startswith(
+        "A record created by hand\nAuto-extracted: GTiff raster"
+    )
     assert len(enqueued) == 1
 
     # same data file, so the pipeline does not run and the drawn bbox stays
