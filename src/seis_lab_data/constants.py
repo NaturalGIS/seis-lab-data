@@ -43,6 +43,9 @@ GEONODE_SHAPEFILE_SIDECAR_FIELDS: typing.Final[dict[str, str]] = {
     ".prj": "prj_file",
 }
 GEONODE_EXPORT_TIME_LIMIT_SECONDS: typing.Final[int] = 60 * 60
+# EPSG code of WGS 84 / UTM zone 29N, which covers mainland Portugal and its nearby
+# waters: the CRS a new survey mission assumes for discovered files that declare none
+DEFAULT_IMPLICIT_CRS: typing.Final[int] = 32629
 # dramatiq's time limit of a discovery message; a run stops itself earlier, after
 # the `discovery_time_limit_hours` setting, whose maximum is 7 days
 DISCOVERY_TIME_LIMIT_SECONDS: typing.Final[int] = (7 * 24 + 1) * 60 * 60

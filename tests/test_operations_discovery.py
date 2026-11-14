@@ -95,6 +95,8 @@ async def _create_mission(session, project_id, mission_relative_path, name_suffi
             name=f"Discovery test mission{name_suffix}",
             description="",
             relative_path=mission_relative_path,
+            # geographic, as the tests rely on: those of projected CRSs set theirs
+            implicit_crs=4326,
         ),
     )
     return mission
@@ -1352,11 +1354,11 @@ async def test_discovery_applies_mission_implicit_crs(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_discovery_implicit_crs_default_discards_projected_coordinates(
+async def test_discovery_geographic_implicit_crs_discards_projected_coordinates(
     db_session_maker, admin_user, discovery_env, monkeypatch, caplog
 ):
-    # the 4326 default is a placeholder: metre coordinates then fail the lon/lat
-    # range check and the bbox correctly stays NULL
+    # under a geographic implicit CRS, metre coordinates fail the lon/lat range
+    # check and the bbox correctly stays NULL
     assert discovery_env["mission"].implicit_crs == 4326
     target = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/metres.tif"
     target.parent.mkdir(parents=True, exist_ok=True)
