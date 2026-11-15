@@ -3,6 +3,9 @@
 Esta página documenta os formatos de ficheiros presentes no arquivo de dados marinhos e o
 seu estado de suporte no pipeline de extração do SeisLabData.
 
+Nos formatos com extrator, os metadados extraídos do primeiro ficheiro de dados de um registo,
+e o tamanho desse ficheiro, são mostrados na página do registo.
+
 ## Formatos raster GDAL
 
 Estes formatos são lidos através de drivers raster GDAL. O extrator consegue obter: caixa

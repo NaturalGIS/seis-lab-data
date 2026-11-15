@@ -3,6 +3,9 @@
 This page documents the file formats found in the marine data archive and their support status
 in the SeisLabData extraction pipeline.
 
+For the formats with an extractor, the metadata extracted from a record's first data file, and
+the size of that file, are shown on the record's page.
+
 ## GDAL raster formats
 
 These formats are read using GDAL raster drivers. The extractor can retrieve: bounding box,

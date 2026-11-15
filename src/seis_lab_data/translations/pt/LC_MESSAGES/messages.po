@@ -1041,3 +1041,87 @@ msgstr "Exportação de «%(name)s» para o GeoNode concluída: %(details)s"
 #: webapp/streamhandlers/common.py
 msgid "Could not export “%(name)s” to GeoNode: %(details)s"
 msgstr "Não foi possível exportar «%(name)s» para o GeoNode: %(details)s"
+
+#: constants.py
+msgid "File size"
+msgstr "Tamanho do ficheiro"
+
+#: constants.py
+msgid "Format"
+msgstr "Formato"
+
+#: constants.py
+msgid "CRS"
+msgstr "CRS"
+
+#: constants.py
+msgid "Native bounding box"
+msgstr "Extensão espacial nativa"
+
+#: constants.py
+msgid "Size (px)"
+msgstr "Dimensões (px)"
+
+#: constants.py
+msgid "Bands"
+msgstr "Bandas"
+
+#: constants.py
+msgid "Pixel size (CRS units)"
+msgstr "Tamanho do píxel (unidades do CRS)"
+
+#: constants.py
+msgid "Nodata value"
+msgstr "Valor nodata"
+
+#: constants.py
+msgid "Layers"
+msgstr "Camadas"
+
+#: constants.py
+msgid "Features"
+msgstr "Elementos"
+
+#: constants.py
+msgid "Geometry type"
+msgstr "Tipo de geometria"
+
+#: constants.py
+msgid "Points"
+msgstr "Pontos"
+
+#: constants.py
+msgid "Echo sounder"
+msgstr "Sonda"
+
+#: constants.py
+msgid "Duration"
+msgstr "Duração"
+
+#: constants.py
+msgid "Traces"
+msgstr "Traços"
+
+#: constants.py
+msgid "Samples per trace"
+msgstr "Amostras por traço"
+
+#: constants.py
+msgid "Sample interval (raw)"
+msgstr "Intervalo de amostragem (bruto)"
+
+#: constants.py
+msgid "Sample format"
+msgstr "Formato da amostra"
+
+#: constants.py
+msgid "Coordinate units"
+msgstr "Unidades das coordenadas"
+
+#: webapp/jinjafilters.py
+msgid "from the survey mission"
+msgstr "da missão"
+
+#: webapp/jinjafilters.py
+msgid "estimated"
+msgstr "estimado"
