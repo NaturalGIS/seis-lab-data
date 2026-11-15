@@ -1,8 +1,9 @@
-{% import "macros-buttons.html" as macros_buttons %}
 <div class="col">
-    <div class="card h-100 overflow-hidden list-item-stripe list-item-stripe-project{% if item.status.value != "published" %} item-unpublished{% endif %}">
+    <div class="card list-item-card h-100 overflow-hidden list-item-stripe list-item-stripe-project{% if item.status.value != "published" %} item-unpublished{% endif %}">
         <div class="d-flex h-100">
-            <div class="list-item-thumb">
+            {# a mouse-only shortcut to the detail page: the item's name is its link for
+               keyboard and screen reader users, which would otherwise find it twice #}
+            <a class="list-item-thumb" href="{{ url_for('projects:detail', project_id=item.id) }}" tabindex="-1" aria-hidden="true">
                 {% if item.has_thumbnail %}
                     <img
                             class="placeholder-rectangle bg-light object-fit-contain"
@@ -16,10 +17,10 @@
                         <span class="material-icons-outlined text-project" aria-hidden="true">{{ icons.projects }}</span>
                     </div>
                 {% endif %}
-            </div>
+            </a>
             <div class="card-body list-item-body flex-grow-1 d-flex flex-column py-2">
                 <div class="d-flex align-items-start gap-2">
-                    <h5 class="card-title text-truncate mb-1"><span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.projects }}</span>{{ item.name|default(_("name not available"), True) }}</h5>
+                    <h5 class="card-title text-truncate mb-1"><a class="list-item-link" href="{{ url_for('projects:detail', project_id=item.id) }}"><span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.projects }}</span>{{ item.name|default(_("name not available"), True) }}</a></h5>
                     {% if item.status.value != "published" %}
                         <span class="badge text-bg-danger ms-auto" aria-label="item-status">
                             {% with status_icon_classes="fs-6" %}{% include "partial-status-icon.html" %}{% endwith %}{{ item.status | translate_enum }}
@@ -33,12 +34,9 @@
                 <div class="small text-body-secondary">
                     {{ item.temporal_extent_begin | default("..", True) }}/{{ item.temporal_extent_end | default("..", True) }}
                 </div>
-                <p class="card-text small list-item-description mt-1 mb-2">
+                <p class="card-text small list-item-description mt-1 mb-1">
                     {{ item.description|default(_("description not available"), True) }}
                 </p>
-                <div class="d-flex align-items-center flex-wrap gap-2 mt-auto">
-                    {{ macros_buttons.render_view_details_button(url_for("projects:detail", project_id=item.id), size_css_class="btn-sm") }}
-                </div>
             </div>
         </div>
     </div>

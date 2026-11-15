@@ -131,6 +131,49 @@
     color: var(--bs-survey-related-record-color) !important;
 }
 
+/* in the expanded navbar, the resource links get a bar under them, in the colour of
+   their resource, which is shown for the current page and grows from the centre when a
+   link is hovered or focused. Hovered links are also lifted, like listed items. The
+   collapsed navbar is left as is, as its links span its whole width */
+@media (min-width: 992px) {
+    .nav-link-project,
+    .nav-link-survey-mission,
+    .nav-link-survey-related-record {
+        position: relative;
+        transition: color 0.15s ease-out, transform 0.15s ease-out;
+    }
+    .nav-link-project::after,
+    .nav-link-survey-mission::after,
+    .nav-link-survey-related-record::after {
+        content: "";
+        position: absolute;
+        left: var(--bs-navbar-nav-link-padding-x);
+        right: var(--bs-navbar-nav-link-padding-x);
+        bottom: 0;
+        height: 2px;
+        background-color: currentColor;
+        transform: scaleX(0);
+    }
+    .nav-link-project:is(:hover, :focus-visible, .active)::after,
+    .nav-link-survey-mission:is(:hover, :focus-visible, .active)::after,
+    .nav-link-survey-related-record:is(:hover, :focus-visible, .active)::after {
+        transform: scaleX(1);
+    }
+}
+
+@media (min-width: 992px) and (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .nav-link-project::after,
+    .nav-link-survey-mission::after,
+    .nav-link-survey-related-record::after {
+        transition: transform 0.2s ease-out;
+    }
+    .nav-link-project:hover,
+    .nav-link-survey-mission:hover,
+    .nav-link-survey-related-record:hover {
+        transform: translateY(-2px);
+    }
+}
+
 .title-project {
     color: var(--bs-project-color-dark) !important;
 }
@@ -215,6 +258,47 @@ h1 > .material-icons-outlined {
 
 .list-item-body {
     min-width: 0;
+}
+
+/* the name and the thumbnail of a listed item link to its detail page, the rest of
+   the card is left as selectable text. The name keeps the look of a title, with an
+   underline whenever the card is hovered or the name is focused, which shows where
+   the link of a hovered card is */
+.list-item-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.list-item-card:hover .list-item-link,
+.list-item-link:focus-visible {
+    text-decoration: underline;
+}
+
+.list-item-thumb {
+    color: inherit;
+    text-decoration: none;
+}
+
+.list-item-thumb:hover > * {
+    opacity: 0.85;
+}
+
+/* hovered cards are lifted, only on devices with a pointer that can hover, as
+   touch devices would otherwise keep a tapped card lifted */
+.list-item-card {
+    transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+}
+
+@media (hover: hover) {
+    .list-item-card:hover {
+        box-shadow: var(--bs-box-shadow);
+    }
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .list-item-card:hover {
+        transform: translateY(-3px);
+    }
 }
 
 .list-item-description {
