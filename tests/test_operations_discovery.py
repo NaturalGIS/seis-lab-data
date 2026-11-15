@@ -2134,7 +2134,7 @@ async def test_manual_create_extracts_extents(
     assert record.validation_result["is_valid"] is True
     assert record.description == "A record created by hand"
     extracted = discovery_ops.extractor_dispatch.dispatch_extractor(str(data_file))
-    assert record.discovery_info == extracted.discovery_info()
+    assert record.discovery_info == extracted.get_discovery_info()
     assert [e["raw_survey_related_record_ids"] for e in enqueued] == [[str(record.id)]]
 
 

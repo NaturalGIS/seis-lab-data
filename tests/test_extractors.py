@@ -432,7 +432,7 @@ def test_dispatch_big_file_logs(synthetic_geotiff, monkeypatch, caplog):
     ],
 )
 def test_discovery_info(metadata, expected):
-    info = metadata.discovery_info()
+    info = metadata.get_discovery_info()
 
     assert info == expected
     # PostgreSQL rejects the NaN and Infinity that Python's JSON would write

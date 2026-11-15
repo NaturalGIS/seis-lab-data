@@ -46,7 +46,7 @@ def test_detail_page_shows_the_discovery_info(
 
 
 def test_discovery_info_items_are_ordered_and_formatted():
-    items = jinjafilters.discovery_info_items(
+    items = jinjafilters.get_discovery_info_items(
         {
             "coverage": "partial",
             "duration_seconds": 1803.25,
@@ -82,14 +82,14 @@ def test_discovery_info_items_are_ordered_and_formatted():
         ("Duration", "30 min"),
     ]
     # a CRS declared by the file, and an exact point count
-    assert jinjafilters.discovery_info_items(
+    assert jinjafilters.get_discovery_info_items(
         {"crs_name": "WGS 84", "epsg": 4326, "point_count": 4}
     ) == [("CRS", "WGS 84 - EPSG:4326"), ("Points", "4")]
     # a pixel size in degrees, as stored for a raster in a geographic CRS
-    assert jinjafilters.discovery_info_items(
+    assert jinjafilters.get_discovery_info_items(
         {"pixel_size_x": 3.60174e-05, "pixel_size_y": -3.60174e-05}
     ) == [("Pixel size (CRS units)", "0.0000360174 x 0.0000360174")]
-    assert jinjafilters.discovery_info_items({"duration_seconds": 25.0}) == [
+    assert jinjafilters.get_discovery_info_items({"duration_seconds": 25.0}) == [
         ("Duration", "25 s")
     ]
     # a key without a name of its own would be shown as it is stored
@@ -101,7 +101,7 @@ def test_discovery_info_items_are_ordered_and_formatted():
 
 @pytest.mark.parametrize("discovery_info", [None, {}])
 def test_discovery_info_items_of_a_record_without_any(discovery_info):
-    assert jinjafilters.discovery_info_items(discovery_info) == []
+    assert jinjafilters.get_discovery_info_items(discovery_info) == []
 
 
 @pytest.mark.integration

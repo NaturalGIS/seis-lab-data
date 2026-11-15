@@ -1015,7 +1015,7 @@ def _build_discovered_record_rows(
         bbox_4326=discovered.bbox_wkt,
         temporal_extent_begin=metadata.temporal_extent_begin if metadata else None,
         temporal_extent_end=metadata.temporal_extent_end if metadata else None,
-        discovery_info=metadata.discovery_info() if metadata is not None else None,
+        discovery_info=metadata.get_discovery_info() if metadata is not None else None,
         assets=[
             record_schemas.DataRecordAssetCreate(
                 id=identifiers.RecordAssetId(uuid.uuid4()),
@@ -1422,7 +1422,7 @@ def _extracted_record_fields(
     if metadata is None:
         fields["discovery_info"] = None
         return fields
-    fields["discovery_info"] = metadata.discovery_info()
+    fields["discovery_info"] = metadata.get_discovery_info()
     if (
         metadata.temporal_extent_begin is not None
         and metadata.temporal_extent_end is not None

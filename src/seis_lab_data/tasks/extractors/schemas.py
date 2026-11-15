@@ -36,7 +36,7 @@ class ExtractedMetadata(pydantic.BaseModel):
             return self.bbox_native
         return None
 
-    def discovery_info(self) -> dict:
+    def get_discovery_info(self) -> dict:
         """Return the metadata shown on a record's page, as JSON values.
 
         Fields holding their default value are left out, and so are the extents,

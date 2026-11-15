@@ -60,7 +60,7 @@ def get_polygon_bounds(polygon_wkt: str) -> tuple[float, float, float, float]:
     return geom.bounds
 
 
-def discovery_info_items(discovery_info: dict | None) -> list[tuple[str, str]]:
+def get_discovery_info_items(discovery_info: dict | None) -> list[tuple[str, str]]:
     """List the translated name and the formatted value of a record's discovery info.
 
     There is an item for each key of `DiscoveryInfoKey` that the info holds, in the
