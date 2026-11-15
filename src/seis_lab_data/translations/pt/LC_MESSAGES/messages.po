@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-15 15:36+0000\n"
+"POT-Creation-Date: 2026-11-15 16:22+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_PT\n"
@@ -83,35 +83,35 @@ msgstr "miniatura"
 msgid "preview"
 msgstr "pré-visualização"
 
-#: constants.py:178 constants.py:196 constants.py:223
+#: constants.py:178 constants.py:204 constants.py:238
 msgid "draft"
 msgstr "rascunho"
 
-#: constants.py:179 constants.py:197 constants.py:224
+#: constants.py:179 constants.py:205 constants.py:239
 msgid "published"
 msgstr "público"
 
-#: constants.py:180 constants.py:198 constants.py:226
+#: constants.py:180 constants.py:206 constants.py:241
 msgid "under discovery"
 msgstr "em descoberta"
 
-#: constants.py:181 constants.py:200 constants.py:228
+#: constants.py:181 constants.py:208 constants.py:243
 msgid "under parsing"
 msgstr "em análise"
 
-#: constants.py:182 constants.py:201 constants.py:229
+#: constants.py:182 constants.py:209 constants.py:244
 msgid "under validation"
 msgstr "em validação"
 
-#: constants.py:199
+#: constants.py:207
 msgid "cancelling discovery"
 msgstr "a cancelar descoberta"
 
-#: constants.py:225
+#: constants.py:240
 msgid "under derivation"
 msgstr "em derivação"
 
-#: constants.py:227
+#: constants.py:242
 msgid "under export"
 msgstr "em exportação"
 
@@ -122,7 +122,7 @@ msgstr "em exportação"
 msgid "Dataset category %(id)s does not exist."
 msgstr "A categoria %(id)s não existe."
 
-#: db/commands/discovery.py:73 operations/discovery.py:149
+#: db/commands/discovery.py:76 operations/discovery.py:149
 #: operations/discovery.py:213 webapp/routes/discovery.py:178
 #: webapp/routes/discovery.py:540
 #, python-format
@@ -136,11 +136,11 @@ msgstr "Já existe um projeto com o nome «%(name)s»."
 
 #: db/commands/projects.py:53 db/commands/projects.py:97
 #: operations/projects.py:117 operations/projects.py:172
-#: operations/projects.py:262 operations/projects.py:420
-#: operations/surveymissions.py:50 webapp/routes/projects.py:122
-#: webapp/routes/projects.py:412 webapp/routes/projects.py:854
-#: webapp/routes/projects.py:885 webapp/routes/surveymissions.py:422
-#: webapp/routes/surveymissions.py:1041 webapp/routes/surveymissions.py:1080
+#: operations/projects.py:262 operations/projects.py:417
+#: operations/surveymissions.py:50 webapp/routes/projects.py:124
+#: webapp/routes/projects.py:435 webapp/routes/projects.py:858
+#: webapp/routes/projects.py:889 webapp/routes/surveymissions.py:418
+#: webapp/routes/surveymissions.py:1018 webapp/routes/surveymissions.py:1057
 #, python-format
 msgid "Project %(id)s does not exist."
 msgstr "O projeto %(id)s não existe."
@@ -156,33 +156,33 @@ msgid "There is already a survey mission named “%(name)s” in the same projec
 msgstr "Já existe uma missão com o nome «%(name)s» no mesmo projeto."
 
 #: db/commands/surveymissions.py:65 db/commands/surveymissions.py:119
-#: operations/discovery.py:282 operations/discovery.py:1152
+#: operations/discovery.py:282 operations/discovery.py:1151
 #: operations/surveymissions.py:139 operations/surveymissions.py:203
-#: operations/surveymissions.py:304 operations/surveymissions.py:439
-#: operations/surveyrelatedrecords.py:52 webapp/routes/surveymissions.py:110
-#: webapp/routes/surveymissions.py:1012 webapp/routes/surveymissions.py:1219
-#: webapp/routes/surveyrelatedrecords.py:501
+#: operations/surveymissions.py:304 operations/surveymissions.py:438
+#: operations/surveyrelatedrecords.py:52 webapp/routes/surveymissions.py:112
+#: webapp/routes/surveymissions.py:989 webapp/routes/surveymissions.py:1196
+#: webapp/routes/surveyrelatedrecords.py:500
 #, python-format
 msgid "Survey mission %(id)s does not exist."
 msgstr "A missão %(id)s não existe."
 
-#: db/commands/surveyrelatedrecords.py:67
-#: db/commands/surveyrelatedrecords.py:341
+#: db/commands/surveyrelatedrecords.py:68
+#: db/commands/surveyrelatedrecords.py:339
 #, python-format
 msgid ""
 "There is already a survey-related record with asset path “%(path)s” in "
 "the same survey mission."
 msgstr "Já existe um registo com o caminho de recurso «%(path)s» na mesma missão."
 
-#: db/commands/surveyrelatedrecords.py:106
-#: db/commands/surveyrelatedrecords.py:444 operations/geonodeexports.py:87
+#: db/commands/surveyrelatedrecords.py:107
+#: db/commands/surveyrelatedrecords.py:442 operations/geonodeexports.py:87
 #: operations/surveyrelatedrecords.py:148
 #: operations/surveyrelatedrecords.py:217
 #: operations/surveyrelatedrecords.py:318
-#: operations/surveyrelatedrecords.py:527
-#: webapp/routes/surveyrelatedrecords.py:114
-#: webapp/routes/surveyrelatedrecords.py:1492
-#: webapp/routes/surveyrelatedrecords.py:1656
+#: operations/surveyrelatedrecords.py:526
+#: webapp/routes/surveyrelatedrecords.py:113
+#: webapp/routes/surveyrelatedrecords.py:1511
+#: webapp/routes/surveyrelatedrecords.py:1675
 #, python-format
 msgid "Survey-related record %(id)s does not exist."
 msgstr "O registo %(id)s não existe."
@@ -228,7 +228,7 @@ msgstr ""
 msgid "User is not allowed to run discovery on the survey mission."
 msgstr "O utilizador não tem permissão para executar a descoberta na missão."
 
-#: operations/discovery.py:295
+#: operations/discovery.py:294
 #, python-format
 msgid ""
 "Cannot run discovery on the survey mission because its status is "
@@ -237,7 +237,7 @@ msgstr ""
 "Não é possível executar a descoberta na missão porque o seu estado é "
 "%(status)s."
 
-#: operations/discovery.py:307
+#: operations/discovery.py:306
 #, python-format
 msgid ""
 "Cannot run discovery on the survey mission because its relative path "
@@ -246,7 +246,7 @@ msgstr ""
 "Não é possível executar a descoberta na missão porque o seu caminho "
 "relativo «%(path)s» não corresponde a uma diretoria dentro do arquivo."
 
-#: operations/discovery.py:319
+#: operations/discovery.py:318
 msgid ""
 "Cannot run discovery on the survey mission because its status changed "
 "meanwhile."
@@ -254,7 +254,7 @@ msgstr ""
 "Não é possível executar a descoberta na missão porque o seu estado mudou "
 "entretanto."
 
-#: operations/discovery.py:406
+#: operations/discovery.py:405
 msgid ""
 "discovery was interrupted - the records created so far are kept, run it "
 "again to resume"
@@ -262,7 +262,7 @@ msgstr ""
 "a descoberta foi interrompida - os registos criados até agora são "
 "mantidos, execute-a novamente para a retomar"
 
-#: operations/discovery.py:416
+#: operations/discovery.py:415
 #, python-format
 msgid ""
 "discovery exceeded its time limit of %(hours)s hours - the records "
@@ -272,12 +272,12 @@ msgstr ""
 "registos criados até agora são mantidos, execute-a novamente para a "
 "retomar"
 
-#: operations/discovery.py:426
+#: operations/discovery.py:425
 #, python-format
 msgid "unexpected error (%(type)s)"
 msgstr "erro inesperado (%(type)s)"
 
-#: operations/discovery.py:564
+#: operations/discovery.py:563
 #, python-format
 msgid ""
 "%(found)d files found, %(created)d new records, %(failed)d files could "
@@ -288,7 +288,7 @@ msgstr ""
 "ficheiros não puderam ser descobertos, configurações de descoberta de "
 "recursos inválidas: %(configurations)s"
 
-#: operations/discovery.py:572
+#: operations/discovery.py:571
 #, python-format
 msgid ""
 "%(found)d files found, %(created)d new records, %(failed)d files could "
@@ -297,11 +297,11 @@ msgstr ""
 "%(found)d ficheiros encontrados, %(created)d novos registos, %(failed)d "
 "ficheiros não puderam ser descobertos"
 
-#: operations/discovery.py:1158
+#: operations/discovery.py:1157
 msgid "User is not allowed to cancel discovery on the survey mission."
 msgstr "O utilizador não tem permissão para cancelar a descoberta na missão."
 
-#: operations/discovery.py:1172
+#: operations/discovery.py:1171
 #, python-format
 msgid ""
 "Discovery is already being cancelled. If it is no longer running, the "
@@ -312,13 +312,13 @@ msgstr ""
 "missão pode ser recuperada quando a sua descoberta estiver sem atividade "
 "há %(minutes)d minutos."
 
-#: operations/discovery.py:1184
+#: operations/discovery.py:1183
 msgid "Cannot cancel discovery because the survey mission is not under discovery."
 msgstr ""
 "Não é possível cancelar a descoberta porque a missão não está em "
 "descoberta."
 
-#: operations/discovery.py:1262
+#: operations/discovery.py:1261
 msgid ""
 "discovery was abandoned by its worker - the records created so far are "
 "kept, run it again to resume"
@@ -373,25 +373,25 @@ msgstr "O utilizador não tem permissão para alterar o estado do projeto."
 msgid "User is not allowed to validate the project."
 msgstr "O utilizador não tem permissão para validar o projeto."
 
-#: operations/projects.py:267
+#: operations/projects.py:267 webapp/routes/projects.py:127
 msgid "User is not allowed to update the project."
 msgstr "O utilizador não tem permissão para atualizar o projeto."
 
-#: operations/projects.py:276
+#: operations/projects.py:273 webapp/routes/projects.py:129
 #, python-format
 msgid "Cannot update the project because its status is %(status)s."
 msgstr "Não é possível atualizar o projeto porque o seu estado é %(status)s."
 
-#: operations/projects.py:425
+#: operations/projects.py:422
 msgid "User is not allowed to delete the project."
 msgstr "O utilizador não tem permissão para eliminar o projeto."
 
-#: operations/projects.py:433
+#: operations/projects.py:427
 #, python-format
 msgid "Cannot delete the project because its status is %(status)s."
 msgstr "Não é possível eliminar o projeto porque o seu estado é %(status)s."
 
-#: operations/projects.py:440
+#: operations/projects.py:434
 msgid ""
 "Cannot delete the project because some of its survey missions or survey-"
 "related records are currently being processed."
@@ -399,7 +399,7 @@ msgstr ""
 "Não é possível eliminar o projeto porque algumas das suas missões ou "
 "registos estão a ser processados."
 
-#: operations/projects.py:538 operations/projects.py:543
+#: operations/projects.py:532 operations/projects.py:537
 #, python-format
 msgid "User is not allowed to read project %(id)s."
 msgstr "O utilizador não tem permissão para consultar o projeto %(id)s."
@@ -416,25 +416,25 @@ msgstr "O utilizador não tem permissão para alterar o estado da missão."
 msgid "User is not allowed to validate the survey mission."
 msgstr "O utilizador não tem permissão para validar a missão."
 
-#: operations/surveymissions.py:310
+#: operations/surveymissions.py:310 webapp/routes/surveymissions.py:1200
 msgid "User is not allowed to update the survey mission."
 msgstr "O utilizador não tem permissão para atualizar a missão."
 
-#: operations/surveymissions.py:318
+#: operations/surveymissions.py:317 webapp/routes/surveymissions.py:1203
 #, python-format
 msgid "Cannot update the survey mission because its status is %(status)s."
 msgstr "Não é possível atualizar a missão porque o seu estado é %(status)s."
 
-#: operations/surveymissions.py:445
+#: operations/surveymissions.py:444
 msgid "User is not allowed to delete the survey mission."
 msgstr "O utilizador não tem permissão para eliminar a missão."
 
-#: operations/surveymissions.py:453
+#: operations/surveymissions.py:451
 #, python-format
 msgid "Cannot delete the survey mission because its status is %(status)s."
 msgstr "Não é possível eliminar a missão porque o seu estado é %(status)s."
 
-#: operations/surveymissions.py:462
+#: operations/surveymissions.py:460
 msgid ""
 "Cannot delete the survey mission because some of its survey-related "
 "records are currently being processed."
@@ -442,7 +442,7 @@ msgstr ""
 "Não é possível eliminar a missão porque alguns dos seus registos estão a "
 "ser processados."
 
-#: operations/surveymissions.py:559 operations/surveymissions.py:565
+#: operations/surveymissions.py:557 operations/surveymissions.py:563
 #, python-format
 msgid "User is not allowed to read survey mission %(id)s."
 msgstr "O utilizador não tem permissão para consultar a missão %(id)s."
@@ -471,39 +471,42 @@ msgstr "O utilizador não tem permissão para validar o registo."
 msgid "User is not allowed to delete the survey-related record."
 msgstr "O utilizador não tem permissão para eliminar o registo."
 
-#: operations/surveyrelatedrecords.py:334
+#: operations/surveyrelatedrecords.py:333
 #, python-format
 msgid "Cannot delete the survey-related record because its status is %(status)s."
 msgstr "Não é possível eliminar o registo porque o seu estado é %(status)s."
 
-#: operations/surveyrelatedrecords.py:344
+#: operations/surveyrelatedrecords.py:343
 msgid ""
 "Cannot delete the survey-related record because its survey mission is "
 "under discovery."
 msgstr "Não é possível eliminar o registo porque a sua missão está em descoberta."
 
-#: operations/surveyrelatedrecords.py:491
-#: operations/surveyrelatedrecords.py:497
+#: operations/surveyrelatedrecords.py:490
+#: operations/surveyrelatedrecords.py:496
 #, python-format
 msgid "User is not allowed to read survey-related record %(id)s."
 msgstr "O utilizador não tem permissão para consultar o registo %(id)s."
 
-#: operations/surveyrelatedrecords.py:535
+#: operations/surveyrelatedrecords.py:534
+#: webapp/routes/surveyrelatedrecords.py:786
 msgid "User is not allowed to update the survey-related record."
 msgstr "O utilizador não tem permissão para atualizar o registo."
 
-#: operations/surveyrelatedrecords.py:545
+#: operations/surveyrelatedrecords.py:543
+#: webapp/routes/surveyrelatedrecords.py:789
 #, python-format
 msgid "Cannot update the survey-related record because its status is %(status)s."
 msgstr "Não é possível atualizar o registo porque o seu estado é %(status)s."
 
-#: operations/surveyrelatedrecords.py:556
+#: operations/surveyrelatedrecords.py:554
+#: webapp/routes/surveyrelatedrecords.py:796
 msgid ""
 "Cannot update the survey-related record because its survey mission is "
 "under discovery."
 msgstr "Não é possível atualizar o registo porque a sua missão está em descoberta."
 
-#: operations/surveyrelatedrecords.py:647
+#: operations/surveyrelatedrecords.py:645
 msgid "User is not allowed to bulk-update survey-related records."
 msgstr "O utilizador não tem permissão para atualizar registos em massa."
 
@@ -782,14 +785,14 @@ msgstr "Já existe um estádio com este nome"
 #: webapp/routes/datasetcategories.py:183
 #: webapp/routes/datasetcategories.py:351 webapp/routes/discovery.py:139
 #: webapp/routes/discovery.py:200 webapp/routes/discovery.py:368
-#: webapp/routes/projects.py:86 webapp/routes/projects.py:166
-#: webapp/routes/projects.py:475 webapp/routes/projects.py:642
-#: webapp/routes/surveymissions.py:207 webapp/routes/surveymissions.py:435
-#: webapp/routes/surveymissions.py:750 webapp/routes/surveymissions.py:1266
-#: webapp/routes/surveyrelatedrecords.py:142
-#: webapp/routes/surveyrelatedrecords.py:525
-#: webapp/routes/surveyrelatedrecords.py:869
-#: webapp/routes/surveyrelatedrecords.py:1432
+#: webapp/routes/projects.py:88 webapp/routes/projects.py:190
+#: webapp/routes/projects.py:492 webapp/routes/projects.py:647
+#: webapp/routes/surveymissions.py:203 webapp/routes/surveymissions.py:431
+#: webapp/routes/surveymissions.py:728 webapp/routes/surveymissions.py:1267
+#: webapp/routes/surveyrelatedrecords.py:141
+#: webapp/routes/surveyrelatedrecords.py:524
+#: webapp/routes/surveyrelatedrecords.py:900
+#: webapp/routes/surveyrelatedrecords.py:1451
 #: webapp/routes/workflowstages.py:124 webapp/routes/workflowstages.py:177
 #: webapp/routes/workflowstages.py:342 webapp/templates/index.html:2
 msgid "Home"
@@ -810,15 +813,12 @@ msgid "New dataset category"
 msgstr "Nova categoria"
 
 #: webapp/routes/datasetcategories.py:191 webapp/routes/discovery.py:208
-#: webapp/routes/projects.py:181 webapp/routes/surveymissions.py:1290
-#: webapp/routes/surveyrelatedrecords.py:903
+#: webapp/routes/projects.py:205 webapp/routes/surveymissions.py:1291
+#: webapp/routes/surveyrelatedrecords.py:934
 #: webapp/routes/workflowstages.py:185
 #: webapp/templates/datasetcategories/list-item.html:13
 #: webapp/templates/discovery/list-item.html:23
-#: webapp/templates/projects/list-item.html:48
-#: webapp/templates/survey-missions/list-item.html:59
 #: webapp/templates/survey-related-records/detail-component.html:167
-#: webapp/templates/survey-related-records/list-item.html:100
 #: webapp/templates/workflowstages/list-item.html:13
 msgid "Edit"
 msgstr "Editar"
@@ -834,36 +834,36 @@ msgstr "Configurações de descoberta de recursos"
 msgid "New"
 msgstr "Novo"
 
-#: webapp/routes/projects.py:91 webapp/routes/projects.py:171
-#: webapp/routes/projects.py:480 webapp/routes/projects.py:647
-#: webapp/routes/surveymissions.py:212 webapp/routes/surveymissions.py:440
-#: webapp/routes/surveymissions.py:1271
-#: webapp/routes/surveyrelatedrecords.py:147
-#: webapp/routes/surveyrelatedrecords.py:530
-#: webapp/routes/surveyrelatedrecords.py:874 webapp/templates/base.html:39
+#: webapp/routes/projects.py:93 webapp/routes/projects.py:195
+#: webapp/routes/projects.py:497 webapp/routes/projects.py:652
+#: webapp/routes/surveymissions.py:208 webapp/routes/surveymissions.py:436
+#: webapp/routes/surveymissions.py:1272
+#: webapp/routes/surveyrelatedrecords.py:146
+#: webapp/routes/surveyrelatedrecords.py:529
+#: webapp/routes/surveyrelatedrecords.py:905 webapp/templates/base.html:39
 #: webapp/templates/base.html:40 webapp/templates/base.html:202
 #: webapp/templates/projects/list.html:12
 #: webapp/templates/projects/list.html:28
 msgid "Projects"
 msgstr "Projetos"
 
-#: webapp/routes/projects.py:96
+#: webapp/routes/projects.py:98
 #: webapp/templates/projects/create-form-page.html:13
 #: webapp/templates/projects/create-form-page.html:18
 msgid "New project"
 msgstr "Novo projeto"
 
-#: webapp/routes/projects.py:229 webapp/routes/surveymissions.py:293
+#: webapp/routes/projects.py:252 webapp/routes/surveymissions.py:289
 msgid "Thumbnail not found."
 msgstr "Miniatura não encontrada."
 
-#: webapp/routes/surveymissions.py:450
+#: webapp/routes/surveymissions.py:446
 #: webapp/templates/survey-missions/create-form-page.html:13
 #: webapp/templates/survey-missions/create-form-page.html:18
 msgid "New survey mission"
 msgstr "Nova missão"
 
-#: webapp/routes/surveymissions.py:755 webapp/templates/base.html:44
+#: webapp/routes/surveymissions.py:733 webapp/templates/base.html:44
 #: webapp/templates/base.html:45 webapp/templates/base.html:203
 #: webapp/templates/macros/records-summary.html:55
 #: webapp/templates/projects/detail-component.html:75
@@ -872,22 +872,22 @@ msgstr "Nova missão"
 msgid "Survey missions"
 msgstr "Missões"
 
-#: webapp/routes/surveyrelatedrecords.py:246
+#: webapp/routes/surveyrelatedrecords.py:245
 msgid "Asset data not found."
 msgstr "Dados do recurso não encontrados."
 
-#: webapp/routes/surveyrelatedrecords.py:294
-#: webapp/routes/surveyrelatedrecords.py:303
+#: webapp/routes/surveyrelatedrecords.py:293
+#: webapp/routes/surveyrelatedrecords.py:302
 msgid "Asset not found."
 msgstr "Recurso não encontrado."
 
-#: webapp/routes/surveyrelatedrecords.py:549
+#: webapp/routes/surveyrelatedrecords.py:548
 #: webapp/templates/survey-related-records/create-form-page.html:13
 #: webapp/templates/survey-related-records/create-form-page.html:18
 msgid "New survey-related record"
 msgstr "Novo registo"
 
-#: webapp/routes/surveyrelatedrecords.py:1437 webapp/templates/base.html:49
+#: webapp/routes/surveyrelatedrecords.py:1456 webapp/templates/base.html:49
 #: webapp/templates/base.html:50 webapp/templates/base.html:204
 #: webapp/templates/macros/records-summary.html:61
 #: webapp/templates/survey-missions/detail-component.html:39
@@ -1077,7 +1077,7 @@ msgstr "Código-fonte"
 msgid "Made by"
 msgstr "Desenvolvido por"
 
-#: webapp/templates/base.html:255 webapp/templates/macros-buttons.html:86
+#: webapp/templates/base.html:260 webapp/templates/macros-buttons.html:86
 #: webapp/templates/survey-missions/detail-component.html:158
 #: webapp/templates/survey-missions/detail-component.html:183
 #: webapp/templates/survey-missions/detail-component.html:190
@@ -1248,19 +1248,13 @@ msgstr "Nenhuma categoria encontrada"
 
 #: webapp/templates/datasetcategories/list-item.html:21
 #: webapp/templates/discovery/list-item.html:31
-#: webapp/templates/projects/list-item.html:55
-#: webapp/templates/survey-missions/list-item.html:66
 #: webapp/templates/survey-related-records/detail-component.html:227
-#: webapp/templates/survey-related-records/list-item.html:107
 #: webapp/templates/workflowstages/list-item.html:21
 msgid "delete..."
 msgstr "eliminar..."
 
 #: webapp/templates/datasetcategories/list-item.html:22
 #: webapp/templates/discovery/list-item.html:32
-#: webapp/templates/projects/list-item.html:56
-#: webapp/templates/survey-missions/list-item.html:67
-#: webapp/templates/survey-related-records/list-item.html:108
 #: webapp/templates/workflowstages/list-item.html:22
 msgid "deleting..."
 msgstr "a eliminar..."
@@ -1330,9 +1324,9 @@ msgid "No asset discovery configurations found"
 msgstr "Nenhuma configuração de descoberta de recursos encontrada"
 
 #: webapp/templates/discovery/list-item.html:7
-#: webapp/templates/projects/list-item.html:24
-#: webapp/templates/survey-missions/list-item.html:33
-#: webapp/templates/survey-related-records/list-item.html:77
+#: webapp/templates/projects/list-item.html:22
+#: webapp/templates/survey-missions/list-item.html:31
+#: webapp/templates/survey-related-records/list-item.html:74
 msgid "name not available"
 msgstr "nome indisponível"
 
@@ -1386,13 +1380,13 @@ msgstr "mostrar estes registos"
 
 #: webapp/templates/macros/records-summary.html:73
 #: webapp/templates/survey-related-records/detail-component.html:54
-#: webapp/templates/survey-related-records/list-item.html:84
+#: webapp/templates/survey-related-records/list-item.html:81
 msgid "unknown category"
 msgstr "categoria desconhecida"
 
 #: webapp/templates/macros/records-summary.html:87
 #: webapp/templates/survey-related-records/detail-component.html:56
-#: webapp/templates/survey-related-records/list-item.html:85
+#: webapp/templates/survey-related-records/list-item.html:82
 msgid "unknown stage"
 msgstr "estádio desconhecido"
 
@@ -1460,12 +1454,10 @@ msgid "deleting project..."
 msgstr "a eliminar projeto..."
 
 #: webapp/templates/projects/detail-component.html:117
-#: webapp/templates/projects/list-item.html:58
 msgid "delete project"
 msgstr "eliminar projeto"
 
 #: webapp/templates/projects/detail-component.html:118
-#: webapp/templates/projects/list-item.html:59
 msgid "are you sure you want to delete this project?"
 msgstr "tem a certeza de que pretende eliminar este projeto?"
 
@@ -1508,12 +1500,12 @@ msgstr "Total de projetos: %(total_unfiltered)d"
 msgid "No projects found"
 msgstr "Nenhum projeto encontrado"
 
-#: webapp/templates/projects/list-item.html:12
+#: webapp/templates/projects/list-item.html:10
 msgid "project spatial extent"
 msgstr "extensão espacial do projeto"
 
-#: webapp/templates/projects/list-item.html:39
-#: webapp/templates/survey-missions/list-item.html:50
+#: webapp/templates/projects/list-item.html:37
+#: webapp/templates/survey-missions/list-item.html:48
 msgid "description not available"
 msgstr "descrição indisponível"
 
@@ -1641,12 +1633,10 @@ msgid "deleting survey mission..."
 msgstr "a eliminar missão..."
 
 #: webapp/templates/survey-missions/detail-actions.html:68
-#: webapp/templates/survey-missions/list-item.html:69
 msgid "delete survey mission"
 msgstr "eliminar missão"
 
 #: webapp/templates/survey-missions/detail-actions.html:69
-#: webapp/templates/survey-missions/list-item.html:70
 msgid "are you sure you want to delete this survey mission?"
 msgstr "tem a certeza de que pretende eliminar esta missão?"
 
@@ -1770,11 +1760,11 @@ msgstr "Missões filtradas: %(total_filtered)d"
 msgid "Total survey missions: %(total_unfiltered)d"
 msgstr "Total de missões: %(total_unfiltered)d"
 
-#: webapp/templates/survey-missions/list-item.html:12
+#: webapp/templates/survey-missions/list-item.html:10
 msgid "survey mission spatial extent"
 msgstr "extensão espacial da missão"
 
-#: webapp/templates/survey-missions/list-item.html:45
+#: webapp/templates/survey-missions/list-item.html:43
 msgid "unknown spatial extent"
 msgstr "extensão espacial desconhecida"
 
@@ -1904,12 +1894,10 @@ msgid "deleting survey-related record..."
 msgstr "a eliminar registo..."
 
 #: webapp/templates/survey-related-records/detail-component.html:230
-#: webapp/templates/survey-related-records/list-item.html:110
 msgid "delete survey-related record"
 msgstr "eliminar registo"
 
 #: webapp/templates/survey-related-records/detail-component.html:231
-#: webapp/templates/survey-related-records/list-item.html:111
 msgid "are you sure you want to delete this survey-related record?"
 msgstr "tem a certeza de que pretende eliminar este registo?"
 
@@ -2000,11 +1988,11 @@ msgstr "Total de registos: %(total_unfiltered)d"
 msgid "No survey-related records found"
 msgstr "Nenhum registo encontrado"
 
-#: webapp/templates/survey-related-records/list-item.html:31
+#: webapp/templates/survey-related-records/list-item.html:28
 msgid "record preview"
 msgstr "pré-visualização do registo"
 
-#: webapp/templates/survey-related-records/list-item.html:49
+#: webapp/templates/survey-related-records/list-item.html:46
 msgid "illustrative seg-y image"
 msgstr "imagem ilustrativa de seg-y"
 

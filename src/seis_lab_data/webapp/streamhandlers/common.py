@@ -81,7 +81,7 @@ def _get_translated_details(
     return translated % params if params else translated
 
 
-def _get_flash_payload(notification: webui_schemas.Notification) -> dict[str, Any]:
+def get_flash_payload(notification: webui_schemas.Notification) -> dict[str, Any]:
     """Return what the page's `showFlash` needs, translated to the current locale."""
     title = str(_CATEGORY_LABELS[notification.category])
     if notification.resource_type is not None:
@@ -163,7 +163,7 @@ def _to_script_literal(value: Any) -> str:
 async def flash_ui_message_after_redirect(
     notification: webui_schemas.Notification,
 ) -> AsyncGenerator[DatastarEvent, None]:
-    payload = _get_flash_payload(notification)
+    payload = get_flash_payload(notification)
     logger.debug(f"{payload=}")
     yield ServerSentEventGenerator.execute_script(
         f"localStorage.setItem('sld:flash', {_to_script_literal(json.dumps(payload))});"
@@ -173,7 +173,7 @@ async def flash_ui_message_after_redirect(
 async def flash_ui_message_same_page(
     notification: webui_schemas.Notification,
 ) -> AsyncGenerator[DatastarEvent, None]:
-    payload = _get_flash_payload(notification)
+    payload = get_flash_payload(notification)
     yield ServerSentEventGenerator.execute_script(
         f"showFlash({_to_script_literal(payload)})"
     )

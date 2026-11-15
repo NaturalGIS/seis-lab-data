@@ -234,7 +234,12 @@
     other libraries). localStorage survives full page navigations (unlike DataStar signals,
     which are cleared on navigation). On the next page load, the script below reads and
     immediately deletes the value, then dynamically creates and shows a Bootstrap toast.
+
+    Plain HTTP redirects, such as the refusal of an update form, are not subject to that
+    limitation: their route stores the flash payload in the session under the 'flash' key,
+    which is removed from the session as the next page is rendered.
 #}
+{% set session_flash = request.session.pop("flash", none) %}
 <div class="toast-container position-fixed top-0 end-0 p-3" aria-live="polite"></div>
 <script src="{{ url_for('static', path='js/bootstrap.bundle.min.js') }}"></script>
 <script>
@@ -268,6 +273,9 @@
         localStorage.removeItem('sld:flash');
         showFlash(flash);
     }
+    {% if session_flash %}
+    showFlash({{ session_flash | tojson }});
+    {% endif %}
 </script>
 </body>
 </html>

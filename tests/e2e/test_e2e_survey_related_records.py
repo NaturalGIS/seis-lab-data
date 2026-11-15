@@ -305,29 +305,30 @@ def test_survey_related_record_listing_layouts(authenticated_page: Page):
     expect(authenticated_page).to_have_url(
         re.compile(r"/survey-related-records/[0-9a-f-]{36}$"), timeout=10_000
     )
+    record_detail_url = authenticated_page.url
     authenticated_page.goto(mission_detail_url)
 
     records_listing = authenticated_page.locator("#survey-mission-records")
     checkboxes = records_listing.get_by_role("checkbox", name="select-item")
     project_badge = records_listing.locator("a.badge.bg-project")
-    edit_link = records_listing.get_by_role("link", name="update-list-item")
-    show_delete_modal_button = records_listing.get_by_role(
-        "button", name="show-delete-list-item-confirmation-modal"
-    )
 
-    # a new record is a draft, therefore it shows its status and can be edited and
-    # deleted from the listing
+    # a new record is a draft, therefore it shows its status. Records are only
+    # edited and deleted from their detail page, never from the listing
     expect(checkboxes).to_have_count(1)
     expect(records_listing.locator("[aria-label='item-status']")).to_be_visible()
     expect(project_badge).to_be_visible()
-    expect(edit_link).to_be_visible()
-    expect(show_delete_modal_button).to_be_visible()
+    expect(records_listing.get_by_role("link", name="update-list-item")).to_have_count(
+        0
+    )
+    expect(
+        records_listing.get_by_role(
+            "button", name="show-delete-list-item-confirmation-modal"
+        )
+    ).to_have_count(0)
 
     authenticated_page.get_by_role("button", name="compact-layout").click()
     expect(checkboxes).to_have_count(1)
     expect(project_badge).to_be_hidden()
-    expect(edit_link).to_be_hidden()
-    expect(show_delete_modal_button).to_be_hidden()
 
     # the chosen layout is remembered across page loads
     authenticated_page.reload()
@@ -337,14 +338,13 @@ def test_survey_related_record_listing_layouts(authenticated_page: Page):
     authenticated_page.get_by_role("button", name="regular-layout").click()
     expect(project_badge).to_be_visible()
 
-    # delete the record from the listing
-    show_delete_modal_button.click()
+    # clean up: delete record, then mission, then project
+    authenticated_page.goto(record_detail_url)
     authenticated_page.get_by_role(
-        "button", name="delete-list-item", exact=True
+        "button", name="show-delete-confirmation-modal"
     ).click()
-    expect(checkboxes).to_have_count(0, timeout=15_000)
-
-    # clean up: delete mission, then project
+    authenticated_page.get_by_role("button", name="delete-item").click()
+    expect(authenticated_page).to_have_url(mission_detail_url, timeout=15_000)
     authenticated_page.get_by_role(
         "button", name="show-delete-confirmation-modal"
     ).click()

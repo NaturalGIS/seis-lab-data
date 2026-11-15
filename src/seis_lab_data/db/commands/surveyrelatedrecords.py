@@ -25,6 +25,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from ... import errors
 from ...constants import (
     SURVEY_MISSION_DISCOVERY_STATUSES,
+    SURVEY_RELATED_RECORD_IDLE_STATUSES,
     AssetType,
     SurveyRelatedRecordStatus,
 )
@@ -177,10 +178,7 @@ async def _apply_bulk_update_to_matched_records(
                 .where(models.SurveyRelatedRecord.id.in_(matched_ids))
                 .where(
                     models.SurveyRelatedRecord.status.in_(
-                        (
-                            SurveyRelatedRecordStatus.DRAFT,
-                            SurveyRelatedRecordStatus.PUBLISHED,
-                        )
+                        SURVEY_RELATED_RECORD_IDLE_STATUSES
                     )
                 )
                 .where(

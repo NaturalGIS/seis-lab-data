@@ -267,10 +267,7 @@ async def update_project(
                 errors.N_("User is not allowed to update the project.")
             )
         # any other status means a task is working on the project
-        if (project_status := project.status) not in (
-            constants.ProjectStatus.DRAFT,
-            constants.ProjectStatus.PUBLISHED,
-        ):
+        if (project_status := project.status) not in constants.PROJECT_IDLE_STATUSES:
             raise errors.SeisLabDataError(
                 errors.N_(
                     "Cannot update the project because its status is %(status)s."
@@ -424,10 +421,7 @@ async def delete_project(
             raise errors.SeisLabDataError(
                 errors.N_("User is not allowed to delete the project.")
             )
-        if (project_status := project.status) not in (
-            constants.ProjectStatus.DRAFT,
-            constants.ProjectStatus.PUBLISHED,
-        ):
+        if (project_status := project.status) not in constants.PROJECT_IDLE_STATUSES:
             raise errors.SeisLabDataError(
                 errors.N_(
                     "Cannot delete the project because its status is %(status)s."

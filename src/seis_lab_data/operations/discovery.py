@@ -286,10 +286,9 @@ async def run_mission_discovery(
             raise errors.SeisLabDataError(
                 errors.N_("User is not allowed to run discovery on the survey mission.")
             )
-        if (mission_status := mission.status) not in (
-            constants.SurveyMissionStatus.DRAFT,
-            constants.SurveyMissionStatus.PUBLISHED,
-        ):
+        if (
+            mission_status := mission.status
+        ) not in constants.SURVEY_MISSION_IDLE_STATUSES:
             raise errors.SeisLabDataError(
                 errors.N_(
                     "Cannot run discovery on the survey mission because its status is %(status)s."

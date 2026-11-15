@@ -139,10 +139,9 @@ async def generate_record_previews(
     previews are stored.
     """
     record_id = identifiers.SurveyRelatedRecordId(survey_related_record.id)
-    if (original_status := survey_related_record.status) not in (
-        constants.SurveyRelatedRecordStatus.DRAFT,
-        constants.SurveyRelatedRecordStatus.PUBLISHED,
-    ):
+    if (
+        original_status := survey_related_record.status
+    ) not in constants.SURVEY_RELATED_RECORD_IDLE_STATUSES:
         logger.warning(
             f"Survey-related record {record_id} is {original_status} - not "
             f"generating its previews..."

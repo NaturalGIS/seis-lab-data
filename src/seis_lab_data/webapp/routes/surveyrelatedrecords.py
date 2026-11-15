@@ -81,7 +81,6 @@ from .common import (
     build_mission_compound_name,
     build_project_compound_name,
     get_id_from_request_path,
-    get_list_item_permissions,
     get_page_count,
     get_page_from_request_params,
     get_pagination_info,
@@ -783,6 +782,38 @@ async def remove_creation_form_related_record(request: Request):
 async def get_update_form(request: Request):
     """Show an HTML form for the client to prepare a record update operation."""
     details = await _get_survey_related_record_details(request)
+    if not details.permissions.can_update:
+        refusal = _("User is not allowed to update the survey-related record.")
+    elif details.item.status not in constants.SURVEY_RELATED_RECORD_IDLE_STATUSES:
+        refusal = _(
+            "Cannot update the survey-related record because its status is %(status)s."
+        ) % {"status": details.item.status.get_translated_value()}
+    elif (
+        details.item.survey_mission.status
+        in constants.SURVEY_MISSION_DISCOVERY_STATUSES
+    ):
+        refusal = _(
+            "Cannot update the survey-related record because its survey mission is under discovery."
+        )
+    else:
+        refusal = None
+    if refusal is not None:
+        # the session carries the notification across the redirect, to the
+        # detail page's rendering
+        request.session["flash"] = common_handlers.get_flash_payload(
+            webui_schemas.Notification(
+                message=str(refusal),
+                category="error",
+                resource_type=constants.ResourceType.RECORD,
+            )
+        )
+        return RedirectResponse(
+            request.url_for(
+                "survey_related_records:detail",
+                survey_related_record_id=details.item.id,
+            ),
+            status_code=303,
+        )
     form_instance = await forms.SurveyRelatedRecordUpdateForm.from_request(
         request,
         data={
@@ -1254,12 +1285,6 @@ async def get_list_component(request: Request):
         items=serialized_items,
         update_current_url_with=filter_query_string,
         pagination=pagination_info,
-        list_item_permissions=get_list_item_permissions(
-            user,
-            items,
-            record_permissions.can_update_survey_related_record,
-            record_permissions.can_delete_survey_related_record,
-        ),
     )
 
     async def event_streamer():
@@ -1400,12 +1425,6 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
             "survey-related-records/list.html",
             context={
                 "items": serialized_items,
-                "list_item_permissions": get_list_item_permissions(
-                    user,
-                    items,
-                    record_permissions.can_update_survey_related_record,
-                    record_permissions.can_delete_survey_related_record,
-                ),
                 "geojson_features": json.dumps(geojson_features),
                 "pagination": pagination_info,
                 "dataset_categories": dataset_category_filter_options,
