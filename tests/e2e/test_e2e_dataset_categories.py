@@ -83,6 +83,10 @@ def test_dataset_category_lifecycle(authenticated_page: Page):
     # clean up by deleting the newly-created category
     card = _find_dataset_category_card(authenticated_page, category_name)
     card.get_by_role("button", name="show-delete-confirmation-modal").click()
+    # the confirmation dialog names the item about to be deleted
+    expect(authenticated_page.get_by_role("dialog")).to_contain_text(
+        f"“{updated_category_name}”"
+    )
     authenticated_page.get_by_role("button", name="delete-item").click()
     expect(card).not_to_be_visible()
 

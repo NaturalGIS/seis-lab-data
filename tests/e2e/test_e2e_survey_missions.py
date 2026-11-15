@@ -91,6 +91,10 @@ def test_survey_mission_lifecycle(authenticated_page: Page):
     authenticated_page.get_by_role(
         "button", name="show-delete-confirmation-modal"
     ).click()
+    # the confirmation dialog names the item about to be deleted
+    expect(authenticated_page.get_by_role("dialog")).to_contain_text(
+        f"“The modified name {mission_name_id}”"
+    )
     authenticated_page.get_by_role("button", name="delete-item").click()
     expect(authenticated_page).to_have_url(
         re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=15_000

@@ -31,8 +31,8 @@
                             idle_message=_("delete..."),
                             running_message=_("deleting..."),
                             generated_csrf_token=csrf_token(request),
-                            modal_dialog_title=_("delete"),
-                            modal_dialog_confirmation_text=_("Are you sure you want to delete this item?"),
+                            modal_dialog_title=_("delete asset discovery configuration"),
+                            modal_dialog_confirmation_text=_("Are you sure you want to delete the asset discovery configuration “%(name)s”?") | format(name=item.name),
                             size_css_class="btn-sm"
                         ) }}
                     </div>
