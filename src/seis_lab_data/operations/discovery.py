@@ -967,7 +967,7 @@ def _build_discovered_record_rows(
         survey_mission_id=identifiers.SurveyMissionId(mission.id),
         # names are capped, the full file name lives on in the asset's path
         name=file_path.name[: constants.NAME_MAX_LENGTH],
-        description=metadata.describe() if metadata is not None else "",
+        description="",
         dataset_category_id=identifiers.DatasetCategoryId(
             discovered.configuration.dataset_category_id
         ),
@@ -977,6 +977,7 @@ def _build_discovered_record_rows(
         bbox_4326=discovered.bbox_wkt,
         temporal_extent_begin=metadata.temporal_extent_begin if metadata else None,
         temporal_extent_end=metadata.temporal_extent_end if metadata else None,
+        discovery_info=metadata.discovery_info() if metadata is not None else None,
         assets=[
             record_schemas.DataRecordAssetCreate(
                 id=identifiers.RecordAssetId(uuid.uuid4()),
@@ -1003,6 +1004,7 @@ def _build_discovered_record_rows(
         "bbox_4326": bbox_wkt,
         "temporal_extent_begin": to_create.temporal_extent_begin,
         "temporal_extent_end": to_create.temporal_extent_end,
+        "discovery_info": to_create.discovery_info,
         "created_at": models.now_(),
     }
     record_row["validation_result"] = _validate_record_fields(
@@ -1033,16 +1035,16 @@ def _build_extent_update(discovered: _DiscoveredFile, current_fields: dict) -> d
     """Build the extent update of a tracked record from its file's metadata.
 
     The extracted bbox and temporal extent override `current_fields`, the temporal
-    extent only when both of its ends were extracted, and the extracted summary
-    replaces the one at the end of the current description. The merged
-    fields are validated with `ValidSurveyRelatedRecord`.
+    extent only when both of its ends were extracted, and the merged fields are
+    validated with `ValidSurveyRelatedRecord`. The record's discovery info is
+    replaced by that of the file.
 
-    Returns a mapping with the record `id`, `bbox_wkt`, `description`,
+    Returns a mapping with the record `id`, `bbox_wkt`, `discovery_info`,
     `temporal_extent_begin`, `temporal_extent_end`, `validation_result` and
     `is_valid`.
     """
     extracted_fields = _extracted_record_fields(
-        discovered.metadata, discovered.bbox_wkt, current_fields["description"]
+        discovered.metadata, discovered.bbox_wkt
     )
     validation_result = _validate_record_fields(
         current_fields
@@ -1056,7 +1058,7 @@ def _build_extent_update(discovered: _DiscoveredFile, current_fields: dict) -> d
     return {
         "id": current_fields["id"],
         "bbox_wkt": discovered.bbox_wkt,
-        "description": extracted_fields["description"],
+        "discovery_info": extracted_fields["discovery_info"],
         "temporal_extent_begin": extracted_fields.get("temporal_extent_begin"),
         "temporal_extent_end": extracted_fields.get("temporal_extent_end"),
         "validation_result": validation_result,
@@ -1235,8 +1237,8 @@ async def create_manual_survey_related_record(
     """Create a record from user input, enriched with the metadata of its data files.
 
     The extents extracted from the first data asset path replace those of the
-    payload, and the extracted summary is appended to the payload's description.
-    Preview generation is enqueued after the record is created.
+    payload, and the record gets the discovery info of that file. Preview
+    generation is enqueued after the record is created.
     """
     survey_mission = await mission_queries.get_survey_mission(
         session, to_create.survey_mission_id
@@ -1248,7 +1250,6 @@ async def create_manual_survey_related_record(
         fields = await _discover_record_fields(
             survey_mission,
             [asset.relative_path for asset in to_create.assets],
-            to_create.description,
             settings,
         )
         # validated again, as the extracted bbox comes as WKT
@@ -1287,8 +1288,8 @@ async def update_manual_survey_related_record(
 
     Extraction runs only if the set of data asset paths differs from the stored one.
     The extents extracted from the first path then replace those of the payload, the
-    extracted summary replaces the one at the end of the description, of the payload
-    or else the stored one, and preview generation is enqueued.
+    discovery info is replaced by that of the file, or cleared if nothing could be
+    extracted, and preview generation is enqueued.
     """
     survey_related_record = await record_queries.get_survey_related_record(
         session, survey_related_record_id
@@ -1304,14 +1305,7 @@ async def update_manual_survey_related_record(
         initiator, survey_related_record
     ):
         fields = await _discover_record_fields(
-            survey_related_record.survey_mission,
-            proposed_paths,
-            (
-                to_update.description
-                if to_update.description is not None
-                else survey_related_record.description
-            ),
-            settings,
+            survey_related_record.survey_mission, proposed_paths, settings
         )
         # only the fields that were set, so that a partial update stays partial
         to_update = record_schemas.SurveyRelatedRecordUpdate.model_validate(
@@ -1340,15 +1334,14 @@ async def update_manual_survey_related_record(
 async def _discover_record_fields(
     survey_mission: models.SurveyMission,
     data_asset_paths: list[str | None],
-    description: str,
     settings: config.SeisLabDataSettings,
 ) -> dict:
     """Extract record fields from the first usable data asset path.
 
-    Empty paths and paths with a `..` segment are not usable. The extracted summary
-    is appended to `description` as by `_extracted_record_fields`.
+    Empty paths and paths with a `..` segment are not usable.
 
-    Returns the record fields produced by the extraction, empty if there is no usable
+    Returns the record fields produced by the extraction, as by
+    `_extracted_record_fields`, or only a None discovery info if there is no usable
     path.
     """
     # a '..' segment would lead the extractor out of the archive
@@ -1356,7 +1349,7 @@ async def _discover_record_fields(
         path for path in data_asset_paths if path and ".." not in path.split("/")
     ]
     if not usable_paths:
-        return {}
+        return {"discovery_info": None}
     file_path = "/".join(
         (
             str(settings.readonly_archive_root_directory),
@@ -1367,46 +1360,26 @@ async def _discover_record_fields(
     metadata, bbox_wkt = await _extract_file_metadata(
         file_path, survey_mission.implicit_crs
     )
-    return _extracted_record_fields(metadata, bbox_wkt, description)
+    return _extracted_record_fields(metadata, bbox_wkt)
 
 
 def _extracted_record_fields(
     metadata: extractor_schemas.ExtractionResult | None,
     bbox_wkt: str | None,
-    description: str,
 ) -> dict:
     """Build the record fields produced by a metadata extraction.
 
-    The description is `description` followed, on a new line, by the summary of the
-    extracted metadata. A summary at the end of `description`, from an earlier
-    extraction, is removed first. The summary is truncated so that the description
-    fits `DESCRIPTION_MAX_LENGTH`, and left out if no room remains.
-
-    Returns the bbox, the description and the temporal extent, each one only if the
-    extraction produced it. The temporal extent requires both its begin and its end.
-
-    The text of `description` is kept whole because it may have been written by a
-    user, whereas the summary can be produced again from the file at any time.
+    Returns the discovery info, None without metadata, along with the bbox and the
+    temporal extent, each one only if the extraction produced it. The temporal
+    extent requires both its begin and its end.
     """
     fields = {}
     if bbox_wkt is not None:
         fields["bbox_4326"] = bbox_wkt
     if metadata is None:
+        fields["discovery_info"] = None
         return fields
-    summary = metadata.describe()
-    kept_text = description
-    for prefix in extractor_schemas.EXTRACTED_SUMMARY_PREFIXES:
-        if kept_text.startswith(prefix):
-            kept_text = ""
-        elif (summary_start := kept_text.rfind(f"\n{prefix}")) != -1:
-            kept_text = kept_text[:summary_start]
-    kept_text = kept_text.rstrip()
-    if not kept_text:
-        fields["description"] = summary
-    elif (room := constants.DESCRIPTION_MAX_LENGTH - len(kept_text) - 1) > 0:
-        fields["description"] = f"{kept_text}\n{summary[:room]}"
-    else:
-        fields["description"] = kept_text
+    fields["discovery_info"] = metadata.discovery_info()
     if (
         metadata.temporal_extent_begin is not None
         and metadata.temporal_extent_end is not None

@@ -45,7 +45,7 @@ def dispatch_extractor(path: Path | str) -> ExtractionResult | None:
     and SEG-Y files are sampled, in a constant number of reads whatever their
     size. Returns None for unsupported extensions and directories, the
     extension being checked first, as checking a path for a file costs a round
-    trip to network storage.
+    trip to network storage. The metadata of a supported file holds its size.
     """
     p = Path(path)
     suffix = p.suffix.lower()
@@ -54,19 +54,21 @@ def dispatch_extractor(path: Path | str) -> ExtractionResult | None:
     if not p.is_file():
         # A real directory named "F3_2022.tif" exists in the archive.
         return None
+    size = p.stat().st_size
     if suffix in _RASTER_EXTENSIONS:
-        size = p.stat().st_size
         if size > _BIG_FILE_LOG_BYTES:
             logger.info("Extracting metadata from large raster %s (%d bytes)", p, size)
         try:
-            return extract_raster_metadata(p)
+            metadata = extract_raster_metadata(p)
         except RuntimeError:
             if suffix != ".xyz":
                 raise
             # the XYZ driver only reads grids, soundings do not form one
-            return extract_xyz_points_metadata(p)
-    if suffix in _VECTOR_EXTENSIONS:
-        return extract_vector_metadata(p)
-    if suffix in _KMALL_EXTENSIONS:
-        return extract_kmall_metadata(p)
-    return extract_segy_metadata(p)
+            metadata = extract_xyz_points_metadata(p)
+    elif suffix in _VECTOR_EXTENSIONS:
+        metadata = extract_vector_metadata(p)
+    elif suffix in _KMALL_EXTENSIONS:
+        metadata = extract_kmall_metadata(p)
+    else:
+        metadata = extract_segy_metadata(p)
+    return metadata.model_copy(update={"file_size_bytes": size})

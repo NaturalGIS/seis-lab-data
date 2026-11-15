@@ -166,6 +166,55 @@ class AssetType(str, enum.Enum):
         }.get(self, self.value)
 
 
+# the keys of a record's discovery info that get an item on the record's page, in
+# the order they are shown in. Some items show further keys, e.g. the CRS name comes
+# with its EPSG code, and a few keys are stored without ever being shown
+class DiscoveryInfoKey(str, enum.Enum):
+    FILE_SIZE_BYTES = "file_size_bytes"
+    DRIVER = "driver"
+    CRS_NAME = "crs_name"
+    BBOX_NATIVE = "bbox_native"
+    WIDTH = "width"
+    BAND_COUNT = "band_count"
+    PIXEL_SIZE_X = "pixel_size_x"
+    NODATA = "nodata"
+    LAYER_COUNT = "layer_count"
+    FEATURE_COUNT = "feature_count"
+    GEOMETRY_TYPE = "geometry_type"
+    POINT_COUNT = "point_count"
+    ECHO_SOUNDER_ID = "echo_sounder_id"
+    DURATION_SECONDS = "duration_seconds"
+    TRACE_COUNT = "trace_count"
+    SAMPLES_PER_TRACE = "samples_per_trace"
+    SAMPLE_INTERVAL = "sample_interval"
+    SAMPLE_FORMAT = "sample_format"
+    COORDINATE_UNITS = "coordinate_units"
+
+    def get_translated_value(self) -> str:
+        # written as shown, since capitalising "CRS" would give "Crs"
+        return {
+            self.FILE_SIZE_BYTES: _("File size"),
+            self.DRIVER: _("Format"),
+            self.CRS_NAME: _("CRS"),
+            self.BBOX_NATIVE: _("Native bounding box"),
+            self.WIDTH: _("Size (px)"),
+            self.BAND_COUNT: _("Bands"),
+            self.PIXEL_SIZE_X: _("Pixel size (CRS units)"),
+            self.NODATA: _("Nodata value"),
+            self.LAYER_COUNT: _("Layers"),
+            self.FEATURE_COUNT: _("Features"),
+            self.GEOMETRY_TYPE: _("Geometry type"),
+            self.POINT_COUNT: _("Points"),
+            self.ECHO_SOUNDER_ID: _("Echo sounder"),
+            self.DURATION_SECONDS: _("Duration"),
+            self.TRACE_COUNT: _("Traces"),
+            self.SAMPLES_PER_TRACE: _("Samples per trace"),
+            self.SAMPLE_INTERVAL: _("Sample interval (raw)"),
+            self.SAMPLE_FORMAT: _("Sample format"),
+            self.COORDINATE_UNITS: _("Coordinate units"),
+        }.get(self, self.value)
+
+
 class ProjectStatus(str, enum.Enum):
     DRAFT = "draft"
     PUBLISHED = "published"

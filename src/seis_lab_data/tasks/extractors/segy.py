@@ -122,7 +122,7 @@ def extract_segy_metadata(path: Path | str) -> SegyMetadata:
     so a multi-GB file costs the same as a tiny one. Sampled coordinates give a
     native bbox; bbox_4326 is only set when the traces declare geographic units,
     because projected metres in an undeclared CRS must never be guessed at (the
-    units go into the description instead). A file too small to hold a single
+    units go into `coordinate_units` instead). A file too small to hold a single
     trace, or whose binary header is not recognisable in either byte order,
     raises ValueError.
     The EPSG codes quoted in the textual header are reported, never applied here.
