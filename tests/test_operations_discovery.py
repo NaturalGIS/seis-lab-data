@@ -444,8 +444,8 @@ async def test_discovery_gives_the_same_records_whatever_its_pipelining(
         admin_user,
     )
 
-    assert [e.details for e in _ended_events(collector)] == [
-        "5 files found, 5 new records"
+    assert [e.details % e.details_params for e in _ended_events(collector)] == [
+        "5 files found, 5 new records, 0 files could not be discovered"
     ]
     records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
     assert sorted(record.name for record in records) == names
@@ -657,7 +657,7 @@ async def test_discovery_survives_a_file_that_fails(
     ended = _ended_events(collector)
     assert len(ended) == 1
     assert ended[0].succeeded is True
-    assert ended[0].details == (
+    assert ended[0].details % ended[0].details_params == (
         "2 files found, 1 new records, 1 files could not be discovered"
     )
     records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
@@ -738,7 +738,9 @@ async def test_discovery_skips_configuration_directories_the_mission_lacks(
     ended = _ended_events(collector)
     assert len(ended) == 1
     assert ended[0].succeeded is True
-    assert ended[0].details == "1 files found, 1 new records"
+    assert ended[0].details % ended[0].details_params == (
+        "1 files found, 1 new records, 0 files could not be discovered"
+    )
     records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
     assert len(records) == 1
 
@@ -783,8 +785,8 @@ async def test_discovery_survives_a_configuration_that_fails(
     ended = _ended_events(collector)
     assert len(ended) == 1
     assert ended[0].succeeded is True
-    assert ended[0].details == (
-        "1 files found, 1 new records, "
+    assert ended[0].details % ended[0].details_params == (
+        "1 files found, 1 new records, 0 files could not be discovered, "
         "invalid asset discovery configurations: a broken regexp"
     )
     records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
@@ -912,7 +914,7 @@ async def test_discovery_that_stops_reports_its_end_and_restores_the_status(
     ended = _ended_events(collector)
     assert len(ended) == 1
     assert ended[0].succeeded is False
-    assert ended[0].details.startswith(expected_details)
+    assert (ended[0].details % ended[0].details_params).startswith(expected_details)
     assert enqueued == []
     assert (
         await _get_mission_status(db_session_maker, mission_id)
@@ -1028,8 +1030,8 @@ async def test_discovery_can_be_cancelled_and_keeps_its_records(
         and e.modification == constants.DiscoveryStage.CANCELLED
     ]
     n = len(expected_names)
-    assert [(e.succeeded, e.details) for e in cancelled] == [
-        (True, f"{n} files found, {n} new records")
+    assert [(e.succeeded, e.details % e.details_params) for e in cancelled] == [
+        (True, f"{n} files found, {n} new records, 0 files could not be discovered")
     ]
     # the records kept get their previews
     assert len(enqueued) == 1
@@ -1216,11 +1218,14 @@ async def test_discovery_reports_progress_instead_of_record_events(
     )
 
     assert [
-        e.details
+        e.details % e.details_params
         for e in collector.events
         if isinstance(e, event_schemas.DiscoveryEvent)
         and e.modification == constants.DiscoveryStage.PROGRESS
-    ] == ["1 files found, 1 new records", "2 files found, 2 new records"]
+    ] == [
+        "1 files found, 1 new records, 0 files could not be discovered",
+        "2 files found, 2 new records, 0 files could not be discovered",
+    ]
     assert not any(
         getattr(e, "resource_type", None) == constants.ResourceType.RECORD
         for e in collector.events

@@ -52,13 +52,13 @@
             {% if counts.num_survey_missions is not none %}
                 <span
                         class="badge rounded-pill badge-outline text-survey-mission"
-                        title="{{ _('survey missions') | capitalize }}"
+                        title="{{ _('Survey missions') }}"
                         aria-label="num-survey-missions"
                 ><span class="material-icons-outlined me-1 fs-6">{{ icons.survey_missions }}</span>{{ counts.num_survey_missions }}</span>
             {% endif %}
             <span
                     class="badge rounded-pill badge-outline text-survey-related-record"
-                    title="{{ _('survey-related records') | capitalize }}"
+                    title="{{ _('Survey-related records') }}"
                     aria-label="num-survey-related-records"
             ><span class="material-icons-outlined me-1 fs-6">{{ icons.survey_related_records }}</span>{{ counts.num_survey_related_records }}</span>
         </div>

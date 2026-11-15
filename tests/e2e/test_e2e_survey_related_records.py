@@ -244,11 +244,7 @@ def test_survey_related_record_bulk_selection(authenticated_page: Page):
     expect(selected_count).to_be_hidden()
     expect(clear_selection_button).to_be_hidden()
 
-    # selecting again, then changing the search filter should clear it back out. NOTE:
-    # we assert on the checkboxes disappearing rather than on the translated
-    # "no records found" message, since the e2e suite runs against whatever the
-    # default locale is (currently portuguese) and that message text is not stable
-    # across locales.
+    # selecting again, then changing the search filter should clear it back out
     checkboxes.nth(0).check()
     expect(selected_count).to_contain_text("1 selected")
     authenticated_page.get_by_placeholder("search").fill("something not matching")

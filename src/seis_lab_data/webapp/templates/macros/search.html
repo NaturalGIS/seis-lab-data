@@ -18,7 +18,7 @@
                         class="form-control form-control-lg"
                         type="search"
                         id="search"
-                        placeholder="Search"
+                        placeholder="{{ _('Search') }}"
                         data-bind:search
                         data-on:input__debounce.200ms="{{ extra_on_input_js }}@get('{{ search_url }}')"
                         data-indicator:searching

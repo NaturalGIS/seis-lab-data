@@ -32,7 +32,7 @@ async def create_dataset_category(
     try:
         if not category_permissions.can_create_dataset_category(initiator):
             raise errors.SeisLabDataError(
-                "User not allowed to create dataset categories."
+                errors.N_("User is not allowed to create dataset categories.")
             )
         resource = await category_commands.create_dataset_category(session, to_create)
     except errors.SeisLabDataError as err:
@@ -45,7 +45,8 @@ async def create_dataset_category(
                 resource_name=to_create.name,
                 modification=constants.ResourceModification.CREATED,
                 succeeded=False,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         return None
@@ -81,12 +82,13 @@ async def update_dataset_category(
             )
         ) is None:
             raise errors.SeisLabDataError(
-                f"Dataset category {resource_id!r} does not exist."
+                errors.N_("Dataset category %(id)s does not exist."),
+                id=str(resource_id),
             )
         resource_name = resource.name
         if not category_permissions.can_update_dataset_category(initiator):
             raise errors.SeisLabDataError(
-                "User not allowed to update dataset categories."
+                errors.N_("User is not allowed to update dataset categories.")
             )
         updated_resource = await category_commands.update_dataset_category(
             session, resource, to_update
@@ -101,7 +103,8 @@ async def update_dataset_category(
                 resource_name=resource_name,
                 modification=constants.ResourceModification.UPDATED,
                 succeeded=False,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         return None
@@ -136,12 +139,13 @@ async def delete_dataset_category(
             )
         ) is None:
             raise errors.SeisLabDataError(
-                f"Dataset category {resource_id!r} does not exist."
+                errors.N_("Dataset category %(id)s does not exist."),
+                id=str(resource_id),
             )
         resource_name = resource.name
         if not category_permissions.can_delete_dataset_category(initiator):
             raise errors.SeisLabDataError(
-                "User not allowed to delete dataset categories."
+                errors.N_("User is not allowed to delete dataset categories.")
             )
         await category_commands.delete_dataset_category(session, resource_id)
     except errors.SeisLabDataError as err:
@@ -154,7 +158,8 @@ async def delete_dataset_category(
                 modification=constants.ResourceModification.DELETED,
                 succeeded=False,
                 initiator=initiator.id,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         return None

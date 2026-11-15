@@ -10,7 +10,7 @@
                             class="btn btn-sm btn-outline-primary"
                             href="{{ url_for("workflow_stages:get_update_form", resource_id=item.id) }}"
                     >
-                        <span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit") | capitalize }}
+                        <span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("Edit") }}
                     </a>
                 {% endif %}
                 {% if permissions.can_delete %}
@@ -18,11 +18,11 @@
                         {{ macros_buttons.render_delete_item_button(
                             deletion_url=url_for("workflow_stages:detail", resource_id=item.id),
                             signal_name="deleting" ~ id_,
-                            idle_message="delete",
-                            running_message="deleting...",
+                            idle_message=_("delete..."),
+                            running_message=_("deleting..."),
                             generated_csrf_token=csrf_token(request),
                             modal_dialog_title=_("delete"),
-                            modal_dialog_confirmation_text=_("are you sure you want to delete this item?"),
+                            modal_dialog_confirmation_text=_("Are you sure you want to delete this item?"),
                             size_css_class="btn-sm"
                         ) }}
                     </div>

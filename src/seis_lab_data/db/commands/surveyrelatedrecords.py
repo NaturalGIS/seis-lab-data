@@ -63,8 +63,11 @@ async def create_survey_related_record(
             identifiers.SurveyMissionId(to_create.survey_mission_id),
         ):
             raise errors.DuplicateResourceError(
-                f"There is already a survey-related record with asset path {asset_to_create.relative_path!r} for "
-                f"the same survey mission."
+                errors.N_(
+                    "There is already a survey-related record with asset path "
+                    "“%(path)s” in the same survey mission."
+                ),
+                path=asset_to_create.relative_path,
             )
 
     session.add(survey_record)
@@ -100,7 +103,8 @@ async def delete_survey_related_record(
         await session.commit()
     else:
         raise errors.SeisLabDataError(
-            f"Survey-related record with id {survey_related_record_id!r} does not exist."
+            errors.N_("Survey-related record %(id)s does not exist."),
+            id=str(survey_related_record_id),
         )
 
 
@@ -333,8 +337,11 @@ async def update_survey_related_record(
                     ),
                 ):
                     raise errors.DuplicateResourceError(
-                        f"There is already a survey-related record with asset path "
-                        f"{proposed_asset.relative_path!r} for the same survey mission."
+                        errors.N_(
+                            "There is already a survey-related record with asset path "
+                            "“%(path)s” in the same survey mission."
+                        ),
+                        path=proposed_asset.relative_path,
                     )
             db_asset = models.RecordAsset(
                 **proposed_asset.model_dump(),
@@ -434,7 +441,8 @@ async def set_survey_related_record_status(
         )
     ) is None:
         raise errors.SeisLabDataError(
-            f"Survey-related record with id {survey_related_record_id} does not exist."
+            errors.N_("Survey-related record %(id)s does not exist."),
+            id=str(survey_related_record_id),
         )
     survey_related_record.status = status
     session.add(survey_related_record)

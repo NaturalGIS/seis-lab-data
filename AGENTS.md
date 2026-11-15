@@ -171,3 +171,4 @@ Tasks which may take long run in their own queues: `previews`, `thumbnails` and 
 - Imports always at the top of the module, never inside functions.
 - The `appuser` table is named to avoid colliding with PostgreSQL's reserved `user` keyword.
 - All IDs are `NewType` wrappers over `uuid.UUID` or `str` (e.g. `ProjectId`, `UserId`).
+- All UI text is translatable (see "Translations" in `docs/development.md`): `_()` in routes and templates; `errors.N_()` with `%(name)s` placeholders for messages produced outside of a request (operation errors, event `details`), which the stream handlers translate, with their values in `details_params`.

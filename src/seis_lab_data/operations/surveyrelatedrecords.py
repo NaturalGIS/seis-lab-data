@@ -49,21 +49,25 @@ async def create_survey_related_record(
             )
         ):
             raise errors.SeisLabDataError(
-                f"Survey mission with id {to_create.survey_mission_id} does not exist"
+                errors.N_("Survey mission %(id)s does not exist."),
+                id=str(to_create.survey_mission_id),
             )
         if not record_permissions.can_create_survey_related_record(
             initiator, survey_mission
         ):
             raise errors.SeisLabDataError(
-                "User is not allowed to create a survey-related record."
+                errors.N_(
+                    "User is not allowed to create survey-related records in the survey mission."
+                )
             )
         if (
             not allow_mission_under_discovery
             and survey_mission.status in constants.SURVEY_MISSION_DISCOVERY_STATUSES
         ):
             raise errors.SeisLabDataError(
-                "Cannot create survey-related record because its survey mission "
-                "is under discovery"
+                errors.N_(
+                    "Cannot create the survey-related record because its survey mission is under discovery."
+                )
             )
         survey_record = await record_commands.create_survey_related_record(
             session, to_create
@@ -103,7 +107,8 @@ async def create_survey_related_record(
                 modification=constants.ResourceModification.CREATED,
                 succeeded=False,
                 initiator=initiator.id,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         raise
@@ -140,7 +145,8 @@ async def change_survey_related_record_status(
             )
         ) is None:
             raise errors.SeisLabDataError(
-                f"Survey-related record with id {survey_related_record_id} does not exist."
+                errors.N_("Survey-related record %(id)s does not exist."),
+                id=str(survey_related_record_id),
             )
         record_name = survey_related_record.name
         if survey_related_record.status == target_status:
@@ -153,7 +159,9 @@ async def change_survey_related_record_status(
             initiator, survey_related_record
         ):
             raise errors.SeisLabDataError(
-                "User is not allowed to change survey-related record's status."
+                errors.N_(
+                    "User is not allowed to change the status of the survey-related record."
+                )
             )
         updated_survey_related_record = (
             await record_commands.set_survey_related_record_status(
@@ -172,7 +180,8 @@ async def change_survey_related_record_status(
                 resource_name=record_name,
                 succeeded=False,
                 new_status=None,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         return None
@@ -205,13 +214,14 @@ async def validate_survey_related_record(
             )
         ) is None:
             raise errors.SeisLabDataError(
-                f"Survey-related record with id {survey_related_record_id} does not exist."
+                errors.N_("Survey-related record %(id)s does not exist."),
+                id=str(survey_related_record_id),
             )
         if not record_permissions.can_validate_survey_related_record(
             initiator, survey_related_record
         ):
             raise errors.SeisLabDataError(
-                "User is not allowed to validate survey-related record."
+                errors.N_("User is not allowed to validate the survey-related record.")
             )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
@@ -223,7 +233,8 @@ async def validate_survey_related_record(
                 succeeded=False,
                 is_valid=False,
                 initiator=initiator.id,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         raise
@@ -304,30 +315,34 @@ async def delete_survey_related_record(
             )
         ) is None:
             raise errors.SeisLabDataError(
-                f"Survey-related record with id {survey_related_record_id!r} does not exist."
+                errors.N_("Survey-related record %(id)s does not exist."),
+                id=str(survey_related_record_id),
             )
         record_name = survey_record.name
         if not record_permissions.can_delete_survey_related_record(
             initiator, survey_record
         ):
             raise errors.SeisLabDataError(
-                "User is not allowed to delete survey-related record."
+                errors.N_("User is not allowed to delete the survey-related record.")
             )
         if (record_status := survey_record.status) not in (
             constants.SurveyRelatedRecordStatus.DRAFT,
             constants.SurveyRelatedRecordStatus.PUBLISHED,
         ):
             raise errors.SeisLabDataError(
-                f"Cannot delete survey-related record because its status is "
-                f"{record_status}"
+                errors.N_(
+                    "Cannot delete the survey-related record because its status is %(status)s."
+                ),
+                status=record_status.value,
             )
         if (
             survey_record.survey_mission.status
             in constants.SURVEY_MISSION_DISCOVERY_STATUSES
         ):
             raise errors.SeisLabDataError(
-                "Cannot delete survey-related record because its survey mission "
-                "is under discovery"
+                errors.N_(
+                    "Cannot delete the survey-related record because its survey mission is under discovery."
+                )
             )
         parent_id = survey_record.survey_mission_id
         await record_commands.delete_survey_related_record(
@@ -343,7 +358,8 @@ async def delete_survey_related_record(
                 request_id=request_id,
                 modification=constants.ResourceModification.DELETED,
                 succeeded=False,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         return None
@@ -470,13 +486,17 @@ async def get_survey_related_record(
     if record.status == constants.SurveyRelatedRecordStatus.PUBLISHED:
         return record, records_related_to, records_subject_for
 
-    error_msg = f"User not allowed to read survey-related record {record_id!r}."
-
     if initiator is None:
-        raise errors.UserNotAllowedError(error_msg)
+        raise errors.UserNotAllowedError(
+            errors.N_("User is not allowed to read survey-related record %(id)s."),
+            id=str(record_id),
+        )
 
     if not record_permissions.can_read_private_survey_related_record(initiator, record):
-        raise errors.UserNotAllowedError(error_msg)
+        raise errors.UserNotAllowedError(
+            errors.N_("User is not allowed to read survey-related record %(id)s."),
+            id=str(record_id),
+        )
 
     return record, records_related_to, records_subject_for
 
@@ -504,14 +524,15 @@ async def update_survey_related_record(
             )
         ) is None:
             raise errors.SeisLabDataError(
-                f"Survey-related id {survey_related_record_id!r} does not exist."
+                errors.N_("Survey-related record %(id)s does not exist."),
+                id=str(survey_related_record_id),
             )
         record_name = survey_related_record.name
         if not record_permissions.can_update_survey_related_record(
             initiator, survey_related_record
         ):
             raise errors.SeisLabDataError(
-                "User not allowed to update survey-related record."
+                errors.N_("User is not allowed to update the survey-related record.")
             )
         # any other status means a task, e.g. the derivation of its previews,
         # is writing to the record right now
@@ -520,8 +541,10 @@ async def update_survey_related_record(
             constants.SurveyRelatedRecordStatus.PUBLISHED,
         ):
             raise errors.SeisLabDataError(
-                f"Cannot update survey-related record because its status is "
-                f"{record_status}"
+                errors.N_(
+                    "Cannot update the survey-related record because its status is %(status)s."
+                ),
+                status=record_status.value,
             )
         if (
             not allow_mission_under_discovery
@@ -529,8 +552,9 @@ async def update_survey_related_record(
             in constants.SURVEY_MISSION_DISCOVERY_STATUSES
         ):
             raise errors.SeisLabDataError(
-                "Cannot update survey-related record because its survey mission "
-                "is under discovery"
+                errors.N_(
+                    "Cannot update the survey-related record because its survey mission is under discovery."
+                )
             )
         await record_commands.update_survey_related_record(
             session, survey_related_record, to_update
@@ -569,7 +593,8 @@ async def update_survey_related_record(
                 request_id=request_id,
                 modification=constants.ResourceModification.UPDATED,
                 succeeded=False,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         raise
@@ -619,7 +644,7 @@ async def bulk_update_survey_related_records(
     try:
         if not record_permissions.can_bulk_update_survey_related_records(initiator):
             raise errors.UserNotAllowedError(
-                "User not allowed to bulk-update survey-related records."
+                errors.N_("User is not allowed to bulk-update survey-related records.")
             )
         if selected is not None:
             updated_count = await record_commands.bulk_update_manually_selected_records(
@@ -651,7 +676,8 @@ async def bulk_update_survey_related_records(
                 modification=constants.BulkResourceModification.UPDATED,
                 succeeded=False,
                 affected_count=0,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         return None

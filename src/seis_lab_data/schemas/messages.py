@@ -25,7 +25,9 @@ class ResourceModificationMessage(pydantic.BaseModel):
     )
     modification: constants.ResourceModification
     succeeded: bool
+    # an untranslated message template, translated by the stream handlers
     details: str | None = None
+    details_params: dict[str, str | int] = {}
 
 
 class BulkResourceModificationMessage(pydantic.BaseModel):
@@ -35,7 +37,9 @@ class BulkResourceModificationMessage(pydantic.BaseModel):
     modification: constants.BulkResourceModification
     succeeded: bool
     affected_count: int
+    # an untranslated message template, translated by the stream handlers
     details: str | None = None
+    details_params: dict[str, str | int] = {}
 
 
 class ResourceStatusChangedMessage(pydantic.BaseModel):
@@ -46,7 +50,9 @@ class ResourceStatusChangedMessage(pydantic.BaseModel):
     resource_name: str | None = None
     succeeded: bool
     new_status: str | None
+    # an untranslated message template, translated by the stream handlers
     details: str | None = None
+    details_params: dict[str, str | int] = {}
 
 
 class DiscoveryMessage(pydantic.BaseModel):
@@ -57,7 +63,9 @@ class DiscoveryMessage(pydantic.BaseModel):
     request_id: identifiers.RequestId
     modification: constants.DiscoveryStage
     succeeded: bool
+    # an untranslated message template, translated by the stream handlers
     details: str | None = None
+    details_params: dict[str, str | int] = {}
 
 
 class DerivationMessage(pydantic.BaseModel):
@@ -76,7 +84,9 @@ class ValidationMessage(pydantic.BaseModel):
     modification: constants.ValidationStage
     succeeded: bool
     is_valid: bool
+    # an untranslated message template, translated by the stream handlers
     details: str | None = None
+    details_params: dict[str, str | int] = {}
 
 
 class ExportMessage(pydantic.BaseModel):
@@ -87,7 +97,9 @@ class ExportMessage(pydantic.BaseModel):
     request_id: identifiers.RequestId
     stage: constants.ExportStage
     succeeded: bool
+    # an untranslated message template, translated by the stream handlers
     details: str | None = None
+    details_params: dict[str, str | int] = {}
 
 
 SldPubSubMessage: TypeAlias = Annotated[

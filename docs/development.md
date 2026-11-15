@@ -191,13 +191,6 @@ whenever you know there have been recent merges.
     CURRENT_GIT_BRANCH=$(git branch --show-current) docker compose -f docker/compose.dev.yaml up -d --force-recreate
     ```
 
-    [!NOTE]
-    ### Getting translations to work correctly in your local dev environment
-
-    Because the docker compose file used for dev bind mounts the entire `src` directory, it will
-    mask the container's own compiled `*.mo` files. This means that after running
-    `seis-lab-data translations compile` you need to restart the `webapp` service for the changes to take effect.
-
 
 ## Mounting the production archive locally
 
@@ -257,6 +250,67 @@ all modifications to the database schema must be done through alembic migrations
     ```shell
     docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data db migrate
     ```
+
+
+## Translations
+
+The web UI is available in Portuguese (the default, `pt_PT`) and English. Only the UI is translated - user data,
+such as the names and descriptions of projects, is not. English is the source language: the English catalog leaves
+its translations empty, which makes the UI show the source strings.
+
+Strings are marked as translatable with `_()`:
+
+-   In Python code, import it with `from starlette_babel import gettext_lazy as _`;
+-   In Jinja templates, use `{{ _("some text") }}`, including inside attributes such as `placeholder`, `title` and
+    `aria-label` whenever they hold human-readable text.
+
+The marked string must be a literal, as the extraction does not see strings built at runtime.
+
+Messages produced outside of a request, such as the error messages of the operations and the details of the events
+emitted by the workers, cannot be translated where they are produced, as there is no user locale there. They are
+marked with `errors.N_()` instead, which leaves them in English, and are translated by the stream handlers into the
+locale of whoever is viewing the page:
+
+-   Values go into `%(name)s` placeholders rather than f-strings, so that the template stays the same as its catalog
+    entry - e.g. `errors.SeisLabDataError(errors.N_("Project %(id)s does not exist."), id=str(project_id))`;
+-   Events carry the template in `details` and its values in `details_params`. A `SeisLabDataError` provides them as
+    its `message` and `params`;
+-   A `status` value holds the raw status of the event's resource, which the stream handlers translate as well. Other
+    values, such as names and paths, are shown untranslated;
+-   Details missing from the catalogs, such as the text of third-party errors, are shown as they are.
+
+Translations are managed with the `seis-lab-data translations` CLI commands. After adding or modifying translatable
+strings:
+
+1.  Extract the translatable strings from the source code into a template catalog (`src/messages.pot`, which is
+    not tracked by git):
+
+    ```shell
+    docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data translations extract
+    ```
+
+2.  Update the catalogs of each locale (`src/seis_lab_data/translations/<locale>/LC_MESSAGES/messages.po`) with the
+    extracted strings:
+
+    ```shell
+    docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data translations update
+    ```
+
+3.  Translate the new strings in the Portuguese catalog. When a string changes, the update copies the translation of
+    a similar string and flags it as `fuzzy`. Review each fuzzy entry and remove its flag, since the compilation
+    skips fuzzy entries, which makes the UI show them in English;
+
+4.  Compile the catalogs into the `.mo` files used by the web application:
+
+    ```shell
+    docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data translations compile
+    ```
+
+    The `.mo` files are not tracked by git - the docker image compiles them when it is built. The dev docker compose
+    stack bind mounts the `src` directory, which masks the container's own `.mo` files, so restart the `webapp`
+    service after compiling for the changes to take effect.
+
+The `tests/test_translations.py` test fails whenever a translatable string lacks a non-fuzzy Portuguese translation.
 
 
 ## Auxiliary dev services

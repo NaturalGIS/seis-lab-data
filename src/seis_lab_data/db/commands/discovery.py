@@ -70,7 +70,8 @@ async def delete_asset_discovery_configuration(
         await session.commit()
     else:
         raise errors.SeisLabDataError(
-            f"asset_discovery_configuration with id {asset_discovery_configuration_id} does not exist."
+            errors.N_("Asset discovery configuration %(id)s does not exist."),
+            id=str(asset_discovery_configuration_id),
         )
 
 

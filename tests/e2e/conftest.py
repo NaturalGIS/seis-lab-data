@@ -8,6 +8,16 @@ from playwright.sync_api import expect
 # browser context different from the default one.
 _TRACING_VALUES = ("on", "retain-on-failure")
 
+# The tests locate elements by their english text, so the browsers request the
+# english UI through their `Accept-Language` header, rather than depending on the
+# locale of the machine running the tests.
+_BROWSER_LOCALE = "en"
+
+
+@pytest.fixture(scope="session")
+def browser_context_args(browser_context_args):
+    return {**browser_context_args, "locale": _BROWSER_LOCALE}
+
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -43,7 +53,7 @@ def auth_credentials(request):
 
 @pytest.fixture(scope="session")
 def authenticated_context(browser, auth_credentials, base_url, request):
-    context = browser.new_context(base_url=base_url)
+    context = browser.new_context(base_url=base_url, locale=_BROWSER_LOCALE)
 
     if (tracing_value := request.config.getoption("--tracing")) in _TRACING_VALUES:
         context.tracing.start(screenshots=True, snapshots=True, sources=True)
@@ -82,7 +92,7 @@ def authenticated_context(browser, auth_credentials, base_url, request):
 @pytest.fixture(scope="function")
 def authenticated_page(browser, authenticated_context, base_url, request):
     context = browser.new_context(
-        storage_state=authenticated_context, base_url=base_url
+        storage_state=authenticated_context, base_url=base_url, locale=_BROWSER_LOCALE
     )
 
     if (tracing_value := request.config.getoption("--tracing")) in _TRACING_VALUES:
@@ -104,7 +114,7 @@ def authenticated_page(browser, authenticated_context, base_url, request):
 
 @pytest.fixture(scope="function")
 def fresh_authenticated_page(browser, auth_credentials, base_url):
-    context = browser.new_context(base_url=base_url)
+    context = browser.new_context(base_url=base_url, locale=_BROWSER_LOCALE)
     page = context.new_page()
     page.goto("/")
     page.get_by_test_id("login-nav").click()

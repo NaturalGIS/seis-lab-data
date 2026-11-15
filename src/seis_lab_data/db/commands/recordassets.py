@@ -24,7 +24,7 @@ async def delete_record_asset(
         await session.commit()
     else:
         raise errors.SeisLabDataError(
-            f"Record asset with id {record_asset!r} does not exist."
+            errors.N_("Record asset %(id)s does not exist."), id=str(record_asset)
         )
 
 

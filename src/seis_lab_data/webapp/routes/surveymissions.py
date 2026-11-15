@@ -107,7 +107,8 @@ async def _get_survey_mission_details(
         if survey_mission is None:
             raise HTTPException(
                 status_code=404,
-                detail=_(f"Survey mission {survey_mission_id!r} not found."),
+                detail=_("Survey mission %(id)s does not exist.")
+                % {"id": str(survey_mission_id)},
             )
         (
             survey_related_records,
@@ -417,7 +418,8 @@ async def get_survey_mission_creation_form(request: Request):
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         if project is None:
             raise HTTPException(
-                status_code=404, detail=_(f"Project {project_id!r} not found.")
+                status_code=404,
+                detail=_("Project %(id)s does not exist.") % {"id": str(project_id)},
             )
 
     template_processor: Jinja2Templates = request.state.templates
@@ -750,7 +752,7 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
                         icon=settings.icons.home,
                     ),
                     webui_schemas.BreadcrumbItem(
-                        name=_("Survey Missions"), icon=settings.icons.survey_missions
+                        name=_("Survey missions"), icon=settings.icons.survey_missions
                     ),
                 ],
                 "search_initial_value": list_filters.get_text_search_filter(),
@@ -1007,7 +1009,8 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             if survey_mission is None:
                 raise HTTPException(
                     status_code=404,
-                    detail=_(f"Survey mission {survey_mission_id!r} not found."),
+                    detail=_("Survey mission %(id)s does not exist.")
+                    % {"id": str(survey_mission_id)},
                 )
 
         mission_tasks.delete_survey_mission.send(
@@ -1034,7 +1037,8 @@ async def add_create_survey_mission_form_link(request: Request):
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         if project is None:
             raise HTTPException(
-                status_code=404, detail=_(f"Project {project_id!r} not found.")
+                status_code=404,
+                detail=_("Project %(id)s does not exist.") % {"id": str(project_id)},
             )
     creation_form = await forms.SurveyMissionCreateForm.from_formdata(request)
     creation_form.links.append_entry()
@@ -1072,7 +1076,8 @@ async def remove_create_survey_mission_form_link(request: Request):
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         if project is None:
             raise HTTPException(
-                status_code=404, detail=_(f"Project {project_id!r} not found.")
+                status_code=404,
+                detail=_("Project %(id)s does not exist.") % {"id": str(project_id)},
             )
     create_survey_mission_form = await forms.SurveyMissionCreateForm.from_formdata(
         request
@@ -1211,7 +1216,8 @@ async def get_survey_mission_update_form(request: Request):
         if survey_mission is None:
             raise HTTPException(
                 status_code=404,
-                detail=_(f"Survey mission {survey_mission_id!r} not found."),
+                detail=_("Survey mission %(id)s does not exist.")
+                % {"id": str(survey_mission_id)},
             )
     current_bbox = (
         shapely.from_wkb(survey_mission.bbox_4326.data)

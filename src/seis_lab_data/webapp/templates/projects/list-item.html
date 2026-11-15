@@ -33,7 +33,7 @@
                     <span class="material-icons-outlined ms-3 me-1 fs-6">{{ icons.survey_related_records }}</span>{{ list_item_counts[item.id].num_survey_related_records }}
                 </div>
                 <div class="small text-body-secondary">
-                    {{ item.temporal_extent_begin | default(_(".."), True) }}/{{ item.temporal_extent_end | default(_(".."), True) }}
+                    {{ item.temporal_extent_begin | default("..", True) }}/{{ item.temporal_extent_end | default("..", True) }}
                 </div>
                 <p class="card-text small list-item-description mt-1 mb-2">
                     {{ item.description|default(_("description not available"), True) }}
@@ -45,7 +45,7 @@
                                 class="btn btn-sm btn-outline-primary"
                                 href="{{ url_for('projects:get_update_form', project_id=item.id) }}"
                                 aria-label="update-list-item"
-                        ><span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit") | capitalize }}</a>
+                        ><span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("Edit") }}</a>
                     {% endif %}
                     {% if item_permissions and item_permissions.can_delete %}
                         <div class="ms-auto">

@@ -84,17 +84,19 @@ async def export_survey_related_record(
             )
         ) is None:
             raise errors.SeisLabDataError(
-                f"Survey-related record with id {survey_related_record_id} does not exist."
+                errors.N_("Survey-related record %(id)s does not exist."),
+                id=str(survey_related_record_id),
             )
         record_name = record.name
         if not record_permissions.can_export_survey_related_record(initiator, record):
             raise errors.UserNotAllowedError(
-                "User is not allowed to export survey-related record."
+                errors.N_("User is not allowed to export the survey-related record.")
             )
         if not is_exportable_to_geonode(record, settings):
             raise errors.SeisLabDataError(
-                "Survey-related record cannot be exported to GeoNode - it must be "
-                "published and have a data asset in a format supported by GeoNode."
+                errors.N_(
+                    "The survey-related record cannot be exported to GeoNode - it must be published and have a data asset in a format supported by GeoNode."
+                )
             )
         archive_root = await Path(settings.readonly_archive_root_directory).resolve()
         data_path = await Path(
@@ -105,7 +107,10 @@ async def export_survey_related_record(
         # relative paths are user-editable, they must not be able to escape the archive
         if not data_path.is_relative_to(archive_root) or not await data_path.is_file():
             raise errors.SeisLabDataError(
-                f"Data file of survey-related record not found at {str(data_path)!r}."
+                errors.N_(
+                    "The data file of the survey-related record was not found at “%(path)s”."
+                ),
+                path=str(data_path),
             )
         if not await record_commands.compare_and_set_survey_related_record_status(
             session,
@@ -114,13 +119,18 @@ async def export_survey_related_record(
             constants.SurveyRelatedRecordStatus.UNDER_EXPORT,
         ):
             raise errors.SeisLabDataError(
-                "Survey-related record changed status meanwhile - not exporting it."
+                errors.N_(
+                    "The survey-related record changed status meanwhile - not exporting it."
+                )
             )
     # catching everything, as the user is waiting to hear how the export went -
     # these are background tasks, there is no one else to tell about errors
     except Exception as err:
-        if not isinstance(err, errors.SeisLabDataError):
+        if isinstance(err, errors.SeisLabDataError):
+            details, details_params = err.message, err.params
+        else:
             logger.exception(f"Could not export record {survey_related_record_id}")
+            details, details_params = str(err), {}
         await event_dispatcher(
             event_schemas.ExportEvent(
                 initiator=initiator.id,
@@ -130,7 +140,8 @@ async def export_survey_related_record(
                 resource_name=record_name,
                 stage=constants.ExportStage.ENDED,
                 succeeded=False,
-                details=str(err),
+                details=details,
+                details_params=details_params,
             )
         )
         return
@@ -194,7 +205,8 @@ async def export_survey_related_record(
                         resource_name=record_name,
                         stage=constants.ExportStage.PROGRESS,
                         succeeded=True,
-                        details=f"Uploading {data_path.name!r} to GeoNode...",
+                        details=errors.N_("Uploading “%(file)s” to GeoNode..."),
+                        details_params={"file": data_path.name},
                     )
                 )
                 execution_id = await geonode.upload_dataset(
@@ -211,8 +223,12 @@ async def export_survey_related_record(
                             resource_name=record_name,
                             stage=constants.ExportStage.PROGRESS,
                             succeeded=True,
-                            details=f"GeoNode import is {execution['status']} "
-                            f"({execution.get('step')})",
+                            details=errors.N_("GeoNode import is %(state)s (%(step)s)"),
+                            # GeoNode's own status and step names, untranslated
+                            details_params={
+                                "state": str(execution["status"]),
+                                "step": str(execution.get("step")),
+                            },
                         )
                     )
                 resource_pk = execution["output_params"]["resources"][0]["id"]
@@ -267,7 +283,7 @@ async def export_survey_related_record(
     except Exception as err:
         logger.exception(f"Could not export record {survey_related_record_id}")
         succeeded = False
-        details = f"Could not export to GeoNode: {err}"
+        details = str(err)
     else:
         succeeded = True
         details = resource_url
@@ -339,6 +355,8 @@ async def recover_stale_geonode_exports(
                 resource_name=record_name,
                 stage=constants.ExportStage.ENDED,
                 succeeded=False,
-                details="Export was abandoned - it did not finish in time",
+                details=errors.N_(
+                    "The export was abandoned - it did not finish in time."
+                ),
             )
         )
