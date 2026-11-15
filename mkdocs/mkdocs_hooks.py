@@ -28,6 +28,11 @@ PDF_RESOURCES = (
         mkdocs_conf="mkdocs/pdf-configs/mkdocs-pdf-admin-guide.yml",
         build_dir_name="site-admin-guide-pdf",
     ),
+    PdfResourceConfig(
+        pdf_name="seis-lab-data-user-guide.pdf",
+        mkdocs_conf="mkdocs/pdf-configs/mkdocs-pdf-user-guide.yml",
+        build_dir_name="site-user-guide-pdf",
+    ),
 )
 
 
