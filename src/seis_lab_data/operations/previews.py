@@ -166,6 +166,8 @@ async def generate_record_previews(
             survey_related_record.survey_mission.relative_path,
         )
     )
+    # the CRS discovery placed the bbox with, which a SEG-Y track must share
+    discovered_epsg_code = (survey_related_record.discovery_info or {}).get("epsg")
     derived = []
     for asset in survey_related_record.assets:
         if constants.AssetType.DATA not in asset.asset_type:
@@ -201,6 +203,7 @@ async def generate_record_previews(
                 deriver_dispatch.dispatch_deriver,
                 asset_path,
                 survey_related_record.survey_mission.implicit_crs,
+                discovered_epsg_code,
             )
         except Exception as err:
             logger.warning(f"Preview generation failed for {asset_path!r}: {err}")

@@ -34,6 +34,16 @@ from seis_lab_data.tasks.derivers.gdal_vector import (  # noqa: E402
 from seis_lab_data.tasks.derivers.kmall import (  # noqa: E402
     derive_kmall_preview,
 )
+from seis_lab_data.tasks.derivers.segy import (  # noqa: E402
+    derive_segy_preview,
+)
+from seis_lab_data.tasks.extractors.common import (  # noqa: E402
+    project_bbox_to_wgs84,
+)
+from test_extractors import (  # noqa: E402
+    _segy_trace,
+    _write_segy,
+)
 
 gdal.UseExceptions()
 
@@ -276,7 +286,8 @@ def test_percentile_cuts_ignore_nodata():
         ("track.gpkg", False, True),
         ("track.geojson", False, True),
         ("track.kmall", False, True),
-        ("line.sgy", False, False),
+        ("line.sgy", False, True),
+        ("line.segy", False, True),
         # the archive holds directories such as "F3_2022.tif"
         ("grid.tif", True, False),
     ],
@@ -404,6 +415,83 @@ def test_derive_kmall_preview_requires_fixes(tmp_path):
 
     with pytest.raises(ValueError, match="no position fixes"):
         derive_kmall_preview(path)
+
+
+@pytest.mark.parametrize(
+    "traces, epsg_code",
+    [
+        pytest.param(
+            [_segy_trace(src=(200, 200)), _segy_trace(src=(2000, 1000))],
+            _PT_TM06,
+            id="projected metres",
+        ),
+        pytest.param(
+            [
+                _segy_trace(src=(-81450, 396450), scalco=-10000, units=3),
+                _segy_trace(src=(-81250, 396650), scalco=-10000, units=3),
+            ],
+            4326,
+            id="geographic degrees",
+        ),
+        pytest.param(
+            [_segy_trace(src=(-81450, 396450), scalco=-10000, units=3)],
+            4326,
+            id="a single position",
+        ),
+    ],
+)
+def test_derive_segy_preview_renders_track(tmp_path, traces, epsg_code):
+    path = tmp_path / "line.sgy"
+    _write_segy(path, traces)
+
+    preview = derive_segy_preview(path, epsg_code)
+
+    driver, width, height, bands = _read_webp(preview.image)
+    assert driver == "WEBP"
+    assert max(width, height) == 1024
+    # the alpha plane is lossless, so a drawn pixel keeps its full opacity
+    assert bands[3].max() == 255
+    min_x, min_y, max_x, max_y = preview.bounds_4326
+    # lon first: a lat/lon swap would miss both windows
+    assert -8.2 < min_x < max_x < -8.1
+    assert 39.6 < min_y < max_y < 39.7
+
+
+@pytest.mark.parametrize(
+    "traces, epsg_code, message",
+    [
+        pytest.param([_segy_trace()], _PT_TM06, "no positions", id="no positions"),
+        pytest.param([_segy_trace(src=(200, 200))], None, "no CRS", id="no crs"),
+    ],
+)
+def test_derive_segy_preview_requires_positions_and_a_crs(
+    tmp_path, traces, epsg_code, message
+):
+    path = tmp_path / "line.sgy"
+    _write_segy(path, traces)
+
+    with pytest.raises(ValueError, match=message):
+        derive_segy_preview(path, epsg_code)
+
+
+def test_derive_segy_preview_covers_the_record_bbox(tmp_path):
+    # grid convergence near lon -9.5 makes the track's own extent ~800 m narrower
+    path = tmp_path / "line.sgy"
+    _write_segy(
+        path, [_segy_trace(src=(-115000, 40000)), _segy_trace(src=(-107000, 95000))]
+    )
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(_PT_TM06)
+    min_x, min_y, max_x, max_y = project_bbox_to_wgs84(
+        (-115000.0, 40000.0, -107000.0, 95000.0), srs
+    )
+
+    preview = derive_segy_preview(path, _PT_TM06)
+
+    # the record's bbox as discovery computes it, with the same 1e-4 buffer
+    assert preview.bounds_4326 == pytest.approx(
+        (min_x - 1e-4, min_y - 1e-4, max_x + 1e-4, max_y + 1e-4)
+    )
 
 
 def test_render_bbox_thumbnail_draws_the_bbox_over_the_base_map(tmp_path):
