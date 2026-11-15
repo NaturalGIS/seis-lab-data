@@ -166,23 +166,23 @@ def test_deleting_listed_item_keeps_current_page(authenticated_page: Page):
         expect(deletion_page).to_have_url(re.compile(r"/projects/?$"), timeout=10_000)
 
     authenticated_page.goto(f"/projects/?search=e2e+paging+{tag}&page=2")
-    # each listed project has a link to its detail page
-    view_links = authenticated_page.locator("[aria-label='items']").get_by_role(
-        "link", name="View"
+    # each listed project's name links to its detail page
+    name_links = authenticated_page.locator("[aria-label='items']").get_by_role(
+        "link", name=re.compile(f"e2e paging {tag}")
     )
-    expect(view_links).to_have_count(2)
+    expect(name_links).to_have_count(2)
 
     # deleting an item re-fetches the listing, which stays on the second page
     delete_project(detail_urls.pop())
-    expect(view_links).to_have_count(1, timeout=10_000)
+    expect(name_links).to_have_count(1, timeout=10_000)
     expect(authenticated_page).to_have_url(re.compile(r"[?&]page=2(&|$)"))
 
     # deleting the last item of the second page falls back to the first one
     delete_project(detail_urls.pop())
-    expect(view_links).to_have_count(20, timeout=10_000)
+    expect(name_links).to_have_count(20, timeout=10_000)
     expect(authenticated_page).not_to_have_url(re.compile(r"[?&]page="))
 
     # clean up the remaining projects
     for detail_url in detail_urls:
         delete_project(detail_url)
-    expect(view_links).to_have_count(0, timeout=10_000)
+    expect(name_links).to_have_count(0, timeout=10_000)
