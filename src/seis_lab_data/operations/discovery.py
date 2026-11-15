@@ -41,7 +41,6 @@ from ..db.queries import (
 from ..db.commands import (
     discovery as discovery_commands,
     surveymissions as mission_commands,
-    surveyrelatedrecords as record_commands,
 )
 from ..db.commands.common import get_bbox_4326_for_db
 from ..permissions import (
@@ -267,11 +266,12 @@ async def run_mission_discovery(
 
     The mission is held under discovery while the run lasts, and its heartbeat is
     refreshed in the background. The run stops early if the mission's status is
-    set to cancelling discovery; the records created until then are kept. The
-    mission's original status is restored at the end of the run, whatever its
-    outcome. When that status is published, the mission's valid draft records are
-    then published, the records of this run among them, as are those of a mission
-    update. Preview generation for the mission is enqueued unless the run fails.
+    set to cancelling discovery; the records created until then are kept. At the
+    end of the run, whatever its outcome, the mission is published if it is valid
+    and its project is published, and is a draft otherwise, and its records follow
+    its status, as do those of a mission update: when it is published its valid
+    draft records are published, the records of this run among them. Preview
+    generation for the mission is enqueued unless the run fails.
     """
     mission_name = None
     try:
@@ -470,31 +470,33 @@ async def run_mission_discovery(
             await heartbeat
         # whatever was left half-done must not be committed with the status
         await session.rollback()
-        await mission_ops.change_survey_mission_status(
-            request_id=request_id,
-            target_status=mission_status,
-            survey_mission_id=mission_id,
-            initiator=user,
-            session=session,
-            event_dispatcher=event_dispatcher,
-        )
-        if mission_status == constants.SurveyMissionStatus.PUBLISHED:
-            published_count = (
-                await record_commands.bulk_publish_valid_survey_related_records(
-                    session, mission_id
+        # None when the mission no longer is under discovery, e.g. because it was
+        # recovered as abandoned while this run was stalled - the recovery then
+        # set its status
+        if (
+            new_status := await mission_commands.end_survey_mission_discovery(
+                session, mission_id
+            )
+        ) is not None:
+            await event_dispatcher(
+                event_schemas.ResourceStatusChangedEvent(
+                    request_id=request_id,
+                    initiator=user.id,
+                    resource_type=constants.ResourceType.MISSION,
+                    resource_id=str(mission_id),
+                    resource_name=mission_name,
+                    succeeded=True,
+                    new_status=new_status,
                 )
             )
-            if published_count:
-                await event_dispatcher(
-                    event_schemas.BulkResourceModificationEvent(
-                        initiator=user.id,
-                        request_id=request_id,
-                        resource_type=constants.ResourceType.RECORD,
-                        modification=constants.BulkResourceModification.UPDATED,
-                        succeeded=True,
-                        affected_count=published_count,
-                    )
-                )
+            await mission_ops.cascade_survey_mission_status_to_records(
+                request_id=request_id,
+                survey_mission_id=mission_id,
+                mission_status=new_status,
+                initiator_id=user.id,
+                session=session,
+                event_dispatcher=event_dispatcher,
+            )
 
 
 async def _refresh_discovery_heartbeat(
@@ -1219,11 +1221,14 @@ async def recover_stale_mission_discoveries(
     event_dispatcher: dispatch.EventDispatcherProtocol,
     mission_id: identifiers.SurveyMissionId | None = None,
 ) -> list[identifiers.SurveyMissionId]:
-    """Set to draft the survey missions whose discovery heartbeat is stale.
+    """Set the survey missions whose discovery heartbeat is stale to their idle status.
 
-    The heartbeat is stale after `DISCOVERY_STALE_AFTER_SECONDS`. The recovery is
-    restricted to a single mission if `mission_id` is given. A status change event
-    and a failed discovery end event are dispatched for each recovered mission.
+    The heartbeat is stale after `DISCOVERY_STALE_AFTER_SECONDS`. A recovered
+    mission is published if it is valid and its project is published, and is a
+    draft otherwise, and its records follow its status, as at the end of a
+    discovery run. The recovery is restricted to a single mission if `mission_id`
+    is given. A status change event and a failed discovery end event are
+    dispatched for each recovered mission.
 
     Returns the ids of the recovered missions.
     """
@@ -1232,7 +1237,7 @@ async def recover_stale_mission_discoveries(
         dt.timedelta(seconds=constants.DISCOVERY_STALE_AFTER_SECONDS),
         survey_mission_id=mission_id,
     )
-    for recovered_mission_id, recovered_mission_name in recovered:
+    for recovered_mission_id, recovered_mission_name, new_status in recovered:
         logger.warning(
             f"Recovered survey mission {recovered_mission_id} from an abandoned "
             f"discovery"
@@ -1245,8 +1250,16 @@ async def recover_stale_mission_discoveries(
                 resource_id=str(recovered_mission_id),
                 resource_name=recovered_mission_name,
                 succeeded=True,
-                new_status=constants.SurveyMissionStatus.DRAFT,
+                new_status=new_status,
             )
+        )
+        await mission_ops.cascade_survey_mission_status_to_records(
+            request_id=request_id,
+            survey_mission_id=recovered_mission_id,
+            mission_status=new_status,
+            initiator_id=initiator_id,
+            session=session,
+            event_dispatcher=event_dispatcher,
         )
         await event_dispatcher(
             event_schemas.DiscoveryEvent(
@@ -1263,7 +1276,7 @@ async def recover_stale_mission_discoveries(
                 ),
             )
         )
-    return [recovered_mission_id for recovered_mission_id, _ in recovered]
+    return [recovered_mission_id for recovered_mission_id, _, _ in recovered]
 
 
 async def create_manual_survey_related_record(

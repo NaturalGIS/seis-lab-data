@@ -6,7 +6,10 @@ import shapely
 from sqlalchemy import (
     Boolean,
     String,
+    and_,
     bindparam,
+    case,
+    cast,
     column,
     delete,
     func,
@@ -27,6 +30,7 @@ from ...constants import (
     SURVEY_MISSION_DISCOVERY_STATUSES,
     SURVEY_RELATED_RECORD_IDLE_STATUSES,
     AssetType,
+    SurveyMissionStatus,
     SurveyRelatedRecordStatus,
 )
 from ...schemas import (
@@ -473,6 +477,63 @@ async def compare_and_set_survey_related_record_status(
     return result.rowcount == 1
 
 
+def _build_survey_related_record_idle_status():
+    """Build the SQL expression of the status of a survey-related record which is idle.
+
+    An idle record is published if it is valid and its survey mission is
+    published, otherwise it is a draft. This is the status which record updates
+    and the publication of survey missions give to a record.
+    """
+    mission_status = (
+        select(models.SurveyMission.status)
+        .where(models.SurveyMission.id == models.SurveyRelatedRecord.survey_mission_id)
+        .scalar_subquery()
+    )
+    # the enum values are bound as text, hence the cast to the column's enum type,
+    # which stores the enum names
+    return cast(
+        case(
+            (
+                and_(
+                    models.SurveyRelatedRecord.validation_result[
+                        "is_valid"
+                    ].astext.cast(Boolean)
+                    == true(),
+                    mission_status == SurveyMissionStatus.PUBLISHED,
+                ),
+                SurveyRelatedRecordStatus.PUBLISHED.name,
+            ),
+            else_=SurveyRelatedRecordStatus.DRAFT.name,
+        ),
+        models.SurveyRelatedRecord.status.type,
+    )
+
+
+async def end_survey_related_record_task(
+    session: AsyncSession,
+    survey_related_record_id: identifiers.SurveyRelatedRecordId,
+    busy_status: SurveyRelatedRecordStatus,
+) -> SurveyRelatedRecordStatus | None:
+    """Set the status of a survey-related record held by a task to its idle status.
+
+    The idle status is published if the record is valid and its survey mission is
+    published, and draft otherwise. The status held when the task started is not
+    reused, as the survey mission may have been published or unpublished during
+    the task. Applies only to a record whose status is `busy_status`, so as not to
+    undo a status which something else has set meanwhile. Returns the new status,
+    or None if the record is not in `busy_status`.
+    """
+    result = await session.execute(
+        update(models.SurveyRelatedRecord)
+        .where(models.SurveyRelatedRecord.id == survey_related_record_id)
+        .where(models.SurveyRelatedRecord.status == busy_status)
+        .values(status=_build_survey_related_record_idle_status())
+        .returning(models.SurveyRelatedRecord.status)
+    )
+    await session.commit()
+    return result.scalar_one_or_none()
+
+
 async def bulk_publish_valid_survey_related_records(
     session: AsyncSession,
     survey_mission_id: identifiers.SurveyMissionId,
@@ -513,17 +574,9 @@ async def bulk_unpublish_survey_related_records(
     result = await session.execute(
         update(models.SurveyRelatedRecord)
         .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
-        # a record under export was published when its export started. Unpublishing
-        # it right away means the export's final status restore finds it no longer
-        # under export and leaves it alone
-        .where(
-            models.SurveyRelatedRecord.status.in_(
-                (
-                    SurveyRelatedRecordStatus.PUBLISHED,
-                    SurveyRelatedRecordStatus.UNDER_EXPORT,
-                )
-            )
-        )
+        # records in any other status are held by a task, which sets their status
+        # from that of their mission when it ends
+        .where(models.SurveyRelatedRecord.status == SurveyRelatedRecordStatus.PUBLISHED)
         .values(status=SurveyRelatedRecordStatus.DRAFT)
     )
     await session.commit()
@@ -550,13 +603,14 @@ async def set_survey_related_record_geonode_export(
 async def recover_stale_geonode_exports(
     session: AsyncSession,
     stale_after: dt.timedelta,
-) -> list[tuple[identifiers.SurveyRelatedRecordId, str]]:
-    """Publish again the records whose export was abandoned by a dead worker.
+) -> list[tuple[identifiers.SurveyRelatedRecordId, str, SurveyRelatedRecordStatus]]:
+    """Set the records whose export was abandoned by a dead worker to their idle status.
 
     A record's `updated_at` is set when its status changes to under export and
     nothing else may write to it while it is under export. Hence, one which has
-    been under export for longer than any export may last was abandoned.
-    Returns the ids and names of the recovered records.
+    been under export for longer than any export may last was abandoned. The idle
+    status is the same as in `end_survey_related_record_task`. Returns the ids,
+    names and new statuses of the recovered records.
     """
     result = await session.execute(
         update(models.SurveyRelatedRecord)
@@ -564,10 +618,15 @@ async def recover_stale_geonode_exports(
             models.SurveyRelatedRecord.status == SurveyRelatedRecordStatus.UNDER_EXPORT
         )
         .where(models.SurveyRelatedRecord.updated_at < func.now() - stale_after)
-        .values(status=SurveyRelatedRecordStatus.PUBLISHED)
-        .returning(models.SurveyRelatedRecord.id, models.SurveyRelatedRecord.name)
+        .values(status=_build_survey_related_record_idle_status())
+        .returning(
+            models.SurveyRelatedRecord.id,
+            models.SurveyRelatedRecord.name,
+            models.SurveyRelatedRecord.status,
+        )
     )
     await session.commit()
     return [
-        (identifiers.SurveyRelatedRecordId(id_), name) for id_, name in result.all()
+        (identifiers.SurveyRelatedRecordId(id_), name, status)
+        for id_, name, status in result.all()
     ]

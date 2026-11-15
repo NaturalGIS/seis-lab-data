@@ -37,6 +37,7 @@ from seis_lab_data.db.commands import (  # noqa: E402
     discovery as discovery_commands,
     projects as project_commands,
     surveymissions as mission_commands,
+    surveyrelatedrecords as record_commands,
 )
 from seis_lab_data.db.queries import surveyrelatedrecords as record_queries  # noqa: E402
 from seis_lab_data.operations import (  # noqa: E402
@@ -623,6 +624,45 @@ async def _get_mission_status(db_session_maker, mission_id):
         return (await session.get(models.SurveyMission, mission_id)).status
 
 
+async def _publish_mission(db_session_maker, discovery_env):
+    """Publish the project and the mission of the discovery environment.
+
+    The mission is also made valid, as a published mission of a published project
+    is, so that the end of a discovery keeps it published.
+    """
+    async with db_session_maker() as session:
+        await project_commands.set_project_status(
+            session,
+            identifiers.ProjectId(discovery_env["project"].id),
+            constants.ProjectStatus.PUBLISHED,
+        )
+        await session.execute(
+            sqlalchemy.update(models.SurveyMission)
+            .where(models.SurveyMission.id == discovery_env["mission"].id)
+            .values(
+                validation_result={"is_valid": True, "errors": None},
+                status=constants.SurveyMissionStatus.PUBLISHED,
+            )
+        )
+        await session.commit()
+
+
+async def _make_record_valid(db_session_maker, record_id):
+    """Store a validation result which marks the record as valid."""
+    async with db_session_maker() as session:
+        await session.execute(
+            sqlalchemy.update(models.SurveyRelatedRecord)
+            .where(models.SurveyRelatedRecord.id == record_id)
+            .values(validation_result={"is_valid": True, "errors": None})
+        )
+        await session.commit()
+
+
+async def _get_record_status(db_session_maker, record_id):
+    async with db_session_maker() as session:
+        return (await session.get(models.SurveyRelatedRecord, record_id)).status
+
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_discovery_survives_a_file_that_fails(
@@ -802,10 +842,7 @@ async def test_discovery_keeps_a_published_mission_published(
         discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
     )
     mission_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
-    async with db_session_maker() as session:
-        await mission_commands.set_survey_mission_status(
-            session, mission_id, constants.SurveyMissionStatus.PUBLISHED
-        )
+    await _publish_mission(db_session_maker, discovery_env)
 
     collector = await _run_discovery(
         db_session_maker, mission_id, discovery_env["settings"], admin_user
@@ -821,6 +858,54 @@ async def test_discovery_keeps_a_published_mission_published(
     assert [record.status for record in records] == [
         constants.SurveyRelatedRecordStatus.PUBLISHED
     ]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discovery_unpublishes_a_mission_whose_project_was_unpublished_meanwhile(
+    db_session_maker, admin_user, discovery_env, monkeypatch
+):
+    _write_geotiff(
+        discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
+    )
+    mission_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
+    await _publish_mission(db_session_maker, discovery_env)
+    real_discover = discovery_ops._discover_mission_records
+
+    async def discover_after_unpublishing_project(**kwargs):
+        # the unpublishing of the project leaves its missions under discovery
+        # untouched
+        async with db_session_maker() as session:
+            await project_commands.set_project_status(
+                session,
+                identifiers.ProjectId(discovery_env["project"].id),
+                constants.ProjectStatus.DRAFT,
+            )
+        return await real_discover(**kwargs)
+
+    monkeypatch.setattr(
+        discovery_ops, "_discover_mission_records", discover_after_unpublishing_project
+    )
+
+    collector = await _run_discovery(
+        db_session_maker, mission_id, discovery_env["settings"], admin_user
+    )
+
+    assert _ended_events(collector)[0].succeeded is True
+    assert (
+        await _get_mission_status(db_session_maker, mission_id)
+        == constants.SurveyMissionStatus.DRAFT
+    )
+    records = await _get_mission_records(db_session_maker, mission_id)
+    assert [record.status for record in records] == [
+        constants.SurveyRelatedRecordStatus.DRAFT
+    ]
+    assert [
+        e.new_status
+        for e in collector.events
+        if isinstance(e, event_schemas.ResourceStatusChangedEvent)
+        and e.resource_type == constants.ResourceType.MISSION
+    ][-1] == constants.SurveyMissionStatus.DRAFT
 
 
 @pytest.mark.integration
@@ -891,10 +976,7 @@ async def test_discovery_that_stops_reports_its_end_and_restores_the_status(
         lambda **kwargs: enqueued.append(kwargs),
     )
     mission_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
-    async with db_session_maker() as session:
-        await mission_commands.set_survey_mission_status(
-            session, mission_id, constants.SurveyMissionStatus.PUBLISHED
-        )
+    await _publish_mission(db_session_maker, discovery_env)
 
     collector = _EventCollector()
     async with db_session_maker() as session:
@@ -1157,16 +1239,55 @@ async def test_cancelling_discovery_keeps_the_heartbeat(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "project_status, record_status, expected_mission_status, expected_record_status",
+    [
+        pytest.param(
+            constants.ProjectStatus.PUBLISHED,
+            # a valid record which the abandoned discovery wrote as a draft
+            constants.SurveyRelatedRecordStatus.DRAFT,
+            constants.SurveyMissionStatus.PUBLISHED,
+            constants.SurveyRelatedRecordStatus.PUBLISHED,
+            id="published-project",
+        ),
+        pytest.param(
+            # a project unpublished while the mission was under discovery
+            constants.ProjectStatus.DRAFT,
+            constants.SurveyRelatedRecordStatus.PUBLISHED,
+            constants.SurveyMissionStatus.DRAFT,
+            constants.SurveyRelatedRecordStatus.DRAFT,
+            id="draft-project",
+        ),
+    ],
+)
 async def test_recover_stale_mission_discoveries(
-    db_session_maker, admin_user, discovery_env
+    db_session_maker,
+    admin_user,
+    discovery_env,
+    project_status,
+    record_status,
+    expected_mission_status,
+    expected_record_status,
 ):
     abandoned_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
+    await _publish_mission(db_session_maker, discovery_env)
+    to_create = _record_to_create(discovery_env, "s01/grid.tif")
+    await _create_record_without_discovery(db_session_maker, admin_user, to_create)
+    await _make_record_valid(db_session_maker, to_create.id)
     async with db_session_maker() as session:
         running = await _create_mission(
             session,
             identifiers.ProjectId(discovery_env["project"].id),
             "surveys/running",
             name_suffix=" running",
+        )
+        await project_commands.set_project_status(
+            session,
+            identifiers.ProjectId(discovery_env["project"].id),
+            project_status,
+        )
+        await record_commands.set_survey_related_record_status(
+            session, to_create.id, record_status
         )
     running_id = identifiers.SurveyMissionId(running.id)
     await _set_mission_status(
@@ -1179,19 +1300,30 @@ async def test_recover_stale_mission_discoveries(
         db_session_maker, running_id, constants.SurveyMissionStatus.UNDER_DISCOVERY
     )
 
+    collector = _EventCollector()
     async with db_session_maker() as session:
         recovered = await discovery_ops.recover_stale_mission_discoveries(
             request_id=identifiers.RequestId(uuid.uuid4()),
             initiator_id="system",
             session=session,
-            event_dispatcher=_EventCollector(),
+            event_dispatcher=collector,
         )
 
     assert recovered == [abandoned_id]
+    # the status of an idle mission, rather than the one it had before discovery
     assert (
         await _get_mission_status(db_session_maker, abandoned_id)
-        == constants.SurveyMissionStatus.DRAFT
+        == expected_mission_status
     )
+    assert (
+        await _get_record_status(db_session_maker, to_create.id)
+        == expected_record_status
+    )
+    assert [
+        e.new_status
+        for e in collector.events
+        if isinstance(e, event_schemas.ResourceStatusChangedEvent)
+    ] == [expected_mission_status]
     assert (
         await _get_mission_status(db_session_maker, running_id)
         == constants.SurveyMissionStatus.UNDER_DISCOVERY
@@ -2139,6 +2271,71 @@ async def test_record_previews_of_a_record_created_by_hand(
             skip_if_derived=True,
         )
     assert collector.events == []
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_record_previews_leave_record_unpublished_when_its_mission_was_unpublished(
+    db_session_maker, admin_user, discovery_env, monkeypatch
+):
+    _write_geotiff(
+        discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
+    )
+    await _publish_mission(db_session_maker, discovery_env)
+    to_create = _record_to_create(discovery_env, "s01/grid.tif")
+    await _create_record_without_discovery(db_session_maker, admin_user, to_create)
+    await _make_record_valid(db_session_maker, to_create.id)
+    async with db_session_maker() as session:
+        await record_commands.set_survey_related_record_status(
+            session, to_create.id, constants.SurveyRelatedRecordStatus.PUBLISHED
+        )
+    mission_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
+
+    def fake_dispatch(path, implicit_epsg_code):
+        return deriver_schemas.DerivedPreview(
+            image=b"fake webp payload", bounds_4326=(-8.2, 39.6, -8.1, 39.7)
+        )
+
+    real_replace = preview_ops.asset_commands.replace_derived_record_assets
+
+    async def replace_after_unpublishing_mission(session, *args, **kwargs):
+        # the mission is unpublished while the record is under derivation, which
+        # the unpublishing of its records leaves untouched
+        await mission_commands.set_survey_mission_status(
+            session, mission_id, constants.SurveyMissionStatus.DRAFT
+        )
+        await record_commands.bulk_unpublish_survey_related_records(session, mission_id)
+        return await real_replace(session, *args, **kwargs)
+
+    monkeypatch.setattr(preview_ops.deriver_dispatch, "dispatch_deriver", fake_dispatch)
+    monkeypatch.setattr(
+        preview_ops.asset_commands,
+        "replace_derived_record_assets",
+        replace_after_unpublishing_mission,
+    )
+
+    collector = _EventCollector()
+    async with db_session_maker() as session:
+        await preview_ops.generate_record_previews(
+            request_id=identifiers.RequestId(uuid.uuid4()),
+            survey_related_record=await record_queries.get_survey_related_record(
+                session, to_create.id
+            ),
+            initiator=admin_user,
+            session=session,
+            event_dispatcher=collector,
+            settings=discovery_env["settings"],
+        )
+
+    assert (
+        await _get_record_status(db_session_maker, to_create.id)
+        == constants.SurveyRelatedRecordStatus.DRAFT
+    )
+    assert [
+        (e.resource_id, e.new_status)
+        for e in collector.events
+        if isinstance(e, event_schemas.ResourceStatusChangedEvent)
+    ] == [(str(to_create.id), constants.SurveyRelatedRecordStatus.DRAFT)]
 
 
 @pytest.mark.integration

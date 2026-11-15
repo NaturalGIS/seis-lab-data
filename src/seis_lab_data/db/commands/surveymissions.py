@@ -3,14 +3,22 @@ import logging
 
 from sqlalchemy import (
     Boolean,
+    and_,
+    case,
+    cast,
     func,
+    select,
     true,
     update,
 )
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import errors
-from ...constants import SurveyMissionStatus
+from ...constants import (
+    SURVEY_MISSION_DISCOVERY_STATUSES,
+    ProjectStatus,
+    SurveyMissionStatus,
+)
 from ...schemas import (
     identifiers,
     surveymissions as mission_schemas,
@@ -185,38 +193,96 @@ async def refresh_survey_mission_discovery_heartbeat(
     return result.scalar_one_or_none()
 
 
+def _build_survey_mission_idle_status():
+    """Build the SQL expression of the status of a survey mission which is idle.
+
+    An idle survey mission is published if it is valid and its project is
+    published, otherwise it is a draft. This is the status which survey mission
+    updates and the publication of projects give to a survey mission.
+    """
+    project_status = (
+        select(models.Project.status)
+        .where(models.Project.id == models.SurveyMission.project_id)
+        .scalar_subquery()
+    )
+    # the enum values are bound as text, hence the cast to the column's enum type,
+    # which stores the enum names
+    return cast(
+        case(
+            (
+                and_(
+                    models.SurveyMission.validation_result["is_valid"].astext.cast(
+                        Boolean
+                    )
+                    == true(),
+                    project_status == ProjectStatus.PUBLISHED,
+                ),
+                SurveyMissionStatus.PUBLISHED.name,
+            ),
+            else_=SurveyMissionStatus.DRAFT.name,
+        ),
+        models.SurveyMission.status.type,
+    )
+
+
+async def end_survey_mission_discovery(
+    session: AsyncSession,
+    survey_mission_id: identifiers.SurveyMissionId,
+) -> SurveyMissionStatus | None:
+    """Set the status of a survey mission under discovery to its idle status.
+
+    The idle status is published if the survey mission is valid and its project
+    is published, and draft otherwise. The status held when the discovery started
+    is not reused, as the project may have been published or unpublished during
+    the discovery, which leaves survey missions under discovery untouched.
+    Applies only to a survey mission whose status is either under discovery or
+    cancelling discovery. Returns the new status, or None if the survey mission is
+    not in one of those statuses.
+    """
+    result = await session.execute(
+        update(models.SurveyMission)
+        .where(models.SurveyMission.id == survey_mission_id)
+        .where(models.SurveyMission.status.in_(SURVEY_MISSION_DISCOVERY_STATUSES))
+        .values(status=_build_survey_mission_idle_status())
+        .returning(models.SurveyMission.status)
+    )
+    await session.commit()
+    return result.scalar_one_or_none()
+
+
 async def recover_stale_survey_mission_discoveries(
     session: AsyncSession,
     stale_after: dt.timedelta,
     survey_mission_id: identifiers.SurveyMissionId | None = None,
-) -> list[tuple[identifiers.SurveyMissionId, str]]:
-    """Set to draft the survey missions whose discovery heartbeat is stale.
+) -> list[tuple[identifiers.SurveyMissionId, str, SurveyMissionStatus]]:
+    """Set the survey missions whose discovery heartbeat is stale to their idle status.
 
     A survey mission's discovery heartbeat is stale if its status is either under
     discovery or cancelling discovery and its `updated_at` is older than
-    `stale_after`. The update is restricted to a single survey mission if
-    `survey_mission_id` is given. Returns the ids and names of the recovered survey
+    `stale_after`. The idle status is the same as in `end_survey_mission_discovery`.
+    The update is restricted to a single survey mission if `survey_mission_id` is
+    given. Returns the ids, names and new statuses of the recovered survey
     missions.
     """
     statement = (
         update(models.SurveyMission)
-        .where(
-            models.SurveyMission.status.in_(
-                (
-                    SurveyMissionStatus.UNDER_DISCOVERY,
-                    SurveyMissionStatus.CANCELLING_DISCOVERY,
-                )
-            )
-        )
+        .where(models.SurveyMission.status.in_(SURVEY_MISSION_DISCOVERY_STATUSES))
         .where(models.SurveyMission.updated_at < func.now() - stale_after)
-        .values(status=SurveyMissionStatus.DRAFT)
-        .returning(models.SurveyMission.id, models.SurveyMission.name)
+        .values(status=_build_survey_mission_idle_status())
+        .returning(
+            models.SurveyMission.id,
+            models.SurveyMission.name,
+            models.SurveyMission.status,
+        )
     )
     if survey_mission_id is not None:
         statement = statement.where(models.SurveyMission.id == survey_mission_id)
     result = await session.execute(statement)
     await session.commit()
-    return [(identifiers.SurveyMissionId(id_), name) for id_, name in result.all()]
+    return [
+        (identifiers.SurveyMissionId(id_), name, status)
+        for id_, name, status in result.all()
+    ]
 
 
 async def set_survey_mission_thumbnail(

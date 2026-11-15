@@ -135,10 +135,13 @@ async def generate_record_previews(
 
     The generated previews replace the record's existing derived assets. If no
     preview is generated, or if the record's status changes during rendering, the
-    existing derived assets are kept. A derivation event is dispatched once the
-    previews are stored.
+    existing derived assets are kept. Afterwards the record is published if it is
+    valid and its survey mission is published, and is a draft otherwise. A
+    derivation event is dispatched once the previews are stored.
     """
     record_id = identifiers.SurveyRelatedRecordId(survey_related_record.id)
+    # read before any commit, which expires the instance's attributes
+    record_name = survey_related_record.name
     if (
         original_status := survey_related_record.status
     ) not in constants.SURVEY_RELATED_RECORD_IDLE_STATUSES:
@@ -247,14 +250,25 @@ async def generate_record_previews(
             session, survey_related_record, derived
         )
     finally:
-        # conditional as well, so as not to undo a status which something else,
-        # such as the bulk publication of the mission, has set meanwhile
-        await record_commands.compare_and_set_survey_related_record_status(
+        # not the original status, as the record's mission may have been published
+        # or unpublished meanwhile, which leaves records under derivation untouched
+        new_status = await record_commands.end_survey_related_record_task(
             session,
             record_id,
             constants.SurveyRelatedRecordStatus.UNDER_DERIVATION,
-            original_status,
         )
+        if new_status not in (None, original_status):
+            await event_dispatcher(
+                event_schemas.ResourceStatusChangedEvent(
+                    initiator=initiator.id,
+                    request_id=request_id,
+                    resource_type=constants.ResourceType.RECORD,
+                    resource_id=str(record_id),
+                    resource_name=record_name,
+                    succeeded=True,
+                    new_status=new_status,
+                )
+            )
     await event_dispatcher(
         event_schemas.DerivationEvent(
             initiator=initiator.id,
