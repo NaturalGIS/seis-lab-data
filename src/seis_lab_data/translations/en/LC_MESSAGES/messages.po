@@ -150,6 +150,10 @@ msgstr ""
 msgid "Relative path"
 msgstr ""
 
+#: webapp/templates/survey-related-records/detail-component.html:270
+msgid "Full path"
+msgstr ""
+
 #: webapp/templates/survey-missions/list-component.html:5
 msgid "No survey missions found"
 msgstr ""
