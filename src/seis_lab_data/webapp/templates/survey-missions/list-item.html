@@ -1,8 +1,9 @@
-{% import "macros-buttons.html" as macros_buttons %}
 <div class="col">
-    <div class="card overflow-hidden list-item-stripe list-item-stripe-survey-mission{% if item.status.value != "published" %} item-unpublished{% endif %}">
+    <div class="card list-item-card overflow-hidden list-item-stripe list-item-stripe-survey-mission{% if item.status.value != "published" %} item-unpublished{% endif %}">
         <div class="d-flex">
-            <div class="list-item-thumb">
+            {# a mouse-only shortcut to the detail page: the item's name is its link for
+               keyboard and screen reader users, which would otherwise find it twice #}
+            <a class="list-item-thumb" href="{{ url_for('survey_missions:detail', survey_mission_id=item.id) }}" tabindex="-1" aria-hidden="true">
                 {% if item.has_thumbnail %}
                     <img
                             class="placeholder-rectangle bg-light object-fit-contain"
@@ -16,7 +17,7 @@
                         <span class="material-icons-outlined text-survey-mission" aria-hidden="true">{{ icons.survey_missions }}</span>
                     </div>
                 {% endif %}
-            </div>
+            </a>
             <div class="card-body list-item-body flex-grow-1 py-2">
                 <div class="d-flex align-items-start gap-2">
                     <a href="{{ url_for('projects:detail', project_id=item.project.id) }}" class="badge bg-project text-decoration-none mb-1">
@@ -28,7 +29,7 @@
                         </span>
                     {% endif %}
                 </div>
-                <h5 class="card-title text-truncate mb-1"><span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.survey_missions }}</span>{{ item.name|default(_("name not available"), True) }}</h5>
+                <h5 class="card-title text-truncate mb-1"><a class="list-item-link" href="{{ url_for('survey_missions:detail', survey_mission_id=item.id) }}"><span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.survey_missions }}</span>{{ item.name|default(_("name not available"), True) }}</a></h5>
                 <div class="small">
                     <span class="material-icons-outlined me-1 fs-6">{{ icons.survey_related_records }}</span>{{ list_item_counts[item.id].num_survey_related_records }}
                 </div>
@@ -44,12 +45,9 @@
                         {% endif %}
                     </div>
                 </div>
-                <p class="card-text small list-item-description mt-1 mb-2">
+                <p class="card-text small list-item-description mt-1 mb-1">
                     {{ item.description|default(_("description not available"), True) }}
                 </p>
-                <div class="d-flex align-items-center flex-wrap gap-2">
-                    {{ macros_buttons.render_view_details_button(url_for('survey_missions:detail', survey_mission_id=item.id), size_css_class="btn-sm") }}
-                </div>
             </div>
         </div>
     </div>

@@ -70,7 +70,6 @@ class SeisLabDataIconSettings(BaseModel):
     survey_missions: str = "directions_boat"
     survey_related_records: str = "source"
     user: str = "person"
-    view_details: str = "info"
     validation_valid: str = "check_circle"
     validation_invalid: str = "dangerous"
     workflow_stage: str = "stairs"
