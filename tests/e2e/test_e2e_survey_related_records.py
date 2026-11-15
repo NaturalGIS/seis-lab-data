@@ -168,6 +168,10 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
     authenticated_page.get_by_role(
         "button", name="show-delete-confirmation-modal"
     ).click()
+    # the confirmation dialog names the item about to be deleted
+    expect(authenticated_page.get_by_role("dialog")).to_contain_text(
+        f"“The modified name {record_name_id}”"
+    )
     authenticated_page.get_by_role("button", name="delete-item").click()
     expect(authenticated_page.get_by_role("link", name="new-item")).to_be_visible()
 

@@ -76,7 +76,8 @@
                             aria-label={{ _("Close") }}
                     ></button>
                 </div>
-                <div class="modal-body">
+                {# text-break wraps long resource names which have no spaces #}
+                <div class="modal-body text-break">
                     {{ modal_dialog_confirmation_text }}
                 </div>
                 <div class="modal-footer">

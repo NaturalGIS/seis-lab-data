@@ -196,8 +196,8 @@
                                                     aria-label={{ _("Close") }}
                                             ></button>
                                         </div>
-                                        <div class="modal-body">
-                                            <p>{{ _("Are you sure you want to export this survey-related record to GeoNode at %(geonode_url)s?") | format(geonode_url=geonode_url) }}</p>
+                                        <div class="modal-body text-break">
+                                            <p>{{ _("Are you sure you want to export the survey-related record “%(name)s” to GeoNode at %(geonode_url)s?") | format(name=item.name, geonode_url=geonode_url) }}</p>
                                             {% if item.geonode_resource_url %}
                                                 <p>{{ _("This record has already been exported to GeoNode on %(date)s and should be available at: %(resource_url)s") | format(date=item.geonode_exported_at.date().isoformat(), resource_url=item.geonode_resource_url) }}</p>
                                                 <p>{{ _("If you choose to export the record again, it will replace the one already present on the GeoNode instance.") }}</p>
@@ -228,7 +228,7 @@
                                 running_message=_("deleting survey-related record..."),
                                 generated_csrf_token=csrf_token(request),
                                 modal_dialog_title=_("delete survey-related record"),
-                                modal_dialog_confirmation_text=_("are you sure you want to delete this survey-related record?"),
+                                modal_dialog_confirmation_text=_("Are you sure you want to delete the survey-related record “%(name)s”?") | format(name=item.name),
                                 disabled_condition="$isBusy || $missionUnderDiscovery"
                             ) }}
                         {% endif %}

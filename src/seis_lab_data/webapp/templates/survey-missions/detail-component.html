@@ -157,8 +157,8 @@
                         <h1 class="modal-title fs-5" id="discover-records-modal-label">{{ _("discover records") | capitalize }}</h1>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _("Close") }}"></button>
                     </div>
-                    <div class="modal-body">
-                        {{ _("Are you sure you want to discover records for this survey mission? Discovery may take a long time to finish.") }}
+                    <div class="modal-body text-break">
+                        {{ _("Are you sure you want to discover records for the survey mission “%(name)s”? Discovery may take a long time to finish.") | format(name=item.name) }}
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
@@ -182,8 +182,8 @@
                         <h1 class="modal-title fs-5" id="cancel-discovery-modal-label">{{ _("cancel discovery") | capitalize }}</h1>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _("Close") }}"></button>
                     </div>
-                    <div class="modal-body">
-                        {{ _("Are you sure you want to cancel this survey mission's discovery? The survey-related records it created until now are kept.") }}
+                    <div class="modal-body text-break">
+                        {{ _("Are you sure you want to cancel the discovery of the survey mission “%(name)s”? The survey-related records it created until now are kept.") | format(name=item.name) }}
                     </div>
                     <div class="modal-footer">
                         {# not 'cancel', which would be confusing next to cancelling the discovery #}

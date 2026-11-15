@@ -83,6 +83,10 @@ def test_workflow_stage_lifecycle(authenticated_page: Page):
     # clean up by deleting the newly-created stage
     card = _find_workflow_stage_card(authenticated_page, stage_name)
     card.get_by_role("button", name="show-delete-confirmation-modal").click()
+    # the confirmation dialog names the item about to be deleted
+    expect(authenticated_page.get_by_role("dialog")).to_contain_text(
+        f"“{updated_stage_name}”"
+    )
     authenticated_page.get_by_role("button", name="delete-item").click()
     expect(card).not_to_be_visible()
 
