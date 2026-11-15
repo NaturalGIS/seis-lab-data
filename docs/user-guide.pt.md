@@ -13,7 +13,7 @@ e pré-visualizações derivadas.
 Os registos podem ser criados manualmente ou gerados por uma descoberta da missão, que percorre o
 diretório da missão no arquivo e cria um registo para cada ficheiro que corresponde aos padrões
 de caminho configurados, extraindo do próprio ficheiro a sua extensão espacial, a sua extensão
-temporal e uma descrição.
+temporal e outros metadados.
 
 O catálogo é publicado através da interface web e de uma API STAC, disponível no caminho `/stac`,
 que expõe apenas os itens públicos.
@@ -129,9 +129,9 @@ No fim de uma tarefa, o item regressa ao estado que tinha antes do início da ta
 
 Uma descoberta da missão percorre o diretório da missão no arquivo e cria um registo para cada
 ficheiro que corresponde a uma configuração de descoberta de recursos. Cada registo contém um
-recurso de dados que aponta para o seu ficheiro. A extensão espacial, a extensão temporal e a
-descrição do registo são extraídas dos metadados do ficheiro, e a sua categoria e o seu estádio
-são obtidos da configuração.
+recurso de dados que aponta para o seu ficheiro. A extensão espacial e a extensão temporal do
+registo são extraídas dos metadados do ficheiro, e a sua categoria e o seu estádio são obtidos da
+configuração.
 
 A descoberta é configurada através das configurações de descoberta de recursos, descritas em
 [Configurações de descoberta de recursos](#configuracoes-de-descoberta-de-recursos). É iniciada
@@ -306,9 +306,10 @@ falha.
 A descoberta cria um registo para cada ficheiro que corresponde a uma configuração de descoberta
 de recursos e que ainda não é referido por um registo da missão. O registo recebe o nome do
 ficheiro, obtém a sua categoria e o seu estádio da configuração correspondente e contém um recurso
-de dados que se refere ao ficheiro. A sua descrição, a sua extensão espacial e a sua extensão
-temporal são extraídas dos metadados do ficheiro. Para os ficheiros cujos metadados não
-identificam um sistema de referência de coordenadas, é usado o CRS implícito da missão.
+de dados que se refere ao ficheiro. A sua extensão espacial e a sua extensão temporal são
+extraídas dos metadados do ficheiro. Os outros metadados extraídos são apresentados na página de
+detalhe do registo. Para os ficheiros cujos metadados não identificam um sistema de referência de
+coordenadas, é usado o CRS implícito da missão.
 
 Os registos criados pela descoberta são validados à medida que são criados. No fim da descoberta,
 os registos válidos são publicados se a missão estiver pública, e os restantes registos
@@ -332,10 +333,9 @@ pedidas pré-visualizações para os registos mais antigos da missão que não a
 
 **Executar novamente uma descoberta** ignora os ficheiros que já são referidos por um registo da
 missão. Se um desses registos não tiver extensão espacial e o CRS implícito da missão for
-projetado, a sua extensão espacial e a sua extensão temporal são extraídas novamente, e o resumo
-no fim da sua descrição é substituído por um novo. Isto permite corrigir os registos de uma missão
-que foi descoberta com um CRS implícito inadequado: corrigir o CRS implícito e executar novamente
-a descoberta.
+projetado, a sua extensão espacial, a sua extensão temporal e os outros metadados do ficheiro são
+extraídos novamente. Isto permite corrigir os registos de uma missão que foi descoberta com um CRS
+implícito inadequado: corrigir o CRS implícito e executar novamente a descoberta.
 
 **Cancelar uma descoberta:** o botão **cancelar descoberta...** interrompe uma descoberta em curso
 após uma confirmação. A missão passa ao estado a cancelar descoberta até a descoberta parar. Os
@@ -369,7 +369,9 @@ registo tem as seguintes propriedades:
 
 A página de detalhe do registo apresenta as suas propriedades, um mapa com a sua extensão
 espacial e, quando disponível, a sua pré-visualização, as suas relações com outros registos e os
-seus recursos de dados, com um botão de descarga para cada um.
+seus recursos de dados, com um botão de descarga para cada um. A página apresenta também os
+metadados extraídos do ficheiro de dados do registo, como o formato, o CRS e o tamanho do
+ficheiro.
 
 ### Pesquisar registos
 
@@ -413,7 +415,7 @@ a missão está em descoberta. O formulário tem os seguintes campos:
 | Campo | Descrição |
 |-------|-----------|
 | Nome | Obrigatório. Identifica o registo e deve ser único entre os registos da missão. Até 100 caracteres; um registo válido requer pelo menos 5. |
-| Descrição | Opcional. Resumo do conjunto de dados descrito pelo registo, até 500 caracteres. É-lhe acrescentado um resumo dos metadados extraídos do ficheiro de dados do registo. |
+| Descrição | Opcional. Resumo do conjunto de dados descrito pelo registo, até 500 caracteres. |
 | Categoria | Obrigatório. Classifica o registo pelo tipo de dados que descreve. A lista contém as categorias definidas em [Categorias](#categorias). |
 | Estádio | Obrigatório. Indica o estádio de processamento dos dados, como dados em bruto ou processados. A lista contém os estádios definidos em [Estádios](#estadios). |
 | Extensão espacial | Longitude e latitude mínimas e máximas dos dados, em graus decimais, introduzidas como números ou desenhadas como um retângulo no mapa. Um registo válido requer uma extensão com área não nula. É substituída pela extensão extraída do ficheiro de dados do registo, quando esta é extraída. |
@@ -425,10 +427,8 @@ a missão está em descoberta. O formulário tem os seguintes campos:
 Quando o registo é criado, os metadados são extraídos do ficheiro do primeiro recurso de dados com
 caminho relativo. A extensão espacial e a extensão temporal extraídas substituem as introduzidas no
 formulário; os valores que não é possível extrair do ficheiro são mantidos tal como introduzidos.
-Um resumo dos metadados extraídos, iniciado por "Auto-extracted:", é acrescentado à descrição numa
-nova linha. O texto introduzido na descrição é mantido integralmente: quando o texto combinado
-excede 500 caracteres, o resumo é encurtado para caber, e omitido se não restar espaço. São depois
-geradas pré-visualizações tal como para os registos descobertos, de acordo com a configuração de
+Os outros metadados extraídos são apresentados na página de detalhe do registo. São depois geradas
+pré-visualizações tal como para os registos descobertos, de acordo com a configuração de
 descoberta de recursos que corresponde ao caminho do recurso.
 
 ### Atualizar um registo
@@ -440,9 +440,9 @@ descoberta.
 
 Quando o conjunto de caminhos dos recursos de dados é alterado, os metadados são extraídos
 novamente do primeiro recurso de dados, tal como na criação, e as pré-visualizações do registo são
-geradas novamente. Um resumo de uma extração anterior no fim da descrição é substituído pelo novo.
-As atualizações que não alteram os caminhos dos recursos de dados mantêm os valores introduzidos
-no formulário.
+geradas novamente. Os outros metadados de uma extração anterior são substituídos pelos novos, ou
+removidos quando não é possível extrair metadados. As atualizações que não alteram os caminhos dos
+recursos de dados mantêm os valores introduzidos no formulário.
 
 **Atualização em massa:** a ação **bulk update** da lista de registos da missão atualiza de uma
 só vez os registos selecionados. O formulário apresenta o número de registos a atualizar. Cada um
