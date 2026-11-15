@@ -40,9 +40,9 @@ class ExtractedMetadata(pydantic.BaseModel):
         """Return the metadata shown on a record's page, as JSON values.
 
         Fields holding their default value are left out, and so are the extents,
-        which records store in columns of their own, the CRS WKT and the CRS codes
-        quoted by a SEG-Y header. The structure of the data is added as `type`, if
-        known.
+        which records store in columns of their own, the CRS WKT, the CRS codes
+        quoted by a SEG-Y header, and the positions sampled from its traces. The
+        structure of the data is added as `type`, if known.
 
         A field holding a non-finite float, or a list with one, is left out as well:
         PostgreSQL rejects such values in JSON, so the file would get no record.
@@ -56,6 +56,7 @@ class ExtractedMetadata(pydantic.BaseModel):
                 "temporal_extent_begin",
                 "temporal_extent_end",
                 "header_epsg_codes",
+                "sampled_positions",
             },
         )
         if self.data_type is not None:
@@ -116,6 +117,8 @@ class SegyMetadata(ExtractedMetadata):
     coverage: str = "full"
     # codes quoted in the free-text header; discovery decides whether one applies
     header_epsg_codes: tuple[int, ...] = ()
+    # the points behind bbox_native, in trace order, for the track preview
+    sampled_positions: tuple[tuple[float, float], ...] = ()
 
 
 ExtractionResult = (

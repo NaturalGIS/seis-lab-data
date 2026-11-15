@@ -177,7 +177,11 @@ def extract_segy_metadata(path: Path | str) -> SegyMetadata:
             "metres": None,
             "geographic": None,
         }
-        accepted = {"metres": 0, "geographic": 0}
+        # the accepted points behind each box, in trace order, for the track preview
+        positions: dict[str, list[tuple[float, float]]] = {
+            "metres": [],
+            "geographic": [],
+        }
         units_counts: collections.Counter[int] = collections.Counter()
         parsed_count = 0
         garbage_count = 0
@@ -202,7 +206,7 @@ def extract_segy_metadata(path: Path | str) -> SegyMetadata:
                 garbage_count += 1
                 continue
             category, x, y = point
-            accepted[category] += 1
+            positions[category].append((x, y))
             box = boxes[category]
             boxes[category] = (
                 (x, y, x, y)
@@ -218,18 +222,18 @@ def extract_segy_metadata(path: Path | str) -> SegyMetadata:
             # the points behind it were garbage that slipped the per-value
             # filter, so counting them as such is what flags the coverage
             boxes[category] = None
-            garbage_count += accepted[category]
-            accepted[category] = 0
+            garbage_count += len(positions[category])
+            positions[category] = []
     # A box supported by only a sliver of the sampled traces is dropped and the
     # coverage flagged, but only once enough traces were sampled to trust the
     # ratio - a genuinely small file with a few real fixes must keep its box.
-    accepted_total = accepted["metres"] + accepted["geographic"]
+    accepted_total = len(positions["metres"]) + len(positions["geographic"])
     low_support = parsed_count >= _MIN_SUPPORT_PARSED and 0 < accepted_total < max(
         _MIN_SUPPORT_FLOOR, parsed_count * _MIN_SUPPORT_FRACTION
     )
     if low_support:
         boxes["metres"] = boxes["geographic"] = None
-        accepted["metres"] = accepted["geographic"] = 0
+        positions["metres"] = positions["geographic"] = []
     dominant_units = units_counts.most_common(1)[0][0]
     shared_facts = {
         **header_facts,
@@ -243,7 +247,7 @@ def extract_segy_metadata(path: Path | str) -> SegyMetadata:
         "temporal_extent_begin": min_date,
         "temporal_extent_end": max_date,
     }
-    if accepted["geographic"] > accepted["metres"]:
+    if len(positions["geographic"]) > len(positions["metres"]):
         return SegyMetadata(
             **shared_facts,
             # geographic positions carry no datum declaration; WGS84-family in
@@ -253,8 +257,13 @@ def extract_segy_metadata(path: Path | str) -> SegyMetadata:
             crs_name="WGS 84",
             bbox_native=boxes["geographic"],
             bbox_4326=boxes["geographic"],
+            sampled_positions=positions["geographic"],
         )
-    return SegyMetadata(**shared_facts, bbox_native=boxes["metres"])
+    return SegyMetadata(
+        **shared_facts,
+        bbox_native=boxes["metres"],
+        sampled_positions=positions["metres"],
+    )
 
 
 def _parse_binary_header(
