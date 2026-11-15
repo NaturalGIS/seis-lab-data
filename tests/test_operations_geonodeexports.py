@@ -22,7 +22,10 @@ from seis_lab_data import (
     geonode,
 )
 from seis_lab_data.db import models
-from seis_lab_data.db.commands import surveyrelatedrecords as record_commands
+from seis_lab_data.db.commands import (
+    surveymissions as mission_commands,
+    surveyrelatedrecords as record_commands,
+)
 from seis_lab_data.db.queries import surveyrelatedrecords as record_queries
 from seis_lab_data.operations import (
     geonodeexports as export_ops,
@@ -184,7 +187,11 @@ async def _make_exportable_record(
     status,
     data_file_names=("points.geojson",),
 ) -> identifiers.SurveyRelatedRecordId:
-    """Give the record a data asset, backed by the first of the data files."""
+    """Give the record a data asset, backed by the first of the data files.
+
+    The record is also made valid and its survey mission published, as a record
+    which is published is, so that the end of an export publishes it again.
+    """
     record_id = identifiers.SurveyRelatedRecordId(record.id)
     db_record = await record_queries.get_survey_related_record(session, record_id)
     data_dir = archive_root / db_record.survey_mission.relative_path / "data"
@@ -201,6 +208,14 @@ async def _make_exportable_record(
         )
     )
     await session.commit()
+    await record_commands.update_survey_related_record_validation_result(
+        session, db_record, {"is_valid": True, "errors": None}
+    )
+    await mission_commands.set_survey_mission_status(
+        session,
+        identifiers.SurveyMissionId(db_record.survey_mission_id),
+        constants.SurveyMissionStatus.PUBLISHED,
+    )
     await record_commands.set_survey_related_record_status(session, record_id, status)
     return record_id
 
@@ -572,14 +587,39 @@ async def test_bulk_publication_leaves_record_under_export_alone(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "mission_status, expected_status",
+    [
+        pytest.param(
+            constants.SurveyMissionStatus.PUBLISHED,
+            constants.SurveyRelatedRecordStatus.PUBLISHED,
+            id="published-mission",
+        ),
+        pytest.param(
+            constants.SurveyMissionStatus.DRAFT,
+            constants.SurveyRelatedRecordStatus.DRAFT,
+            id="draft-mission",
+        ),
+    ],
+)
 async def test_abandoned_exports_are_recovered(
-    db, db_session_maker, sample_survey_related_records
+    db, db_session_maker, sample_survey_related_records, mission_status, expected_status
 ):
+    stale_record, fresh_record = sample_survey_related_records[:2]
     stale_id, fresh_id = (
-        identifiers.SurveyRelatedRecordId(r.id)
-        for r in sample_survey_related_records[:2]
+        identifiers.SurveyRelatedRecordId(r.id) for r in (stale_record, fresh_record)
     )
     async with db_session_maker() as session:
+        await record_commands.update_survey_related_record_validation_result(
+            session,
+            await record_queries.get_survey_related_record(session, stale_id),
+            {"is_valid": True, "errors": None},
+        )
+        await mission_commands.set_survey_mission_status(
+            session,
+            identifiers.SurveyMissionId(stale_record.survey_mission_id),
+            mission_status,
+        )
         for record_id in (stale_id, fresh_id):
             await record_commands.compare_and_set_survey_related_record_status(
                 session,
@@ -602,11 +642,63 @@ async def test_abandoned_exports_are_recovered(
         stale = await record_queries.get_survey_related_record(session, stale_id)
         fresh = await record_queries.get_survey_related_record(session, fresh_id)
 
-    assert stale.status == constants.SurveyRelatedRecordStatus.PUBLISHED
+    # published again only if its mission is published
+    assert stale.status == expected_status
     # its status change stamped updated_at, which is what tells it is not stale
     assert fresh.updated_at is not None
     assert fresh.status == constants.SurveyRelatedRecordStatus.UNDER_EXPORT
     assert [(type(e), e.resource_id) for e in dispatcher.events] == [
         (event_schemas.ResourceStatusChangedEvent, str(stale_id)),
         (event_schemas.ExportEvent, str(stale_id)),
+    ]
+    assert dispatcher.events[0].new_status == expected_status
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_export_leaves_record_unpublished_when_its_mission_was_unpublished(
+    db,
+    db_session_maker,
+    sample_survey_related_records,
+    admin_user,
+    export_settings,
+    monkeypatch,
+):
+    _install_fake_geonode(monkeypatch, _FakeGeoNode())
+    record = sample_survey_related_records[0]
+    mission_id = identifiers.SurveyMissionId(record.survey_mission_id)
+    real_set_export = record_commands.set_survey_related_record_geonode_export
+
+    async def set_export_after_unpublishing_mission(session, *args, **kwargs):
+        # the mission is unpublished while the record is under export, which the
+        # unpublishing of its records leaves untouched
+        await mission_commands.set_survey_mission_status(
+            session, mission_id, constants.SurveyMissionStatus.DRAFT
+        )
+        await record_commands.bulk_unpublish_survey_related_records(session, mission_id)
+        return await real_set_export(session, *args, **kwargs)
+
+    monkeypatch.setattr(
+        export_ops.record_commands,
+        "set_survey_related_record_geonode_export",
+        set_export_after_unpublishing_mission,
+    )
+    async with db_session_maker() as session:
+        record_id = await _make_exportable_record(
+            session,
+            record,
+            export_settings.readonly_archive_root_directory,
+            constants.SurveyRelatedRecordStatus.PUBLISHED,
+        )
+        dispatcher = await _export(session, record_id, admin_user, export_settings)
+        exported = await record_queries.get_survey_related_record(session, record_id)
+
+    assert exported.status == constants.SurveyRelatedRecordStatus.DRAFT
+    assert [
+        e.new_status
+        for e in dispatcher.events
+        if isinstance(e, event_schemas.ResourceStatusChangedEvent)
+    ] == [
+        constants.SurveyRelatedRecordStatus.UNDER_EXPORT,
+        constants.SurveyRelatedRecordStatus.DRAFT,
     ]

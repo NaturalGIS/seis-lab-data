@@ -288,15 +288,15 @@ async def export_survey_related_record(
         succeeded = True
         details = resource_url
     finally:
-        # conditional, so as not to undo a status which something else, such
-        # as the unpublishing of the record's mission, has set meanwhile -
-        # which has then announced the record's status change itself
-        if await record_commands.compare_and_set_survey_related_record_status(
-            session,
-            survey_related_record_id,
-            constants.SurveyRelatedRecordStatus.UNDER_EXPORT,
-            constants.SurveyRelatedRecordStatus.PUBLISHED,
-        ):
+        # the record is published again only if its mission still is, which
+        # may have been unpublished during the export
+        if (
+            new_status := await record_commands.end_survey_related_record_task(
+                session,
+                survey_related_record_id,
+                constants.SurveyRelatedRecordStatus.UNDER_EXPORT,
+            )
+        ) is not None:
             await event_dispatcher(
                 event_schemas.ResourceStatusChangedEvent(
                     initiator=initiator.id,
@@ -305,7 +305,7 @@ async def export_survey_related_record(
                     resource_id=str(survey_related_record_id),
                     resource_name=record_name,
                     succeeded=True,
-                    new_status=constants.SurveyRelatedRecordStatus.PUBLISHED,
+                    new_status=new_status,
                 )
             )
     await event_dispatcher(
@@ -328,12 +328,16 @@ async def recover_stale_geonode_exports(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> None:
-    """Publish again the records whose export was abandoned by a dead worker."""
+    """Set the records whose export was abandoned by a dead worker to their idle status.
+
+    A recovered record is published again if it is valid and its survey mission is
+    published, and is a draft otherwise.
+    """
     # no permission check, unlike user-facing operations: this is system-initiated
     recovered = await record_commands.recover_stale_geonode_exports(
         session, dt.timedelta(seconds=constants.GEONODE_EXPORT_STALE_AFTER_SECONDS)
     )
-    for record_id, record_name in recovered:
+    for record_id, record_name, new_status in recovered:
         logger.warning(f"Recovered survey-related record {record_id} from export")
         await event_dispatcher(
             event_schemas.ResourceStatusChangedEvent(
@@ -343,7 +347,7 @@ async def recover_stale_geonode_exports(
                 resource_id=str(record_id),
                 resource_name=record_name,
                 succeeded=True,
-                new_status=constants.SurveyRelatedRecordStatus.PUBLISHED,
+                new_status=new_status,
             )
         )
         await event_dispatcher(

@@ -185,6 +185,45 @@ async def change_survey_mission_status(
     return updated_survey_mission
 
 
+async def cascade_survey_mission_status_to_records(
+    *,
+    request_id: identifiers.RequestId,
+    survey_mission_id: identifiers.SurveyMissionId,
+    mission_status: constants.SurveyMissionStatus,
+    initiator_id: str,
+    session: AsyncSession,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+) -> None:
+    """Align the status of a survey mission's records with the mission's status.
+
+    The valid draft records of a published survey mission are published, and the
+    published records of a survey mission in any other status are unpublished, as
+    a record must not be public while its survey mission is not. Records held by a
+    task are left untouched, the task sets their status when it ends.
+    """
+    if mission_status == constants.SurveyMissionStatus.PUBLISHED:
+        affected_count = (
+            await record_commands.bulk_publish_valid_survey_related_records(
+                session, survey_mission_id
+            )
+        )
+    else:
+        affected_count = await record_commands.bulk_unpublish_survey_related_records(
+            session, survey_mission_id
+        )
+    if affected_count:
+        await event_dispatcher(
+            event_schemas.BulkResourceModificationEvent(
+                initiator=initiator_id,
+                request_id=request_id,
+                resource_type=constants.ResourceType.RECORD,
+                modification=constants.BulkResourceModification.UPDATED,
+                succeeded=True,
+                affected_count=affected_count,
+            )
+        )
+
+
 async def validate_survey_mission(
     *,
     request_id: identifiers.RequestId,
@@ -327,56 +366,38 @@ async def update_survey_mission(
             session=session,
             event_dispatcher=event_dispatcher,
         )
-        if all(
+        mission_is_publishable = all(
             (
                 validated_mission.validation_result.get("is_valid"),
                 # a mission is only publishable when its parent is already
                 # published, otherwise it would be public while its project is not
                 validated_mission.project.status == constants.ProjectStatus.PUBLISHED,
             )
+        )
+        if (
+            mission_is_publishable
+            and validated_mission.status != constants.SurveyMissionStatus.PUBLISHED
         ):
-            if validated_mission.status != constants.SurveyMissionStatus.PUBLISHED:
-                await change_survey_mission_status(
-                    request_id=request_id,
-                    target_status=constants.SurveyMissionStatus.PUBLISHED,
-                    survey_mission_id=survey_mission_id,
-                    initiator=initiator,
-                    session=session,
-                    event_dispatcher=event_dispatcher,
-                )
-            published_count = (
-                await record_commands.bulk_publish_valid_survey_related_records(
-                    session, survey_mission_id
-                )
+            await change_survey_mission_status(
+                request_id=request_id,
+                target_status=constants.SurveyMissionStatus.PUBLISHED,
+                survey_mission_id=survey_mission_id,
+                initiator=initiator,
+                session=session,
+                event_dispatcher=event_dispatcher,
             )
-            if published_count:
-                await event_dispatcher(
-                    event_schemas.BulkResourceModificationEvent(
-                        initiator=initiator.id,
-                        request_id=request_id,
-                        resource_type=constants.ResourceType.RECORD,
-                        modification=constants.BulkResourceModification.UPDATED,
-                        succeeded=True,
-                        affected_count=published_count,
-                    )
-                )
-        else:
-            unpublished_count = (
-                await record_commands.bulk_unpublish_survey_related_records(
-                    session, survey_mission_id
-                )
-            )
-            if unpublished_count:
-                await event_dispatcher(
-                    event_schemas.BulkResourceModificationEvent(
-                        initiator=initiator.id,
-                        request_id=request_id,
-                        resource_type=constants.ResourceType.RECORD,
-                        modification=constants.BulkResourceModification.UPDATED,
-                        succeeded=True,
-                        affected_count=unpublished_count,
-                    )
-                )
+        await cascade_survey_mission_status_to_records(
+            request_id=request_id,
+            survey_mission_id=survey_mission_id,
+            mission_status=(
+                constants.SurveyMissionStatus.PUBLISHED
+                if mission_is_publishable
+                else constants.SurveyMissionStatus.DRAFT
+            ),
+            initiator_id=initiator.id,
+            session=session,
+            event_dispatcher=event_dispatcher,
+        )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
             event_schemas.ResourceModificationEvent(
