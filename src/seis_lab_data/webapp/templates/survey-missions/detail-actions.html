@@ -26,7 +26,7 @@
                                     data-bs-toggle="modal"
                                     data-bs-target="#cancel-discovery-modal"
                             >
-                            <span class="material-icons-outlined me-1">{{ icons.discover_contents }}</span>{{ _("cancelling discovery") | capitalize }}
+                            <span class="material-icons-outlined me-1">{{ icons.discover_contents }}</span>{{ _("cancelling discovery...") | capitalize }}
                             </button>
                         {% else %}
                             <button
@@ -62,8 +62,8 @@
                         {{ macros_buttons.render_delete_item_button(
                             deletion_url=url_for("survey_missions:detail", survey_mission_id=item.id) ~ "?request_id=" ~ request_id,
                             signal_name="deleting",
-                            idle_message="delete survey mission",
-                            running_message="deleting survey mission...",
+                            idle_message=_("delete survey mission..."),
+                            running_message=_("deleting survey mission..."),
                             generated_csrf_token=csrf_token(request),
                             modal_dialog_title=_("delete survey mission"),
                             modal_dialog_confirmation_text=_("are you sure you want to delete this survey mission?"),

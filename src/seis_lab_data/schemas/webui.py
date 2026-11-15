@@ -92,7 +92,6 @@ class ItemDetails(typing.Generic[ItemWithDetails, ItemChildSummary]):
     children_filter: str
     pagination: common.PaginationInfo
     permissions: UserPermissionDetails
-    children_permissions: dict[uuid.UUID, UserPermissionDetails]
     breadcrumbs: list[BreadcrumbItem]
 
 

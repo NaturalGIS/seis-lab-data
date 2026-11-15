@@ -44,7 +44,7 @@ async def delete_dataset_category(
         await session.commit()
     else:
         raise errors.SeisLabDataError(
-            f"Dataset category {resource_id!r} does not exist."
+            errors.N_("Dataset category %(id)s does not exist."), id=str(resource_id)
         )
 
 

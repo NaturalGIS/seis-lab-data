@@ -29,7 +29,7 @@
                 data-bs-target="#main-navbar"
                 aria-controls="main-navbar"
                 aria-expanded="false"
-                aria-label="Toggle navigation"
+                aria-label="{{ _('Toggle navigation') }}"
             >
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -41,13 +41,13 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link nav-link-survey-mission{% if resource_type_class == 'bg-survey-mission' %} active{% endif %}" href="{{ url_for('survey_missions:list') }}" aria-label="list-survey-missions" title="{{ _('Survey Missions') }}" {% if resource_type_class == 'bg-survey-mission' %}aria-current="page"{% endif %}>
-                            <span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_missions }}</span>{{ _("Survey Missions") }}
+                        <a class="nav-link nav-link-survey-mission{% if resource_type_class == 'bg-survey-mission' %} active{% endif %}" href="{{ url_for('survey_missions:list') }}" aria-label="list-survey-missions" title="{{ _('Survey missions') }}" {% if resource_type_class == 'bg-survey-mission' %}aria-current="page"{% endif %}>
+                            <span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_missions }}</span>{{ _("Survey missions") }}
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link nav-link-survey-related-record{% if resource_type_class == 'bg-survey-related-record' %} active{% endif %}" href="{{ url_for('survey_related_records:list') }}" aria-label="list-survey-related-records" title="{{ _('Survey-related Records') }}" {% if resource_type_class == 'bg-survey-related-record' %}aria-current="page"{% endif %}>
-                            <span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_related_records }}</span>{{ _("Survey-related Records") }}
+                        <a class="nav-link nav-link-survey-related-record{% if resource_type_class == 'bg-survey-related-record' %} active{% endif %}" href="{{ url_for('survey_related_records:list') }}" aria-label="list-survey-related-records" title="{{ _('Survey-related records') }}" {% if resource_type_class == 'bg-survey-related-record' %}aria-current="page"{% endif %}>
+                            <span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_related_records }}</span>{{ _("Survey-related records") }}
                         </a>
                     </li>
                 </ul>
@@ -92,19 +92,19 @@
                             data-bs-toggle="dropdown"
                             aria-expanded="false"
                         >
-                            {{ _(request.state.locale) }}
+                            {{ request.state.locale }}
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end border-0 shadow" data-bs-theme="light">
                             <li><a
-                                class="dropdown-item"
+                                class="dropdown-item{% if request.state.language == 'en' %} active{% endif %}"
                                 aria-label="set-lang-en"
-                                {% if request.state.locale == "en" %}active{% endif %}
+                                {% if request.state.language == 'en' %}aria-current="true"{% endif %}
                                 href="{{ url_for('set_language', lang='en') }}"
                             >en - {{ _("English") }}</a></li>
                             <li><a
-                                class="dropdown-item"
+                                class="dropdown-item{% if request.state.language == 'pt' %} active{% endif %}"
                                 aria-label="set-lang-pt"
-                                {% if request.state.locale == "pt" %}active{% endif %}
+                                {% if request.state.language == 'pt' %}aria-current="true"{% endif %}
                                 href="{{ url_for('set_language', lang='pt') }}"
                             >pt - {{ _("Portuguese") }}</a></li>
                         </ul>
@@ -200,8 +200,8 @@
             <div class="col-12 col-md-4">
                 <ul class="nav flex-column">
                     <li class="nav-item"><a class="nav-link link-light p-0 pb-1" href="{{ url_for('projects:list') }}"><span class="material-icons-outlined" aria-hidden="true">{{ icons.projects }}</span>{{ _("Projects") }}</a></li>
-                    <li class="nav-item"><a class="nav-link link-light p-0 pb-1" href="{{ url_for('survey_missions:list') }}"><span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_missions }}</span>{{ _("Survey Missions") }}</a></li>
-                    <li class="nav-item"><a class="nav-link link-light p-0" href="{{ url_for('survey_related_records:list') }}"><span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_related_records }}</span>{{ _("Survey-related Records") }}</a></li>
+                    <li class="nav-item"><a class="nav-link link-light p-0 pb-1" href="{{ url_for('survey_missions:list') }}"><span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_missions }}</span>{{ _("Survey missions") }}</a></li>
+                    <li class="nav-item"><a class="nav-link link-light p-0" href="{{ url_for('survey_related_records:list') }}"><span class="material-icons-outlined" aria-hidden="true">{{ icons.survey_related_records }}</span>{{ _("Survey-related records") }}</a></li>
                 </ul>
             </div>
             <div class="col-12 col-md-4">
@@ -234,7 +234,12 @@
     other libraries). localStorage survives full page navigations (unlike DataStar signals,
     which are cleared on navigation). On the next page load, the script below reads and
     immediately deletes the value, then dynamically creates and shows a Bootstrap toast.
+
+    Plain HTTP redirects, such as the refusal of an update form, are not subject to that
+    limitation: their route stores the flash payload in the session under the 'flash' key,
+    which is removed from the session as the next page is rendered.
 #}
+{% set session_flash = request.session.pop("flash", none) %}
 <div class="toast-container position-fixed top-0 end-0 p-3" aria-live="polite"></div>
 <script src="{{ url_for('static', path='js/bootstrap.bundle.min.js') }}"></script>
 <script>
@@ -268,6 +273,9 @@
         localStorage.removeItem('sld:flash');
         showFlash(flash);
     }
+    {% if session_flash %}
+    showFlash({{ session_flash | tojson }});
+    {% endif %}
 </script>
 </body>
 </html>

@@ -7,7 +7,7 @@
 
 {% block header_extra_class %}text-center{% endblock %}
 
-{% block title %}{{ _("survey missions") | capitalize }} - SeisLabData{% endblock %}
+{% block title %}{{ _("Survey missions") }} - SeisLabData{% endblock %}
 
 {% block head %}
     {{ super() }}
@@ -22,7 +22,7 @@
 {% endblock head %}
 
 {% block page_title %}
-    <span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.survey_missions }}</span>{{ _("survey missions") | capitalize }}
+    <span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.survey_missions }}</span>{{ _("Survey missions") }}
 {% endblock page_title %}
 
 {% block details %}
@@ -43,7 +43,7 @@
                                 class="form-control form-control-lg"
                                 type="search"
                                 id="search"
-                                placeholder="Search"
+                                placeholder="{{ _('Search') }}"
                                 data-bind:search
                                 data-on:input__debounce.200ms="@get('{{ url_for("survey_missions:get_list_component") }}')"
                                 data-indicator:searching

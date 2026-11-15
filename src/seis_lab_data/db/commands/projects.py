@@ -30,13 +30,10 @@ async def create_project(
             else bbox
         ),
     )
-    if (
-        existing_project := await project_queries.get_project_by_name(
-            session, to_create.name
-        )
-    ) is not None:
+    if await project_queries.get_project_by_name(session, to_create.name) is not None:
         raise errors.DuplicateResourceError(
-            f"Project with name {to_create.name!r} already exists ({existing_project.id})."
+            errors.N_("There is already a project named “%(name)s”."),
+            name=to_create.name,
         )
     session.add(project)
     await session.commit()
@@ -52,7 +49,9 @@ async def delete_project(
         await session.delete(project)
         await session.commit()
     else:
-        raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
+        raise errors.SeisLabDataError(
+            errors.N_("Project %(id)s does not exist."), id=str(project_id)
+        )
 
 
 async def update_project(
@@ -94,7 +93,9 @@ async def set_project_status(
 ) -> models.Project:
     """Unconditionally sets the project's status."""
     if (project := (await project_queries.get_project(session, project_id))) is None:
-        raise errors.SeisLabDataError(f"Project with id {project_id} does not exist.")
+        raise errors.SeisLabDataError(
+            errors.N_("Project %(id)s does not exist."), id=str(project_id)
+        )
     project.status = status
     session.add(project)
     await session.commit()

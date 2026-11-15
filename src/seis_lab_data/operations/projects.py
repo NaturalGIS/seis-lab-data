@@ -45,7 +45,9 @@ async def create_project(
 ) -> models.Project | None:
     try:
         if not project_permissions.can_create_project(initiator):
-            raise errors.SeisLabDataError("User is not allowed to create a project.")
+            raise errors.SeisLabDataError(
+                errors.N_("User is not allowed to create projects.")
+            )
         project = await project_commands.create_project(session, to_create)
         project_id = identifiers.ProjectId(project.id)
         validated_project = await validate_project(
@@ -74,7 +76,8 @@ async def create_project(
                 resource_name=to_create.name,
                 modification=constants.ResourceModification.CREATED,
                 succeeded=False,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         return None
@@ -111,12 +114,12 @@ async def change_project_status(
     try:
         if (project := await project_queries.get_project(session, project_id)) is None:
             raise errors.SeisLabDataError(
-                f"Project with id {project_id} does not exist."
+                errors.N_("Project %(id)s does not exist."), id=str(project_id)
             )
         project_name = project.name
         if not project_permissions.can_change_project_status(initiator, project):
             raise errors.SeisLabDataError(
-                "User is not allowed to change project status."
+                errors.N_("User is not allowed to change the status of the project.")
             )
         if project.status == target_status:
             logger.info(
@@ -135,7 +138,8 @@ async def change_project_status(
                 resource_id=str(project_id),
                 resource_name=project_name,
                 succeeded=False,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
                 new_status=None,
             )
         )
@@ -165,10 +169,12 @@ async def validate_project(
     try:
         if (project := await project_queries.get_project(session, project_id)) is None:
             raise errors.SeisLabDataError(
-                f"Project with id {project_id} does not exist."
+                errors.N_("Project %(id)s does not exist."), id=str(project_id)
             )
         if not project_permissions.can_validate_project(initiator, project):
-            raise errors.SeisLabDataError("User is not allowed to validate project.")
+            raise errors.SeisLabDataError(
+                errors.N_("User is not allowed to validate the project.")
+            )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
             event_schemas.ValidationEvent(
@@ -179,7 +185,8 @@ async def validate_project(
                 modification=constants.ValidationStage.ENDED,
                 succeeded=False,
                 is_valid=False,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         raise
@@ -252,18 +259,20 @@ async def update_project(
     try:
         if (project := await project_queries.get_project(session, project_id)) is None:
             raise errors.SeisLabDataError(
-                f"Project with id {project_id} does not exist."
+                errors.N_("Project %(id)s does not exist."), id=str(project_id)
             )
         project_name = project.name
         if not project_permissions.can_update_project(initiator, project):
-            raise errors.SeisLabDataError("User is not allowed to update project.")
-        # any other status means a task is working on the project
-        if (project_status := project.status) not in (
-            constants.ProjectStatus.DRAFT,
-            constants.ProjectStatus.PUBLISHED,
-        ):
             raise errors.SeisLabDataError(
-                f"Cannot update project because its status is {project_status}"
+                errors.N_("User is not allowed to update the project.")
+            )
+        # any other status means a task is working on the project
+        if (project_status := project.status) not in constants.PROJECT_IDLE_STATUSES:
+            raise errors.SeisLabDataError(
+                errors.N_(
+                    "Cannot update the project because its status is %(status)s."
+                ),
+                status=project_status.value,
             )
         previous_bbox_4326 = project.bbox_4326
         await project_commands.update_project(session, project, to_update)
@@ -363,7 +372,8 @@ async def update_project(
                 request_id=request_id,
                 modification=constants.ResourceModification.UPDATED,
                 succeeded=False,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         raise
@@ -404,22 +414,25 @@ async def delete_project(
     try:
         if (project := await project_queries.get_project(session, project_id)) is None:
             raise errors.SeisLabDataError(
-                f"Project with id {project_id} does not exist."
+                errors.N_("Project %(id)s does not exist."), id=str(project_id)
             )
         project_name = project.name
         if not project_permissions.can_delete_project(initiator, project):
-            raise errors.SeisLabDataError("User is not allowed to delete projects.")
-        if (project_status := project.status) not in (
-            constants.ProjectStatus.DRAFT,
-            constants.ProjectStatus.PUBLISHED,
-        ):
             raise errors.SeisLabDataError(
-                f"Cannot delete project because its status is {project_status}"
+                errors.N_("User is not allowed to delete the project.")
+            )
+        if (project_status := project.status) not in constants.PROJECT_IDLE_STATUSES:
+            raise errors.SeisLabDataError(
+                errors.N_(
+                    "Cannot delete the project because its status is %(status)s."
+                ),
+                status=project_status.value,
             )
         if await project_queries.project_has_busy_descendants(session, project_id):
             raise errors.SeisLabDataError(
-                "Cannot delete project because some of its survey missions or "
-                "records are currently being processed"
+                errors.N_(
+                    "Cannot delete the project because some of its survey missions or survey-related records are currently being processed."
+                )
             )
         await project_commands.delete_project(session, project_id)
     except errors.SeisLabDataError as err:
@@ -432,7 +445,8 @@ async def delete_project(
                 modification=constants.ResourceModification.DELETED,
                 succeeded=False,
                 initiator=initiator.id,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         return None
@@ -515,12 +529,12 @@ async def get_project(
 
     if initiator is None:
         raise errors.UserNotAllowedError(
-            f"User not allowed to read project {project_id!r}."
+            errors.N_("User is not allowed to read project %(id)s."), id=str(project_id)
         )
 
     if not project_permissions.can_read_private_project(initiator, project):
         raise errors.UserNotAllowedError(
-            f"User is not allowed to read project {project_id!r}."
+            errors.N_("User is not allowed to read project %(id)s."), id=str(project_id)
         )
 
     return project

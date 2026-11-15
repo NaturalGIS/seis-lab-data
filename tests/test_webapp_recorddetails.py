@@ -125,6 +125,25 @@ def test_details_component_is_morphed_into_the_detail_page(
 
 
 @pytest.mark.integration
+def test_details_component_shows_the_full_path_of_data_assets(
+    test_client: TestClient, published_sample_data, settings, monkeypatch, tmp_path
+):
+    monkeypatch.setattr(settings, "readonly_archive_root_directory", tmp_path)
+    record = published_sample_data["records"][0]
+    mission = next(
+        m for m in published_sample_data["missions"] if m.id == record.survey_mission_id
+    )
+    asset = next(a for a in record.assets if constants.AssetType.DATA in a.asset_type)
+
+    response = test_client.get(
+        f"/survey-related-records/{record.id}/details/{uuid.uuid4()}"
+    )
+
+    assert response.status_code == 200
+    assert str(tmp_path / mission.relative_path / asset.relative_path) in response.text
+
+
+@pytest.mark.integration
 def test_details_component_actions_report_to_the_page_stream(
     test_client: TestClient, published_sample_data, monkeypatch
 ):

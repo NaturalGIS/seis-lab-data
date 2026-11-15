@@ -36,7 +36,7 @@
             data-on-signal-patch-filter="{include: /^listingVersion$/}"
         >
             <div class="col">
-                <h2>{{ _("survey-related-records") | capitalize }}</h2>
+                <h2>{{ _("Survey-related records") }}</h2>
                 {% set mission_records_url = url_for("survey_missions:get_mission_records_list_component", survey_mission_id=item.id) %}
                 <div class="row justify-content-center mb-3">
                     <div class="col-12 col-md-10 col-lg-8">
@@ -45,7 +45,7 @@
                                     class="form-control form-control-lg"
                                     type="search"
                                     id="search"
-                                    placeholder="Search"
+                                    placeholder="{{ _('Search') }}"
                                     data-bind:search
                                     data-on:input__debounce.200ms="{{ macros.reset_selection_js() }}@get('{{ mission_records_url }}')"
                                     data-indicator:searching
@@ -110,7 +110,7 @@
                               filter_media_types_datalist,
                               "filterMediaType",
                               mission_records_url,
-                              _("media type") | capitalize
+                              _("Media type")
                         ) }}
                     </div>
                     <div class="col-12 col-md-6">

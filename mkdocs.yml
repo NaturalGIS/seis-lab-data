@@ -8,6 +8,7 @@ hooks:
 
 nav:
   - Home: index.md
+  - User guide: user-guide.md
   - Administration Guide: admin-guide.md
   - Test environment: test-environment.md
   - Development: development.md
@@ -49,6 +50,7 @@ plugins:
           name: Português
           nav:
             - Início: index.md
+            - Guia do utilizador: user-guide.md
             - Guia de administração do sistema: admin-guide.md
             - Guia do ambiente de testes: test-environment.md
             - Guia de desenvolvimento: development.md

@@ -11,7 +11,10 @@ from datastar_py.starlette import DatastarResponse
 from redis.asyncio import Redis
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
-from starlette.responses import Response
+from starlette.responses import (
+    RedirectResponse,
+    Response,
+)
 from starlette.requests import Request
 from starlette.routing import Route
 from starlette.templating import Jinja2Templates
@@ -57,7 +60,6 @@ from .auth import (
 from .common import (
     build_project_compound_name,
     get_id_from_request_path,
-    get_list_item_permissions,
     get_page_count,
     get_page_from_request_params,
     get_pagination_info,
@@ -118,8 +120,31 @@ async def get_project_update_form(request: Request):
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         if project is None:
             raise HTTPException(
-                status_code=404, detail=_(f"Project {project_id!r} not found.")
+                status_code=404,
+                detail=_("Project %(id)s does not exist.") % {"id": str(project_id)},
             )
+    if not project_permissions.can_update_project(user, project):
+        refusal = _("User is not allowed to update the project.")
+    elif project.status not in constants.PROJECT_IDLE_STATUSES:
+        refusal = _("Cannot update the project because its status is %(status)s.") % {
+            "status": project.status.get_translated_value()
+        }
+    else:
+        refusal = None
+    if refusal is not None:
+        # the session carries the notification across the redirect, to the
+        # detail page's rendering
+        request.session["flash"] = common_handlers.get_flash_payload(
+            webui_schemas.Notification(
+                message=str(refusal),
+                category="error",
+                resource_type=constants.ResourceType.PROJECT,
+            )
+        )
+        return RedirectResponse(
+            request.url_for("projects:detail", project_id=project_id),
+            status_code=303,
+        )
     current_bbox = (
         shapely.from_wkb(project.bbox_4326.data)
         if project.bbox_4326 is not None
@@ -196,7 +221,6 @@ async def get_project_details_component(request: Request):
         survey_missions=details.children,
         search_initial_value=details.children_filter,
         permissions=details.permissions,
-        list_item_permissions=details.children_permissions,
         list_item_counts=details.children_counts,
         counts=details.counts,
         records_summary=details.records_summary,
@@ -407,7 +431,8 @@ async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         if project is None:
             raise HTTPException(
-                status_code=404, detail=_(f"Project {project_id!r} not found.")
+                status_code=404,
+                detail=_("Project %(id)s does not exist.") % {"id": str(project_id)},
             )
         survey_missions, total = await survey_mission_ops.list_survey_missions(
             session,
@@ -461,12 +486,6 @@ async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails
             ),
             can_validate=project_permissions.can_validate_project(user, project),
             can_discover=project_permissions.can_discover_project(user, project),
-        ),
-        children_permissions=get_list_item_permissions(
-            user,
-            survey_missions,
-            mission_permissions.can_update_survey_mission,
-            mission_permissions.can_delete_survey_mission,
         ),
         breadcrumbs=[
             webui_schemas.BreadcrumbItem(
@@ -541,12 +560,6 @@ async def get_list_component(request: Request):
         items=serialized_items,
         update_current_url_with=filter_query_string,
         pagination=pagination_info,
-        list_item_permissions=get_list_item_permissions(
-            user,
-            items,
-            project_permissions.can_update_project,
-            project_permissions.can_delete_project,
-        ),
         list_item_counts=list_item_counts,
     )
 
@@ -616,12 +629,6 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             "projects/list.html",
             context={
                 "items": serialized_items,
-                "list_item_permissions": get_list_item_permissions(
-                    user,
-                    items,
-                    project_permissions.can_update_project,
-                    project_permissions.can_delete_project,
-                ),
                 "list_item_counts": list_item_counts,
                 "geojson_features": json.dumps(geojson_features),
                 "pagination": pagination_info,
@@ -741,7 +748,6 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 "survey_missions": details.children,
                 "search_initial_value": details.children_filter,
                 "permissions": details.permissions,
-                "list_item_permissions": details.children_permissions,
                 "list_item_counts": details.children_counts,
                 "counts": details.counts,
                 "records_summary": details.records_summary,
@@ -848,7 +854,9 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             )
             if project is None:
                 raise HTTPException(
-                    status_code=404, detail=_(f"Project {project_id!r} not found.")
+                    status_code=404,
+                    detail=_("Project %(id)s does not exist.")
+                    % {"id": str(project_id)},
                 )
         project_tasks.delete_project.send(
             raw_request_id=str(request_id),
@@ -877,7 +885,9 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 raise HTTPException(status_code=404, detail=str(exc)) from exc
             if project is None:
                 raise HTTPException(
-                    status_code=404, detail=_(f"Project {project_id!r} not found.")
+                    status_code=404,
+                    detail=_("Project %(id)s does not exist.")
+                    % {"id": str(project_id)},
                 )
         await creation_form.validate_on_submit()
         creation_form.validate_with_schema()
@@ -1001,12 +1011,6 @@ async def get_project_missions_list_component(request: Request):
         items=serialized_items,
         update_current_url_with=filter_query_string,
         pagination=pagination_info,
-        list_item_permissions=get_list_item_permissions(
-            user,
-            items,
-            mission_permissions.can_update_survey_mission,
-            mission_permissions.can_delete_survey_mission,
-        ),
         list_item_counts=list_item_counts,
     )
 

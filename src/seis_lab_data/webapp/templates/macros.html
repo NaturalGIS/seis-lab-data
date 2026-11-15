@@ -125,7 +125,7 @@ Object.keys($excludedIds).forEach((k) => { $excludedIds[k] = false });
                     </li>
                 {% else %}
                     <li class="page-item disabled">
-                        <span class="page-link" aria-label="Previous">
+                        <span class="page-link" aria-label="{{ _('Previous') }}">
                             <span aria-hidden="true">&laquo;</span>
                         </span>
                     </li>
@@ -138,13 +138,13 @@ Object.keys($excludedIds).forEach((k) => { $excludedIds[k] = false });
                         </a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="{{ pagination.next_page_url }}" aria-label="Next">
+                        <a class="page-link" href="{{ pagination.next_page_url }}" aria-label="{{ _('Next') }}">
                             <span aria-hidden="true">&raquo;</span>
                         </a>
                     </li>
                 {% else %}
                     <li class="page-item disabled">
-                        <span class="page-link" aria-label="Next">
+                        <span class="page-link" aria-label="{{ _('Next') }}">
                             <span aria-hidden="true">&raquo;</span>
                         </span>
                     </li>
@@ -205,7 +205,7 @@ Object.keys($excludedIds).forEach((k) => { $excludedIds[k] = false });
                         class="form-control form-control-lg"
                         type="search"
                         id="search"
-                        placeholder="Search"
+                        placeholder="{{ _('Search') }}"
                         data-bind:search
                         data-on:input__debounce.200ms="{{ extra_on_input_js }}@get('{{ search_url }}')"
                         data-indicator:searching

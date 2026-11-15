@@ -2,8 +2,12 @@ import logging
 import time
 from urllib.parse import urlparse
 
+import babel
 import httpx
-from starlette.requests import Request
+from starlette.requests import (
+    HTTPConnection,
+    Request,
+)
 from starlette.responses import RedirectResponse
 from starlette.types import (
     ASGIApp,
@@ -100,3 +104,33 @@ class PublicURLMiddleware:
             headers.append((b"host", self._host_header))
             scope["headers"] = headers
         await self.app(scope, receive, send)
+
+
+class LocaleFromAcceptLanguageHeader:
+    """Locale selector based on the `Accept-Language` request header.
+
+    The header's language ranges are tried in decreasing order of their quality
+    value. A range selects a supported locale either by matching it exactly or by
+    its primary language subtag, so that `en-US` selects the `en` locale.
+    """
+
+    def __init__(self, supported_locales: list[str]) -> None:
+        self.supported_locales = supported_locales
+
+    def __call__(self, conn: HTTPConnection) -> str | None:
+        weighted_ranges = []
+        for entry in conn.headers.get("accept-language", "").lower().split(","):
+            language_range, _, parameters = entry.partition(";")
+            try:
+                quality = float(parameters.strip().removeprefix("q=") or 1)
+            except ValueError:
+                quality = 0
+            weighted_ranges.append((quality, language_range.strip()))
+        preferred = [
+            language_range
+            for quality, language_range in sorted(
+                weighted_ranges, key=lambda weighted: weighted[0], reverse=True
+            )
+            if quality > 0 and language_range
+        ]
+        return babel.negotiate_locale(preferred, self.supported_locales, sep="-")

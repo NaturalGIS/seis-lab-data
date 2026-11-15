@@ -69,7 +69,7 @@
                                         >{{ item.survey_mission.project.name }}</a>
                                     </dd>
                                     <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
-                                    <dd class="col-sm-9">{{ item.temporal_extent_begin|default(_(".."), True) }}/{{ item.temporal_extent_end|default(_(".."), True) }}</dd>
+                                    <dd class="col-sm-9">{{ item.temporal_extent_begin|default("..", True) }}/{{ item.temporal_extent_end|default("..", True) }}</dd>
                                     {% for name, value in item.discovery_info | discovery_info_items %}
                                         <dt class="col-sm-3">{{ name }}</dt>
                                         <dd class="col-sm-9">{{ value }}</dd>
@@ -84,7 +84,7 @@
                                 </dl>
                             </div>
                             <div class="col-12 col-md-4 col-xl-3">
-                                <h5>{{ _("links") | capitalize }}</h5>
+                                <h5>{{ _("Links") }}</h5>
                                 <div class="list-group list-group-flush">
                                     {% for link in item.links %}
                                         <a
@@ -170,7 +170,7 @@
                                     data-attr:aria-disabled="$isBusy || $missionUnderDiscovery"
                                     data-attr:tabindex="$isBusy || $missionUnderDiscovery ? '-1' : null"
                             >
-                                <span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit") | capitalize }}
+                                <span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("Edit") }}
                             </a>
                         {% endif %}
                         {% if permissions.can_export %}
@@ -231,7 +231,7 @@
                                 deletion_url=url_for("survey_related_records:detail", survey_related_record_id=item.id) ~ "?request_id=" ~ request_id,
                                 signal_name="deleting",
                                 idle_message=_("delete..."),
-                                running_message="deleting survey-related record...",
+                                running_message=_("deleting survey-related record..."),
                                 generated_csrf_token=csrf_token(request),
                                 modal_dialog_title=_("delete survey-related record"),
                                 modal_dialog_confirmation_text=_("are you sure you want to delete this survey-related record?"),
@@ -271,10 +271,10 @@
                 <dd class="col-sm-9">{{ asset.name }}</dd>
                 <dt class="col-sm-3">{{ _("Description") }}</dt>
                 <dd class="col-sm-9">{{ asset.description }}</dd>
-                <dt class="col-sm-3">{{ _("media type") | capitalize }}</dt>
+                <dt class="col-sm-3">{{ _("Media type") }}</dt>
                 <dd class="col-sm-9">{{ asset.media_type | default(_("unknown"), true) }}</dd>
-                <dt class="col-sm-3">{{ _("Relative path") }}</dt>
-                <dd class="col-sm-9">{{ asset.relative_path }}</dd>
+                <dt class="col-sm-3">{{ _("Full path") }}</dt>
+                <dd class="col-sm-9">{{ settings.readonly_archive_root_directory / item.survey_mission.relative_path.lstrip("/") / asset.relative_path.lstrip("/") if item.survey_mission.relative_path and asset.relative_path else _("invalid") }}</dd>
                 {% if asset.relative_path %}
                     <dt class="col-sm-3">{{ _("Download") }}</dt>
                     <dd class="col-sm-9">{{ macros_buttons.render_download_button(url_for('survey_related_records:download_record_asset', survey_related_record_id=item.id, record_asset_id=asset.id), asset.relative_path.lower().endswith(BUNDLED_DATA_ASSET_EXTENSIONS)) }}</dd>

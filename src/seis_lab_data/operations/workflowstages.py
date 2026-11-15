@@ -32,7 +32,7 @@ async def create_workflow_stage(
     try:
         if not stage_permissions.can_create_workflow_stage(initiator):
             raise errors.SeisLabDataError(
-                "User is not allowed to create a workflow stage."
+                errors.N_("User is not allowed to create workflow stages.")
             )
         resource = await stage_commands.create_workflow_stage(session, to_create)
     except errors.SeisLabDataError as err:
@@ -45,7 +45,8 @@ async def create_workflow_stage(
                 resource_name=to_create.name,
                 modification=constants.ResourceModification.CREATED,
                 succeeded=False,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         return None
@@ -78,11 +79,13 @@ async def update_workflow_stage(
             resource := await stage_queries.get_workflow_stage(session, resource_id)
         ) is None:
             raise errors.SeisLabDataError(
-                f"Workflow stage {resource_id!r} does not exist."
+                errors.N_("Workflow stage %(id)s does not exist."), id=str(resource_id)
             )
         resource_name = resource.name
         if not stage_permissions.can_update_workflow_stage(initiator):
-            raise errors.SeisLabDataError("User not allowed to update workflow stage.")
+            raise errors.SeisLabDataError(
+                errors.N_("User is not allowed to update workflow stages.")
+            )
         updated_resource = await stage_commands.update_workflow_stage(
             session, resource, to_update
         )
@@ -96,7 +99,8 @@ async def update_workflow_stage(
                 resource_name=resource_name,
                 modification=constants.ResourceModification.UPDATED,
                 succeeded=False,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         return None
@@ -129,11 +133,13 @@ async def delete_workflow_stage(
             resource := await stage_queries.get_workflow_stage(session, resource_id)
         ) is None:
             raise errors.SeisLabDataError(
-                f"Workflow stage {resource_id!r} does not exist."
+                errors.N_("Workflow stage %(id)s does not exist."), id=str(resource_id)
             )
         resource_name = resource.name
         if not stage_permissions.can_delete_workflow_stage(initiator):
-            raise errors.SeisLabDataError("User not allowed to delete workflow stages.")
+            raise errors.SeisLabDataError(
+                errors.N_("User is not allowed to delete workflow stages.")
+            )
         await stage_commands.delete_workflow_stage(session, resource_id)
     except errors.SeisLabDataError as err:
         await event_dispatcher(
@@ -145,7 +151,8 @@ async def delete_workflow_stage(
                 resource_name=resource_name,
                 modification=constants.ResourceModification.DELETED,
                 succeeded=False,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         return None

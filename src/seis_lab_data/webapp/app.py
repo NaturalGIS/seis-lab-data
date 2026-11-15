@@ -25,6 +25,10 @@ from starlette_babel import (
     get_translator,
     LocaleMiddleware,
 )
+from starlette_babel.locale import (
+    LocaleFromCookie,
+    LocaleFromQuery,
+)
 from starlette_wtf import (
     CSRFProtectMiddleware,
     csrf_token,
@@ -42,7 +46,10 @@ from ..tasks.broker import setup_broker
 
 from . import jinjafilters
 from .auth_backend import OIDCAuthBackend
-from .middleware import PublicURLMiddleware
+from .middleware import (
+    LocaleFromAcceptLanguageHeader,
+    PublicURLMiddleware,
+)
 from .routes import (
     auth,
     base,
@@ -172,6 +179,11 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                 LocaleMiddleware,
                 locales=settings.locales,
                 default_locale=settings.locales[0],
+                selectors=[
+                    LocaleFromQuery(),
+                    LocaleFromCookie(),
+                    LocaleFromAcceptLanguageHeader(settings.locales),
+                ],
             ),
             Middleware(
                 SessionMiddleware,

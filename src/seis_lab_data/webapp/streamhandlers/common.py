@@ -9,6 +9,7 @@ from typing import Any
 from datastar_py.sse import ServerSentEventGenerator
 from datastar_py.starlette import DatastarEvent
 from starlette_babel import gettext_lazy as _
+from starlette_babel.translator import gettext
 
 from ... import (
     constants,
@@ -57,7 +58,30 @@ _CATEGORY_LABELS = {
 }
 
 
-def _get_flash_payload(notification: webui_schemas.Notification) -> dict[str, Any]:
+def _get_translated_details(
+    message: message_schemas.ResourceModificationMessage
+    | message_schemas.BulkResourceModificationMessage
+    | message_schemas.ResourceStatusChangedMessage
+    | message_schemas.DiscoveryMessage
+    | message_schemas.ExportMessage,
+) -> str | None:
+    """Return the details of a message, translated to the current locale.
+
+    The details are an untranslated message template, whose values are interpolated
+    after its translation. A `status` value holds the raw status of the message's
+    resource and is translated as well. Details missing from the translation
+    catalogs, such as the text of third-party errors, are returned untranslated.
+    """
+    if not message.details:
+        return message.details
+    params = dict(message.details_params)
+    if "status" in params and (status_enum := _STATUS_ENUMS.get(message.resource_type)):
+        params["status"] = status_enum(params["status"]).get_translated_value()
+    translated = gettext(message.details)
+    return translated % params if params else translated
+
+
+def get_flash_payload(notification: webui_schemas.Notification) -> dict[str, Any]:
     """Return what the page's `showFlash` needs, translated to the current locale."""
     title = str(_CATEGORY_LABELS[notification.category])
     if notification.resource_type is not None:
@@ -80,7 +104,7 @@ def _get_modification_notification(
     """Return the notification of a resource modification's outcome."""
     variables = {
         "name": message.resource_name or message.resource_id,
-        "details": message.details,
+        "details": _get_translated_details(message),
     }
     if message.succeeded:
         return webui_schemas.Notification(
@@ -103,7 +127,7 @@ def _get_status_changed_notification(
     if not message.succeeded:
         return webui_schemas.Notification(
             message=_("Could not change the status of “%(name)s”: %(details)s")
-            % {"name": name, "details": message.details},
+            % {"name": name, "details": _get_translated_details(message)},
             category="error",
             resource_type=message.resource_type,
         )
@@ -139,7 +163,7 @@ def _to_script_literal(value: Any) -> str:
 async def flash_ui_message_after_redirect(
     notification: webui_schemas.Notification,
 ) -> AsyncGenerator[DatastarEvent, None]:
-    payload = _get_flash_payload(notification)
+    payload = get_flash_payload(notification)
     logger.debug(f"{payload=}")
     yield ServerSentEventGenerator.execute_script(
         f"localStorage.setItem('sld:flash', {_to_script_literal(json.dumps(payload))});"
@@ -149,7 +173,7 @@ async def flash_ui_message_after_redirect(
 async def flash_ui_message_same_page(
     notification: webui_schemas.Notification,
 ) -> AsyncGenerator[DatastarEvent, None]:
-    payload = _get_flash_payload(notification)
+    payload = get_flash_payload(notification)
     yield ServerSentEventGenerator.execute_script(
         f"showFlash({_to_script_literal(payload)})"
     )
@@ -284,7 +308,8 @@ async def handle_bulk_resource_modification(
         )
     else:
         notification = webui_schemas.Notification(
-            message=_("Bulk update failed: %(details)s") % {"details": message.details},
+            message=_("Bulk update failed: %(details)s")
+            % {"details": _get_translated_details(message)},
             category="error",
             resource_type=message.resource_type,
         )
@@ -866,7 +891,7 @@ async def handle_discovery_detail_page(
         return
     variables = {
         "name": message.resource_name or message.resource_id,
-        "details": message.details,
+        "details": _get_translated_details(message),
     }
     match message:
         case message_schemas.DiscoveryMessage(
@@ -875,7 +900,7 @@ async def handle_discovery_detail_page(
             # shown in place, along with the records found so far
             yield ServerSentEventGenerator.patch_signals(
                 {
-                    "discoveryProgress": message.details,
+                    "discoveryProgress": variables["details"],
                     "listingVersion": int(time.time() * 1000),
                 }
             )
@@ -973,10 +998,10 @@ async def handle_export_detail_page(
         return
     match message.stage:
         case constants.ExportStage.PROGRESS:
-            # reported by the worker, which has no locale
             async for event in flash_ui_message_same_page(
                 webui_schemas.Notification(
-                    message=message.details, resource_type=message.resource_type
+                    message=_get_translated_details(message),
+                    resource_type=message.resource_type,
                 )
             ):
                 yield event
@@ -988,7 +1013,7 @@ async def handle_export_detail_page(
                 message=_("“%(name)s” was exported to GeoNode: %(details)s")
                 % {
                     "name": message.resource_name or message.resource_id,
-                    "details": message.details,
+                    "details": _get_translated_details(message),
                 },
                 category="success",
                 resource_type=message.resource_type,
@@ -998,7 +1023,7 @@ async def handle_export_detail_page(
                 message=_("Could not export “%(name)s” to GeoNode: %(details)s")
                 % {
                     "name": message.resource_name or message.resource_id,
-                    "details": message.details,
+                    "details": _get_translated_details(message),
                 },
                 category="error",
                 resource_type=message.resource_type,

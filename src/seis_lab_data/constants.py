@@ -232,6 +232,14 @@ class ProjectStatus(str, enum.Enum):
         }.get(self, self.value)
 
 
+# in any other status, a project is being worked on by a task and must not be
+# modified by anything else
+PROJECT_IDLE_STATUSES = (
+    ProjectStatus.DRAFT,
+    ProjectStatus.PUBLISHED,
+)
+
+
 class SurveyMissionStatus(str, enum.Enum):
     DRAFT = "draft"
     PUBLISHED = "published"
@@ -250,6 +258,13 @@ class SurveyMissionStatus(str, enum.Enum):
             self.UNDER_VALIDATION: _("under validation"),
         }.get(self, self.value)
 
+
+# in any other status, a mission is being worked on by a task and must not be
+# modified by anything else
+SURVEY_MISSION_IDLE_STATUSES = (
+    SurveyMissionStatus.DRAFT,
+    SurveyMissionStatus.PUBLISHED,
+)
 
 # while in these, a mission and its records are only modified by its discovery
 SURVEY_MISSION_DISCOVERY_STATUSES = (
@@ -277,3 +292,11 @@ class SurveyRelatedRecordStatus(str, enum.Enum):
             self.UNDER_PARSING: _("under parsing"),
             self.UNDER_VALIDATION: _("under validation"),
         }.get(self, self.value)
+
+
+# in any other status, a record is being worked on by a task and must not be
+# modified by anything else
+SURVEY_RELATED_RECORD_IDLE_STATUSES = (
+    SurveyRelatedRecordStatus.DRAFT,
+    SurveyRelatedRecordStatus.PUBLISHED,
+)

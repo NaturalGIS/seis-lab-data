@@ -90,7 +90,9 @@ async def create_asset_discovery_configuration(
             initiator
         ):
             raise errors.SeisLabDataError(
-                "User is not allowed to create an asset discovery configuration."
+                errors.N_(
+                    "User is not allowed to create asset discovery configurations."
+                )
             )
         asset_discovery_configuration = (
             await discovery_commands.create_asset_discovery_configuration(
@@ -107,7 +109,8 @@ async def create_asset_discovery_configuration(
                 resource_name=to_create.name,
                 modification=constants.ResourceModification.CREATED,
                 succeeded=False,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         return None
@@ -143,14 +146,17 @@ async def update_asset_discovery_configuration(
             )
         ) is None:
             raise errors.SeisLabDataError(
-                f"asset discovery configuration with id {asset_discovery_configuration_id} does not exist."
+                errors.N_("Asset discovery configuration %(id)s does not exist."),
+                id=str(asset_discovery_configuration_id),
             )
         resource_name = asset_discovery_conf.name
         if not discovery_permissions.can_update_asset_discovery_configuration(
             initiator
         ):
             raise errors.SeisLabDataError(
-                "User is not allowed to update asset discovery configuration."
+                errors.N_(
+                    "User is not allowed to update asset discovery configurations."
+                )
             )
         updated_asset_discovery_conf = (
             await discovery_commands.update_asset_discovery_configuration(
@@ -167,7 +173,8 @@ async def update_asset_discovery_configuration(
                 resource_name=resource_name,
                 modification=constants.ResourceModification.UPDATED,
                 succeeded=False,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         return None
@@ -203,14 +210,17 @@ async def delete_asset_discovery_configuration(
             )
         ) is None:
             raise errors.SeisLabDataError(
-                f"asset discovery configuration with id {asset_discovery_configuration_id} does not exist."
+                errors.N_("Asset discovery configuration %(id)s does not exist."),
+                id=str(asset_discovery_configuration_id),
             )
         resource_name = asset_discovery_conf.name
         if not discovery_permissions.can_delete_asset_discovery_configuration(
             initiator
         ):
             raise errors.SeisLabDataError(
-                "User is not allowed to delete asset discovery configuration."
+                errors.N_(
+                    "User is not allowed to delete asset discovery configurations."
+                )
             )
         await discovery_commands.delete_asset_discovery_configuration(
             session, asset_discovery_configuration_id
@@ -225,7 +235,8 @@ async def delete_asset_discovery_configuration(
                 resource_name=resource_name,
                 modification=constants.ResourceModification.DELETED,
                 succeeded=False,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             ),
         )
         return None
@@ -268,20 +279,21 @@ async def run_mission_discovery(
             mission := await mission_queries.get_survey_mission(session, mission_id)
         ) is None:
             raise errors.SeisLabDataError(
-                f"Survey mission with id {mission_id} does not exist."
+                errors.N_("Survey mission %(id)s does not exist."), id=str(mission_id)
             )
         mission_name = mission.name
         if not mission_permissions.can_discover_survey_mission(user, mission):
             raise errors.SeisLabDataError(
-                "User is not allowed to run discovery on this survey mission."
+                errors.N_("User is not allowed to run discovery on the survey mission.")
             )
-        if (mission_status := mission.status) not in (
-            constants.SurveyMissionStatus.DRAFT,
-            constants.SurveyMissionStatus.PUBLISHED,
-        ):
+        if (
+            mission_status := mission.status
+        ) not in constants.SURVEY_MISSION_IDLE_STATUSES:
             raise errors.SeisLabDataError(
-                f"Cannot run discovery on survey mission because its status is "
-                f"{mission_status}"
+                errors.N_(
+                    "Cannot run discovery on the survey mission because its status is %(status)s."
+                ),
+                status=mission_status.value,
             )
         # an empty path would be the archive root, and `..` could lead out of the
         # mission's directory: either one would have the files of other missions
@@ -290,9 +302,10 @@ async def run_mission_discovery(
             normalized_path := posixpath.normpath(mission.relative_path.strip("/"))
         ) == "." or normalized_path.split("/")[0] == "..":
             raise errors.SeisLabDataError(
-                f"Cannot run discovery on survey mission because its relative path "
-                f"{mission.relative_path!r} does not name a directory inside the "
-                f"archive"
+                errors.N_(
+                    "Cannot run discovery on the survey mission because its relative path “%(path)s” does not name a directory inside the archive."
+                ),
+                path=mission.relative_path,
             )
         if not await mission_commands.compare_and_set_survey_mission_status(
             session,
@@ -301,8 +314,9 @@ async def run_mission_discovery(
             constants.SurveyMissionStatus.UNDER_DISCOVERY,
         ):
             raise errors.SeisLabDataError(
-                "Cannot run discovery on survey mission because its status "
-                "changed meanwhile"
+                errors.N_(
+                    "Cannot run discovery on the survey mission because its status changed meanwhile."
+                )
             )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
@@ -314,7 +328,8 @@ async def run_mission_discovery(
                 request_id=request_id,
                 modification=constants.DiscoveryStage.ENDED,
                 succeeded=False,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         return
@@ -386,7 +401,7 @@ async def run_mission_discovery(
                 request_id=request_id,
                 modification=constants.DiscoveryStage.ENDED,
                 succeeded=False,
-                details=(
+                details=errors.N_(
                     "discovery was interrupted - the records created so far are "
                     "kept, run it again to resume"
                 ),
@@ -395,6 +410,20 @@ async def run_mission_discovery(
         raise
     except Exception as err:
         logger.exception(f"Discovery of mission {mission_id} failed")
+        if time_limit.expired():
+            details = errors.N_(
+                "discovery exceeded its time limit of %(hours)s hours - the records "
+                "created so far are kept, run it again to resume"
+            )
+            details_params = {"hours": f"{settings.discovery_time_limit_hours:g}"}
+        elif isinstance(err, errors.SeisLabDataError):
+            details, details_params = err.message, err.params
+        elif isinstance(err, FileNotFoundError):
+            details, details_params = str(err), {}
+        else:
+            # anything else may carry internals, such as SQL, which stay in the logs
+            details = errors.N_("unexpected error (%(type)s)")
+            details_params = {"type": type(err).__name__}
         await event_dispatcher(
             event_schemas.DiscoveryEvent(
                 initiator=user.id,
@@ -404,19 +433,12 @@ async def run_mission_discovery(
                 request_id=request_id,
                 modification=constants.DiscoveryStage.ENDED,
                 succeeded=False,
-                # anything else may carry internals, such as SQL, which stay in the logs
-                details=(
-                    f"discovery exceeded its time limit of "
-                    f"{settings.discovery_time_limit_hours:g} hours - the records "
-                    f"created so far are kept, run it again to resume"
-                    if time_limit.expired()
-                    else str(err)
-                    if isinstance(err, (errors.SeisLabDataError, FileNotFoundError))
-                    else f"unexpected error ({type(err).__name__})"
-                ),
+                details=details,
+                details_params=details_params,
             )
         )
     else:
+        details, details_params = counts.describe()
         await event_dispatcher(
             event_schemas.DiscoveryEvent(
                 initiator=user.id,
@@ -430,7 +452,8 @@ async def run_mission_discovery(
                     else constants.DiscoveryStage.ENDED
                 ),
                 succeeded=True,
-                details=counts.describe(),
+                details=details,
+                details_params=details_params,
             )
         )
         # the records created by this run had their previews requested as they
@@ -526,17 +549,30 @@ class _DiscoveryCounts:
         default_factory=list
     )
 
-    def describe(self) -> str:
-        """Return a summary of the counts."""
-        summary = f"{self.found} files found, {self.created} new records"
-        if self.failed:
-            summary += f", {self.failed} files could not be discovered"
+    def describe(self) -> tuple[str, dict[str, str | int]]:
+        """Return a summary of the counts, as a message template and its values."""
+        params: dict[str, str | int] = {
+            "found": self.found,
+            "created": self.created,
+            "failed": self.failed,
+        }
         if self.invalid_configuration_names:
-            summary += (
-                f", invalid asset discovery configurations: "
-                f"{', '.join(self.invalid_configuration_names)}"
+            params["configurations"] = ", ".join(self.invalid_configuration_names)
+            return (
+                errors.N_(
+                    "%(found)d files found, %(created)d new records, %(failed)d files "
+                    "could not be discovered, invalid asset discovery configurations: "
+                    "%(configurations)s"
+                ),
+                params,
             )
-        return summary
+        return (
+            errors.N_(
+                "%(found)d files found, %(created)d new records, %(failed)d files "
+                "could not be discovered"
+            ),
+            params,
+        )
 
     def describe_timings(self) -> str:
         """Return a summary of where the run's time went, for the logs.
@@ -675,6 +711,7 @@ async def _discover_mission_records(
             f"Discovery of mission {mission.name!r} in progress: "
             f"{counts.describe_timings()}"
         )
+        details, details_params = counts.describe()
         await event_dispatcher(
             event_schemas.DiscoveryEvent(
                 initiator=user.id,
@@ -684,7 +721,8 @@ async def _discover_mission_records(
                 request_id=request_id,
                 modification=constants.DiscoveryStage.PROGRESS,
                 succeeded=True,
-                details=counts.describe(),
+                details=details,
+                details_params=details_params,
             )
         )
 
@@ -1112,12 +1150,14 @@ async def cancel_mission_discovery(
             mission := await mission_queries.get_survey_mission(session, mission_id)
         ) is None:
             raise errors.SeisLabDataError(
-                f"Survey mission with id {mission_id} does not exist."
+                errors.N_("Survey mission %(id)s does not exist."), id=str(mission_id)
             )
         mission_name = mission.name
         if not mission_permissions.can_discover_survey_mission(initiator, mission):
             raise errors.SeisLabDataError(
-                "User is not allowed to cancel discovery on this survey mission."
+                errors.N_(
+                    "User is not allowed to cancel discovery on the survey mission."
+                )
             )
         if await recover_stale_mission_discoveries(
             request_id=request_id,
@@ -1129,9 +1169,10 @@ async def cancel_mission_discovery(
             return
         if mission.status == constants.SurveyMissionStatus.CANCELLING_DISCOVERY:
             raise errors.SeisLabDataError(
-                f"Discovery is already being cancelled. If it is no longer running, "
-                f"the survey mission can be recovered once its discovery has been "
-                f"silent for {constants.DISCOVERY_STALE_AFTER_SECONDS // 60} minutes"
+                errors.N_(
+                    "Discovery is already being cancelled. If it is no longer running, the survey mission can be recovered once its discovery has been silent for %(minutes)d minutes."
+                ),
+                minutes=constants.DISCOVERY_STALE_AFTER_SECONDS // 60,
             )
         if not await mission_commands.compare_and_set_survey_mission_status(
             session,
@@ -1140,8 +1181,9 @@ async def cancel_mission_discovery(
             constants.SurveyMissionStatus.CANCELLING_DISCOVERY,
         ):
             raise errors.SeisLabDataError(
-                "Cannot cancel discovery because the survey mission is not under "
-                "discovery"
+                errors.N_(
+                    "Cannot cancel discovery because the survey mission is not under discovery."
+                )
             )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
@@ -1153,7 +1195,8 @@ async def cancel_mission_discovery(
                 request_id=request_id,
                 modification=constants.DiscoveryStage.CANCELLED,
                 succeeded=False,
-                details=str(err),
+                details=err.message,
+                details_params=err.params,
             )
         )
         return
@@ -1216,7 +1259,7 @@ async def recover_stale_mission_discoveries(
                 request_id=request_id,
                 modification=constants.DiscoveryStage.ENDED,
                 succeeded=False,
-                details=(
+                details=errors.N_(
                     "discovery was abandoned by its worker - the records created so "
                     "far are kept, run it again to resume"
                 ),

@@ -156,7 +156,8 @@ async def get_update_form(request: Request):
         if resource is None:
             raise HTTPException(
                 status_code=404,
-                detail=_(f"Workflow stage {resource_id!r} not found."),
+                detail=_("Workflow stage %(id)s does not exist.")
+                % {"id": str(resource_id)},
             )
     update_form = await stage_forms.WorkflowStageUpdateForm.from_formdata(
         request=request,
@@ -181,7 +182,7 @@ async def get_update_form(request: Request):
                     url=request.url_for("workflow_stages:list"),
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=_("edit"),
+                    name=_("Edit"),
                     icon=settings.icons.edit_item,
                 ),
             ],
@@ -497,7 +498,8 @@ class WorkflowStageDetailEndpoint(HTTPEndpoint):
             if resource is None:
                 raise HTTPException(
                     status_code=404,
-                    detail=_(f"Workflow stage {resource_id!r} not found."),
+                    detail=_("Workflow stage %(id)s does not exist.")
+                    % {"id": str(resource_id)},
                 )
         stage_tasks.delete_workflow_stage.send(
             raw_request_id=str(request_id),

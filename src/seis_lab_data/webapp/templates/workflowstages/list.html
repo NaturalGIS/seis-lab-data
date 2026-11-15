@@ -4,10 +4,10 @@
 
 {% block header_extra_class %}text-center{% endblock %}
 
-{% block title %}{{ _("workflow stages") }} - SeisLabData{% endblock %}
+{% block title %}{{ _("Workflow stages") }} - SeisLabData{% endblock %}
 
 {% block page_title %}
-    <span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.workflow_stage }}</span>{{ _("workflow stages") }}
+    <span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.workflow_stage }}</span>{{ _("Workflow stages") }}
 {% endblock page_title %}
 
 {% block details %}
@@ -28,7 +28,7 @@
                                 class="form-control form-control-lg"
                                 type="search"
                                 id="search"
-                                placeholder="Search"
+                                placeholder="{{ _('Search') }}"
                                 data-bind:search
                                 data-on:input__debounce.200ms="@get('{{ url_for("workflow_stages:get_list_component") }}')"
                                 data-indicator:searching

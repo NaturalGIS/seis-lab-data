@@ -21,7 +21,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import errors
-from ...constants import SurveyRelatedRecordStatus
+from ...constants import (
+    SURVEY_RELATED_RECORD_IDLE_STATUSES,
+    SurveyRelatedRecordStatus,
+)
 from ...schemas import (
     identifiers,
     discovery as discovery_schemas,
@@ -70,7 +73,8 @@ async def delete_asset_discovery_configuration(
         await session.commit()
     else:
         raise errors.SeisLabDataError(
-            f"asset_discovery_configuration with id {asset_discovery_configuration_id} does not exist."
+            errors.N_("Asset discovery configuration %(id)s does not exist."),
+            id=str(asset_discovery_configuration_id),
         )
 
 
@@ -147,14 +151,7 @@ async def write_discovered_survey_related_records(
             .where(record.id == updated_values.c.id)
             # keep a bbox set since the record was looked up, e.g. by a user
             .where(record.bbox_4326.is_(None))
-            .where(
-                record.status.in_(
-                    (
-                        SurveyRelatedRecordStatus.DRAFT,
-                        SurveyRelatedRecordStatus.PUBLISHED,
-                    )
-                )
-            )
+            .where(record.status.in_(SURVEY_RELATED_RECORD_IDLE_STATUSES))
             .values(
                 bbox_4326=func.ST_GeomFromText(updated_values.c.bbox_wkt, 4326),
                 discovery_info=updated_values.c.discovery_info,

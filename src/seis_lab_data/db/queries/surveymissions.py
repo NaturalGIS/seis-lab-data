@@ -8,8 +8,8 @@ from sqlmodel import (
 )
 
 from ...constants import (
+    SURVEY_RELATED_RECORD_IDLE_STATUSES,
     SurveyMissionStatus,
-    SurveyRelatedRecordStatus,
 )
 from ...db import models
 from ...schemas import (
@@ -189,7 +189,7 @@ async def survey_mission_has_busy_records(
         .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
         .where(
             models.SurveyRelatedRecord.status.not_in(
-                (SurveyRelatedRecordStatus.DRAFT, SurveyRelatedRecordStatus.PUBLISHED)
+                SURVEY_RELATED_RECORD_IDLE_STATUSES
             )
         )
         .limit(1)
