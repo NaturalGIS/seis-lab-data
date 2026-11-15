@@ -1,12 +1,11 @@
 import asyncio
 import dataclasses
 import json
-
 import uuid
-from anyio import Path
 from collections.abc import AsyncGenerator
 
 import typer
+from anyio import Path
 from redis import asyncio as aioredis
 
 from .. import (
@@ -14,15 +13,11 @@ from .. import (
     constants,
     subscribers,
 )
-from ..schemas import (
-    identifiers,
-    messages as message_schemas,
-)
-from ..tasks import (
-    datasetcategories as category_tasks,
-    discovery as discovery_tasks,
-    workflowstages as stage_tasks,
-)
+from ..schemas import identifiers
+from ..schemas import messages as message_schemas
+from ..tasks import datasetcategories as category_tasks
+from ..tasks import discovery as discovery_tasks
+from ..tasks import workflowstages as stage_tasks
 from . import utils
 from .asynctyper import AsyncTyper
 
@@ -109,7 +104,7 @@ async def bootstrap_asset_discovery_configurations(ctx: typer.Context):
             raw_request_id=str(request_id),
             raw_to_create=current.model_dump_json(exclude_none=True),
             raw_initiator=json.dumps(dataclasses.asdict(admin_)),
-        )  # noqa
+        )
 
     subscription = subscribers.iter_topic_messages(
         pubsub,
@@ -176,7 +171,7 @@ async def bootstrap_workflow_stages(
             raw_request_id=str(request_id),
             raw_to_create=current.model_dump_json(exclude_none=True),
             raw_initiator=json.dumps(dataclasses.asdict(admin_)),
-        )  # noqa
+        )
 
     subscription = subscribers.iter_topic_messages(
         pubsub,
@@ -243,7 +238,7 @@ async def bootstrap_dataset_categories(
             raw_request_id=str(request_id),
             raw_to_create=current.model_dump_json(exclude_none=True),
             raw_initiator=json.dumps(dataclasses.asdict(admin_)),
-        )  # noqa
+        )
 
     subscription = subscribers.iter_topic_messages(
         pubsub,

@@ -9,11 +9,9 @@ from .. import (
     constants,
 )
 from ..operations import discovery as discovery_ops
-from ..schemas import (
-    discovery as discovery_schemas,
-    identifiers,
-    user as user_schemas,
-)
+from ..schemas import discovery as discovery_schemas
+from ..schemas import identifiers
+from ..schemas import user as user_schemas
 from . import decorators
 from .stub import sld_stub_broker
 

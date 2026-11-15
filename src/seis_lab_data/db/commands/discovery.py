@@ -13,10 +13,8 @@ from sqlalchemy import (
     update,
     values,
 )
-from sqlalchemy.dialects.postgresql import (
-    JSONB,
-    UUID as PG_UUID,
-)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -25,10 +23,8 @@ from ...constants import (
     SURVEY_RELATED_RECORD_IDLE_STATUSES,
     SurveyRelatedRecordStatus,
 )
-from ...schemas import (
-    identifiers,
-    discovery as discovery_schemas,
-)
+from ...schemas import discovery as discovery_schemas
+from ...schemas import identifiers
 from .. import models
 from ..queries import discovery as discovery_queries
 

@@ -8,33 +8,25 @@ from typing import Annotated
 
 import typer
 from psycopg.errors import UniqueViolation
-from sqlalchemy.exc import IntegrityError
 from redis import asyncio as aioredis
+from sqlalchemy.exc import IntegrityError
 
 from .. import (
     config,
     constants,
     subscribers,
 )
-from ..operations import (
-    projects as project_ops,
-    surveymissions as mission_ops,
-    surveyrelatedrecords as record_ops,
-)
-from ..db.queries import (
-    datasetcategories as category_queries,
-    workflowstages as stage_queries,
-)
+from ..db.queries import datasetcategories as category_queries
+from ..db.queries import workflowstages as stage_queries
 from ..dispatch import no_op_dispatcher
-from ..schemas import (
-    identifiers,
-    messages as message_schemas,
-    surveyrelatedrecords as record_schemas,
-)
-from ..tasks import (
-    projects as project_tasks,
-    surveymissions as mission_tasks,
-)
+from ..operations import projects as project_ops
+from ..operations import surveymissions as mission_ops
+from ..operations import surveyrelatedrecords as record_ops
+from ..schemas import identifiers
+from ..schemas import messages as message_schemas
+from ..schemas import surveyrelatedrecords as record_schemas
+from ..tasks import projects as project_tasks
+from ..tasks import surveymissions as mission_tasks
 from . import sampledata
 from .asynctyper import AsyncTyper
 from .utils import resolve_admin_user
@@ -184,7 +176,7 @@ async def load_sample_projects(ctx: typer.Context):
             raw_request_id=str(request_id),
             raw_to_create=to_create.model_dump_json(exclude_none=True),
             raw_initiator=json.dumps(dataclasses.asdict(admin_)),
-        )  # noqa
+        )
 
     subscription = subscribers.iter_topic_messages(
         pubsub,
@@ -233,7 +225,7 @@ async def load_sample_survey_missions(ctx: typer.Context):
             raw_request_id=str(request_id),
             raw_to_create=to_create.model_dump_json(exclude_none=True),
             raw_initiator=json.dumps(dataclasses.asdict(admin_)),
-        )  # noqa
+        )
 
     subscription = subscribers.iter_topic_messages(
         pubsub,

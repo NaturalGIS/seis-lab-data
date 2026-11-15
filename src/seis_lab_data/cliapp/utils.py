@@ -9,13 +9,11 @@ from .. import (
     constants,
 )
 from ..db.commands import users as user_commands
-from ..schemas import (
-    datasetcategories as category_schemas,
-    discovery as discovery_schemas,
-    identifiers,
-    user as user_schemas,
-    workflowstages as stage_schemas,
-)
+from ..schemas import datasetcategories as category_schemas
+from ..schemas import discovery as discovery_schemas
+from ..schemas import identifiers
+from ..schemas import user as user_schemas
+from ..schemas import workflowstages as stage_schemas
 
 
 async def parse_bootstrap_data_path(data_path: Path) -> dict:

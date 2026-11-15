@@ -6,9 +6,9 @@ import pydantic
 from ..constants import ProjectStatus
 from ..db import models
 from .common import (
-    LinkSchema,
     DraftDescription,
     DraftName,
+    LinkSchema,
     PolygonOut,
     PossiblyInvalidPolygon,
     serialize_id,

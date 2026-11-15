@@ -5,10 +5,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import errors
 from ...constants import ProjectStatus
-from ...schemas import (
-    identifiers,
-    projects as project_schemas,
-)
+from ...schemas import identifiers
+from ...schemas import projects as project_schemas
 from .. import models
 from ..queries import projects as project_queries
 from . import common

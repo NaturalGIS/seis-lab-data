@@ -14,21 +14,17 @@ from .. import (
 from ..db import models
 from ..db.commands import surveymissions as mission_commands
 from ..db.commands import surveyrelatedrecords as record_commands
-from ..db.queries import (
-    projects as project_queries,
-    surveymissions as mission_queries,
-    surveyrelatedrecords as record_queries,
-)
+from ..db.queries import projects as project_queries
+from ..db.queries import surveymissions as mission_queries
+from ..db.queries import surveyrelatedrecords as record_queries
 from ..permissions import surveymissions as mission_permissions
-from ..schemas import (
-    common as common_schemas,
-    events as event_schemas,
-    filters as filter_schemas,
-    identifiers,
-    surveymissions as survey_mission_schemas,
-    user as user_schemas,
-    validation as validation_schemas,
-)
+from ..schemas import common as common_schemas
+from ..schemas import events as event_schemas
+from ..schemas import filters as filter_schemas
+from ..schemas import identifiers
+from ..schemas import surveymissions as survey_mission_schemas
+from ..schemas import user as user_schemas
+from ..schemas import validation as validation_schemas
 from ..tasks import previews as preview_tasks
 
 logger = logging.getLogger(__name__)
@@ -497,7 +493,7 @@ async def delete_survey_mission(
                 details_params=err.params,
             )
         )
-        return None
+        return
 
     await event_dispatcher(
         event_schemas.ResourceModificationEvent(

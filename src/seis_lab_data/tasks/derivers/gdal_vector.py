@@ -107,6 +107,6 @@ def derive_vector_preview(
         )
     finally:
         # Clear / close gdal used datasets
-        rgba = None  # noqa: F841
-        translated = None  # noqa: F841
-        ds = None  # noqa: F841
+        rgba = None
+        translated = None
+        ds = None

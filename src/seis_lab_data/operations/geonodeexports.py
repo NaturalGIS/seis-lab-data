@@ -1,7 +1,7 @@
 import datetime as dt
 import logging
-import re
 import pathlib
+import re
 
 import httpx
 from anyio import Path
@@ -18,11 +18,9 @@ from ..db import models
 from ..db.commands import surveyrelatedrecords as record_commands
 from ..db.queries import surveyrelatedrecords as record_queries
 from ..permissions import surveyrelatedrecords as record_permissions
-from ..schemas import (
-    events as event_schemas,
-    identifiers,
-    user as user_schemas,
-)
+from ..schemas import events as event_schemas
+from ..schemas import identifiers
+from ..schemas import user as user_schemas
 
 logger = logging.getLogger(__name__)
 
@@ -277,7 +275,7 @@ async def export_survey_related_record(
             session,
             survey_related_record_id,
             resource_url,
-            dt.datetime.now(tz=dt.timezone.utc),
+            dt.datetime.now(tz=dt.UTC),
         )
     # catching everything, so the user is always told when the export failed
     except Exception as err:

@@ -4,7 +4,6 @@ import logging
 import uuid
 from typing import (
     Final,
-    Type,
     TypeVar,
 )
 
@@ -13,13 +12,11 @@ from jinja2.filters import do_truncate
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
+from ...schemas import identifiers
+from ...schemas import projects as project_schemas
+from ...schemas import surveymissions as mission_schemas
+from ...schemas import surveyrelatedrecords as record_schemas
 from .. import filters
-from ...schemas import (
-    identifiers,
-    projects as project_schemas,
-    surveymissions as mission_schemas,
-    surveyrelatedrecords as record_schemas,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +79,7 @@ RequestPathRetrievableIdType = TypeVar(
 
 
 def get_id_from_request_path[RequestPathRetrievableIdType](
-    request: Request, path_param_name: str, id_type: Type[RequestPathRetrievableIdType]
+    request: Request, path_param_name: str, id_type: type[RequestPathRetrievableIdType]
 ) -> RequestPathRetrievableIdType:
     try:
         return id_type(uuid.UUID(request.path_params[path_param_name]))

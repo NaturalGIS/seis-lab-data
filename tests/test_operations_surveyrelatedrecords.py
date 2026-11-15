@@ -6,21 +6,17 @@ from seis_lab_data import (
     constants,
     errors,
 )
-from seis_lab_data.db.commands import (
-    recordassets as asset_commands,
-    surveyrelatedrecords as record_commands,
-)
+from seis_lab_data.db.commands import recordassets as asset_commands
+from seis_lab_data.db.commands import surveyrelatedrecords as record_commands
 from seis_lab_data.operations import surveyrelatedrecords as record_ops
-from seis_lab_data.schemas import (
-    identifiers,
-    surveyrelatedrecords as record_schemas,
-    events as event_schemas,
+from seis_lab_data.schemas import events as event_schemas
+from seis_lab_data.schemas import identifiers
+from seis_lab_data.schemas import surveyrelatedrecords as record_schemas
+from seis_lab_data.schemas.identifiers import (
+    RequestId,
+    UserId,
 )
 from seis_lab_data.schemas.user import User
-from seis_lab_data.schemas.identifiers import (
-    UserId,
-    RequestId,
-)
 
 
 class _EventCollector:

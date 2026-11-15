@@ -32,7 +32,7 @@ dependencies = [
     "redis[hiredis]>=6.2.0",
     "rich>=14.0.0",
     "shapely>=2.1.2",
-    "sqlalchemy>=2.0.43",
+    "sqlalchemy[asyncio]>=2.1.8",
     "sqlmodel>=0.0.24",
     "stac-pydantic>=3.6.0",
     "starlette>=0.47.1",
@@ -70,6 +70,14 @@ docs = [
 [tool.uv]
 default-groups = []
 package = true
+
+[tool.ruff]
+# alembic generates the migration files, these are not to be reformatted or linted
+extend-exclude = [
+    "src/seis_lab_data/migrations/versions",
+]
+# pre-commit passes file paths explicitly, which would otherwise bypass the exclusion
+force-exclude = true
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers --verbose -m 'not e2e and not integration'"

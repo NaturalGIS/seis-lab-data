@@ -6,11 +6,9 @@ import dramatiq
 
 from .. import config
 from ..operations import surveymissions as survey_mission_ops
-from ..schemas import (
-    identifiers,
-    surveymissions as survey_mission_schemas,
-    user as user_schemas,
-)
+from ..schemas import identifiers
+from ..schemas import surveymissions as survey_mission_schemas
+from ..schemas import user as user_schemas
 from . import decorators
 from .stub import sld_stub_broker
 

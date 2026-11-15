@@ -9,21 +9,17 @@ from .. import (
     dispatch,
     errors,
 )
-from ..permissions import surveyrelatedrecords as record_permissions
 from ..db import models
 from ..db.commands import surveyrelatedrecords as record_commands
-from ..db.queries import (
-    surveymissions as mission_queries,
-    surveyrelatedrecords as record_queries,
-)
-from ..schemas import (
-    events as event_schemas,
-    filters as filter_schemas,
-    identifiers,
-    surveyrelatedrecords as record_schemas,
-    user as user_schemas,
-    validation as validation_schemas,
-)
+from ..db.queries import surveymissions as mission_queries
+from ..db.queries import surveyrelatedrecords as record_queries
+from ..permissions import surveyrelatedrecords as record_permissions
+from ..schemas import events as event_schemas
+from ..schemas import filters as filter_schemas
+from ..schemas import identifiers
+from ..schemas import surveyrelatedrecords as record_schemas
+from ..schemas import user as user_schemas
+from ..schemas import validation as validation_schemas
 
 logger = logging.getLogger(__name__)
 
@@ -361,7 +357,7 @@ async def delete_survey_related_record(
                 details_params=err.params,
             )
         )
-        return None
+        return
     await event_dispatcher(
         event_schemas.ResourceModificationEvent(
             initiator=initiator.id,

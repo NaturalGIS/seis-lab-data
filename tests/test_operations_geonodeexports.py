@@ -5,9 +5,9 @@ GeoNode is faked: its API, uploads included, is served by an `httpx.MockTranspor
 
 import base64
 import datetime as dt
-import functools
 import email.parser
 import email.policy
+import functools
 import json
 import uuid
 
@@ -22,24 +22,18 @@ from seis_lab_data import (
     geonode,
 )
 from seis_lab_data.db import models
-from seis_lab_data.db.commands import (
-    surveymissions as mission_commands,
-    surveyrelatedrecords as record_commands,
-)
+from seis_lab_data.db.commands import surveymissions as mission_commands
+from seis_lab_data.db.commands import surveyrelatedrecords as record_commands
 from seis_lab_data.db.queries import surveyrelatedrecords as record_queries
-from seis_lab_data.operations import (
-    geonodeexports as export_ops,
-    surveyrelatedrecords as record_ops,
-)
-from seis_lab_data.schemas import (
-    events as event_schemas,
-    identifiers,
-)
-from seis_lab_data.schemas.user import User
+from seis_lab_data.operations import geonodeexports as export_ops
+from seis_lab_data.operations import surveyrelatedrecords as record_ops
+from seis_lab_data.schemas import events as event_schemas
+from seis_lab_data.schemas import identifiers
 from seis_lab_data.schemas.identifiers import (
     RequestId,
     UserId,
 )
+from seis_lab_data.schemas.user import User
 
 _EXISTING_PK = 7
 _NEW_PK = 8
@@ -403,7 +397,7 @@ async def test_export_of_an_already_exported_record(
             session,
             record_id,
             f"http://geonode.test/catalogue/#/dataset/{_EXISTING_PK}",
-            dt.datetime(2026, 1, 23, tzinfo=dt.timezone.utc),
+            dt.datetime(2026, 1, 23, tzinfo=dt.UTC),
         )
         await _export(session, record_id, admin_user, export_settings)
 

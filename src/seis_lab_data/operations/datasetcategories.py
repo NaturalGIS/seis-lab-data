@@ -7,16 +7,14 @@ from .. import (
     dispatch,
     errors,
 )
-from ..permissions import datasetcategories as category_permissions
 from ..db import models
 from ..db.commands import datasetcategories as category_commands
 from ..db.queries import datasetcategories as category_queries
-from ..schemas import (
-    datasetcategories as category_schemas,
-    events as event_schemas,
-    identifiers,
-    user as user_schemas,
-)
+from ..permissions import datasetcategories as category_permissions
+from ..schemas import datasetcategories as category_schemas
+from ..schemas import events as event_schemas
+from ..schemas import identifiers
+from ..schemas import user as user_schemas
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +160,7 @@ async def delete_dataset_category(
                 details_params=err.params,
             )
         )
-        return None
+        return
     await event_dispatcher(
         event_schemas.ResourceModificationEvent(
             resource_type=constants.ResourceType.CATEGORY,

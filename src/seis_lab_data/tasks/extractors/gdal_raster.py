@@ -5,6 +5,7 @@ from osgeo import (
     gdal,
     osr,
 )
+
 from . import common
 from .schemas import RasterMetadata
 
@@ -60,4 +61,4 @@ def extract_raster_metadata(path: Path | str) -> RasterMetadata:
             bbox_4326=bbox_4326,
         )
     finally:
-        ds = None  # noqa: F841
+        ds = None

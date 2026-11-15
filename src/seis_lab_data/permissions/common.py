@@ -1,5 +1,5 @@
-from ..schemas.user import User
 from .. import constants
+from ..schemas.user import User
 
 
 def is_editor(*user_role: str) -> bool:

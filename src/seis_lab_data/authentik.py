@@ -8,10 +8,8 @@ from .constants import (
     ROLE_EDITOR,
     ROLE_SYSTEM_ADMIN,
 )
-from .schemas import (
-    identifiers,
-    user as user_schemas,
-)
+from .schemas import identifiers
+from .schemas import user as user_schemas
 
 logger = logging.getLogger(__name__)
 

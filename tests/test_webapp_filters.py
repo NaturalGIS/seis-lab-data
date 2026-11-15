@@ -1,7 +1,7 @@
 import uuid
 
-import shapely
 import pytest
+import shapely
 
 from seis_lab_data.webapp import filters
 

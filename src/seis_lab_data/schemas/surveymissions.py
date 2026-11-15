@@ -10,10 +10,10 @@ from ..constants import (
 from ..db import models
 from .common import (
     ArchivePath,
-    LinkSchema,
     DraftDescription,
     DraftName,
     EpsgCode,
+    LinkSchema,
     PolygonOut,
     PossiblyInvalidPolygon,
     serialize_id,

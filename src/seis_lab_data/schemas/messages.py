@@ -5,11 +5,10 @@ from typing import (
     TypeVar,
 )
 
-from . import identifiers
-from .. import constants
-
 import pydantic
 
+from .. import constants
+from . import identifiers
 
 IdType = TypeVar("IdType")
 

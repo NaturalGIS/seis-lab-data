@@ -11,10 +11,8 @@ from starlette.requests import HTTPConnection
 
 from ..auth import AuthConfig
 from ..config import SeisLabDataSettings
-from ..schemas import (
-    identifiers,
-    user as user_schemas,
-)
+from ..schemas import identifiers
+from ..schemas import user as user_schemas
 
 logger = logging.getLogger(__name__)
 

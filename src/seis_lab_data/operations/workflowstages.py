@@ -7,16 +7,14 @@ from .. import (
     dispatch,
     errors,
 )
-from ..permissions import workflowstages as stage_permissions
 from ..db import models
 from ..db.commands import workflowstages as stage_commands
 from ..db.queries import workflowstages as stage_queries
-from ..schemas import (
-    events as event_schemas,
-    identifiers,
-    user as user_schemas,
-    workflowstages as stage_schemas,
-)
+from ..permissions import workflowstages as stage_permissions
+from ..schemas import events as event_schemas
+from ..schemas import identifiers
+from ..schemas import user as user_schemas
+from ..schemas import workflowstages as stage_schemas
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +153,7 @@ async def delete_workflow_stage(
                 details_params=err.params,
             )
         )
-        return None
+        return
     await event_dispatcher(
         event_schemas.ResourceModificationEvent(
             initiator=initiator.id,

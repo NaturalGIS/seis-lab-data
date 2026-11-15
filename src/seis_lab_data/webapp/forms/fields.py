@@ -1,4 +1,5 @@
 import logging
+
 from wtforms.fields import (
     DateField,
     IntegerField,

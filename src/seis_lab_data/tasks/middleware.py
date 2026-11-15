@@ -7,8 +7,8 @@ from redis.asyncio import Redis
 
 from .. import constants
 from ..config import (
-    get_settings,
     SeisLabDataSettings,
+    get_settings,
 )
 
 logger = logging.getLogger(__name__)

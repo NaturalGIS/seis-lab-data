@@ -1,16 +1,13 @@
 import contextlib
 import functools
-from typing import (
-    AsyncIterator,
-    TypedDict,
-)
+from collections.abc import AsyncIterator
+from typing import TypedDict
 
 import jinja2
 import shapely
 from authlib.integrations.starlette_client import OAuth
 from redis import asyncio as aioredis
 from starlette.applications import Starlette
-from starlette_babel.contrib.jinja import configure_jinja_env
 from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.gzip import GZipMiddleware
@@ -22,9 +19,10 @@ from starlette.routing import (
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette_babel import (
-    get_translator,
     LocaleMiddleware,
+    get_translator,
 )
+from starlette_babel.contrib.jinja import configure_jinja_env
 from starlette_babel.locale import (
     LocaleFromCookie,
     LocaleFromQuery,
@@ -43,7 +41,6 @@ from ..auth import (
     get_oauth_manager,
 )
 from ..tasks.broker import setup_broker
-
 from . import jinjafilters
 from .auth_backend import OIDCAuthBackend
 from .middleware import (
@@ -53,13 +50,13 @@ from .middleware import (
 from .routes import (
     auth,
     base,
+    datalist,
 )
-from .routes import datalist
+from .routes.datasetcategories import routes as dataset_category_routes
+from .routes.discovery import routes as discovery_routes
 from .routes.projects import routes as projects_routes
 from .routes.surveymissions import routes as missions_routes
 from .routes.surveyrelatedrecords import routes as records_routes
-from .routes.discovery import routes as discovery_routes
-from .routes.datasetcategories import routes as dataset_category_routes
 from .routes.workflowstages import routes as workflow_stage_routes
 from .stacapi.app import create_api_app_from_settings
 

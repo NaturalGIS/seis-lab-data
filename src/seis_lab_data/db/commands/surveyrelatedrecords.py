@@ -18,11 +18,9 @@ from sqlalchemy import (
     update,
     values,
 )
-from sqlalchemy.dialects.postgresql import (
-    ARRAY,
-    UUID as PG_UUID,
-    insert as pg_insert,
-)
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import errors
@@ -33,16 +31,12 @@ from ...constants import (
     SurveyMissionStatus,
     SurveyRelatedRecordStatus,
 )
-from ...schemas import (
-    filters as filter_schemas,
-    identifiers,
-    surveyrelatedrecords as record_schemas,
-)
+from ...schemas import filters as filter_schemas
+from ...schemas import identifiers
+from ...schemas import surveyrelatedrecords as record_schemas
 from .. import models
-from ..queries import (
-    recordassets as asset_queries,
-    surveyrelatedrecords as record_queries,
-)
+from ..queries import recordassets as asset_queries
+from ..queries import surveyrelatedrecords as record_queries
 from .common import get_bbox_4326_for_db
 
 logger = logging.getLogger(__name__)

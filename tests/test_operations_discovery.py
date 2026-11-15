@@ -25,36 +25,30 @@ from geoalchemy2.shape import to_shape
 
 pytest.importorskip("osgeo")
 
-from osgeo import (  # noqa: E402
+from osgeo import (
     gdal,
     osr,
 )
 
-from seis_lab_data import constants  # noqa: E402
-from seis_lab_data.db import models  # noqa: E402
-from seis_lab_data.db.commands import (  # noqa: E402
-    discovery as discovery_commands,
-    projects as project_commands,
-    surveymissions as mission_commands,
-    surveyrelatedrecords as record_commands,
-)
-from seis_lab_data.db.queries import surveyrelatedrecords as record_queries  # noqa: E402
-from seis_lab_data.operations import (  # noqa: E402
-    discovery as discovery_ops,
-    previews as preview_ops,
-    surveyrelatedrecords as record_ops,
-)
-from seis_lab_data.schemas import (  # noqa: E402
-    discovery as discovery_schemas,
-    events as event_schemas,
-    identifiers,
-    projects as project_schemas,
-    surveymissions as mission_schemas,
-    surveyrelatedrecords as record_schemas,
-)
-from seis_lab_data.tasks import previews as preview_tasks  # noqa: E402
-from seis_lab_data.tasks.derivers import schemas as deriver_schemas  # noqa: E402
-from seis_lab_data.tasks.extractors import schemas as extractor_schemas  # noqa: E402
+from seis_lab_data import constants
+from seis_lab_data.db import models
+from seis_lab_data.db.commands import discovery as discovery_commands
+from seis_lab_data.db.commands import projects as project_commands
+from seis_lab_data.db.commands import surveymissions as mission_commands
+from seis_lab_data.db.commands import surveyrelatedrecords as record_commands
+from seis_lab_data.db.queries import surveyrelatedrecords as record_queries
+from seis_lab_data.operations import discovery as discovery_ops
+from seis_lab_data.operations import previews as preview_ops
+from seis_lab_data.operations import surveyrelatedrecords as record_ops
+from seis_lab_data.schemas import discovery as discovery_schemas
+from seis_lab_data.schemas import events as event_schemas
+from seis_lab_data.schemas import identifiers
+from seis_lab_data.schemas import projects as project_schemas
+from seis_lab_data.schemas import surveymissions as mission_schemas
+from seis_lab_data.schemas import surveyrelatedrecords as record_schemas
+from seis_lab_data.tasks import previews as preview_tasks
+from seis_lab_data.tasks.derivers import schemas as deriver_schemas
+from seis_lab_data.tasks.extractors import schemas as extractor_schemas
 
 gdal.UseExceptions()
 

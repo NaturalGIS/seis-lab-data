@@ -18,22 +18,18 @@ from wtforms import (
 )
 
 from ... import constants
-from ...db.queries import (
-    datasetcategories as category_queries,
-    surveyrelatedrecords as record_queries,
-    workflowstages as stage_queries,
-)
-from ...schemas import (
-    identifiers,
-    surveyrelatedrecords as record_schemas,
-)
+from ...db.queries import datasetcategories as category_queries
+from ...db.queries import surveyrelatedrecords as record_queries
+from ...db.queries import workflowstages as stage_queries
+from ...schemas import identifiers
+from ...schemas import surveyrelatedrecords as record_schemas
 from .common import (
     BoundingBoxForm,
     DescriptionField,
-    incorporate_schema_validation_errors_into_form,
     LinkForm,
     NameField,
     PydanticMappableStringField,
+    incorporate_schema_validation_errors_into_form,
 )
 from .fields import OptionalDateField
 

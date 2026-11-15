@@ -2,11 +2,11 @@ import datetime as dt
 from collections.abc import Collection
 
 from sqlalchemy.orm import selectinload
-from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import (
     func,
     select,
 )
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ...constants import AssetType
 from ...db import models
@@ -225,4 +225,6 @@ async def count_media_types(
     only_data_assets: bool = True,
 ) -> int:
     statement = _get_media_type_list_statement(name_filter, only_data_assets)
-    return (await session.exec(select(func.count()).select_from(statement))).first()
+    return (
+        await session.exec(select(func.count()).select_from(statement.subquery()))
+    ).first()

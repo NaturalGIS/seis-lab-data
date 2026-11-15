@@ -1,21 +1,19 @@
 import shapely
 from sqlalchemy.orm import selectinload
-from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import (
     func,
     or_,
     select,
 )
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ...constants import (
     SURVEY_RELATED_RECORD_IDLE_STATUSES,
     SurveyMissionStatus,
 )
 from ...db import models
-from ...schemas import (
-    identifiers,
-    filters as filter_schemas,
-)
+from ...schemas import filters as filter_schemas
+from ...schemas import identifiers
 from .common import _get_total_num_records
 
 

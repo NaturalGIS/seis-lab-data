@@ -5,10 +5,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import errors
-from ...schemas import (
-    datasetcategories as category_schemas,
-    identifiers,
-)
+from ...schemas import datasetcategories as category_schemas
+from ...schemas import identifiers
 from .. import models
 from ..queries import datasetcategories as category_queries
 

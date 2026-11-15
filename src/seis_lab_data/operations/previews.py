@@ -16,26 +16,18 @@ from .. import (
     pathpatterns,
 )
 from ..db import models
-from ..db.commands import (
-    projects as project_commands,
-    recordassets as asset_commands,
-    surveymissions as mission_commands,
-    surveyrelatedrecords as record_commands,
-)
-from ..db.queries import (
-    discovery as discovery_queries,
-    recordassets as asset_queries,
-)
-from ..schemas import (
-    events as event_schemas,
-    identifiers,
-    surveyrelatedrecords as record_schemas,
-    user as user_schemas,
-)
-from ..tasks.derivers import (
-    bbox_thumbnail,
-    dispatch as deriver_dispatch,
-)
+from ..db.commands import projects as project_commands
+from ..db.commands import recordassets as asset_commands
+from ..db.commands import surveymissions as mission_commands
+from ..db.commands import surveyrelatedrecords as record_commands
+from ..db.queries import discovery as discovery_queries
+from ..db.queries import recordassets as asset_queries
+from ..schemas import events as event_schemas
+from ..schemas import identifiers
+from ..schemas import surveyrelatedrecords as record_schemas
+from ..schemas import user as user_schemas
+from ..tasks.derivers import bbox_thumbnail
+from ..tasks.derivers import dispatch as deriver_dispatch
 
 logger = logging.getLogger(__name__)
 

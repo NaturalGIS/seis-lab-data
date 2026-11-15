@@ -9,12 +9,12 @@ All credit to its author.
 """
 
 from asyncio import (
-    run,
     iscoroutinefunction,
+    run,
 )
 from collections import defaultdict
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable
 
 import typer
 

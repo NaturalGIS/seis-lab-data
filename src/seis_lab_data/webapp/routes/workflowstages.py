@@ -23,15 +23,11 @@ from ... import (
 )
 from ...db.queries import workflowstages as stage_queries
 from ...permissions import workflowstages as stage_permissions
-from ...schemas import (
-    workflowstages as stage_schemas,
-    identifiers,
-    webui as webui_schemas,
-)
+from ...schemas import identifiers
+from ...schemas import webui as webui_schemas
+from ...schemas import workflowstages as stage_schemas
 from ...tasks import workflowstages as stage_tasks
-from .. import (
-    filters,
-)
+from .. import filters
 from ..forms import workflowstages as stage_forms
 from ..streamhandlers import common as common_handlers
 from .auth import requires_auth
@@ -403,7 +399,7 @@ class WorkflowStageCollectionEndpoint(HTTPEndpoint):
             raw_request_id=str(request_id),
             raw_to_create=to_create.model_dump_json(),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
-        )  # noqa
+        )
         return Response(status_code=200)
 
 
@@ -473,7 +469,7 @@ class WorkflowStageDetailEndpoint(HTTPEndpoint):
                 name=form_instance.name.data,
             ).model_dump_json(),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
-        )  # noqa
+        )
         return Response(status_code=200)
 
     @csrf_protect
@@ -505,7 +501,7 @@ class WorkflowStageDetailEndpoint(HTTPEndpoint):
             raw_request_id=str(request_id),
             raw_resource_id=str(resource_id),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
-        )  # noqa
+        )
         return Response(status_code=200)
 
 

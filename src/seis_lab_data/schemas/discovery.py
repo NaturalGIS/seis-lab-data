@@ -7,9 +7,9 @@ from ..db import models
 from . import (
     common,
     identifiers,
-    datasetcategories as category_schemas,
-    workflowstages as stage_schemas,
 )
+from . import datasetcategories as category_schemas
+from . import workflowstages as stage_schemas
 
 
 class NewAssetDiscoveryConfiguration(pydantic.BaseModel):

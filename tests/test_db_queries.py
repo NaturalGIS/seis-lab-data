@@ -5,12 +5,10 @@ import sqlalchemy
 
 from seis_lab_data import constants
 from seis_lab_data.db import models
-from seis_lab_data.db.queries import (
-    projects as project_queries,
-    recordassets as asset_queries,
-    surveymissions as mission_queries,
-    surveyrelatedrecords as record_queries,
-)
+from seis_lab_data.db.queries import projects as project_queries
+from seis_lab_data.db.queries import recordassets as asset_queries
+from seis_lab_data.db.queries import surveymissions as mission_queries
+from seis_lab_data.db.queries import surveyrelatedrecords as record_queries
 from seis_lab_data.schemas import identifiers
 
 

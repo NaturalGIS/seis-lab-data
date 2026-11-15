@@ -6,23 +6,21 @@ from sqlalchemy.orm import (
     aliased,
     selectinload,
 )
-from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import (
     exists,
     func,
     or_,
     select,
 )
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ...constants import (
     AssetType,
     SurveyRelatedRecordStatus,
 )
 from ...db import models
-from ...schemas import (
-    identifiers,
-    filters as filter_schemas,
-)
+from ...schemas import filters as filter_schemas
+from ...schemas import identifiers
 from .common import _get_total_num_records
 
 logger = logging.getLogger(__name__)

@@ -8,13 +8,11 @@ from starlette_wtf import StarletteForm
 from wtforms import HiddenField
 
 from ...db.queries.workflowstages import get_workflow_stage_by_name
-from ...schemas import (
-    workflowstages as stage_schemas,
-    identifiers,
-)
+from ...schemas import identifiers
+from ...schemas import workflowstages as stage_schemas
 from .common import (
-    incorporate_schema_validation_errors_into_form,
     NameField,
+    incorporate_schema_validation_errors_into_form,
 )
 
 logger = logging.getLogger(__name__)

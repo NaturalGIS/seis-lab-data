@@ -1,38 +1,37 @@
-import logging
 import datetime as dt
+import logging
 import re
-from typing import Annotated
+from typing import Annotated, Self
 
 import pydantic
-from typing_extensions import Self
 
-from ..db import models
 from ..constants import (
     AssetType,
     SurveyRelatedRecordStatus,
 )
+from ..db import models
 from .common import (
     ArchivePath,
-    LinkSchema,
     DraftDescription,
     DraftName,
     DraftRelationship,
+    LinkSchema,
     PolygonOut,
     PossiblyInvalidPolygon,
     serialize_id,
     serialize_possibly_empty_date,
 )
+from .datasetcategories import DatasetCategoryReadListItem
 from .filters import TemporalExtentFilterValue
 from .identifiers import (
     DatasetCategoryId,
     ProjectId,
-    SurveyRelatedRecordId,
-    SurveyMissionId,
     RecordAssetId,
+    SurveyMissionId,
+    SurveyRelatedRecordId,
     WorkflowStageId,
 )
 from .surveymissions import SurveyMissionReadEmbedded
-from .datasetcategories import DatasetCategoryReadListItem
 from .workflowstages import WorkflowStageReadListItem
 
 logger = logging.getLogger(__name__)

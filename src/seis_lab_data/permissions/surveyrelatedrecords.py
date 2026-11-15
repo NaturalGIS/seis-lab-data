@@ -1,7 +1,7 @@
 import logging
 
-from ..schemas.user import User
 from ..db import models
+from ..schemas.user import User
 from .common import can_manage_item
 
 logger = logging.getLogger(__name__)

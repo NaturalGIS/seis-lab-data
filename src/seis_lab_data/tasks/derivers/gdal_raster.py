@@ -169,11 +169,11 @@ def derive_raster_preview(
         return DerivedPreview(image=common.to_webp(rgba), bounds_4326=bounds)
     finally:
         # Clear / close gdal used datasets
-        rgba = None  # noqa: F841
-        stacked = None  # noqa: F841
-        colored = None  # noqa: F841
-        warped = None  # noqa: F841
-        dataset = None  # noqa: F841
+        rgba = None
+        stacked = None
+        colored = None
+        warped = None
+        dataset = None
 
 
 def _preview_size(width: int, height: int) -> tuple[int, int]:

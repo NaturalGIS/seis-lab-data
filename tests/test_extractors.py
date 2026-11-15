@@ -17,32 +17,26 @@ import pytest
 
 pytest.importorskip("osgeo")
 
-from osgeo import (  # noqa: E402
+from osgeo import (
     gdal,
     ogr,
     osr,
 )
 
-from seis_lab_data import constants  # noqa: E402
-from seis_lab_data.tasks.extractors import (  # noqa: E402
+from seis_lab_data import constants
+from seis_lab_data.tasks.extractors import (
     dispatch,
     kmall,
     schemas,
     xyz,
 )
-from seis_lab_data.tasks.extractors.gdal_raster import (  # noqa: E402
-    extract_raster_metadata,
-)
-from seis_lab_data.tasks.extractors.gdal_vector import (  # noqa: E402
-    extract_vector_metadata,
-)
-from seis_lab_data.tasks.extractors.kmall import (  # noqa: E402
+from seis_lab_data.tasks.extractors.gdal_raster import extract_raster_metadata
+from seis_lab_data.tasks.extractors.gdal_vector import extract_vector_metadata
+from seis_lab_data.tasks.extractors.kmall import (
     collect_position_fixes,
     extract_kmall_metadata,
 )
-from seis_lab_data.tasks.extractors.segy import (  # noqa: E402
-    extract_segy_metadata,
-)
+from seis_lab_data.tasks.extractors.segy import extract_segy_metadata
 
 gdal.UseExceptions()
 

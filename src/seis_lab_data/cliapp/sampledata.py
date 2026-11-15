@@ -1,26 +1,20 @@
 import datetime as dt
 import random
 import uuid
+from collections.abc import Iterator, Sequence
 from itertools import count
-from typing import (
-    Iterator,
-    Sequence,
-)
 
 import pydantic
 import shapely
 from faker import Faker
 
 from .. import constants
-from ..schemas import (
-    common as common_schemas,
-    identifiers,
-    projects as project_schemas,
-    surveymissions as mission_schemas,
-    surveyrelatedrecords as record_schemas,
-)
-
 from ..db import models
+from ..schemas import common as common_schemas
+from ..schemas import identifiers
+from ..schemas import projects as project_schemas
+from ..schemas import surveymissions as mission_schemas
+from ..schemas import surveyrelatedrecords as record_schemas
 
 _FAKE_EN = Faker("en_US")
 _FAKE_PT = Faker("pt_PT")

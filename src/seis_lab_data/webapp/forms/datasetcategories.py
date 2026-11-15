@@ -8,13 +8,11 @@ from starlette_wtf import StarletteForm
 from wtforms import HiddenField
 
 from ...db.queries.datasetcategories import get_dataset_category_by_name
-from ...schemas import (
-    datasetcategories as category_schemas,
-    identifiers,
-)
+from ...schemas import datasetcategories as category_schemas
+from ...schemas import identifiers
 from .common import (
-    incorporate_schema_validation_errors_into_form,
     NameField,
+    incorporate_schema_validation_errors_into_form,
 )
 
 logger = logging.getLogger(__name__)

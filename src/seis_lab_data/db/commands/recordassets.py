@@ -5,10 +5,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import errors
 from ...constants import AssetType
-from ...schemas import (
-    identifiers,
-    surveyrelatedrecords as record_schemas,
-)
+from ...schemas import identifiers
+from ...schemas import surveyrelatedrecords as record_schemas
 from .. import models
 from ..queries import recordassets as asset_queries
 

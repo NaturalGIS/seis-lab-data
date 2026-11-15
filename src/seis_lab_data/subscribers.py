@@ -1,12 +1,10 @@
 import asyncio
 import dataclasses
 import logging
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable, Sequence
 from typing import (
     Any,
-    Callable,
     Protocol,
-    Sequence,
     TypeVar,
 )
 
@@ -17,11 +15,9 @@ from redis.asyncio.client import PubSub
 from sqlalchemy.ext.asyncio.session import async_sessionmaker
 
 from . import constants
-from .schemas import (
-    identifiers,
-    messages as message_schemas,
-    user as user_schemas,
-)
+from .schemas import identifiers
+from .schemas import messages as message_schemas
+from .schemas import user as user_schemas
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")

@@ -1,5 +1,5 @@
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable
 
 import dramatiq
 
@@ -16,8 +16,7 @@ def redis_client(func: Callable):
         for middleware in broker.middleware:
             if isinstance(middleware, AsyncRedisPubSubMiddleware):
                 return await func(*args, **kwargs, redis_client=middleware.redis_client)
-        else:
-            raise RuntimeError("No AsyncRedisPubSubMiddleware found in the broker")
+        raise RuntimeError("No AsyncRedisPubSubMiddleware found in the broker")
 
     return wrapper
 
@@ -29,7 +28,6 @@ def sld_settings(func: Callable):
         for middleware in broker.middleware:
             if isinstance(middleware, SeisLabDataSettingsMiddleware):
                 return await func(*args, **kwargs, settings=middleware.sld_settings)
-        else:
-            raise RuntimeError("No SeisLabDataSettingsMiddleware found in the broker")
+        raise RuntimeError("No SeisLabDataSettingsMiddleware found in the broker")
 
     return wrapper

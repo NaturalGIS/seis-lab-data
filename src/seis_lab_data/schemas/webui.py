@@ -3,8 +3,8 @@ import typing
 import uuid
 
 import pydantic
-from starlette_babel import LazyString
 from starlette.datastructures import URL
+from starlette_babel import LazyString
 
 from .. import constants
 from . import common

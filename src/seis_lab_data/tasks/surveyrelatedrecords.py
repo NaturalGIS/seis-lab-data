@@ -4,19 +4,12 @@ import uuid
 
 import dramatiq
 
-from .. import (
-    config,
-)
-from ..operations import (
-    discovery as discovery_ops,
-    surveyrelatedrecords as record_ops,
-)
-from ..schemas import (
-    identifiers,
-    surveyrelatedrecords as record_schemas,
-    user as user_schemas,
-)
-
+from .. import config
+from ..operations import discovery as discovery_ops
+from ..operations import surveyrelatedrecords as record_ops
+from ..schemas import identifiers
+from ..schemas import surveyrelatedrecords as record_schemas
+from ..schemas import user as user_schemas
 from . import decorators
 from .stub import sld_stub_broker
 

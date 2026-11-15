@@ -14,7 +14,6 @@ from datastar_py.starlette import (
     read_signals,
 )
 from redis.asyncio import Redis
-from starlette_babel import gettext_lazy as _
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
@@ -24,6 +23,7 @@ from starlette.responses import (
 )
 from starlette.routing import Route
 from starlette.templating import Jinja2Templates
+from starlette_babel import gettext_lazy as _
 from starlette_wtf import csrf_protect
 
 from ... import (
@@ -33,49 +33,37 @@ from ... import (
     geojson,
     subscribers,
 )
-from ...db.queries import (
-    datasetcategories as category_queries,
-    recordassets as asset_queries,
-    surveyrelatedrecords as record_queries,
-    workflowstages as stage_queries,
-)
-from ...operations import (
-    projects as project_ops,
-    surveymissions as survey_mission_ops,
-    surveyrelatedrecords as survey_related_record_ops,
-)
-from ...permissions import (
-    surveymissions as mission_permissions,
-    surveyrelatedrecords as record_permissions,
-)
-from ...tasks import (
-    discovery as discovery_tasks,
-    surveymissions as mission_tasks,
-    surveyrelatedrecords as record_tasks,
-)
-from ...schemas import (
-    common as common_schemas,
-    identifiers,
-    surveymissions as mission_schemas,
-    surveyrelatedrecords as record_schemas,
-    webui as webui_schemas,
-)
+from ...db.queries import datasetcategories as category_queries
+from ...db.queries import recordassets as asset_queries
+from ...db.queries import surveyrelatedrecords as record_queries
+from ...db.queries import workflowstages as stage_queries
+from ...operations import projects as project_ops
+from ...operations import surveymissions as survey_mission_ops
+from ...operations import surveyrelatedrecords as survey_related_record_ops
+from ...permissions import surveymissions as mission_permissions
+from ...permissions import surveyrelatedrecords as record_permissions
+from ...schemas import common as common_schemas
+from ...schemas import identifiers
+from ...schemas import surveymissions as mission_schemas
+from ...schemas import surveyrelatedrecords as record_schemas
+from ...schemas import webui as webui_schemas
+from ...tasks import discovery as discovery_tasks
+from ...tasks import surveymissions as mission_tasks
+from ...tasks import surveyrelatedrecords as record_tasks
 from .. import (
     epsgcodes,
     filters,
     forms,
 )
 from ..streamhandlers import common as common_handlers
-from .auth import (
-    requires_auth,
-)
+from .auth import requires_auth
 from .common import (
+    UPDATE_BASEMAP_JS_SCRIPT,
     get_id_from_request_path,
     get_page_count,
-    parse_record_selection,
     get_page_from_request_params,
     get_pagination_info,
-    UPDATE_BASEMAP_JS_SCRIPT,
+    parse_record_selection,
 )
 from .datalist import get_missions_datalist
 
@@ -994,7 +982,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             raw_request_id=str(request_id),
             raw_survey_mission_id=str(survey_mission_id),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
-        )  # noqa
+        )
         return Response(status_code=200)
 
 
@@ -1302,7 +1290,7 @@ async def trigger_discovery(request: Request):
         raw_request_id=request.path_params["request_id"],
         raw_survey_mission_id=request.path_params["survey_mission_id"],
         raw_initiator=json.dumps(dataclasses.asdict(request.user)),
-    )  # noqa
+    )
     return Response(status_code=200)
 
 

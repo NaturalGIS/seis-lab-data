@@ -1,12 +1,11 @@
 import logging
 
 from sqlalchemy.orm import selectinload
-from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ...schemas import identifiers
 from .. import models
-
 from .common import _get_total_num_records
 
 logger = logging.getLogger(__name__)

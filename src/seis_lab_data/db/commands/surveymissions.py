@@ -19,10 +19,8 @@ from ...constants import (
     ProjectStatus,
     SurveyMissionStatus,
 )
-from ...schemas import (
-    identifiers,
-    surveymissions as mission_schemas,
-)
+from ...schemas import identifiers
+from ...schemas import surveymissions as mission_schemas
 from .. import models
 from ..queries import surveymissions as mission_queries
 from .common import get_bbox_4326_for_db
