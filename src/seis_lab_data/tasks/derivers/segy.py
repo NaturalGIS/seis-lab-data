@@ -24,7 +24,8 @@ def derive_segy_preview(path: Path | str, epsg_code: int | None) -> DerivedPrevi
     The track joins, in trace order, the trace positions the extractor samples for
     the bbox, so the track and the record's bbox come from the same points.
     `epsg_code` is the CRS discovery applied to that bbox. A file without one, or
-    without positions, raises ValueError.
+    with fewer than two distinct positions, raises ValueError, so its card keeps
+    the sample image.
 
     Pure sync, reading the same ~100 trace headers as discovery, so async callers
     must run this in a worker thread (e.g. anyio.to_thread.run_sync).
@@ -33,17 +34,13 @@ def derive_segy_preview(path: Path | str, epsg_code: int | None) -> DerivedPrevi
         raise ValueError(f"SEG-Y {path} has no CRS to place its track with")
     metadata = extract_segy_metadata(path)
     positions = metadata.sampled_positions
-    if not positions:
-        raise ValueError(f"SEG-Y {path} has no positions to render")
+    if len(set(positions)) < 2:
+        raise ValueError(f"SEG-Y {path} has no track to render")
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(epsg_code)
     coordinates = _transform_positions_to_wgs84(positions, srs)
     # a line, as lone points lose their colour to WEBP's lossy chroma
-    geometry = (
-        {"type": "LineString", "coordinates": coordinates}
-        if len(set(positions)) > 1
-        else {"type": "Point", "coordinates": coordinates[0]}
-    )
+    geometry = {"type": "LineString", "coordinates": coordinates}
     track = {
         "type": "FeatureCollection",
         "features": [{"type": "Feature", "properties": {}, "geometry": geometry}],
