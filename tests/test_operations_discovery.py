@@ -14,7 +14,6 @@ import inspect
 import json
 import logging
 import math
-import types
 import uuid
 
 import pytest
@@ -287,49 +286,13 @@ def test_bbox_tuple_to_wkt_rounds_to_five_decimal_places():
             assert value == round(value, 5)
 
 
-@pytest.mark.parametrize(
-    "description, expected",
-    [
-        pytest.param("", "Auto-extracted: new.", id="empty"),
-        pytest.param(
-            "Typed by hand.", "Typed by hand.\nAuto-extracted: new.", id="appended"
-        ),
-        pytest.param(
-            "Typed by hand.\nAuto-extracted: old.",
-            "Typed by hand.\nAuto-extracted: new.",
-            id="earlier summary replaced",
-        ),
-        pytest.param("Auto-extracted: old.", "Auto-extracted: new.", id="summary only"),
-        pytest.param(
-            "Typed by hand.\nExtração automática: antiga.",
-            "Typed by hand.\nAuto-extracted: new.",
-            id="earlier portuguese summary replaced",
-        ),
-        pytest.param(
-            "x" * 490, "x" * 490 + "\nAuto-extr", id="summary truncated to fit"
-        ),
-        pytest.param("x" * 499, "x" * 499, id="no room for the summary"),
-    ],
-)
-def test_extracted_record_fields_keep_the_typed_description(description, expected):
-    metadata = types.SimpleNamespace(
-        describe=lambda: "Auto-extracted: new.",
-        temporal_extent_begin=None,
-        temporal_extent_end=None,
-    )
-
-    fields = discovery_ops._extracted_record_fields(metadata, None, description)
-
-    assert fields["description"] == expected
-    assert len(fields["description"]) <= constants.DESCRIPTION_MAX_LENGTH
-
-
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_discovery_extracts_metadata(db_session_maker, admin_user, discovery_env):
-    _write_geotiff(
+    data_file = (
         discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/sub/grid.tif"
     )
+    _write_geotiff(data_file)
 
     collector = await _run_discovery(
         db_session_maker,
@@ -349,7 +312,9 @@ async def test_discovery_extracts_metadata(db_session_maker, admin_user, discove
     # a valid record stays a draft while its mission is a draft
     assert record.validation_result["is_valid"] is True
     assert record.status == constants.SurveyRelatedRecordStatus.DRAFT
-    assert record.description.startswith("Auto-extracted: GTiff raster")
+    assert record.description == ""
+    assert record.discovery_info["type"] == "raster"
+    assert record.discovery_info["file_size_bytes"] == data_file.stat().st_size
     assert record.bbox_4326 is not None
     # the synthetic EPSG:3763 grid reprojects to central Portugal
     minx, miny, maxx, maxy = to_shape(record.bbox_4326).bounds
@@ -362,7 +327,7 @@ async def test_discovery_extracts_metadata(db_session_maker, admin_user, discove
         assets = (await session.exec(statement)).all()
     assert len(assets) == 1
     assert assets[0].relative_path == "s01/sub/grid.tif"
-    # the extracted summary goes on the record only; the asset stays empty
+    # the extracted metadata goes on the record only; the asset stays empty
     assert assets[0].description == ""
     # discovered assets are the record's data files, with a media type derived
     # from the file extension
@@ -502,6 +467,7 @@ async def test_discovered_records_match_those_of_the_record_create_operation(
             ),
             temporal_extent_begin=discovered.temporal_extent_begin,
             temporal_extent_end=discovered.temporal_extent_end,
+            discovery_info=discovered.discovery_info,
             assets=[
                 record_schemas.DataRecordAssetCreate(
                     id=identifiers.RecordAssetId(uuid.uuid4()),
@@ -526,6 +492,7 @@ async def test_discovered_records_match_those_of_the_record_create_operation(
             "links",
             "temporal_extent_begin",
             "temporal_extent_end",
+            "discovery_info",
         )
         assert {field: getattr(discovered, field) for field in compared_fields} == {
             field: getattr(created, field) for field in compared_fields
@@ -547,9 +514,13 @@ async def test_discovered_records_match_those_of_the_record_create_operation(
             field: getattr(discovered_asset, field) for field in compared_asset_fields
         } == {field: getattr(created_asset, field) for field in compared_asset_fields}
     assert sorted(
-        (record.name, record.validation_result["is_valid"])
+        (
+            record.name,
+            record.validation_result["is_valid"],
+            record.discovery_info is not None,
+        )
         for record in discovered_records
-    ) == [("broken.tif", False), ("grid.tif", True)]
+    ) == [("broken.tif", False, False), ("grid.tif", True, True)]
 
 
 @pytest.mark.integration
@@ -617,6 +588,12 @@ async def test_discovery_survives_extraction_failure(
     assert record.name == "bad.tif"
     assert record.description == ""
     assert record.bbox_4326 is None
+    # SQL NULL rather than a JSON null, which `IS NULL` would not find
+    async with db_session_maker() as session:
+        statement = sqlmodel.select(models.SurveyRelatedRecord.id).where(
+            models.SurveyRelatedRecord.discovery_info.is_(None)
+        )
+        assert (await session.exec(statement)).all() == [record.id]
 
 
 async def _get_mission_status(db_session_maker, mission_id):
@@ -1572,7 +1549,7 @@ async def test_discovery_geographic_implicit_crs_discards_projected_coordinates(
     assert len(records) == 1
     assert records[0].bbox_4326 is None
     assert any("Discarding extracted bbox" in r.message for r in caplog.records)
-    assert "CRS: unknown." in records[0].description
+    assert "epsg" not in records[0].discovery_info
 
 
 @pytest.mark.integration
@@ -1620,33 +1597,13 @@ async def test_discovery_survives_invalid_implicit_crs(
 @pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "implicit_crs, header_epsg_codes, expected_crs",
+    "implicit_crs, header_epsg_codes, crs_from_mission",
     [
-        pytest.param(
-            4326,
-            (9807, 3763),
-            "CRS: ETRS89 / Portugal TM06 (EPSG:3763).",
-            id="one projected code",
-        ),
-        pytest.param(
-            3763,
-            (3763, 3763),
-            "CRS: ETRS89 / Portugal TM06 (EPSG:3763).",
-            id="code of the mission, quoted twice",
-        ),
-        pytest.param(
-            3763,
-            (3763, 32629),
-            "CRS: ETRS89 / Portugal TM06 (EPSG:3763, from the survey mission).",
-            id="two projected codes",
-        ),
+        pytest.param(4326, (9807, 3763), False, id="one projected code"),
+        pytest.param(3763, (3763, 3763), False, id="code of the mission, quoted twice"),
+        pytest.param(3763, (3763, 32629), True, id="two projected codes"),
         # with the mission at 4326 too, taking the header's 4326 would go unnoticed
-        pytest.param(
-            3763,
-            (4326,),
-            "CRS: ETRS89 / Portugal TM06 (EPSG:3763, from the survey mission).",
-            id="geographic code",
-        ),
+        pytest.param(3763, (4326,), True, id="geographic code"),
     ],
 )
 async def test_discovery_applies_header_crs(
@@ -1656,7 +1613,7 @@ async def test_discovery_applies_header_crs(
     monkeypatch,
     implicit_crs,
     header_epsg_codes,
-    expected_crs,
+    crs_from_mission,
 ):
     # only a single projected CRS quoted by the SEG-Y header overrides the mission's
     target = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/line.tif"
@@ -1689,7 +1646,10 @@ async def test_discovery_applies_header_crs(
     (record,) = await _get_mission_records(
         db_session_maker, discovery_env["mission"].id
     )
-    assert expected_crs in record.description
+    assert record.discovery_info["epsg"] == 3763
+    assert record.discovery_info["crs_name"] == "ETRS89 / Portugal TM06"
+    # only stored when true
+    assert record.discovery_info.get("crs_from_mission", False) is crs_from_mission
     minx, miny, maxx, maxy = to_shape(record.bbox_4326).bounds
     assert -8.2 < minx <= maxx < -8.0
     assert 39.6 < miny <= maxy < 39.8
@@ -1775,10 +1735,9 @@ async def test_discovery_updates_extent_of_tracked_record_without_bbox(
     minx, miny, maxx, maxy = to_shape(updated.bbox_4326).bounds
     assert -8.2 < minx <= maxx < -8.0
     assert 39.6 < miny <= maxy < 39.8
-    assert (
-        "CRS: ETRS89 / Portugal TM06 (EPSG:3763, from the survey mission)."
-        in updated.description
-    )
+    assert updated.discovery_info["epsg"] == 3763
+    assert updated.discovery_info["crs_from_mission"] is True
+    assert updated.description == "A record created by hand"
     assert updated.temporal_extent_begin == dt.date(2024, 9, 28)
     assert updated.temporal_extent_end == dt.date(2024, 9, 29)
     assert updated.validation_result["is_valid"] is True
@@ -2370,9 +2329,9 @@ async def test_manual_create_extracts_extents(
     assert 39.6 < miny <= maxy < 39.8
     # sent without a bbox: valid only if the extracted one came before validation
     assert record.validation_result["is_valid"] is True
-    # the text typed in the payload, followed by the summary discovery stores
+    assert record.description == "A record created by hand"
     extracted = discovery_ops.extractor_dispatch.dispatch_extractor(str(data_file))
-    assert record.description == f"A record created by hand\n{extracted.describe()}"
+    assert record.discovery_info == extracted.get_discovery_info()
     assert [e["raw_survey_related_record_ids"] for e in enqueued] == [[str(record.id)]]
 
 
@@ -2416,10 +2375,9 @@ async def test_manual_update_new_path_reextracts(
     minx, miny, maxx, maxy = to_shape(record.bbox_4326).bounds
     assert -8.2 < minx <= maxx < -8.0
     assert 39.6 < miny <= maxy < 39.8
-    # the payload has no description, so the summary follows the stored one
-    assert record.description.startswith(
-        "A record created by hand\nAuto-extracted: GTiff raster"
-    )
+    assert record.description == "A record created by hand"
+    assert record.discovery_info["type"] == "raster"
+    discovery_info = record.discovery_info
     assert len(enqueued) == 1
 
     # same data file, so the pipeline does not run and the drawn bbox stays
@@ -2443,15 +2401,26 @@ async def test_manual_update_new_path_reextracts(
         db_session_maker, discovery_env["mission"].id
     )
     assert to_shape(record.bbox_4326).bounds == pytest.approx((-9, 38, -8.9, 38.1))
+    assert record.discovery_info == discovery_info
     assert len(enqueued) == 1
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        pytest.param("s01/broken.tif", id="unreadable file"),
+        pytest.param("../outside/x.tif", id="path leaving the archive"),
+    ],
+)
 async def test_manual_update_failed_extraction_keeps_extents(
-    db_session_maker, admin_user, discovery_env, monkeypatch
+    db_session_maker, admin_user, discovery_env, monkeypatch, relative_path
 ):
-    to_create = _record_to_create(discovery_env, "other/old.tif")
+    # holding the discovery info of its earlier file, which no longer describes it
+    to_create = _record_to_create(discovery_env, "other/old.tif").model_copy(
+        update={"discovery_info": {"type": "raster", "driver": "GTiff"}}
+    )
     await _create_record_without_discovery(db_session_maker, admin_user, to_create)
 
     def failing_dispatch(path):
@@ -2479,7 +2448,7 @@ async def test_manual_update_failed_extraction_keeps_extents(
             temporal_extent_end=dt.date(2024, 9, 29),
             assets=[
                 record_schemas.DataRecordAssetUpdate(
-                    id=to_create.assets[0].id, relative_path="s01/broken.tif"
+                    id=to_create.assets[0].id, relative_path=relative_path
                 )
             ],
         ),
@@ -2492,4 +2461,5 @@ async def test_manual_update_failed_extraction_keeps_extents(
     assert record.temporal_extent_begin == dt.date(2024, 9, 28)
     assert record.temporal_extent_end == dt.date(2024, 9, 29)
     assert record.description == "A description typed by hand"
+    assert record.discovery_info is None
     assert len(enqueued) == 1

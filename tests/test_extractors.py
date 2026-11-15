@@ -6,9 +6,11 @@ synthetic files built in-test, so the suite needs no sample-data archive.
 """
 
 import datetime as dt
+import json
 import logging
 import math
 import struct
+import typing
 from pathlib import Path
 
 import pytest
@@ -21,11 +23,11 @@ from osgeo import (  # noqa: E402
     osr,
 )
 
+from seis_lab_data import constants  # noqa: E402
 from seis_lab_data.tasks.extractors import (  # noqa: E402
     dispatch,
     kmall,
     schemas,
-    segy,
     xyz,
 )
 from seis_lab_data.tasks.extractors.gdal_raster import (  # noqa: E402
@@ -219,6 +221,7 @@ def test_dispatch_routes_ungridded_xyz_to_the_point_cloud_extractor(tmp_path):
     result = dispatch.dispatch_extractor(path)
 
     assert isinstance(result, schemas.PointCloudMetadata)
+    assert result.file_size_bytes == path.stat().st_size
     assert result.point_count == 4
     assert result.bbox_native == (9.25, 18.5, 13.75, 25.5)
     # no CRS in the file: placed by the survey mission's CRS, as an XYZ grid is
@@ -304,31 +307,12 @@ def test_xyz_points_reject_what_is_not_a_point_cloud(tmp_path, content):
         xyz.extract_xyz_points_metadata(path)
 
 
-@pytest.mark.parametrize(
-    "language, estimated, expected",
-    [
-        ("en", False, "Auto-extracted: XYZ point cloud, 4 point(s). CRS:"),
-        ("en", True, "Auto-extracted: XYZ point cloud, about 4 point(s). CRS:"),
-        ("pt", False, "Extração automática: nuvem de pontos XYZ, 4 ponto(s). CRS:"),
-        (
-            "pt",
-            True,
-            "Extração automática: nuvem de pontos XYZ, cerca de 4 ponto(s). CRS:",
-        ),
-    ],
-)
-def test_xyz_points_describe(language, estimated, expected):
-    metadata = schemas.PointCloudMetadata(
-        driver="XYZ", point_count=4, point_count_estimated=estimated
-    )
-
-    assert metadata.describe(language).startswith(expected)
-
-
 def test_dispatch_routes_vector(synthetic_shapefile):
-    assert isinstance(
-        dispatch.dispatch_extractor(synthetic_shapefile), schemas.VectorMetadata
-    )
+    result = dispatch.dispatch_extractor(synthetic_shapefile)
+
+    assert isinstance(result, schemas.VectorMetadata)
+    # the size of the .shp file alone, without its sidecars
+    assert result.file_size_bytes == synthetic_shapefile.stat().st_size
 
 
 @pytest.mark.parametrize("suffix", [".shx", ".dbf", ".prj", ".cpg", ".qmd", ".sbn"])
@@ -359,40 +343,128 @@ def test_dispatch_big_file_logs(synthetic_geotiff, monkeypatch, caplog):
     assert any("large raster" in record.message for record in caplog.records)
 
 
-def test_raster_describe(synthetic_geotiff):
-    text = extract_raster_metadata(synthetic_geotiff).describe()
-    assert text.startswith("Auto-extracted: GTiff raster")
-    assert "TM06" in text
-    assert "EPSG:3763" in text
-    assert len(text) <= 500
+@pytest.mark.parametrize(
+    "metadata, expected",
+    [
+        pytest.param(
+            schemas.SegyMetadata(
+                driver="SEG-Y",
+                file_size_bytes=7200,
+                epsg=_PT_TM06,
+                crs_name="ETRS89 / Portugal TM06",
+                crs_from_mission=True,
+                bbox_native=(-50000.0, 150000.0, -48000.0, 152000.0),
+                bbox_4326=(-8.7, 40.0, -8.6, 40.1),
+                temporal_extent_begin=dt.date(2024, 9, 28),
+                temporal_extent_end=dt.date(2024, 9, 29),
+                trace_count=3,
+                samples_per_trace=4,
+                sample_interval=250,
+                sample_format="ieee-float32",
+                coordinate_units="metres",
+                coverage="partial",
+                header_epsg_codes=(_PT_TM06,),
+            ),
+            {
+                "driver": "SEG-Y",
+                "file_size_bytes": 7200,
+                "epsg": _PT_TM06,
+                "crs_name": "ETRS89 / Portugal TM06",
+                "crs_from_mission": True,
+                "bbox_native": [-50000.0, 150000.0, -48000.0, 152000.0],
+                "trace_count": 3,
+                "samples_per_trace": 4,
+                "sample_interval": 250,
+                "sample_format": "ieee-float32",
+                "coordinate_units": "metres",
+                "coverage": "partial",
+            },
+            id="segy with partial coverage, placed by the mission's crs",
+        ),
+        pytest.param(
+            schemas.RasterMetadata(
+                driver="GTiff",
+                file_size_bytes=1_500_000,
+                epsg=_PT_TM06,
+                crs_name="ETRS89 / Portugal TM06",
+                crs_wkt='PROJCS["ETRS89 / Portugal TM06"]',
+                bbox_native=(0.0, 1900.0, 100.0, 2000.0),
+                bbox_4326=(-8.13, 39.66, -8.12, 39.67),
+                width=10,
+                height=10,
+                band_count=1,
+                pixel_size_x=10.0,
+                pixel_size_y=-10.0,
+                nodata=math.nan,
+            ),
+            {
+                "type": "raster",
+                "driver": "GTiff",
+                "file_size_bytes": 1_500_000,
+                "epsg": _PT_TM06,
+                "crs_name": "ETRS89 / Portugal TM06",
+                "bbox_native": [0.0, 1900.0, 100.0, 2000.0],
+                "width": 10,
+                "height": 10,
+                "band_count": 1,
+                "pixel_size_x": 10.0,
+                "pixel_size_y": -10.0,
+            },
+            id="raster with a nan nodata",
+        ),
+        pytest.param(
+            schemas.PointCloudMetadata(
+                driver="XYZ",
+                file_size_bytes=64_000,
+                bbox_native=(1000.0, 5000.0, math.inf, 5000.0),
+                point_count=1000,
+                point_count_estimated=True,
+            ),
+            {
+                "type": "point cloud",
+                "driver": "XYZ",
+                "file_size_bytes": 64_000,
+                "point_count": 1000,
+                "point_count_estimated": True,
+            },
+            id="estimated point cloud with an infinite native bbox",
+        ),
+    ],
+)
+def test_discovery_info(metadata, expected):
+    info = metadata.get_discovery_info()
+
+    assert info == expected
+    # PostgreSQL rejects the NaN and Infinity that Python's JSON would write
+    json.dumps(info, allow_nan=False)
 
 
-def test_vector_describe(synthetic_shapefile):
-    text = extract_vector_metadata(synthetic_shapefile).describe()
-    assert text.startswith("Auto-extracted: ESRI Shapefile vector")
-    assert "Point" in text
-    assert len(text) <= 500
+def test_discovery_info_keys_are_the_metadata_fields():
+    # a field added to a metadata model must be shown on the record's page, in an
+    # item of its own or in another's, or be kept off the page on purpose
+    fields = set()
+    for model in typing.get_args(schemas.ExtractionResult):
+        fields |= set(model.model_fields)
+    not_stored = {
+        "crs_wkt",
+        "bbox_4326",
+        "temporal_extent_begin",
+        "temporal_extent_end",
+        "header_epsg_codes",
+    }
+    shown_in_the_item_of_another = {
+        "epsg",
+        "crs_from_mission",
+        "height",
+        "pixel_size_y",
+        "point_count_estimated",
+    }
+    stored_but_not_shown = {"type", "coverage"}
+    shown = {key.value for key in constants.DiscoveryInfoKey}
 
-
-def test_describe_truncates_to_500():
-    absurd = schemas.RasterMetadata(
-        driver="GTiff",
-        width=1,
-        height=1,
-        band_count=1,
-        crs_name="X" * 2000,
-    )
-    assert len(absurd.describe()) == 500
-
-
-def test_describe_crs_unknown():
-    text = schemas.VectorMetadata(
-        driver="ESRI Shapefile",
-        layer_count=1,
-        feature_count=0,
-        geometry_type="Point",
-    ).describe()
-    assert "CRS: unknown." in text
+    assert shown | shown_in_the_item_of_another | stored_but_not_shown == (
+        fields - not_stored
+    ) | {"type"}
 
 
 def test_bbox_native_needing_crs_when_file_declares_none():
@@ -425,56 +497,6 @@ def test_bbox_native_needing_crs_is_none_when_already_projected():
 
 def test_bbox_native_needing_crs_is_none_without_coordinates():
     assert schemas.SegyMetadata().bbox_native_needing_crs is None
-
-
-def test_raster_describe_pt(synthetic_geotiff):
-    text = extract_raster_metadata(synthetic_geotiff).describe("pt")
-    assert text.startswith("Extração automática: raster GTiff")
-    assert "banda(s)" in text
-    assert "TM06" in text
-    assert "EPSG:3763" in text
-    assert len(text) <= 500
-
-
-def test_vector_describe_pt(synthetic_shapefile):
-    text = extract_vector_metadata(synthetic_shapefile).describe("pt")
-    assert text.startswith("Extração automática: vetor ESRI Shapefile")
-    assert "elemento(s)" in text
-    assert "Point" in text  # a geometry type stays an English identifier
-    assert len(text) <= 500
-
-
-def test_describe_truncates_to_500_pt():
-    absurd = schemas.RasterMetadata(
-        driver="GTiff",
-        width=1,
-        height=1,
-        band_count=1,
-        crs_name="X" * 2000,
-    )
-    assert len(absurd.describe("pt")) == 500
-
-
-def test_describe_crs_unknown_pt():
-    text = schemas.VectorMetadata(
-        driver="ESRI Shapefile",
-        layer_count=1,
-        feature_count=0,
-        geometry_type="Point",
-    ).describe("pt")
-    assert "CRS: desconhecido." in text
-
-
-def test_words_lexicon_parity():
-    # adding a key to one language but not the other must be a hard failure
-    assert set(schemas._WORDS["en"]) == set(schemas._WORDS["pt"])
-
-
-def test_segy_units_labels_have_pt():
-    # every translatable SEG-Y units label (all but the pass-through "dms") needs
-    # a Portuguese entry, so a rename in segy.py cannot leak English into pt
-    translatable = set(segy._UNITS_LABELS.values()) - {"dms"}
-    assert translatable <= set(schemas._UNITS_PT)
 
 
 # 2024-09-28 18:48:31 UTC, matching the archive's EM712 line 0419
@@ -749,27 +771,11 @@ def test_kmall_collect_position_fixes_rejects_non_kmall(tmp_path, content):
 def test_dispatch_routes_kmall(tmp_path):
     path = tmp_path / "line.kmall"
     _write_kmall(path, [(40.5, -9.3)])
-    assert isinstance(dispatch.dispatch_extractor(path), schemas.KmallMetadata)
 
+    result = dispatch.dispatch_extractor(path)
 
-def test_kmall_describe(tmp_path):
-    path = tmp_path / "line.kmall"
-    _write_kmall(path, [(40.5, -9.3)])
-    text = extract_kmall_metadata(path).describe()
-    assert text.startswith("Auto-extracted: Kongsberg KMALL, EM 712, 1440 min of data.")
-    assert "EPSG:4326" in text
-    assert len(text) <= 500
-
-
-def test_kmall_describe_pt(tmp_path):
-    path = tmp_path / "line.kmall"
-    _write_kmall(path, [(40.5, -9.3)])
-    text = extract_kmall_metadata(path).describe("pt")
-    assert text.startswith(
-        "Extração automática: Kongsberg KMALL, EM 712, 1440 min de dados."
-    )
-    assert "EPSG:4326" in text
-    assert len(text) <= 500
+    assert isinstance(result, schemas.KmallMetadata)
+    assert result.file_size_bytes == path.stat().st_size
 
 
 # SEG-Y builders: tiny files with the real layout (3200-byte textual header +
@@ -1209,7 +1215,11 @@ def test_segy_not_a_segy_raises(tmp_path, content):
 def test_dispatch_routes_segy(tmp_path, suffix):
     path = tmp_path / f"line{suffix}"
     _write_segy(path, [_segy_trace(src=(-50000, 150000))])
-    assert isinstance(dispatch.dispatch_extractor(path), schemas.SegyMetadata)
+
+    result = dispatch.dispatch_extractor(path)
+
+    assert isinstance(result, schemas.SegyMetadata)
+    assert result.file_size_bytes == path.stat().st_size
 
 
 def test_segy_implausible_span_discards_bbox(tmp_path):
@@ -1482,79 +1492,3 @@ def test_segy_trace_count_zero(tmp_path):
     assert result.samples_per_trace == 1000
     assert result.bbox_native is None
     assert result.temporal_extent_begin is None
-
-
-def test_segy_describe_partial_metadata(tmp_path):
-    # a file whose traces cannot be walked still gets a useful description
-    path = tmp_path / "line.sgy"
-    _write_segy(path, [_segy_trace()], sample_format=9)
-    text = extract_segy_metadata(path).describe()
-    assert text.startswith("Auto-extracted: SEG-Y")
-    assert "format code 9" in text
-    assert "trace(s)" not in text
-    assert "CRS: unknown." in text
-
-
-def test_segy_describe_partial_coverage(tmp_path):
-    path = tmp_path / "line.sgy"
-    garbage = [_segy_trace(src=(2_000_000_000, 7)) for _ in range(8)]
-    _write_segy(path, garbage + [_segy_trace(src=(-50000, 150000))])
-    text = extract_segy_metadata(path).describe()
-    assert "partly unreliable" in text
-
-
-def test_segy_describe(tmp_path):
-    path = tmp_path / "line.sgy"
-    _write_segy(path, [_segy_trace(src=(-50000, 150000))])
-    text = extract_segy_metadata(path).describe()
-    assert text.startswith("Auto-extracted: SEG-Y")
-    assert "1 trace(s)" in text
-    assert "coordinates in metres" in text
-    assert "CRS: unknown." in text
-    assert "Native bbox:" in text
-    assert len(text) <= 500
-
-
-def test_segy_describe_geographic(tmp_path):
-    path = tmp_path / "line.sgy"
-    _write_segy(path, [_segy_trace(src=(-87500, 422300), scalco=-10000, units=3)])
-    text = extract_segy_metadata(path).describe()
-    assert "coordinates in degrees" in text
-    assert "EPSG:4326" in text
-
-
-def test_segy_describe_pt(tmp_path):
-    path = tmp_path / "line.sgy"
-    _write_segy(path, [_segy_trace(src=(-50000, 150000))])
-    text = extract_segy_metadata(path).describe("pt")
-    assert text.startswith("Extração automática: SEG-Y")
-    assert "1 traço(s)" in text
-    assert "coordenadas em metros" in text
-    assert "CRS: desconhecido." in text
-    assert "Extensão nativa:" in text
-    assert len(text) <= 500
-
-
-def test_segy_describe_partial_coverage_pt(tmp_path):
-    path = tmp_path / "line.sgy"
-    garbage = [_segy_trace(src=(2_000_000_000, 7)) for _ in range(8)]
-    _write_segy(path, garbage + [_segy_trace(src=(-50000, 150000))])
-    text = extract_segy_metadata(path).describe("pt")
-    assert "pouco fiável" in text
-
-
-def test_segy_describe_partial_metadata_pt(tmp_path):
-    path = tmp_path / "line.sgy"
-    _write_segy(path, [_segy_trace()], sample_format=9)
-    text = extract_segy_metadata(path).describe("pt")
-    assert "format code 9" in text  # a technical identifier stays English
-    assert "traço(s)" not in text
-    assert "CRS: desconhecido." in text
-
-
-def test_segy_describe_geographic_pt(tmp_path):
-    path = tmp_path / "line.sgy"
-    _write_segy(path, [_segy_trace(src=(-87500, 422300), scalco=-10000, units=3)])
-    text = extract_segy_metadata(path).describe("pt")
-    assert "coordenadas em graus" in text
-    assert "EPSG:4326" in text

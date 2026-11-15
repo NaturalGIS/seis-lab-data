@@ -189,6 +189,7 @@ class SurveyRelatedRecordCreate(pydantic.BaseModel):
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
     temporal_extent_end: dt.date | None = None
+    discovery_info: dict | None = None
     links: list[LinkSchema] = []
     assets: Annotated[
         list[DataRecordAssetCreate],
@@ -259,6 +260,7 @@ class SurveyRelatedRecordUpdate(pydantic.BaseModel):
     bbox_4326: PossiblyInvalidPolygon | None = None
     temporal_extent_begin: dt.date | None = None
     temporal_extent_end: dt.date | None = None
+    discovery_info: dict | None = None
     links: list[LinkSchema] | None = None
     assets: Annotated[
         list[DataRecordAssetUpdate],
@@ -332,6 +334,7 @@ class SurveyRelatedRecordReadDetail(SurveyRelatedRecordReadListItem):
     )
     # approximated by the record's bbox, as previews do not store their own extent
     preview_bounds: PolygonOut | None
+    discovery_info: dict | None = None
     geonode_resource_url: str | None = None
     geonode_exported_at: dt.datetime | None = None
 

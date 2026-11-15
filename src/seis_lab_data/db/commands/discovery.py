@@ -109,7 +109,7 @@ async def write_discovered_survey_related_records(
     tracking, attribute instrumentation and flush ordering cost far more CPU time
     than the SQL itself, which becomes the bottleneck when writing thousands of
     rows. Each item of `extent_updates` maps a record `id` to its new
-    `bbox_wkt`, `description`, `temporal_extent_begin`, `temporal_extent_end`,
+    `bbox_wkt`, `discovery_info`, `temporal_extent_begin`, `temporal_extent_end`,
     `validation_result` and `is_valid`; a temporal extent end that is None keeps
     the stored value. An extent update applies only to a record with a null bbox
     and a `DRAFT` or `PUBLISHED` status, and sets an invalid record to `DRAFT`.
@@ -126,7 +126,7 @@ async def write_discovered_survey_related_records(
         updated_values = values(
             column("id", PG_UUID(as_uuid=True)),
             column("bbox_wkt", String),
-            column("description", String),
+            column("discovery_info", JSONB),
             column("temporal_extent_begin", Date),
             column("temporal_extent_end", Date),
             column("validation_result", JSONB),
@@ -137,7 +137,7 @@ async def write_discovered_survey_related_records(
                 (
                     extent_update["id"],
                     extent_update["bbox_wkt"],
-                    extent_update["description"],
+                    extent_update["discovery_info"],
                     extent_update["temporal_extent_begin"],
                     extent_update["temporal_extent_end"],
                     extent_update["validation_result"],
@@ -154,7 +154,7 @@ async def write_discovered_survey_related_records(
             .where(record.status.in_(SURVEY_RELATED_RECORD_IDLE_STATUSES))
             .values(
                 bbox_4326=func.ST_GeomFromText(updated_values.c.bbox_wkt, 4326),
-                description=updated_values.c.description,
+                discovery_info=updated_values.c.discovery_info,
                 temporal_extent_begin=func.coalesce(
                     updated_values.c.temporal_extent_begin,
                     record.temporal_extent_begin,

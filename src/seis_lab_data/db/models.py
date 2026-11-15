@@ -169,6 +169,10 @@ class SurveyRelatedRecord(SQLModel, table=True):
     )
     temporal_extent_begin: dt.date | None = Field(sa_column=Column(Date()))
     temporal_extent_end: dt.date | None = Field(sa_column=Column(Date()))
+    # without none_as_null, None would be stored as a JSON null, not as SQL NULL
+    discovery_info: dict | None = Field(
+        default=None, sa_column=Column(JSONB(none_as_null=True))
+    )
     geonode_resource_url: str | None = None
     geonode_exported_at: dt.datetime | None = None
 

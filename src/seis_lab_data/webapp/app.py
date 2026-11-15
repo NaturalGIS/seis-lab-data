@@ -115,6 +115,7 @@ async def lifespan(
     )
     jinja_env.filters["translate_enum"] = jinjafilters.translate_enum
     jinja_env.filters["status_icon"] = jinjafilters.get_status_icon_name
+    jinja_env.filters["discovery_info_items"] = jinjafilters.get_discovery_info_items
     configure_jinja_env(jinja_env)
     templates = Jinja2Templates(env=jinja_env)
     yield State(
