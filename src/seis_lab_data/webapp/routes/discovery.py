@@ -175,9 +175,8 @@ async def get_update_form(request: Request):
         if db_asset_discovery_configuration is None:
             raise HTTPException(
                 status_code=404,
-                detail=_(
-                    f"Asset discovery configuration {asset_discovery_configuration_id!r} not found."
-                ),
+                detail=_("Asset discovery configuration %(id)s does not exist.")
+                % {"id": str(asset_discovery_configuration_id)},
             )
     update_form = (
         await discovery_forms.AssetDiscoveryConfigurationUpdateForm.from_request(
@@ -371,7 +370,7 @@ class AssetDiscoveryConfigurationCollectionEndpoint(HTTPEndpoint):
                         url=request.url_for("home"),
                     ),
                     webui_schemas.BreadcrumbItem(
-                        name=_("Asset Discovery Configurations"),
+                        name=_("Asset discovery configurations"),
                         icon=settings.icons.asset_discovery_configuration,
                     ),
                 ],
@@ -538,9 +537,8 @@ class AssetDiscoveryConfigurationDetailEndpoint(HTTPEndpoint):
             if asset_discovery_configuration is None:
                 raise HTTPException(
                     status_code=404,
-                    detail=_(
-                        f"Asset discovery configuration {asset_discovery_configuration_id!r} not found."
-                    ),
+                    detail=_("Asset discovery configuration %(id)s does not exist.")
+                    % {"id": str(asset_discovery_configuration_id)},
                 )
         discovery_tasks.delete_asset_discovery_configuration.send(
             raw_request_id=str(request_id),

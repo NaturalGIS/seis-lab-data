@@ -78,7 +78,7 @@
                 </div>
                 <div class="small text-truncate">{{ item.record_assets | map(attribute="relative_path") | select | join(",") }}</div>
                 <div class="small text-body-secondary">
-                    {{ item.temporal_extent_begin | default(_(".."), True) }}/{{ item.temporal_extent_end | default(_(".."), True) }}
+                    {{ item.temporal_extent_begin | default("..", True) }}/{{ item.temporal_extent_end | default("..", True) }}
                 </div>
                 <div class="d-flex flex-wrap gap-2 mt-1 list-item-regular-only">
                     <span class="badge badge-outline text-dataset-category"><span class="material-icons-outlined me-1 fs-6">{{ icons.dataset_category }}</span>{% if item.dataset_category %}{{ item.dataset_category.name }}{% else %}{{ _("unknown category") }}{% endif %}</span>
@@ -97,7 +97,7 @@
                                 href="{{ url_for('survey_related_records:get_update_form', survey_related_record_id=item.id) }}"
                                 aria-label="update-list-item"
                                 {% if mission_under_discovery %}aria-disabled="true" tabindex="-1"{% endif %}
-                        ><span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit") | capitalize }}</a>
+                        ><span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("Edit") }}</a>
                     {% endif %}
                     {% if item_permissions and item_permissions.can_delete %}
                         <div class="ms-auto list-item-regular-only">

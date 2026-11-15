@@ -27,7 +27,7 @@
                             <dt class="col-sm-3">{{ _("Implicit CRS") }}</dt>
                             <dd class="col-sm-9">EPSG:{{ item.implicit_crs }}</dd>
                             <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
-                            <dd class="col-sm-9">{{ item.temporal_extent_begin|default(_(".."), True) }}/{{ item.temporal_extent_end|default(_(".."), True) }}</dd>
+                            <dd class="col-sm-9">{{ item.temporal_extent_begin|default("..", True) }}/{{ item.temporal_extent_end|default("..", True) }}</dd>
                             <dt class="col-sm-3">{{ _("spatial extent") | capitalize }}
                             <dd class="col-sm-9">{{ item.bbox_4326.bounds }}</dd>
                             <dt class="col-sm-3">{{ _("project") | capitalize }}</dt>
@@ -37,7 +37,7 @@
                         </dl>
                     </div>
                     <div class="col-12 col-md-4 col-xl-3">
-                        <h5>{{ _("links") | capitalize }}</h5>
+                        <h5>{{ _("Links") }}</h5>
                         <div class="list-group list-group-flush">
                             {% for link in item.links %}
                                 <a

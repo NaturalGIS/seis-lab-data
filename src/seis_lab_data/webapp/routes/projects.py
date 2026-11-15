@@ -118,7 +118,8 @@ async def get_project_update_form(request: Request):
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         if project is None:
             raise HTTPException(
-                status_code=404, detail=_(f"Project {project_id!r} not found.")
+                status_code=404,
+                detail=_("Project %(id)s does not exist.") % {"id": str(project_id)},
             )
     current_bbox = (
         shapely.from_wkb(project.bbox_4326.data)
@@ -407,7 +408,8 @@ async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         if project is None:
             raise HTTPException(
-                status_code=404, detail=_(f"Project {project_id!r} not found.")
+                status_code=404,
+                detail=_("Project %(id)s does not exist.") % {"id": str(project_id)},
             )
         survey_missions, total = await survey_mission_ops.list_survey_missions(
             session,
@@ -848,7 +850,9 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             )
             if project is None:
                 raise HTTPException(
-                    status_code=404, detail=_(f"Project {project_id!r} not found.")
+                    status_code=404,
+                    detail=_("Project %(id)s does not exist.")
+                    % {"id": str(project_id)},
                 )
         project_tasks.delete_project.send(
             raw_request_id=str(request_id),
@@ -877,7 +881,9 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 raise HTTPException(status_code=404, detail=str(exc)) from exc
             if project is None:
                 raise HTTPException(
-                    status_code=404, detail=_(f"Project {project_id!r} not found.")
+                    status_code=404,
+                    detail=_("Project %(id)s does not exist.")
+                    % {"id": str(project_id)},
                 )
         await creation_form.validate_on_submit()
         creation_form.validate_with_schema()

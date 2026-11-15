@@ -32,7 +32,7 @@ Users with create permission are linked to /asset-discovery-configurations/new, 
                                 class="form-control form-control-lg"
                                 type="search"
                                 id="search"
-                                placeholder="Search"
+                                placeholder="{{ _('Search') }}"
                                 data-bind:search
                                 data-on:input__debounce.200ms="@get('{{ url_for("asset_discovery_configurations:get_list_component") }}')"
                                 data-indicator:searching
@@ -69,7 +69,7 @@ Users with create permission are linked to /asset-discovery-configurations/new, 
                                     href="{{ url_for('asset_discovery_configurations:get_creation_form') }}"
                                     aria-label="new-asset-discovery-configuration"
                             >
-                                <span class="material-icons-outlined me-1">{{ icons.new_item }}</span>{{ _("Add new asset_discovery_configuration") | capitalize }}
+                                <span class="material-icons-outlined me-1">{{ icons.new_item }}</span>{{ _("Add new asset discovery configuration") | capitalize }}
                             </a>
                         {% endif %}
                     </div>

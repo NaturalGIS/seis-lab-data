@@ -13,6 +13,7 @@ from starlette_babel import (
 import seis_lab_data
 from seis_lab_data import (
     constants,
+    errors,
     subscribers,
 )
 from seis_lab_data.schemas import messages as message_schemas
@@ -170,3 +171,76 @@ async def test_names_cannot_break_out_of_the_notification_script(translations):
         assert "<img" not in event
         # the name is still shown as it is, by the page, as text
         assert get_payload(event)["message"] == f"“{name}” was deleted."
+
+
+def _failed_update(details, details_params):
+    return message_schemas.ResourceModificationMessage(
+        request_id=uuid.uuid4(),
+        resource_type=constants.ResourceType.MISSION,
+        resource_id=str(uuid.uuid4()),
+        resource_name="m1",
+        modification=constants.ResourceModification.UPDATED,
+        succeeded=False,
+        details=details,
+        details_params=details_params,
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "locale, expected_message",
+    [
+        pytest.param(
+            "en",
+            "Could not update “m1”: Cannot update the survey mission because its "
+            "status is under discovery.",
+            id="en",
+        ),
+        pytest.param(
+            "pt",
+            "Não foi possível atualizar «m1»: Não é possível atualizar a missão "
+            "porque o seu estado é em descoberta.",
+            id="pt",
+        ),
+    ],
+)
+async def test_failure_details_are_translated_along_with_their_status(
+    translations, locale, expected_message
+):
+    message = _failed_update(
+        errors.N_("Cannot update the survey mission because its status is %(status)s."),
+        {"status": constants.SurveyMissionStatus.UNDER_DISCOVERY.value},
+    )
+
+    with switch_locale(locale):
+        payload = await _notify_on_list_page(message, request_id=message.request_id)
+
+    assert payload["message"] == expected_message
+
+
+@pytest.mark.asyncio
+async def test_failure_details_keep_their_values_untranslated(translations):
+    message = _failed_update(
+        errors.N_("Survey mission %(id)s does not exist."), {"id": "draft"}
+    )
+
+    with switch_locale("pt"):
+        payload = await _notify_on_list_page(message, request_id=message.request_id)
+
+    assert payload["message"] == (
+        "Não foi possível atualizar «m1»: A missão draft não existe."
+    )
+
+
+@pytest.mark.asyncio
+async def test_failure_details_missing_from_the_catalogs_are_shown_as_they_are(
+    translations,
+):
+    message = _failed_update("connection refused (100% busy)", {})
+
+    with switch_locale("pt"):
+        payload = await _notify_on_list_page(message, request_id=message.request_id)
+
+    assert payload["message"] == (
+        "Não foi possível atualizar «m1»: connection refused (100% busy)"
+    )

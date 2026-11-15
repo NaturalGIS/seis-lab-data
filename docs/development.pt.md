@@ -193,13 +193,67 @@ sempre que souber que houve _merges_ recentes.
     ```
 
 
-!!! note "Traduções no ambiente de desenvolvimento local"
+## Traduções
 
-    Como o ficheiro docker compose de desenvolvimento monta a diretoria `src` inteira via
-    [bind mount](https://docs.docker.com/engine/storage/bind-mounts/), os ficheiros `*.mo` compilados
-    do contentor são mascarados pelos ficheiros presentes no disco local. Isto significa que após
-    executar `seis-lab-data translations compile` é necessário reiniciar o serviço `webapp` para as
-    alterações terem efeito.
+A interface web está disponível em português (o idioma predefinido, `pt_PT`) e em inglês. Apenas a interface é
+traduzida - os dados dos utilizadores, como os nomes e as descrições dos projetos, não o são. O inglês é o idioma de
+origem: o catálogo inglês deixa as suas traduções vazias, pelo que a interface mostra os textos de origem.
+
+Os textos são marcados como traduzíveis com `_()`:
+
+-   No código Python, importe-o com `from starlette_babel import gettext_lazy as _`;
+-   Nos templates Jinja, use `{{ _("algum texto") }}`, incluindo dentro de atributos como `placeholder`, `title` e
+    `aria-label` sempre que estes contenham texto legível por humanos.
+
+O texto marcado tem de ser um literal, dado que a extração não deteta textos construídos em tempo de execução.
+
+As mensagens produzidas fora de um pedido, como as mensagens de erro das operações e os detalhes dos eventos emitidos
+pelos workers, não podem ser traduzidas onde são produzidas, dado que aí não existe um idioma do utilizador. Em vez
+disso, são marcadas com `errors.N_()`, que as mantém em inglês, e são traduzidas pelos stream handlers para o idioma
+de quem estiver a ver a página:
+
+-   Os valores são colocados em marcadores `%(nome)s` em vez de f-strings, para que o modelo da mensagem coincida com
+    a sua entrada no catálogo - p. ex. `errors.SeisLabDataError(errors.N_("Project %(id)s does not exist."), id=str(project_id))`;
+-   Os eventos transportam o modelo da mensagem em `details` e os seus valores em `details_params`. Um
+    `SeisLabDataError` disponibiliza-os como `message` e `params`;
+-   Um valor `status` contém o estado do recurso do evento, que os stream handlers também traduzem. Os restantes
+    valores, como nomes e caminhos, são apresentados sem tradução;
+-   Os detalhes que não constam dos catálogos, como o texto de erros de terceiros, são apresentados tal como estão.
+
+As traduções são geridas com os comandos da CLI `seis-lab-data translations`. Após adicionar ou modificar textos
+traduzíveis:
+
+1.  Extraia os textos traduzíveis do código-fonte para um catálogo modelo (`src/messages.pot`, que não é registado
+    no git):
+
+    ```shell
+    docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data translations extract
+    ```
+
+2.  Atualize os catálogos de cada idioma (`src/seis_lab_data/translations/<idioma>/LC_MESSAGES/messages.po`) com os
+    textos extraídos:
+
+    ```shell
+    docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data translations update
+    ```
+
+3.  Traduza os novos textos no catálogo português. Quando um texto muda, a atualização copia a tradução de um texto
+    semelhante e marca-a como `fuzzy`. Reveja cada entrada `fuzzy` e remova essa marca, dado que a compilação ignora
+    as entradas `fuzzy`, o que faz com que a interface as mostre em inglês;
+
+4.  Compile os catálogos para os ficheiros `.mo` usados pela aplicação web:
+
+    ```shell
+    docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data translations compile
+    ```
+
+    Os ficheiros `.mo` não são registados no git - a imagem docker compila-os quando é construída. A stack docker
+    compose de desenvolvimento monta a diretoria `src` via
+    [bind mount](https://docs.docker.com/engine/storage/bind-mounts/), o que mascara os ficheiros `.mo` do próprio
+    contentor, pelo que deve reiniciar o serviço `webapp` após a compilação para as alterações terem efeito.
+
+O teste `tests/test_translations.py` falha sempre que um texto traduzível não tenha uma tradução portuguesa sem a
+marca `fuzzy`.
 
 
 ## Serviços auxiliares de desenvolvimento

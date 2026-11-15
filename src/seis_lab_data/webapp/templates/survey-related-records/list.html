@@ -55,7 +55,7 @@
                             class="form-control form-control-lg"
                             type="search"
                             id="search"
-                            placeholder="Search"
+                            placeholder="{{ _('Search') }}"
                             data-bind:search
                             data-on:input__debounce.200ms="{{ macros.reset_selection_js() }}@get('{{ url_for("survey_related_records:get_list_component") }}')"
                             data-indicator:searching
@@ -140,7 +140,7 @@
                               filter_media_types_datalist,
                               "filterMediaType",
                               url_for("survey_related_records:get_list_component"),
-                              _("media type") | capitalize
+                              _("Media type")
                         ) }}
                         {{ macros.render_temporal_extent_search_component(
                                         url_for("survey_related_records:get_list_component"),

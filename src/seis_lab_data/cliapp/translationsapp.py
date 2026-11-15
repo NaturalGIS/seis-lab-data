@@ -76,7 +76,7 @@ def extract_translations(
         f"Scanning source code from {source_path} for translatable strings..."
     )
     messages = extract_from_dir(dirname=source_path, method_map=method_map)
-    template_catalog = Catalog(project="arpav-cline")
+    template_catalog = Catalog(project="seis-lab-data")
     for message in messages:
         template_catalog.add(
             id=message[2],
@@ -94,7 +94,6 @@ def extract_translations(
 def update_translations(
     ctx: typer.Context,
     template_catalog_path: Path = (Path(__file__).parents[2] / "messages.pot"),
-    translations_dir: Path = (Path(__file__).parent / "translations"),
 ):
     """Update existing translation catalogues."""
     context: SeisLabDataCliContext = ctx.obj["main"]

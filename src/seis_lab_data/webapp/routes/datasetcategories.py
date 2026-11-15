@@ -160,7 +160,8 @@ async def get_update_form(request: Request):
         if resource is None:
             raise HTTPException(
                 status_code=404,
-                detail=_(f"Dataset category {resource_id!r} not found."),
+                detail=_("Dataset category %(id)s does not exist.")
+                % {"id": str(resource_id)},
             )
     update_form = await category_forms.DatasetCategoryUpdateForm.from_formdata(
         request=request,
@@ -187,7 +188,7 @@ async def get_update_form(request: Request):
                     url=request.url_for("dataset_categories:list"),
                 ),
                 webui_schemas.BreadcrumbItem(
-                    name=_("edit"),
+                    name=_("Edit"),
                     icon=settings.icons.edit_item,
                 ),
             ],
@@ -514,7 +515,8 @@ class DatasetCategoryDetailEndpoint(HTTPEndpoint):
             if resource is None:
                 raise HTTPException(
                     status_code=404,
-                    detail=_(f"Dataset category {resource_id!r} not found."),
+                    detail=_("Dataset category %(id)s does not exist.")
+                    % {"id": str(resource_id)},
                 )
         category_tasks.delete_dataset_category.send(
             raw_request_id=str(request_id),

@@ -21,7 +21,7 @@
     <h3 class="mt-5 mb-3">{{ _("temporal extent") | capitalize }}</h3>
     {{ macros.render_temporal_extent_fields(form.temporal_extent_begin, form.temporal_extent_end) }}
 
-    <h3 class="mt-5 mb-3">{{ _("links") | capitalize }}</h3>
+    <h3 class="mt-5 mb-3">{{ _("Links") }}</h3>
     {{ macros.render_links_fields(
         form.links,
         url_for("survey_related_records:add_update_form_link", survey_related_record_id=survey_related_record.id),
@@ -126,7 +126,7 @@
                     href="{{ url_for('survey_related_records:detail', survey_related_record_id=survey_related_record.id) }}"
                     class="btn btn-outline-secondary"
                     aria-label="cancel-update"
-            >{{ _('cancel') | capitalize }}
+            >{{ _('Cancel') }}
             </a>
             <button
                     type="submit"

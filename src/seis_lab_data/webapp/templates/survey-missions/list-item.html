@@ -36,7 +36,7 @@
                 </div>
                 <div class="row small text-body-secondary">
                     <div class="col-12 col-sm">
-                        {{ item.temporal_extent_begin | default(_(".."), True) }}/{{ item.temporal_extent_end | default(_(".."), True) }}
+                        {{ item.temporal_extent_begin | default("..", True) }}/{{ item.temporal_extent_end | default("..", True) }}
                     </div>
                     <div class="col-12 col-sm">
                         {% if item.bbox_4326 %}
@@ -56,7 +56,7 @@
                                 class="btn btn-sm btn-outline-primary"
                                 href="{{ url_for('survey_missions:get_update_form', survey_mission_id=item.id) }}"
                                 aria-label="update-list-item"
-                        ><span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit") | capitalize }}</a>
+                        ><span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("Edit") }}</a>
                     {% endif %}
                     {% if item_permissions and item_permissions.can_delete %}
                         <div class="ms-auto">

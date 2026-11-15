@@ -28,7 +28,7 @@
                                 class="form-control form-control-lg"
                                 type="search"
                                 id="search"
-                                placeholder="Search"
+                                placeholder="{{ _('Search') }}"
                                 data-bind:search
                                 data-on:input__debounce.200ms="@get('{{ url_for("dataset_categories:get_list_component") }}')"
                                 data-indicator:searching

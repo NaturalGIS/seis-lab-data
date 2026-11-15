@@ -38,6 +38,7 @@ class RedisEventDispatcher:
                         modification=event.modification,
                         succeeded=event.succeeded,
                         details=event.details,
+                        details_params=event.details_params,
                     ).model_dump_json(),
                 )
             case events.BulkResourceModificationEvent():
@@ -50,6 +51,7 @@ class RedisEventDispatcher:
                         succeeded=event.succeeded,
                         affected_count=event.affected_count,
                         details=event.details,
+                        details_params=event.details_params,
                     ).model_dump_json(),
                 )
             case events.ResourceStatusChangedEvent():
@@ -63,6 +65,7 @@ class RedisEventDispatcher:
                         succeeded=event.succeeded,
                         new_status=event.new_status,
                         details=event.details,
+                        details_params=event.details_params,
                     ).model_dump_json(),
                 )
             case events.DiscoveryEvent():
@@ -76,6 +79,7 @@ class RedisEventDispatcher:
                         modification=event.modification,
                         succeeded=event.succeeded,
                         details=event.details,
+                        details_params=event.details_params,
                     ).model_dump_json(),
                 )
             case events.DerivationEvent():
@@ -99,6 +103,7 @@ class RedisEventDispatcher:
                         succeeded=event.succeeded,
                         is_valid=event.is_valid,
                         details=event.details,
+                        details_params=event.details_params,
                     ).model_dump_json(),
                 )
             case events.ExportEvent():
@@ -112,6 +117,7 @@ class RedisEventDispatcher:
                         stage=event.stage,
                         succeeded=event.succeeded,
                         details=event.details,
+                        details_params=event.details_params,
                     ).model_dump_json(),
                 )
             case _:

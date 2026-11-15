@@ -41,7 +41,9 @@ async def delete_workflow_stage(
         await session.delete(resource)
         await session.commit()
     else:
-        raise errors.SeisLabDataError(f"Workflow stage {resource_id!r} does not exist.")
+        raise errors.SeisLabDataError(
+            errors.N_("Workflow stage %(id)s does not exist."), id=str(resource_id)
+        )
 
 
 async def update_workflow_stage(

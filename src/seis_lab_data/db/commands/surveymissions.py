@@ -39,8 +39,10 @@ async def create_survey_mission(
         session, identifiers.ProjectId(to_create.project_id), to_create.name
     ):
         raise errors.DuplicateResourceError(
-            f"There is already a survey mission with name {to_create.name!r} for "
-            f"the same project."
+            errors.N_(
+                "There is already a survey mission named “%(name)s” in the same project."
+            ),
+            name=to_create.name,
         )
 
     session.add(survey_mission)
@@ -60,7 +62,8 @@ async def delete_survey_mission(
         await session.commit()
     else:
         raise errors.SeisLabDataError(
-            f"Survey mission with id {survey_mission_id!r} does not exist."
+            errors.N_("Survey mission %(id)s does not exist."),
+            id=str(survey_mission_id),
         )
 
 
@@ -113,7 +116,8 @@ async def set_survey_mission_status(
         )
     ) is None:
         raise errors.SeisLabDataError(
-            f"Survey mission with id {survey_mission_id} does not exist."
+            errors.N_("Survey mission %(id)s does not exist."),
+            id=str(survey_mission_id),
         )
     survey_mission.status = status
     session.add(survey_mission)
