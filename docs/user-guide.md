@@ -302,7 +302,7 @@ file:
 - XYZ files whose points do not form a regular grid, such as accepted soundings, are read in 128
   windows of 64 KB, and their point count is estimated.
 
-The resulting extents are approximations. See [Supported formats](supported-formats.md) for the
+The resulting extents are approximations. See [Supported formats](https://seis-lab-data.ipma.pt/docs/supported-formats/) for the
 formats from which metadata is extracted.
 
 Previews are generated for the created records whose configuration has

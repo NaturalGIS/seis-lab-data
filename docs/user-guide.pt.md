@@ -1,5 +1,9 @@
 # Guia do utilizador
 
+<span class="no-pdf">
+    [ :material-file-pdf-box: Descarregar versão PDF](assets/documents/seis-lab-data-user-guide.pdf){ .md-button .no-pdf }
+</span>
+
 O SeisLabData é uma aplicação web para a catalogação de dados de levantamentos marinhos. Mantém
 um catálogo de projetos, das missões realizadas no âmbito de cada projeto e dos registos que
 descrevem os ficheiros de dados produzidos por cada missão. Os ficheiros de dados permanecem no
@@ -319,7 +323,7 @@ completo:
 - Os ficheiros XYZ cujos pontos não formam uma grelha regular, como as sondagens aceites, são
   lidos em 128 janelas de 64 KB, e o seu número de pontos é estimado.
 
-As extensões resultantes são aproximações. Ver [Formatos suportados](supported-formats.md) para os
+As extensões resultantes são aproximações. Ver [Formatos suportados](https://seis-lab-data.ipma.pt/docs/pt/supported-formats/) para os
 formatos a partir dos quais são extraídos metadados.
 
 São geradas pré-visualizações para os registos criados cuja configuração tem a opção

@@ -50,20 +50,33 @@ at the root of the repository.
 
 This project includes a custom `mkdocs_hooks.py` module with extra instructions for mkdocs. If enabled, it makes the
 docs build process also generate a set of additional PDF files being rendered for specific sections of the Portuguese
-docs. Enable it by setting the `BUILD_PDF` environment variable to any value. It generates the following PDF files:
+docs. Enable it by setting the `BUILD_PDFS` environment variable to any value:
 
-- Development guide - This produces the `docs/assets/documents/seis-lab-data-development-guide.pdf` file:
+```shell
+BUILD_PDFS=1 uv run mkdocs build
+```
 
-    ```shell
-    BUILD_PDFS=1 uv run mkdocs build`
-    ```
+It generates the following PDF files, in the `docs/assets/documents` directory:
+
+- Development guide - `seis-lab-data-development-guide.pdf`
+- Administration guide - `seis-lab-data-administration-guide.pdf`
+- User guide - `seis-lab-data-user-guide.pdf`
+
+Each PDF is configured by a mkdocs configuration file in the `mkdocs/pdf-configs` directory, and registered in the
+`PDF_RESOURCES` of `mkdocs/mkdocs_hooks.py`.
 
 
 ## Deployment of docs
 
-The docs are currently live at
+The docs, including the PDF documents, are built into the application's docker image when the image is
+built. They are served by the `docs` service of each docker compose stack:
 
-<https://naturalgis.github.io/seis-lab-data/>
+| Environment | URL |
+|-------------|-----|
+| Production | <https://seis-lab-data.ipma.pt/docs/> |
+| Test | <https://seis-lab-data.naturalgis.pt/docs/> |
+| Development | <http://docs.localhost:8888> |
 
-They are deployed automatically by the `.github/workflows/docs.yaml` GitHub Actions workflow on every
-commit to the repository's `main` branch.
+In the production and test stacks, the site URL is set at runtime by the `MKDOCS_SITE_URL` environment
+variable of the `docs` service. In the development stack, the `docs` service runs `mkdocs serve` on the
+repository's `docs` directory, so changes are shown as they are saved.
