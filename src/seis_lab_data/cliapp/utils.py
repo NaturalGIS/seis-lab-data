@@ -1,6 +1,6 @@
 import tomllib
 
-import httpx
+import httpx2
 from anyio import Path
 
 from .. import (
@@ -60,7 +60,7 @@ async def resolve_admin_user(
     admin_username: str | None = None,
     admin_user_id: str | None = None,
 ) -> user_schemas.User:
-    async with httpx.AsyncClient() as client:
+    async with httpx2.AsyncClient() as client:
         if admin_user_id:
             user = await authentik.get_user_by_uuid(
                 admin_token=settings.auth_admin_token,

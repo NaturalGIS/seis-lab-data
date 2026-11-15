@@ -127,7 +127,7 @@ async def _replace_related_records_for_subjects(
                 proposed_related_ids
             )
         )
-    await session.execute(delete_stmt)
+    await session.exec(delete_stmt)
 
     if not related_records:
         return
@@ -158,7 +158,7 @@ async def _replace_related_records_for_subjects(
         index_elements=["subject_id", "related_to_id"],
         set_={"relation": upsert_stmt.excluded.relation},
     )
-    await session.execute(upsert_stmt)
+    await session.exec(upsert_stmt)
 
 
 async def _apply_bulk_update_to_matched_records(
@@ -170,7 +170,7 @@ async def _apply_bulk_update_to_matched_records(
     # as are the records of a mission under discovery
     matched_ids = (
         (
-            await session.execute(
+            await session.exec(
                 select(models.SurveyRelatedRecord.id)
                 .join(models.SurveyMission)
                 .where(models.SurveyRelatedRecord.id.in_(matched_ids))
@@ -205,7 +205,7 @@ async def _apply_bulk_update_to_matched_records(
         )
 
     if values_to_set:
-        result = await session.execute(
+        result = await session.exec(
             update(models.SurveyRelatedRecord)
             .where(models.SurveyRelatedRecord.id.in_(matched_ids))
             .values(**values_to_set)
@@ -467,7 +467,7 @@ async def compare_and_set_survey_related_record_status(
     expect the same status only one gets to change it. Returns whether the
     status was changed.
     """
-    result = await session.execute(
+    result = await session.exec(
         update(models.SurveyRelatedRecord)
         .where(models.SurveyRelatedRecord.id == survey_related_record_id)
         .where(models.SurveyRelatedRecord.status == expected_status)
@@ -523,7 +523,7 @@ async def end_survey_related_record_task(
     undo a status which something else has set meanwhile. Returns the new status,
     or None if the record is not in `busy_status`.
     """
-    result = await session.execute(
+    result = await session.exec(
         update(models.SurveyRelatedRecord)
         .where(models.SurveyRelatedRecord.id == survey_related_record_id)
         .where(models.SurveyRelatedRecord.status == busy_status)
@@ -545,7 +545,7 @@ async def bulk_publish_valid_survey_related_records(
     those already marked valid can be published directly from their stored
     validation result.
     """
-    result = await session.execute(
+    result = await session.exec(
         update(models.SurveyRelatedRecord)
         .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
         # records in any other status are being worked on by a task
@@ -571,7 +571,7 @@ async def bulk_unpublish_survey_related_records(
     Used when the mission (or its parent project) becomes invalid, so its
     records don't stay published without a published parent.
     """
-    result = await session.execute(
+    result = await session.exec(
         update(models.SurveyRelatedRecord)
         .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
         # records in any other status are held by a task, which sets their status
@@ -589,7 +589,7 @@ async def set_survey_related_record_geonode_export(
     geonode_resource_url: str,
     exported_at: dt.datetime,
 ) -> None:
-    await session.execute(
+    await session.exec(
         update(models.SurveyRelatedRecord)
         .where(models.SurveyRelatedRecord.id == survey_related_record_id)
         .values(
@@ -612,7 +612,7 @@ async def recover_stale_geonode_exports(
     status is the same as in `end_survey_related_record_task`. Returns the ids,
     names and new statuses of the recovered records.
     """
-    result = await session.execute(
+    result = await session.exec(
         update(models.SurveyRelatedRecord)
         .where(
             models.SurveyRelatedRecord.status == SurveyRelatedRecordStatus.UNDER_EXPORT

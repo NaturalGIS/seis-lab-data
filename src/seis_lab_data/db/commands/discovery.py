@@ -114,8 +114,8 @@ async def write_discovered_survey_related_records(
     Returns the number of records whose extent was updated.
     """
     if records:
-        await session.execute(insert(models.SurveyRelatedRecord.__table__), records)
-        await session.execute(insert(models.RecordAsset.__table__), assets)
+        await session.exec(insert(models.SurveyRelatedRecord.__table__), params=records)
+        await session.exec(insert(models.RecordAsset.__table__), params=assets)
     updated = 0
     if extent_updates:
         record = models.SurveyRelatedRecord
@@ -142,7 +142,7 @@ async def write_discovered_survey_related_records(
                 for extent_update in extent_updates
             ]
         )
-        result = await session.execute(
+        result = await session.exec(
             update(record)
             .where(record.id == updated_values.c.id)
             # keep a bbox set since the record was looked up, e.g. by a user

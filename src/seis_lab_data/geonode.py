@@ -4,7 +4,7 @@ import asyncio
 import logging
 from collections.abc import AsyncGenerator
 
-import httpx
+import httpx2
 from anyio import Path
 
 from . import constants
@@ -18,7 +18,7 @@ class GeoNodeError(SeisLabDataError):
 
 
 async def get_access_token(
-    client: httpx.AsyncClient,
+    client: httpx2.AsyncClient,
     *,
     username: str,
     password: str,
@@ -63,7 +63,7 @@ async def get_upload_files(data_path: Path) -> dict[str, Path]:
 
 
 async def upload_dataset(
-    client: httpx.AsyncClient,
+    client: httpx2.AsyncClient,
     files: dict[str, Path],
     resource_pk: int | None = None,
 ) -> str:
@@ -72,7 +72,7 @@ async def upload_dataset(
     When `resource_pk` is given the upload replaces the data of that existing
     GeoNode resource, otherwise a new resource is created.
 
-    httpx streams the files out from disk with blocking reads, as it cannot
+    httpx2 streams the files out from disk with blocking reads, as it cannot
     stream multipart uploads from async files - these do stall the event loop,
     albeit only for the duration of each (small) read.
     """
@@ -81,7 +81,7 @@ async def upload_dataset(
         if resource_pk is not None
         else {"action": "upload"}
     )
-    # httpx wants sync file objects, which opening an anyio path does not give
+    # httpx2 wants sync file objects, which opening an anyio path does not give
     opened = {
         field_name: open(path, "rb")  # noqa: ASYNC230, SIM115
         for field_name, path in files.items()
@@ -95,7 +95,7 @@ async def upload_dataset(
                 for field_name, file_obj in opened.items()
             },
             # the upload of a large file may take long, writing it must not time out
-            timeout=httpx.Timeout(client.timeout.connect, write=None),
+            timeout=httpx2.Timeout(client.timeout.connect, write=None),
         )
     finally:
         for file_obj in opened.values():
@@ -108,7 +108,7 @@ async def upload_dataset(
 
 
 async def watch_execution(
-    client: httpx.AsyncClient,
+    client: httpx2.AsyncClient,
     execution_id: str,
     poll_interval_seconds: float = constants.GEONODE_EXECUTION_POLL_INTERVAL_SECONDS,
 ) -> AsyncGenerator[dict, None]:

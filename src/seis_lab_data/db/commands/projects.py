@@ -111,7 +111,7 @@ async def set_project_thumbnail(
     `update_project` is no use here, it also overwrites the bbox.
     Returns whether the project still exists.
     """
-    result = await session.execute(
+    result = await session.exec(
         update(models.Project)
         .where(models.Project.id == project_id)
         .values(thumbnail=thumbnail)

@@ -1,6 +1,6 @@
 """Tests for exporting survey-related records to GeoNode.
 
-GeoNode is faked: its API, uploads included, is served by an `httpx.MockTransport`.
+GeoNode is faked: its API, uploads included, is served by an `httpx2.MockTransport`.
 """
 
 import base64
@@ -12,7 +12,7 @@ import json
 import uuid
 
 import anyio
-import httpx
+import httpx2
 import pytest
 from sqlalchemy import update
 
@@ -60,7 +60,7 @@ class _FakeGeoNode:
         self.uploads = []
         self.metadata_updates = {}
 
-    def _receive_upload(self, request: httpx.Request) -> httpx.Response:
+    def _receive_upload(self, request: httpx2.Request) -> httpx2.Response:
         form = email.parser.BytesParser(policy=email.policy.HTTP).parsebytes(
             f"Content-Type: {request.headers['Content-Type']}\r\n\r\n".encode()
             + request.content
@@ -83,37 +83,37 @@ class _FakeGeoNode:
                 },
             }
         )
-        return httpx.Response(201, json={"execution_id": "exec-1"})
+        return httpx2.Response(201, json={"execution_id": "exec-1"})
 
-    def handle(self, request: httpx.Request) -> httpx.Response:
+    def handle(self, request: httpx2.Request) -> httpx2.Response:
         path = request.url.path
         if request.method == "POST" and path == "/o/token/":
             self.token_requests.append(
                 {
                     "authorization": request.headers.get("Authorization"),
-                    "form": dict(httpx.QueryParams(request.content.decode())),
+                    "form": dict(httpx2.QueryParams(request.content.decode())),
                 }
             )
             if not self.issues_tokens:
-                return httpx.Response(401, json={"error": "invalid_client"})
-            return httpx.Response(
+                return httpx2.Response(401, json={"error": "invalid_client"})
+            return httpx2.Response(
                 200, json={"access_token": _ACCESS_TOKEN, "token_type": "Bearer"}
             )
         if request.method == "POST" and path == "/o/revoke_token/":
             self.revoked_tokens.append(
-                dict(httpx.QueryParams(request.content.decode()))["token"]
+                dict(httpx2.QueryParams(request.content.decode()))["token"]
             )
-            return httpx.Response(200)
+            return httpx2.Response(200)
         if request.headers.get("Authorization") != f"Bearer {_ACCESS_TOKEN}":
-            return httpx.Response(401, json={"detail": "not authenticated"})
+            return httpx2.Response(401, json={"detail": "not authenticated"})
         if request.method == "POST" and path == "/api/v2/uploads/upload":
             return self._receive_upload(request)
         if request.method == "GET" and path.startswith("/api/v2/resources/"):
             pk = int(path.rstrip("/").rsplit("/", 1)[-1])
-            return httpx.Response(200 if pk in self.existing_pks else 404, json={})
+            return httpx2.Response(200 if pk in self.existing_pks else 404, json={})
         if request.method == "GET" and path == "/api/v2/executionrequest/exec-1":
             resource_pk = self.uploads[-1]["resource_pk"] or _NEW_PK
-            return httpx.Response(
+            return httpx2.Response(
                 200,
                 json={
                     "request": {
@@ -134,7 +134,7 @@ class _FakeGeoNode:
         if request.method == "PATCH" and path.startswith("/api/v2/resources/"):
             pk = int(path.rsplit("/", 1)[-1])
             self.metadata_updates[pk] = json.loads(request.content)
-            return httpx.Response(
+            return httpx2.Response(
                 200,
                 json={
                     "resource": {
@@ -143,7 +143,7 @@ class _FakeGeoNode:
                     }
                 },
             )
-        return httpx.Response(500)
+        return httpx2.Response(500)
 
 
 @pytest.fixture
@@ -166,10 +166,10 @@ def export_settings(settings, tmp_path, monkeypatch):
 
 def _install_fake_geonode(monkeypatch, fake: _FakeGeoNode) -> None:
     monkeypatch.setattr(
-        export_ops.httpx,
+        export_ops.httpx2,
         "AsyncClient",
         functools.partial(
-            httpx.AsyncClient, transport=httpx.MockTransport(fake.handle)
+            httpx2.AsyncClient, transport=httpx2.MockTransport(fake.handle)
         ),
     )
 
@@ -621,7 +621,7 @@ async def test_abandoned_exports_are_recovered(
                 constants.SurveyRelatedRecordStatus.DRAFT,
                 constants.SurveyRelatedRecordStatus.UNDER_EXPORT,
             )
-        await session.execute(
+        await session.exec(
             update(models.SurveyRelatedRecord)
             .where(models.SurveyRelatedRecord.id == stale_id)
             .values(updated_at=dt.datetime(2020, 1, 1))

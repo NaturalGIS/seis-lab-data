@@ -2,7 +2,7 @@
 
 import logging
 
-import httpx
+import httpx2
 
 from .constants import (
     ROLE_EDITOR,
@@ -29,7 +29,7 @@ def _roles_from_raw_user(raw_user: dict) -> list[str]:
 async def get_user_by_username(
     admin_token: str,
     username: str,
-    web_client: httpx.AsyncClient,
+    web_client: httpx2.AsyncClient,
     authentik_base_url: str,
 ) -> user_schemas.User | None:
     """Retrieve user details by username using the authentik API."""
@@ -58,7 +58,7 @@ async def get_user_by_username(
 async def get_user_by_uuid(
     admin_token: str,
     user_id: identifiers.UserId,
-    web_client: httpx.AsyncClient,
+    web_client: httpx2.AsyncClient,
     authentik_base_url: str,
 ) -> user_schemas.User | None:
     """Retrieve user details using the authentik API"""

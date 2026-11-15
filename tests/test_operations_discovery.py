@@ -607,7 +607,7 @@ async def _publish_mission(db_session_maker, discovery_env):
             identifiers.ProjectId(discovery_env["project"].id),
             constants.ProjectStatus.PUBLISHED,
         )
-        await session.execute(
+        await session.exec(
             sqlalchemy.update(models.SurveyMission)
             .where(models.SurveyMission.id == discovery_env["mission"].id)
             .values(
@@ -621,7 +621,7 @@ async def _publish_mission(db_session_maker, discovery_env):
 async def _make_record_valid(db_session_maker, record_id):
     """Store a validation result which marks the record as valid."""
     async with db_session_maker() as session:
-        await session.execute(
+        await session.exec(
             sqlalchemy.update(models.SurveyRelatedRecord)
             .where(models.SurveyRelatedRecord.id == record_id)
             .values(validation_result={"is_valid": True, "errors": None})
@@ -897,7 +897,7 @@ async def test_discovery_refuses_a_path_outside_the_mission_directory(
     _write_geotiff(discovery_env["archive_root"] / "s01" / "other.tif")
     mission_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
     async with db_session_maker() as session:
-        await session.execute(
+        await session.exec(
             sqlalchemy.update(models.SurveyMission)
             .where(models.SurveyMission.id == mission_id)
             .values(relative_path=relative_path)
@@ -1005,7 +1005,7 @@ async def test_discovery_stops_at_its_time_limit(
 async def _set_mission_status(db_session_maker, mission_id, status, age=None):
     """Set a mission's status directly, along with how long ago it was updated."""
     async with db_session_maker() as session:
-        await session.execute(
+        await session.exec(
             sqlalchemy.update(models.SurveyMission)
             .where(models.SurveyMission.id == mission_id)
             .values(

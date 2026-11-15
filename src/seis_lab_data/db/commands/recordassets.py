@@ -1,6 +1,9 @@
 import logging
 
-from sqlalchemy import delete
+from sqlalchemy import (
+    any_,
+    delete,
+)
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import errors
@@ -38,10 +41,10 @@ async def replace_derived_record_assets(
     Concurrent writers are kept out by the caller, which holds the record
     under derivation meanwhile.
     """
-    await session.execute(
+    await session.exec(
         delete(models.RecordAsset)
         .where(models.RecordAsset.survey_related_record_id == survey_related_record.id)
-        .where(~models.RecordAsset.asset_type.any(AssetType.DATA))
+        .where(~(any_(models.RecordAsset.asset_type) == AssetType.DATA))
     )
     for asset_to_create in derived:
         session.add(

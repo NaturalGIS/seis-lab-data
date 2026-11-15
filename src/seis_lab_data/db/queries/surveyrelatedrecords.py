@@ -7,6 +7,7 @@ from sqlalchemy.orm import (
     selectinload,
 )
 from sqlmodel import (
+    any_,
     exists,
     func,
     or_,
@@ -122,7 +123,7 @@ def _apply_survey_related_record_filters(
         )
         if only_data_assets:
             asset_statement = asset_statement.where(
-                models.RecordAsset.asset_type.any(AssetType.DATA)
+                any_(models.RecordAsset.asset_type) == AssetType.DATA
             )
         statement = statement.where(exists(asset_statement))
     return statement

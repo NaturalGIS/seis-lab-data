@@ -85,7 +85,9 @@ class SeisLabDataSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="SEIS_LAB_DATA__",
         env_nested_delimiter="__",
-        secrets_dir="/run/secrets",
+        # docker secrets are mounted here in production only; pydantic-settings warns
+        # about a missing secrets directory
+        secrets_dir="/run/secrets" if Path("/run/secrets").is_dir() else None,
     )
 
     auth_application_slug: str = "seis-lab-data"

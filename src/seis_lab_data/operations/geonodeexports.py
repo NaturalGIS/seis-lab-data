@@ -3,7 +3,7 @@ import logging
 import pathlib
 import re
 
-import httpx
+import httpx2
 from anyio import Path
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -169,7 +169,7 @@ async def export_survey_related_record(
     )
     target = settings.target_geonode
     try:
-        async with httpx.AsyncClient(base_url=target.url, timeout=30) as client:
+        async with httpx2.AsyncClient(base_url=target.url, timeout=30) as client:
             access_token = await geonode.get_access_token(
                 client,
                 username=target.username,
@@ -267,7 +267,7 @@ async def export_survey_related_record(
                         auth=(target.client_id, target.client_secret),
                     )
                     revocation.raise_for_status()
-                except httpx.HTTPError:
+                except httpx2.HTTPError:
                     logger.warning(
                         "Could not revoke GeoNode access token", exc_info=True
                     )

@@ -1,7 +1,7 @@
 import logging
 import time
 
-import httpx
+import httpx2
 from starlette.authentication import (
     AuthCredentials,
     AuthenticationBackend,
@@ -56,7 +56,7 @@ class OIDCAuthBackend(AuthenticationBackend):
     async def _introspect_token(self, access_token: str) -> bool:
         auth_config = AuthConfig.from_settings(self.settings)
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx2.AsyncClient() as client:
                 response = await client.post(
                     auth_config.introspection_endpoint,
                     data={"token": access_token},

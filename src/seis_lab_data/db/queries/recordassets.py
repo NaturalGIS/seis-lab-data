@@ -3,6 +3,7 @@ from collections.abc import Collection
 
 from sqlalchemy.orm import selectinload
 from sqlmodel import (
+    any_,
     func,
     select,
 )
@@ -125,7 +126,7 @@ async def collect_survey_mission_data_asset_paths_without_derived_assets(
     """
     records_with_derived_assets = select(
         models.RecordAsset.survey_related_record_id
-    ).where(~models.RecordAsset.asset_type.any(AssetType.DATA))
+    ).where(~(any_(models.RecordAsset.asset_type) == AssetType.DATA))
     statement = (
         select(
             models.RecordAsset.survey_related_record_id,
@@ -137,7 +138,7 @@ async def collect_survey_mission_data_asset_paths_without_derived_assets(
             == models.SurveyRelatedRecord.id,
         )
         .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
-        .where(models.RecordAsset.asset_type.any(AssetType.DATA))
+        .where(any_(models.RecordAsset.asset_type) == AssetType.DATA)
         .where(models.RecordAsset.relative_path.is_not(None))
         .where(
             models.RecordAsset.survey_related_record_id.not_in(
@@ -193,7 +194,9 @@ def _get_media_type_list_statement(
         .order_by(models.RecordAsset.media_type)
     )
     if only_data_assets:
-        statement = statement.where(models.RecordAsset.asset_type.any(AssetType.DATA))
+        statement = statement.where(
+            any_(models.RecordAsset.asset_type) == AssetType.DATA
+        )
     if name_filter:
         statement = statement.where(
             models.RecordAsset.media_type.ilike(f"%{name_filter}%")

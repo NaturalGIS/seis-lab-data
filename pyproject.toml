@@ -21,7 +21,7 @@ dependencies = [
     "faker>=38.0.0",
     "fastapi>=0.141.1",
     "geoalchemy2>=0.18.0",
-    "httpx>=0.28.1",
+    "httpx2>=2.16.0",
     "itsdangerous>=2.2.0",
     "jinja2>=3.1.6",
     "numpy>=2.3.4",
@@ -83,6 +83,8 @@ force-exclude = true
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers --verbose -m 'not e2e and not integration'"
+# each async fixture runs in the event loop of its own scope, e.g. session-scoped ones
+asyncio_default_fixture_loop_scope = "fixture-scope"
 markers = [
     "e2e: marks tests as being end-to-end tests",
     "integration: marks tests as being integration tests",
