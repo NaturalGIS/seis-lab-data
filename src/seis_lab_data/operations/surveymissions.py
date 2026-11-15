@@ -309,10 +309,9 @@ async def update_survey_mission(
             raise errors.SeisLabDataError(
                 errors.N_("User is not allowed to update the survey mission.")
             )
-        if (mission_status := survey_mission.status) not in (
-            constants.SurveyMissionStatus.DRAFT,
-            constants.SurveyMissionStatus.PUBLISHED,
-        ):
+        if (
+            mission_status := survey_mission.status
+        ) not in constants.SURVEY_MISSION_IDLE_STATUSES:
             raise errors.SeisLabDataError(
                 errors.N_(
                     "Cannot update the survey mission because its status is %(status)s."
@@ -444,10 +443,9 @@ async def delete_survey_mission(
             raise errors.SeisLabDataError(
                 errors.N_("User is not allowed to delete the survey mission.")
             )
-        if (mission_status := survey_mission.status) not in (
-            constants.SurveyMissionStatus.DRAFT,
-            constants.SurveyMissionStatus.PUBLISHED,
-        ):
+        if (
+            mission_status := survey_mission.status
+        ) not in constants.SURVEY_MISSION_IDLE_STATUSES:
             raise errors.SeisLabDataError(
                 errors.N_(
                     "Cannot delete the survey mission because its status is %(status)s."

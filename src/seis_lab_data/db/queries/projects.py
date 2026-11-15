@@ -9,9 +9,9 @@ from sqlmodel import (
 )
 
 from ...constants import (
+    SURVEY_MISSION_IDLE_STATUSES,
+    SURVEY_RELATED_RECORD_IDLE_STATUSES,
     ProjectStatus,
-    SurveyMissionStatus,
-    SurveyRelatedRecordStatus,
 )
 from ...schemas import (
     filters as filter_schemas,
@@ -157,11 +157,7 @@ async def project_has_busy_descendants(
     busy_mission_statement = (
         select(models.SurveyMission.id)
         .where(models.SurveyMission.project_id == project_id)
-        .where(
-            models.SurveyMission.status.not_in(
-                (SurveyMissionStatus.DRAFT, SurveyMissionStatus.PUBLISHED)
-            )
-        )
+        .where(models.SurveyMission.status.not_in(SURVEY_MISSION_IDLE_STATUSES))
         .limit(1)
     )
     if (await session.exec(busy_mission_statement)).first() is not None:
@@ -172,7 +168,7 @@ async def project_has_busy_descendants(
         .where(models.SurveyMission.project_id == project_id)
         .where(
             models.SurveyRelatedRecord.status.not_in(
-                (SurveyRelatedRecordStatus.DRAFT, SurveyRelatedRecordStatus.PUBLISHED)
+                SURVEY_RELATED_RECORD_IDLE_STATUSES
             )
         )
         .limit(1)

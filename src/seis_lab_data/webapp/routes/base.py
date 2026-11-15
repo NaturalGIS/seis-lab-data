@@ -7,9 +7,7 @@ from starlette.responses import RedirectResponse
 
 from ...config import SeisLabDataSettings
 from ...operations import surveymissions as survey_mission_ops
-from ...permissions import surveymissions as mission_permissions
 from ...schemas import webui as webui_schemas
-from .common import get_list_item_permissions
 
 logger = logging.getLogger(__name__)
 
@@ -34,12 +32,6 @@ async def home(request: Request):
                 webui_schemas.SurveyMissionReadListItem.from_db_instance(i)
                 for i in recent_missions
             ],
-            "list_item_permissions": get_list_item_permissions(
-                user,
-                recent_missions,
-                mission_permissions.can_update_survey_mission,
-                mission_permissions.can_delete_survey_mission,
-            ),
             "list_item_counts": list_item_counts,
         },
     )

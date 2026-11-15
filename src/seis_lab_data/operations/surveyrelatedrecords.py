@@ -325,10 +325,9 @@ async def delete_survey_related_record(
             raise errors.SeisLabDataError(
                 errors.N_("User is not allowed to delete the survey-related record.")
             )
-        if (record_status := survey_record.status) not in (
-            constants.SurveyRelatedRecordStatus.DRAFT,
-            constants.SurveyRelatedRecordStatus.PUBLISHED,
-        ):
+        if (
+            record_status := survey_record.status
+        ) not in constants.SURVEY_RELATED_RECORD_IDLE_STATUSES:
             raise errors.SeisLabDataError(
                 errors.N_(
                     "Cannot delete the survey-related record because its status is %(status)s."
@@ -536,10 +535,9 @@ async def update_survey_related_record(
             )
         # any other status means a task, e.g. the derivation of its previews,
         # is writing to the record right now
-        if (record_status := survey_related_record.status) not in (
-            constants.SurveyRelatedRecordStatus.DRAFT,
-            constants.SurveyRelatedRecordStatus.PUBLISHED,
-        ):
+        if (
+            record_status := survey_related_record.status
+        ) not in constants.SURVEY_RELATED_RECORD_IDLE_STATUSES:
             raise errors.SeisLabDataError(
                 errors.N_(
                     "Cannot update the survey-related record because its status is %(status)s."

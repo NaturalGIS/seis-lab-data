@@ -18,7 +18,10 @@ from starlette_babel import gettext_lazy as _
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import (
+    RedirectResponse,
+    Response,
+)
 from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 from starlette_wtf import csrf_protect
@@ -68,7 +71,6 @@ from .auth import (
 )
 from .common import (
     get_id_from_request_path,
-    get_list_item_permissions,
     get_page_count,
     parse_record_selection,
     get_page_from_request_params,
@@ -195,12 +197,6 @@ async def _get_survey_mission_details(
             can_bulk_update=(
                 record_permissions.can_bulk_update_survey_related_records(user)
             ),
-        ),
-        children_permissions=get_list_item_permissions(
-            user,
-            survey_related_records,
-            record_permissions.can_update_survey_related_record,
-            record_permissions.can_delete_survey_related_record,
         ),
         breadcrumbs=[
             webui_schemas.BreadcrumbItem(
@@ -548,12 +544,6 @@ async def get_mission_records_list_component(request: Request):
         pagination=pagination_info,
         bulk_update_base_url=bulk_update_base_url,
         selection_mission_id=survey_mission_id,
-        list_item_permissions=get_list_item_permissions(
-            user,
-            items,
-            record_permissions.can_update_survey_related_record,
-            record_permissions.can_delete_survey_related_record,
-        ),
     )
 
     async def event_streamer():
@@ -623,12 +613,6 @@ async def get_list_component(request: Request):
         items=serialized_items,
         update_current_url_with=filter_query_string,
         pagination=pagination_info,
-        list_item_permissions=get_list_item_permissions(
-            user,
-            items,
-            mission_permissions.can_update_survey_mission,
-            mission_permissions.can_delete_survey_mission,
-        ),
         list_item_counts=list_item_counts,
     )
 
@@ -726,12 +710,6 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
             "survey-missions/list.html",
             context={
                 "items": serialized_items,
-                "list_item_permissions": get_list_item_permissions(
-                    user,
-                    items,
-                    mission_permissions.can_update_survey_mission,
-                    mission_permissions.can_delete_survey_mission,
-                ),
                 "list_item_counts": list_item_counts,
                 "geojson_features": json.dumps(geojson_features),
                 "pagination": pagination_info,
@@ -779,7 +757,6 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 "survey_related_records": details.children,
                 "search_initial_value": details.children_filter,
                 "permissions": details.permissions,
-                "list_item_permissions": details.children_permissions,
                 "counts": details.counts,
                 "records_summary": details.records_summary,
                 "breadcrumbs": details.breadcrumbs,
@@ -1219,6 +1196,30 @@ async def get_survey_mission_update_form(request: Request):
                 detail=_("Survey mission %(id)s does not exist.")
                 % {"id": str(survey_mission_id)},
             )
+    if not mission_permissions.can_update_survey_mission(user, survey_mission):
+        refusal = _("User is not allowed to update the survey mission.")
+    elif survey_mission.status not in constants.SURVEY_MISSION_IDLE_STATUSES:
+        refusal = _(
+            "Cannot update the survey mission because its status is %(status)s."
+        ) % {"status": survey_mission.status.get_translated_value()}
+    else:
+        refusal = None
+    if refusal is not None:
+        # the session carries the notification across the redirect, to the
+        # detail page's rendering
+        request.session["flash"] = common_handlers.get_flash_payload(
+            webui_schemas.Notification(
+                message=str(refusal),
+                category="error",
+                resource_type=constants.ResourceType.MISSION,
+            )
+        )
+        return RedirectResponse(
+            request.url_for(
+                "survey_missions:detail", survey_mission_id=survey_mission_id
+            ),
+            status_code=303,
+        )
     current_bbox = (
         shapely.from_wkb(survey_mission.bbox_4326.data)
         if survey_mission.bbox_4326 is not None
