@@ -1485,7 +1485,8 @@ async def _extract_file_metadata(
                 srs.ImportFromEPSG(applied_crs)
                 bbox_4326 = extractor_common.project_bbox_to_wgs84(native_bbox, srs)
                 applied_crs_name = srs.GetName()
-            except Exception as err:
+            # an unusable CRS leaves the bbox unprojected rather than failing the file
+            except Exception as err:  # noqa: BLE001
                 logger.warning(
                     "Could not apply CRS EPSG:%s to %s: %s",
                     applied_crs,

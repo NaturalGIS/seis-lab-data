@@ -72,9 +72,11 @@ default-groups = []
 package = true
 
 [tool.ruff]
-# alembic generates the migration files, these are not to be reformatted or linted
 extend-exclude = [
+    # alembic generates the migration files, these are not to be reformatted or linted
     "src/seis_lab_data/migrations/versions",
+    # auxiliary scripts, not part of the application
+    "scripts",
 ]
 # pre-commit passes file paths explicitly, which would otherwise bypass the exclusion
 force-exclude = true

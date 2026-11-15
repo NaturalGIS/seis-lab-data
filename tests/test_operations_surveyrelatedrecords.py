@@ -119,9 +119,9 @@ async def test_bulk_update_workflow_stage_filter_excludes_non_matching_records(
     admin_user,
 ):
     # sample records are all in the "raw data" workflow stage, not this one
-    non_matching_stage = [
+    non_matching_stage = next(
         w for w in bootstrap_workflow_stages if w.name == "quality control data"
-    ][0]
+    )
     to_update = record_schemas.SurveyRelatedRecordBulkUpdate(
         description="Should not apply"
     )
@@ -150,9 +150,9 @@ async def test_bulk_update_dataset_category_filter_combines_with_name_filter(
     admin_user,
 ):
     # both sample records are in "bathymetry", so this narrows only via name_filter
-    matching_category = [
+    matching_category = next(
         c for c in bootstrap_dataset_categories if c.name == "bathymetry"
-    ][0]
+    )
     to_update = record_schemas.SurveyRelatedRecordBulkUpdate(description="Should apply")
     dispatcher = _EventCollector()
     async with db_session_maker() as session:
@@ -207,7 +207,7 @@ async def test_bulk_update_manually_selected_records_via_operation(
     sample_survey_related_records,
     admin_user,
 ):
-    first_record, second_record = sample_survey_related_records
+    _first_record, second_record = sample_survey_related_records
     to_update = record_schemas.SurveyRelatedRecordBulkUpdate(
         description="Bulk-updated via operation"
     )

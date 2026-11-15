@@ -237,9 +237,9 @@ async def bulk_update_manually_selected_records(
             session, to_update, matched_ids
         )
         await session.commit()
-    except Exception as err:
+    except Exception:
         await session.rollback()
-        raise err
+        raise
     return updated_count
 
 
@@ -256,17 +256,17 @@ async def bulk_update_filtered_records(
     dataset_category_id: identifiers.DatasetCategoryId | None = None,
     workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ) -> int:
-    filter_kwargs = dict(
-        survey_mission_id=survey_mission_id,
-        name_filter=name_filter,
-        spatial_intersect=spatial_intersect,
-        temporal_extent=temporal_extent,
-        asset_path_fragment_filter=asset_path_fragment_filter,
-        asset_media_type_filter=asset_media_type_filter,
-        dataset_category_id=dataset_category_id,
-        workflow_stage_id=workflow_stage_id,
-        excluded_record_ids=excluded_record_ids,
-    )
+    filter_kwargs = {
+        "survey_mission_id": survey_mission_id,
+        "name_filter": name_filter,
+        "spatial_intersect": spatial_intersect,
+        "temporal_extent": temporal_extent,
+        "asset_path_fragment_filter": asset_path_fragment_filter,
+        "asset_media_type_filter": asset_media_type_filter,
+        "dataset_category_id": dataset_category_id,
+        "workflow_stage_id": workflow_stage_id,
+        "excluded_record_ids": excluded_record_ids,
+    }
     ids_statement = record_queries.build_survey_related_record_id_statement(
         **filter_kwargs
     )
@@ -276,9 +276,9 @@ async def bulk_update_filtered_records(
             session, to_update, matched_ids
         )
         await session.commit()
-    except Exception as err:
+    except Exception:
         await session.rollback()
-        raise err
+        raise
     return updated_count
 
 
@@ -315,30 +315,34 @@ async def update_survey_related_record(
     current_data_paths = set()
 
     for proposed_asset in to_update.assets:
-        try:
-            existing_asset = [
+        existing_asset = next(
+            (
                 a
                 for a in survey_related_record.assets
                 if identifiers.RecordAssetId(a.id) == proposed_asset.id
-            ][0]
-        except IndexError:  # this is a new asset that needs to be created
+            ),
+            None,
+        )
+        if existing_asset is None:  # this is a new asset that needs to be created
             # assets without a path are exempt from the per-mission path
             # uniqueness rule
-            if proposed_asset.relative_path is not None:
-                if await asset_queries.get_record_asset_by_file_path(
+            if (
+                proposed_asset.relative_path is not None
+                and await asset_queries.get_record_asset_by_file_path(
                     session,
                     proposed_asset.relative_path,
                     identifiers.SurveyMissionId(
                         survey_related_record.survey_mission_id
                     ),
-                ):
-                    raise errors.DuplicateResourceError(
-                        errors.N_(
-                            "There is already a survey-related record with asset path "
-                            "“%(path)s” in the same survey mission."
-                        ),
-                        path=proposed_asset.relative_path,
-                    )
+                )
+            ):
+                raise errors.DuplicateResourceError(
+                    errors.N_(
+                        "There is already a survey-related record with asset path "
+                        "“%(path)s” in the same survey mission."
+                    ),
+                    path=proposed_asset.relative_path,
+                )
             db_asset = models.RecordAsset(
                 **proposed_asset.model_dump(),
                 survey_related_record_id=survey_related_record.id,
@@ -376,13 +380,15 @@ async def update_survey_related_record(
     logger.debug(f"{already_related_to=}")
     for proposed_related_to in to_update.related_records:
         # did a relationship to this record already exist?
-        try:
-            existing_relationship = [
+        existing_relationship = next(
+            (
                 r
                 for r in survey_related_record.related_to_links
                 if r.related_to_id == proposed_related_to.related_record_id
-            ][0]
-        except IndexError:  # this is a new relationship that must be created
+            ),
+            None,
+        )
+        if existing_relationship is None:  # this is a new relationship to create
             db_relationship = models.SurveyRelatedRecordSelfLink(
                 subject_id=survey_related_record.id,
                 related_to_id=proposed_related_to.related_record_id,

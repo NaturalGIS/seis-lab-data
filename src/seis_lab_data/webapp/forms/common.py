@@ -111,7 +111,8 @@ def retrieve_form_field_by_pydantic_loc(
 class NameField(StringField):
     """A required, length-limited name field."""
 
-    def __init__(self, label=_("Name"), **kwargs):
+    def __init__(self, label=None, **kwargs):
+        label = _("Name") if label is None else label
         kwargs.setdefault("description", _("Name of the item"))
         kwargs.setdefault(
             "validators", [validators.Length(max=constants.NAME_MAX_LENGTH)]
@@ -123,7 +124,8 @@ class NameField(StringField):
 class DescriptionField(TextAreaField):
     """An optional, length-limited description field."""
 
-    def __init__(self, label=_("Description"), **kwargs):
+    def __init__(self, label=None, **kwargs):
+        label = _("Description") if label is None else label
         kwargs.setdefault("description", _("Short description about this item"))
         kwargs.setdefault(
             "validators", [validators.Length(max=constants.DESCRIPTION_MAX_LENGTH)]

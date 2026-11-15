@@ -1,7 +1,6 @@
 import dataclasses
 import datetime as dt
 from functools import partial
-from typing import TypeAlias
 
 from .. import constants
 from . import identifiers
@@ -109,7 +108,7 @@ class ExportEvent(_EventBase):
     details_params: dict[str, str | int] = dataclasses.field(default_factory=dict)
 
 
-SeisLabDataEvent: TypeAlias = (
+type SeisLabDataEvent = (
     ResourceModificationEvent
     | BulkResourceModificationEvent
     | ResourceStatusChangedEvent

@@ -6,7 +6,6 @@ import shapely.geometry
 import stac_pydantic.api as stac_api
 from fastapi import (
     APIRouter,
-    Depends,
     HTTPException,
     Query,
     Request,
@@ -27,8 +26,8 @@ from . import (
 from . import links as link_helpers
 from . import schemas as stac_schemas
 from .dependencies import (
-    get_session,
-    get_settings,
+    SessionDep,
+    SettingsDep,
 )
 from .responses import ERROR_RESPONSES
 
@@ -84,8 +83,8 @@ async def get_conformance() -> JSONResponse:
 @router.get("/children", name="children", responses=ERROR_RESPONSES)
 async def root_children(
     request: Request,
-    session: AsyncSession = Depends(get_session),
-    settings: config.SeisLabDataSettings = Depends(get_settings),
+    session: SessionDep,
+    settings: SettingsDep,
     page: int = Query(1, ge=1),
     limit: int | None = Query(None),
 ) -> JSONResponse:
@@ -117,7 +116,7 @@ async def root_children(
 async def project_catalog(
     project_id: uuid.UUID,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> JSONResponse:
     project = await project_ops.get_project(
         identifiers.ProjectId(project_id), None, session
@@ -135,8 +134,8 @@ async def project_catalog(
 async def project_children(
     project_id: uuid.UUID,
     request: Request,
-    session: AsyncSession = Depends(get_session),
-    settings: config.SeisLabDataSettings = Depends(get_settings),
+    session: SessionDep,
+    settings: SettingsDep,
     page: int = Query(1, ge=1),
     limit: int | None = Query(None),
 ) -> JSONResponse:
@@ -183,8 +182,8 @@ async def project_children(
 @router.get("/collections", name="collections", responses=ERROR_RESPONSES)
 async def list_collections(
     request: Request,
-    session: AsyncSession = Depends(get_session),
-    settings: config.SeisLabDataSettings = Depends(get_settings),
+    session: SessionDep,
+    settings: SettingsDep,
     page: int = Query(1, ge=1),
     limit: int | None = Query(None),
 ) -> JSONResponse:
@@ -217,7 +216,7 @@ async def list_collections(
 async def get_collection(
     mission_id: uuid.UUID,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> JSONResponse:
     mission = await survey_mission_ops.get_survey_mission(
         identifiers.SurveyMissionId(mission_id), None, session
@@ -237,8 +236,8 @@ async def get_collection(
 async def collection_items(
     mission_id: uuid.UUID,
     request: Request,
-    session: AsyncSession = Depends(get_session),
-    settings: config.SeisLabDataSettings = Depends(get_settings),
+    session: SessionDep,
+    settings: SettingsDep,
     bbox: str | None = Query(None),
     datetime: str | None = Query(None),
     page: int = Query(1, ge=1),
@@ -318,7 +317,7 @@ async def get_item(
     mission_id: uuid.UUID,
     item_id: uuid.UUID,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> JSONResponse:
     result = await survey_related_record_ops.get_survey_related_record(
         identifiers.SurveyRelatedRecordId(item_id), None, session
@@ -403,8 +402,8 @@ async def _execute_search(
 @router.get("/search", name="search-get", responses=ERROR_RESPONSES)
 async def search_get(
     request: Request,
-    session: AsyncSession = Depends(get_session),
-    settings: config.SeisLabDataSettings = Depends(get_settings),
+    session: SessionDep,
+    settings: SettingsDep,
     bbox: str | None = Query(None),
     intersects: str | None = Query(None),
     datetime: str | None = Query(None),
@@ -434,8 +433,8 @@ async def search_get(
 async def search_post(
     request: Request,
     search: stac_schemas.Search,
-    session: AsyncSession = Depends(get_session),
-    settings: config.SeisLabDataSettings = Depends(get_settings),
+    session: SessionDep,
+    settings: SettingsDep,
 ) -> JSONResponse:
     intersects_geom = None
     bbox_raw = None

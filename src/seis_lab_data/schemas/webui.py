@@ -72,21 +72,11 @@ class UserPermissionDetails:
     can_export: bool = False
 
 
-ItemWithDetails = typing.TypeVar(
-    "ItemWithDetails",
-    ProjectReadDetail,
-    SurveyMissionReadDetail,
-)
-
-ItemChildSummary = typing.TypeVar(
-    "ItemChildSummary",
-    SurveyMissionReadListItem,
-    SurveyRelatedRecordReadListItem,
-)
-
-
 @dataclasses.dataclass(frozen=True)
-class ItemDetails(typing.Generic[ItemWithDetails, ItemChildSummary]):
+class ItemDetails[
+    ItemWithDetails: (ProjectReadDetail, SurveyMissionReadDetail),
+    ItemChildSummary: (SurveyMissionReadListItem, SurveyRelatedRecordReadListItem),
+]:
     item: ItemWithDetails
     children: list[ItemChildSummary]
     children_filter: str

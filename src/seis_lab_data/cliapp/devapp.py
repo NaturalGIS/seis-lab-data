@@ -269,7 +269,7 @@ async def load_sample_survey_related_records(ctx: typer.Context):
                         f"Survey-related record {to_create.id!r} already exists, skipping..."
                     )
                 else:
-                    raise RuntimeError from err
+                    raise
     for created_survey_record in created:
         to_show = record_schemas.SurveyRelatedRecordReadListItem.from_db_instance(
             created_survey_record

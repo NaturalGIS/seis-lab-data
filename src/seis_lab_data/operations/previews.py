@@ -187,7 +187,7 @@ async def generate_record_previews(
                 f"preview..."
             )
             continue
-        asset_path = "/".join((mission_root_path, asset.relative_path))
+        asset_path = f"{mission_root_path}/{asset.relative_path}"
         if not deriver_dispatch.can_derive(asset_path):
             continue
         try:
@@ -197,7 +197,8 @@ async def generate_record_previews(
                 survey_related_record.survey_mission.implicit_crs,
                 discovered_epsg_code,
             )
-        except Exception as err:
+        # a failing deriver skips this asset's preview rather than the whole record
+        except Exception as err:  # noqa: BLE001
             logger.warning(f"Preview generation failed for {asset_path!r}: {err}")
             continue
         if preview is None:  # the file went away between the two checks

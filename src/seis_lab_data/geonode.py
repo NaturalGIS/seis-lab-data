@@ -82,7 +82,10 @@ async def upload_dataset(
         else {"action": "upload"}
     )
     # httpx wants sync file objects, which opening an anyio path does not give
-    opened = {field_name: open(path, "rb") for field_name, path in files.items()}
+    opened = {
+        field_name: open(path, "rb")  # noqa: ASYNC230, SIM115
+        for field_name, path in files.items()
+    }
     try:
         response = await client.post(
             "/api/v2/uploads/upload",

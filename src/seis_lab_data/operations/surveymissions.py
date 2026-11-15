@@ -521,15 +521,15 @@ async def list_survey_missions(
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     only_internal: bool = False,
 ) -> tuple[list[models.SurveyMission], int | None]:
-    kwargs = dict(
-        project_id=project_id,
-        page=page,
-        page_size=page_size,
-        include_total=include_total,
-        name_filter=name_filter,
-        spatial_intersect=spatial_intersect,
-        temporal_extent=temporal_extent,
-    )
+    kwargs = {
+        "project_id": project_id,
+        "page": page,
+        "page_size": page_size,
+        "include_total": include_total,
+        "name_filter": name_filter,
+        "spatial_intersect": spatial_intersect,
+        "temporal_extent": temporal_extent,
+    }
     if initiator is None:
         return await mission_queries.list_published_survey_missions(session, **kwargs)
     else:

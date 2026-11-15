@@ -1,7 +1,6 @@
 from typing import (
     Annotated,
     Literal,
-    TypeAlias,
     TypeVar,
 )
 
@@ -101,7 +100,7 @@ class ExportMessage(pydantic.BaseModel):
     details_params: dict[str, str | int] = {}
 
 
-SldPubSubMessage: TypeAlias = Annotated[
+type SldPubSubMessage = Annotated[
     ResourceModificationMessage
     | BulkResourceModificationMessage
     | DiscoveryMessage

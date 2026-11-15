@@ -55,7 +55,7 @@ def substitute_site_url(*, placeholder: str, site_url: str, docs_site: Path) -> 
 
 
 if __name__ == "__main__":
-    is_debug = True if os.getenv("DOCS_DEBUG", "false").lower() == "true" else False
+    is_debug = os.getenv("DOCS_DEBUG", "false").lower() == "true"
     logging.basicConfig(level=logging.DEBUG if is_debug else logging.WARNING)
     main(
         substitution_placeholder="https://__SITE_URL_PLACEHOLDER__",

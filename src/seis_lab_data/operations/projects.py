@@ -471,14 +471,14 @@ async def list_projects(
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     only_internal: bool = False,
 ) -> tuple[list[models.Project], int | None]:
-    kwargs = dict(
-        page=page,
-        page_size=page_size,
-        include_total=include_total,
-        name_filter=name_filter,
-        spatial_intersect=spatial_intersect,
-        temporal_extent=temporal_extent,
-    )
+    kwargs = {
+        "page": page,
+        "page_size": page_size,
+        "include_total": include_total,
+        "name_filter": name_filter,
+        "spatial_intersect": spatial_intersect,
+        "temporal_extent": temporal_extent,
+    }
     if initiator is None:
         return await project_queries.list_published_projects(session, **kwargs)
     else:

@@ -424,21 +424,21 @@ async def list_survey_related_records(
     dataset_category_id: identifiers.DatasetCategoryId | None = None,
     workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
-    kwargs = dict(
-        survey_mission_ids=survey_mission_ids,
-        project_id=project_id,
-        page=page,
-        page_size=page_size,
-        include_total=include_total,
-        name_filter=name_filter,
-        spatial_intersect=spatial_intersect,
-        temporal_extent=temporal_extent,
-        asset_path_fragment_filter=asset_path_fragment_filter,
-        dataset_category_id=dataset_category_id,
-        workflow_stage_id=workflow_stage_id,
-        asset_media_type_filter=asset_media_type_filter,
-        record_ids=record_ids,
-    )
+    kwargs = {
+        "survey_mission_ids": survey_mission_ids,
+        "project_id": project_id,
+        "page": page,
+        "page_size": page_size,
+        "include_total": include_total,
+        "name_filter": name_filter,
+        "spatial_intersect": spatial_intersect,
+        "temporal_extent": temporal_extent,
+        "asset_path_fragment_filter": asset_path_fragment_filter,
+        "dataset_category_id": dataset_category_id,
+        "workflow_stage_id": workflow_stage_id,
+        "asset_media_type_filter": asset_media_type_filter,
+        "record_ids": record_ids,
+    }
     if initiator is None:
         return await record_queries.list_published_survey_related_records(
             session, **kwargs

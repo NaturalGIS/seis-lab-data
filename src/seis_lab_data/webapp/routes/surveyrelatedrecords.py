@@ -8,7 +8,6 @@ import uuid
 import zipfile
 from collections.abc import Iterator
 from pathlib import PurePosixPath
-from typing import TypeVar
 
 import shapely
 from anyio import Path
@@ -330,22 +329,22 @@ async def get_download_links(request: Request):
     records = []
     # an empty explicit selection would otherwise match every record
     if selection.selected != []:
-        list_kwargs = dict(
-            survey_mission_ids=(
+        list_kwargs = {
+            "survey_mission_ids": (
                 [selection.survey_mission_id]
                 if selection.survey_mission_id is not None
                 else None
             ),
-            project_id=selection.project_id,
-            name_filter=selection.name_filter,
-            spatial_intersect=selection.spatial_intersect,
-            temporal_extent=selection.temporal_extent,
-            asset_path_fragment_filter=selection.asset_path_fragment_filter,
-            asset_media_type_filter=selection.asset_media_type_filter,
-            dataset_category_id=selection.dataset_category_id,
-            workflow_stage_id=selection.workflow_stage_id,
-            record_ids=selection.selected,
-        )
+            "project_id": selection.project_id,
+            "name_filter": selection.name_filter,
+            "spatial_intersect": selection.spatial_intersect,
+            "temporal_extent": selection.temporal_extent,
+            "asset_path_fragment_filter": selection.asset_path_fragment_filter,
+            "asset_media_type_filter": selection.asset_media_type_filter,
+            "dataset_category_id": selection.dataset_category_id,
+            "workflow_stage_id": selection.workflow_stage_id,
+            "record_ids": selection.selected,
+        }
         excluded_ids = set(selection.excluded_record_ids or [])
         page_size = 500
         settings: config.SeisLabDataSettings = request.state.settings
@@ -448,13 +447,7 @@ def stream_zip_archive(
     yield bytes(buffer.data)
 
 
-FormType = TypeVar(
-    "FormType",
-    bound=forms.FormProtocol,
-)
-
-
-async def build_survey_related_record_form_instance(
+async def build_survey_related_record_form_instance[FormType: forms.FormProtocol](
     request: Request, form_type: type[FormType]
 ) -> FormType:
     form_instance = await form_type.from_formdata(request)
@@ -1530,7 +1523,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                     f"Survey-related record {survey_related_record_id!r} not found.",
                 )
 
-        survey_related_record, related_to, subject_for = survey_related_record_details
+        survey_related_record, _related_to, _subject_for = survey_related_record_details
         parent_survey_mission_id = identifiers.SurveyMissionId(
             survey_related_record.survey_mission_id
         )

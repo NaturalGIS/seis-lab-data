@@ -1343,18 +1343,18 @@ async def stream_to_new_page(request: Request):
 async def _count_bulk_update_matches(
     session, user, selection: record_schemas.SurveyRelatedRecordSelection
 ) -> int:
-    kwargs = dict(
-        survey_mission_id=selection.survey_mission_id,
-        name_filter=selection.name_filter,
-        spatial_intersect=selection.spatial_intersect,
-        temporal_extent=selection.temporal_extent,
-        asset_path_fragment_filter=selection.asset_path_fragment_filter,
-        asset_media_type_filter=selection.asset_media_type_filter,
-        dataset_category_id=selection.dataset_category_id,
-        workflow_stage_id=selection.workflow_stage_id,
-        record_ids=selection.selected,
-        excluded_record_ids=selection.excluded_record_ids,
-    )
+    kwargs = {
+        "survey_mission_id": selection.survey_mission_id,
+        "name_filter": selection.name_filter,
+        "spatial_intersect": selection.spatial_intersect,
+        "temporal_extent": selection.temporal_extent,
+        "asset_path_fragment_filter": selection.asset_path_fragment_filter,
+        "asset_media_type_filter": selection.asset_media_type_filter,
+        "dataset_category_id": selection.dataset_category_id,
+        "workflow_stage_id": selection.workflow_stage_id,
+        "record_ids": selection.selected,
+        "excluded_record_ids": selection.excluded_record_ids,
+    }
     statement = record_queries.build_survey_related_record_id_statement(**kwargs)
     return await record_queries.count_survey_related_records_matching(
         session, statement
