@@ -1,13 +1,16 @@
 """Resources whose status shows a task is working on them must not be modified."""
 
+import asyncio
 import uuid
 
 import pytest
+from sqlalchemy import update
 
 from seis_lab_data import (
     constants,
     errors,
 )
+from seis_lab_data.db import models
 from seis_lab_data.db.commands import projects as project_commands
 from seis_lab_data.db.commands import surveymissions as mission_commands
 from seis_lab_data.db.commands import surveyrelatedrecords as record_commands
@@ -179,6 +182,66 @@ async def test_delete_refuses_project_with_busy_contents(
             event_dispatcher=dispatcher,
         )
         assert await project_queries.get_project(session, project_id)
+        assert await record_queries.get_survey_related_record(session, record_id)
+    assert dispatcher.events[-1].modification == constants.ResourceModification.DELETED
+    assert dispatcher.events[-1].succeeded is False
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "deleted_level",
+    [
+        pytest.param("project", id="project"),
+        pytest.param("mission", id="mission"),
+    ],
+)
+async def test_delete_waits_for_a_record_being_made_busy(
+    db_session_maker, sample_survey_related_records, admin_user, deleted_level
+):
+    record = sample_survey_related_records[0]
+    record_id = identifiers.SurveyRelatedRecordId(record.id)
+    mission_id = identifiers.SurveyMissionId(record.survey_mission_id)
+    async with db_session_maker() as session:
+        mission = await mission_queries.get_survey_mission(session, mission_id)
+        project_id = identifiers.ProjectId(mission.project_id)
+    dispatcher = _EventCollector()
+    async with (
+        db_session_maker() as flipping_session,
+        db_session_maker() as deleting_session,
+    ):
+        # a task making the record busy, which has not committed yet
+        await flipping_session.exec(
+            update(models.SurveyRelatedRecord)
+            .where(models.SurveyRelatedRecord.id == record_id)
+            .values(status=constants.SurveyRelatedRecordStatus.UNDER_EXPORT)
+        )
+        if deleted_level == "project":
+            deletion = asyncio.create_task(
+                project_ops.delete_project(
+                    request_id=RequestId(uuid.uuid4()),
+                    project_id=project_id,
+                    initiator=admin_user,
+                    session=deleting_session,
+                    event_dispatcher=dispatcher,
+                )
+            )
+        else:
+            deletion = asyncio.create_task(
+                mission_ops.delete_survey_mission(
+                    request_id=RequestId(uuid.uuid4()),
+                    survey_mission_id=mission_id,
+                    initiator=admin_user,
+                    session=deleting_session,
+                    event_dispatcher=dispatcher,
+                )
+            )
+        await asyncio.sleep(0.5)
+        assert not deletion.done()
+        await flipping_session.commit()
+        await asyncio.wait_for(deletion, timeout=10)
+    async with db_session_maker() as session:
+        assert await mission_queries.get_survey_mission(session, mission_id)
         assert await record_queries.get_survey_related_record(session, record_id)
     assert dispatcher.events[-1].modification == constants.ResourceModification.DELETED
     assert dispatcher.events[-1].succeeded is False

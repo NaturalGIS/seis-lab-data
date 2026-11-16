@@ -4,18 +4,24 @@
    - the validation result is shown only for draft items
    - the general info is for everyone, the privileged info only for authenticated users
 
-   Listing pages pass no item, which leaves only the general info. Pages whose status is
-   updated in place pass the template that renders it as `status_template`
+   Listing pages pass no item, which leaves only the general info. A page may render the
+   status item with its own template, passed as `status_template`.
+
+   Each of the `privileged_notices` is a dict with the notice's `text` and `icon`, the
+   Datastar expression under which it is shown, as `condition`, and whether it is shown
+   when the page is rendered, as `shown`
 #}
-{% macro render_info_section(general_info, privileged_info=[], show_privileged_info=False, item=None, status_template=None) %}
+{% macro render_info_section(general_info, privileged_info=[], show_privileged_info=False, item=None, status_template=None, privileged_notices=[]) %}
     <h5>{{ _("info") | capitalize }}</h5>
     <ul class="list-group" aria-label="info-section">
-        {% if status_template is not none %}
-            {% include status_template %}
-        {% elif item is not none and item.status.value != "published" %}
-            <li class="list-group-item" aria-label="status">
-                {% include "partial-status-icon.html" %}{{ item.status | translate_enum | capitalize }}
-            </li>
+        {% if item is not none and item.status.value != "published" %}
+            {% if status_template is not none %}
+                {% include status_template %}
+            {% else %}
+                <li class="list-group-item" aria-label="status">
+                    {% include "partial-status-icon.html" %}{{ item.status | translate_enum | capitalize }}
+                </li>
+            {% endif %}
         {% endif %}
         {% if item is not none and item.status.value == "draft" %}
             {% set is_valid = item.validation_result.is_valid %}
@@ -44,6 +50,16 @@
         </li>
         {% if show_privileged_info and privileged_info %}
             <li class="list-group-item" aria-label="privileged-info">
+                {% for notice in privileged_notices %}
+                    <p
+                            class="text-warning-emphasis"
+                            aria-label="privileged-notice"
+                            data-show="{{ notice.condition }}"
+                            {% if not notice.shown %}style="display: none"{% endif %}
+                    >
+                        <span class="material-icons-outlined me-1">{{ notice.icon }}</span>{{ notice.text }}
+                    </p>
+                {% endfor %}
                 {% for paragraph in privileged_info %}
                     <p class="{{ 'mb-0' if loop.last }}">{{ paragraph }}</p>
                 {% endfor %}

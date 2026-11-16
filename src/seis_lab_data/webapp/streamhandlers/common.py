@@ -15,6 +15,8 @@ from ... import (
     constants,
     subscribers,
 )
+from ...db.queries import projects as project_queries
+from ...db.queries import surveymissions as mission_queries
 from ...operations import surveymissions as mission_ops
 from ...operations import surveyrelatedrecords as record_ops
 from ...schemas import identifiers
@@ -683,7 +685,8 @@ async def _handle_survey_mission_status_changed_detail_page(
     A status change of the page's mission is notified, and the mission's details
     and list of records are re-fetched in place. The page is not reloaded, as that
     would close its stream and lose the messages published until it reopens. A
-    status change of a record of the mission re-fetches the list of records.
+    status change of a record of the mission re-fetches the list of records and
+    updates whether the mission has busy records.
     """
 
     match message:
@@ -728,13 +731,24 @@ async def _handle_survey_mission_status_changed_detail_page(
                         initiator=context.user,
                         session=session,
                     )
-                ) is not None and str(
+                ) is None or str(
                     record_info[0].survey_mission_id
-                ) == context.resource_id:
-                    # update datastar signal which frontend uses to check when needing to re-fetch list of project child missions
-                    yield ServerSentEventGenerator.patch_signals(
-                        {"listingVersion": int(time.time() * 1000)}
+                ) != context.resource_id:
+                    return
+                has_busy_records = (
+                    await mission_queries.survey_mission_has_busy_records(
+                        session,
+                        identifiers.SurveyMissionId(uuid.UUID(context.resource_id)),
                     )
+                )
+            # the list of records is re-fetched, and the mission's deletion is allowed
+            # only while none of its records is busy
+            yield ServerSentEventGenerator.patch_signals(
+                {
+                    "listingVersion": int(time.time() * 1000),
+                    "hasBusyDescendants": has_busy_records,
+                }
+            )
 
 
 async def _handle_project_status_changed_detail_page(
@@ -744,13 +758,10 @@ async def _handle_project_status_changed_detail_page(
 ) -> AsyncGenerator[DatastarEvent, None]:
     """Handle a status changed message in the context of a project detail page.
 
-    If a project status changes and the user is looking at the project's detail page we want to refresh the page
-
-    If a survey mission status changes and the user is looking at its parent project detail page we want to
-    reload the list of survey missions because it may be modified
-
-    If a survey-related record's status changes and the user is looking at its parent project detail page we want
-    to reload the list of survey missions because it may be modified
+    A status change of the page's project is notified, and the page is reloaded. A
+    status change of a mission or record of the project re-fetches the list of
+    missions and updates whether the project has busy descendants. Only those of
+    missions are notified, as tasks change the statuses of many records at once.
     """
 
     match message:
@@ -783,15 +794,25 @@ async def _handle_project_status_changed_detail_page(
                         initiator=context.user,
                         session=session,
                     )
-                ) is not None and str(db_mission.project_id) == context.resource_id:
-                    async for event in flash_ui_message_same_page(
-                        _get_status_changed_notification(message)
-                    ):
-                        yield event
-                    # update datastar signal which frontend uses to check when needing to re-fetch list of project child missions
-                    yield ServerSentEventGenerator.patch_signals(
-                        {"listingVersion": int(time.time() * 1000)}
+                ) is None or str(db_mission.project_id) != context.resource_id:
+                    return
+                has_busy_descendants = (
+                    await project_queries.project_has_busy_descendants(
+                        session, identifiers.ProjectId(uuid.UUID(context.resource_id))
                     )
+                )
+            async for event in flash_ui_message_same_page(
+                _get_status_changed_notification(message)
+            ):
+                yield event
+            # the list of missions is re-fetched, and the project's deletion is allowed
+            # only while none of its missions and records is busy
+            yield ServerSentEventGenerator.patch_signals(
+                {
+                    "listingVersion": int(time.time() * 1000),
+                    "hasBusyDescendants": has_busy_descendants,
+                }
+            )
         case message_schemas.ResourceStatusChangedMessage(
             succeeded=True,
             resource_type=constants.ResourceType.RECORD,
@@ -807,17 +828,22 @@ async def _handle_project_status_changed_detail_page(
                         initiator=context.user,
                         session=session,
                     )
-                ) is not None and str(
+                ) is None or str(
                     record_info[0].survey_mission.project_id
-                ) == context.resource_id:
-                    async for event in flash_ui_message_same_page(
-                        _get_status_changed_notification(message)
-                    ):
-                        yield event
-                    # update datastar signal which frontend uses to check when needing to re-fetch list of project child missions
-                    yield ServerSentEventGenerator.patch_signals(
-                        {"listingVersion": int(time.time() * 1000)}
+                ) != context.resource_id:
+                    return
+                has_busy_descendants = (
+                    await project_queries.project_has_busy_descendants(
+                        session, identifiers.ProjectId(uuid.UUID(context.resource_id))
                     )
+                )
+            # not notified, as tasks change the statuses of many records at once
+            yield ServerSentEventGenerator.patch_signals(
+                {
+                    "listingVersion": int(time.time() * 1000),
+                    "hasBusyDescendants": has_busy_descendants,
+                }
+            )
 
 
 async def handle_resource_modification_detail_page(

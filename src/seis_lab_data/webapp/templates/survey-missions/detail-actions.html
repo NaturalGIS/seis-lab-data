@@ -64,7 +64,7 @@
                             generated_csrf_token=csrf_token(request),
                             modal_dialog_title=_("delete survey mission"),
                             modal_dialog_confirmation_text=_("Are you sure you want to delete the survey mission “%(name)s”?") | format(name=item.name),
-                            disabled_condition="$isBusy"
+                            disabled_condition="$isBusy || $hasBusyDescendants"
                         ) }}
                     {% endif %}
                 </div>

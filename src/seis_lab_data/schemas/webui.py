@@ -100,6 +100,7 @@ class ProjectDetails(ItemDetails[ProjectReadDetail, SurveyMissionReadListItem]):
     children_counts: dict[uuid.UUID, common.ContentCounts]
     records_summary: SurveyRelatedRecordSetSummary
     records_list_url: str
+    has_busy_descendants: bool
 
 
 @dataclasses.dataclass(frozen=True)
@@ -110,6 +111,7 @@ class SurveyMissionDetails(
 
     counts: common.ContentCounts
     records_summary: SurveyRelatedRecordSetSummary
+    has_busy_descendants: bool
     dataset_categories: list[tuple[str, str]]
     workflow_stages: list[tuple[str, str]]
     filter_media_types_datalist: list[str]

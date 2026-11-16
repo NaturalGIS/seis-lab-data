@@ -205,7 +205,9 @@ and of its missions and records, as described in [Resource state](#resource-stat
 
 The **delete project** button of the project's detail page deletes the project after a
 confirmation. Deleting a project also deletes its survey missions, their survey-related records
-and the records' assets. Files in the archive are not modified.
+and the records' assets. Files in the archive are not modified. The button is disabled while
+the project, or any of its missions or records, is in a transitory state; the info section then
+says so.
 
 
 ## Working with survey missions
@@ -335,8 +337,8 @@ discovery again continues with the remaining files.
 
 The **delete survey mission** button of the mission's detail page deletes the mission after a
 confirmation. Deleting a mission also deletes its survey-related records and their assets. Files
-in the archive are not modified. The button is disabled while the mission is in a transitory
-state.
+in the archive are not modified. The button is disabled while the mission, or any of its
+records, is in a transitory state; the info section then says so.
 
 
 ## Working with survey-related records

@@ -16,6 +16,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from ... import errors
 from ...constants import (
     SURVEY_MISSION_DISCOVERY_STATUSES,
+    SURVEY_MISSION_IDLE_STATUSES,
+    SURVEY_RELATED_RECORD_IDLE_STATUSES,
     ProjectStatus,
     SurveyMissionStatus,
 )
@@ -61,16 +63,60 @@ async def delete_survey_mission(
     session: AsyncSession,
     survey_mission_id: identifiers.SurveyMissionId,
 ) -> None:
-    if survey_mission := (
-        await mission_queries.get_survey_mission(session, survey_mission_id)
-    ):
-        await session.delete(survey_mission)
-        await session.commit()
-    else:
+    """Delete an idle survey mission, along with its records.
+
+    The mission and its records are locked before their statuses are checked, so
+    that no task can make any of them busy while the deletion runs: a task trying
+    to do so waits for the deletion to end, and then finds nothing to change.
+    Raises `SeisLabDataError` if the mission does not exist, is busy or has busy
+    records.
+    """
+    mission_status = await session.scalar(
+        select(models.SurveyMission.status)
+        .where(models.SurveyMission.id == survey_mission_id)
+        .with_for_update()
+    )
+    if mission_status is None:
+        await session.rollback()
         raise errors.SeisLabDataError(
             errors.N_("Survey mission %(id)s does not exist."),
             id=str(survey_mission_id),
         )
+    if mission_status not in SURVEY_MISSION_IDLE_STATUSES:
+        await session.rollback()
+        raise errors.SeisLabDataError(
+            errors.N_(
+                "Cannot delete the survey mission because its status is %(status)s."
+            ),
+            status=mission_status.value,
+        )
+    # every record is locked, as a busy one is told apart only once it is locked: the
+    # statuses are counted with a filter rather than a WHERE clause, which would be
+    # applied before the rows are locked
+    locked_records = (
+        select(models.SurveyRelatedRecord.status)
+        .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
+        .with_for_update()
+        .subquery()
+    )
+    num_busy_records = await session.scalar(
+        select(
+            func.count().filter(
+                locked_records.c.status.not_in(SURVEY_RELATED_RECORD_IDLE_STATUSES)
+            )
+        ).select_from(locked_records)
+    )
+    if num_busy_records > 0:
+        await session.rollback()
+        raise errors.SeisLabDataError(
+            errors.N_(
+                "Cannot delete the survey mission because some of its survey-related records are currently being processed."
+            )
+        )
+    await session.delete(
+        await mission_queries.get_survey_mission(session, survey_mission_id)
+    )
+    await session.commit()
 
 
 async def update_survey_mission(

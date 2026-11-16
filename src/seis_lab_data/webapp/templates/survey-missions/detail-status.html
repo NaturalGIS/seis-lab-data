@@ -1,12 +1,5 @@
-{# the mission's status, with the discovery's progress while discovery runs. It is
-   hidden rather than omitted when the mission is published, so that it can always be
-   morphed #}
-<li
-        id="survey-mission-status"
-        class="list-group-item"
-        aria-label="status"
-        {% if item.status.value == "published" %}hidden{% endif %}
->
+{# the mission's status, with the discovery's progress while discovery runs #}
+<li class="list-group-item" aria-label="status">
     {% if item.status in SURVEY_MISSION_DISCOVERY_STATUSES %}
         {{ item.status | translate_enum | capitalize }}
         {# animated while discovery runs, and full and muted until the number of sections is known #}

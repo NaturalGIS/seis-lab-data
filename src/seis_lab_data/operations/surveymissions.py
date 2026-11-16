@@ -460,24 +460,8 @@ async def delete_survey_mission(
             raise errors.SeisLabDataError(
                 errors.N_("User is not allowed to delete the survey mission.")
             )
-        if (
-            mission_status := survey_mission.status
-        ) not in constants.SURVEY_MISSION_IDLE_STATUSES:
-            raise errors.SeisLabDataError(
-                errors.N_(
-                    "Cannot delete the survey mission because its status is %(status)s."
-                ),
-                status=mission_status.value,
-            )
-        if await mission_queries.survey_mission_has_busy_records(
-            session, survey_mission_id
-        ):
-            raise errors.SeisLabDataError(
-                errors.N_(
-                    "Cannot delete the survey mission because some of its survey-related records are currently being processed."
-                )
-            )
         parent_id = survey_mission.project_id
+        # also refuses a busy mission, or one with busy records
         await mission_commands.delete_survey_mission(session, survey_mission_id)
     except errors.SeisLabDataError as err:
         await event_dispatcher(

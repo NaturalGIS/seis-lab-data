@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-16 13:31+0000\n"
+"POT-Creation-Date: 2026-11-16 16:09+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en_US\n"
@@ -59,7 +59,7 @@ msgstr ""
 msgid "running"
 msgstr ""
 
-#: constants.py:149 webapp/streamhandlers/common.py:52
+#: constants.py:149 webapp/streamhandlers/common.py:54
 msgid "success"
 msgstr ""
 
@@ -205,20 +205,31 @@ msgstr ""
 msgid "Asset discovery configuration %(id)s does not exist."
 msgstr ""
 
-#: db/commands/projects.py:33
+#: db/commands/projects.py:42
 #, python-format
 msgid "There is already a project named “%(name)s”."
 msgstr ""
 
-#: db/commands/projects.py:51 db/commands/projects.py:95
+#: db/commands/projects.py:71 db/commands/projects.py:160
 #: operations/projects.py:113 operations/projects.py:168
 #: operations/projects.py:258 operations/projects.py:413
-#: operations/surveymissions.py:46 webapp/routes/projects.py:112
-#: webapp/routes/projects.py:423 webapp/routes/projects.py:846
-#: webapp/routes/projects.py:877 webapp/routes/surveymissions.py:407
-#: webapp/routes/surveymissions.py:1007 webapp/routes/surveymissions.py:1046
+#: operations/surveymissions.py:46 webapp/routes/projects.py:113
+#: webapp/routes/projects.py:427 webapp/routes/projects.py:855
+#: webapp/routes/projects.py:886 webapp/routes/surveymissions.py:414
+#: webapp/routes/surveymissions.py:1015 webapp/routes/surveymissions.py:1054
 #, python-format
 msgid "Project %(id)s does not exist."
+msgstr ""
+
+#: db/commands/projects.py:76
+#, python-format
+msgid "Cannot delete the project because its status is %(status)s."
+msgstr ""
+
+#: db/commands/projects.py:113
+msgid ""
+"Cannot delete the project because some of its survey missions or survey-"
+"related records are currently being processed."
 msgstr ""
 
 #: db/commands/recordassets.py:28
@@ -226,20 +237,31 @@ msgstr ""
 msgid "Record asset %(id)s does not exist."
 msgstr ""
 
-#: db/commands/surveymissions.py:49
+#: db/commands/surveymissions.py:51
 #, python-format
 msgid "There is already a survey mission named “%(name)s” in the same project."
 msgstr ""
 
-#: db/commands/surveymissions.py:71 db/commands/surveymissions.py:125
-#: operations/discovery.py:270 operations/discovery.py:1199
+#: db/commands/surveymissions.py:82 db/commands/surveymissions.py:171
+#: operations/discovery.py:270 operations/discovery.py:1222
 #: operations/surveymissions.py:135 operations/surveymissions.py:238
 #: operations/surveymissions.py:339 operations/surveymissions.py:455
-#: operations/surveyrelatedrecords.py:48 webapp/routes/surveymissions.py:100
-#: webapp/routes/surveymissions.py:978 webapp/routes/surveymissions.py:1185
+#: operations/surveyrelatedrecords.py:48 webapp/routes/surveymissions.py:101
+#: webapp/routes/surveymissions.py:986 webapp/routes/surveymissions.py:1193
 #: webapp/routes/surveyrelatedrecords.py:481
 #, python-format
 msgid "Survey mission %(id)s does not exist."
+msgstr ""
+
+#: db/commands/surveymissions.py:89
+#, python-format
+msgid "Cannot delete the survey mission because its status is %(status)s."
+msgstr ""
+
+#: db/commands/surveymissions.py:113
+msgid ""
+"Cannot delete the survey mission because some of its survey-related "
+"records are currently being processed."
 msgstr ""
 
 #: db/commands/surveyrelatedrecords.py:66
@@ -351,11 +373,11 @@ msgid ""
 "not be discovered"
 msgstr ""
 
-#: operations/discovery.py:1205
+#: operations/discovery.py:1228
 msgid "User is not allowed to cancel discovery on the survey mission."
 msgstr ""
 
-#: operations/discovery.py:1219
+#: operations/discovery.py:1242
 #, python-format
 msgid ""
 "Discovery is already being cancelled. If it is no longer running, the "
@@ -363,11 +385,11 @@ msgid ""
 "%(minutes)d minutes."
 msgstr ""
 
-#: operations/discovery.py:1231
+#: operations/discovery.py:1254
 msgid "Cannot cancel discovery because the survey mission is not under discovery."
 msgstr ""
 
-#: operations/discovery.py:1320
+#: operations/discovery.py:1343
 msgid ""
 "discovery was abandoned by its worker - the records created so far are "
 "kept, run it again to resume"
@@ -418,11 +440,11 @@ msgstr ""
 msgid "User is not allowed to validate the project."
 msgstr ""
 
-#: operations/projects.py:263 webapp/routes/projects.py:115
+#: operations/projects.py:263 webapp/routes/projects.py:116
 msgid "User is not allowed to update the project."
 msgstr ""
 
-#: operations/projects.py:269 webapp/routes/projects.py:117
+#: operations/projects.py:269 webapp/routes/projects.py:118
 #, python-format
 msgid "Cannot update the project because its status is %(status)s."
 msgstr ""
@@ -431,18 +453,7 @@ msgstr ""
 msgid "User is not allowed to delete the project."
 msgstr ""
 
-#: operations/projects.py:423
-#, python-format
-msgid "Cannot delete the project because its status is %(status)s."
-msgstr ""
-
-#: operations/projects.py:430
-msgid ""
-"Cannot delete the project because some of its survey missions or survey-"
-"related records are currently being processed."
-msgstr ""
-
-#: operations/projects.py:528 operations/projects.py:533
+#: operations/projects.py:516 operations/projects.py:521
 #, python-format
 msgid "User is not allowed to read project %(id)s."
 msgstr ""
@@ -459,11 +470,11 @@ msgstr ""
 msgid "User is not allowed to validate the survey mission."
 msgstr ""
 
-#: operations/surveymissions.py:345 webapp/routes/surveymissions.py:1189
+#: operations/surveymissions.py:345 webapp/routes/surveymissions.py:1197
 msgid "User is not allowed to update the survey mission."
 msgstr ""
 
-#: operations/surveymissions.py:352 webapp/routes/surveymissions.py:1192
+#: operations/surveymissions.py:352 webapp/routes/surveymissions.py:1200
 #, python-format
 msgid "Cannot update the survey mission because its status is %(status)s."
 msgstr ""
@@ -472,18 +483,7 @@ msgstr ""
 msgid "User is not allowed to delete the survey mission."
 msgstr ""
 
-#: operations/surveymissions.py:468
-#, python-format
-msgid "Cannot delete the survey mission because its status is %(status)s."
-msgstr ""
-
-#: operations/surveymissions.py:477
-msgid ""
-"Cannot delete the survey mission because some of its survey-related "
-"records are currently being processed."
-msgstr ""
-
-#: operations/surveymissions.py:574 operations/surveymissions.py:580
+#: operations/surveymissions.py:558 operations/surveymissions.py:564
 #, python-format
 msgid "User is not allowed to read survey mission %(id)s."
 msgstr ""
@@ -702,7 +702,7 @@ msgstr ""
 #: webapp/forms/surveyrelatedrecords.py:58
 #: webapp/forms/surveyrelatedrecords.py:99
 #: webapp/templates/projects/create-form.html:23
-#: webapp/templates/projects/detail-component.html:37
+#: webapp/templates/projects/detail-component.html:39
 #: webapp/templates/projects/update-form.html:22
 #: webapp/templates/survey-missions/create-form.html:25
 #: webapp/templates/survey-missions/detail-summary.html:40
@@ -816,10 +816,10 @@ msgstr ""
 #: webapp/routes/datasetcategories.py:179
 #: webapp/routes/datasetcategories.py:347 webapp/routes/discovery.py:135
 #: webapp/routes/discovery.py:196 webapp/routes/discovery.py:364
-#: webapp/routes/projects.py:76 webapp/routes/projects.py:178
-#: webapp/routes/projects.py:480 webapp/routes/projects.py:635
-#: webapp/routes/surveymissions.py:191 webapp/routes/surveymissions.py:420
-#: webapp/routes/surveymissions.py:717 webapp/routes/surveymissions.py:1256
+#: webapp/routes/projects.py:77 webapp/routes/projects.py:179
+#: webapp/routes/projects.py:488 webapp/routes/projects.py:643
+#: webapp/routes/surveymissions.py:196 webapp/routes/surveymissions.py:427
+#: webapp/routes/surveymissions.py:724 webapp/routes/surveymissions.py:1264
 #: webapp/routes/surveyrelatedrecords.py:128
 #: webapp/routes/surveyrelatedrecords.py:505
 #: webapp/routes/surveyrelatedrecords.py:881
@@ -844,7 +844,7 @@ msgid "New dataset category"
 msgstr ""
 
 #: webapp/routes/datasetcategories.py:187 webapp/routes/discovery.py:204
-#: webapp/routes/projects.py:193 webapp/routes/surveymissions.py:1280
+#: webapp/routes/projects.py:194 webapp/routes/surveymissions.py:1288
 #: webapp/routes/surveyrelatedrecords.py:915
 #: webapp/routes/workflowstages.py:181
 #: webapp/templates/datasetcategories/list-item.html:13
@@ -865,10 +865,10 @@ msgstr ""
 msgid "New"
 msgstr ""
 
-#: webapp/routes/projects.py:81 webapp/routes/projects.py:183
-#: webapp/routes/projects.py:485 webapp/routes/projects.py:640
-#: webapp/routes/surveymissions.py:196 webapp/routes/surveymissions.py:425
-#: webapp/routes/surveymissions.py:1261
+#: webapp/routes/projects.py:82 webapp/routes/projects.py:184
+#: webapp/routes/projects.py:493 webapp/routes/projects.py:648
+#: webapp/routes/surveymissions.py:201 webapp/routes/surveymissions.py:432
+#: webapp/routes/surveymissions.py:1269
 #: webapp/routes/surveyrelatedrecords.py:133
 #: webapp/routes/surveyrelatedrecords.py:510
 #: webapp/routes/surveyrelatedrecords.py:886 webapp/templates/base.html:39
@@ -878,26 +878,26 @@ msgstr ""
 msgid "Projects"
 msgstr ""
 
-#: webapp/routes/projects.py:86
+#: webapp/routes/projects.py:87
 #: webapp/templates/projects/create-form-page.html:13
 #: webapp/templates/projects/create-form-page.html:18
 msgid "New project"
 msgstr ""
 
-#: webapp/routes/projects.py:240 webapp/routes/surveymissions.py:278
+#: webapp/routes/projects.py:242 webapp/routes/surveymissions.py:285
 msgid "Thumbnail not found."
 msgstr ""
 
-#: webapp/routes/surveymissions.py:435
+#: webapp/routes/surveymissions.py:442
 #: webapp/templates/survey-missions/create-form-page.html:13
 #: webapp/templates/survey-missions/create-form-page.html:18
 msgid "New survey mission"
 msgstr ""
 
-#: webapp/routes/surveymissions.py:722 webapp/templates/base.html:44
+#: webapp/routes/surveymissions.py:729 webapp/templates/base.html:44
 #: webapp/templates/base.html:45 webapp/templates/base.html:203
 #: webapp/templates/macros/records-summary.html:55
-#: webapp/templates/projects/detail-component.html:75
+#: webapp/templates/projects/detail-component.html:77
 #: webapp/templates/survey-missions/list.html:10
 #: webapp/templates/survey-missions/list.html:25
 msgid "Survey missions"
@@ -940,111 +940,111 @@ msgstr ""
 msgid "New workflow stage"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:30
+#: webapp/streamhandlers/common.py:32
 #, python-format
 msgid "“%(name)s” was created."
 msgstr ""
 
-#: webapp/streamhandlers/common.py:31
+#: webapp/streamhandlers/common.py:33
 #, python-format
 msgid "“%(name)s” was updated."
 msgstr ""
 
-#: webapp/streamhandlers/common.py:32
+#: webapp/streamhandlers/common.py:34
 #, python-format
 msgid "“%(name)s” was deleted."
 msgstr ""
 
-#: webapp/streamhandlers/common.py:36
+#: webapp/streamhandlers/common.py:38
 #, python-format
 msgid "Could not create “%(name)s”: %(details)s"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:39
+#: webapp/streamhandlers/common.py:41
 #, python-format
 msgid "Could not update “%(name)s”: %(details)s"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:42
+#: webapp/streamhandlers/common.py:44
 #, python-format
 msgid "Could not delete “%(name)s”: %(details)s"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:51 webapp/templates/macros/info.html:11
+#: webapp/streamhandlers/common.py:53 webapp/templates/macros/info.html:15
 msgid "info"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:53
+#: webapp/streamhandlers/common.py:55
 msgid "error"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:125
+#: webapp/streamhandlers/common.py:127
 #, python-format
 msgid "Could not change the status of “%(name)s”: %(details)s"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:132
+#: webapp/streamhandlers/common.py:134
 #, python-format
 msgid "“%(name)s” changed status to %(status)s."
 msgstr ""
 
-#: webapp/streamhandlers/common.py:300
+#: webapp/streamhandlers/common.py:302
 #, python-format
 msgid "Bulk update succeeded. Updated: %(count)s."
 msgstr ""
 
-#: webapp/streamhandlers/common.py:307
+#: webapp/streamhandlers/common.py:309
 #, python-format
 msgid "Bulk update failed: %(details)s"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:707
+#: webapp/streamhandlers/common.py:711
 #: webapp/templates/survey-missions/detail-component.html:13
-#: webapp/templates/survey-missions/detail-status.html:36
+#: webapp/templates/survey-missions/detail-status.html:27
 msgid "discovery is running"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:907
+#: webapp/streamhandlers/common.py:935
 #, python-format
 msgid "sections to discover: %(total)d"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:914
+#: webapp/streamhandlers/common.py:942
 #, python-format
 msgid "section %(number)d of %(total)d: %(section)s"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:936
+#: webapp/streamhandlers/common.py:964
 #, python-format
 msgid "Could not cancel the discovery of “%(name)s”: %(details)s"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:943
+#: webapp/streamhandlers/common.py:971
 #, python-format
 msgid "Discovery of “%(name)s” failed: %(details)s"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:951
+#: webapp/streamhandlers/common.py:979
 #, python-format
 msgid "Discovery of “%(name)s” was cancelled: %(details)s"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:959
+#: webapp/streamhandlers/common.py:987
 #, python-format
 msgid "Discovery of “%(name)s” ended: %(details)s"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:965
+#: webapp/streamhandlers/common.py:993
 #, python-format
 msgid "Discovery of “%(name)s” started."
 msgstr ""
 
-#: webapp/streamhandlers/common.py:1037
+#: webapp/streamhandlers/common.py:1065
 #, python-format
 msgid "“%(name)s” was exported to GeoNode: %(details)s"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:1047
+#: webapp/streamhandlers/common.py:1075
 #, python-format
 msgid "Could not export “%(name)s” to GeoNode: %(details)s"
 msgstr ""
@@ -1303,7 +1303,7 @@ msgstr ""
 
 #: webapp/templates/datasetcategories/list.html:61
 #: webapp/templates/discovery/list.html:65
-#: webapp/templates/projects/detail-component.html:97
+#: webapp/templates/projects/detail-component.html:99
 #: webapp/templates/projects/list.html:138
 #: webapp/templates/survey-missions/detail-actions.html:8
 #: webapp/templates/survey-related-records/detail-component.html:162
@@ -1405,11 +1405,11 @@ msgstr ""
 msgid "update asset discovery configuration"
 msgstr ""
 
-#: webapp/templates/macros/info.html:29
+#: webapp/templates/macros/info.html:35
 msgid "resource is valid"
 msgstr ""
 
-#: webapp/templates/macros/info.html:29
+#: webapp/templates/macros/info.html:35
 msgid "resource is not valid"
 msgstr ""
 
@@ -1439,7 +1439,7 @@ msgid "all"
 msgstr ""
 
 #: webapp/templates/projects/create-form.html:11
-#: webapp/templates/projects/detail-component.html:32
+#: webapp/templates/projects/detail-component.html:34
 #: webapp/templates/projects/update-form.html:10
 #: webapp/templates/survey-missions/create-form.html:13
 #: webapp/templates/survey-missions/detail-summary.html:31
@@ -1450,7 +1450,7 @@ msgid "spatial extent"
 msgstr ""
 
 #: webapp/templates/projects/create-form.html:20
-#: webapp/templates/projects/detail-component.html:30
+#: webapp/templates/projects/detail-component.html:32
 #: webapp/templates/projects/update-form.html:19
 #: webapp/templates/survey-missions/create-form.html:22
 #: webapp/templates/survey-missions/detail-summary.html:29
@@ -1469,58 +1469,64 @@ msgstr ""
 msgid "Create project"
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:60
+#: webapp/templates/projects/detail-component.html:62
 #: webapp/templates/survey-missions/detail-summary.html:63
 #: webapp/templates/survey-related-records/detail-component.html:110
 msgid "no links found"
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:78
+#: webapp/templates/projects/detail-component.html:80
 msgid "search project survey missions"
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:107
+#: webapp/templates/projects/detail-component.html:109
 #: webapp/templates/projects/update-form-page.html:13
 #: webapp/templates/projects/update-form-page.html:18
 msgid "edit project"
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:114
+#: webapp/templates/projects/detail-component.html:116
 msgid "delete project..."
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:115
+#: webapp/templates/projects/detail-component.html:117
 msgid "deleting project..."
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:117
+#: webapp/templates/projects/detail-component.html:119
 msgid "delete project"
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:118
+#: webapp/templates/projects/detail-component.html:120
 #, python-format
 msgid "Are you sure you want to delete the project “%(name)s”?"
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:128
+#: webapp/templates/projects/detail-component.html:131
 msgid "add new survey mission"
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:138
+#: webapp/templates/projects/detail-component.html:141
 msgid "This page shows a project and its survey missions."
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:141
+#: webapp/templates/projects/detail-component.html:144
 msgid ""
 "Editing a project validates it again. If it becomes invalid it goes back "
 "to DRAFT, along with its survey missions and their survey-related "
 "records."
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:142
+#: webapp/templates/projects/detail-component.html:145
 msgid ""
 "Deleting a project also deletes its survey missions and their survey-"
 "related records."
+msgstr ""
+
+#: webapp/templates/projects/detail-component.html:151
+msgid ""
+"This project cannot be deleted while some of its survey missions or "
+"survey-related records are being processed."
 msgstr ""
 
 #: webapp/templates/projects/list-component.html:22
@@ -1720,11 +1726,11 @@ msgid ""
 "“%(name)s”? The survey-related records it created until now are kept."
 msgstr ""
 
-#: webapp/templates/survey-missions/detail-component.html:212
+#: webapp/templates/survey-missions/detail-info.html:7
 msgid "This page shows a survey mission and its survey-related records."
 msgstr ""
 
-#: webapp/templates/survey-missions/detail-component.html:213
+#: webapp/templates/survey-missions/detail-info.html:8
 #: webapp/templates/survey-related-records/list.html:204
 msgid ""
 "Selected records can be downloaded through a list of links to their data "
@@ -1732,33 +1738,39 @@ msgid ""
 "included in the list."
 msgstr ""
 
-#: webapp/templates/survey-missions/detail-component.html:216
+#: webapp/templates/survey-missions/detail-info.html:11
 msgid ""
 "Editing a survey mission validates it again. If it becomes invalid it "
 "goes back to DRAFT, along with its survey-related records."
 msgstr ""
 
-#: webapp/templates/survey-missions/detail-component.html:217
+#: webapp/templates/survey-missions/detail-info.html:12
 msgid ""
 "Discovery scans the survey mission's path in the archive and creates a "
 "survey-related record for each file matched by the asset discovery "
 "configurations."
 msgstr ""
 
-#: webapp/templates/survey-missions/detail-component.html:218
+#: webapp/templates/survey-missions/detail-info.html:13
 msgid ""
 "Discovery is only available for survey missions that have a relative "
 "path. Edit the survey mission to set it."
 msgstr ""
 
-#: webapp/templates/survey-missions/detail-component.html:219
+#: webapp/templates/survey-missions/detail-info.html:14
 msgid ""
 "A running discovery can be cancelled. The survey-related records it "
 "created until then are kept, and running discovery again resumes it."
 msgstr ""
 
-#: webapp/templates/survey-missions/detail-component.html:220
+#: webapp/templates/survey-missions/detail-info.html:15
 msgid "Deleting a survey mission also deletes its survey-related records."
+msgstr ""
+
+#: webapp/templates/survey-missions/detail-info.html:22
+msgid ""
+"This survey mission cannot be deleted while some of its survey-related "
+"records are being processed."
 msgstr ""
 
 #: webapp/templates/survey-missions/detail-summary.html:24
