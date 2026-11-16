@@ -423,6 +423,32 @@ docker compose \
     exec webapp uv run seis-lab-data db upgrade
 ```
 
+
+### Passos de atualização específicos de cada versão
+
+Algumas versões requerem passos manuais para além da implementação propriamente dita. Estes passos aplicam-se
+tanto ao ambiente de produção como ao ambiente de testes.
+
+
+#### Atualização a partir da versão 0.6.0
+
+1.  Antes da implementação, atualizar o ficheiro de configuração do Martin
+    (`/opt/seis-lab-data/secrets/martin-config.yaml` em produção). O Martin 1.x publica um ficheiro PMTiles que
+    seja uma ligação simbólica apenas com o nome do ficheiro para o qual aponta, pelo que a fonte
+    `emodnet-bathymetry` tem de ser nomeada explicitamente, e o Martin requer uma definição explícita de
+    `allow_http`:
+
+    ```yaml
+    pmtiles:
+      allow_http: false
+      sources:
+        emodnet-bathymetry: /pmtiles/emodnet-bathymetry-l6.pmtiles
+    ```
+
+    O caminho deve apontar para o ficheiro PMTiles do ambiente, e não para uma ligação simbólica.
+
+2.  Após a implementação, verificar que o mapa base é apresentado no mapa da página de projetos.
+
 [woodpecker CI]: https://woodpecker-ci.org/
 
 

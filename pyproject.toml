@@ -58,7 +58,7 @@ jupyter = [
     "jupyterlab>=4.4.4",
 ]
 gdal = [
-    "gdal==3.11.4",
+    "gdal==3.12.4",
 ]
 docs = [
     "mkdocs>=1.6.1",

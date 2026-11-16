@@ -7,9 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Upgraded all Python dependencies to their current versions, including SQLAlchemy 2.1 and SQLModel 0.0.50
+- Replaced `httpx` with its maintained successor `httpx2`; TLS verification now uses the operating system's trust store instead of `certifi`
+- Upgraded GDAL to 3.12.4 (docker base image and Python bindings) and uv to 0.13.8 in the docker image
+- Upgraded PostGIS to 3.7, martin to 1.16.1, dozzle to v11 and the GeoNode nginx image to 1.31.8
+- Upgraded the images used by the CI deployment pipeline
+- The creation timestamps of projects, survey missions and survey-related records, and the GeoNode export timestamp of records, are now stored with their time zone
+- Adopted the default rule set of ruff 0.17 and fixed the code accordingly; alembic migrations and auxiliary scripts are excluded from ruff
+
 ### Fixed
 
 - docker healthcheck for auth-db in prod and test envs now pass the correct user to `pg_isready`
+
+Upgrading from 0.6.0 requires manual steps, see "Version-specific upgrade steps" in the administration guide.
 
 
 ## [0.6.0] - 2026-11-01

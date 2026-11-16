@@ -405,6 +405,30 @@ docker compose \
     exec webapp uv run seis-lab-data db upgrade
 ```
 
+
+### Version-specific upgrade steps
+
+Some versions require manual steps in addition to the deployment itself. These steps apply to both the production
+and the test environments.
+
+
+#### Upgrading from version 0.6.0
+
+1.  Before deploying, update the Martin configuration file (`/opt/seis-lab-data/secrets/martin-config.yaml` in
+    production). Martin 1.x publishes a symlinked PMTiles file only under the name of the file it links to, so the
+    `emodnet-bathymetry` source must be named explicitly, and Martin requires an explicit `allow_http` setting:
+
+    ```yaml
+    pmtiles:
+      allow_http: false
+      sources:
+        emodnet-bathymetry: /pmtiles/emodnet-bathymetry-l6.pmtiles
+    ```
+
+    The path must point to the actual PMTiles file of the environment, not to a symlink.
+
+2.  After deploying, check that the base map is shown on the map of the projects page.
+
 [woodpecker CI]: https://woodpecker-ci.org/
 
 
