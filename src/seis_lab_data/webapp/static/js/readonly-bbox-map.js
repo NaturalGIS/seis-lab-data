@@ -53,7 +53,14 @@ export class ReadOnlyBoundingBoxMap extends HTMLElement {
                 new terraDraw.TerraDrawRenderMode({
                     name: 'default_render_mode'
                 }),
-                new terraDraw.TerraDrawRectangleMode(),
+                new terraDraw.TerraDrawRectangleMode({
+                    styles: {
+                        fillColor: this.getAttribute("data-polygon-fill-color") || '#000000',
+                        fillOpacity: parseFloat(this.getAttribute("data-polygon-fill-opacity") || 1),
+                        outlineColor: this.getAttribute("data-polygon-outline-color") || '#000000',
+                        outlineWidth: parseInt(this.getAttribute("data-polygon-outline-width") || 1),
+                    }
+                }),
             ]
         })
 
