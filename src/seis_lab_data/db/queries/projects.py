@@ -25,8 +25,11 @@ def _build_project_statement(
     name_filter: str | None = None,
     spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    status: ProjectStatus | None = None,
 ):
     statement = select(models.Project)
+    if status is not None:
+        statement = statement.where(models.Project.status == status)
     if name_filter:
         statement = statement.where(models.Project.name.ilike(f"%{name_filter}%"))
     if spatial_intersect is not None:
@@ -39,19 +42,21 @@ def _build_project_statement(
                 models.Project.bbox_4326.is_(None),
             )
         )
+    # items whose temporal extent overlaps the filter's match it - a missing
+    # bound of the item's temporal extent is taken as unbounded
     if temporal_extent is not None:
         if temporal_extent.begin is not None:
             statement = statement.where(
                 or_(
-                    models.Project.temporal_extent_begin >= temporal_extent.begin,
-                    models.Project.temporal_extent_begin.is_(None),
+                    models.Project.temporal_extent_end >= temporal_extent.begin,
+                    models.Project.temporal_extent_end.is_(None),
                 )
             )
         if temporal_extent.end is not None:
             statement = statement.where(
                 or_(
-                    models.Project.temporal_extent_end <= temporal_extent.end,
-                    models.Project.temporal_extent_end.is_(None),
+                    models.Project.temporal_extent_begin <= temporal_extent.end,
+                    models.Project.temporal_extent_begin.is_(None),
                 )
             )
     # name and id are tiebreakers - without them the order of items with the
@@ -86,10 +91,11 @@ async def list_published_projects(
     name_filter: str | None = None,
     spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    status: ProjectStatus | None = None,
 ) -> tuple[list[models.Project], int | None]:
     """Produces a paginated and filterable listing of public projects."""
     statement = _build_project_statement(
-        name_filter, spatial_intersect, temporal_extent
+        name_filter, spatial_intersect, temporal_extent, status
     ).where(models.Project.status == ProjectStatus.PUBLISHED)
     limit = page_size
     offset = page_size * (page - 1)
@@ -104,17 +110,15 @@ async def list_projects(
     name_filter: str | None = None,
     spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
-    only_internal: bool = False,
+    status: ProjectStatus | None = None,
 ) -> tuple[list[models.Project], int | None]:
     """Produces a paginated and filterable listing of all projects.
 
     Intended for registered users.
     """
     statement = _build_project_statement(
-        name_filter, spatial_intersect, temporal_extent
+        name_filter, spatial_intersect, temporal_extent, status
     )
-    if only_internal:
-        statement = statement.where(models.Project.status != ProjectStatus.PUBLISHED)
     limit = page_size
     offset = page_size * (page - 1)
     return await _exec_project_list(session, statement, limit, offset, include_total)

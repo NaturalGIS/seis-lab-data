@@ -64,6 +64,16 @@ def mixed_sample_data(
     }
 
 
+def _get_dataset_category_counts(page: str) -> str:
+    """The dataset category pills of a records summary.
+
+    Other parts of a page, such as the URL of a map's basemap, may also
+    mention a dataset category's name.
+    """
+    start = page.index('aria-label="dataset-category-counts"')
+    return page[start : page.index("</div>", start)]
+
+
 def _get_project(mixed_sample_data):
     first_record = mixed_sample_data["first_record"]
     mission = next(
@@ -172,7 +182,7 @@ def test_project_detail_shows_visible_record_summary(
         r'aria-label="num-survey-related-records"\s*><span[^>]*>[^<]*</span>1<',
         response.text,
     )
-    assert "bathymetry" not in response.text
+    assert "bathymetry" not in _get_dataset_category_counts(response.text)
     expected_link = (
         "/survey-related-records/?"
         + urllib.parse.urlencode({"filterProject": f"{project.name} - {project.id}"})
@@ -191,7 +201,7 @@ def test_project_detail_shows_all_records_to_logged_in_users(
         r'aria-label="num-survey-related-records"\s*><span[^>]*>[^<]*</span>2<',
         response.text,
     )
-    assert "bathymetry" in response.text
+    assert "bathymetry" in _get_dataset_category_counts(response.text)
 
 
 def test_mission_detail_badges_filter_the_record_listing(

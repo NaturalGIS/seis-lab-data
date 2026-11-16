@@ -101,6 +101,9 @@ class ProjectDetails(ItemDetails[ProjectReadDetail, SurveyMissionReadListItem]):
     records_summary: SurveyRelatedRecordSetSummary
     records_list_url: str
     has_busy_descendants: bool
+    current_temporal_extent: dict[str, str]
+    map_bounds: dict[str, float]
+    geojson_features: str
 
 
 @dataclasses.dataclass(frozen=True)

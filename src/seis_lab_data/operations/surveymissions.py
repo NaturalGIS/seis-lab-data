@@ -503,7 +503,7 @@ async def list_survey_missions(
     name_filter: str | None = None,
     spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
-    only_internal: bool = False,
+    status: constants.SurveyMissionStatus | None = None,
 ) -> tuple[list[models.SurveyMission], int | None]:
     kwargs = {
         "project_id": project_id,
@@ -513,11 +513,11 @@ async def list_survey_missions(
         "name_filter": name_filter,
         "spatial_intersect": spatial_intersect,
         "temporal_extent": temporal_extent,
+        "status": status,
     }
     if initiator is None:
         return await mission_queries.list_published_survey_missions(session, **kwargs)
     else:
-        kwargs.update(only_internal=only_internal)
         return await mission_queries.list_survey_missions(session, **kwargs)
 
 

@@ -1,3 +1,4 @@
+import html
 import json
 import logging
 import typing
@@ -21,9 +22,12 @@ logger = logging.getLogger(__name__)
 
 
 async def _event_streamer(target_datalist_id: str, values: typing.Sequence[str]):
-    rendered = "".join(f"<option value='{value}'></option>" for value in values)
+    # values are names given by users, which may contain quotes or markup
+    rendered = "".join(
+        f'<option value="{html.escape(value)}"></option>' for value in values
+    )
     yield ServerSentEventGenerator.patch_elements(
-        f'<datalist id="{target_datalist_id}">{"".join(rendered)}</datalist>',
+        f'<datalist id="{html.escape(target_datalist_id)}">{rendered}</datalist>',
     )
 
 
@@ -71,19 +75,38 @@ async def get_missions_datalist(request: Request) -> DatastarResponse:
     This route expects to be called via datastar @get and therefore tries
     to collect relevant signals from a "datastar" query param, which is a
     JSON object.
+
+    A project given in the `filterProject` signal, as a compound name,
+    restricts the suggestions to that project's survey missions. A search
+    value which is itself a survey mission's compound name does not restrict
+    the suggestions by name.
     """
     if (target_datalist_id := request.query_params.get("target")) is None:
         raise HTTPException(status_code=400, detail="target is required")
     if (datastar_signal := request.query_params.get("signal")) is None:
         raise HTTPException(status_code=400, detail="signal is required")
     try:
-        search_value = json.loads(request.query_params.get("datastar"))[datastar_signal]
+        signals = json.loads(request.query_params.get("datastar"))
+        search_value = signals[datastar_signal]
     except (TypeError, KeyError) as err:
         raise HTTPException(
             status_code=400, detail="Could not retrieve search value"
         ) from err
-    name_filter = filters.NameFilter(value=search_value)
-    internal_filter_kwargs = name_filter.as_kwargs()
+    internal_filter_kwargs = {}
+    try:
+        filters.SurveyMissionCompoundNameFilter.from_params(
+            {filters.SurveyMissionCompoundNameFilter.public_name: search_value}
+        )
+    except ValueError:
+        internal_filter_kwargs.update(
+            filters.NameFilter(value=search_value).as_kwargs()
+        )
+    try:
+        internal_filter_kwargs.update(
+            filters.ProjectCompoundNameFilter.from_params(signals).as_kwargs()
+        )
+    except ValueError:
+        logger.debug("mission suggestions are not restricted to a project")
     logger.debug(f"{internal_filter_kwargs=}")
     user = request.user if request.user.is_authenticated else None
     async with request.state.settings.get_db_session_maker()() as session:
