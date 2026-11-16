@@ -215,7 +215,7 @@ async def _get_survey_mission_details(
 
 
 async def get_details_component(request: Request):
-    """Re-render a mission's summary and actions, to be morphed into its detail page.
+    """Re-render a mission's summary, actions and status, to be morphed into its page.
 
     The mission's status and validity signals are patched as well. The page's
     request id is passed along, so that the re-rendered actions keep reporting
@@ -240,6 +240,7 @@ async def get_details_component(request: Request):
         for template_name in (
             "survey-missions/detail-summary.html",
             "survey-missions/detail-actions.html",
+            "survey-missions/detail-status.html",
         )
     )
 

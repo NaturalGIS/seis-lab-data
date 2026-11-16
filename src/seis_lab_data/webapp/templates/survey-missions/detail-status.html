@@ -1,0 +1,38 @@
+{# the mission's status, with the discovery's progress while discovery runs. It is
+   hidden rather than omitted when the mission is published, so that it can always be
+   morphed #}
+<li
+        id="survey-mission-status"
+        class="list-group-item"
+        aria-label="status"
+        {% if item.status.value == "published" %}hidden{% endif %}
+>
+    {% if item.status in SURVEY_MISSION_DISCOVERY_STATUSES %}
+        {{ item.status | translate_enum | capitalize }}
+        {# animated while discovery runs, and full and muted until the number of sections is known #}
+        <div
+                class="progress mt-2"
+                role="progressbar"
+                aria-label="discovery-sections-progress"
+                aria-valuemin="0"
+                data-attr:aria-valuemax="$discoverySectionsTotal"
+                data-attr:aria-valuenow="$discoverySectionsDone"
+        >
+            <div
+                    class="progress-bar progress-bar-striped progress-bar-animated bg-secondary"
+                    style="width: 100%"
+                    data-class:bg-secondary="!$discoverySectionsTotal"
+                    data-style:width="$discoverySectionsTotal ? (100 * $discoverySectionsDone / $discoverySectionsTotal) + '%' : '100%'"
+            ></div>
+        </div>
+        <div
+                class="small text-muted text-truncate mt-1"
+                aria-label="discovery-section"
+                data-text="$discoverySectionLabel"
+                data-attr:title="$discoverySectionPath"
+        ></div>
+        <div class="small text-muted" aria-label="discovery-progress" data-text="$discoveryProgress">{{ _("discovery is running") | capitalize }}</div>
+    {% else %}
+        {% include "partial-status-icon.html" %}{{ item.status | translate_enum | capitalize }}
+    {% endif %}
+</li>

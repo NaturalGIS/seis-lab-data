@@ -98,3 +98,96 @@ def test_path_pattern_set_first_match(relative_path, expected):
     )
 
     assert pattern_set.first_match(relative_path) == expected
+
+
+@pytest.fixture
+def sectioned_tree(tmp_path):
+    for relative_path in (
+        "root.tif",
+        "s01/a.tif",
+        "s01/sub/b.tif",
+        "s02/z-file",
+        "s02/a-dir/c.tif",
+        "s03/d.tif",
+    ):
+        (tmp_path / relative_path).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / relative_path).write_bytes(b"")
+    return tmp_path
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "relative_path_regexps, expected",
+    [
+        pytest.param(
+            [r"s01/sub/.*\.tif", r"s01/.*\.tif", r"s03/.*\.tif"],
+            [("s01",), ("s03",)],
+            id="nested prefixes fold",
+        ),
+        pytest.param(
+            [r"s99/.*\.tif", r"s03/.*\.tif"], [("s03",)], id="missing prefix dropped"
+        ),
+        pytest.param(
+            [r".*\.tif", r"s01/.*\.tif"],
+            [("s01",), ("s02",), ("s03",)],
+            id="root prefix replaced by its subdirectories",
+        ),
+        pytest.param(
+            [r"s02/a-dir/.*\.tif", "s02/z-file"],
+            [("s02", "z-file"), ("s02", "a-dir")],
+            id="a directory's files come before its subdirectories",
+        ),
+        pytest.param([r"s99/.*\.tif"], [], id="no section"),
+    ],
+)
+async def test_list_path_groups(sectioned_tree, relative_path_regexps, expected):
+    pattern_set = pathpatterns.PathPatternSet(
+        [pathpatterns.compile_path_pattern(p) for p in relative_path_regexps]
+    )
+
+    groups = await pathpatterns.list_path_groups(
+        anyio.Path(sectioned_tree), pattern_set.prefixes
+    )
+
+    assert [group.parts for group in groups] == expected
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "relative_path_regexps",
+    [
+        pytest.param([r".*\.tif"], id="root prefix"),
+        pytest.param(
+            [r"s02/a-dir/.*\.tif", "s02/z-file", r"s01/.*\.tif", r"s03/.*\.tif"],
+            id="file and directory prefixes",
+        ),
+    ],
+)
+async def test_list_path_groups_follows_the_walk_order(
+    sectioned_tree, relative_path_regexps
+):
+    pattern_set = pathpatterns.PathPatternSet(
+        [pathpatterns.compile_path_pattern(p) for p in relative_path_regexps]
+    )
+    groups = await pathpatterns.list_path_groups(
+        anyio.Path(sectioned_tree), pattern_set.prefixes
+    )
+
+    walked = await _collect_relative_file_paths(sectioned_tree, *relative_path_regexps)
+
+    # the walk goes through the groups in order, and its paths sort by walk key
+    walked_keys = [
+        pathpatterns.build_walk_order_key(path.split("/"), is_file=True)
+        for path in walked
+    ]
+    assert walked_keys == sorted(walked_keys)
+    walked_groups = [
+        next(
+            index
+            for index, group in enumerate(groups)
+            if tuple(path.split("/")[: len(group.parts)]) == group.parts
+        )
+        for path in walked
+        if path != "root.tif"
+    ]
+    assert walked_groups == sorted(walked_groups)

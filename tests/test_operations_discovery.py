@@ -752,6 +752,8 @@ async def test_discovery_skips_configuration_directories_the_mission_lacks(
     assert ended[0].details % ended[0].details_params == (
         "1 files found, 1 new records, 0 files could not be discovered"
     )
+    # the lacking directory is not a section of the mission
+    assert (ended[0].sections_done, ended[0].sections_total) == (1, 1)
     records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
     assert len(records) == 1
 
@@ -1086,6 +1088,8 @@ async def test_discovery_can_be_cancelled_and_keeps_its_records(
     assert [(e.succeeded, e.details % e.details_params) for e in cancelled] == [
         (True, f"{n} files found, {n} new records, 0 files could not be discovered")
     ]
+    # its only section was not done
+    assert [(e.sections_done, e.sections_total) for e in cancelled] == [(0, 1)]
     # the records kept get their previews
     assert len(enqueued) == 1
     assert (
@@ -1301,17 +1305,72 @@ async def test_recover_stale_mission_discoveries(
     )
 
 
+async def _create_tif_configuration(
+    session, name, relative_path_regexp, dataset_categories, workflow_stages
+):
+    await discovery_commands.create_asset_discovery_configuration(
+        session,
+        discovery_schemas.AssetDiscoveryConfigurationCreate(
+            id=identifiers.AssetDiscoveryConfId(uuid.uuid4()),
+            name=name,
+            relative_path_regexp=relative_path_regexp,
+            media_type="image/tiff",
+            generate_previews=False,
+            workflow_stage_id=identifiers.WorkflowStageId(workflow_stages[0].id),
+            dataset_category_id=identifiers.DatasetCategoryId(dataset_categories[0].id),
+        ),
+    )
+
+
+def _collect_section_progress(collector, stage):
+    return [
+        (e.sections_done, e.sections_total, e.current_section)
+        for e in collector.events
+        if isinstance(e, event_schemas.DiscoveryEvent) and e.modification == stage
+    ]
+
+
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_discovery_reports_progress_instead_of_record_events(
-    db_session_maker, admin_user, discovery_env, monkeypatch
+async def test_discovery_reports_its_progress_in_sections(
+    db_session_maker,
+    admin_user,
+    discovery_env,
+    bootstrap_dataset_categories,
+    bootstrap_workflow_stages,
+    monkeypatch,
 ):
     mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
-    for name in ("a.tif", "b.tif"):
-        _write_geotiff(mission_root / "s01" / name)
-    monkeypatch.setattr(constants, "DISCOVERY_PROGRESS_INTERVAL_SECONDS", 0)
-    # progress is reported per written batch
+    for relative_path in ("s01/a.tif", "s01/sub/b.tif", "s02/c.tif"):
+        _write_geotiff(mission_root / relative_path)
+    async with db_session_maker() as session:
+        # s01/sub is inside the s01 section, and s99 is not in the mission
+        for name, relative_path_regexp in (
+            ("sub tif", r"s01/sub/.*\.tif"),
+            ("s02 tif", r"s02/.*\.tif"),
+            ("s99 tif", r"s99/.*\.tif"),
+        ):
+            await _create_tif_configuration(
+                session,
+                name,
+                relative_path_regexp,
+                bootstrap_dataset_categories,
+                bootstrap_workflow_stages,
+            )
+    monkeypatch.setattr(constants, "DISCOVERY_PROGRESS_INTERVAL_SECONDS", 0.01)
     discovery_env["settings"].discovery_batch_size = 1
+    discovery_env["settings"].discovery_extraction_concurrency = 1
+    real_extract = discovery_ops._extract_file_metadata
+
+    async def extract_metadata_slowly_in_s02(file_path, implicit_crs, **kwargs):
+        # progress keeps being reported while an extraction takes long
+        if "/s02/" in file_path:
+            await asyncio.sleep(0.5)
+        return await real_extract(file_path, implicit_crs, **kwargs)
+
+    monkeypatch.setattr(
+        discovery_ops, "_extract_file_metadata", extract_metadata_slowly_in_s02
+    )
 
     collector = await _run_discovery(
         db_session_maker,
@@ -1320,19 +1379,73 @@ async def test_discovery_reports_progress_instead_of_record_events(
         admin_user,
     )
 
-    assert [
-        e.details % e.details_params
-        for e in collector.events
-        if isinstance(e, event_schemas.DiscoveryEvent)
-        and e.modification == constants.DiscoveryStage.PROGRESS
-    ] == [
-        "1 files found, 1 new records, 0 files could not be discovered",
-        "2 files found, 2 new records, 0 files could not be discovered",
+    progress = _collect_section_progress(collector, constants.DiscoveryStage.PROGRESS)
+    assert progress[0] == (0, 2, None)
+    assert (0, 2, "s01") in progress
+    assert [done for done, _, _ in progress] == sorted(done for done, _, _ in progress)
+    assert _collect_section_progress(collector, constants.DiscoveryStage.ENDED) == [
+        (2, 2, "s02")
     ]
+    # records are reported by the progress, not one by one
     assert not any(
         getattr(e, "resource_type", None) == constants.ResourceType.RECORD
         for e in collector.events
     )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discovery_rerun_advances_sections_through_tracked_files(
+    db_session_maker,
+    admin_user,
+    discovery_env,
+    bootstrap_dataset_categories,
+    bootstrap_workflow_stages,
+    monkeypatch,
+):
+    mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
+    for relative_path in ("s01/a.tif", "s02/b.tif"):
+        _write_geotiff(mission_root / relative_path)
+    async with db_session_maker() as session:
+        await _create_tif_configuration(
+            session,
+            "s02 tif",
+            r"s02/.*\.tif",
+            bootstrap_dataset_categories,
+            bootstrap_workflow_stages,
+        )
+    await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+    # the only file left to extract, after the tracked ones of both sections
+    _write_geotiff(mission_root / "s02/c.tif")
+    monkeypatch.setattr(constants, "DISCOVERY_PROGRESS_INTERVAL_SECONDS", 0.01)
+    real_extract = discovery_ops._extract_file_metadata
+
+    async def extract_metadata_slowly(file_path, implicit_crs, **kwargs):
+        await asyncio.sleep(0.5)
+        return await real_extract(file_path, implicit_crs, **kwargs)
+
+    monkeypatch.setattr(
+        discovery_ops, "_extract_file_metadata", extract_metadata_slowly
+    )
+
+    collector = await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+
+    assert (1, 2, "s02") in _collect_section_progress(
+        collector, constants.DiscoveryStage.PROGRESS
+    )
+    assert _collect_section_progress(collector, constants.DiscoveryStage.ENDED) == [
+        (2, 2, "s02")
+    ]
 
 
 @pytest.mark.integration
@@ -1344,7 +1457,8 @@ async def test_discovery_logs_its_timings(
     names = ("a.tif", "b.tif", "c.tif")
     for name in names:
         _write_geotiff(mission_root / "s01" / name)
-    monkeypatch.setattr(constants, "DISCOVERY_PROGRESS_INTERVAL_SECONDS", 0)
+    # a single progress report, at the start of the run
+    monkeypatch.setattr(constants, "DISCOVERY_PROGRESS_INTERVAL_SECONDS", 3600)
     monkeypatch.setattr(discovery_ops, "_SLOWEST_EXTRACTIONS_LOGGED", 2)
     discovery_env["settings"].discovery_batch_size = 1
 
@@ -1357,8 +1471,8 @@ async def test_discovery_logs_its_timings(
         )
 
     progress = [r.message for r in caplog.records if "in progress: " in r.message]
-    assert len(progress) == 3
-    assert progress[0].split("in progress: ")[1].startswith("1 files in ")
+    assert len(progress) == 1
+    assert progress[0].split("in progress: ")[1].startswith("0 files in ")
     (ended,) = [r.message for r in caplog.records if " ended: " in r.message]
     timings = ended.split(" ended: ")[1]
     assert timings.startswith("3 files in ")

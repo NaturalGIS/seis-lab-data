@@ -11,6 +11,10 @@
         data-computed:is-busy="!['draft', 'published'].includes($status)"
         data-signals:deleting="false"
         data-signals:discovery-progress='{{ (_("discovery is running") | capitalize) | tojson }}'
+        data-signals:discovery-sections-done="0"
+        data-signals:discovery-sections-total="null"
+        data-signals:discovery-section-label="''"
+        data-signals:discovery-section-path="''"
 >
     {# bumped by the stream when the mission changes, which re-fetches its summary and
        actions. This is an element of its own, as datastar cancels an element's ongoing
@@ -216,7 +220,8 @@
                 _("Deleting a survey mission also deletes its survey-related records."),
             ],
             show_privileged_info=request.user.is_authenticated,
-            item=item
+            item=item,
+            status_template="survey-missions/detail-status.html"
         ) }}
     </div>
 

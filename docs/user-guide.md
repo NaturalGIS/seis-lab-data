@@ -274,9 +274,17 @@ transitory state. Discovery requires:
 While the discovery runs:
 
 - the mission is under discovery, and its records cannot be created, updated or deleted;
-- the actions panel shows its progress, as the number of files found, the number of records
-  created and, when applicable, the number of files that could not be processed and the names
-  of asset discovery configurations with an invalid path pattern;
+- the mission's status, in the info panel, shows a progress bar. Progress is measured in
+  sections: the directories of the mission named by the literal start of the asset discovery
+  configurations' path patterns (e.g. `s06-mbes/s02-raw-data`), which discovery goes through one
+  after the other. The section being discovered is shown below the bar, with its middle
+  directories left out when its path is long; hovering it shows the full path. Sections differ in
+  size, so the bar moves unevenly: it may stay on a large section for a long time. The bar is
+  animated while the discovery runs. It is full and grey until the sections are known, which is also how it
+  shows on a page opened during a discovery, for a few seconds;
+- below the bar, the number of files found, the number of records created and, when applicable,
+  the number of files that could not be processed and the names of asset discovery
+  configurations with an invalid path pattern;
 - the list of the mission's records is refreshed at each progress update.
 
 A notification is shown when the discovery starts and when it ends, is cancelled or fails.

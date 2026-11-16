@@ -115,6 +115,54 @@ async def test_mission_page_guards_discovery_actions_behind_dialogs(
     )
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "status, shows_progress",
+    [
+        pytest.param(constants.SurveyMissionStatus.DRAFT, False, id="draft"),
+        pytest.param(constants.SurveyMissionStatus.PUBLISHED, False, id="published"),
+        pytest.param(
+            constants.SurveyMissionStatus.UNDER_VALIDATION, False, id="other busy"
+        ),
+        pytest.param(
+            constants.SurveyMissionStatus.UNDER_DISCOVERY, True, id="under discovery"
+        ),
+        pytest.param(
+            constants.SurveyMissionStatus.CANCELLING_DISCOVERY, True, id="cancelling"
+        ),
+    ],
+)
+async def test_mission_page_shows_discovery_progress_in_place_of_its_status_icon(
+    test_client: TestClient,
+    db_session_maker,
+    sample_survey_missions,
+    logged_in_as_admin,
+    status,
+    shows_progress,
+):
+    mission = sample_survey_missions[0]
+    await _set_mission_status(db_session_maker, mission.id, status)
+
+    response = test_client.get(f"/survey-missions/{mission.id}", params={"lang": "en"})
+
+    assert response.status_code == 200
+    # always there, so that status changes can morph it
+    assert 'id="survey-mission-status"' in response.text
+    status_item = response.text.split('id="survey-mission-status"')[1].split("</li>")[0]
+    assert ("hidden" in status_item.split(">")[0]) is (
+        status == constants.SurveyMissionStatus.PUBLISHED
+    )
+    for label in (
+        "discovery-sections-progress",
+        "discovery-section",
+        "discovery-progress",
+    ):
+        assert (f'aria-label="{label}"' in status_item) is shows_progress
+    assert ("spinner-border" in status_item) is (
+        status == constants.SurveyMissionStatus.UNDER_VALIDATION
+    )
+
+
 def test_cancel_discovery_requires_a_csrf_token(
     test_client: TestClient, sample_survey_missions, logged_in_as_admin, monkeypatch
 ):
@@ -169,7 +217,9 @@ async def test_details_component_is_morphed_into_the_detail_page(
     assert "data: selector" not in response.text
     assert 'id="survey-mission-summary"' in response.text
     assert 'id="survey-mission-actions"' in response.text
+    assert 'id="survey-mission-status"' in response.text
     assert 'aria-label="cancel-mission-discovery"' in response.text
+    assert 'aria-label="discovery-sections-progress"' in response.text
     # the page's own request id, which its stream filters messages by
     assert str(request_id) in response.text
 

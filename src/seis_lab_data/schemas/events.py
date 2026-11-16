@@ -69,6 +69,12 @@ class DiscoveryEvent(_EventBase):
     # an untranslated message template, translated by the stream handlers
     details: str | None = None
     details_params: dict[str, str | int] = dataclasses.field(default_factory=dict)
+    # how many of the mission's sections - groups of directories - were discovered,
+    # out of how many, and the one being discovered, relative to the mission's
+    # directory; None when unknown
+    sections_done: int | None = None
+    sections_total: int | None = None
+    current_section: str | None = None
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)

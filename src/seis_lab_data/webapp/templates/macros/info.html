@@ -4,12 +4,15 @@
    - the validation result is shown only for draft items
    - the general info is for everyone, the privileged info only for authenticated users
 
-   Listing pages pass no item, which leaves only the general info
+   Listing pages pass no item, which leaves only the general info. Pages whose status is
+   updated in place pass the template that renders it as `status_template`
 #}
-{% macro render_info_section(general_info, privileged_info=[], show_privileged_info=False, item=None) %}
+{% macro render_info_section(general_info, privileged_info=[], show_privileged_info=False, item=None, status_template=None) %}
     <h5>{{ _("info") | capitalize }}</h5>
     <ul class="list-group" aria-label="info-section">
-        {% if item is not none and item.status.value != "published" %}
+        {% if status_template is not none %}
+            {% include status_template %}
+        {% elif item is not none and item.status.value != "published" %}
             <li class="list-group-item" aria-label="status">
                 {% include "partial-status-icon.html" %}{{ item.status | translate_enum | capitalize }}
             </li>

@@ -295,9 +295,18 @@ Enquanto a descoberta decorre:
 
 - a missão está em descoberta, e os seus registos não podem ser criados, atualizados nem
   eliminados;
-- o painel de ações apresenta o seu progresso, como o número de ficheiros encontrados, o número de
-  registos criados e, quando aplicável, o número de ficheiros que não foi possível processar e os
-  nomes das configurações de descoberta de recursos com um padrão de caminho inválido;
+- o estado da missão, no painel de informação, apresenta uma barra de progresso. O progresso é
+  medido em secções: os diretórios da missão designados pelo início literal dos padrões de caminho
+  das configurações de descoberta de recursos (p. ex. `s06-mbes/s02-raw-data`), que a descoberta
+  percorre uma após a outra. A secção em descoberta é apresentada por baixo da barra, sem os
+  diretórios intermédios quando o seu caminho é longo; passar o cursor sobre ela mostra o caminho
+  completo. As secções diferem em tamanho, pelo que a barra avança de forma irregular: pode
+  permanecer numa secção grande durante muito tempo. A barra está animada enquanto a descoberta
+  decorre. Está cheia e cinzenta até as secções serem conhecidas, que é também como aparece, durante alguns
+  segundos, numa página aberta durante uma descoberta;
+- por baixo da barra, o número de ficheiros encontrados, o número de registos criados e, quando
+  aplicável, o número de ficheiros que não foi possível processar e os nomes das configurações de
+  descoberta de recursos com um padrão de caminho inválido;
 - a lista de registos da missão é atualizada a cada atualização do progresso.
 
 É apresentada uma notificação quando a descoberta se inicia e quando termina, é cancelada ou
