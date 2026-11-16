@@ -364,6 +364,7 @@ def test_dispatch_big_file_logs(synthetic_geotiff, monkeypatch, caplog):
                 coordinate_units="metres",
                 coverage="partial",
                 header_epsg_codes=(_PT_TM06,),
+                sampled_positions=((-50000.0, 150000.0), (-48000.0, 152000.0)),
             ),
             {
                 "driver": "SEG-Y",
@@ -451,6 +452,7 @@ def test_discovery_info_keys_are_the_metadata_fields():
         "temporal_extent_begin",
         "temporal_extent_end",
         "header_epsg_codes",
+        "sampled_positions",
     }
     shown_in_the_item_of_another = {
         "epsg",
@@ -865,17 +867,25 @@ def test_segy_metres_path(tmp_path):
     assert result.bbox_native == (-50000.0, 150000.0, -48000.0, 152000.0)
     assert result.bbox_4326 is None
     assert result.epsg is None
+    # in trace order, for the preview to draw the line as sailed
+    assert result.sampled_positions == (
+        (-50000.0, 150000.0),
+        (-48000.0, 152000.0),
+        (-49000.0, 151000.0),
+    )
     assert result.temporal_extent_begin == dt.date(2024, 9, 28)
     assert result.temporal_extent_end == dt.date(2024, 9, 29)
 
 
 def test_segy_geographic_degrees(tmp_path):
     # units=3 with scalco=-10000: raw ints are degrees times 10000
+    # the stray metres trace is outvoted, so neither the box nor the track uses it
     path = tmp_path / "line.sgy"
     _write_segy(
         path,
         [
             _segy_trace(src=(-87500, 422300), scalco=-10000, units=3),
+            _segy_trace(src=(-50000, 150000)),
             _segy_trace(src=(-87000, 422800), scalco=-10000, units=3),
         ],
     )
@@ -887,6 +897,7 @@ def test_segy_geographic_degrees(tmp_path):
     assert result.crs_name == "WGS 84"
     assert result.bbox_4326 == (-8.75, 42.23, -8.7, 42.28)
     assert result.bbox_native == result.bbox_4326
+    assert result.sampled_positions == ((-8.75, 42.23), (-8.7, 42.28))
 
 
 def test_segy_geographic_arc_seconds(tmp_path):
@@ -1243,6 +1254,8 @@ def test_segy_implausible_span_discards_bbox(tmp_path):
 
     assert result.bbox_native is None
     assert result.bbox_4326 is None
+    # no track either: it would draw the same noise
+    assert result.sampled_positions == ()
     assert result.coverage == "partial"
     # the rest of the metadata is unaffected and still worth having
     assert result.trace_count == 4
@@ -1341,6 +1354,7 @@ def test_segy_low_support_bbox_dropped(tmp_path):
 
     assert result.trace_count == 100
     assert result.bbox_native is None
+    assert result.sampled_positions == ()
     assert result.coverage == "partial"
 
 

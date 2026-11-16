@@ -34,6 +34,12 @@ from seis_lab_data.tasks.derivers.gdal_vector import (  # noqa: E402
 from seis_lab_data.tasks.derivers.kmall import (  # noqa: E402
     derive_kmall_preview,
 )
+from seis_lab_data.tasks.derivers.segy import (  # noqa: E402
+    derive_segy_preview,
+)
+from seis_lab_data.tasks.extractors.common import (  # noqa: E402
+    project_bbox_to_wgs84,
+)
 
 gdal.UseExceptions()
 
@@ -50,6 +56,10 @@ _KMALL_HEADER = struct.Struct("<I4sBBHII")
 # asserted window, dense like a real track, since lone pixels lose much of their
 # red to WEBP's lossy chroma
 _KMALL_FIXES = [(39.645 + index * 4e-5, -8.145 + index * 6e-5) for index in range(500)]
+# samples per trace (offset 20), data sample format code (offset 24)
+_SEGY_BINARY_HEADER = struct.Struct(">20xH2xH374x")
+# scalco (offset 70), source x and y (72, 76), coordinate units (88)
+_SEGY_TRACE_HEADER = struct.Struct(">70xhii8xH150x")
 _SEA_RGB = (20, 60, 120)
 _BBOX_RGB = (194, 125, 14)
 # the web maps' default style
@@ -126,6 +136,16 @@ def _write_kmall_track(path, fixes):
         sensor = struct.pack("<IIf", 0, 0, 1.0) + struct.pack("<dd", lat, lon)
         datagrams.append(_kmall_datagram(b"#SPO", common + sensor))
     path.write_bytes(b"".join(datagrams))
+    return path
+
+
+def _write_segy_track(path, positions, scalco=0, units=1):
+    # one IEEE float (format 5) sample per trace, after a blank textual header
+    binary_header = _SEGY_BINARY_HEADER.pack(1, 5)
+    traces = [
+        _SEGY_TRACE_HEADER.pack(scalco, x, y, units) + bytes(4) for x, y in positions
+    ]
+    path.write_bytes(bytes(3200) + binary_header + b"".join(traces))
     return path
 
 
@@ -276,7 +296,8 @@ def test_percentile_cuts_ignore_nodata():
         ("track.gpkg", False, True),
         ("track.geojson", False, True),
         ("track.kmall", False, True),
-        ("line.sgy", False, False),
+        ("line.sgy", False, True),
+        ("line.segy", False, True),
         # the archive holds directories such as "F3_2022.tif"
         ("grid.tif", True, False),
     ],
@@ -404,6 +425,72 @@ def test_derive_kmall_preview_requires_fixes(tmp_path):
 
     with pytest.raises(ValueError, match="no position fixes"):
         derive_kmall_preview(path)
+
+
+@pytest.mark.parametrize(
+    "positions, scalco, units, epsg_code, bbox_native",
+    [
+        pytest.param(
+            # grid convergence near lon -9.5 makes the record bbox wider than the line
+            [(-115000, 40000), (-107000, 95000)],
+            0,
+            1,
+            _PT_TM06,
+            (-115000.0, 40000.0, -107000.0, 95000.0),
+            id="projected metres",
+        ),
+        pytest.param(
+            # raw ints are degrees times 10000
+            [(-81450, 396450), (-81250, 396650)],
+            -10000,
+            3,
+            4326,
+            (-8.145, 39.645, -8.125, 39.665),
+            id="geographic degrees",
+        ),
+    ],
+)
+def test_derive_segy_preview_renders_track(
+    tmp_path, positions, scalco, units, epsg_code, bbox_native
+):
+    path = _write_segy_track(tmp_path / "line.sgy", positions, scalco, units)
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(epsg_code)
+    min_x, min_y, max_x, max_y = project_bbox_to_wgs84(bbox_native, srs)
+
+    # a 4326 mission CRS, so the projected line is placed only by the record's CRS
+    preview = dispatch.dispatch_deriver(path, 4326, epsg_code)
+
+    driver, width, height, bands = _read_webp(preview.image)
+    assert driver == "WEBP"
+    assert max(width, height) == 1024
+    # the alpha plane is lossless, so a drawn pixel keeps its full opacity
+    assert bands[3].max() == 255
+    # the record's bbox as discovery computes it, with the same 1e-4 buffer
+    assert preview.bounds_4326 == pytest.approx(
+        (min_x - 1e-4, min_y - 1e-4, max_x + 1e-4, max_y + 1e-4)
+    )
+
+
+@pytest.mark.parametrize(
+    "positions, epsg_code, message",
+    [
+        # the extractor drops all-zero coordinates as missing
+        pytest.param([(0, 0)], _PT_TM06, "no track", id="no positions"),
+        # a stationary file, every trace at the same spot
+        pytest.param(
+            [(200, 200), (200, 200)], _PT_TM06, "no track", id="a single position"
+        ),
+        pytest.param([(200, 200), (2000, 1000)], None, "no CRS", id="no crs"),
+    ],
+)
+def test_derive_segy_preview_requires_a_track_and_a_crs(
+    tmp_path, positions, epsg_code, message
+):
+    path = _write_segy_track(tmp_path / "line.sgy", positions)
+
+    with pytest.raises(ValueError, match=message):
+        derive_segy_preview(path, epsg_code)
 
 
 def test_render_bbox_thumbnail_draws_the_bbox_over_the_base_map(tmp_path):

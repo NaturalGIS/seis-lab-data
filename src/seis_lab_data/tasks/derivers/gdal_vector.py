@@ -19,11 +19,15 @@ _BOUNDS_MARGIN = 1e-4
 _BURN_RGBA = (230, 57, 70, 255)
 
 
-def derive_vector_preview(path: Path | str) -> DerivedPreview:
+def derive_vector_preview(
+    path: Path | str, extent_4326: tuple[float, float, float, float] | None = None
+) -> DerivedPreview:
     """Rasterise a vector as a small transparent WEBP image, in EPSG:4326.
 
     Only vectors which declare their own CRS are handled, a survey mission's
     implicit CRS is not applied here.
+
+    The image covers the features' extent and, if given, `extent_4326` as well.
 
     Pure sync and potentially slow (every feature is read and reprojected in
     memory), so async callers must run this in a worker thread (e.g.
@@ -68,6 +72,8 @@ def derive_vector_preview(path: Path | str) -> DerivedPreview:
             boxes.append((minx, miny, maxx, maxy))
         if not boxes:
             raise ValueError(f"Vector {path} has no geometries to render")
+        if extent_4326 is not None:
+            boxes.append(extent_4326)
         min_x = min(box[0] for box in boxes) - _BOUNDS_MARGIN
         min_y = min(box[1] for box in boxes) - _BOUNDS_MARGIN
         max_x = max(box[2] for box in boxes) + _BOUNDS_MARGIN

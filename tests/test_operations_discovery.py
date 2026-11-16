@@ -1994,7 +1994,10 @@ async def test_mission_previews_are_derived_for_missing_only(
         discovery_env["settings"], "_event_dispatcher", _EventCollector()
     )
 
-    def fake_dispatch(path, implicit_epsg_code):
+    epsg_codes = []
+
+    def fake_dispatch(path, implicit_epsg_code, discovered_epsg_code):
+        epsg_codes.append((implicit_epsg_code, discovered_epsg_code))
         return deriver_schemas.DerivedPreview(
             image=b"fake webp payload", bounds_4326=(-8.2, 39.6, -8.1, 39.7)
         )
@@ -2006,6 +2009,8 @@ async def test_mission_previews_are_derived_for_missing_only(
         await inspect.unwrap(preview_tasks.generate_records_previews.fn)(
             **message, settings=discovery_env["settings"]
         )
+    # the mission's CRS, then the record's, which a SEG-Y track shares with its bbox
+    assert epsg_codes == [(4326, 3763), (4326, 3763)]
     for name in ("first.tif", "second.tif"):
         assets = await _get_record_assets(db_session_maker, records[name].id)
         assert [a.asset_type for a in assets if a.relative_path is None] == [
@@ -2034,7 +2039,7 @@ async def test_record_previews_skip_a_record_whose_status_moved(
         )
     }
 
-    def fake_dispatch(path, implicit_epsg_code):
+    def fake_dispatch(path, implicit_epsg_code, discovered_epsg_code):
         return deriver_schemas.DerivedPreview(
             image=b"fake webp payload", bounds_4326=(-8.2, 39.6, -8.1, 39.7)
         )
@@ -2146,7 +2151,7 @@ async def test_record_previews_need_a_configuration_that_generates_them(
                     ),
                 )
 
-    def fake_dispatch(path, implicit_epsg_code):
+    def fake_dispatch(path, implicit_epsg_code, discovered_epsg_code):
         return deriver_schemas.DerivedPreview(
             image=b"fake webp payload", bounds_4326=(-8.2, 39.6, -8.1, 39.7)
         )
@@ -2180,7 +2185,7 @@ async def test_record_previews_of_a_record_created_by_hand(
     to_create = _record_to_create(discovery_env, "s01/grid.tif")
     await _create_record_without_discovery(db_session_maker, admin_user, to_create)
 
-    def fake_dispatch(path, implicit_epsg_code):
+    def fake_dispatch(path, implicit_epsg_code, discovered_epsg_code):
         return deriver_schemas.DerivedPreview(
             image=b"fake webp payload", bounds_4326=(-8.2, 39.6, -8.1, 39.7)
         )
@@ -2250,7 +2255,7 @@ async def test_record_previews_leave_record_unpublished_when_its_mission_was_unp
         )
     mission_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
 
-    def fake_dispatch(path, implicit_epsg_code):
+    def fake_dispatch(path, implicit_epsg_code, discovered_epsg_code):
         return deriver_schemas.DerivedPreview(
             image=b"fake webp payload", bounds_4326=(-8.2, 39.6, -8.1, 39.7)
         )
