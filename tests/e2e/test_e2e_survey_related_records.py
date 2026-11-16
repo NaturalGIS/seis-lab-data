@@ -281,6 +281,90 @@ def test_survey_related_record_bulk_selection(authenticated_page: Page):
 
 
 @pytest.mark.e2e
+def test_survey_related_record_selectable_after_hovering_thumbnail(
+    authenticated_page: Page,
+):
+    # the selection checkbox overlays the record's thumbnail, whose hover effect must
+    # not paint the thumbnail over the checkbox, as moving the pointer to the checkbox
+    # usually goes through the thumbnail
+    authenticated_page.goto("/")
+    authenticated_page.get_by_role("link", name="list-projects").click()
+    authenticated_page.get_by_role("link", name="new-project").click()
+
+    project_name = f"e2e test project {uuid.uuid4().hex[:8]}"
+    _fill_project_form_minimal(authenticated_page, project_name)
+    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=10_000
+    )
+
+    authenticated_page.get_by_role("link", name="new-item").click()
+    mission_name = f"e2e test survey mission {uuid.uuid4().hex[:8]}"
+    _fill_survey_mission_form_minimal(authenticated_page, mission_name)
+    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/survey-missions/[0-9a-f-]{36}$"), timeout=10_000
+    )
+    mission_detail_url = authenticated_page.url
+
+    authenticated_page.get_by_role("link", name="new-item").click()
+    record_name = f"e2e thumbnail hover record {uuid.uuid4().hex[:8]}"
+    _fill_survey_related_record_form(authenticated_page, record_name)
+    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/survey-related-records/[0-9a-f-]{36}$"), timeout=10_000
+    )
+    record_detail_url = authenticated_page.url
+    authenticated_page.goto(mission_detail_url)
+
+    records_listing = authenticated_page.locator("#survey-mission-records")
+    checkbox = records_listing.get_by_role("checkbox", name="select-item")
+    expect(checkbox).to_have_count(1)
+
+    # the pointer is moved and clicked by coordinates, as the actionability checks of
+    # locator actions do not reproduce a pointer moving from the thumbnail to the
+    # checkbox
+    checkbox.scroll_into_view_if_needed()
+    thumbnail_box = records_listing.locator("a.list-item-thumb").bounding_box()
+    checkbox_box = checkbox.bounding_box()
+    authenticated_page.mouse.move(
+        thumbnail_box["x"] + thumbnail_box["width"] / 2,
+        thumbnail_box["y"] + thumbnail_box["height"] / 2,
+    )
+    checkbox_x = checkbox_box["x"] + checkbox_box["width"] / 2
+    checkbox_y = checkbox_box["y"] + checkbox_box["height"] / 2
+    authenticated_page.mouse.move(checkbox_x, checkbox_y, steps=10)
+    authenticated_page.mouse.click(checkbox_x, checkbox_y)
+    expect(checkbox).to_be_checked()
+    expect(authenticated_page).to_have_url(mission_detail_url)
+    expect(authenticated_page.locator("[aria-label='selected-count']")).to_contain_text(
+        "1 selected"
+    )
+
+    # clean up: delete the record, then the mission, then the project
+    authenticated_page.goto(record_detail_url)
+    authenticated_page.get_by_role(
+        "button", name="show-delete-confirmation-modal"
+    ).click()
+    authenticated_page.get_by_role("button", name="delete-item").click()
+    expect(authenticated_page.get_by_role("link", name="new-item")).to_be_visible()
+
+    authenticated_page.get_by_role(
+        "button", name="show-delete-confirmation-modal"
+    ).click()
+    authenticated_page.get_by_role("button", name="delete-item").click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=15_000
+    )
+
+    authenticated_page.get_by_role(
+        "button", name="show-delete-confirmation-modal"
+    ).click()
+    authenticated_page.get_by_role("button", name="delete-item").click()
+    expect(authenticated_page).to_have_url(re.compile(r"/projects/?$"))
+
+
+@pytest.mark.e2e
 def test_survey_related_record_listing_layouts(authenticated_page: Page):
     authenticated_page.goto("/")
     authenticated_page.get_by_role("link", name="list-projects").click()

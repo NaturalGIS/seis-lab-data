@@ -1,7 +1,9 @@
 {% import "macros-buttons.html" as macros_buttons %}
 <div class="col">
     <div class="card list-item-card position-relative overflow-hidden list-item-stripe list-item-stripe-survey-related-record{% if item.status.value != "published" %} item-unpublished{% endif %}">
-        <div class="form-check position-absolute top-0 start-0 m-2">
+        {# the overlays get a z-index, as the hover effect of the thumbnail creates a
+           stacking context which would otherwise be painted over them #}
+        <div class="form-check position-absolute top-0 start-0 m-2 z-1">
             <input
                     type="checkbox"
                     class="form-check-input"
@@ -13,7 +15,7 @@
         {% if item.status != SurveyRelatedRecordStatus.PUBLISHED %}
             {# drafts in red, temporary statuses in grey, with a spinner #}
             <span
-                    class="badge position-absolute top-0 end-0 m-2 {{ 'text-bg-danger' if item.status == SurveyRelatedRecordStatus.DRAFT else 'text-bg-secondary' }}"
+                    class="badge position-absolute top-0 end-0 m-2 z-1 {{ 'text-bg-danger' if item.status == SurveyRelatedRecordStatus.DRAFT else 'text-bg-secondary' }}"
                     aria-label="item-status"
             >
                 {% with status_icon_classes="fs-6" %}{% include "partial-status-icon.html" %}{% endwith %}{{ item.status | translate_enum }}
