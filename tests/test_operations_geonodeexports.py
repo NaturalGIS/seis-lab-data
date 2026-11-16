@@ -1,18 +1,18 @@
 """Tests for exporting survey-related records to GeoNode.
 
-GeoNode is faked: its API, uploads included, is served by an `httpx.MockTransport`.
+GeoNode is faked: its API, uploads included, is served by an `httpx2.MockTransport`.
 """
 
 import base64
 import datetime as dt
-import functools
 import email.parser
 import email.policy
+import functools
 import json
 import uuid
 
 import anyio
-import httpx
+import httpx2
 import pytest
 from sqlalchemy import update
 
@@ -22,24 +22,18 @@ from seis_lab_data import (
     geonode,
 )
 from seis_lab_data.db import models
-from seis_lab_data.db.commands import (
-    surveymissions as mission_commands,
-    surveyrelatedrecords as record_commands,
-)
+from seis_lab_data.db.commands import surveymissions as mission_commands
+from seis_lab_data.db.commands import surveyrelatedrecords as record_commands
 from seis_lab_data.db.queries import surveyrelatedrecords as record_queries
-from seis_lab_data.operations import (
-    geonodeexports as export_ops,
-    surveyrelatedrecords as record_ops,
-)
-from seis_lab_data.schemas import (
-    events as event_schemas,
-    identifiers,
-)
-from seis_lab_data.schemas.user import User
+from seis_lab_data.operations import geonodeexports as export_ops
+from seis_lab_data.operations import surveyrelatedrecords as record_ops
+from seis_lab_data.schemas import events as event_schemas
+from seis_lab_data.schemas import identifiers
 from seis_lab_data.schemas.identifiers import (
     RequestId,
     UserId,
 )
+from seis_lab_data.schemas.user import User
 
 _EXISTING_PK = 7
 _NEW_PK = 8
@@ -66,7 +60,7 @@ class _FakeGeoNode:
         self.uploads = []
         self.metadata_updates = {}
 
-    def _receive_upload(self, request: httpx.Request) -> httpx.Response:
+    def _receive_upload(self, request: httpx2.Request) -> httpx2.Response:
         form = email.parser.BytesParser(policy=email.policy.HTTP).parsebytes(
             f"Content-Type: {request.headers['Content-Type']}\r\n\r\n".encode()
             + request.content
@@ -89,37 +83,37 @@ class _FakeGeoNode:
                 },
             }
         )
-        return httpx.Response(201, json={"execution_id": "exec-1"})
+        return httpx2.Response(201, json={"execution_id": "exec-1"})
 
-    def handle(self, request: httpx.Request) -> httpx.Response:
+    def handle(self, request: httpx2.Request) -> httpx2.Response:
         path = request.url.path
         if request.method == "POST" and path == "/o/token/":
             self.token_requests.append(
                 {
                     "authorization": request.headers.get("Authorization"),
-                    "form": dict(httpx.QueryParams(request.content.decode())),
+                    "form": dict(httpx2.QueryParams(request.content.decode())),
                 }
             )
             if not self.issues_tokens:
-                return httpx.Response(401, json={"error": "invalid_client"})
-            return httpx.Response(
+                return httpx2.Response(401, json={"error": "invalid_client"})
+            return httpx2.Response(
                 200, json={"access_token": _ACCESS_TOKEN, "token_type": "Bearer"}
             )
         if request.method == "POST" and path == "/o/revoke_token/":
             self.revoked_tokens.append(
-                dict(httpx.QueryParams(request.content.decode()))["token"]
+                dict(httpx2.QueryParams(request.content.decode()))["token"]
             )
-            return httpx.Response(200)
+            return httpx2.Response(200)
         if request.headers.get("Authorization") != f"Bearer {_ACCESS_TOKEN}":
-            return httpx.Response(401, json={"detail": "not authenticated"})
+            return httpx2.Response(401, json={"detail": "not authenticated"})
         if request.method == "POST" and path == "/api/v2/uploads/upload":
             return self._receive_upload(request)
         if request.method == "GET" and path.startswith("/api/v2/resources/"):
             pk = int(path.rstrip("/").rsplit("/", 1)[-1])
-            return httpx.Response(200 if pk in self.existing_pks else 404, json={})
+            return httpx2.Response(200 if pk in self.existing_pks else 404, json={})
         if request.method == "GET" and path == "/api/v2/executionrequest/exec-1":
             resource_pk = self.uploads[-1]["resource_pk"] or _NEW_PK
-            return httpx.Response(
+            return httpx2.Response(
                 200,
                 json={
                     "request": {
@@ -140,7 +134,7 @@ class _FakeGeoNode:
         if request.method == "PATCH" and path.startswith("/api/v2/resources/"):
             pk = int(path.rsplit("/", 1)[-1])
             self.metadata_updates[pk] = json.loads(request.content)
-            return httpx.Response(
+            return httpx2.Response(
                 200,
                 json={
                     "resource": {
@@ -149,7 +143,7 @@ class _FakeGeoNode:
                     }
                 },
             )
-        return httpx.Response(500)
+        return httpx2.Response(500)
 
 
 @pytest.fixture
@@ -172,10 +166,10 @@ def export_settings(settings, tmp_path, monkeypatch):
 
 def _install_fake_geonode(monkeypatch, fake: _FakeGeoNode) -> None:
     monkeypatch.setattr(
-        export_ops.httpx,
+        export_ops.httpx2,
         "AsyncClient",
         functools.partial(
-            httpx.AsyncClient, transport=httpx.MockTransport(fake.handle)
+            httpx2.AsyncClient, transport=httpx2.MockTransport(fake.handle)
         ),
     )
 
@@ -403,7 +397,7 @@ async def test_export_of_an_already_exported_record(
             session,
             record_id,
             f"http://geonode.test/catalogue/#/dataset/{_EXISTING_PK}",
-            dt.datetime(2026, 1, 23, tzinfo=dt.timezone.utc),
+            dt.datetime(2026, 1, 23, tzinfo=dt.UTC),
         )
         await _export(session, record_id, admin_user, export_settings)
 
@@ -627,7 +621,7 @@ async def test_abandoned_exports_are_recovered(
                 constants.SurveyRelatedRecordStatus.DRAFT,
                 constants.SurveyRelatedRecordStatus.UNDER_EXPORT,
             )
-        await session.execute(
+        await session.exec(
             update(models.SurveyRelatedRecord)
             .where(models.SurveyRelatedRecord.id == stale_id)
             .values(updated_at=dt.datetime(2020, 1, 1))

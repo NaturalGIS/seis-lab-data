@@ -12,34 +12,26 @@ import pytest
 
 pytest.importorskip("osgeo")
 
-from osgeo import (  # noqa: E402
+from osgeo import (
     gdal,
     ogr,
     osr,
 )
 
-from seis_lab_data.tasks.derivers import dispatch  # noqa: E402
-from seis_lab_data.tasks.derivers.bbox_thumbnail import (  # noqa: E402
+from seis_lab_data.tasks.derivers import dispatch
+from seis_lab_data.tasks.derivers.bbox_thumbnail import (
     BboxStyle,
     build_tms_basemap_xml,
     render_bbox_thumbnail,
 )
-from seis_lab_data.tasks.derivers.gdal_raster import (  # noqa: E402
+from seis_lab_data.tasks.derivers.gdal_raster import (
     _percentile_cuts,
     derive_raster_preview,
 )
-from seis_lab_data.tasks.derivers.gdal_vector import (  # noqa: E402
-    derive_vector_preview,
-)
-from seis_lab_data.tasks.derivers.kmall import (  # noqa: E402
-    derive_kmall_preview,
-)
-from seis_lab_data.tasks.derivers.segy import (  # noqa: E402
-    derive_segy_preview,
-)
-from seis_lab_data.tasks.extractors.common import (  # noqa: E402
-    project_bbox_to_wgs84,
-)
+from seis_lab_data.tasks.derivers.gdal_vector import derive_vector_preview
+from seis_lab_data.tasks.derivers.kmall import derive_kmall_preview
+from seis_lab_data.tasks.derivers.segy import derive_segy_preview
+from seis_lab_data.tasks.extractors.common import project_bbox_to_wgs84
 
 gdal.UseExceptions()
 
@@ -87,7 +79,7 @@ def _write_geotiff(path, width, height, values, epsg=_PT_TM06):
     band = ds.GetRasterBand(1)
     band.SetNoDataValue(_NODATA)
     band.WriteArray(values)
-    ds = None  # noqa: F841
+    ds = None
     return path
 
 
@@ -118,7 +110,7 @@ def _write_shapefile(path, lines, epsg=_PT_TM06):
         feature.SetGeometry(geom)
         layer.CreateFeature(feature)
         feature = None
-    ds = None  # noqa: F841
+    ds = None
     return path
 
 
@@ -162,7 +154,7 @@ def _write_web_mercator_basemap(path):
     ds.SetProjection(srs.ExportToWkt())
     for band_index, value in enumerate((*_SEA_RGB, 255), start=1):
         ds.GetRasterBand(band_index).Fill(value)
-    ds = None  # noqa: F841
+    ds = None
     return path
 
 
@@ -179,7 +171,7 @@ def _read_webp(image):
             [ds.GetRasterBand(i + 1).ReadAsArray() for i in range(ds.RasterCount)],
         )
     finally:
-        ds = None  # noqa: F841
+        ds = None
         gdal.Unlink(vsi_path)
 
 
@@ -281,7 +273,7 @@ def test_percentile_cuts_ignore_nodata():
     low, high = _percentile_cuts(band)
 
     assert 0.0 <= low < high <= 99.0
-    ds = None  # noqa: F841
+    ds = None
 
 
 @pytest.mark.parametrize(
@@ -325,7 +317,7 @@ def test_derive_raster_preview_expands_a_palette(tmp_path):
     values = np.zeros((64, 64), dtype=np.uint8)
     values[:, 32:] = 1
     band.WriteArray(values)
-    ds = None  # noqa: F841
+    ds = None
 
     preview = derive_raster_preview(tmp_path / "map.tif")
 
@@ -346,7 +338,7 @@ def test_derive_raster_preview_stretches_16bit_colours(tmp_path):
     for index, centre in enumerate((20000, 10000, 5000), start=1):
         values = rng.normal(centre, 2000, (64, 64)).astype(np.uint16)
         ds.GetRasterBand(index).WriteArray(values)
-    ds = None  # noqa: F841
+    ds = None
 
     preview = derive_raster_preview(tmp_path / "img.tif")
 

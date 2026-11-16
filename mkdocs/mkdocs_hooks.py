@@ -1,11 +1,11 @@
 """Custom mkdocs hooks for generating PDF documents"""
 
 import dataclasses
-from pathlib import Path
 import os
 import shlex
 import shutil
 import subprocess
+from pathlib import Path
 
 from mkdocs.structure.files import File
 
@@ -47,7 +47,6 @@ def on_config(config):
         return config
 
     global _pdfs_already_generated
-    global _DESTINATION_RELATIVE_PATH
 
     if _pdfs_already_generated:
         print("PDFs already generated")
@@ -66,7 +65,7 @@ def on_config(config):
                 check=True,
             )
         except subprocess.CalledProcessError as err:
-            print(f"Error generating PDF {pdf_resource_conf.pdf_name}: {str(err)}")
+            print(f"Error generating PDF {pdf_resource_conf.pdf_name}: {err!s}")
         else:
             src_pdf_path = build_dir / f"pdf/{pdf_resource_conf.pdf_name}"
             dest_dir = _PROJECT_ROOT / f"docs/{_DESTINATION_RELATIVE_PATH}"
@@ -79,8 +78,7 @@ def on_config(config):
                 shutil.rmtree(build_dir, ignore_errors=True)
             else:
                 print(f"Could not move PDF to {dest_pdf_path}")
-    else:
-        _pdfs_already_generated = True
+    _pdfs_already_generated = True
     return config
 
 
@@ -89,19 +87,18 @@ def on_files(files, config):
     Explicitly add the generated PDF to the MkDocs file list
     so the i18n plugin and link validator can see it.
     """
-    global _DESTINATION_RELATIVE_PATH
-
     for pdf_resource in PDF_RESOURCES:
-        pdf_path = "/".join((_DESTINATION_RELATIVE_PATH, pdf_resource.pdf_name))
-        if (_PROJECT_ROOT / pdf_path).exists():
-            # Only add it if it's not already in the files list
-            if not any(f.src_path == pdf_path for f in files):
-                new_file = File(
-                    path=pdf_path,
-                    src_dir=config["docs_dir"],
-                    dest_dir=config["site_dir"],
-                    use_directory_urls=config["use_directory_urls"],
-                )
-                files.append(new_file)
+        pdf_path = f"{_DESTINATION_RELATIVE_PATH}/{pdf_resource.pdf_name}"
+        # Only add it if it's not already in the files list
+        if (_PROJECT_ROOT / pdf_path).exists() and not any(
+            f.src_path == pdf_path for f in files
+        ):
+            new_file = File(
+                path=pdf_path,
+                src_dir=config["docs_dir"],
+                dest_dir=config["site_dir"],
+                use_directory_urls=config["use_directory_urls"],
+            )
+            files.append(new_file)
 
     return files

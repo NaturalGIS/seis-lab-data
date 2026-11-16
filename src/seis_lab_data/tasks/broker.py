@@ -5,13 +5,6 @@ from dramatiq.brokers.redis import RedisBroker
 from dramatiq.middleware.asyncio import AsyncIO
 
 from .. import config
-from .middleware import (
-    AsyncRedisPubSubMiddleware,
-    AsyncSqlAlchemyDbMiddleware,
-    SeisLabDataSettingsMiddleware,
-    StaleDiscoveryRecoveryMiddleware,
-    StaleGeoNodeExportRecoveryMiddleware,
-)
 
 # These imports are needed - DO NOT REMOVE
 # Dramatiq's @actor decorator tries to eagerly connect to the global dramatiq broker
@@ -33,6 +26,13 @@ from . import (
     surveymissions,  # noqa
     surveyrelatedrecords,  # noqa
     workflowstages,  # noqa
+)
+from .middleware import (
+    AsyncRedisPubSubMiddleware,
+    AsyncSqlAlchemyDbMiddleware,
+    SeisLabDataSettingsMiddleware,
+    StaleDiscoveryRecoveryMiddleware,
+    StaleGeoNodeExportRecoveryMiddleware,
 )
 
 logger = logging.getLogger(__name__)

@@ -12,7 +12,7 @@ name: seis-lab-data
 x-common-image: &common-image "ghcr.io/naturalgis/seis-lab-data/seis-lab-data:${CURRENT_GIT_BRANCH:-latest}"
 x-auth-image: &auth-image "ghcr.io/goauthentik/server:2026.8.5"
 x-auth-admin-token: &auth-admin-token "admin123"
-x-db-image: &db-image "postgis/postgis:17-3.5"
+x-db-image: &db-image "postgis/postgis:17-3.7"
 x-auth-client-id: &auth-client-id "sld-client-id"
 x-auth-client-secret: &auth-client-secret "sld-client-secret"
 x-auth-redirect-url: &auth-redirect-url "http://localhost:8888/oauth2/callback"
@@ -290,11 +290,10 @@ services:
       *common-volumes
 
   martin-tile-server:
-    image: ghcr.io/maplibre/martin:martin-v0.19.3
+    image: ghcr.io/maplibre/martin:1.16.1
     command: ["--config", "/martin-conf"]
     environment:
       RUST_LOG: debug
-      SLD_DATABASE_URL: postgres://sld:sldpass@db/seis_lab_data
     configs:
       - martin-conf
     volumes:
@@ -302,9 +301,6 @@ services:
         source: ../sample-data/pmtiles
         target: /pmtiles
         read_only: true
-    depends_on:
-      db:
-        condition: service_healthy
     labels:
       - "traefik.enable=true"
       - "traefik.http.middlewares.martin-stripprefix.stripprefix.prefixes=/tiles"
@@ -350,7 +346,7 @@ services:
       - test-db:/var/lib/postgresql/data
 
   dozzle:
-    image: amir20/dozzle:v10
+    image: amir20/dozzle:v11
     environment:
       DOZZLE_BASE: /monitoring
     volumes:
@@ -485,7 +481,7 @@ services:
         condition: service_healthy
 
   geonode-nginx:
-    image: geonode/nginx:1.31.7-latest
+    image: geonode/nginx:1.31.8-latest
     profiles: ["geonode"]
     env_file: *geonode-env-file
     networks:
@@ -550,51 +546,13 @@ configs:
       listen_addresses: '0.0.0.0:3000'
       web_ui: disable
       cache_size_mb: 0
-      postgres:
-        connection_string: $${SLD_DATABASE_URL}
-        auto_publish: false
-
-        tables:
-
-          projects:
-            schema: public
-            table: project
-            srid: 4326
-            geometry_column: bbox_4326
-            id_column: ~
-            geometry_type: POLYGON
-            buffer: 256
-            properties:
-              id: uuid
-              name: jsonb
-
-          survey_missions:
-            schema: public
-            table: surveymission
-            srid: 4326
-            geometry_column: bbox_4326
-            id_column: ~
-            geometry_type: POLYGON
-            buffer: 256
-            properties:
-              id: uuid
-              name: jsonb
-
-          survey_related_records:
-            schema: public
-            table: surveyrelatedrecord
-            srid: 4326
-            geometry_column: bbox_4326
-            id_column: ~
-            geometry_type: POLYGON
-            buffer: 256
-            properties:
-              id: uuid
-              name: jsonb
-
       pmtiles:
-        paths:
-          - /pmtiles
+        # the sources are local files, none is fetched over http
+        allow_http: false
+        sources:
+          # named explicitly, as martin publishes a symlinked file under the name of
+          # its target only
+          emodnet-bathymetry: /pmtiles/emodnet-bathymetry-l6.pmtiles
 
   pgadmin-servers-conf:
     content: |

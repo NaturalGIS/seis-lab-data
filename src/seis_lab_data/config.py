@@ -2,10 +2,7 @@ import logging
 import logging.config
 import warnings
 from pathlib import Path
-from typing import (
-    Annotated,
-    Optional,
-)
+from typing import Annotated
 
 import jinja2
 import sqlmodel
@@ -30,11 +27,11 @@ from redis import asyncio as aioredis
 from rich.console import Console
 from rich.logging import RichHandler
 from sqlalchemy import Engine
-from sqlalchemy.ext.asyncio.session import async_sessionmaker
 from sqlalchemy.ext.asyncio.engine import (
     AsyncEngine,
     create_async_engine,
 )
+from sqlalchemy.ext.asyncio.session import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from . import dispatch
@@ -88,7 +85,9 @@ class SeisLabDataSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="SEIS_LAB_DATA__",
         env_nested_delimiter="__",
-        secrets_dir="/run/secrets",
+        # docker secrets are mounted here in production only; pydantic-settings warns
+        # about a missing secrets directory
+        secrets_dir="/run/secrets" if Path("/run/secrets").is_dir() else None,
     )
 
     auth_application_slug: str = "seis-lab-data"
@@ -120,12 +119,12 @@ class SeisLabDataSettings(BaseSettings):
     public_url: str = "http://localhost:5001"
     docs_url: str = "http://localhost:8000"
     source_code_repository_url: str = "https://github.com/naturalgis/seis-lab-data"
-    static_dir: Optional[Path] = Path(__file__).parent / "webapp/static"
-    templates_dir: Optional[Path] = Path(__file__).parent / "webapp/templates"
-    message_broker_dsn: Optional[RedisDsn] = RedisDsn("redis://localhost:6379")
+    static_dir: Path | None = Path(__file__).parent / "webapp/static"
+    templates_dir: Path | None = Path(__file__).parent / "webapp/templates"
+    message_broker_dsn: RedisDsn | None = RedisDsn("redis://localhost:6379")
     message_broker_channels: list[str] = ["demo-channel"]
     locales: list[str] = ["pt", "en"]
-    translations_dir: Optional[Path] = Path(__file__).parent / "translations"
+    translations_dir: Path | None = Path(__file__).parent / "translations"
     pagination_page_size: int = 20
     webmap_base_tile_layer_url: str = (
         "https://localhost:8888/tiles/world-bathymetry/{z}/{x}/{y}.png"

@@ -17,27 +17,27 @@ from pydantic import (
     ConfigDict,
     PlainSerializer,
 )
-from sqlalchemy.dialects.postgresql import (
-    ARRAY,
-    JSONB,
-)
 from sqlalchemy import (
     Enum,
     LargeBinary,
+)
+from sqlalchemy.dialects.postgresql import (
+    ARRAY,
+    JSONB,
 )
 from sqlmodel import (
     Column,
     Date,
     DateTime,
     Field,
-    func,
-    SQLModel,
     Relationship,
+    SQLModel,
+    func,
 )
 
 from .. import constants
 
-now_ = partial(dt.datetime.now, tz=dt.timezone.utc)
+now_ = partial(dt.datetime.now, tz=dt.UTC)
 
 
 class ValidationError(TypedDict):

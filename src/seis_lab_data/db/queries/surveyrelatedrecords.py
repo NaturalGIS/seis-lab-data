@@ -6,23 +6,22 @@ from sqlalchemy.orm import (
     aliased,
     selectinload,
 )
-from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import (
+    any_,
     exists,
     func,
     or_,
     select,
 )
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ...constants import (
     AssetType,
     SurveyRelatedRecordStatus,
 )
 from ...db import models
-from ...schemas import (
-    identifiers,
-    filters as filter_schemas,
-)
+from ...schemas import filters as filter_schemas
+from ...schemas import identifiers
 from .common import _get_total_num_records
 
 logger = logging.getLogger(__name__)
@@ -124,7 +123,7 @@ def _apply_survey_related_record_filters(
         )
         if only_data_assets:
             asset_statement = asset_statement.where(
-                models.RecordAsset.asset_type.any(AssetType.DATA)
+                any_(models.RecordAsset.asset_type) == AssetType.DATA
             )
         statement = statement.where(exists(asset_statement))
     return statement

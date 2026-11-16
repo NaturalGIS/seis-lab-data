@@ -13,16 +13,14 @@ from wtforms import (
 
 from ... import constants
 from ...db.queries.projects import get_project_by_name
-from ...schemas import (
-    identifiers,
-    projects as project_schemas,
-)
+from ...schemas import identifiers
+from ...schemas import projects as project_schemas
 from .common import (
     BoundingBoxForm,
     DescriptionField,
-    incorporate_schema_validation_errors_into_form,
     LinkForm,
     NameField,
+    incorporate_schema_validation_errors_into_form,
 )
 from .fields import OptionalDateField
 

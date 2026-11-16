@@ -2,11 +2,12 @@ import datetime as dt
 from collections.abc import Collection
 
 from sqlalchemy.orm import selectinload
-from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import (
+    any_,
     func,
     select,
 )
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ...constants import AssetType
 from ...db import models
@@ -125,7 +126,7 @@ async def collect_survey_mission_data_asset_paths_without_derived_assets(
     """
     records_with_derived_assets = select(
         models.RecordAsset.survey_related_record_id
-    ).where(~models.RecordAsset.asset_type.any(AssetType.DATA))
+    ).where(~(any_(models.RecordAsset.asset_type) == AssetType.DATA))
     statement = (
         select(
             models.RecordAsset.survey_related_record_id,
@@ -137,7 +138,7 @@ async def collect_survey_mission_data_asset_paths_without_derived_assets(
             == models.SurveyRelatedRecord.id,
         )
         .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
-        .where(models.RecordAsset.asset_type.any(AssetType.DATA))
+        .where(any_(models.RecordAsset.asset_type) == AssetType.DATA)
         .where(models.RecordAsset.relative_path.is_not(None))
         .where(
             models.RecordAsset.survey_related_record_id.not_in(
@@ -193,7 +194,9 @@ def _get_media_type_list_statement(
         .order_by(models.RecordAsset.media_type)
     )
     if only_data_assets:
-        statement = statement.where(models.RecordAsset.asset_type.any(AssetType.DATA))
+        statement = statement.where(
+            any_(models.RecordAsset.asset_type) == AssetType.DATA
+        )
     if name_filter:
         statement = statement.where(
             models.RecordAsset.media_type.ilike(f"%{name_filter}%")
@@ -225,4 +228,6 @@ async def count_media_types(
     only_data_assets: bool = True,
 ) -> int:
     statement = _get_media_type_list_statement(name_filter, only_data_assets)
-    return (await session.exec(select(func.count()).select_from(statement))).first()
+    return (
+        await session.exec(select(func.count()).select_from(statement.subquery()))
+    ).first()

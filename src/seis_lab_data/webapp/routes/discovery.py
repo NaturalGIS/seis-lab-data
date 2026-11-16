@@ -23,15 +23,11 @@ from ... import (
 )
 from ...db.queries import discovery as discovery_queries
 from ...permissions import discovery as discovery_permissions
-from ...schemas import (
-    discovery as discovery_schemas,
-    identifiers,
-    webui as webui_schemas,
-)
+from ...schemas import discovery as discovery_schemas
+from ...schemas import identifiers
+from ...schemas import webui as webui_schemas
 from ...tasks import discovery as discovery_tasks
-from .. import (
-    filters,
-)
+from .. import filters
 from ..forms import discovery as discovery_forms
 from ..streamhandlers import common as common_handlers
 from .auth import requires_auth
@@ -436,7 +432,7 @@ class AssetDiscoveryConfigurationCollectionEndpoint(HTTPEndpoint):
             raw_request_id=str(request_id),
             raw_to_create=to_create.model_dump_json(),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
-        )  # noqa
+        )
         return Response(status_code=200)
 
 
@@ -510,7 +506,7 @@ class AssetDiscoveryConfigurationDetailEndpoint(HTTPEndpoint):
                 workflow_stage_id=form_instance.workflow_stage_id.data,
             ).model_dump_json(),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
-        )  # noqa
+        )
         return Response(status_code=200)
 
     @csrf_protect
@@ -544,7 +540,7 @@ class AssetDiscoveryConfigurationDetailEndpoint(HTTPEndpoint):
             raw_request_id=str(request_id),
             raw_resource_id=str(asset_discovery_configuration_id),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
-        )  # noqa
+        )
         return Response(status_code=200)
 
 

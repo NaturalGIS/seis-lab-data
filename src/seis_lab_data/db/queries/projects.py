@@ -1,22 +1,20 @@
 import logging
 
 import shapely
-from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import (
     func,
     or_,
     select,
 )
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ...constants import (
     SURVEY_MISSION_IDLE_STATUSES,
     SURVEY_RELATED_RECORD_IDLE_STATUSES,
     ProjectStatus,
 )
-from ...schemas import (
-    filters as filter_schemas,
-    identifiers,
-)
+from ...schemas import filters as filter_schemas
+from ...schemas import identifiers
 from .. import models
 from .common import _get_total_num_records
 

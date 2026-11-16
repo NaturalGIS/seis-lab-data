@@ -1,11 +1,11 @@
 import logging
 import uuid
 
-from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import (
     func,
     select,
 )
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ...db import models
 from .common import _get_total_num_records

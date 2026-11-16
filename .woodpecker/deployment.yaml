@@ -4,7 +4,7 @@ when:
 
 steps:
   - name: extract-deployment-payload
-    image: leplusorg/json:sha-0b8b943
+    image: leplusorg/json:3.24.3
     commands: |
       DEPLOYMENT_JSON=$(curl --silent "${CI_PIPELINE_FORGE_URL}")
       IMAGE_URL=$(echo "$${DEPLOYMENT_JSON}" | jq --raw-output '.payload.image_url')
@@ -20,7 +20,7 @@ steps:
   - name: deploy-to-test-env
     when:
       - evaluate: 'CI_PIPELINE_DEPLOY_TARGET == "naturalgis-test"'
-    image: docker:24-cli
+    image: docker:29.9.3-cli
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /opt/seis-lab-data:/opt/seis-lab-data
@@ -95,7 +95,7 @@ steps:
   - name: deploy-to-production-env
     when:
       - evaluate: 'CI_PIPELINE_DEPLOY_TARGET == "ipma-production"'
-    image: alpine:3.19
+    image: alpine:3.24.4
     environment:
       SSH_USER: {from_secret: prod_ssh_user}
       SSH_KEY: {from_secret: prod_ssh_key}
@@ -163,7 +163,7 @@ steps:
   # https://github.com/woodpecker-ci/woodpecker/issues/4337
   #
   - name: notify success
-    image: appleboy/drone-telegram:1.4.0
+    image: appleboy/drone-telegram:1.5.3
     environment:
       PLUGIN_TOKEN: {from_secret: telegram_bot_token}
       PLUGIN_TO: {from_secret: telegram_chat_id}
@@ -182,7 +182,7 @@ steps:
       - status: [success]
 
   - name: notify failure
-    image: appleboy/drone-telegram:1.4.0
+    image: appleboy/drone-telegram:1.5.3
     environment:
       PLUGIN_TOKEN: {from_secret: telegram_bot_token}
       PLUGIN_TO: {from_secret: telegram_chat_id}

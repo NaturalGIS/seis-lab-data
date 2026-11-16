@@ -4,15 +4,11 @@ import pytest
 import shapely
 
 from seis_lab_data import constants
-from seis_lab_data.db.commands import (
-    recordassets as asset_commands,
-    surveyrelatedrecords as record_commands,
-)
+from seis_lab_data.db.commands import recordassets as asset_commands
+from seis_lab_data.db.commands import surveyrelatedrecords as record_commands
 from seis_lab_data.db.queries import surveyrelatedrecords as record_queries
-from seis_lab_data.schemas import (
-    identifiers,
-    surveyrelatedrecords as record_schemas,
-)
+from seis_lab_data.schemas import identifiers
+from seis_lab_data.schemas import surveyrelatedrecords as record_schemas
 
 
 @pytest.mark.parametrize(

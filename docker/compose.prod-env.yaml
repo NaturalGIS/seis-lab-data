@@ -186,7 +186,7 @@ services:
       test: "redis-cli PING | grep PONG"
 
   db:
-    image: postgis/postgis:17-3.5
+    image: postgis/postgis:17-3.7
     # the default of 100 is below the sum of the connection pools of the webapp,
     # the workers and martin; see the admin guide for how this is sized
     command: postgres -c max_connections=200
@@ -303,11 +303,8 @@ services:
     restart: unless-stopped
 
   martin-tile-server:
-    image: ghcr.io/maplibre/martin:martin-v0.19.3
+    image: ghcr.io/maplibre/martin:1.16.1
     command: ["--config", "/run/secrets/martin-config"]
-    depends_on:
-      db:
-        condition: service_healthy
     secrets:
       - martin-config
     volumes:
@@ -327,7 +324,7 @@ services:
       - "traefik.http.services.martin.loadbalancer.server.port=3000"
 
   dozzle:
-    image: amir20/dozzle:v10
+    image: amir20/dozzle:v11
     environment:
       DOZZLE_BASE: /monitoring
       DOZZLE_AUTH_PROVIDER: forward-proxy

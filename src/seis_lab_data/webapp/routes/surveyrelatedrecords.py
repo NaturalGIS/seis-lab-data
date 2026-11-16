@@ -4,13 +4,10 @@ import itertools
 import json
 import logging
 import time
-from pathlib import PurePosixPath
-from typing import (
-    Iterator,
-    TypeVar,
-)
 import uuid
 import zipfile
+from collections.abc import Iterator
+from pathlib import PurePosixPath
 
 import shapely
 from anyio import Path
@@ -21,7 +18,6 @@ from datastar_py.starlette import (
     read_signals,
 )
 from redis.asyncio import Redis
-from starlette_babel import gettext_lazy as _
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
@@ -33,6 +29,7 @@ from starlette.responses import (
 )
 from starlette.routing import Route
 from starlette.templating import Jinja2Templates
+from starlette_babel import gettext_lazy as _
 from starlette_wtf import csrf_protect
 
 from ... import (
@@ -43,49 +40,39 @@ from ... import (
     subscribers,
 )
 from ...constants import SURVEY_RELATED_RECORD_MAX_RELATED
-from ...operations import (
-    geonodeexports as export_ops,
-    projects as project_ops,
-    surveymissions as survey_mission_ops,
-    surveyrelatedrecords as survey_related_record_ops,
-)
-from ...permissions import surveyrelatedrecords as record_permissions
 from ...db import models
-from ...db.queries import (
-    datasetcategories as category_queries,
-    recordassets as asset_queries,
-    workflowstages as stage_queries,
-)
-from ...tasks import (
-    geonodeexports as export_tasks,
-    surveyrelatedrecords as record_tasks,
-)
-from ...schemas import (
-    common as common_schemas,
-    identifiers,
-    projects as project_schemas,
-    surveymissions as mission_schemas,
-    surveyrelatedrecords as record_schemas,
-    webui as webui_schemas,
-)
+from ...db.queries import datasetcategories as category_queries
+from ...db.queries import recordassets as asset_queries
+from ...db.queries import workflowstages as stage_queries
+from ...operations import geonodeexports as export_ops
+from ...operations import projects as project_ops
+from ...operations import surveymissions as survey_mission_ops
+from ...operations import surveyrelatedrecords as survey_related_record_ops
+from ...permissions import surveyrelatedrecords as record_permissions
+from ...schemas import common as common_schemas
+from ...schemas import identifiers
+from ...schemas import projects as project_schemas
+from ...schemas import surveymissions as mission_schemas
+from ...schemas import surveyrelatedrecords as record_schemas
+from ...schemas import webui as webui_schemas
+from ...tasks import geonodeexports as export_tasks
+from ...tasks import surveyrelatedrecords as record_tasks
 from .. import (
     filters,
     forms,
 )
 from ..streamhandlers import common as common_handlers
-from .auth import (
-    requires_auth,
-)
+from .auth import requires_auth
 from .common import (
-    build_related_record_compound_name,
+    UPDATE_BASEMAP_JS_SCRIPT,
     build_mission_compound_name,
     build_project_compound_name,
+    build_related_record_compound_name,
     get_id_from_request_path,
     get_page_count,
     get_page_from_request_params,
     get_pagination_info,
     parse_record_selection,
-    UPDATE_BASEMAP_JS_SCRIPT,
 )
 
 logger = logging.getLogger(__name__)
@@ -342,22 +329,22 @@ async def get_download_links(request: Request):
     records = []
     # an empty explicit selection would otherwise match every record
     if selection.selected != []:
-        list_kwargs = dict(
-            survey_mission_ids=(
+        list_kwargs = {
+            "survey_mission_ids": (
                 [selection.survey_mission_id]
                 if selection.survey_mission_id is not None
                 else None
             ),
-            project_id=selection.project_id,
-            name_filter=selection.name_filter,
-            spatial_intersect=selection.spatial_intersect,
-            temporal_extent=selection.temporal_extent,
-            asset_path_fragment_filter=selection.asset_path_fragment_filter,
-            asset_media_type_filter=selection.asset_media_type_filter,
-            dataset_category_id=selection.dataset_category_id,
-            workflow_stage_id=selection.workflow_stage_id,
-            record_ids=selection.selected,
-        )
+            "project_id": selection.project_id,
+            "name_filter": selection.name_filter,
+            "spatial_intersect": selection.spatial_intersect,
+            "temporal_extent": selection.temporal_extent,
+            "asset_path_fragment_filter": selection.asset_path_fragment_filter,
+            "asset_media_type_filter": selection.asset_media_type_filter,
+            "dataset_category_id": selection.dataset_category_id,
+            "workflow_stage_id": selection.workflow_stage_id,
+            "record_ids": selection.selected,
+        }
         excluded_ids = set(selection.excluded_record_ids or [])
         page_size = 500
         settings: config.SeisLabDataSettings = request.state.settings
@@ -460,13 +447,7 @@ def stream_zip_archive(
     yield bytes(buffer.data)
 
 
-FormType = TypeVar(
-    "FormType",
-    bound=forms.FormProtocol,
-)
-
-
-async def build_survey_related_record_form_instance(
+async def build_survey_related_record_form_instance[FormType: forms.FormProtocol](
     request: Request, form_type: type[FormType]
 ) -> FormType:
     form_instance = await form_type.from_formdata(request)
@@ -1205,7 +1186,7 @@ async def list_by_name(request: Request):
             initiator=user,
             **internal_filter_kwargs,
         )
-    serialized_items = [  # noqa
+    serialized_items = [
         webui_schemas.SurveyRelatedRecordReadListItem.from_db_instance(item)
         for item in items
     ]
@@ -1542,7 +1523,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
                     f"Survey-related record {survey_related_record_id!r} not found.",
                 )
 
-        survey_related_record, related_to, subject_for = survey_related_record_details
+        survey_related_record, _related_to, _subject_for = survey_related_record_details
         parent_survey_mission_id = identifiers.SurveyMissionId(
             survey_related_record.survey_mission_id
         )

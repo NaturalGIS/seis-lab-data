@@ -9,18 +9,19 @@ All credit to its author.
 """
 
 from asyncio import (
-    run,
     iscoroutinefunction,
+    run,
 )
 from collections import defaultdict
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable
+from typing import ClassVar
 
 import typer
 
 
 class AsyncTyper(typer.Typer):
-    event_handlers: defaultdict[str, list[Callable]] = defaultdict(list)
+    event_handlers: ClassVar[defaultdict[str, list[Callable]]] = defaultdict(list)
 
     def async_command(self, *args, **kwargs):
         def decorator(async_func):
@@ -29,8 +30,6 @@ class AsyncTyper(typer.Typer):
                 self.run_event_handlers("startup")
                 try:
                     return run(async_func(*_args, **_kwargs))
-                except Exception as e:  # noqa
-                    raise e
                 finally:
                     self.run_event_handlers("shutdown")
 

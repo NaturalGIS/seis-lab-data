@@ -3,7 +3,7 @@ import time
 from urllib.parse import urlparse
 
 import babel
-import httpx
+import httpx2
 from starlette.requests import (
     HTTPConnection,
     Request,
@@ -62,7 +62,7 @@ class TokenIntrospectionMiddleware:
 
     async def _introspect_token(self, auth_config, access_token: str) -> bool:
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx2.AsyncClient() as client:
                 response = await client.post(
                     auth_config.introspection_endpoint,
                     data={"token": access_token},

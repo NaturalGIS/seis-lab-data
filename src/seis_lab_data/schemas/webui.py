@@ -3,8 +3,8 @@ import typing
 import uuid
 
 import pydantic
-from starlette_babel import LazyString
 from starlette.datastructures import URL
+from starlette_babel import LazyString
 
 from .. import constants
 from . import common
@@ -72,21 +72,11 @@ class UserPermissionDetails:
     can_export: bool = False
 
 
-ItemWithDetails = typing.TypeVar(
-    "ItemWithDetails",
-    ProjectReadDetail,
-    SurveyMissionReadDetail,
-)
-
-ItemChildSummary = typing.TypeVar(
-    "ItemChildSummary",
-    SurveyMissionReadListItem,
-    SurveyRelatedRecordReadListItem,
-)
-
-
 @dataclasses.dataclass(frozen=True)
-class ItemDetails(typing.Generic[ItemWithDetails, ItemChildSummary]):
+class ItemDetails[
+    ItemWithDetails: (ProjectReadDetail, SurveyMissionReadDetail),
+    ItemChildSummary: (SurveyMissionReadListItem, SurveyRelatedRecordReadListItem),
+]:
     item: ItemWithDetails
     children: list[ItemChildSummary]
     children_filter: str

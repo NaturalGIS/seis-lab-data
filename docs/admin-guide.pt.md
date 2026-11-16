@@ -423,6 +423,32 @@ docker compose \
     exec webapp uv run seis-lab-data db upgrade
 ```
 
+
+### Passos de atualização específicos de cada versão
+
+Algumas versões requerem passos manuais para além da implementação propriamente dita. Estes passos aplicam-se
+tanto ao ambiente de produção como ao ambiente de testes.
+
+
+#### Atualização a partir da versão 0.6.0
+
+1.  Antes da implementação, atualizar o ficheiro de configuração do Martin
+    (`/opt/seis-lab-data/secrets/martin-config.yaml` em produção). O Martin 1.x publica um ficheiro PMTiles que
+    seja uma ligação simbólica apenas com o nome do ficheiro para o qual aponta, pelo que a fonte
+    `emodnet-bathymetry` tem de ser nomeada explicitamente, e o Martin requer uma definição explícita de
+    `allow_http`:
+
+    ```yaml
+    pmtiles:
+      allow_http: false
+      sources:
+        emodnet-bathymetry: /pmtiles/emodnet-bathymetry-l6.pmtiles
+    ```
+
+    O caminho deve apontar para o ficheiro PMTiles do ambiente, e não para uma ligação simbólica.
+
+2.  Após a implementação, verificar que o mapa base é apresentado no mapa da página de projetos.
+
 [woodpecker CI]: https://woodpecker-ci.org/
 
 
@@ -583,19 +609,18 @@ tarefa ou pedido que não encontre uma ligação livre espera até `SEIS_LAB_DAT
 `compose.prod-env.yaml`. Ao alterar o número de processos, verifique que o total se mantém abaixo desse limite:
 
 ```
-(processos da webapp + processos de todos os workers) × (DB_POOL_SIZE + DB_MAX_OVERFLOW) + pool do martin + margem
+(processos da webapp + processos de todos os workers) × (DB_POOL_SIZE + DB_MAX_OVERFLOW) + margem
 ```
 
-Com os valores por omissão: (8 + 2 + 2 + 3) × (5 + 5) + 20 (martin) = 170, deixando 30 ligações para administração.
+Com os valores por omissão: (8 + 2 + 2 + 3) × (5 + 5) = 150, deixando 50 ligações para administração.
 
 [^2]: Visão geral do padrão publicação/subscrição: <https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern>
 
 
 #### 5. Componente `map tiles server`
 
-Instância [Martin](https://martin.maplibre.org/) que serve _map tiles_ vetoriais a partir da
-base de dados PostGIS e de ficheiros PMTiles. Acessível sob o caminho `/tiles` do domínio
-principal.
+Instância [Martin](https://martin.maplibre.org/) que serve as _map tiles_ do mapa base a partir de ficheiros
+PMTiles. Acessível sob o caminho `/tiles` do domínio principal.
 
 
 ##### Ficheiros de configuração relevantes

@@ -5,6 +5,7 @@ from osgeo import (
     gdal,
     ogr,
 )
+
 from . import common
 from .schemas import VectorMetadata
 
@@ -71,7 +72,7 @@ def extract_vector_metadata(path: Path | str) -> VectorMetadata:
             geometry_type=geometry_type,
         )
     finally:
-        ds = None  # noqa: F841
+        ds = None
 
 
 def _union(

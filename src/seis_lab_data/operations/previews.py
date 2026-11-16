@@ -16,26 +16,18 @@ from .. import (
     pathpatterns,
 )
 from ..db import models
-from ..db.commands import (
-    projects as project_commands,
-    recordassets as asset_commands,
-    surveymissions as mission_commands,
-    surveyrelatedrecords as record_commands,
-)
-from ..db.queries import (
-    discovery as discovery_queries,
-    recordassets as asset_queries,
-)
-from ..schemas import (
-    events as event_schemas,
-    identifiers,
-    surveyrelatedrecords as record_schemas,
-    user as user_schemas,
-)
-from ..tasks.derivers import (
-    bbox_thumbnail,
-    dispatch as deriver_dispatch,
-)
+from ..db.commands import projects as project_commands
+from ..db.commands import recordassets as asset_commands
+from ..db.commands import surveymissions as mission_commands
+from ..db.commands import surveyrelatedrecords as record_commands
+from ..db.queries import discovery as discovery_queries
+from ..db.queries import recordassets as asset_queries
+from ..schemas import events as event_schemas
+from ..schemas import identifiers
+from ..schemas import surveyrelatedrecords as record_schemas
+from ..schemas import user as user_schemas
+from ..tasks.derivers import bbox_thumbnail
+from ..tasks.derivers import dispatch as deriver_dispatch
 
 logger = logging.getLogger(__name__)
 
@@ -195,7 +187,7 @@ async def generate_record_previews(
                 f"preview..."
             )
             continue
-        asset_path = "/".join((mission_root_path, asset.relative_path))
+        asset_path = f"{mission_root_path}/{asset.relative_path}"
         if not deriver_dispatch.can_derive(asset_path):
             continue
         try:
@@ -205,7 +197,8 @@ async def generate_record_previews(
                 survey_related_record.survey_mission.implicit_crs,
                 discovered_epsg_code,
             )
-        except Exception as err:
+        # a failing deriver skips this asset's preview rather than the whole record
+        except Exception as err:  # noqa: BLE001
             logger.warning(f"Preview generation failed for {asset_path!r}: {err}")
             continue
         if preview is None:  # the file went away between the two checks

@@ -1,10 +1,10 @@
 import logging
 
-from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import (
     func,
     select,
 )
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ...db import models
 from ...schemas import identifiers

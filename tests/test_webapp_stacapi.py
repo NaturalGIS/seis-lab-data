@@ -4,9 +4,7 @@ from starlette.testclient import TestClient
 
 from seis_lab_data import constants
 from seis_lab_data.db import models
-from seis_lab_data.db.commands import (
-    projects as project_commands,
-)
+from seis_lab_data.db.commands import projects as project_commands
 from seis_lab_data.schemas import identifiers
 from seis_lab_data.webapp.stacapi import conformance
 
@@ -15,10 +13,9 @@ pytestmark = pytest.mark.integration
 
 @pytest_asyncio.fixture
 async def draft_project(db, db_session_maker):
-    from seis_lab_data.schemas import (
-        projects as project_schemas,
-    )
     import uuid
+
+    from seis_lab_data.schemas import projects as project_schemas
 
     to_create = project_schemas.ProjectCreate(
         id=identifiers.ProjectId(uuid.uuid4()),

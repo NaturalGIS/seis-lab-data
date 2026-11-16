@@ -5,12 +5,10 @@ import sqlalchemy
 
 from seis_lab_data import constants
 from seis_lab_data.db import models
-from seis_lab_data.db.queries import (
-    projects as project_queries,
-    recordassets as asset_queries,
-    surveymissions as mission_queries,
-    surveyrelatedrecords as record_queries,
-)
+from seis_lab_data.db.queries import projects as project_queries
+from seis_lab_data.db.queries import recordassets as asset_queries
+from seis_lab_data.db.queries import surveymissions as mission_queries
+from seis_lab_data.db.queries import surveyrelatedrecords as record_queries
 from seis_lab_data.schemas import identifiers
 
 
@@ -18,7 +16,7 @@ from seis_lab_data.schemas import identifiers
 @pytest.mark.asyncio
 async def test_list_projects(sample_projects, db_session_maker):
     async with db_session_maker() as session:
-        projects, total = await project_queries.list_projects(
+        _projects, total = await project_queries.list_projects(
             session, include_total=True
         )
         assert total == len(sample_projects)
@@ -39,7 +37,7 @@ async def test_list_survey_missions(
     sample_survey_missions, db_session_maker, project_id_filter, expected_total
 ):
     async with db_session_maker() as session:
-        survey_missions, total = await mission_queries.list_survey_missions(
+        _survey_missions, total = await mission_queries.list_survey_missions(
             session, project_id=project_id_filter, include_total=True
         )
         assert total == expected_total
@@ -68,7 +66,7 @@ async def test_list_survey_related_records(
     expected_total,
 ):
     async with db_session_maker() as session:
-        survey_records, total = await record_queries.list_survey_related_records(
+        _survey_records, total = await record_queries.list_survey_related_records(
             session, survey_mission_ids=survey_mission_ids_filter, include_total=True
         )
         assert total == expected_total
@@ -95,7 +93,7 @@ async def test_list_survey_related_records_project_id_filter(
     expected_total,
 ):
     async with db_session_maker() as session:
-        survey_records, total = await record_queries.list_survey_related_records(
+        _survey_records, total = await record_queries.list_survey_related_records(
             session, project_id=project_id_filter, include_total=True
         )
         assert total == expected_total
@@ -157,8 +155,8 @@ async def test_listing_records_does_not_load_derived_asset_payloads(
         await session.commit()
 
         records, _total = await record_queries.list_survey_related_records(session)
-        listed = [r for r in records if r.id == first_record.id][0]
-        preview = [
+        listed = next(r for r in records if r.id == first_record.id)
+        preview = next(
             a for a in listed.assets if constants.AssetType.PREVIEW in a.asset_type
-        ][0]
+        )
         assert "data" in sqlalchemy.inspect(preview).unloaded

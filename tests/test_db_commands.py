@@ -7,30 +7,24 @@ from seis_lab_data import (
     errors,
 )
 from seis_lab_data.db import models
-from seis_lab_data.db.commands import (
-    datasetcategories as category_commands,
-    projects as project_commands,
-    recordassets as asset_commands,
-    surveymissions as mission_commands,
-    surveyrelatedrecords as record_commands,
-    workflowstages as stage_commands,
-)
-from seis_lab_data.db.queries import (
-    projects as project_queries,
-    recordassets as asset_queries,
-    surveymissions as mission_queries,
-    surveyrelatedrecords as record_queries,
-    datasetcategories as category_queries,
-    workflowstages as stage_queries,
-)
-from seis_lab_data.schemas import (
-    datasetcategories as category_schemas,
-    identifiers,
-    projects as project_schemas,
-    surveymissions as mission_schemas,
-    surveyrelatedrecords as record_schemas,
-    workflowstages as stage_schemas,
-)
+from seis_lab_data.db.commands import datasetcategories as category_commands
+from seis_lab_data.db.commands import projects as project_commands
+from seis_lab_data.db.commands import recordassets as asset_commands
+from seis_lab_data.db.commands import surveymissions as mission_commands
+from seis_lab_data.db.commands import surveyrelatedrecords as record_commands
+from seis_lab_data.db.commands import workflowstages as stage_commands
+from seis_lab_data.db.queries import datasetcategories as category_queries
+from seis_lab_data.db.queries import projects as project_queries
+from seis_lab_data.db.queries import recordassets as asset_queries
+from seis_lab_data.db.queries import surveymissions as mission_queries
+from seis_lab_data.db.queries import surveyrelatedrecords as record_queries
+from seis_lab_data.db.queries import workflowstages as stage_queries
+from seis_lab_data.schemas import datasetcategories as category_schemas
+from seis_lab_data.schemas import identifiers
+from seis_lab_data.schemas import projects as project_schemas
+from seis_lab_data.schemas import surveymissions as mission_schemas
+from seis_lab_data.schemas import surveyrelatedrecords as record_schemas
+from seis_lab_data.schemas import workflowstages as stage_schemas
 
 
 @pytest.mark.integration
@@ -303,10 +297,10 @@ async def test_create_survey_related_record(
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
 ):
-    dataset_category = [
+    dataset_category = next(
         c for c in bootstrap_dataset_categories if c.name == "bathymetry"
-    ][0]
-    workflow_stage = [w for w in bootstrap_workflow_stages if w.name == "raw data"][0]
+    )
+    workflow_stage = next(w for w in bootstrap_workflow_stages if w.name == "raw data")
     to_create = record_schemas.SurveyRelatedRecordCreate(
         id=identifiers.SurveyRelatedRecordId(
             uuid.UUID("cabe6a5f-d81c-496c-80cc-c3505b9121c2")
@@ -354,10 +348,10 @@ async def test_delete_survey_related_record(
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
 ):
-    dataset_category = [
+    dataset_category = next(
         c for c in bootstrap_dataset_categories if c.name == "bathymetry"
-    ][0]
-    workflow_stage = [w for w in bootstrap_workflow_stages if w.name == "raw data"][0]
+    )
+    workflow_stage = next(w for w in bootstrap_workflow_stages if w.name == "raw data")
     to_create = record_schemas.SurveyRelatedRecordCreate(
         id=identifiers.SurveyRelatedRecordId(
             uuid.UUID("d0f6cb56-e942-4fd7-a0a9-083c3069d698")
@@ -392,9 +386,9 @@ async def test_bulk_update_filtered_records(
     admin_user,
 ):
     first_record, second_record = sample_survey_related_records
-    new_stage = [
+    new_stage = next(
         w for w in bootstrap_workflow_stages if w.name == "quality control data"
-    ][0]
+    )
     to_update = record_schemas.SurveyRelatedRecordBulkUpdate(
         workflow_stage_id=identifiers.WorkflowStageId(new_stage.id)
     )
@@ -425,9 +419,9 @@ async def test_bulk_update_filtered_records_excludes_records(
     admin_user,
 ):
     first_record, second_record = sample_survey_related_records
-    new_stage = [
+    new_stage = next(
         w for w in bootstrap_workflow_stages if w.name == "quality control data"
-    ][0]
+    )
     to_update = record_schemas.SurveyRelatedRecordBulkUpdate(
         workflow_stage_id=identifiers.WorkflowStageId(new_stage.id)
     )
@@ -533,10 +527,10 @@ async def test_bulk_publish_valid_survey_related_records(
 ):
     # first_record and second_record belong to different survey missions
     first_record, second_record = sample_survey_related_records
-    dataset_category = [
+    dataset_category = next(
         c for c in bootstrap_dataset_categories if c.name == "bathymetry"
-    ][0]
-    workflow_stage = [w for w in bootstrap_workflow_stages if w.name == "raw data"][0]
+    )
+    workflow_stage = next(w for w in bootstrap_workflow_stages if w.name == "raw data")
     async with db_session_maker() as session:
         # an invalid sibling record, on the same mission as first_record
         invalid_sibling = await record_commands.create_survey_related_record(
@@ -735,10 +729,10 @@ async def test_create_survey_related_record_rejects_duplicate_asset_path_in_same
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
 ):
-    dataset_category = [
+    dataset_category = next(
         c for c in bootstrap_dataset_categories if c.name == "bathymetry"
-    ][0]
-    workflow_stage = [w for w in bootstrap_workflow_stages if w.name == "raw data"][0]
+    )
+    workflow_stage = next(w for w in bootstrap_workflow_stages if w.name == "raw data")
     mission_id = identifiers.SurveyMissionId(sample_survey_missions[0].id)
     async with db_session_maker() as session:
         await record_commands.create_survey_related_record(
@@ -805,10 +799,10 @@ async def test_create_survey_related_record_allows_duplicate_asset_path_in_diffe
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
 ):
-    dataset_category = [
+    dataset_category = next(
         c for c in bootstrap_dataset_categories if c.name == "bathymetry"
-    ][0]
-    workflow_stage = [w for w in bootstrap_workflow_stages if w.name == "raw data"][0]
+    )
+    workflow_stage = next(w for w in bootstrap_workflow_stages if w.name == "raw data")
     async with db_session_maker() as session:
         await record_commands.create_survey_related_record(
             session,

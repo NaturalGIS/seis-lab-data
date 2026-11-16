@@ -1,7 +1,7 @@
 import logging
 import time
 
-import httpx
+import httpx2
 from starlette.authentication import (
     AuthCredentials,
     AuthenticationBackend,
@@ -11,10 +11,8 @@ from starlette.requests import HTTPConnection
 
 from ..auth import AuthConfig
 from ..config import SeisLabDataSettings
-from ..schemas import (
-    identifiers,
-    user as user_schemas,
-)
+from ..schemas import identifiers
+from ..schemas import user as user_schemas
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +56,7 @@ class OIDCAuthBackend(AuthenticationBackend):
     async def _introspect_token(self, access_token: str) -> bool:
         auth_config = AuthConfig.from_settings(self.settings)
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx2.AsyncClient() as client:
                 response = await client.post(
                     auth_config.introspection_endpoint,
                     data={"token": access_token},

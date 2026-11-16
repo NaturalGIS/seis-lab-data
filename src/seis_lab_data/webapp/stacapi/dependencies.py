@@ -1,4 +1,5 @@
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Annotated
 
 from fastapi import (
     Depends,
@@ -13,9 +14,13 @@ def get_settings(request: Request) -> config.SeisLabDataSettings:
     return request.state.settings
 
 
-async def get_session(
-    settings: config.SeisLabDataSettings = Depends(get_settings),
-) -> AsyncGenerator[AsyncSession, None]:
+SettingsDep = Annotated[config.SeisLabDataSettings, Depends(get_settings)]
+
+
+async def get_session(settings: SettingsDep) -> AsyncGenerator[AsyncSession, None]:
     session_maker = settings.get_db_session_maker()
     async with session_maker() as session:
         yield session
+
+
+SessionDep = Annotated[AsyncSession, Depends(get_session)]

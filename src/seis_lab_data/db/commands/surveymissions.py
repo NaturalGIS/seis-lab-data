@@ -19,10 +19,8 @@ from ...constants import (
     ProjectStatus,
     SurveyMissionStatus,
 )
-from ...schemas import (
-    identifiers,
-    surveymissions as mission_schemas,
-)
+from ...schemas import identifiers
+from ...schemas import surveymissions as mission_schemas
 from .. import models
 from ..queries import surveymissions as mission_queries
 from .common import get_bbox_4326_for_db
@@ -155,7 +153,7 @@ async def compare_and_set_survey_mission_status(
     if status == SurveyMissionStatus.CANCELLING_DISCOVERY:
         # an explicit value prevents the column's `onupdate`
         values["updated_at"] = models.SurveyMission.updated_at
-    result = await session.execute(
+    result = await session.exec(
         update(models.SurveyMission)
         .where(models.SurveyMission.id == survey_mission_id)
         .where(models.SurveyMission.status == expected_status)
@@ -175,7 +173,7 @@ async def refresh_survey_mission_discovery_heartbeat(
     cancelling discovery. Returns the survey mission's status, or None if the
     survey mission is not in one of those statuses.
     """
-    result = await session.execute(
+    result = await session.exec(
         update(models.SurveyMission)
         .where(models.SurveyMission.id == survey_mission_id)
         .where(
@@ -239,7 +237,7 @@ async def end_survey_mission_discovery(
     cancelling discovery. Returns the new status, or None if the survey mission is
     not in one of those statuses.
     """
-    result = await session.execute(
+    result = await session.exec(
         update(models.SurveyMission)
         .where(models.SurveyMission.id == survey_mission_id)
         .where(models.SurveyMission.status.in_(SURVEY_MISSION_DISCOVERY_STATUSES))
@@ -277,7 +275,7 @@ async def recover_stale_survey_mission_discoveries(
     )
     if survey_mission_id is not None:
         statement = statement.where(models.SurveyMission.id == survey_mission_id)
-    result = await session.execute(statement)
+    result = await session.exec(statement)
     await session.commit()
     return [
         (identifiers.SurveyMissionId(id_), name, status)
@@ -295,7 +293,7 @@ async def set_survey_mission_thumbnail(
     `update_survey_mission` is no use here, it also overwrites the bbox.
     Returns whether the survey mission still exists.
     """
-    result = await session.execute(
+    result = await session.exec(
         update(models.SurveyMission)
         .where(models.SurveyMission.id == survey_mission_id)
         .values(thumbnail=thumbnail)
@@ -317,7 +315,7 @@ async def bulk_publish_valid_survey_missions_for_project(
     got published, so callers can further cascade to those missions' own
     records.
     """
-    result = await session.execute(
+    result = await session.exec(
         update(models.SurveyMission)
         .where(models.SurveyMission.project_id == project_id)
         # missions in any other status are being worked on by a task
@@ -344,7 +342,7 @@ async def bulk_unpublish_survey_missions_for_project(
     that got unpublished, so callers can further cascade to those missions'
     own records.
     """
-    result = await session.execute(
+    result = await session.exec(
         update(models.SurveyMission)
         .where(models.SurveyMission.project_id == project_id)
         .where(models.SurveyMission.status == SurveyMissionStatus.PUBLISHED)

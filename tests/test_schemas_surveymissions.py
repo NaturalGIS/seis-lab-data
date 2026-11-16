@@ -3,10 +3,8 @@ import uuid
 import pydantic
 import pytest
 
-from seis_lab_data.schemas import (
-    identifiers,
-    surveymissions as mission_schemas,
-)
+from seis_lab_data.schemas import identifiers
+from seis_lab_data.schemas import surveymissions as mission_schemas
 
 
 @pytest.mark.parametrize(

@@ -1,15 +1,13 @@
 from typing import (
     Annotated,
     Literal,
-    TypeAlias,
     TypeVar,
 )
 
-from . import identifiers
-from .. import constants
-
 import pydantic
 
+from .. import constants
+from . import identifiers
 
 IdType = TypeVar("IdType")
 
@@ -102,7 +100,7 @@ class ExportMessage(pydantic.BaseModel):
     details_params: dict[str, str | int] = {}
 
 
-SldPubSubMessage: TypeAlias = Annotated[
+type SldPubSubMessage = Annotated[
     ResourceModificationMessage
     | BulkResourceModificationMessage
     | DiscoveryMessage

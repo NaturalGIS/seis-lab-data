@@ -18,11 +18,9 @@ from sqlalchemy import (
     update,
     values,
 )
-from sqlalchemy.dialects.postgresql import (
-    ARRAY,
-    UUID as PG_UUID,
-    insert as pg_insert,
-)
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import errors
@@ -33,16 +31,12 @@ from ...constants import (
     SurveyMissionStatus,
     SurveyRelatedRecordStatus,
 )
-from ...schemas import (
-    filters as filter_schemas,
-    identifiers,
-    surveyrelatedrecords as record_schemas,
-)
+from ...schemas import filters as filter_schemas
+from ...schemas import identifiers
+from ...schemas import surveyrelatedrecords as record_schemas
 from .. import models
-from ..queries import (
-    recordassets as asset_queries,
-    surveyrelatedrecords as record_queries,
-)
+from ..queries import recordassets as asset_queries
+from ..queries import surveyrelatedrecords as record_queries
 from .common import get_bbox_4326_for_db
 
 logger = logging.getLogger(__name__)
@@ -133,7 +127,7 @@ async def _replace_related_records_for_subjects(
                 proposed_related_ids
             )
         )
-    await session.execute(delete_stmt)
+    await session.exec(delete_stmt)
 
     if not related_records:
         return
@@ -164,7 +158,7 @@ async def _replace_related_records_for_subjects(
         index_elements=["subject_id", "related_to_id"],
         set_={"relation": upsert_stmt.excluded.relation},
     )
-    await session.execute(upsert_stmt)
+    await session.exec(upsert_stmt)
 
 
 async def _apply_bulk_update_to_matched_records(
@@ -176,7 +170,7 @@ async def _apply_bulk_update_to_matched_records(
     # as are the records of a mission under discovery
     matched_ids = (
         (
-            await session.execute(
+            await session.exec(
                 select(models.SurveyRelatedRecord.id)
                 .join(models.SurveyMission)
                 .where(models.SurveyRelatedRecord.id.in_(matched_ids))
@@ -211,7 +205,7 @@ async def _apply_bulk_update_to_matched_records(
         )
 
     if values_to_set:
-        result = await session.execute(
+        result = await session.exec(
             update(models.SurveyRelatedRecord)
             .where(models.SurveyRelatedRecord.id.in_(matched_ids))
             .values(**values_to_set)
@@ -243,9 +237,9 @@ async def bulk_update_manually_selected_records(
             session, to_update, matched_ids
         )
         await session.commit()
-    except Exception as err:
+    except Exception:
         await session.rollback()
-        raise err
+        raise
     return updated_count
 
 
@@ -262,17 +256,17 @@ async def bulk_update_filtered_records(
     dataset_category_id: identifiers.DatasetCategoryId | None = None,
     workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ) -> int:
-    filter_kwargs = dict(
-        survey_mission_id=survey_mission_id,
-        name_filter=name_filter,
-        spatial_intersect=spatial_intersect,
-        temporal_extent=temporal_extent,
-        asset_path_fragment_filter=asset_path_fragment_filter,
-        asset_media_type_filter=asset_media_type_filter,
-        dataset_category_id=dataset_category_id,
-        workflow_stage_id=workflow_stage_id,
-        excluded_record_ids=excluded_record_ids,
-    )
+    filter_kwargs = {
+        "survey_mission_id": survey_mission_id,
+        "name_filter": name_filter,
+        "spatial_intersect": spatial_intersect,
+        "temporal_extent": temporal_extent,
+        "asset_path_fragment_filter": asset_path_fragment_filter,
+        "asset_media_type_filter": asset_media_type_filter,
+        "dataset_category_id": dataset_category_id,
+        "workflow_stage_id": workflow_stage_id,
+        "excluded_record_ids": excluded_record_ids,
+    }
     ids_statement = record_queries.build_survey_related_record_id_statement(
         **filter_kwargs
     )
@@ -282,9 +276,9 @@ async def bulk_update_filtered_records(
             session, to_update, matched_ids
         )
         await session.commit()
-    except Exception as err:
+    except Exception:
         await session.rollback()
-        raise err
+        raise
     return updated_count
 
 
@@ -321,30 +315,34 @@ async def update_survey_related_record(
     current_data_paths = set()
 
     for proposed_asset in to_update.assets:
-        try:
-            existing_asset = [
+        existing_asset = next(
+            (
                 a
                 for a in survey_related_record.assets
                 if identifiers.RecordAssetId(a.id) == proposed_asset.id
-            ][0]
-        except IndexError:  # this is a new asset that needs to be created
+            ),
+            None,
+        )
+        if existing_asset is None:  # this is a new asset that needs to be created
             # assets without a path are exempt from the per-mission path
             # uniqueness rule
-            if proposed_asset.relative_path is not None:
-                if await asset_queries.get_record_asset_by_file_path(
+            if (
+                proposed_asset.relative_path is not None
+                and await asset_queries.get_record_asset_by_file_path(
                     session,
                     proposed_asset.relative_path,
                     identifiers.SurveyMissionId(
                         survey_related_record.survey_mission_id
                     ),
-                ):
-                    raise errors.DuplicateResourceError(
-                        errors.N_(
-                            "There is already a survey-related record with asset path "
-                            "“%(path)s” in the same survey mission."
-                        ),
-                        path=proposed_asset.relative_path,
-                    )
+                )
+            ):
+                raise errors.DuplicateResourceError(
+                    errors.N_(
+                        "There is already a survey-related record with asset path "
+                        "“%(path)s” in the same survey mission."
+                    ),
+                    path=proposed_asset.relative_path,
+                )
             db_asset = models.RecordAsset(
                 **proposed_asset.model_dump(),
                 survey_related_record_id=survey_related_record.id,
@@ -382,13 +380,15 @@ async def update_survey_related_record(
     logger.debug(f"{already_related_to=}")
     for proposed_related_to in to_update.related_records:
         # did a relationship to this record already exist?
-        try:
-            existing_relationship = [
+        existing_relationship = next(
+            (
                 r
                 for r in survey_related_record.related_to_links
                 if r.related_to_id == proposed_related_to.related_record_id
-            ][0]
-        except IndexError:  # this is a new relationship that must be created
+            ),
+            None,
+        )
+        if existing_relationship is None:  # this is a new relationship to create
             db_relationship = models.SurveyRelatedRecordSelfLink(
                 subject_id=survey_related_record.id,
                 related_to_id=proposed_related_to.related_record_id,
@@ -467,7 +467,7 @@ async def compare_and_set_survey_related_record_status(
     expect the same status only one gets to change it. Returns whether the
     status was changed.
     """
-    result = await session.execute(
+    result = await session.exec(
         update(models.SurveyRelatedRecord)
         .where(models.SurveyRelatedRecord.id == survey_related_record_id)
         .where(models.SurveyRelatedRecord.status == expected_status)
@@ -523,7 +523,7 @@ async def end_survey_related_record_task(
     undo a status which something else has set meanwhile. Returns the new status,
     or None if the record is not in `busy_status`.
     """
-    result = await session.execute(
+    result = await session.exec(
         update(models.SurveyRelatedRecord)
         .where(models.SurveyRelatedRecord.id == survey_related_record_id)
         .where(models.SurveyRelatedRecord.status == busy_status)
@@ -545,7 +545,7 @@ async def bulk_publish_valid_survey_related_records(
     those already marked valid can be published directly from their stored
     validation result.
     """
-    result = await session.execute(
+    result = await session.exec(
         update(models.SurveyRelatedRecord)
         .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
         # records in any other status are being worked on by a task
@@ -571,7 +571,7 @@ async def bulk_unpublish_survey_related_records(
     Used when the mission (or its parent project) becomes invalid, so its
     records don't stay published without a published parent.
     """
-    result = await session.execute(
+    result = await session.exec(
         update(models.SurveyRelatedRecord)
         .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
         # records in any other status are held by a task, which sets their status
@@ -589,7 +589,7 @@ async def set_survey_related_record_geonode_export(
     geonode_resource_url: str,
     exported_at: dt.datetime,
 ) -> None:
-    await session.execute(
+    await session.exec(
         update(models.SurveyRelatedRecord)
         .where(models.SurveyRelatedRecord.id == survey_related_record_id)
         .values(
@@ -612,7 +612,7 @@ async def recover_stale_geonode_exports(
     status is the same as in `end_survey_related_record_task`. Returns the ids,
     names and new statuses of the recovered records.
     """
-    result = await session.execute(
+    result = await session.exec(
         update(models.SurveyRelatedRecord)
         .where(
             models.SurveyRelatedRecord.status == SurveyRelatedRecordStatus.UNDER_EXPORT

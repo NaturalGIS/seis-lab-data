@@ -25,36 +25,30 @@ from geoalchemy2.shape import to_shape
 
 pytest.importorskip("osgeo")
 
-from osgeo import (  # noqa: E402
+from osgeo import (
     gdal,
     osr,
 )
 
-from seis_lab_data import constants  # noqa: E402
-from seis_lab_data.db import models  # noqa: E402
-from seis_lab_data.db.commands import (  # noqa: E402
-    discovery as discovery_commands,
-    projects as project_commands,
-    surveymissions as mission_commands,
-    surveyrelatedrecords as record_commands,
-)
-from seis_lab_data.db.queries import surveyrelatedrecords as record_queries  # noqa: E402
-from seis_lab_data.operations import (  # noqa: E402
-    discovery as discovery_ops,
-    previews as preview_ops,
-    surveyrelatedrecords as record_ops,
-)
-from seis_lab_data.schemas import (  # noqa: E402
-    discovery as discovery_schemas,
-    events as event_schemas,
-    identifiers,
-    projects as project_schemas,
-    surveymissions as mission_schemas,
-    surveyrelatedrecords as record_schemas,
-)
-from seis_lab_data.tasks import previews as preview_tasks  # noqa: E402
-from seis_lab_data.tasks.derivers import schemas as deriver_schemas  # noqa: E402
-from seis_lab_data.tasks.extractors import schemas as extractor_schemas  # noqa: E402
+from seis_lab_data import constants
+from seis_lab_data.db import models
+from seis_lab_data.db.commands import discovery as discovery_commands
+from seis_lab_data.db.commands import projects as project_commands
+from seis_lab_data.db.commands import surveymissions as mission_commands
+from seis_lab_data.db.commands import surveyrelatedrecords as record_commands
+from seis_lab_data.db.queries import surveyrelatedrecords as record_queries
+from seis_lab_data.operations import discovery as discovery_ops
+from seis_lab_data.operations import previews as preview_ops
+from seis_lab_data.operations import surveyrelatedrecords as record_ops
+from seis_lab_data.schemas import discovery as discovery_schemas
+from seis_lab_data.schemas import events as event_schemas
+from seis_lab_data.schemas import identifiers
+from seis_lab_data.schemas import projects as project_schemas
+from seis_lab_data.schemas import surveymissions as mission_schemas
+from seis_lab_data.schemas import surveyrelatedrecords as record_schemas
+from seis_lab_data.tasks import previews as preview_tasks
+from seis_lab_data.tasks.derivers import schemas as deriver_schemas
+from seis_lab_data.tasks.extractors import schemas as extractor_schemas
 
 gdal.UseExceptions()
 
@@ -613,7 +607,7 @@ async def _publish_mission(db_session_maker, discovery_env):
             identifiers.ProjectId(discovery_env["project"].id),
             constants.ProjectStatus.PUBLISHED,
         )
-        await session.execute(
+        await session.exec(
             sqlalchemy.update(models.SurveyMission)
             .where(models.SurveyMission.id == discovery_env["mission"].id)
             .values(
@@ -627,7 +621,7 @@ async def _publish_mission(db_session_maker, discovery_env):
 async def _make_record_valid(db_session_maker, record_id):
     """Store a validation result which marks the record as valid."""
     async with db_session_maker() as session:
-        await session.execute(
+        await session.exec(
             sqlalchemy.update(models.SurveyRelatedRecord)
             .where(models.SurveyRelatedRecord.id == record_id)
             .values(validation_result={"is_valid": True, "errors": None})
@@ -903,7 +897,7 @@ async def test_discovery_refuses_a_path_outside_the_mission_directory(
     _write_geotiff(discovery_env["archive_root"] / "s01" / "other.tif")
     mission_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
     async with db_session_maker() as session:
-        await session.execute(
+        await session.exec(
             sqlalchemy.update(models.SurveyMission)
             .where(models.SurveyMission.id == mission_id)
             .values(relative_path=relative_path)
@@ -1011,7 +1005,7 @@ async def test_discovery_stops_at_its_time_limit(
 async def _set_mission_status(db_session_maker, mission_id, status, age=None):
     """Set a mission's status directly, along with how long ago it was updated."""
     async with db_session_maker() as session:
-        await session.execute(
+        await session.exec(
             sqlalchemy.update(models.SurveyMission)
             .where(models.SurveyMission.id == mission_id)
             .values(

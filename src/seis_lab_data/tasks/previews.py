@@ -6,16 +6,12 @@ import uuid
 import dramatiq
 
 from .. import config
-from ..db.queries import (
-    projects as project_queries,
-    surveymissions as mission_queries,
-    surveyrelatedrecords as record_queries,
-)
+from ..db.queries import projects as project_queries
+from ..db.queries import surveymissions as mission_queries
+from ..db.queries import surveyrelatedrecords as record_queries
 from ..operations import previews as preview_ops
-from ..schemas import (
-    identifiers,
-    user as user_schemas,
-)
+from ..schemas import identifiers
+from ..schemas import user as user_schemas
 from . import decorators
 from .stub import sld_stub_broker
 

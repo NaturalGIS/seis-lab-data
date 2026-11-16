@@ -7,20 +7,16 @@ import uuid
 from pathlib import Path
 from typing import Annotated
 
+import typer
 from rich.padding import Padding
 from rich.panel import Panel
-import typer
 
 from .. import config
-from ..db.queries import (
-    projects as project_queries,
-    surveymissions as mission_queries,
-)
+from ..db.queries import projects as project_queries
+from ..db.queries import surveymissions as mission_queries
 from ..schemas import identifiers
-from ..tasks import (
-    broker,
-    previews as preview_tasks,
-)
+from ..tasks import broker
+from ..tasks import previews as preview_tasks
 from . import utils
 from .asynctyper import AsyncTyper
 from .bootstrapapp import app as bootstrap_app
@@ -143,7 +139,7 @@ def run_web_server(ctx: typer.Context):
         uvicorn_args.extend(
             [
                 "--reload",
-                f"--reload-dir={str(Path(__file__).parents[1])}",
+                f"--reload-dir={Path(__file__).parents[1]!s}",
                 "--log-level=debug",
             ]
         )
@@ -155,7 +151,7 @@ def run_web_server(ctx: typer.Context):
             ]
         )
     if (log_config_file := context.settings.log_config_file) is not None:
-        uvicorn_args.append(f"--log-config={str(log_config_file)}")
+        uvicorn_args.append(f"--log-config={log_config_file!s}")
     if context.settings.public_url.startswith("https://"):
         uvicorn_args.extend(
             [

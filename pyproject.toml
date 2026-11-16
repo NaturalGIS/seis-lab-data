@@ -21,7 +21,7 @@ dependencies = [
     "faker>=38.0.0",
     "fastapi>=0.141.1",
     "geoalchemy2>=0.18.0",
-    "httpx>=0.28.1",
+    "httpx2>=2.16.0",
     "itsdangerous>=2.2.0",
     "jinja2>=3.1.6",
     "numpy>=2.3.4",
@@ -32,7 +32,7 @@ dependencies = [
     "redis[hiredis]>=6.2.0",
     "rich>=14.0.0",
     "shapely>=2.1.2",
-    "sqlalchemy>=2.0.43",
+    "sqlalchemy[asyncio]>=2.1.8",
     "sqlmodel>=0.0.24",
     "stac-pydantic>=3.6.0",
     "starlette>=0.47.1",
@@ -58,7 +58,7 @@ jupyter = [
     "jupyterlab>=4.4.4",
 ]
 gdal = [
-    "gdal==3.11.4",
+    "gdal==3.12.4",
 ]
 docs = [
     "mkdocs>=1.6.1",
@@ -71,8 +71,20 @@ docs = [
 default-groups = []
 package = true
 
+[tool.ruff]
+extend-exclude = [
+    # alembic generates the migration files, these are not to be reformatted or linted
+    "src/seis_lab_data/migrations/versions",
+    # auxiliary scripts, not part of the application
+    "scripts",
+]
+# pre-commit passes file paths explicitly, which would otherwise bypass the exclusion
+force-exclude = true
+
 [tool.pytest.ini_options]
 addopts = "--strict-markers --verbose -m 'not e2e and not integration'"
+# each async fixture runs in the event loop of its own scope, e.g. session-scoped ones
+asyncio_default_fixture_loop_scope = "fixture-scope"
 markers = [
     "e2e: marks tests as being end-to-end tests",
     "integration: marks tests as being integration tests",

@@ -11,10 +11,8 @@ from starlette.testclient import TestClient
 
 from seis_lab_data import constants
 from seis_lab_data.db import models
-from seis_lab_data.schemas import (
-    identifiers,
-    user as user_schemas,
-)
+from seis_lab_data.schemas import identifiers
+from seis_lab_data.schemas import user as user_schemas
 from seis_lab_data.webapp.auth_backend import OIDCAuthBackend
 
 pytestmark = pytest.mark.integration

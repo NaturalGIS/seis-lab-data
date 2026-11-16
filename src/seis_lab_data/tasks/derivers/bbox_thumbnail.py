@@ -7,6 +7,7 @@ from osgeo import (
     gdal,
     osr,
 )
+
 from . import common
 
 logger = logging.getLogger(__name__)
@@ -128,8 +129,8 @@ def render_bbox_thumbnail(
         return common.to_webp(rendered)
     finally:
         # Clear / close gdal used datasets
-        rendered = None  # noqa: F841
-        source = None  # noqa: F841
+        rendered = None
+        source = None
 
 
 def _to_web_mercator(

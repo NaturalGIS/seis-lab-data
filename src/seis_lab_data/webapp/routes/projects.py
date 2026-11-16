@@ -11,11 +11,11 @@ from datastar_py.starlette import DatastarResponse
 from redis.asyncio import Redis
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
+from starlette.requests import Request
 from starlette.responses import (
     RedirectResponse,
     Response,
 )
-from starlette.requests import Request
 from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 from starlette_babel import gettext_lazy as _
@@ -28,42 +28,30 @@ from ... import (
     geojson,
     subscribers,
 )
-from ...operations import (
-    projects as project_ops,
-    surveymissions as survey_mission_ops,
-    surveyrelatedrecords as survey_related_record_ops,
-)
-from ...permissions import (
-    projects as project_permissions,
-    surveymissions as mission_permissions,
-)
-from ...tasks import (
-    projects as project_tasks,
-    surveymissions as survey_mission_tasks,
-)
-from ...schemas import (
-    common as common_schemas,
-    identifiers,
-    projects as project_schemas,
-    surveymissions as mission_schemas,
-    webui as webui_schemas,
-)
-from ..streamhandlers import common as common_handlers
+from ...operations import projects as project_ops
+from ...operations import surveymissions as survey_mission_ops
+from ...operations import surveyrelatedrecords as survey_related_record_ops
+from ...permissions import projects as project_permissions
+from ...permissions import surveymissions as mission_permissions
+from ...schemas import common as common_schemas
+from ...schemas import identifiers
+from ...schemas import projects as project_schemas
+from ...schemas import surveymissions as mission_schemas
+from ...schemas import webui as webui_schemas
+from ...tasks import projects as project_tasks
+from ...tasks import surveymissions as survey_mission_tasks
 from .. import filters
-from ..forms import (
-    projects as project_forms,
-    surveymissions as mission_forms,
-)
-from .auth import (
-    requires_auth,
-)
+from ..forms import projects as project_forms
+from ..forms import surveymissions as mission_forms
+from ..streamhandlers import common as common_handlers
+from .auth import requires_auth
 from .common import (
+    UPDATE_BASEMAP_JS_SCRIPT,
     build_project_compound_name,
     get_id_from_request_path,
     get_page_count,
     get_page_from_request_params,
     get_pagination_info,
-    UPDATE_BASEMAP_JS_SCRIPT,
 )
 from .datalist import get_projects_datalist
 
@@ -723,7 +711,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             raw_request_id=str(request_id),
             raw_to_create=to_create.model_dump_json(),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
-        )  # noqa
+        )
         return Response(status_code=200)
 
 
@@ -830,7 +818,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             raw_project_id=str(project_id),
             raw_to_update=to_update.model_dump_json(),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
-        )  # noqa
+        )
         return Response(status_code=200)
 
     @csrf_protect
@@ -862,7 +850,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             raw_request_id=str(request_id),
             raw_project_id=str(project_id),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
-        )  # noqa
+        )
         return Response(status_code=200)
 
     @csrf_protect
@@ -949,7 +937,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             raw_request_id=str(request_id),
             raw_to_create=to_create.model_dump_json(),
             raw_initiator=json.dumps(dataclasses.asdict(user)),
-        )  # noqa
+        )
         return Response(status_code=200)
 
 

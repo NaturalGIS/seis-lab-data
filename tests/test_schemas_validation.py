@@ -6,11 +6,8 @@ import shapely
 from geoalchemy2 import WKBElement
 
 from seis_lab_data import constants
-from seis_lab_data.schemas import (
-    identifiers,
-    validation as validation_schemas,
-)
-
+from seis_lab_data.schemas import identifiers
+from seis_lab_data.schemas import validation as validation_schemas
 
 _BBOX = WKBElement(shapely.to_wkb(shapely.box(-10, 38, -9, 39)), srid=4326)
 

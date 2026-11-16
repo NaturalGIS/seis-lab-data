@@ -3,7 +3,6 @@ import typing
 
 from starlette_babel import gettext_lazy as _
 
-
 AUTH_CLIENT_NAME: typing.Final[str] = "authentik"
 ROLE_SYSTEM_ADMIN: typing.Final[str] = "system-admin"
 ROLE_EDITOR: typing.Final[str] = "catalog-editor"

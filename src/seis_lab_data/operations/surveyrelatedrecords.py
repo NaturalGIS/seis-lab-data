@@ -9,21 +9,17 @@ from .. import (
     dispatch,
     errors,
 )
-from ..permissions import surveyrelatedrecords as record_permissions
 from ..db import models
 from ..db.commands import surveyrelatedrecords as record_commands
-from ..db.queries import (
-    surveymissions as mission_queries,
-    surveyrelatedrecords as record_queries,
-)
-from ..schemas import (
-    events as event_schemas,
-    filters as filter_schemas,
-    identifiers,
-    surveyrelatedrecords as record_schemas,
-    user as user_schemas,
-    validation as validation_schemas,
-)
+from ..db.queries import surveymissions as mission_queries
+from ..db.queries import surveyrelatedrecords as record_queries
+from ..permissions import surveyrelatedrecords as record_permissions
+from ..schemas import events as event_schemas
+from ..schemas import filters as filter_schemas
+from ..schemas import identifiers
+from ..schemas import surveyrelatedrecords as record_schemas
+from ..schemas import user as user_schemas
+from ..schemas import validation as validation_schemas
 
 logger = logging.getLogger(__name__)
 
@@ -361,7 +357,7 @@ async def delete_survey_related_record(
                 details_params=err.params,
             )
         )
-        return None
+        return
     await event_dispatcher(
         event_schemas.ResourceModificationEvent(
             initiator=initiator.id,
@@ -428,21 +424,21 @@ async def list_survey_related_records(
     dataset_category_id: identifiers.DatasetCategoryId | None = None,
     workflow_stage_id: identifiers.WorkflowStageId | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
-    kwargs = dict(
-        survey_mission_ids=survey_mission_ids,
-        project_id=project_id,
-        page=page,
-        page_size=page_size,
-        include_total=include_total,
-        name_filter=name_filter,
-        spatial_intersect=spatial_intersect,
-        temporal_extent=temporal_extent,
-        asset_path_fragment_filter=asset_path_fragment_filter,
-        dataset_category_id=dataset_category_id,
-        workflow_stage_id=workflow_stage_id,
-        asset_media_type_filter=asset_media_type_filter,
-        record_ids=record_ids,
-    )
+    kwargs = {
+        "survey_mission_ids": survey_mission_ids,
+        "project_id": project_id,
+        "page": page,
+        "page_size": page_size,
+        "include_total": include_total,
+        "name_filter": name_filter,
+        "spatial_intersect": spatial_intersect,
+        "temporal_extent": temporal_extent,
+        "asset_path_fragment_filter": asset_path_fragment_filter,
+        "dataset_category_id": dataset_category_id,
+        "workflow_stage_id": workflow_stage_id,
+        "asset_media_type_filter": asset_media_type_filter,
+        "record_ids": record_ids,
+    }
     if initiator is None:
         return await record_queries.list_published_survey_related_records(
             session, **kwargs

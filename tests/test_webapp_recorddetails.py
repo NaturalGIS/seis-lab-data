@@ -12,11 +12,9 @@ from seis_lab_data import (
     subscribers,
 )
 from seis_lab_data.db import models
-from seis_lab_data.schemas import (
-    identifiers,
-    messages as message_schemas,
-    user as user_schemas,
-)
+from seis_lab_data.schemas import identifiers
+from seis_lab_data.schemas import messages as message_schemas
+from seis_lab_data.schemas import user as user_schemas
 from seis_lab_data.webapp import jinjafilters
 from seis_lab_data.webapp.auth_backend import OIDCAuthBackend
 from seis_lab_data.webapp.streamhandlers import common as common_handlers

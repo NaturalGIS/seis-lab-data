@@ -12,11 +12,8 @@ from geoalchemy2 import WKBElement
 
 from ... import constants
 from ...db import models
-from . import (
-    conformance,
-    links as link_helpers,
-)
-
+from . import conformance
+from . import links as link_helpers
 
 # extent isn't always computed yet (e.g. before a record/mission is validated),
 # and STAC Collection.extent.spatial.bbox is a required field, so this is the
@@ -36,7 +33,7 @@ def bbox_and_geometry(
 def _to_utc_datetime(value: dt.date | None) -> dt.datetime | None:
     if value is None:
         return None
-    return dt.datetime.combine(value, dt.time.min, tzinfo=dt.timezone.utc)
+    return dt.datetime.combine(value, dt.time.min, tzinfo=dt.UTC)
 
 
 def catalog_from_project(
@@ -141,7 +138,7 @@ def item_from_survey_related_record(
     instant = (
         None
         if (start_datetime or end_datetime)
-        else record.created_at.replace(tzinfo=dt.timezone.utc)
+        else record.created_at.replace(tzinfo=dt.UTC)
     )
     properties = stac_pydantic.ItemProperties(
         datetime=instant,

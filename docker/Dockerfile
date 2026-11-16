@@ -1,9 +1,9 @@
 # Multi-stage Dockerfile for Seis Lab Data application with GDAL Python bindings
 
 # Build stage - includes build dependencies for GDAL Python bindings
-FROM ghcr.io/osgeo/gdal:ubuntu-small-3.11.4 AS builder
+FROM ghcr.io/osgeo/gdal:ubuntu-small-3.12.4 AS builder
 
-COPY --from=ghcr.io/astral-sh/uv:0.7.18 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13.8 /uv /uvx /bin/
 
 # Install build dependencies needed for GDAL Python bindings compilation, plus
 # weasyprint's system dependencies, needed only to build the PDF docs below -
@@ -46,9 +46,9 @@ RUN uv run seis-lab-data translations compile
 RUN BUILD_PDFS=1 uv run mkdocs build --strict --site-dir /home/ubuntu/app/docs-site
 
 # Runtime stage - clean GDAL base without build tools
-FROM ghcr.io/osgeo/gdal:ubuntu-small-3.11.4
+FROM ghcr.io/osgeo/gdal:ubuntu-small-3.12.4
 
-COPY --from=ghcr.io/astral-sh/uv:0.7.18 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13.8 /uv /uvx /bin/
 
 RUN python -c "import compileall; compileall.compile_path(maxlevels=10)"
 

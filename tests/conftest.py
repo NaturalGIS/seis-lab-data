@@ -1,6 +1,5 @@
 import pytest
 import pytest_asyncio
-
 import sqlmodel
 from anyio import Path
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -16,26 +15,19 @@ from seis_lab_data.cliapp import (
     sampledata,
     utils,
 )
-from seis_lab_data.db.commands import (
-    datasetcategories as category_commands,
-    discovery as discovery_commands,
-    projects as project_commands,
-    surveymissions as mission_commands,
-    surveyrelatedrecords as record_commands,
-    users as user_commands,
-    workflowstages as stage_commands,
-)
-from seis_lab_data.db.engine import (
-    get_session_maker,
-    get_sync_engine,
-)
-from seis_lab_data.schemas.user import User
+from seis_lab_data.db.commands import datasetcategories as category_commands
+from seis_lab_data.db.commands import discovery as discovery_commands
+from seis_lab_data.db.commands import projects as project_commands
+from seis_lab_data.db.commands import surveymissions as mission_commands
+from seis_lab_data.db.commands import surveyrelatedrecords as record_commands
+from seis_lab_data.db.commands import users as user_commands
+from seis_lab_data.db.commands import workflowstages as stage_commands
+from seis_lab_data.db.engine import get_session_maker
 from seis_lab_data.schemas import identifiers
 from seis_lab_data.schemas.identifiers import UserId
+from seis_lab_data.schemas.user import User
 from seis_lab_data.webapp.app import create_app_from_settings
-from seis_lab_data.webapp.routes.surveyrelatedrecords import (
-    routes as records_routes,
-)
+from seis_lab_data.webapp.routes.surveyrelatedrecords import routes as records_routes
 from seis_lab_data.webapp.stacapi.app import create_api_app_from_settings
 from seis_lab_data.webapp.stacapi.dependencies import get_settings as stac_get_settings
 
@@ -59,16 +51,22 @@ def settings(db_engine):
     return original_settings
 
 
-@pytest.fixture
-def sync_db_engine(settings: config.SeisLabDataSettings):
-    yield get_sync_engine(settings)
+# the `db` fixture recreates the schema (and its enum types) for each test, which
+# makes statements psycopg prepared on a pooled connection fail with "cached plan
+# must not change result type", therefore prepare is off on both test engines
+
+
+@pytest.fixture(scope="session")
+def sync_db_engine():
+    yield sqlmodel.create_engine(
+        config.get_settings().test_database_dsn.unicode_string(),
+        echo=config.get_settings().debug,
+        connect_args={"prepare_threshold": None},
+    )
 
 
 @pytest.fixture(scope="session")
 def db_engine():
-    # the `db` fixture recreates the schema (and its enum types) for each test, which
-    # makes statements psycopg prepared on a pooled connection fail with "cached plan
-    # must not change result type", therefore prepare is off
     yield create_async_engine(
         config.get_settings().test_database_dsn.unicode_string(),
         connect_args={"prepare_threshold": None},

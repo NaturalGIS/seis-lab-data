@@ -32,41 +32,28 @@ from .. import (
     pathpatterns,
 )
 from ..db import models
-from ..db.queries import (
-    discovery as discovery_queries,
-    surveymissions as mission_queries,
-    surveyrelatedrecords as record_queries,
-    recordassets as asset_queries,
-)
-from ..db.commands import (
-    discovery as discovery_commands,
-    surveymissions as mission_commands,
-)
+from ..db.commands import discovery as discovery_commands
+from ..db.commands import surveymissions as mission_commands
 from ..db.commands.common import get_bbox_4326_for_db
-from ..permissions import (
-    discovery as discovery_permissions,
-    surveymissions as mission_permissions,
-    surveyrelatedrecords as record_permissions,
-)
-from ..schemas import (
-    events as event_schemas,
-    discovery as discovery_schemas,
-    identifiers,
-    surveyrelatedrecords as record_schemas,
-    user as user_schemas,
-    validation as validation_schemas,
-)
+from ..db.queries import discovery as discovery_queries
+from ..db.queries import recordassets as asset_queries
+from ..db.queries import surveymissions as mission_queries
+from ..db.queries import surveyrelatedrecords as record_queries
+from ..permissions import discovery as discovery_permissions
+from ..permissions import surveymissions as mission_permissions
+from ..permissions import surveyrelatedrecords as record_permissions
+from ..schemas import discovery as discovery_schemas
+from ..schemas import events as event_schemas
+from ..schemas import identifiers
+from ..schemas import surveyrelatedrecords as record_schemas
+from ..schemas import user as user_schemas
+from ..schemas import validation as validation_schemas
 from ..tasks import previews as preview_tasks
-from ..tasks.extractors import (
-    common as extractor_common,
-    dispatch as extractor_dispatch,
-    schemas as extractor_schemas,
-)
-
-from . import (
-    surveymissions as mission_ops,
-    surveyrelatedrecords as record_ops,
-)
+from ..tasks.extractors import common as extractor_common
+from ..tasks.extractors import dispatch as extractor_dispatch
+from ..tasks.extractors import schemas as extractor_schemas
+from . import surveymissions as mission_ops
+from . import surveyrelatedrecords as record_ops
 
 logger = logging.getLogger(__name__)
 
@@ -238,7 +225,7 @@ async def delete_asset_discovery_configuration(
                 details_params=err.params,
             ),
         )
-        return None
+        return
 
     await event_dispatcher(
         event_schemas.ResourceModificationEvent(
@@ -1498,7 +1485,8 @@ async def _extract_file_metadata(
                 srs.ImportFromEPSG(applied_crs)
                 bbox_4326 = extractor_common.project_bbox_to_wgs84(native_bbox, srs)
                 applied_crs_name = srs.GetName()
-            except Exception as err:
+            # an unusable CRS leaves the bbox unprojected rather than failing the file
+            except Exception as err:  # noqa: BLE001
                 logger.warning(
                     "Could not apply CRS EPSG:%s to %s: %s",
                     applied_crs,

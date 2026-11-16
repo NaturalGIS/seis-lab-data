@@ -8,16 +8,12 @@ from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
 from ...db.queries import recordassets as asset_queries
-from ...operations import (
-    projects as project_ops,
-    surveymissions as mission_ops,
-    surveyrelatedrecords as record_ops,
-)
-from ...schemas import (
-    projects as project_schemas,
-    surveymissions as mission_schemas,
-    webui as webui_schemas,
-)
+from ...operations import projects as project_ops
+from ...operations import surveymissions as mission_ops
+from ...operations import surveyrelatedrecords as record_ops
+from ...schemas import projects as project_schemas
+from ...schemas import surveymissions as mission_schemas
+from ...schemas import webui as webui_schemas
 from .. import filters
 from . import common
 
@@ -58,7 +54,7 @@ async def get_projects_datalist(request: Request) -> DatastarResponse:
             initiator=user,
             **internal_filter_kwargs,
         )
-    serialized_items = [  # noqa
+    serialized_items = [
         project_schemas.ProjectReadListItem.from_db_instance(item) for item in items
     ]
     return DatastarResponse(
@@ -96,7 +92,7 @@ async def get_missions_datalist(request: Request) -> DatastarResponse:
             initiator=user,
             **internal_filter_kwargs,
         )
-    serialized_items = [  # noqa
+    serialized_items = [
         mission_schemas.SurveyMissionReadListItem.from_db_instance(item)
         for item in items
     ]
@@ -135,7 +131,7 @@ async def get_records_datalist(request: Request) -> DatastarResponse:
             initiator=user,
             **internal_filter_kwargs,
         )
-    serialized_items = [  # noqa
+    serialized_items = [
         webui_schemas.SurveyRelatedRecordReadListItem.from_db_instance(item)
         for item in items
     ]

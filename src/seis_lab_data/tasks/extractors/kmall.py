@@ -348,4 +348,4 @@ def _parse_position_fix(body: bytes) -> tuple[float, float] | None:
 def _utc_date(timestamp: float | None) -> dt.date | None:
     if timestamp is None:
         return None
-    return dt.datetime.fromtimestamp(timestamp, dt.timezone.utc).date()
+    return dt.datetime.fromtimestamp(timestamp, dt.UTC).date()

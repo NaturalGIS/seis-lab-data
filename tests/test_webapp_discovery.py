@@ -13,10 +13,8 @@ from seis_lab_data import (
 from seis_lab_data.db.commands import surveymissions as mission_commands
 from seis_lab_data.db.queries import surveyrelatedrecords as record_queries
 from seis_lab_data.operations import surveyrelatedrecords as record_ops
-from seis_lab_data.schemas import (
-    identifiers,
-    surveyrelatedrecords as record_schemas,
-)
+from seis_lab_data.schemas import identifiers
+from seis_lab_data.schemas import surveyrelatedrecords as record_schemas
 from seis_lab_data.tasks import discovery as discovery_tasks
 from seis_lab_data.webapp.auth_backend import OIDCAuthBackend
 

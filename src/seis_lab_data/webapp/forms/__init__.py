@@ -14,12 +14,12 @@ from .surveyrelatedrecords import (
 )
 
 __all__ = [
-    FormProtocol,
-    ProjectCreateForm,
-    ProjectUpdateForm,
-    SurveyMissionCreateForm,
-    SurveyMissionUpdateForm,
-    SurveyRelatedRecordBulkUpdateForm,
-    SurveyRelatedRecordCreateForm,
-    SurveyRelatedRecordUpdateForm,
+    "FormProtocol",
+    "ProjectCreateForm",
+    "ProjectUpdateForm",
+    "SurveyMissionCreateForm",
+    "SurveyMissionUpdateForm",
+    "SurveyRelatedRecordBulkUpdateForm",
+    "SurveyRelatedRecordCreateForm",
+    "SurveyRelatedRecordUpdateForm",
 ]

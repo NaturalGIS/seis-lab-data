@@ -4,8 +4,8 @@ from typing import (
     cast,
 )
 
-import shapely
 import pydantic
+import shapely
 from geoalchemy2 import WKBElement
 
 from .. import constants

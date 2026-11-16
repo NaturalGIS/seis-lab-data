@@ -2,14 +2,13 @@ import dataclasses
 import datetime as dt
 import json
 import logging
-import uuid
 import re
+import uuid
+from collections.abc import Mapping
 from typing import (
-    Mapping,
     Protocol,
+    Self,
 )
-
-from typing_extensions import Self
 
 import shapely
 
@@ -63,7 +62,7 @@ class TemporalExtentFilter(SimpleListFilter):
             result = f"temporalExtentBegin={self.value.begin.strftime('%Y-%m-%d')}"
         if self.value.end:
             result += f"&temporalExtentEnd={self.value.end.strftime('%Y-%m-%d')}"
-        return result[1:] if result.startswith("&") else result
+        return result.removeprefix("&")
 
 
 @dataclasses.dataclass
@@ -171,7 +170,7 @@ class DatasetCategoryFilter(SimpleListFilter):
         return cls(value=parsed)
 
     def serialize_to_query_string(self) -> str:
-        return f"{self.public_name}={str(self.value)}" if self.value else ""
+        return f"{self.public_name}={self.value!s}" if self.value else ""
 
 
 @dataclasses.dataclass
@@ -189,7 +188,7 @@ class WorkflowStageFilter(SimpleListFilter):
         return cls(value=parsed)
 
     def serialize_to_query_string(self) -> str:
-        return f"{self.public_name}={str(self.value)}" if self.value else ""
+        return f"{self.public_name}={self.value!s}" if self.value else ""
 
 
 @dataclasses.dataclass

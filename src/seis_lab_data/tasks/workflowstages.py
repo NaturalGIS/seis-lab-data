@@ -6,12 +6,9 @@ import dramatiq
 
 from .. import config
 from ..operations import workflowstages as stage_ops
-from ..schemas import (
-    workflowstages as stage_schemas,
-    identifiers,
-    user as user_schemas,
-)
-
+from ..schemas import identifiers
+from ..schemas import user as user_schemas
+from ..schemas import workflowstages as stage_schemas
 from . import decorators
 from .stub import sld_stub_broker
 

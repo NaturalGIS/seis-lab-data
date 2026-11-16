@@ -10,6 +10,7 @@ from starlette_babel import (
     get_translator,
     switch_locale,
 )
+
 import seis_lab_data
 from seis_lab_data import (
     constants,

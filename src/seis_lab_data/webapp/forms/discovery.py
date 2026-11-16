@@ -13,10 +13,8 @@ from wtforms import (
 )
 
 from ... import constants
-from ...db.queries import (
-    datasetcategories as category_queries,
-    workflowstages as stage_queries,
-)
+from ...db.queries import datasetcategories as category_queries
+from ...db.queries import workflowstages as stage_queries
 from ...schemas import discovery as discovery_schemas
 from .common import incorporate_schema_validation_errors_into_form
 

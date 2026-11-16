@@ -1,7 +1,7 @@
 import inspect
 import logging
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable
 
 from datastar_py import ServerSentEventGenerator
 from datastar_py.starlette import DatastarResponse
@@ -10,10 +10,8 @@ from starlette.responses import RedirectResponse
 
 from ...constants import AUTH_CLIENT_NAME
 from ...db.commands.users import upsert_user
-from ...schemas import (
-    identifiers,
-    user as user_schemas,
-)
+from ...schemas import identifiers
+from ...schemas import user as user_schemas
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +65,8 @@ async def auth_callback(request: Request):
             # session cookie to be silently dropped and login to break.
             response.set_cookie("id_token", id_token, httponly=True, samesite="lax")
         return response
-    except Exception as err:
-        logger.error(f"Authentication error: {err}")
+    except Exception:
+        logger.exception("Authentication error")
         return RedirectResponse(url=request.url_for("login"), status_code=302)
 
 
@@ -107,7 +105,7 @@ def requires_auth(route_function: Callable):
         bound_args = sig.bind(*args, **kwargs)
         bound_args.apply_defaults()
 
-        for name, value in bound_args.arguments.items():
+        for value in bound_args.arguments.values():
             if isinstance(value, Request):
                 request = value
                 break

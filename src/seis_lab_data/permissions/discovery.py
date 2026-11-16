@@ -2,7 +2,6 @@ import logging
 
 from ..db import models
 from ..schemas.user import User
-
 from .common import can_manage_item
 from .projects import can_update_project
 

@@ -1,6 +1,6 @@
-from decimal import Decimal
 import logging
 import typing
+from decimal import Decimal
 
 import pydantic
 from starlette.requests import Request
@@ -10,11 +10,11 @@ from wtforms import (
     DecimalField,
     Field,
     Form,
+    FormField,
     StringField,
-    validators,
     TextAreaField,
     URLField,
-    FormField,
+    validators,
 )
 
 from ... import constants
@@ -52,8 +52,7 @@ def get_form_field_by_name(form: Form | FormField, name: str) -> Field | None:
     for field in form:
         if field.short_name == name:
             return field
-    else:
-        return None
+    return None
 
 
 def incorporate_schema_validation_errors_into_form(
@@ -112,7 +111,8 @@ def retrieve_form_field_by_pydantic_loc(
 class NameField(StringField):
     """A required, length-limited name field."""
 
-    def __init__(self, label=_("Name"), **kwargs):
+    def __init__(self, label=None, **kwargs):
+        label = _("Name") if label is None else label
         kwargs.setdefault("description", _("Name of the item"))
         kwargs.setdefault(
             "validators", [validators.Length(max=constants.NAME_MAX_LENGTH)]
@@ -124,7 +124,8 @@ class NameField(StringField):
 class DescriptionField(TextAreaField):
     """An optional, length-limited description field."""
 
-    def __init__(self, label=_("Description"), **kwargs):
+    def __init__(self, label=None, **kwargs):
+        label = _("Description") if label is None else label
         kwargs.setdefault("description", _("Short description about this item"))
         kwargs.setdefault(
             "validators", [validators.Length(max=constants.DESCRIPTION_MAX_LENGTH)]

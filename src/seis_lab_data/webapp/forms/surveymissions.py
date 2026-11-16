@@ -15,16 +15,14 @@ from wtforms.widgets import TextInput
 
 from ... import constants
 from ...db.queries.surveymissions import get_survey_mission_by_name
-from ...schemas import (
-    identifiers,
-    surveymissions as survey_mission_schemas,
-)
+from ...schemas import identifiers
+from ...schemas import surveymissions as survey_mission_schemas
 from .common import (
     BoundingBoxForm,
-    NameField,
     DescriptionField,
-    incorporate_schema_validation_errors_into_form,
     LinkForm,
+    NameField,
+    incorporate_schema_validation_errors_into_form,
 )
 from .fields import (
     EpsgCodeField,

@@ -1,10 +1,10 @@
 import sqlmodel
 from sqlalchemy import Engine
-from sqlalchemy.ext.asyncio.session import async_sessionmaker
 from sqlalchemy.ext.asyncio.engine import (
     AsyncEngine,
     create_async_engine,
 )
+from sqlalchemy.ext.asyncio.session import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ..config import SeisLabDataSettings
