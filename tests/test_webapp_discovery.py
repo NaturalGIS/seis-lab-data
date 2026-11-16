@@ -146,12 +146,12 @@ async def test_mission_page_shows_discovery_progress_in_place_of_its_status_icon
     response = test_client.get(f"/survey-missions/{mission.id}", params={"lang": "en"})
 
     assert response.status_code == 200
-    # always there, so that status changes can morph it
-    assert 'id="survey-mission-status"' in response.text
-    status_item = response.text.split('id="survey-mission-status"')[1].split("</li>")[0]
-    assert ("hidden" in status_item.split(">")[0]) is (
-        status == constants.SurveyMissionStatus.PUBLISHED
+    info_section = response.text.split('id="survey-mission-info"')[1]
+    # a published mission has no status item, so that the list keeps its borders
+    assert ('aria-label="status"' in info_section) is (
+        status != constants.SurveyMissionStatus.PUBLISHED
     )
+    status_item = info_section.split('aria-label="status"')[-1].split("</li>")[0]
     for label in (
         "discovery-sections-progress",
         "discovery-section",
@@ -217,7 +217,7 @@ async def test_details_component_is_morphed_into_the_detail_page(
     assert "data: selector" not in response.text
     assert 'id="survey-mission-summary"' in response.text
     assert 'id="survey-mission-actions"' in response.text
-    assert 'id="survey-mission-status"' in response.text
+    assert 'id="survey-mission-info"' in response.text
     assert 'aria-label="cancel-mission-discovery"' in response.text
     assert 'aria-label="discovery-sections-progress"' in response.text
     # the page's own request id, which its stream filters messages by

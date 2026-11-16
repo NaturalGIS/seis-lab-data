@@ -35,6 +35,7 @@ from ... import (
 )
 from ...db.queries import datasetcategories as category_queries
 from ...db.queries import recordassets as asset_queries
+from ...db.queries import surveymissions as mission_queries
 from ...db.queries import surveyrelatedrecords as record_queries
 from ...db.queries import workflowstages as stage_queries
 from ...operations import projects as project_ops
@@ -139,9 +140,13 @@ async def _get_survey_mission_details(
                 session, user, survey_mission_id=survey_mission_id
             )
         )
+        has_busy_records = await mission_queries.survey_mission_has_busy_records(
+            session, survey_mission_id
+        )
     return webui_schemas.SurveyMissionDetails(
         counts=counts[survey_mission_id],
         records_summary=records_summary,
+        has_busy_descendants=has_busy_records,
         dataset_categories=dataset_category_filter_options,
         workflow_stages=workflow_stage_filter_options,
         filter_media_types_datalist=media_type_filter_options,
@@ -215,9 +220,9 @@ async def _get_survey_mission_details(
 
 
 async def get_details_component(request: Request):
-    """Re-render a mission's summary, actions and status, to be morphed into its page.
+    """Re-render a mission's summary, actions and info, to be morphed into its page.
 
-    The mission's status and validity signals are patched as well. The page's
+    The mission's status, validity and busy records signals are patched as well. The page's
     request id is passed along, so that the re-rendered actions keep reporting
     their progress to the page's stream.
     """
@@ -233,6 +238,7 @@ async def get_details_component(request: Request):
         "permissions": details.permissions,
         "counts": details.counts,
         "records_summary": details.records_summary,
+        "has_busy_descendants": details.has_busy_descendants,
     }
     templates = request.state.templates
     rendered = "".join(
@@ -240,7 +246,7 @@ async def get_details_component(request: Request):
         for template_name in (
             "survey-missions/detail-summary.html",
             "survey-missions/detail-actions.html",
-            "survey-missions/detail-status.html",
+            "survey-missions/detail-info.html",
         )
     )
 
@@ -248,12 +254,13 @@ async def get_details_component(request: Request):
         yield ServerSentEventGenerator.patch_signals(
             {
                 "status": details.item.status.value,
+                "hasBusyDescendants": details.has_busy_descendants,
                 "isValid": bool(
                     (details.item.validation_result or {}).get("is_valid", False)
                 ),
             }
         )
-        # no selector, the summary and actions are matched by their ids and morphed
+        # no selector, the summary, actions and info are matched by their ids and morphed
         yield ServerSentEventGenerator.patch_elements(rendered)
 
     return DatastarResponse(event_streamer())
@@ -748,6 +755,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
                 "permissions": details.permissions,
                 "counts": details.counts,
                 "records_summary": details.records_summary,
+                "has_busy_descendants": details.has_busy_descendants,
                 "breadcrumbs": details.breadcrumbs,
                 "dataset_categories": details.dataset_categories,
                 "workflow_stages": details.workflow_stages,

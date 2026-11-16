@@ -1,0 +1,29 @@
+{% from "macros/info.html" import render_info_section %}
+{# the mission's info section, re-rendered as a whole on status changes, as its items
+   depend on the status #}
+<div id="survey-mission-info" class="page-layout-info">
+    {{ render_info_section(
+        general_info=[
+            _("This page shows a survey mission and its survey-related records."),
+            _("Selected records can be downloaded through a list of links to their data files, for use with the aria2c download tool. Only published records are included in the list."),
+        ],
+        privileged_info=[
+            _("Editing a survey mission validates it again. If it becomes invalid it goes back to DRAFT, along with its survey-related records."),
+            _("Discovery scans the survey mission's path in the archive and creates a survey-related record for each file matched by the asset discovery configurations."),
+            _("Discovery is only available for survey missions that have a relative path. Edit the survey mission to set it."),
+            _("A running discovery can be cancelled. The survey-related records it created until then are kept, and running discovery again resumes it."),
+            _("Deleting a survey mission also deletes its survey-related records."),
+        ],
+        show_privileged_info=request.user.is_authenticated,
+        item=item,
+        status_template="survey-missions/detail-status.html",
+        privileged_notices=[
+            {
+                "text": _("This survey mission cannot be deleted while some of its survey-related records are being processed."),
+                "icon": icons.deletion_blocked,
+                "condition": "$hasBusyDescendants",
+                "shown": has_busy_descendants,
+            },
+        ]
+    ) }}
+</div>

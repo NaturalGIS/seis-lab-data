@@ -417,19 +417,7 @@ async def delete_project(
             raise errors.SeisLabDataError(
                 errors.N_("User is not allowed to delete the project.")
             )
-        if (project_status := project.status) not in constants.PROJECT_IDLE_STATUSES:
-            raise errors.SeisLabDataError(
-                errors.N_(
-                    "Cannot delete the project because its status is %(status)s."
-                ),
-                status=project_status.value,
-            )
-        if await project_queries.project_has_busy_descendants(session, project_id):
-            raise errors.SeisLabDataError(
-                errors.N_(
-                    "Cannot delete the project because some of its survey missions or survey-related records are currently being processed."
-                )
-            )
+        # also refuses a busy project, or one with busy missions or records
         await project_commands.delete_project(session, project_id)
     except errors.SeisLabDataError as err:
         await event_dispatcher(

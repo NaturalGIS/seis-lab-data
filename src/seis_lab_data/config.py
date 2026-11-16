@@ -46,6 +46,7 @@ class SeisLabDataIconSettings(BaseModel):
     data_format: str = "insert_drive_file"
     dataset_category: str = "category"
     delete_item: str = "delete"
+    deletion_blocked: str = "block"
     discover_contents: str = "travel_explore"
     docs: str = "menu_book"
     download: str = "download"

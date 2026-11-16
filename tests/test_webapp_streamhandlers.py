@@ -9,6 +9,9 @@ from seis_lab_data import (
     constants,
     subscribers,
 )
+from seis_lab_data.db.commands import surveymissions as mission_commands
+from seis_lab_data.db.commands import surveyrelatedrecords as record_commands
+from seis_lab_data.schemas import identifiers
 from seis_lab_data.schemas import messages as message_schemas
 from seis_lab_data.webapp.streamhandlers import common as common_handlers
 
@@ -29,6 +32,96 @@ def _status_changed(resource_type, resource_id, succeeded=True):
 
 async def _collect(handler, message, context) -> list[str]:
     return [event async for event in handler(message, context)]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "page_resource_type",
+    [
+        pytest.param(constants.ResourceType.PROJECT, id="project-page"),
+        pytest.param(constants.ResourceType.MISSION, id="mission-page"),
+    ],
+)
+@pytest.mark.parametrize(
+    "record_status, expected_busy",
+    [
+        pytest.param(
+            constants.SurveyRelatedRecordStatus.UNDER_EXPORT, True, id="busy-record"
+        ),
+        pytest.param(
+            constants.SurveyRelatedRecordStatus.DRAFT, False, id="idle-record"
+        ),
+    ],
+)
+async def test_detail_page_tracks_busy_records_without_notifying_them(
+    db_session_maker,
+    sample_survey_related_records,
+    admin_user,
+    page_resource_type,
+    record_status,
+    expected_busy,
+):
+    record = sample_survey_related_records[0]
+    async with db_session_maker() as session:
+        await record_commands.set_survey_related_record_status(
+            session, identifiers.SurveyRelatedRecordId(record.id), record_status
+        )
+    resource_id = (
+        record.survey_mission.project_id
+        if page_resource_type == constants.ResourceType.PROJECT
+        else record.survey_mission_id
+    )
+
+    events = await _collect(
+        common_handlers.handle_resource_status_changed_detail_page,
+        _status_changed(constants.ResourceType.RECORD, record.id),
+        subscribers.HandlerContext(
+            resource_id=str(resource_id),
+            resource_type=page_resource_type,
+            db_session_factory=db_session_maker,
+            user=admin_user,
+        ),
+    )
+
+    (signals,) = [_parse_patched_signals(event) for event in events]
+    assert "listingVersion" in signals
+    assert signals["hasBusyDescendants"] is expected_busy
+    # tasks change the statuses of many records at once
+    assert not any(_SAME_PAGE_NOTIFICATION in event for event in events)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_project_page_tracks_busy_missions(
+    db_session_maker, sample_survey_missions, admin_user
+):
+    mission = sample_survey_missions[0]
+    async with db_session_maker() as session:
+        await mission_commands.set_survey_mission_status(
+            session,
+            identifiers.SurveyMissionId(mission.id),
+            constants.SurveyMissionStatus.UNDER_DISCOVERY,
+        )
+
+    events = await _collect(
+        common_handlers.handle_resource_status_changed_detail_page,
+        _status_changed(constants.ResourceType.MISSION, mission.id),
+        subscribers.HandlerContext(
+            resource_id=str(mission.project_id),
+            resource_type=constants.ResourceType.PROJECT,
+            db_session_factory=db_session_maker,
+            user=admin_user,
+        ),
+    )
+
+    assert any(_SAME_PAGE_NOTIFICATION in event for event in events)
+    (signals,) = [
+        _parse_patched_signals(event)
+        for event in events
+        if "hasBusyDescendants" in event
+    ]
+    assert signals["hasBusyDescendants"] is True
 
 
 @pytest.mark.asyncio

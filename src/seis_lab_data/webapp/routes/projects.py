@@ -28,6 +28,7 @@ from ... import (
     geojson,
     subscribers,
 )
+from ...db.queries import projects as project_queries
 from ...operations import projects as project_ops
 from ...operations import surveymissions as survey_mission_ops
 from ...operations import surveyrelatedrecords as survey_related_record_ops
@@ -213,6 +214,7 @@ async def get_project_details_component(request: Request):
         counts=details.counts,
         records_summary=details.records_summary,
         records_list_url=details.records_list_url,
+        has_busy_descendants=details.has_busy_descendants,
     )
 
     async def event_streamer():
@@ -368,9 +370,11 @@ async def stream_to_detail_page(request: Request):
     redis_client: Redis = request.state.redis_client
     user = request.user if request.user.is_authenticated else None
 
+    # the records' status changes tell whether the project can be deleted
     topic_names = [
         constants.NEW_TOPIC_PROJECTS,
         constants.NEW_TOPIC_SURVEY_MISSIONS,
+        constants.NEW_TOPIC_SURVEY_RELATED_RECORDS,
     ]
     pubsub = await subscribers.open_topic_subscription(redis_client, topic_names)
     subscription = subscribers.iter_topic_messages(
@@ -440,12 +444,16 @@ async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails
                 session, user, project_id=project_id
             )
         )
+        has_busy_descendants = await project_queries.project_has_busy_descendants(
+            session, project_id
+        )
     item = webui_schemas.ProjectReadDetail.from_db_instance(project)
     return webui_schemas.ProjectDetails(
         counts=counts[project_id],
         children_counts=children_counts,
         records_summary=records_summary,
         # the records list page takes its project filter as a compound name
+        has_busy_descendants=has_busy_descendants,
         records_list_url=str(
             request.url_for("survey_related_records:list").include_query_params(
                 filterProject=build_project_compound_name(request, item)
@@ -740,6 +748,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 "counts": details.counts,
                 "records_summary": details.records_summary,
                 "records_list_url": details.records_list_url,
+                "has_busy_descendants": details.has_busy_descendants,
                 "breadcrumbs": details.breadcrumbs,
             },
         )

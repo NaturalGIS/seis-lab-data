@@ -224,7 +224,9 @@ do projeto, das suas missões e dos seus registos, como descrito em
 
 O botão **delete project** da página de detalhe do projeto elimina o projeto após uma
 confirmação. A eliminação de um projeto elimina também as suas missões, os respetivos registos e
-os recursos dos registos. Os ficheiros do arquivo não são modificados.
+os recursos dos registos. Os ficheiros do arquivo não são modificados. O botão está desativado
+enquanto o projeto, ou alguma das suas missões ou registos, se encontra num estado transitório; a
+secção de informação indica-o.
 
 
 ## Trabalhar com missões
@@ -359,8 +361,8 @@ momento são mantidos, e uma nova execução da descoberta continua com os fiche
 
 O botão **delete survey mission** da página de detalhe da missão elimina a missão após uma
 confirmação. A eliminação de uma missão elimina também os seus registos e os respetivos recursos.
-Os ficheiros do arquivo não são modificados. O botão está desativado enquanto a missão se encontra
-num estado transitório.
+Os ficheiros do arquivo não são modificados. O botão está desativado enquanto a missão, ou algum
+dos seus registos, se encontra num estado transitório; a secção de informação indica-o.
 
 
 ## Trabalhar com registos

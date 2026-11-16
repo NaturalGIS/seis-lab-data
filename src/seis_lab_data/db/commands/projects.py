@@ -1,10 +1,19 @@
 import logging
 
-from sqlalchemy import update
+from sqlalchemy import (
+    func,
+    select,
+    update,
+)
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import errors
-from ...constants import ProjectStatus
+from ...constants import (
+    PROJECT_IDLE_STATUSES,
+    SURVEY_MISSION_IDLE_STATUSES,
+    SURVEY_RELATED_RECORD_IDLE_STATUSES,
+    ProjectStatus,
+)
 from ...schemas import identifiers
 from ...schemas import projects as project_schemas
 from .. import models
@@ -43,13 +52,69 @@ async def delete_project(
     session: AsyncSession,
     project_id: identifiers.ProjectId,
 ) -> None:
-    if project := (await project_queries.get_project(session, project_id)):
-        await session.delete(project)
-        await session.commit()
-    else:
+    """Delete an idle project, along with its missions and their records.
+
+    The project, its missions and their records are locked before their statuses
+    are checked, so that no task can make any of them busy while the deletion runs:
+    a task trying to do so waits for the deletion to end, and then finds nothing to
+    change. Raises `SeisLabDataError` if the project does not exist, is busy or has
+    busy missions or records.
+    """
+    project_status = await session.scalar(
+        select(models.Project.status)
+        .where(models.Project.id == project_id)
+        .with_for_update()
+    )
+    if project_status is None:
+        await session.rollback()
         raise errors.SeisLabDataError(
             errors.N_("Project %(id)s does not exist."), id=str(project_id)
         )
+    if project_status not in PROJECT_IDLE_STATUSES:
+        await session.rollback()
+        raise errors.SeisLabDataError(
+            errors.N_("Cannot delete the project because its status is %(status)s."),
+            status=project_status.value,
+        )
+    # every mission and record is locked, as a busy one is told apart only once it
+    # is locked: the statuses are counted with a filter rather than a WHERE clause,
+    # which would be applied before the rows are locked
+    locked_missions = (
+        select(models.SurveyMission.status)
+        .where(models.SurveyMission.project_id == project_id)
+        .with_for_update()
+        .subquery()
+    )
+    num_busy_missions = await session.scalar(
+        select(
+            func.count().filter(
+                locked_missions.c.status.not_in(SURVEY_MISSION_IDLE_STATUSES)
+            )
+        ).select_from(locked_missions)
+    )
+    locked_records = (
+        select(models.SurveyRelatedRecord.status)
+        .join(models.SurveyMission)
+        .where(models.SurveyMission.project_id == project_id)
+        .with_for_update(of=models.SurveyRelatedRecord)
+        .subquery()
+    )
+    num_busy_records = await session.scalar(
+        select(
+            func.count().filter(
+                locked_records.c.status.not_in(SURVEY_RELATED_RECORD_IDLE_STATUSES)
+            )
+        ).select_from(locked_records)
+    )
+    if num_busy_missions > 0 or num_busy_records > 0:
+        await session.rollback()
+        raise errors.SeisLabDataError(
+            errors.N_(
+                "Cannot delete the project because some of its survey missions or survey-related records are currently being processed."
+            )
+        )
+    await session.delete(await project_queries.get_project(session, project_id))
+    await session.commit()
 
 
 async def update_project(

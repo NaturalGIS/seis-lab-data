@@ -9,6 +9,8 @@
     data-on-intersect__once="@get('{{ url_for("projects:detail_stream", project_id=item.id, request_id=request_id) }}')"
     data-signals:is-valid="{{ 'true' if item.validation_result.is_valid else 'false' }}"
     data-signals:status="'{{ item.status.value }}'"
+    data-computed:is-busy="!['draft', 'published'].includes($status)"
+    data-signals:has-busy-descendants="{{ has_busy_descendants | tojson }}"
 >
     <div class="page-layout-main">
         <div class="row mb-5">
@@ -115,7 +117,8 @@
                             running_message=_("deleting project..."),
                             generated_csrf_token=csrf_token(request),
                             modal_dialog_title=_("delete project"),
-                            modal_dialog_confirmation_text=_("Are you sure you want to delete the project “%(name)s”?") | format(name=item.name)
+                            modal_dialog_confirmation_text=_("Are you sure you want to delete the project “%(name)s”?") | format(name=item.name),
+                            disabled_condition="$isBusy || $hasBusyDescendants"
                         ) }}
                         {% endif %}
                     </div>
@@ -142,7 +145,15 @@
                 _("Deleting a project also deletes its survey missions and their survey-related records."),
             ],
             show_privileged_info=request.user.is_authenticated,
-            item=item
+            item=item,
+            privileged_notices=[
+                {
+                    "text": _("This project cannot be deleted while some of its survey missions or survey-related records are being processed."),
+                    "icon": icons.deletion_blocked,
+                    "condition": "$hasBusyDescendants",
+                    "shown": has_busy_descendants,
+                },
+            ]
         ) }}
     </div>
 </div>
