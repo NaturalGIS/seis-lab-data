@@ -271,9 +271,6 @@ services:
   martin-tile-server:
     image: ghcr.io/maplibre/martin:1.16.1
     command: ["--config", "/run/secrets/martin-config"]
-    depends_on:
-      db:
-        condition: service_healthy
     secrets:
       - martin-config
     networks:

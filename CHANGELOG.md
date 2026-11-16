@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgraded GDAL to 3.12.4 (docker base image and Python bindings) and uv to 0.13.8 in the docker image
 - Upgraded PostGIS to 3.7, martin to 1.16.1, dozzle to v11 and the GeoNode nginx image to 1.31.8
 - Upgraded the images used by the CI deployment pipeline
+- Martin no longer serves the projects, survey missions and survey-related records tables, only the PMTiles base map
 - The creation timestamps of projects, survey missions and survey-related records, and the GeoNode export timestamp of records, are now stored with their time zone
 - Adopted the default rule set of ruff 0.17 and fixed the code accordingly; alembic migrations and auxiliary scripts are excluded from ruff
 

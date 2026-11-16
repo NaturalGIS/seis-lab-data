@@ -609,19 +609,18 @@ tarefa ou pedido que não encontre uma ligação livre espera até `SEIS_LAB_DAT
 `compose.prod-env.yaml`. Ao alterar o número de processos, verifique que o total se mantém abaixo desse limite:
 
 ```
-(processos da webapp + processos de todos os workers) × (DB_POOL_SIZE + DB_MAX_OVERFLOW) + pool do martin + margem
+(processos da webapp + processos de todos os workers) × (DB_POOL_SIZE + DB_MAX_OVERFLOW) + margem
 ```
 
-Com os valores por omissão: (8 + 2 + 2 + 3) × (5 + 5) + 20 (martin) = 170, deixando 30 ligações para administração.
+Com os valores por omissão: (8 + 2 + 2 + 3) × (5 + 5) = 150, deixando 50 ligações para administração.
 
 [^2]: Visão geral do padrão publicação/subscrição: <https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern>
 
 
 #### 5. Componente `map tiles server`
 
-Instância [Martin](https://martin.maplibre.org/) que serve _map tiles_ vetoriais a partir da
-base de dados PostGIS e de ficheiros PMTiles. Acessível sob o caminho `/tiles` do domínio
-principal.
+Instância [Martin](https://martin.maplibre.org/) que serve as _map tiles_ do mapa base a partir de ficheiros
+PMTiles. Acessível sob o caminho `/tiles` do domínio principal.
 
 
 ##### Ficheiros de configuração relevantes

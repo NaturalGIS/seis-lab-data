@@ -193,8 +193,6 @@ services:
   martin-tile-server:
     image: ghcr.io/maplibre/martin:1.16.1
     command: ["--config", "/martin-conf"]
-    environment:
-      SLD_DATABASE_URL: postgres://sld:sldpass@db/seis_lab_data
     configs:
       - martin-conf
     volumes:
@@ -202,9 +200,6 @@ services:
         source: ../tests/data/pmtiles
         target: /pmtiles
         read_only: true
-    depends_on:
-      db:
-        condition: service_healthy
     labels:
       - "traefik.enable=true"
       - "traefik.http.middlewares.martin-stripprefix.stripprefix.prefixes=/tiles"
@@ -239,48 +234,6 @@ configs:
       listen_addresses: '0.0.0.0:3000'
       web_ui: disable
       cache_size_mb: 0
-      postgres:
-        connection_string: $${SLD_DATABASE_URL}
-        auto_publish: false
-
-        tables:
-
-          projects:
-            schema: public
-            table: project
-            srid: 4326
-            geometry_column: bbox_4326
-            id_column: ~
-            geometry_type: POLYGON
-            buffer: 256
-            properties:
-              id: uuid
-              name: jsonb
-
-          survey_missions:
-            schema: public
-            table: surveymission
-            srid: 4326
-            geometry_column: bbox_4326
-            id_column: ~
-            geometry_type: POLYGON
-            buffer: 256
-            properties:
-              id: uuid
-              name: jsonb
-
-          survey_related_records:
-            schema: public
-            table: surveyrelatedrecord
-            srid: 4326
-            geometry_column: bbox_4326
-            id_column: ~
-            geometry_type: POLYGON
-            buffer: 256
-            properties:
-              id: uuid
-              name: jsonb
-
       pmtiles:
         # the sources are local files, none is fetched over http
         allow_http: false

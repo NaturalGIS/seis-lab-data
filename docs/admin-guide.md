@@ -586,18 +586,18 @@ fails. The database accepts at most 200 connections, as set by the `command` of 
 `compose.prod-env.yaml`. When changing the number of processes, check that the total stays below that limit:
 
 ```
-(webapp processes + all worker processes) × (DB_POOL_SIZE + DB_MAX_OVERFLOW) + martin pool + margin
+(webapp processes + all worker processes) × (DB_POOL_SIZE + DB_MAX_OVERFLOW) + margin
 ```
 
-With the defaults: (8 + 2 + 2 + 3) × (5 + 5) + 20 (martin) = 170, leaving 30 connections for administration.
+With the defaults: (8 + 2 + 2 + 3) × (5 + 5) = 150, leaving 50 connections for administration.
 
 [^2]: General overview of the publish/subscribe pattern: <https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern>
 
 
 #### 5. `map tiles server` component
 
-[Martin](https://martin.maplibre.org/) instance that serves vector map tiles from the PostGIS
-database and PMTiles files. Accessible under the `/tiles` path of the main domain.
+[Martin](https://martin.maplibre.org/) instance that serves the base map tiles from PMTiles files. Accessible under
+the `/tiles` path of the main domain.
 
 
 ##### Relevant configuration files
