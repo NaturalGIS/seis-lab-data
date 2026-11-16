@@ -1,5 +1,6 @@
 """Tests for the handlers relaying item status changes to the pages that show them."""
 
+import json
 import uuid
 
 import pytest
@@ -172,10 +173,24 @@ async def test_mission_page_refreshes_in_place_on_status_change(
     for signal in ("status", "detailsVersion", "listingVersion"):
         assert signal in events[1]
     assert new_status.value in events[1]
-    assert ("discoveryProgress" in events[1]) is resets_progress
+    for signal in (
+        "discoveryProgress",
+        "discoverySectionsDone",
+        "discoverySectionsTotal",
+        "discoverySectionLabel",
+        "discoverySectionPath",
+    ):
+        assert (signal in events[1]) is resets_progress
 
 
-def _discovery(mission_id, modification, succeeded=True, details=None, request_id=None):
+def _build_discovery_message(
+    mission_id,
+    modification,
+    succeeded=True,
+    details=None,
+    request_id=None,
+    **sections,
+):
     return message_schemas.DiscoveryMessage(
         request_id=request_id or uuid.uuid4(),
         resource_type=constants.ResourceType.MISSION,
@@ -183,7 +198,82 @@ def _discovery(mission_id, modification, succeeded=True, details=None, request_i
         modification=modification,
         succeeded=succeeded,
         details=details,
+        **sections,
     )
+
+
+def _parse_patched_signals(event: str) -> dict:
+    (data,) = [line for line in event.splitlines() if line.startswith("data: signals ")]
+    return json.loads(data.removeprefix("data: signals "))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "sections, expected",
+    [
+        pytest.param({}, None, id="sections unknown"),
+        pytest.param(
+            {"sections_done": 0, "sections_total": 3},
+            {
+                "discoverySectionsDone": 0,
+                "discoverySectionsTotal": 3,
+                "discoverySectionLabel": "sections to discover: 3",
+                "discoverySectionPath": "",
+            },
+            id="no section reached yet",
+        ),
+        pytest.param(
+            {
+                "sections_done": 1,
+                "sections_total": 3,
+                "current_section": "s06-mbes/s02-raw-data",
+            },
+            {
+                "discoverySectionsDone": 1,
+                "discoverySectionsTotal": 3,
+                "discoverySectionLabel": "section 2 of 3: s06-mbes/s02-raw-data",
+                "discoverySectionPath": "s06-mbes/s02-raw-data",
+            },
+            id="short section path",
+        ),
+        pytest.param(
+            {
+                "sections_done": 2,
+                "sections_total": 3,
+                "current_section": "s06-mbes/s08-gis/s01-surfaces",
+            },
+            {
+                "discoverySectionsDone": 2,
+                "discoverySectionsTotal": 3,
+                "discoverySectionLabel": "section 3 of 3: s06-mbes/…/s01-surfaces",
+                "discoverySectionPath": "s06-mbes/s08-gis/s01-surfaces",
+            },
+            id="long section path elided",
+        ),
+    ],
+)
+async def test_mission_page_shows_discovery_sections(sections, expected):
+    mission_id = uuid.uuid4()
+
+    (event,) = await _collect(
+        common_handlers.handle_discovery_detail_page,
+        _build_discovery_message(
+            mission_id, constants.DiscoveryStage.PROGRESS, details="3 files", **sections
+        ),
+        subscribers.HandlerContext(
+            resource_id=str(mission_id), resource_type=constants.ResourceType.MISSION
+        ),
+    )
+
+    signals = _parse_patched_signals(event)
+    if expected is None:
+        assert not any(name.startswith("discoverySection") for name in signals)
+    else:
+        assert {
+            name: value
+            for name, value in signals.items()
+            if name.startswith("discoverySection")
+        } == expected
 
 
 @pytest.mark.asyncio
@@ -192,7 +282,9 @@ async def test_mission_page_shows_discovery_progress_in_place():
 
     events = await _collect(
         common_handlers.handle_discovery_detail_page,
-        _discovery(mission_id, constants.DiscoveryStage.PROGRESS, details="3 files"),
+        _build_discovery_message(
+            mission_id, constants.DiscoveryStage.PROGRESS, details="3 files"
+        ),
         subscribers.HandlerContext(
             resource_id=str(mission_id), resource_type=constants.ResourceType.MISSION
         ),
@@ -225,7 +317,7 @@ async def test_mission_page_discovery_failure_notifications(
 
     events = await _collect(
         common_handlers.handle_discovery_detail_page,
-        _discovery(
+        _build_discovery_message(
             mission_id,
             modification,
             succeeded=False,

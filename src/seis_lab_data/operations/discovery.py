@@ -1,4 +1,5 @@
 import asyncio
+import bisect
 import contextlib
 import dataclasses
 import datetime as dt
@@ -441,6 +442,9 @@ async def run_mission_discovery(
                 succeeded=True,
                 details=details,
                 details_params=details_params,
+                sections_done=counts.sections_done,
+                sections_total=counts.sections_total,
+                current_section=counts.current_section,
             )
         )
         # the records created by this run had their previews requested as they
@@ -528,6 +532,12 @@ class _DiscoveryCounts:
     failed: int = 0
     invalid_configuration_names: list[str] = dataclasses.field(default_factory=list)
     cancelled: bool = False
+    # sections are the outermost path prefixes of the configurations that exist in
+    # the mission's directory, walked one after the other; the sections before the
+    # current one are done
+    sections_total: int | None = None
+    sections_done: int = 0
+    current_section: str | None = None
     started_at: float = dataclasses.field(default_factory=time.monotonic)
     walk_seconds: float = 0.0
     # summed over the extractions, which run concurrently
@@ -593,8 +603,73 @@ class _DiscoveredFile:
     configuration: models.AssetDiscoveryConfiguration
     # tracked record whose extent is updated; None when a new record is created
     record_id: identifiers.SurveyRelatedRecordId | None = None
+    # index of the section the file is in; None for a file outside of every section
+    section_index: int | None = None
     metadata: extractor_schemas.ExtractionResult | None = None
     bbox_wkt: str | None = None
+
+
+async def _report_discovery_progress_periodically(
+    *,
+    request_id: identifiers.RequestId,
+    mission: models.SurveyMission,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+    user: user_schemas.User,
+    counts: _DiscoveryCounts,
+) -> None:
+    """Dispatch a progress event of a mission's discovery periodically, until cancelled.
+
+    An event is dispatched every `DISCOVERY_PROGRESS_INTERVAL_SECONDS`, starting
+    immediately. A failure to dispatch an event is logged.
+    """
+    while True:
+        logger.info(
+            f"Discovery of mission {mission.name!r} in progress: "
+            f"{counts.describe_timings()}"
+        )
+        details, details_params = counts.describe()
+        try:
+            await event_dispatcher(
+                event_schemas.DiscoveryEvent(
+                    initiator=user.id,
+                    resource_type=constants.ResourceType.MISSION,
+                    resource_id=str(mission.id),
+                    resource_name=mission.name,
+                    request_id=request_id,
+                    modification=constants.DiscoveryStage.PROGRESS,
+                    succeeded=True,
+                    details=details,
+                    details_params=details_params,
+                    sections_done=counts.sections_done,
+                    sections_total=counts.sections_total,
+                    current_section=counts.current_section,
+                )
+            )
+        except Exception:
+            logger.warning(
+                f"Could not report the discovery progress of mission {mission.name!r}",
+                exc_info=True,
+            )
+        await asyncio.sleep(constants.DISCOVERY_PROGRESS_INTERVAL_SECONDS)
+
+
+def _advance_discovery_sections(
+    counts: _DiscoveryCounts,
+    sections: list[pathpatterns.PathGroup],
+    processed: list[_DiscoveredFile],
+) -> None:
+    """Advance the current section of the counts to the furthest one of processed files.
+
+    The sections before the current one are counted as done. Files outside of every
+    section are ignored.
+    """
+    for discovered in processed:
+        if discovered.section_index is not None and (
+            counts.current_section is None
+            or discovered.section_index > counts.sections_done
+        ):
+            counts.sections_done = discovered.section_index
+            counts.current_section = "/".join(sections[discovered.section_index].parts)
 
 
 async def _discover_mission_records(
@@ -626,8 +701,12 @@ async def _discover_mission_records(
     counted and skipped. Lookups use sessions of their own, writes use `session`.
 
     Once `cancellation_requested` is set the walk stops and queued files are left
-    alone, while the files already being extracted are still written. A progress
-    event is dispatched at most every `DISCOVERY_PROGRESS_INTERVAL_SECONDS`.
+    alone, while the files already being extracted are still written.
+
+    Progress is measured in sections, the outermost literal prefixes of the
+    configurations' path patterns that exist in the mission's directory. A section
+    counts as done once files of a later section are processed. A progress event is
+    dispatched every `DISCOVERY_PROGRESS_INTERVAL_SECONDS`.
 
     Returns the counts of the processed files.
     """
@@ -672,6 +751,11 @@ async def _discover_mission_records(
         else:
             matchable_configs.append(asset_discovery_conf)
     pattern_set = pathpatterns.PathPatternSet(patterns)
+    sections = await pathpatterns.list_path_groups(
+        mission_root_path, pattern_set.prefixes
+    )
+    section_walk_keys = [section.walk_key for section in sections]
+    counts.sections_total = len(sections)
     mission_id = identifiers.SurveyMissionId(mission.id)
     session_maker = settings.get_db_session_maker()
     concurrency = settings.discovery_extraction_concurrency
@@ -686,34 +770,6 @@ async def _discover_mission_records(
     running_extractors = concurrency
     # a record with several data assets is updated once, from its first file
     attempted_record_ids: set[identifiers.SurveyRelatedRecordId] = set()
-    last_progress_at = time.monotonic()
-
-    async def report_progress() -> None:
-        nonlocal last_progress_at
-        if (
-            time.monotonic() - last_progress_at
-            < constants.DISCOVERY_PROGRESS_INTERVAL_SECONDS
-        ):
-            return
-        last_progress_at = time.monotonic()
-        logger.info(
-            f"Discovery of mission {mission.name!r} in progress: "
-            f"{counts.describe_timings()}"
-        )
-        details, details_params = counts.describe()
-        await event_dispatcher(
-            event_schemas.DiscoveryEvent(
-                initiator=user.id,
-                resource_type=constants.ResourceType.MISSION,
-                resource_id=str(mission.id),
-                resource_name=mission.name,
-                request_id=request_id,
-                modification=constants.DiscoveryStage.PROGRESS,
-                succeeded=True,
-                details=details,
-                details_params=details_params,
-            )
-        )
 
     async def schedule_path_chunk(chunk: list[_DiscoveredFile]) -> None:
         lookup_started_at = time.monotonic()
@@ -728,7 +784,7 @@ async def _discover_mission_records(
                 )
             )
         counts.db_seconds += time.monotonic() - lookup_started_at
-        found_before = counts.found
+        skipped = []
         for discovered in chunk:
             if (
                 tracked := tracked_file_paths.get(discovered.relative_path)
@@ -746,14 +802,13 @@ async def _discover_mission_records(
                         f"the DB"
                     )
                     counts.found += 1
+                    skipped.append(discovered)
                     continue
                 attempted_record_ids.add(record_id)
                 discovered.record_id = record_id
             await to_extract.put(discovered)
-        # on a re-run most files are already tracked and only counted here, so
-        # progress must also be reported here
-        if counts.found > found_before:
-            await report_progress()
+        # on a re-run most files are already tracked and only counted here
+        _advance_discovery_sections(counts, sections, skipped)
 
     async def walk_mission_directory() -> None:
         walk_started_at = time.monotonic()
@@ -772,10 +827,20 @@ async def _discover_mission_records(
                     continue
                 if not chunk:
                     chunk_started_at = time.monotonic()
+                path_parts = relative_file_path.split("/")
+                section_index = (
+                    bisect.bisect_right(
+                        section_walk_keys,
+                        pathpatterns.build_walk_order_key(path_parts, is_file=True),
+                    )
+                    - 1
+                )
                 chunk.append(
                     _DiscoveredFile(
                         relative_path=relative_file_path,
                         configuration=matchable_configs[match_index],
+                        # in the root's files, before the first section
+                        section_index=section_index if section_index >= 0 else None,
                     )
                 )
                 if (
@@ -927,7 +992,7 @@ async def _discover_mission_records(
                 ],
                 raw_initiator=json.dumps(dataclasses.asdict(user)),
             )
-        await report_progress()
+        _advance_discovery_sections(counts, sections, batch)
 
     async def write_record_batches() -> None:
         batch: list[_DiscoveredFile] = []
@@ -955,6 +1020,16 @@ async def _discover_mission_records(
         if batch:
             await write_batch(batch)
 
+    # outside of the task group, which would otherwise wait for it forever
+    progress_reporter = asyncio.create_task(
+        _report_discovery_progress_periodically(
+            request_id=request_id,
+            mission=mission,
+            event_dispatcher=event_dispatcher,
+            user=user,
+            counts=counts,
+        )
+    )
     try:
         async with asyncio.TaskGroup() as task_group:
             task_group.create_task(walk_mission_directory())
@@ -964,10 +1039,15 @@ async def _discover_mission_records(
         # a run is reported as cancelled even if all its files were already being
         # extracted when cancellation was requested
         counts.cancelled = cancellation_requested.is_set()
+        if not counts.cancelled:
+            counts.sections_done = counts.sections_total
     # re-raise the first error only; errors of the other tasks are caused by it
     except ExceptionGroup as group:
         raise group.exceptions[0]
     finally:
+        progress_reporter.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await progress_reporter
         # logged even for failed or cancelled runs, as partial timings still show
         # which discovery stage is slowest
         logger.info(

@@ -64,6 +64,9 @@ class DiscoveryMessage(pydantic.BaseModel):
     # an untranslated message template, translated by the stream handlers
     details: str | None = None
     details_params: dict[str, str | int] = {}
+    sections_done: int | None = None
+    sections_total: int | None = None
+    current_section: str | None = None
 
 
 class DerivationMessage(pydantic.BaseModel):

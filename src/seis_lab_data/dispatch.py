@@ -80,6 +80,9 @@ class RedisEventDispatcher:
                         succeeded=event.succeeded,
                         details=event.details,
                         details_params=event.details_params,
+                        sections_done=event.sections_done,
+                        sections_total=event.sections_total,
+                        current_section=event.current_section,
                     ).model_dump_json(),
                 )
             case events.DerivationEvent():

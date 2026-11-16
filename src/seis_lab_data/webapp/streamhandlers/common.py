@@ -703,9 +703,15 @@ async def _handle_survey_mission_status_changed_detail_page(
                 }
                 if message.new_status == constants.SurveyMissionStatus.UNDER_DISCOVERY:
                     # the last progress of a previous discovery
-                    signals["discoveryProgress"] = str(
-                        _("discovery is running")
-                    ).capitalize()
+                    signals |= {
+                        "discoveryProgress": str(
+                            _("discovery is running")
+                        ).capitalize(),
+                        "discoverySectionsDone": 0,
+                        "discoverySectionsTotal": None,
+                        "discoverySectionLabel": "",
+                        "discoverySectionPath": "",
+                    }
                 yield ServerSentEventGenerator.patch_signals(signals)
         case message_schemas.ResourceStatusChangedMessage(
             succeeded=True,
@@ -894,12 +900,36 @@ async def handle_discovery_detail_page(
             modification=constants.DiscoveryStage.PROGRESS
         ):
             # shown in place, along with the records found so far
-            yield ServerSentEventGenerator.patch_signals(
-                {
-                    "discoveryProgress": variables["details"],
-                    "listingVersion": int(time.time() * 1000),
+            signals = {
+                "discoveryProgress": variables["details"],
+                "listingVersion": int(time.time() * 1000),
+            }
+            if message.sections_total is not None:
+                if (current_section := message.current_section) is None:
+                    section_label = _("sections to discover: %(total)d") % {
+                        "total": message.sections_total
+                    }
+                else:
+                    # long paths keep their first and last segments
+                    section_parts = current_section.split("/")
+                    section_label = _(
+                        "section %(number)d of %(total)d: %(section)s"
+                    ) % {
+                        "number": message.sections_done + 1,
+                        "total": message.sections_total,
+                        "section": (
+                            f"{section_parts[0]}/…/{section_parts[-1]}"
+                            if len(section_parts) > 2
+                            else current_section
+                        ),
+                    }
+                signals |= {
+                    "discoverySectionsDone": message.sections_done,
+                    "discoverySectionsTotal": message.sections_total,
+                    "discoverySectionLabel": str(section_label),
+                    "discoverySectionPath": current_section or "",
                 }
-            )
+            yield ServerSentEventGenerator.patch_signals(signals)
             return
         case message_schemas.DiscoveryMessage(
             succeeded=False, modification=constants.DiscoveryStage.CANCELLED

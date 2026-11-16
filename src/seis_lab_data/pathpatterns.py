@@ -11,6 +11,7 @@ import dataclasses
 import logging
 import os
 import re
+import stat
 from collections.abc import (
     AsyncIterator,
     Collection,
@@ -145,6 +146,77 @@ def path_matches_pattern(relative_path_regexp: str, relative_path: str) -> bool:
         logger.warning("Invalid path pattern %r: %s", relative_path_regexp, err)
         return False
     return pattern.matches(relative_path)
+
+
+@dataclasses.dataclass(frozen=True)
+class PathGroup:
+    """Path prefix under a walked root, along with its walk order key."""
+
+    parts: tuple[str, ...]
+    walk_key: tuple[tuple[int, str], ...]
+
+
+def build_walk_order_key(
+    parts: Sequence[str], is_file: bool
+) -> tuple[tuple[int, str], ...]:
+    """Build the walk order key of a relative path.
+
+    Each segment is paired with a flag that sorts files before directories. The last
+    segment is a file if `is_file` is true.
+    """
+    return tuple(
+        (0 if is_file and index == len(parts) - 1 else 1, part)
+        for index, part in enumerate(parts)
+    )
+
+
+def _build_existing_path_groups(
+    root: str, prefixes: Collection[tuple[str, ...]]
+) -> list[PathGroup]:
+    """Build the sorted path groups of the prefixes that exist under `root`.
+
+    The empty prefix is replaced by the subdirectories of `root`.
+    """
+    if () in prefixes:
+        try:
+            _, directory_names, _ = _scan_directory(root)
+        except OSError as err:
+            logger.warning("Could not read directory %r: %s", root, err)
+            return []
+        prefixes = [(directory_name,) for directory_name in directory_names]
+    groups = []
+    for prefix in prefixes:
+        try:
+            stat_result = os.stat(os.path.join(root, *prefix))
+        except OSError:
+            continue
+        groups.append(
+            PathGroup(
+                parts=prefix,
+                walk_key=build_walk_order_key(
+                    prefix, is_file=not stat.S_ISDIR(stat_result.st_mode)
+                ),
+            )
+        )
+    return sorted(groups, key=lambda group: group.walk_key)
+
+
+async def list_path_groups(
+    root: Path, prefixes: Collection[tuple[str, ...]]
+) -> list[PathGroup]:
+    """List the outermost prefixes that exist under `root` as path groups.
+
+    If `root` itself is a prefix, its subdirectories are listed instead. The groups
+    are sorted by walk order key.
+    """
+    outermost_prefixes = {
+        prefix
+        for prefix in prefixes
+        if not any(prefix[:length] in prefixes for length in range(len(prefix)))
+    }
+    return await to_thread.run_sync(
+        _build_existing_path_groups, str(root), outermost_prefixes
+    )
 
 
 def _scan_directory(path: str) -> tuple[tuple[int, int], list[str], list[str]]:
