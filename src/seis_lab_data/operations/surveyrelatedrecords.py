@@ -420,9 +420,9 @@ async def list_survey_related_records(
     asset_path_fragment_filter: str | None = None,
     asset_media_type_filter: str | None = None,
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
-    only_internal: bool = False,
     dataset_category_id: identifiers.DatasetCategoryId | None = None,
     workflow_stage_id: identifiers.WorkflowStageId | None = None,
+    status: constants.SurveyRelatedRecordStatus | None = None,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     kwargs = {
         "survey_mission_ids": survey_mission_ids,
@@ -438,13 +438,13 @@ async def list_survey_related_records(
         "workflow_stage_id": workflow_stage_id,
         "asset_media_type_filter": asset_media_type_filter,
         "record_ids": record_ids,
+        "status": status,
     }
     if initiator is None:
         return await record_queries.list_published_survey_related_records(
             session, **kwargs
         )
     else:
-        kwargs.update(only_internal=only_internal)
         return await record_queries.list_survey_related_records(session, **kwargs)
 
 
@@ -624,6 +624,7 @@ async def bulk_update_survey_related_records(
     asset_media_type_filter: str | None = None,
     dataset_category_id: identifiers.DatasetCategoryId | None = None,
     workflow_stage_id: identifiers.WorkflowStageId | None = None,
+    status: constants.SurveyRelatedRecordStatus | None = None,
 ) -> int | None:
     """Bulk-update either a manually selected set of records or all matching a filter.
 
@@ -660,6 +661,7 @@ async def bulk_update_survey_related_records(
                 asset_media_type_filter=asset_media_type_filter,
                 dataset_category_id=dataset_category_id,
                 workflow_stage_id=workflow_stage_id,
+                status=status,
             )
     except errors.SeisLabDataError as err:
         await event_dispatcher(

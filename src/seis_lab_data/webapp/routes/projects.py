@@ -409,6 +409,9 @@ async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails
     survey_mission_list_filters = filters.SurveyMissionListFilters.from_params(
         request.query_params
     )
+    # the project of the page takes precedence over any project filter
+    survey_mission_filter_kwargs = survey_mission_list_filters.as_kwargs()
+    survey_mission_filter_kwargs.pop("project_id", None)
     user = request.user if request.user.is_authenticated else None
     project_id = get_id_from_request_path(request, "project_id", identifiers.ProjectId)
     settings: config.SeisLabDataSettings = request.state.settings
@@ -433,7 +436,7 @@ async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails
             include_total=True,
             page=survey_mission_current_page,
             page_size=settings.pagination_page_size,
-            **survey_mission_list_filters.as_kwargs(),
+            **survey_mission_filter_kwargs,
         )
         counts = await project_ops.count_project_contents(session, user, [project_id])
         children_counts = await survey_mission_ops.count_survey_mission_contents(
@@ -448,6 +451,20 @@ async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails
             session, project_id
         )
     item = webui_schemas.ProjectReadDetail.from_db_instance(project)
+    children = [
+        webui_schemas.SurveyMissionReadListItem.from_db_instance(sm)
+        for sm in survey_missions
+    ]
+    # the map of the missions starts out showing the filtered area, or else the project
+    if (
+        current_bbox := survey_mission_list_filters.spatial_intersect_filter
+    ) is not None:
+        map_bbox = current_bbox.value
+    elif item.bbox_4326 is not None:
+        map_bbox = item.bbox_4326
+    else:
+        map_bbox = shapely.from_wkt(settings.webmap_default_bbox_wkt)
+    min_lon, min_lat, max_lon, max_lat = map_bbox.bounds
     return webui_schemas.ProjectDetails(
         counts=counts[project_id],
         children_counts=children_counts,
@@ -459,11 +476,19 @@ async def _get_project_details(request: Request) -> webui_schemas.ProjectDetails
                 filterProject=build_project_compound_name(request, item)
             )
         ),
+        current_temporal_extent={
+            "begin": settings.default_temporal_extent_begin,
+            "end": settings.default_temporal_extent_end,
+        },
+        map_bounds={
+            "min_lon": min_lon,
+            "min_lat": min_lat,
+            "max_lon": max_lon,
+            "max_lat": max_lat,
+        },
+        geojson_features=json.dumps(geojson.to_feature_collection(children)),
         item=item,
-        children=[
-            webui_schemas.SurveyMissionReadListItem.from_db_instance(sm)
-            for sm in survey_missions
-        ],
+        children=children,
         children_filter=survey_mission_list_filters.get_text_search_filter(),
         pagination=get_pagination_info(
             survey_mission_current_page,
@@ -750,6 +775,12 @@ class ProjectDetailEndpoint(HTTPEndpoint):
                 "records_list_url": details.records_list_url,
                 "has_busy_descendants": details.has_busy_descendants,
                 "breadcrumbs": details.breadcrumbs,
+                "current_temporal_extent": details.current_temporal_extent,
+                "map_bounds": details.map_bounds,
+                "geojson_features": details.geojson_features,
+                "map_popup_detail_base_url": str(
+                    request.url_for("survey_missions:detail", survey_mission_id="_")
+                ).rpartition("/")[0],
             },
         )
 
@@ -960,6 +991,8 @@ async def get_project_missions_list_component(request: Request):
             raise HTTPException(status_code=400, detail="Invalid search params")
         else:
             internal_filter_kwargs = list_filters.as_kwargs()
+            # the project of the page takes precedence over any project filter
+            internal_filter_kwargs.pop("project_id", None)
             filter_query_string = list_filters.serialize_to_query_string()
     else:
         internal_filter_kwargs = {}
@@ -1016,6 +1049,13 @@ async def get_project_missions_list_component(request: Request):
             rendered,
             selector=webui_schemas.selector_info.items_selector,
             mode=ElementPatchMode.REPLACE,
+        )
+        yield ServerSentEventGenerator.execute_script(
+            UPDATE_BASEMAP_JS_SCRIPT.format(
+                dumped_features=json.dumps(
+                    geojson.to_feature_collection(serialized_items)
+                )
+            )
         )
 
     return DatastarResponse(event_streamer())

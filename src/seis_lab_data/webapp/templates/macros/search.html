@@ -1,4 +1,3 @@
-{% from "macros/checkbox.html" import search_checkbox %}
 
 {% macro search_component(
     search_url,
@@ -29,13 +28,6 @@
                     {{ label_text | capitalize }}
                 </label>
             </search>
-            {{ search_checkbox(
-                "search-only-internal",
-                "true",
-                "filterOnlyInternal",
-                search_url,
-                _("show only internal items") | capitalize
-            ) }}
             <div
                     data-attr:hidden="!$searching"
                     class="spinner-border spinner-border-sm ms-3"

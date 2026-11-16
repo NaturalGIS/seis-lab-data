@@ -4,9 +4,26 @@
     bind_signal,
     search_url,
     label,
-    initial_value=""
+    initial_value="",
+    suggestions_url=None,
+    suggestions_depend_on=None
 ) %}
-    <div class="row mb-3">
+    {# With a `suggestions_url`, the options are replaced by the server's suggestions for
+       the typed text. The request comes from this wrapper, which the input events bubble
+       up to: Datastar cancels an element's ongoing request when the same element makes
+       another one, and the input itself already re-fetches the listing.
+       With `suggestions_depend_on`, the name of another signal, the suggestions are
+       also fetched again whenever that signal changes. Once a suggestion is picked,
+       the input, and thus the search value sent for suggestions, holds that
+       suggestion's full text. #}
+    <div
+            class="row mb-3"
+            {% if suggestions_url %}data-on:input__debounce.300ms="@get('{{ suggestions_url }}?target={{ id }}-datalist&signal={{ bind_signal }}')"{% endif %}
+            {% if suggestions_url and suggestions_depend_on %}
+            data-on-signal-patch__debounce.300ms="@get('{{ suggestions_url }}?target={{ id }}-datalist&signal={{ bind_signal }}')"
+            data-on-signal-patch-filter="{include: /^{{ suggestions_depend_on }}$/}"
+            {% endif %}
+    >
         <datalist id="{{ id ~ '-datalist' }}">
             {% for value in options %}
                 <option value="{{ value }}"></option>

@@ -171,12 +171,12 @@ The following filters are available:
 | Filter | Description |
 |--------|-------------|
 | search projects | Projects whose name contains the given text, ignoring case. |
-| show only internal projects | Only projects that are not published. Available to authenticated users. |
-| Temporal extent begin, end | Projects whose temporal extent lies within the given dates. Projects without a temporal extent are also included. |
-| Map | Projects whose spatial extent intersects the visible area of the map. Projects without a spatial extent are also included. The results are updated when the map is moved. |
+| status | Projects in the selected status, such as draft, published or under validation. Available to authenticated users. |
+| Temporal extent begin, end | Projects whose temporal extent overlaps the given dates. A temporal extent without a begin or an end is taken as open on that side, and projects without a temporal extent are also included. |
+| filter by map area | When switched on, projects whose spatial extent intersects the visible area of the map. Projects without a spatial extent are also included. The results are updated when the map is moved. |
 
-The temporal and map filters are shown with the **toggle advanced search controls** button.
-Selecting a project's extent on the map opens the project's detail page.
+The status, temporal and map filters are shown with the **toggle advanced search controls** button.
+The filters are kept in the page's address, so reloading or sharing it keeps them. Selecting a project's extent on the map opens the project's detail page.
 
 ### Create a new project
 
@@ -229,11 +229,10 @@ records by dataset category and by workflow stage, and the list of its records.
 Survey missions are listed in two places:
 
 - The survey mission listing, at `/survey-missions/`, lists the missions of all projects. It
-  offers the **search survey missions** and **show only internal survey missions** filters and
-  the temporal and map filters, as described in
+  offers the **search survey missions** and **status** filters and the temporal and map filters, as described in
   [Searching for projects](#searching-for-projects).
-- The project's detail page lists the project's missions, with a name search and the
-  **show only internal items** filter.
+- The project's detail page lists the project's missions, with a name search and the **status**
+  filter.
 
 The home page shows the three most recent missions.
 
@@ -371,7 +370,7 @@ Both listings offer the following filters:
 | Filter | Description |
 |--------|-------------|
 | search survey-related records | Records whose name contains the given text, ignoring case. |
-| show only internal survey-related records | Only records that are not published. Available to authenticated users. |
+| status | Records in the selected status, such as draft, published or under export. Available to authenticated users. |
 | dataset category | Records with the selected dataset category. |
 | workflow stage | Records with the selected workflow stage. |
 | media type | Records with an asset of the given media type. |

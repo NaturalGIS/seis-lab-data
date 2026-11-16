@@ -3,6 +3,7 @@
 {% import "macros-buttons.html" as macros_buttons %}
 {% import "macros-maps.html" as macros_maps %}
 {% from "macros/search.html" import search_component %}
+{% from "macros/select.html" import search_select %}
 {% from "macros/records-summary.html" import render_records_summary %}
 <div
     class="page-layout"
@@ -68,18 +69,77 @@
                 </div>
             </div>
         </div>
+        {% set project_missions_url = url_for("projects:get_project_missions_list_component", project_id=item.id) %}
+        {# filters given in the URL, e.g. after reloading the page, are shown in the search controls #}
+        {% set initial_status_filter = request.query_params.get("filterStatus") %}
+        {% set initial_temporal_extent_begin = request.query_params.get("temporalExtentBegin", current_temporal_extent.begin) %}
+        {% set initial_temporal_extent_end = request.query_params.get("temporalExtentEnd", current_temporal_extent.end) %}
+        {% set initial_map_area_filter = request.query_params.get("filterByMapArea") == "true" %}
+        {% set has_initial_advanced_filters = initial_status_filter or initial_temporal_extent_begin or initial_temporal_extent_end or initial_map_area_filter %}
         <div
             class="row mt-4"
             data-signals:listing-version="0"
-            data-effect="$listingVersion > 0 && @get('{{ url_for('projects:get_project_missions_list_component', project_id=item.id) }}?page=' + $currentPage)"
+            data-signals:advanced-search-panel-open="{{ 'true' if has_initial_advanced_filters else 'false' }}"
+            data-effect="$listingVersion > 0 && @get('{{ project_missions_url }}?page=' + $currentPage)"
         >
             <div class="col">
                 <h2>{{ _("Survey missions") }}</h2>
                 {{ search_component(
-                   url_for("projects:get_project_missions_list_component", project_id=item.id),
+                   project_missions_url,
                    _("search project survey missions"),
                    initial_value=search_initial_value | default("", true)
                 ) }}
+                <div class="row justify-content-center mb-3">
+                    <div class="col-12 col-md-10 col-lg-8">
+                        <button
+                                class="btn btn-light btn-sm"
+                                type="button"
+                                data-on:click="$advancedSearchPanelOpen=!$advancedSearchPanelOpen"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#project-advanced-search-controls"
+                                aria-expanded="{{ 'true' if has_initial_advanced_filters else 'false' }}"
+                                aria-controls="project-advanced-search-controls"
+                        >
+                            <span
+                                    class="material-icons-outlined me-1"
+                                    data-attr:style="$advancedSearchPanelOpen ? 'transform: rotate(0deg); transition: transform 0.3s ease;' : 'transform: rotate(-90deg); transition: transform 0.3s ease;'"
+                            >
+                                {{ icons.expand_more }}
+                            </span>
+                            {{ _("toggle advanced search controls") | capitalize }}
+                        </button>
+                    </div>
+                </div>
+                <div class="row collapse{% if has_initial_advanced_filters %} show{% endif %} mb-3" id="project-advanced-search-controls">
+                    <div class="col-12 col-md-4">
+                        {% if request.user.is_authenticated %}
+                            {{ search_select(
+                                "search-status",
+                                status_filter_options(SurveyMissionStatus),
+                                "filterStatus",
+                                project_missions_url,
+                                _("status") | capitalize,
+                                selected_option=initial_status_filter
+                            ) }}
+                        {% endif %}
+                        {{ macros.render_temporal_extent_search_component(
+                            project_missions_url,
+                            _("Temporal extent begin"),
+                            _("Temporal extent end"),
+                            initial_temporal_extent_begin,
+                            initial_temporal_extent_end
+                        ) }}
+                    </div>
+                    <div class="col-12 col-md">
+                        {{ macros.render_map_area_search_component(
+                            project_missions_url,
+                            map_bounds,
+                            geojson_features,
+                            map_popup_detail_base_url=map_popup_detail_base_url | default(""),
+                            filter_active=initial_map_area_filter
+                        ) }}
+                    </div>
+                </div>
                 <div id="project-survey-missions">
                     {% with items = survey_missions %}
                         {% include "survey-missions/list-component.html" %}

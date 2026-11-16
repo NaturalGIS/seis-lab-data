@@ -187,6 +187,61 @@ Object.keys($excludedIds).forEach((k) => { $excludedIds[k] = false });
 {% endmacro %}
 
 
+{# A map of the listed items, whose visible area filters the listing while its
+   switch is on. The visible area is kept in the `currentBbox` signal, which
+   starts out as `map_bounds`, as the map only reports its area once moved.
+   The listing request carries the switch as the `filterByMapArea` signal and the
+   visible area as the `minLon`, `minLat`, `maxLon` and `maxLat` signals. Once the
+   map is panned across the antimeridian, these longitudes may lie outside the
+   [-180, 180] range, which `filters.BoundingBoxFilter` normalizes. #}
+{% macro render_map_area_search_component(
+    search_url,
+    map_bounds,
+    geojson_features,
+    map_popup_detail_base_url="",
+    filter_active=False,
+    extra_on_input_js=""
+) %}
+    <div
+            data-signals:filter-by-map-area="{{ filter_active | tojson }}"
+            data-signals:current-bbox="{{ [[map_bounds.min_lon, map_bounds.min_lat], [map_bounds.max_lon, map_bounds.max_lat]] | tojson }}"
+            data-computed:min-lon="$currentBbox?.[0]?.[0]"
+            data-computed:min-lat="$currentBbox?.[0]?.[1]"
+            data-computed:max-lon="$currentBbox?.[1]?.[0]"
+            data-computed:max-lat="$currentBbox?.[1]?.[1]"
+    >
+        <div class="mb-2 form-check form-switch">
+            <input
+                    id="search-map-area"
+                    class="form-check-input"
+                    type="checkbox"
+                    role="switch"
+                    data-bind:filter-by-map-area
+                    data-on:input="$currentBbox = document.querySelector('base-map').map.getBounds().toArray(); {{ extra_on_input_js }}@get('{{ search_url }}')"
+                    {% if filter_active %}checked{% endif %}
+            >
+            <label class="form-check-label" for="search-map-area">{{ _("filter by map area") | capitalize }}</label>
+        </div>
+        <base-map
+                data-base-map-tile-url="{{ settings.webmap_base_tile_layer_url }}"
+                data-polygon-features="{{ geojson_features }}"
+                data-polygon-fill-color="{{ settings.webmap_default_polygon_fill_color }}"
+                data-polygon-fill-opacity="{{ settings.webmap_default_polygon_fill_opacity }}"
+                data-polygon-outline-color="{{ settings.webmap_default_polygon_outline_color }}"
+                data-polygon-outline-opacity="{{ settings.webmap_default_polygon_outline_opacity }}"
+                data-polygon-outline-width="{{ settings.webmap_default_polygon_outline_width }}"
+                data-item-detail-base-url="{{ map_popup_detail_base_url | default('') }}"
+                data-initial-min-lon="{{ map_bounds.min_lon }}"
+                data-initial-min-lat="{{ map_bounds.min_lat }}"
+                data-initial-max-lon="{{ map_bounds.max_lon }}"
+                data-initial-max-lat="{{ map_bounds.max_lat }}"
+                style="display: block; width: 100%; height: 30vh"
+                data-on:map-moveend="$currentBbox = evt.detail.map.getBounds().toArray(); if ($filterByMapArea) { {{ extra_on_input_js }}@get('{{ search_url }}') }"
+        ></base-map>
+    </div>
+{% endmacro %}
+
+
 {% macro render_search_component(
     search_url,
     label_text,
