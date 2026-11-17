@@ -27,7 +27,7 @@ _THUMBNAIL_HEIGHT = 384
 class BboxStyle(pydantic.BaseModel):
     """How the bbox is drawn, the same as on the web maps."""
 
-    fill_color: str  # hex, e.g. "#c27d0e"
+    fill_color: str  # hex, e.g. "#dc3545"
     fill_opacity: float
     outline_color: str
     outline_opacity: float

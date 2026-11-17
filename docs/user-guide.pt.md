@@ -188,12 +188,13 @@ Estão disponíveis os seguintes filtros:
 | Filtro | Descrição |
 |--------|-----------|
 | search projects | Projetos cujo nome contém o texto indicado, sem distinção entre maiúsculas e minúsculas. |
-| show only internal projects | Apenas os projetos que não estão públicos. Disponível para utilizadores autenticados. |
-| Data de início, Data de fim | Projetos cuja extensão temporal está compreendida entre as datas indicadas. Os projetos sem extensão temporal também são incluídos. |
-| Mapa | Projetos cuja extensão espacial interseta a área visível do mapa. Os projetos sem extensão espacial também são incluídos. Os resultados são atualizados quando o mapa é deslocado. |
+| estado | Projetos no estado selecionado, como rascunho, público ou em validação. Disponível para utilizadores autenticados. |
+| Data de início, Data de fim | Projetos cuja extensão temporal se sobrepõe às datas indicadas. Uma extensão temporal sem início ou sem fim é considerada aberta desse lado, e os projetos sem extensão temporal também são incluídos. |
+| filtrar pela área do mapa | Quando ativo, projetos cuja extensão espacial interseta a área visível do mapa. Os projetos sem extensão espacial também são incluídos. Os resultados são atualizados quando o mapa é deslocado. |
 
-Os filtros temporais e o filtro do mapa são apresentados com o botão
-**toggle advanced search controls**. A seleção da extensão de um projeto no mapa abre a página de
+Os filtros de estado, temporais e do mapa são apresentados com o botão
+**toggle advanced search controls**. Os filtros são mantidos no endereço da página, pelo que se
+mantêm ao recarregá-la ou partilhá-la. A seleção da extensão de um projeto no mapa abre a página de
 detalhe do projeto.
 
 ### Criar um projeto
@@ -248,10 +249,9 @@ espacial, um resumo dos seus registos por categoria e por estádio, e a lista do
 As missões são listadas em dois locais:
 
 - A listagem de missões, em `/survey-missions/`, lista as missões de todos os projetos. Oferece
-  os filtros **search survey missions** e **show only internal survey missions** e os filtros
-  temporais e do mapa, como descrito em [Pesquisar projetos](#pesquisar-projetos).
+  os filtros **search survey missions** e **estado** e os filtros temporais e do mapa, como descrito em [Pesquisar projetos](#pesquisar-projetos).
 - A página de detalhe do projeto lista as missões do projeto, com uma pesquisa por nome e o
-  filtro **show only internal items**.
+  filtro **estado**.
 
 A página inicial apresenta as três missões mais recentes.
 
@@ -396,7 +396,7 @@ Ambas as listagens oferecem os seguintes filtros:
 | Filtro | Descrição |
 |--------|-----------|
 | search survey-related records | Registos cujo nome contém o texto indicado, sem distinção entre maiúsculas e minúsculas. |
-| show only internal survey-related records | Apenas os registos que não estão públicos. Disponível para utilizadores autenticados. |
+| estado | Registos no estado selecionado, como rascunho, público ou em exportação. Disponível para utilizadores autenticados. |
 | categoria | Registos com a categoria selecionada. |
 | estádio | Registos com o estádio selecionado. |
 | media type | Registos com um recurso do tipo de media indicado. |

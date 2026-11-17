@@ -229,6 +229,7 @@ class SurveyRelatedRecordSelection(pydantic.BaseModel):
     asset_media_type_filter: str | None = None
     dataset_category_id: DatasetCategoryId | None = None
     workflow_stage_id: WorkflowStageId | None = None
+    status: SurveyRelatedRecordStatus | None = None
 
 
 class LookupValueCount(pydantic.BaseModel):

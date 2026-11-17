@@ -22,10 +22,13 @@ def _build_survey_mission_statement(
     name_filter: str | None = None,
     spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    status: SurveyMissionStatus | None = None,
 ):
     statement = select(models.SurveyMission).options(
         selectinload(models.SurveyMission.project)
     )
+    if status is not None:
+        statement = statement.where(models.SurveyMission.status == status)
     if name_filter:
         statement = statement.where(models.SurveyMission.name.ilike(f"%{name_filter}%"))
     if spatial_intersect is not None:
@@ -40,19 +43,21 @@ def _build_survey_mission_statement(
         )
     if project_id is not None:
         statement = statement.where(models.SurveyMission.project_id == project_id)
+    # items whose temporal extent overlaps the filter's match it - a missing
+    # bound of the item's temporal extent is taken as unbounded
     if temporal_extent is not None:
         if temporal_extent.begin is not None:
             statement = statement.where(
                 or_(
-                    models.SurveyMission.temporal_extent_begin >= temporal_extent.begin,
-                    models.SurveyMission.temporal_extent_begin.is_(None),
+                    models.SurveyMission.temporal_extent_end >= temporal_extent.begin,
+                    models.SurveyMission.temporal_extent_end.is_(None),
                 )
             )
         if temporal_extent.end is not None:
             statement = statement.where(
                 or_(
-                    models.SurveyMission.temporal_extent_end <= temporal_extent.end,
-                    models.SurveyMission.temporal_extent_end.is_(None),
+                    models.SurveyMission.temporal_extent_begin <= temporal_extent.end,
+                    models.SurveyMission.temporal_extent_begin.is_(None),
                 )
             )
     # name and id are tiebreakers - without them the order of items with the
@@ -88,9 +93,10 @@ async def list_published_survey_missions(
     name_filter: str | None = None,
     spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
+    status: SurveyMissionStatus | None = None,
 ) -> tuple[list[models.SurveyMission], int | None]:
     statement = _build_survey_mission_statement(
-        project_id, name_filter, spatial_intersect, temporal_extent
+        project_id, name_filter, spatial_intersect, temporal_extent, status
     ).where(models.SurveyMission.status == SurveyMissionStatus.PUBLISHED)
     limit = page_size
     offset = page_size * (page - 1)
@@ -108,16 +114,12 @@ async def list_survey_missions(
     name_filter: str | None = None,
     spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
-    only_internal: bool = False,
+    status: SurveyMissionStatus | None = None,
 ) -> tuple[list[models.SurveyMission], int | None]:
     """Return all survey missions regardless of status. Intended for admin use."""
     statement = _build_survey_mission_statement(
-        project_id, name_filter, spatial_intersect, temporal_extent
+        project_id, name_filter, spatial_intersect, temporal_extent, status
     )
-    if only_internal:
-        statement = statement.where(
-            models.SurveyMission.status != SurveyMissionStatus.PUBLISHED
-        )
     limit = page_size
     offset = page_size * (page - 1)
     return await _exec_survey_mission_list(

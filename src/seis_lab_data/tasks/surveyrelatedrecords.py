@@ -111,6 +111,7 @@ async def bulk_update_survey_related_records(
             event_dispatcher=settings.get_event_dispatcher(),
             selected=selection.selected,
             excluded_record_ids=selection.excluded_record_ids,
+            survey_mission_id=selection.survey_mission_id,
             name_filter=selection.name_filter,
             spatial_intersect=selection.spatial_intersect,
             temporal_extent=selection.temporal_extent,
@@ -118,4 +119,5 @@ async def bulk_update_survey_related_records(
             asset_media_type_filter=selection.asset_media_type_filter,
             dataset_category_id=selection.dataset_category_id,
             workflow_stage_id=selection.workflow_stage_id,
+            status=selection.status,
         )

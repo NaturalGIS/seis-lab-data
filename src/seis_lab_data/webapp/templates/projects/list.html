@@ -5,7 +5,7 @@ Users with create permission are linked to /projects/new, which is a separate st
 {% extends "base.html" %}
 {% from "macros/info.html" import render_info_section %}
 {% import "macros.html" as macros %}
-{% from "macros/checkbox.html" import search_checkbox  %}
+{% from "macros/select.html" import search_select %}
 
 {% block resource_type_color_class %}bg-project{% endblock %}
 
@@ -15,11 +15,6 @@ Users with create permission are linked to /projects/new, which is a separate st
     {{ super() }}
     <script type="module" src="{{ url_for('static', path='/js/maplibre-gl-v5.9.0.js') }}"></script>
     <link href="{{ url_for('static', path='/css/maplibre-gl-v5.9.0.css') }}" rel='stylesheet'/>
-    <script type="module" src="{{ url_for('static', path='/js/terra-draw-v1.0.0.umd.js') }}"></script>
-    <script type="module"
-            src="{{ url_for('static', path='/js/terra-draw-maplibre-gl-adapter-v1.0.0.umd.js') }}"></script>
-    <script type="module" src="{{ url_for('static', path='/js/bbox-map.js') }}"></script>
-    <script type="module" src="{{ url_for('static', path='/js/map-with-layer.js') }}"></script>
     <script type="module" src="{{ url_for('static', path='/js/basemap.js') }}"></script>
 {% endblock head %}
 
@@ -31,13 +26,18 @@ Users with create permission are linked to /projects/new, which is a separate st
 
 
 {% block details %}
-
+    {# filters given in the URL, e.g. after reloading the page, are shown in the search controls #}
+    {% set initial_status_filter = request.query_params.get("filterStatus") %}
+    {% set initial_temporal_extent_begin = request.query_params.get("temporalExtentBegin", current_temporal_extent.begin) %}
+    {% set initial_temporal_extent_end = request.query_params.get("temporalExtentEnd", current_temporal_extent.end) %}
+    {% set initial_map_area_filter = request.query_params.get("filterByMapArea") == "true" %}
+    {% set has_initial_advanced_filters = initial_status_filter or initial_temporal_extent_begin or initial_temporal_extent_end or initial_map_area_filter %}
     <div class="row" data-on-intersect__once="@get('{{ url_for("projects:list_stream") }}')">
         <div class="col">
             <div
                     class="row justify-content-center my-4 m-lg-5"
                     data-signals:search='{{ search_initial_value | default("", true) | tojson }}'
-                    data-signals:advanced-search-panel-open="false"
+                    data-signals:advanced-search-panel-open="{{ 'true' if has_initial_advanced_filters else 'false' }}"
                     data-signals:searching="false"
                     data-signals:listing-version="0"
                     data-effect="$listingVersion > 0 && @get('{{ url_for('projects:get_list_component') }}?page=' + $currentPage)"
@@ -58,20 +58,13 @@ Users with create permission are linked to /projects/new, which is a separate st
                             {{ _("search projects") | capitalize }}
                         </label>
                     </search>
-                    {{ search_checkbox(
-                        "search-only-internal",
-                        "false",
-                        "filterOnlyInternal",
-                        url_for("projects:get_list_component"),
-                        _("show only internal projects") | capitalize
-                    ) }}
                     <button
                             class="btn btn-light btn-sm mt-1"
                             type="button"
                             data-on:click="$advancedSearchPanelOpen=!$advancedSearchPanelOpen"
                             data-bs-toggle="collapse"
                             data-bs-target="#advanced-search-controls"
-                            aria-expanded="false"
+                            aria-expanded="{{ 'true' if has_initial_advanced_filters else 'false' }}"
                             aria-controls="advanced-search-controls"
                     >
                         <span
@@ -86,41 +79,34 @@ Users with create permission are linked to /projects/new, which is a separate st
             </div>
             <div class="row">
                 <div class="col mt-1 mb-3 mb-lg-5">
-                    <div class="row collapse" id="advanced-search-controls">
+                    <div class="row collapse{% if has_initial_advanced_filters %} show{% endif %}" id="advanced-search-controls">
                         <div class="col-12 col-md-4">
+                            {% if request.user.is_authenticated %}
+                                {{ search_select(
+                                    "search-status",
+                                    status_filter_options(ProjectStatus),
+                                    "filterStatus",
+                                    url_for("projects:get_list_component"),
+                                    _("status") | capitalize,
+                                    selected_option=initial_status_filter
+                                ) }}
+                            {% endif %}
                             {{ macros.render_temporal_extent_search_component(
                                 url_for("projects:get_list_component"),
                                 _("Temporal extent begin"),
                                 _("Temporal extent end"),
-                                current_temporal_extent.begin,
-                                current_temporal_extent.end
+                                initial_temporal_extent_begin,
+                                initial_temporal_extent_end
                             ) }}
                         </div>
-                        <div
-                                class="col-12 col-md"
-                                data-signals:current-bbox="null"
-                                data-computed:min-lon="$currentBbox?.[0]?.[0]"
-                                data-computed:min-lat="$currentBbox?.[0]?.[1]"
-                                data-computed:max-lon="$currentBbox?.[1]?.[0]"
-                                data-computed:max-lat="$currentBbox?.[1]?.[1]"
-                        >
-                            <base-map
-                                    data-base-map-tile-url="{{ settings.webmap_base_tile_layer_url }}"
-                                    data-polygon-features="{{ geojson_features }}"
-                                    data-polygon-fill-color="{{ settings.webmap_default_polygon_fill_color }}"
-                                    data-polygon-fill-opacity="{{ settings.webmap_default_polygon_fill_opacity }}"
-                                    data-polygon-outline-color="{{ settings.webmap_default_polygon_outline_color }}"
-                                    data-polygon-outline-opacity="{{ settings.webmap_default_polygon_outline_opacity }}"
-                                    data-polygon-outline-width="{{ settings.webmap_default_polygon_outline_width }}"
-                                    data-item-detail-base-url="{{ map_popup_detail_base_url | default('') }}"
-                                    data-initial-min-lon="{{ map_bounds.min_lon }}"
-                                    data-initial-min-lat="{{ map_bounds.min_lat }}"
-                                    data-initial-max-lon="{{ map_bounds.max_lon }}"
-                                    data-initial-max-lat="{{ map_bounds.max_lat }}"
-                                    style="display: block; width: 100%; height: 30vh"
-                                    data-on:map-moveend="document.querySelector('base-map').checkVisibility() ? $currentBbox=evt.detail.map.getBounds().toArray() : $currentBbox=[[-180, -90],[180, 90]]; @get('{{ url_for('projects:get_list_component') }}?page=' + $currentPage)"
-
-                            ></base-map>
+                        <div class="col-12 col-md">
+                            {{ macros.render_map_area_search_component(
+                                url_for("projects:get_list_component"),
+                                map_bounds,
+                                geojson_features,
+                                map_popup_detail_base_url=map_popup_detail_base_url | default(""),
+                                filter_active=initial_map_area_filter
+                            ) }}
                         </div>
                     </div>
                 </div>

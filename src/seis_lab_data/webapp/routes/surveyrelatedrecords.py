@@ -343,6 +343,7 @@ async def get_download_links(request: Request):
             "asset_media_type_filter": selection.asset_media_type_filter,
             "dataset_category_id": selection.dataset_category_id,
             "workflow_stage_id": selection.workflow_stage_id,
+            "status": selection.status,
             "record_ids": selection.selected,
         }
         excluded_ids = set(selection.excluded_record_ids or [])
@@ -1334,7 +1335,11 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
             ]
             some_db_missions = (
                 await survey_mission_ops.list_survey_missions(
-                    session, initiator=user, include_total=False
+                    session,
+                    initiator=user,
+                    include_total=False,
+                    # the mission suggestions follow the project filter
+                    project_id=list_filters.as_kwargs().get("project_id"),
                 )
             )[0]
             some_missions = [

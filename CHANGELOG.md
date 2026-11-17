@@ -7,8 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [1.0.0-rc1] - 2026-11-17
+
+### Added
+
+- Export of survey-related records to GeoNode
+- Thumbnails for projects and survey missions, drawn over the base map and shown on listing cards, regenerated when their spatial extent changes
+- Implicit CRS of survey missions can be set in the UI and is validated. New survey missions default to EPSG:32629
+- Extraction of coordinates and extents from SEG-Y headers, with track previews built from sampled trace positions
+- Previews for more dataset formats; preview eligibility is now part of the asset discovery configuration and can be toggled in its form
+- Records created or edited by hand now go through the discovery pipeline, which fills in the metadata extracted from their data files
+- Metadata extracted by discovery is stored in a dedicated field and shown on the record detail page
+- Discovery can be canceled, recovers from dead workers, reports its progress and asks for confirmation before starting
+- Discovery publishes the valid records it creates at the end of a run
+- Route serving the list of download links of a resource, for bulk downloads
+- Aggregated information on the detail pages of projects and survey missions
+- Full asset paths are shown on the record detail page
+- Missing filters on the listing pages
+- Initial version of the user guide, with the Portuguese version downloadable as PDF
+- All UI texts are now translatable, with Portuguese translations
+
+
 ### Changed
 
+- Discovery is much faster: the archive is walked once, metadata is extracted concurrently in worker processes, records are written in batches, previews are requested in batches and point cloud files (XYZ, KML) are sampled. A run stops after a configurable time limit (`discovery_time_limit_hours`)
+- Workers were reorganized: `processing-worker` is renamed to `interactive-worker`, `previews-worker` to `long-tasks-worker`, and the new `discovery-worker` runs discovery in its own queue. Database connection pools are bounded by the `db_pool_size`, `db_max_overflow` and `db_pool_timeout` settings
+- Resources that are busy (e.g. under discovery, export or preview generation) cannot be modified, and the mutation buttons of a resource are disabled while any of its descendants is busy
+- Projects, survey missions and records can no longer be edited or deleted from their list pages
+- A description is no longer required for a resource to be valid
+- Discovery no longer overwrites user-supplied record descriptions
+- The project's `root_path` was removed, and the creation and editing forms were tightened up
+- Improved UI of notifications, list items and modal dialogs (which now name the resource they pertain to), layout on smaller displays and harmonized map drawing colors
 - Upgraded all Python dependencies to their current versions, including SQLAlchemy 2.1 and SQLModel 0.0.50
 - Replaced `httpx` with its maintained successor `httpx2`; TLS verification now uses the operating system's trust store instead of `certifi`
 - Upgraded GDAL to 3.12.4 (docker base image and Python bindings) and uv to 0.13.8 in the docker image
@@ -21,6 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - docker healthcheck for auth-db in prod and test envs now pass the correct user to `pg_isready`
+- Incorrect survey mission status after discovery
+- Incorrectly drawn map widgets; map zoom animation is turned off
+- Incorrect pagination after deleting a resource
+- Record selection checkbox not working
 
 Upgrading from 0.6.0 requires manual steps, see "Version-specific upgrade steps" in the administration guide.
 
@@ -190,7 +224,8 @@ Upgrading from 0.6.0 requires manual steps, see "Version-specific upgrade steps"
 - First release, mainly for trying out the deployment workflows
 
 
-[unreleased]: https://github.com/naturalgis/seis-lab-data/compare/v0.6.0...HEAD
+[unreleased]: https://github.com/naturalgis/seis-lab-data/compare/v1.0.0-rc1...HEAD
+[1.0.0-rc1]: https://github.com/naturalgis/seis-lab-data/compare/v0.6.0...v1.0.0-rc1
 [0.6.0]: https://github.com/naturalgis/seis-lab-data/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/naturalgis/seis-lab-data/compare/v0.1.17...v0.5.0
 [0.1.17]: https://github.com/naturalgis/seis-lab-data/compare/v0.1.16...v0.1.17

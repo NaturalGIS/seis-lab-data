@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% from "macros/info.html" import render_info_section %}
 {% import "macros.html" as macros %}
-{% from "macros/checkbox.html" import search_checkbox  %}
 {% from "macros/select.html" import search_select %}
 {% from "macros/datalist.html" import search_datalist %}
 
@@ -15,10 +14,6 @@
     {{ super() }}
     <script type="module" src="{{ url_for('static', path='/js/maplibre-gl-v5.9.0.js') }}"></script>
     <link href="{{ url_for('static', path='/css/maplibre-gl-v5.9.0.css') }}" rel='stylesheet' />
-    <script type="module" src="{{ url_for('static', path='/js/terra-draw-v1.0.0.umd.js') }}"></script>
-    <script type="module" src="{{ url_for('static', path='/js/terra-draw-maplibre-gl-adapter-v1.0.0.umd.js') }}"></script>
-    <script type="module" src="{{ url_for('static', path='/js/bbox-map.js') }}"></script>
-    <script type="module" src="{{ url_for('static', path='/js/map-with-layer.js') }}"></script>
     <script type="module" src="{{ url_for('static', path='/js/basemap.js') }}"></script>
 {% endblock head %}
 
@@ -27,12 +22,18 @@
 {% endblock page_title %}
 
 {% block details %}
-    {# filters given in the URL, e.g. by the links of a project page, are shown in the advanced search controls #}
+    {# filters given in the URL, e.g. by the links of a project page or after reloading the page, are shown in the search controls #}
+    {% set initial_status_filter = request.query_params.get("filterStatus") %}
     {% set initial_project_filter = request.query_params.get("filterProject", "") %}
     {% set initial_mission_filter = request.query_params.get("filterMission", "") %}
     {% set initial_dataset_category_filter = request.query_params.get("filterDatasetCategory") %}
     {% set initial_workflow_stage_filter = request.query_params.get("filterWorkflowStage") %}
-    {% set has_initial_advanced_filters = initial_project_filter or initial_mission_filter or initial_dataset_category_filter or initial_workflow_stage_filter %}
+    {% set initial_media_type_filter = request.query_params.get("filterMediaType", "") %}
+    {% set initial_temporal_extent_begin = request.query_params.get("temporalExtentBegin", current_temporal_extent.begin) %}
+    {% set initial_temporal_extent_end = request.query_params.get("temporalExtentEnd", current_temporal_extent.end) %}
+    {% set initial_path_fragment_filter = request.query_params.get("assetPathFragment", "") %}
+    {% set initial_map_area_filter = request.query_params.get("filterByMapArea") == "true" %}
+    {% set has_initial_advanced_filters = initial_status_filter or initial_project_filter or initial_mission_filter or initial_dataset_category_filter or initial_workflow_stage_filter or initial_media_type_filter or initial_temporal_extent_begin or initial_temporal_extent_end or initial_path_fragment_filter or initial_map_area_filter %}
 
     <div class="row">
     <div class="col">
@@ -42,6 +43,8 @@
                 data-signals:search='{{ search_initial_value | default("", true) | tojson }}'
                 data-signals:advanced-search-panel-open="{{ 'true' if has_initial_advanced_filters else 'false' }}"
                 data-signals:searching="false"
+                {# declared here, as the record selection refers to it, even when the status select is absent #}
+                data-signals:filter-status='{{ (initial_status_filter or "all") | tojson }}'
                 data-signals:listing-version="0"
                 data-signals:selected-ids="{}"
                 data-signals:_deriving-ids="{}"
@@ -70,13 +73,6 @@
                         {{ _("search survey-related records") | capitalize }}
                     </label>
                 </search>
-                {{ search_checkbox(
-                        "search-only-internal",
-                        "false",
-                        "filterOnlyInternal",
-                        url_for("survey_related_records:get_list_component"),
-                        _("show only internal survey-related records") | capitalize
-                    ) }}
                 <div
                         data-attr:hidden="!$searching"
                         class="spinner-border spinner-border-sm ms-3"
@@ -108,13 +104,25 @@
             <div class="col mt-1 mb-3 mb-lg-5">
                 <div class="row collapse{% if has_initial_advanced_filters %} show{% endif %}" id="advanced-search-controls">
                     <div class="col-12 col-md-4">
+                        {% if request.user.is_authenticated %}
+                            {{ search_select(
+                                "search-status",
+                                status_filter_options(SurveyRelatedRecordStatus),
+                                "filterStatus",
+                                url_for("survey_related_records:get_list_component"),
+                                _("status") | capitalize,
+                                selected_option=initial_status_filter,
+                                extra_on_input_js=macros.reset_selection_js()
+                            ) }}
+                        {% endif %}
                         {{ search_datalist(
                               "search-project-datalist",
                               filter_projects_datalist,
                               "filterProject",
                               url_for("survey_related_records:get_list_component"),
                               _("project") | capitalize,
-                              initial_value=initial_project_filter
+                              initial_value=initial_project_filter,
+                              suggestions_url=url_for("projects:get_datalist")
                         ) }}
                         {{ search_datalist(
                               "search-mission-datalist",
@@ -122,7 +130,9 @@
                               "filterMission",
                               url_for("survey_related_records:get_list_component"),
                               _("mission") | capitalize,
-                              initial_value=initial_mission_filter
+                              initial_value=initial_mission_filter,
+                              suggestions_url=url_for("survey_missions:get_datalist"),
+                              suggestions_depend_on="filterProject"
                         ) }}
                         {{ search_select(
                             "search-dataset-category",
@@ -130,7 +140,8 @@
                                 "filterDatasetCategory",
                                 url_for("survey_related_records:get_list_component"),
                                 _("dataset category") | capitalize,
-                                selected_option=initial_dataset_category_filter
+                                selected_option=initial_dataset_category_filter,
+                                extra_on_input_js=macros.reset_selection_js()
                         ) }}
                         {{ search_select(
                             "search-workflow-stage",
@@ -138,21 +149,23 @@
                                 "filterWorkflowStage",
                                 url_for("survey_related_records:get_list_component"),
                                 _("workflow stage") | capitalize,
-                                selected_option=initial_workflow_stage_filter
+                                selected_option=initial_workflow_stage_filter,
+                                extra_on_input_js=macros.reset_selection_js()
                         ) }}
                         {{ search_datalist(
                               "search-asset-media-type",
                               filter_media_types_datalist,
                               "filterMediaType",
                               url_for("survey_related_records:get_list_component"),
-                              _("Media type")
+                              _("Media type"),
+                              initial_value=initial_media_type_filter
                         ) }}
                         {{ macros.render_temporal_extent_search_component(
                                         url_for("survey_related_records:get_list_component"),
                                         _("Temporal extent begin"),
                                         _("Temporal extent end"),
-                                        current_temporal_extent.begin,
-                                        current_temporal_extent.end,
+                                        initial_temporal_extent_begin,
+                                        initial_temporal_extent_end,
                                         extra_on_input_js=macros.reset_selection_js()
                                     ) }}
                         <div class="mb-3">
@@ -162,34 +175,19 @@
                                     class="form-control"
                                     data-bind="assetPathFragment"
                                     data-on:input__debounce.200ms="{{ macros.reset_selection_js() }}@get('{{ url_for("survey_related_records:get_list_component") }}')"
-                                    value=""
+                                    value="{{ initial_path_fragment_filter }}"
                             >
                         </div>
                     </div>
-                    <div
-                            class="col-12 col-md"
-                            data-signals:current-bbox="null"
-                            data-computed:min-lon="$currentBbox?.[0]?.[0]"
-                            data-computed:min-lat="$currentBbox?.[0]?.[1]"
-                            data-computed:max-lon="$currentBbox?.[1]?.[0]"
-                            data-computed:max-lat="$currentBbox?.[1]?.[1]"
-                    >
-                        <base-map
-                                data-base-map-tile-url="{{ settings.webmap_base_tile_layer_url }}"
-                                data-polygon-features="{{ geojson_features }}"
-                                data-polygon-fill-color="{{ settings.webmap_default_polygon_fill_color }}"
-                                data-polygon-fill-opacity="{{ settings.webmap_default_polygon_fill_opacity }}"
-                                data-polygon-outline-color="{{ settings.webmap_default_polygon_outline_color }}"
-                                data-polygon-outline-opacity="{{ settings.webmap_default_polygon_outline_opacity }}"
-                                data-polygon-outline-width="{{ settings.webmap_default_polygon_outline_width }}"
-                                data-item-detail-base-url="{{ map_popup_detail_base_url | default('') }}"
-                                data-initial-min-lon="{{ map_bounds.min_lon }}"
-                                data-initial-min-lat="{{ map_bounds.min_lat }}"
-                                data-initial-max-lon="{{ map_bounds.max_lon }}"
-                                data-initial-max-lat="{{ map_bounds.max_lat }}"
-                                style="display: block; width: 100%; height: 30vh"
-                                data-on:map-moveend="document.querySelector('base-map').checkVisibility() ? $currentBbox=evt.detail.map.getBounds().toArray() : $currentBbox=[[-180, -90],[180, 90]]; {{ macros.reset_selection_js() }}@get('{{ url_for('survey_related_records:get_list_component') }}')"
-                        ></base-map>
+                    <div class="col-12 col-md">
+                        {{ macros.render_map_area_search_component(
+                            url_for("survey_related_records:get_list_component"),
+                            map_bounds,
+                            geojson_features,
+                            map_popup_detail_base_url=map_popup_detail_base_url | default(""),
+                            filter_active=initial_map_area_filter,
+                            extra_on_input_js=macros.reset_selection_js()
+                        ) }}
                     </div>
                 </div>
             </div>

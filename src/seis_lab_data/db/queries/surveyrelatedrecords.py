@@ -40,6 +40,7 @@ def _apply_survey_related_record_filters(
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
     dataset_category_id: identifiers.DatasetCategoryId | None = None,
     workflow_stage_id: identifiers.WorkflowStageId | None = None,
+    status: SurveyRelatedRecordStatus | None = None,
     only_data_assets: bool = True,
 ):
     """Apply the common survey-related record search filters to a statement.
@@ -49,6 +50,8 @@ def _apply_survey_related_record_filters(
     """
     if record_ids:
         statement = statement.where(models.SurveyRelatedRecord.id.in_(record_ids))
+    if status is not None:
+        statement = statement.where(models.SurveyRelatedRecord.status == status)
     if name_filter:
         statement = statement.where(
             models.SurveyRelatedRecord.name.ilike(f"%{name_filter}%")
@@ -72,21 +75,23 @@ def _apply_survey_related_record_filters(
         statement = statement.join(
             mission, models.SurveyRelatedRecord.survey_mission_id == mission.id
         ).where(mission.project_id == project_id)
+    # records whose temporal extent overlaps the filter's match it - a missing
+    # bound of the record's temporal extent is taken as unbounded
     if temporal_extent is not None:
         if temporal_extent.begin is not None:
             statement = statement.where(
                 or_(
-                    models.SurveyRelatedRecord.temporal_extent_begin
+                    models.SurveyRelatedRecord.temporal_extent_end
                     >= temporal_extent.begin,
-                    models.SurveyRelatedRecord.temporal_extent_begin.is_(None),
+                    models.SurveyRelatedRecord.temporal_extent_end.is_(None),
                 )
             )
         if temporal_extent.end is not None:
             statement = statement.where(
                 or_(
-                    models.SurveyRelatedRecord.temporal_extent_end
+                    models.SurveyRelatedRecord.temporal_extent_begin
                     <= temporal_extent.end,
-                    models.SurveyRelatedRecord.temporal_extent_end.is_(None),
+                    models.SurveyRelatedRecord.temporal_extent_begin.is_(None),
                 )
             )
     if dataset_category_id is not None:
@@ -140,6 +145,7 @@ def _build_survey_related_record_statement(
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
     dataset_category_id: identifiers.DatasetCategoryId | None = None,
     workflow_stage_id: identifiers.WorkflowStageId | None = None,
+    status: SurveyRelatedRecordStatus | None = None,
     only_data_assets: bool = True,
 ):
     statement = (
@@ -176,6 +182,7 @@ def _build_survey_related_record_statement(
         record_ids=record_ids,
         dataset_category_id=dataset_category_id,
         workflow_stage_id=workflow_stage_id,
+        status=status,
         only_data_assets=only_data_assets,
     )
     # name and id are tiebreakers - without them the order of items with the
@@ -198,6 +205,7 @@ def _build_survey_related_record_id_statement(
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
     dataset_category_id: identifiers.DatasetCategoryId | None = None,
     workflow_stage_id: identifiers.WorkflowStageId | None = None,
+    status: SurveyRelatedRecordStatus | None = None,
     only_data_assets: bool = True,
 ):
     """Build a statement selecting only the ids of matching records.
@@ -218,6 +226,7 @@ def _build_survey_related_record_id_statement(
         record_ids=record_ids,
         dataset_category_id=dataset_category_id,
         workflow_stage_id=workflow_stage_id,
+        status=status,
         only_data_assets=only_data_assets,
     )
 
@@ -251,6 +260,7 @@ async def list_published_survey_related_records(
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
     dataset_category_id: identifiers.DatasetCategoryId | None = None,
     workflow_stage_id: identifiers.WorkflowStageId | None = None,
+    status: SurveyRelatedRecordStatus | None = None,
     only_data_assets: bool = True,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     statement = _build_survey_related_record_statement(
@@ -264,6 +274,7 @@ async def list_published_survey_related_records(
         record_ids=record_ids,
         dataset_category_id=dataset_category_id,
         workflow_stage_id=workflow_stage_id,
+        status=status,
         only_data_assets=only_data_assets,
     ).where(models.SurveyRelatedRecord.status == SurveyRelatedRecordStatus.PUBLISHED)
     limit = page_size
@@ -284,6 +295,7 @@ def build_survey_related_record_id_statement(
     excluded_record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
     dataset_category_id: identifiers.DatasetCategoryId | None = None,
     workflow_stage_id: identifiers.WorkflowStageId | None = None,
+    status: SurveyRelatedRecordStatus | None = None,
     only_data_assets: bool = True,
 ):
     """Build a statement selecting the ids of matching records, unrestricted.
@@ -300,6 +312,7 @@ def build_survey_related_record_id_statement(
         record_ids,
         dataset_category_id,
         workflow_stage_id,
+        status,
         only_data_assets,
     )
     if excluded_record_ids:
@@ -333,9 +346,9 @@ async def list_survey_related_records(
     asset_path_fragment_filter: str | None = None,
     asset_media_type_filter: str | None = None,
     record_ids: list[identifiers.SurveyRelatedRecordId] | None = None,
-    only_internal: bool = False,
     dataset_category_id: identifiers.DatasetCategoryId | None = None,
     workflow_stage_id: identifiers.WorkflowStageId | None = None,
+    status: SurveyRelatedRecordStatus | None = None,
     only_data_assets: bool = True,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     """Return all records. Intended for admin use."""
@@ -350,12 +363,9 @@ async def list_survey_related_records(
         record_ids=record_ids,
         dataset_category_id=dataset_category_id,
         workflow_stage_id=workflow_stage_id,
+        status=status,
         only_data_assets=only_data_assets,
     )
-    if only_internal:
-        statement = statement.where(
-            models.SurveyRelatedRecord.status != SurveyRelatedRecordStatus.PUBLISHED
-        )
     limit = page_size
     offset = page_size * (page - 1)
     return await _exec_survey_related_record_list(

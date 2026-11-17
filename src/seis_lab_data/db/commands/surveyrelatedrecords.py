@@ -255,6 +255,7 @@ async def bulk_update_filtered_records(
     asset_media_type_filter: str | None = None,
     dataset_category_id: identifiers.DatasetCategoryId | None = None,
     workflow_stage_id: identifiers.WorkflowStageId | None = None,
+    status: SurveyRelatedRecordStatus | None = None,
 ) -> int:
     filter_kwargs = {
         "survey_mission_id": survey_mission_id,
@@ -265,6 +266,7 @@ async def bulk_update_filtered_records(
         "asset_media_type_filter": asset_media_type_filter,
         "dataset_category_id": dataset_category_id,
         "workflow_stage_id": workflow_stage_id,
+        "status": status,
         "excluded_record_ids": excluded_record_ids,
     }
     ids_statement = record_queries.build_survey_related_record_id_statement(

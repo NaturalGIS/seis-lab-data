@@ -15,8 +15,8 @@
         <div class="col">
             {% if items | length > 0 %}
                 {# the selection, as the signals the server needs for resolving it #}
-                {% set selection_signals_js = "search: $search, selectedIds: $selectedIds, excludedIds: $excludedIds, selectAllMatching: $selectAllMatching, filterDatasetCategory: $filterDatasetCategory, filterWorkflowStage: $filterWorkflowStage, filterMediaType: $filterMediaType, temporalExtentBegin: $temporalExtentBegin, temporalExtentEnd: $temporalExtentEnd, assetPathFragment: $assetPathFragment" %}
-                {% set selection_scope_js = ("surveyMissionId: '" ~ selection_mission_id ~ "'") if selection_mission_id is defined else "filterProject: $filterProject, filterMission: $filterMission" %}
+                {% set selection_signals_js = "search: $search, selectedIds: $selectedIds, excludedIds: $excludedIds, selectAllMatching: $selectAllMatching, filterDatasetCategory: $filterDatasetCategory, filterWorkflowStage: $filterWorkflowStage, filterMediaType: $filterMediaType, temporalExtentBegin: $temporalExtentBegin, temporalExtentEnd: $temporalExtentEnd, assetPathFragment: $assetPathFragment, filterStatus: $filterStatus" %}
+                {% set selection_scope_js = ("surveyMissionId: '" ~ selection_mission_id ~ "'") if selection_mission_id is defined else "filterProject: $filterProject, filterMission: $filterMission, filterByMapArea: $filterByMapArea, minLon: $minLon, minLat: $minLat, maxLon: $maxLon, maxLat: $maxLat" %}
                 <div
                         class="row align-items-center mb-3"
                         aria-label="selection-toolbar"

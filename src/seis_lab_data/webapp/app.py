@@ -100,7 +100,11 @@ async def lifespan(
                 constants.BUNDLED_DATA_ASSET_EXTENSIONS
             ),
             "ProjectStatus": constants.ProjectStatus,
+            "SurveyMissionStatus": constants.SurveyMissionStatus,
             "SurveyRelatedRecordStatus": constants.SurveyRelatedRecordStatus,
+            "status_filter_options": lambda status_type: [
+                (status.value, status.get_translated_value()) for status in status_type
+            ],
             "SURVEY_MISSION_DISCOVERY_STATUSES": constants.SURVEY_MISSION_DISCOVERY_STATUSES,
             "default_webmap_bounds": {
                 "min_lon": min_lon,

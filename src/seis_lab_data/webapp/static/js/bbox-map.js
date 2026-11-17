@@ -81,10 +81,10 @@ export class BoundingBoxMap extends HTMLElement {
             modes: [
                 new terraDraw.TerraDrawRectangleMode({
                     styles: {
-                        fillColor: '#c27d0e',
-                        fillOpacity: 0.3,
-                        outlineColor: '#c27d0e',
-                        outlineWidth: 4,
+                        fillColor: this.getAttribute("data-polygon-fill-color") || '#000000',
+                        fillOpacity: parseFloat(this.getAttribute("data-polygon-fill-opacity") || 1),
+                        outlineColor: this.getAttribute("data-polygon-outline-color") || '#000000',
+                        outlineWidth: parseInt(this.getAttribute("data-polygon-outline-width") || 1),
                     }
                 }),
             ]

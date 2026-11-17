@@ -45,6 +45,7 @@ from ...permissions import surveymissions as mission_permissions
 from ...permissions import surveyrelatedrecords as record_permissions
 from ...schemas import common as common_schemas
 from ...schemas import identifiers
+from ...schemas import projects as project_schemas
 from ...schemas import surveymissions as mission_schemas
 from ...schemas import surveyrelatedrecords as record_schemas
 from ...schemas import webui as webui_schemas
@@ -60,6 +61,7 @@ from ..streamhandlers import common as common_handlers
 from .auth import requires_auth
 from .common import (
     UPDATE_BASEMAP_JS_SCRIPT,
+    build_project_compound_name,
     get_id_from_request_path,
     get_page_count,
     get_page_from_request_params,
@@ -668,6 +670,11 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
         settings: config.SeisLabDataSettings = request.state.settings
         user = request.user if request.user.is_authenticated else None
         async with settings.get_db_session_maker()() as session:
+            some_db_projects = (
+                await project_ops.list_projects(
+                    session, initiator=user, include_total=False
+                )
+            )[0]
             items, num_total = await survey_mission_ops.list_survey_missions(
                 session,
                 initiator=user,
@@ -730,6 +737,12 @@ class SurveyMissionCollectionEndpoint(HTTPEndpoint):
                     ),
                 ],
                 "search_initial_value": list_filters.get_text_search_filter(),
+                "filter_projects_datalist": [
+                    build_project_compound_name(
+                        request, project_schemas.ProjectReadListItem.from_db_instance(i)
+                    )
+                    for i in some_db_projects
+                ],
                 "map_popup_detail_base_url": str(
                     request.url_for("survey_missions:detail", survey_mission_id="_")
                 ).rpartition("/")[0],
@@ -1361,6 +1374,7 @@ async def _count_bulk_update_matches(
         "asset_media_type_filter": selection.asset_media_type_filter,
         "dataset_category_id": selection.dataset_category_id,
         "workflow_stage_id": selection.workflow_stage_id,
+        "status": selection.status,
         "record_ids": selection.selected,
         "excluded_record_ids": selection.excluded_record_ids,
     }

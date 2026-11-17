@@ -1,5 +1,4 @@
 {% import "macros.html" as macros %}
-{% from "macros/checkbox.html" import search_checkbox %}
 {% from "macros/select.html" import search_select %}
 {% from "macros/datalist.html" import search_datalist %}
 <div
@@ -25,11 +24,22 @@
     ></div>
     <div class="page-layout-main">
         {% include "survey-missions/detail-summary.html" %}
+        {# filters given in the URL, e.g. after reloading the page, are shown in the search controls #}
+        {% set initial_status_filter = request.query_params.get("filterStatus") %}
+        {% set initial_dataset_category_filter = request.query_params.get("filterDatasetCategory") %}
+        {% set initial_workflow_stage_filter = request.query_params.get("filterWorkflowStage") %}
+        {% set initial_media_type_filter = request.query_params.get("filterMediaType", "") %}
+        {% set initial_temporal_extent_begin = request.query_params.get("temporalExtentBegin", current_temporal_extent.begin) %}
+        {% set initial_temporal_extent_end = request.query_params.get("temporalExtentEnd", current_temporal_extent.end) %}
+        {% set initial_path_fragment_filter = request.query_params.get("assetPathFragment", "") %}
+        {% set has_initial_advanced_filters = initial_status_filter or initial_dataset_category_filter or initial_workflow_stage_filter or initial_media_type_filter or initial_temporal_extent_begin or initial_temporal_extent_end or initial_path_fragment_filter %}
         <div
             class="row mt-4"
             data-signals:search='{{ search_initial_value | default("", true) | tojson }}'
-            data-signals:advanced-search-panel-open="false"
+            data-signals:advanced-search-panel-open="{{ 'true' if has_initial_advanced_filters else 'false' }}"
             data-signals:searching="false"
+            {# declared here, as the record selection refers to it, even when the status select is absent #}
+            data-signals:filter-status='{{ (initial_status_filter or "all") | tojson }}'
             data-signals:listing-version="0"
             data-signals:selected-ids="{}"
             data-signals:_deriving-ids="{}"
@@ -60,13 +70,6 @@
                                 {{ _("search survey-related records") | capitalize }}
                             </label>
                         </search>
-                        {{ search_checkbox(
-                                "search-only-internal",
-                                "false",
-                                "filterOnlyInternal",
-                                mission_records_url,
-                                _("show only internal survey-related records") | capitalize
-                            ) }}
                         <div
                                 data-attr:hidden="!$searching"
                                 class="spinner-border spinner-border-sm ms-3"
@@ -81,7 +84,7 @@
                                 data-on:click="$advancedSearchPanelOpen=!$advancedSearchPanelOpen"
                                 data-bs-toggle="collapse"
                                 data-bs-target="#mission-advanced-search-controls"
-                                aria-expanded="false"
+                                aria-expanded="{{ 'true' if has_initial_advanced_filters else 'false' }}"
                                 aria-controls="mission-advanced-search-controls"
                         >
                             <span
@@ -94,28 +97,44 @@
                         </button>
                     </div>
                 </div>
-                <div class="row collapse" id="mission-advanced-search-controls">
+                <div class="row collapse{% if has_initial_advanced_filters %} show{% endif %}" id="mission-advanced-search-controls">
                     <div class="col-12 col-md-6">
+                        {% if request.user.is_authenticated %}
+                            {{ search_select(
+                                "search-status",
+                                status_filter_options(SurveyRelatedRecordStatus),
+                                "filterStatus",
+                                mission_records_url,
+                                _("status") | capitalize,
+                                selected_option=initial_status_filter,
+                                extra_on_input_js=macros.reset_selection_js()
+                            ) }}
+                        {% endif %}
                         {{ search_select(
                             "search-dataset-category",
                             dataset_categories,
                                 "filterDatasetCategory",
                                 mission_records_url,
-                                _("dataset category") | capitalize
+                                _("dataset category") | capitalize,
+                                selected_option=initial_dataset_category_filter,
+                                extra_on_input_js=macros.reset_selection_js()
                         ) }}
                         {{ search_select(
                             "search-workflow-stage",
                             workflow_stages,
                                 "filterWorkflowStage",
                                 mission_records_url,
-                                _("workflow stage") | capitalize
+                                _("workflow stage") | capitalize,
+                                selected_option=initial_workflow_stage_filter,
+                                extra_on_input_js=macros.reset_selection_js()
                         ) }}
                         {{ search_datalist(
                               "search-asset-media-type",
                               filter_media_types_datalist,
                               "filterMediaType",
                               mission_records_url,
-                              _("Media type")
+                              _("Media type"),
+                              initial_value=initial_media_type_filter
                         ) }}
                     </div>
                     <div class="col-12 col-md-6">
@@ -125,8 +144,8 @@
                                                 mission_records_url,
                                                 _("Temporal extent begin"),
                                                 _("Temporal extent end"),
-                                                current_temporal_extent.begin,
-                                                current_temporal_extent.end,
+                                                initial_temporal_extent_begin,
+                                                initial_temporal_extent_end,
                                                 extra_on_input_js=macros.reset_selection_js()
                                             ) }}
                                 <div class="mb-3">
@@ -136,7 +155,7 @@
                                             class="form-control"
                                             data-bind="assetPathFragment"
                                             data-on:input__debounce.200ms="{{ macros.reset_selection_js() }}@get('{{ mission_records_url }}')"
-                                            value=""
+                                            value="{{ initial_path_fragment_filter }}"
                                     >
                                 </div>
                             </div>
