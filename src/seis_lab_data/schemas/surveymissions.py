@@ -1,4 +1,5 @@
 import datetime as dt
+import hashlib
 from typing import Annotated
 
 import pydantic
@@ -90,7 +91,9 @@ class SurveyMissionReadListItem(pydantic.BaseModel):
         dt.date | None, pydantic.PlainSerializer(serialize_possibly_empty_date)
     ]
     bbox_4326: PolygonOut | None
-    has_thumbnail: bool
+    # changes with the image, so that its URL does too, as the URL of a record's
+    # preview does with its asset id
+    thumbnail_version: str | None
 
     @classmethod
     def from_db_instance(
@@ -99,7 +102,11 @@ class SurveyMissionReadListItem(pydantic.BaseModel):
         return cls(
             **instance.model_dump(),
             project=ProjectReadEmbedded.from_db_instance(instance.project),
-            has_thumbnail=instance.thumbnail is not None,
+            thumbnail_version=(
+                hashlib.sha256(instance.thumbnail).hexdigest()[:16]
+                if instance.thumbnail is not None
+                else None
+            ),
         )
 
 
@@ -115,5 +122,9 @@ class SurveyMissionReadDetail(SurveyMissionReadListItem):
         return cls(
             **instance.model_dump(),
             project=ProjectReadEmbedded.from_db_instance(instance.project),
-            has_thumbnail=instance.thumbnail is not None,
+            thumbnail_version=(
+                hashlib.sha256(instance.thumbnail).hexdigest()[:16]
+                if instance.thumbnail is not None
+                else None
+            ),
         )

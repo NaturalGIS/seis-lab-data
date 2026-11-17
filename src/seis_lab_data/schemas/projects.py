@@ -1,4 +1,5 @@
 import datetime as dt
+import hashlib
 from typing import Annotated
 
 import pydantic
@@ -56,12 +57,19 @@ class ProjectReadEmbedded(pydantic.BaseModel):
 
 class ProjectReadListItem(ProjectReadEmbedded):
     description: DraftDescription
-    has_thumbnail: bool
+    # changes with the image, so that its URL does too, as the URL of a record's
+    # preview does with its asset id
+    thumbnail_version: str | None
 
     @classmethod
     def from_db_instance(cls, instance: models.Project) -> "ProjectReadListItem":
         return cls(
-            **instance.model_dump(), has_thumbnail=instance.thumbnail is not None
+            **instance.model_dump(),
+            thumbnail_version=(
+                hashlib.sha256(instance.thumbnail).hexdigest()[:16]
+                if instance.thumbnail is not None
+                else None
+            ),
         )
 
 
@@ -72,7 +80,12 @@ class ProjectReadDetail(ProjectReadListItem):
     @classmethod
     def from_db_instance(cls, instance: models.Project) -> "ProjectReadDetail":
         return cls(
-            **instance.model_dump(), has_thumbnail=instance.thumbnail is not None
+            **instance.model_dump(),
+            thumbnail_version=(
+                hashlib.sha256(instance.thumbnail).hexdigest()[:16]
+                if instance.thumbnail is not None
+                else None
+            ),
         )
 
 
