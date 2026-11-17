@@ -511,7 +511,8 @@ Um recurso é um ficheiro pertencente a um registo. Existem dois tipos de recurs
 - Os **recursos derivados** são gerados pela aplicação a partir dos recursos de dados. É gerada
   uma imagem de pré-visualização para cada recurso de dados num formato suportado, que é usada
   como miniatura do registo nas listagens e apresentada sobre o mapa da página de detalhe do
-  registo.
+  registo. Enquanto uma pré-visualização está a ser gerada, os utilizadores autenticados veem um
+  indicador de carregamento sobre a miniatura do registo nas listagens de registos.
 
 Os recursos são geridos na secção **recursos** do formulário do registo. Cada recurso de dados tem
 os seguintes campos:
