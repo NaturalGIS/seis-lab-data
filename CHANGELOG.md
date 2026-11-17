@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- systemd unit files for cleaning up docker images and containers regularly and keep test and prod envs from running out of disk space
+
+
+### Changed
+
+- admin guide now contains information on how to set up the systemd units for cleaning up docker images and containers
+
 
 ## [1.0.0-rc1] - 2026-11-17
 
