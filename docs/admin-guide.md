@@ -316,7 +316,7 @@ Monitoring of the system logs can be done by either:
 There are two systemd units enabled in the system that are responsible for cleaning up unused docker resources.
 These units are:
 
-- `/etc/systemd/system/clean-docker-resources.service` - cleans up unused docker images and containers regularly
+- `/etc/systemd/system/clean-docker-images.service` - cleans up unused docker images and containers regularly
 - `/etc/systemd/system/clean-docker-images.timer` - runs the `clean-docker-images.service`
 
 Docker cleaning runs weekly, on Sundays at around 01h.
@@ -327,7 +327,7 @@ Docker cleaning runs weekly, on Sundays at around 01h.
     were simply copied over to the `/etc/systemd/system` directory on the production machine and then enabled with:
 
     ```shell
-    sudo systemctl enable --now clean-docker-resources.service
+    sudo systemctl enable --now clean-docker-images.timer
     ```
 
 
