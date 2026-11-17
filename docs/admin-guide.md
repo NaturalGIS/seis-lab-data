@@ -311,6 +311,25 @@ Monitoring of the system logs can be done by either:
 [^5]: More details about the `journald` docker log driver: <https://docs.docker.com/engine/logging/drivers/journald/>
 
 
+### Prevent docker from occupying too much disk space
+
+There are two systemd units enabled in the system that are responsible for cleaning up unused docker resources.
+These units are:
+
+- `/etc/systemd/system/clean-docker-resources.service` - cleans up unused docker images and containers regularly
+- `/etc/systemd/system/clean-docker-images.timer` - runs the `clean-docker-images.service`
+
+Docker cleaning runs weekly, on Sundays at around 01h.
+
+!!! tip
+
+    The aforementioned systemd unit files are in the source code repository, under `deployments/systemd-units`. These
+    were simply copied over to the `/etc/systemd/system` directory on the production machine and then enabled with:
+
+    ```shell
+    sudo systemctl enable --now clean-docker-resources.service
+    ```
+
 
 ## Deploying new versions of the system
 
