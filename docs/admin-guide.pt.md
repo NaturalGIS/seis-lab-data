@@ -449,6 +449,17 @@ tanto ao ambiente de produção como ao ambiente de testes.
 
 2.  Após a implementação, verificar que o mapa base é apresentado no mapa da página de projetos.
 
+3.  Após a implementação, gerar as miniaturas dos projetos e das missões que já têm uma extensão espacial,
+    pois as miniaturas só são geradas quando uma extensão é definida ou alterada:
+
+    ```bash
+    docker compose \
+        -f compose.prod-env.yaml \
+        --env-file compose-deployment.env \
+        --env-file image-url.env \
+        exec webapp uv run seis-lab-data generate-thumbnails
+    ```
+
 [woodpecker CI]: https://woodpecker-ci.org/
 
 

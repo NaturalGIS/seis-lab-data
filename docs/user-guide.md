@@ -192,8 +192,8 @@ Users with the `catalog-editor` or `system-admin` role are able to create a proj
 | Links | Optional. Up to 5 links to external resources related to the project, added with **Add another link**. Each link has a URL, which must use `http` or `https`, a media type, a relation and a description of up to 500 characters. |
 
 The project is created with the **Create project** button. It is then validated and, if valid,
-published. A thumbnail showing its spatial extent over a base map is generated after each
-creation and update.
+published. A thumbnail showing its spatial extent over a base map is generated when the project
+is created with a spatial extent and whenever its spatial extent changes.
 
 ### Update project details
 
