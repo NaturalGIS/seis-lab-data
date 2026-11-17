@@ -283,6 +283,28 @@ async def handle_resource_status_changed_list_page(
         )
 
 
+async def handle_derivation_list_page(
+    message: message_schemas.DerivationMessage,
+    context: subscribers.HandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    """Show which records of a listing are being derived, to authenticated users.
+
+    Every record is relayed, as the page lists records of any mission. The page
+    re-fetches its listing if it shows the record whose derived assets were stored.
+    Nothing is relayed to anonymous visitors.
+    """
+    # the ids of draft records would otherwise reach anonymous visitors
+    if context.user is None:
+        return
+    is_deriving = message.stage != constants.DerivationStage.ENDED
+    # false rather than removed, as on a mission's detail page
+    signals = {"_derivingIds": {message.resource_id: is_deriving}}
+    if message.stage == constants.DerivationStage.ENDED and message.succeeded:
+        signals["derivedRecordId"] = message.resource_id
+    yield ServerSentEventGenerator.patch_signals(signals)
+
+
 async def handle_bulk_resource_modification(
     message: message_schemas.SldPubSubMessage,
     context: subscribers.HandlerContext,
@@ -1010,14 +1032,18 @@ async def handle_derivation_detail_page(
     context: subscribers.HandlerContext,
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
-    """Refresh a detail page as derived assets are stored for its item or its children.
+    """Relay the derivation of a record's assets, such as previews, to a detail page.
 
-    A record's detail page is reloaded. A mission's detail page re-fetches its list
-    of records.
+    A record's detail page is reloaded once derived assets are stored for its record.
+    A mission's detail page shows which of its records are being derived, to
+    authenticated users, and re-fetches its list of records with each derivation
+    message.
     """
     match context.resource_type:
         case constants.ResourceType.RECORD if (
             message.resource_id == context.resource_id
+            and message.stage == constants.DerivationStage.ENDED
+            and message.succeeded
         ):
             yield ServerSentEventGenerator.redirect(
                 str(
@@ -1030,9 +1056,19 @@ async def handle_derivation_detail_page(
         case constants.ResourceType.MISSION if (
             message.parent_resource_id == context.resource_id
         ):
-            yield ServerSentEventGenerator.patch_signals(
-                {"listingVersion": int(time.time() * 1000)}
-            )
+            # with every message, whatever its stage: the page's throttle only looks
+            # at the last patch of its window, so a patch without it could drop the
+            # re-fetch an earlier message asked for
+            signals = {"listingVersion": int(time.time() * 1000)}
+            # authenticated users only, as the ids of draft records would otherwise
+            # reach anonymous visitors
+            if context.user is not None:
+                is_deriving = message.stage != constants.DerivationStage.ENDED
+                # false rather than removed, as Datastar does not re-run the readers
+                # of a removed signal. The underscore keeps the signal out of the
+                # page's requests
+                signals["_derivingIds"] = {message.resource_id: is_deriving}
+            yield ServerSentEventGenerator.patch_signals(signals)
 
 
 async def handle_export_detail_page(

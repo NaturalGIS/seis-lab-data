@@ -37,6 +37,7 @@
 
     <div class="row">
     <div class="col">
+        {# the listing is re-fetched when the previews of one of the records it shows were stored. derivedRecordId is then emptied, so that the same record is noticed again #}
         <div
                 class="row justify-content-center my-4 m-lg-5"
                 data-signals:search='{{ search_initial_value | default("", true) | tojson }}'
@@ -46,11 +47,15 @@
                 data-signals:filter-status='{{ (initial_status_filter or "all") | tojson }}'
                 data-signals:listing-version="0"
                 data-signals:selected-ids="{}"
+                data-signals:_deriving-ids="{}"
+                data-signals:derived-record-id="''"
                 data-signals:excluded-ids="{}"
                 data-signals:select-all-matching="false"
                 data-signals:compact-listing="false"
                 data-init="$compactListing = localStorage.getItem('sld:compact-records') === 'true'"
                 data-effect="$listingVersion > 0 && @get('{{ url_for('survey_related_records:get_list_component') }}?page=' + $currentPage)"
+                data-on-signal-patch="$derivedRecordId && $pageItemIds.includes($derivedRecordId) && ($listingVersion = Date.now()); $derivedRecordId = ''"
+                data-on-signal-patch-filter="{include: /^derivedRecordId$/}"
         >
             <div class="col-12 col-md-10 col-lg-8">
                 <search class="form-floating">

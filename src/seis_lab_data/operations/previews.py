@@ -1,3 +1,5 @@
+import asyncio
+import contextlib
 import datetime as dt
 import logging
 import re
@@ -106,6 +108,42 @@ async def _collect_preview_patterns(
     return preview_patterns
 
 
+async def _report_derivation_progress_periodically(
+    *,
+    request_id: identifiers.RequestId,
+    record_id: identifiers.SurveyRelatedRecordId,
+    survey_mission_id: str,
+    initiator: user_schemas.User,
+    event_dispatcher: dispatch.EventDispatcherProtocol,
+) -> None:
+    """Dispatch a progress event of a record's derivation periodically, until cancelled.
+
+    An event is dispatched every `DERIVATION_PROGRESS_INTERVAL_SECONDS`, starting
+    after the first interval, so that a short derivation sends none. A failure to
+    dispatch an event is logged.
+    """
+    while True:
+        await asyncio.sleep(constants.DERIVATION_PROGRESS_INTERVAL_SECONDS)
+        try:
+            await event_dispatcher(
+                event_schemas.DerivationEvent(
+                    initiator=initiator.id,
+                    request_id=request_id,
+                    resource_type=constants.ResourceType.RECORD,
+                    resource_id=str(record_id),
+                    parent_resource_id=survey_mission_id,
+                    stage=constants.DerivationStage.PROGRESS,
+                    succeeded=True,
+                )
+            )
+        # an error would otherwise end the reports, and come up again when awaited
+        except Exception:
+            logger.warning(
+                f"Could not report the derivation progress of record {record_id}",
+                exc_info=True,
+            )
+
+
 async def generate_record_previews(
     *,
     request_id: identifiers.RequestId,
@@ -129,11 +167,16 @@ async def generate_record_previews(
     preview is generated, or if the record's status changes during rendering, the
     existing derived assets are kept. Afterwards the record is published if it is
     valid and its survey mission is published, and is a draft otherwise. A
-    derivation event is dispatched once the previews are stored.
+    derivation event is dispatched before the first preview is rendered, and
+    another one when the derivation ends, however it ends, saying whether the
+    previews were stored. While the render goes on, a progress event is dispatched
+    every `DERIVATION_PROGRESS_INTERVAL_SECONDS`, so that pages opened meanwhile
+    learn of it.
     """
     record_id = identifiers.SurveyRelatedRecordId(survey_related_record.id)
-    # read before any commit, which expires the instance's attributes
+    # read before any commit or rollback, which expire the instance's attributes
     record_name = survey_related_record.name
+    survey_mission_id = str(survey_related_record.survey_mission_id)
     if (
         original_status := survey_related_record.status
     ) not in constants.SURVEY_RELATED_RECORD_IDLE_STATUSES:
@@ -160,7 +203,7 @@ async def generate_record_previews(
     )
     # the CRS discovery placed the bbox with, which a SEG-Y track must share
     discovered_epsg_code = (survey_related_record.discovery_info or {}).get("epsg")
-    derived = []
+    to_render = []
     for asset in survey_related_record.assets:
         if constants.AssetType.DATA not in asset.asset_type:
             continue
@@ -190,90 +233,134 @@ async def generate_record_previews(
         asset_path = f"{mission_root_path}/{asset.relative_path}"
         if not deriver_dispatch.can_derive(asset_path):
             continue
-        try:
-            preview = await to_thread.run_sync(
-                deriver_dispatch.dispatch_deriver,
-                asset_path,
-                survey_related_record.survey_mission.implicit_crs,
-                discovered_epsg_code,
-            )
-        # a failing deriver skips this asset's preview rather than the whole record
-        except Exception as err:  # noqa: BLE001
-            logger.warning(f"Preview generation failed for {asset_path!r}: {err}")
-            continue
-        if preview is None:  # the file went away between the two checks
-            continue
-        # asset names may use the full 100-char cap; leave room for the labels
-        source_name = asset.name[:80]
-        derived.append(
-            record_schemas.DerivedRecordAssetCreate(
-                id=identifiers.RecordAssetId(uuid.uuid4()),
-                name=f"{source_name} preview",
-                description="",
-                media_type="image/webp",
-                # a single image serves both the list thumbnail and the map overlay
-                asset_type=[
-                    constants.AssetType.THUMBNAIL,
-                    constants.AssetType.PREVIEW,
-                ],
-                data=preview.image,
-            )
-        )
-    if not derived:
+        to_render.append((asset, asset_path))
+    if not to_render:
         logger.debug(
             f"No preview could be generated for record {record_id} - "
             f"leaving its existing assets alone..."
         )
         return
-    # the record is only held under derivation while its derived assets are
-    # replaced, never during the render, so a worker killed mid-render cannot
-    # leave it stranded. The flip expects the status the record was fetched
-    # with: one that moved meanwhile means the record was touched and the
-    # previews may be stale
-    if not await record_commands.compare_and_set_survey_related_record_status(
-        session,
-        record_id,
-        original_status,
-        constants.SurveyRelatedRecordStatus.UNDER_DERIVATION,
-    ):
-        logger.warning(
-            f"Survey-related record {record_id} changed status while its "
-            f"previews were being rendered - not storing them..."
-        )
-        return
-    try:
-        await asset_commands.replace_derived_record_assets(
-            session, survey_related_record, derived
-        )
-    finally:
-        # not the original status, as the record's mission may have been published
-        # or unpublished meanwhile, which leaves records under derivation untouched
-        new_status = await record_commands.end_survey_related_record_task(
-            session,
-            record_id,
-            constants.SurveyRelatedRecordStatus.UNDER_DERIVATION,
-        )
-        if new_status not in (None, original_status):
-            await event_dispatcher(
-                event_schemas.ResourceStatusChangedEvent(
-                    initiator=initiator.id,
-                    request_id=request_id,
-                    resource_type=constants.ResourceType.RECORD,
-                    resource_id=str(record_id),
-                    resource_name=record_name,
-                    succeeded=True,
-                    new_status=new_status,
-                )
-            )
-    await event_dispatcher(
-        event_schemas.DerivationEvent(
-            initiator=initiator.id,
+    progress_reporter = asyncio.create_task(
+        _report_derivation_progress_periodically(
             request_id=request_id,
-            resource_type=constants.ResourceType.RECORD,
-            resource_id=str(record_id),
-            parent_resource_id=str(survey_related_record.survey_mission_id),
+            record_id=record_id,
+            survey_mission_id=survey_mission_id,
+            initiator=initiator,
+            event_dispatcher=event_dispatcher,
         )
     )
+    succeeded = False
+    try:
+        # pages learn of the render from events, as the record is not held busy
+        # during it
+        await event_dispatcher(
+            event_schemas.DerivationEvent(
+                initiator=initiator.id,
+                request_id=request_id,
+                resource_type=constants.ResourceType.RECORD,
+                resource_id=str(record_id),
+                parent_resource_id=survey_mission_id,
+                stage=constants.DerivationStage.STARTED,
+                succeeded=True,
+            )
+        )
+        derived = []
+        for asset, asset_path in to_render:
+            try:
+                preview = await to_thread.run_sync(
+                    deriver_dispatch.dispatch_deriver,
+                    asset_path,
+                    survey_related_record.survey_mission.implicit_crs,
+                    discovered_epsg_code,
+                )
+            # a failing deriver skips this asset's preview rather than the whole record
+            except Exception as err:  # noqa: BLE001
+                logger.warning(f"Preview generation failed for {asset_path!r}: {err}")
+                continue
+            if preview is None:  # the file went away between the two checks
+                continue
+            # asset names may use the full 100-char cap; leave room for the labels
+            source_name = asset.name[:80]
+            derived.append(
+                record_schemas.DerivedRecordAssetCreate(
+                    id=identifiers.RecordAssetId(uuid.uuid4()),
+                    name=f"{source_name} preview",
+                    description="",
+                    media_type="image/webp",
+                    # a single image serves both the list thumbnail and the map overlay
+                    asset_type=[
+                        constants.AssetType.THUMBNAIL,
+                        constants.AssetType.PREVIEW,
+                    ],
+                    data=preview.image,
+                )
+            )
+        if not derived:
+            logger.debug(
+                f"No preview could be generated for record {record_id} - "
+                f"leaving its existing assets alone..."
+            )
+            return
+        # the record is only held under derivation while its derived assets are
+        # replaced, never during the render, so a worker killed mid-render cannot
+        # leave it stranded. The flip expects the status the record was fetched
+        # with: one that moved meanwhile means the record was touched and the
+        # previews may be stale
+        if not await record_commands.compare_and_set_survey_related_record_status(
+            session,
+            record_id,
+            original_status,
+            constants.SurveyRelatedRecordStatus.UNDER_DERIVATION,
+        ):
+            logger.warning(
+                f"Survey-related record {record_id} changed status while its "
+                f"previews were being rendered - not storing them..."
+            )
+            return
+        try:
+            await asset_commands.replace_derived_record_assets(
+                session, survey_related_record, derived
+            )
+            succeeded = True
+        finally:
+            # not the original status, as the record's mission may have been published
+            # or unpublished meanwhile, which leaves records under derivation untouched
+            new_status = await record_commands.end_survey_related_record_task(
+                session,
+                record_id,
+                constants.SurveyRelatedRecordStatus.UNDER_DERIVATION,
+            )
+            if new_status not in (None, original_status):
+                await event_dispatcher(
+                    event_schemas.ResourceStatusChangedEvent(
+                        initiator=initiator.id,
+                        request_id=request_id,
+                        resource_type=constants.ResourceType.RECORD,
+                        resource_id=str(record_id),
+                        resource_name=record_name,
+                        succeeded=True,
+                        new_status=new_status,
+                    )
+                )
+    finally:
+        # stopped before the end is announced, as a progress event after it would
+        # leave the spinner shown
+        progress_reporter.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await progress_reporter
+        # also when rendering fails or the batch time limit cancels it, so that no
+        # page keeps showing the record as being derived
+        await event_dispatcher(
+            event_schemas.DerivationEvent(
+                initiator=initiator.id,
+                request_id=request_id,
+                resource_type=constants.ResourceType.RECORD,
+                resource_id=str(record_id),
+                parent_resource_id=survey_mission_id,
+                stage=constants.DerivationStage.ENDED,
+                succeeded=succeeded,
+            )
+        )
 
 
 async def generate_project_thumbnail(

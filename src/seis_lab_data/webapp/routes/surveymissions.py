@@ -288,7 +288,7 @@ async def get_survey_mission_thumbnail(request: Request):
     return Response(
         content=survey_mission.thumbnail,
         media_type="image/webp",
-        # a new thumbnail keeps the same URL, so caches may only hold it briefly
+        # the URL carries the thumbnail's version, but any version gets the current one
         headers={"Cache-Control": "public, max-age=60"},
     )
 

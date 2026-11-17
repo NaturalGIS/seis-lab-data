@@ -448,6 +448,17 @@ and the test environments.
 
 2.  After deploying, check that the base map is shown on the map of the projects page.
 
+3.  After deploying, generate the thumbnails of the projects and survey missions that already have a spatial
+    extent, as thumbnails are only generated when an extent is set or changed:
+
+    ```bash
+    docker compose \
+        -f compose.prod-env.yaml \
+        --env-file compose-deployment.env \
+        --env-file image-url.env \
+        exec webapp uv run seis-lab-data generate-thumbnails
+    ```
+
 [woodpecker CI]: https://woodpecker-ci.org/
 
 

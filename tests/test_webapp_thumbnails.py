@@ -1,3 +1,5 @@
+import hashlib
+
 import pytest
 import sqlmodel
 from starlette.testclient import TestClient
@@ -25,7 +27,9 @@ def test_survey_mission_thumbnail_is_served_only_when_visible(
     assert response.content == _THUMBNAIL
     assert response.headers["content-type"] == "image/webp"
     listing = test_client.get("/survey-missions/", params={"lang": "en"})
-    assert f"/survey-missions/{with_thumbnail.id}/thumbnail" in listing.text
+    # the version in the URL changes with the image, so browsers fetch a new one
+    version = hashlib.sha256(_THUMBNAIL).hexdigest()[:16]
+    assert f"/survey-missions/{with_thumbnail.id}/thumbnail?v={version}" in listing.text
     assert f"/survey-missions/{without_thumbnail.id}/thumbnail" not in listing.text
 
     response = test_client.get(f"/survey-missions/{without_thumbnail.id}/thumbnail")

@@ -79,12 +79,15 @@ class DiscoveryEvent(_EventBase):
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class DerivationEvent(_EventBase):
-    """Derived assets, such as previews, were stored for a resource."""
+    """The start, progress or end of deriving a resource's assets, such as previews."""
 
     resource_type: constants.ResourceType
     resource_id: str
     parent_resource_id: str | None = None
     request_id: identifiers.RequestId
+    stage: constants.DerivationStage
+    # at the end, whether derived assets were stored
+    succeeded: bool
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)

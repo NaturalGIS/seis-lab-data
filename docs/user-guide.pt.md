@@ -211,8 +211,8 @@ Os utilizadores com a função `catalog-editor` ou `system-admin` podem criar um
 | Ligações | Opcional. Até 5 ligações para recursos externos relacionados com o projeto, adicionadas com **Adicionar outra ligação**. Cada ligação tem um URL, que deve usar `http` ou `https`, um tipo de media, uma relação e uma descrição de até 500 caracteres. |
 
 O projeto é criado com o botão **Criar projeto**. É depois validado e, se for válido, publicado.
-Após cada criação e atualização é gerada uma miniatura que apresenta a sua extensão espacial sobre
-um mapa de base.
+É gerada uma miniatura que apresenta a sua extensão espacial sobre um mapa de base quando o
+projeto é criado com uma extensão espacial e sempre que esta muda.
 
 ### Atualizar um projeto
 
@@ -511,7 +511,8 @@ Um recurso é um ficheiro pertencente a um registo. Existem dois tipos de recurs
 - Os **recursos derivados** são gerados pela aplicação a partir dos recursos de dados. É gerada
   uma imagem de pré-visualização para cada recurso de dados num formato suportado, que é usada
   como miniatura do registo nas listagens e apresentada sobre o mapa da página de detalhe do
-  registo.
+  registo. Enquanto uma pré-visualização está a ser gerada, os utilizadores autenticados veem um
+  indicador de carregamento sobre a miniatura do registo nas listagens de registos.
 
 Os recursos são geridos na secção **recursos** do formulário do registo. Cada recurso de dados tem
 os seguintes campos:

@@ -63,6 +63,10 @@
                         </div>
                     {% endif %}
                 {% endif %}
+                {# shown while the record's preview is being generated #}
+                <span class="list-item-thumb-busy" hidden data-attr:hidden="!$_derivingIds['{{ item.id }}']">
+                    <span class="spinner-border" aria-hidden="true"></span>
+                </span>
             </a>
             <div class="card-body list-item-body flex-grow-1 py-2">
                 <div class="d-flex flex-wrap gap-2 mb-1 list-item-regular-only">
