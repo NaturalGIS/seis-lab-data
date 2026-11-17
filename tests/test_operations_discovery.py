@@ -14,6 +14,7 @@ import inspect
 import json
 import logging
 import math
+import time
 import uuid
 
 import pytest
@@ -2266,6 +2267,7 @@ async def test_record_previews_need_a_configuration_that_generates_them(
 
     monkeypatch.setattr(preview_ops.deriver_dispatch, "dispatch_deriver", fake_dispatch)
 
+    collector = _EventCollector()
     async with db_session_maker() as session:
         await preview_ops.generate_record_previews(
             request_id=identifiers.RequestId(uuid.uuid4()),
@@ -2274,12 +2276,14 @@ async def test_record_previews_need_a_configuration_that_generates_them(
             ),
             initiator=admin_user,
             session=session,
-            event_dispatcher=_EventCollector(),
+            event_dispatcher=collector,
             settings=discovery_env["settings"],
         )
 
     assets = await _get_record_assets(db_session_maker, discovered.id)
     assert [a.asset_type for a in assets] == [[constants.AssetType.DATA]]
+    # nothing is rendered, so no card shows a spinner
+    assert collector.events == []
 
 
 @pytest.mark.integration
@@ -2318,12 +2322,16 @@ async def test_record_previews_of_a_record_created_by_hand(
         [constants.AssetType.DATA],
         [constants.AssetType.THUMBNAIL, constants.AssetType.PREVIEW],
     ]
-    # a derivation event rather than a modification, which list pages would show
+    mission_id = str(discovery_env["mission"].id)
+    # derivation events rather than a modification, which list pages would show
     assert [
-        (e.resource_id, e.parent_resource_id)
+        (e.resource_id, e.parent_resource_id, e.stage, e.succeeded)
         for e in collector.events
         if isinstance(e, event_schemas.DerivationEvent)
-    ] == [(str(to_create.id), str(discovery_env["mission"].id))]
+    ] == [
+        (str(to_create.id), mission_id, constants.DerivationStage.STARTED, True),
+        (str(to_create.id), mission_id, constants.DerivationStage.ENDED, True),
+    ]
     assert not any(
         isinstance(e, event_schemas.ResourceModificationEvent) for e in collector.events
     )
@@ -2343,6 +2351,111 @@ async def test_record_previews_of_a_record_created_by_hand(
             skip_if_derived=True,
         )
     assert collector.events == []
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(RuntimeError("unreadable raster"), id="render failed"),
+        # as the time limit of a batch of previews interrupts a render
+        pytest.param(asyncio.CancelledError(), id="interrupted"),
+    ],
+)
+async def test_record_previews_announce_the_end_of_a_render_that_stores_nothing(
+    db_session_maker, admin_user, discovery_env, monkeypatch, error
+):
+    _write_geotiff(
+        discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
+    )
+    to_create = _record_to_create(discovery_env, "s01/grid.tif")
+    await _create_record_without_discovery(db_session_maker, admin_user, to_create)
+
+    def failing_dispatch(path, implicit_epsg_code, discovered_epsg_code):
+        raise error
+
+    monkeypatch.setattr(
+        preview_ops.deriver_dispatch, "dispatch_deriver", failing_dispatch
+    )
+
+    collector = _EventCollector()
+    interrupted = False
+    async with db_session_maker() as session:
+        try:
+            await preview_ops.generate_record_previews(
+                request_id=identifiers.RequestId(uuid.uuid4()),
+                survey_related_record=await record_queries.get_survey_related_record(
+                    session, to_create.id
+                ),
+                initiator=admin_user,
+                session=session,
+                event_dispatcher=collector,
+                settings=discovery_env["settings"],
+            )
+        # an interruption must go on up to dramatiq
+        except asyncio.CancelledError:
+            interrupted = True
+
+    assert interrupted is isinstance(error, asyncio.CancelledError)
+    # the end is announced however the render stops, so that no card keeps a spinner
+    assert [
+        (e.stage, e.succeeded)
+        for e in collector.events
+        if isinstance(e, event_schemas.DerivationEvent)
+    ] == [
+        (constants.DerivationStage.STARTED, True),
+        (constants.DerivationStage.ENDED, False),
+    ]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_record_previews_report_the_progress_of_a_long_render(
+    db_session_maker, admin_user, discovery_env, monkeypatch
+):
+    _write_geotiff(
+        discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
+    )
+    to_create = _record_to_create(discovery_env, "s01/grid.tif")
+    await _create_record_without_discovery(db_session_maker, admin_user, to_create)
+    monkeypatch.setattr(constants, "DERIVATION_PROGRESS_INTERVAL_SECONDS", 0.01)
+
+    def slow_dispatch(path, implicit_epsg_code, discovered_epsg_code):
+        # rendered in a thread, so the progress keeps being reported meanwhile
+        time.sleep(0.2)
+        return deriver_schemas.DerivedPreview(
+            image=b"fake webp payload", bounds_4326=(-8.2, 39.6, -8.1, 39.7)
+        )
+
+    monkeypatch.setattr(preview_ops.deriver_dispatch, "dispatch_deriver", slow_dispatch)
+
+    events = []
+
+    async def collect_with_a_slow_end(event):
+        events.append(event)
+        # the end takes a while to publish, in which a reporter still running would
+        # report again
+        if getattr(event, "stage", None) == constants.DerivationStage.ENDED:
+            await asyncio.sleep(0.05)
+
+    async with db_session_maker() as session:
+        await preview_ops.generate_record_previews(
+            request_id=identifiers.RequestId(uuid.uuid4()),
+            survey_related_record=await record_queries.get_survey_related_record(
+                session, to_create.id
+            ),
+            initiator=admin_user,
+            session=session,
+            event_dispatcher=collect_with_a_slow_end,
+            settings=discovery_env["settings"],
+        )
+
+    stages = [e.stage for e in events if isinstance(e, event_schemas.DerivationEvent)]
+    # pages opened during the render learn of it, and none after its end
+    assert stages[0] == constants.DerivationStage.STARTED
+    assert set(stages[1:-1]) == {constants.DerivationStage.PROGRESS}
+    assert stages[-1] == constants.DerivationStage.ENDED
 
 
 @pytest.mark.integration

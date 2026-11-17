@@ -93,6 +93,8 @@ class RedisEventDispatcher:
                         resource_id=event.resource_id,
                         parent_resource_id=event.parent_resource_id,
                         request_id=event.request_id,
+                        stage=event.stage,
+                        succeeded=event.succeeded,
                     ).model_dump_json(),
                 )
             case events.ValidationEvent():

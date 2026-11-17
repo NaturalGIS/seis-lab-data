@@ -75,6 +75,8 @@ class DerivationMessage(pydantic.BaseModel):
     resource_id: str
     parent_resource_id: str | None = None
     request_id: identifiers.RequestId
+    stage: constants.DerivationStage
+    succeeded: bool
 
 
 class ValidationMessage(pydantic.BaseModel):

@@ -242,6 +242,7 @@ h1 > .material-icons-outlined {
 /* resource listing items: a fixed-width thumbnail on the left and the item
    details on the right */
 .list-item-thumb {
+    position: relative;
     flex: 0 0 160px;
     width: 160px;
     min-height: 120px;
@@ -281,6 +282,17 @@ h1 > .material-icons-outlined {
 
 .list-item-thumb:hover > * {
     opacity: 0.85;
+}
+
+/* no z-index, so that the selection checkbox stays over it */
+.list-item-thumb-busy {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(var(--bs-body-bg-rgb), 0.6);
+    pointer-events: none;
 }
 
 /* hovered cards are lifted, only on devices with a pointer that can hover, as

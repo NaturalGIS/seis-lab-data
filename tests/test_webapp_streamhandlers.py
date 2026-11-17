@@ -13,11 +13,16 @@ from seis_lab_data.db.commands import surveymissions as mission_commands
 from seis_lab_data.db.commands import surveyrelatedrecords as record_commands
 from seis_lab_data.schemas import identifiers
 from seis_lab_data.schemas import messages as message_schemas
+from seis_lab_data.schemas import user as user_schemas
 from seis_lab_data.webapp.streamhandlers import common as common_handlers
 
 # how the flash helpers show a notification right away, or store it for the next page
 _SAME_PAGE_NOTIFICATION = "showFlash("
 _STORED_NOTIFICATION = "localStorage.setItem('sld:flash'"
+
+_USER = user_schemas.User(
+    id=identifiers.UserId("some-user"), email="user@example.com", username="user"
+)
 
 
 def _status_changed(resource_type, resource_id, succeeded=True):
@@ -430,19 +435,75 @@ async def test_mission_page_discovery_failure_notifications(
     )
 
 
+def _build_derivation_message(record_id, mission_id, stage, succeeded=True):
+    return message_schemas.DerivationMessage(
+        request_id=uuid.uuid4(),
+        resource_type=constants.ResourceType.RECORD,
+        resource_id=str(record_id),
+        parent_resource_id=str(mission_id),
+        stage=stage,
+        succeeded=succeeded,
+    )
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "resource_type, own_item, expected",
+    "resource_type, own_item, stage, succeeded, expected",
     [
         pytest.param(
-            constants.ResourceType.MISSION, True, "listingVersion", id="mission"
+            constants.ResourceType.MISSION,
+            False,
+            constants.DerivationStage.ENDED,
+            True,
+            None,
+            id="other mission",
         ),
-        pytest.param(constants.ResourceType.MISSION, False, None, id="other mission"),
-        pytest.param(constants.ResourceType.RECORD, True, "/detail", id="record"),
-        pytest.param(constants.ResourceType.RECORD, False, None, id="other record"),
+        pytest.param(
+            constants.ResourceType.RECORD,
+            True,
+            constants.DerivationStage.ENDED,
+            True,
+            "/detail",
+            id="record",
+        ),
+        # a reload would close the page's stream, which could then miss the end
+        pytest.param(
+            constants.ResourceType.RECORD,
+            True,
+            constants.DerivationStage.STARTED,
+            True,
+            None,
+            id="record, started",
+        ),
+        pytest.param(
+            constants.ResourceType.RECORD,
+            True,
+            constants.DerivationStage.PROGRESS,
+            True,
+            None,
+            id="record, in progress",
+        ),
+        pytest.param(
+            constants.ResourceType.RECORD,
+            True,
+            constants.DerivationStage.ENDED,
+            False,
+            None,
+            id="record, nothing stored",
+        ),
+        pytest.param(
+            constants.ResourceType.RECORD,
+            False,
+            constants.DerivationStage.ENDED,
+            True,
+            None,
+            id="other record",
+        ),
     ],
 )
-async def test_detail_pages_refresh_on_derivation(resource_type, own_item, expected):
+async def test_detail_pages_refresh_on_derivation(
+    resource_type, own_item, stage, succeeded, expected
+):
     record_id = uuid.uuid4()
     mission_id = uuid.uuid4()
     context_resource_id = (
@@ -451,12 +512,7 @@ async def test_detail_pages_refresh_on_derivation(resource_type, own_item, expec
 
     events = await _collect(
         common_handlers.handle_derivation_detail_page,
-        message_schemas.DerivationMessage(
-            request_id=uuid.uuid4(),
-            resource_type=constants.ResourceType.RECORD,
-            resource_id=str(record_id),
-            parent_resource_id=str(mission_id),
-        ),
+        _build_derivation_message(record_id, mission_id, stage, succeeded),
         subscribers.HandlerContext(
             resource_id=str(context_resource_id if own_item else uuid.uuid4()),
             resource_type=resource_type,
@@ -469,3 +525,79 @@ async def test_detail_pages_refresh_on_derivation(resource_type, own_item, expec
     else:
         assert len(events) == 1 and expected in events[0]
         assert _SAME_PAGE_NOTIFICATION not in events[0]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "stage, succeeded, expected_deriving, refreshes_list_page",
+    [
+        pytest.param(
+            constants.DerivationStage.STARTED, True, True, False, id="started"
+        ),
+        pytest.param(
+            constants.DerivationStage.PROGRESS, True, True, False, id="in progress"
+        ),
+        pytest.param(constants.DerivationStage.ENDED, True, False, True, id="stored"),
+        pytest.param(
+            constants.DerivationStage.ENDED, False, False, False, id="nothing stored"
+        ),
+    ],
+)
+async def test_record_listings_show_which_records_are_being_derived(
+    stage, succeeded, expected_deriving, refreshes_list_page
+):
+    record_id = uuid.uuid4()
+    mission_id = uuid.uuid4()
+    message = _build_derivation_message(record_id, mission_id, stage, succeeded)
+
+    (mission_page_event,) = await _collect(
+        common_handlers.handle_derivation_detail_page,
+        message,
+        subscribers.HandlerContext(
+            resource_id=str(mission_id),
+            resource_type=constants.ResourceType.MISSION,
+            user=_USER,
+        ),
+    )
+    (list_page_event,) = await _collect(
+        common_handlers.handle_derivation_list_page,
+        message,
+        subscribers.HandlerContext(user=_USER),
+    )
+
+    mission_page_signals = _parse_patched_signals(mission_page_event)
+    list_page_signals = _parse_patched_signals(list_page_event)
+    # false rather than removed, which would leave the spinner shown
+    assert mission_page_signals["_derivingIds"] == {str(record_id): expected_deriving}
+    assert list_page_signals["_derivingIds"] == {str(record_id): expected_deriving}
+    # at every stage, as a patch without it could make the page's throttle drop the
+    # re-fetch an earlier message asked for
+    assert "listingVersion" in mission_page_signals
+    assert list_page_signals.get("derivedRecordId") == (
+        str(record_id) if refreshes_list_page else None
+    )
+
+
+@pytest.mark.asyncio
+async def test_record_listings_send_no_record_ids_to_anonymous_visitors():
+    record_id = uuid.uuid4()
+    mission_id = uuid.uuid4()
+    mission_page = subscribers.HandlerContext(
+        resource_id=str(mission_id), resource_type=constants.ResourceType.MISSION
+    )
+    started = _build_derivation_message(
+        record_id, mission_id, constants.DerivationStage.STARTED
+    )
+    ended = _build_derivation_message(
+        record_id, mission_id, constants.DerivationStage.ENDED
+    )
+
+    for message in (started, ended):
+        (event,) = await _collect(
+            common_handlers.handle_derivation_detail_page, message, mission_page
+        )
+        # the mission page still re-fetches its records
+        assert list(_parse_patched_signals(event)) == ["listingVersion"]
+    assert not await _collect(
+        common_handlers.handle_derivation_list_page, ended, subscribers.HandlerContext()
+    )
