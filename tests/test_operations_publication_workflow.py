@@ -1,3 +1,9 @@
+"""Publication workflow
+
+Catalog entries are published automatically once they are valid, and only when
+the entry they belong to is published too. Published entries remain deletable.
+"""
+
 import uuid
 
 import pytest
@@ -35,6 +41,9 @@ class _EventCollector:
 async def test_delete_published_project(
     db_session_maker, published_sample_data, admin_user
 ):
+    """A published project can be deleted, and the notification of its deletion still
+    shows its name.
+    """
     project_id = identifiers.ProjectId(published_sample_data["projects"][0].id)
     dispatcher = _EventCollector()
     async with db_session_maker() as session:
@@ -59,6 +68,9 @@ async def test_delete_published_project(
 async def test_delete_published_survey_mission_of_published_project(
     db_session_maker, published_sample_data, admin_user
 ):
+    """A published survey mission of a published project can be deleted, and the
+    notification of its deletion still shows its name.
+    """
     mission_id = identifiers.SurveyMissionId(published_sample_data["missions"][0].id)
     dispatcher = _EventCollector()
     async with db_session_maker() as session:
@@ -83,6 +95,9 @@ async def test_delete_published_survey_mission_of_published_project(
 async def test_delete_published_survey_related_record_of_published_mission(
     db_session_maker, published_sample_data, admin_user
 ):
+    """A published survey-related record of a published survey mission can be deleted,
+    and the notification of its deletion still shows its name.
+    """
     record_id = identifiers.SurveyRelatedRecordId(
         published_sample_data["records"][0].id
     )
@@ -134,6 +149,9 @@ async def test_valid_survey_mission_is_published_only_if_its_project_is(
     project_status,
     expected_mission_status,
 ):
+    """A valid survey mission is published automatically when its project is
+    published, and stays a draft while its project is a draft.
+    """
     mission_id = identifiers.SurveyMissionId(sample_survey_missions[0].id)
     async with db_session_maker() as session:
         mission = await mission_queries.get_survey_mission(session, mission_id)
@@ -184,6 +202,9 @@ async def test_valid_survey_related_record_is_published_only_if_its_mission_is(
     mission_status,
     expected_record_status,
 ):
+    """A valid survey-related record is published automatically when its survey
+    mission is published, and stays a draft while its survey mission is a draft.
+    """
     record_id = identifiers.SurveyRelatedRecordId(sample_survey_related_records[0].id)
     async with db_session_maker() as session:
         record = await record_queries.get_survey_related_record(session, record_id)

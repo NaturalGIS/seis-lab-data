@@ -1,3 +1,9 @@
+"""Survey mission thumbnails
+
+Survey missions can display a thumbnail image on the catalog pages, available only to
+those allowed to see the survey mission.
+"""
+
 import hashlib
 
 import pytest
@@ -15,6 +21,11 @@ _THUMBNAIL = b"fake webp payload"
 def test_survey_mission_thumbnail_is_served_only_when_visible(
     test_client: TestClient, sync_db_engine, published_sample_data
 ):
+    """The thumbnail of a published survey mission is shown on the survey mission list
+    and is fetched again by browsers whenever the image changes. No thumbnail is
+    available for a survey mission without one, nor for a draft survey mission viewed by
+    an anonymous visitor.
+    """
     with_thumbnail, without_thumbnail, *_ = published_sample_data["missions"]
     with sqlmodel.Session(sync_db_engine) as session:
         mission = session.get(models.SurveyMission, with_thumbnail.id)

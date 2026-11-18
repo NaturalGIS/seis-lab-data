@@ -1,3 +1,10 @@
+"""Survey-related record operations
+
+Access to survey-related records and their preview images depends on their publication
+status, and editors can update many records at once by filtering or selecting them. A
+record cannot be edited while a background task is working on it.
+"""
+
 import uuid
 
 import pytest
@@ -34,6 +41,9 @@ async def test_published_record_gives_anonymous_visitors_its_derived_asset_data(
     db_session_maker,
     sample_survey_related_records,
 ):
+    """Visitors who are not logged in can obtain the preview images of a published
+    survey-related record.
+    """
     # this is what the record asset data endpoint relies on in order to serve
     # previews of published records to visitors who are not logged in
     record = sample_survey_related_records[0]
@@ -74,6 +84,9 @@ async def test_draft_record_denies_anonymous_visitors_its_derived_asset_data(
     db_session_maker,
     sample_survey_related_records,
 ):
+    """Visitors who are not logged in cannot access a draft survey-related record, and
+    therefore cannot obtain its preview images either.
+    """
     # the record asset data endpoint turns this error into a 404, so that a
     # draft record's previews are not even known to exist
     record = sample_survey_related_records[0]
@@ -91,6 +104,9 @@ async def test_bulk_update_denies_user_without_editor_role(
     db_session_maker,
     sample_survey_related_records,
 ):
+    """A user without an editing role cannot update survey-related records in bulk, and
+    the attempt is reported as failed.
+    """
     plain_user = User(
         id=UserId("plain-user"), username="plain", email="plain@tests.dev", roles=[]
     )
@@ -118,6 +134,9 @@ async def test_bulk_update_workflow_stage_filter_excludes_non_matching_records(
     bootstrap_workflow_stages,
     admin_user,
 ):
+    """A bulk update restricted to a workflow stage changes no records when none of them
+    is in that workflow stage.
+    """
     # sample records are all in the "raw data" workflow stage, not this one
     non_matching_stage = next(
         w for w in bootstrap_workflow_stages if w.name == "quality control data"
@@ -149,6 +168,9 @@ async def test_bulk_update_dataset_category_filter_combines_with_name_filter(
     bootstrap_dataset_categories,
     admin_user,
 ):
+    """A bulk update restricted to both a dataset category and a name changes only the
+    records that match both.
+    """
     # both sample records are in "bathymetry", so this narrows only via name_filter
     matching_category = next(
         c for c in bootstrap_dataset_categories if c.name == "bathymetry"
@@ -178,6 +200,9 @@ async def test_bulk_update_asset_media_type_filter_excludes_non_matching_records
     sample_survey_related_records,
     admin_user,
 ):
+    """A bulk update restricted to records having assets of a given media type changes
+    no records when none of them has such assets.
+    """
     # sample record assets declare application/octet-stream as their media type,
     # so this filter matches none of them
     to_update = record_schemas.SurveyRelatedRecordBulkUpdate(
@@ -207,6 +232,9 @@ async def test_bulk_update_manually_selected_records_via_operation(
     sample_survey_related_records,
     admin_user,
 ):
+    """A bulk update applied to a manual selection of records changes exactly the
+    selected records, and the number of changed records is reported.
+    """
     _first_record, second_record = sample_survey_related_records
     to_update = record_schemas.SurveyRelatedRecordBulkUpdate(
         description="Bulk-updated via operation"
@@ -234,6 +262,9 @@ async def test_update_refuses_record_under_derivation(
     sample_survey_related_records,
     admin_user,
 ):
+    """A survey-related record cannot be updated while its previews are being generated,
+    and the attempt is reported as failed.
+    """
     first_record, _ = sample_survey_related_records
     record_id = identifiers.SurveyRelatedRecordId(first_record.id)
     async with db_session_maker() as session:

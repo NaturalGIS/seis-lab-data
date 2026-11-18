@@ -1,3 +1,10 @@
+"""Coordinate reference system of survey missions
+
+A survey mission declares, as an EPSG code, the coordinate reference system assumed for
+its files whose format cannot state one. Only codes of usable reference systems are
+accepted.
+"""
+
 import uuid
 
 import pydantic
@@ -15,6 +22,9 @@ from seis_lab_data.schemas import surveymissions as mission_schemas
     ],
 )
 def test_survey_mission_create_accepts_epsg_code(implicit_crs):
+    """A survey mission accepts the EPSG code of a geographic or a projected coordinate
+    reference system.
+    """
     mission = mission_schemas.SurveyMissionCreate(
         id=identifiers.SurveyMissionId(uuid.uuid4()),
         project_id=identifiers.ProjectId(uuid.uuid4()),
@@ -36,6 +46,10 @@ def test_survey_mission_create_accepts_epsg_code(implicit_crs):
     ],
 )
 def test_survey_mission_create_rejects_unusable_epsg_code(implicit_crs):
+    """A survey mission rejects an EPSG code that is unknown, out of range, or that of a
+    geocentric or vertical reference system, and the error is shown on the coordinate
+    reference system field.
+    """
     with pytest.raises(pydantic.ValidationError) as exc_info:
         mission_schemas.SurveyMissionCreate(
             id=identifiers.SurveyMissionId(uuid.uuid4()),

@@ -1,11 +1,18 @@
-"""Integration tests for mission discovery with metadata extraction, for the
-derivation of previews which it kicks off and for the same pipeline run over
-records created or edited by hand.
+"""Discovery of survey-related records from the file archive
 
-These run against the test database and a fake archive built under tmp_path.
-GDAL is required to build the synthetic fixture files; the module self-skips
-where it is unavailable.
+Discovery scans the directory of a survey mission in the archive, creates a record for
+each matching file and fills in its spatial and temporal extent from the file contents.
+The same metadata extraction applies to records created or edited by hand, and preview
+images are generated for the records found.
 """
+
+# Integration tests for mission discovery with metadata extraction, for the
+# derivation of previews which it kicks off and for the same pipeline run over
+# records created or edited by hand.
+#
+# These run against the test database and a fake archive built under tmp_path.
+# GDAL is required to build the synthetic fixture files; the module self-skips
+# where it is unavailable.
 
 import asyncio
 import dataclasses
@@ -240,6 +247,9 @@ async def _update_record_by_hand(
 
 
 def test_bbox_tuple_to_wkt_buffers_every_side():
+    """A bounding box extracted from a file is widened by a small margin on every side
+    before it is stored.
+    """
     wkt = discovery_ops._bbox_4326_tuple_to_wkt((10.0, 40.0, 10.5, 40.5))
     assert shapely.from_wkt(wkt).bounds == pytest.approx(
         (9.9999, 39.9999, 10.5001, 40.5001)
@@ -247,6 +257,9 @@ def test_bbox_tuple_to_wkt_buffers_every_side():
 
 
 def test_bbox_tuple_to_wkt_pads_degenerate_point():
+    """A bounding box reduced to a single point is widened into a small valid area
+    around that point.
+    """
     wkt = discovery_ops._bbox_4326_tuple_to_wkt((-8.5, 39.0, -8.5, 39.0))
     polygon = shapely.from_wkt(wkt)
     assert polygon.is_valid
@@ -255,6 +268,9 @@ def test_bbox_tuple_to_wkt_pads_degenerate_point():
 
 
 def test_bbox_tuple_to_wkt_discards_out_of_range(caplog):
+    """An extracted bounding box with coordinates outside the valid longitude and
+    latitude ranges is discarded, and a warning is logged.
+    """
     with caplog.at_level(logging.WARNING, logger=discovery_ops.logger.name):
         result = discovery_ops._bbox_4326_tuple_to_wkt((200.0, 40.0, 201.0, 41.0))
     assert result is None
@@ -262,17 +278,22 @@ def test_bbox_tuple_to_wkt_discards_out_of_range(caplog):
 
 
 def test_bbox_tuple_to_wkt_discards_non_finite():
+    """An extracted bounding box with undefined or infinite coordinates is discarded."""
     assert discovery_ops._bbox_4326_tuple_to_wkt((math.nan, 40.0, 10.0, 41.0)) is None
     assert discovery_ops._bbox_4326_tuple_to_wkt((10.0, 40.0, math.inf, 41.0)) is None
 
 
 def test_bbox_tuple_to_wkt_discards_inverted_bbox():
+    """An extracted bounding box whose minimum exceeds its maximum is discarded."""
     assert discovery_ops._bbox_4326_tuple_to_wkt((10.5, 40.0, 10.0, 41.0)) is None
 
 
 def test_bbox_tuple_to_wkt_rounds_to_five_decimal_places():
     # the frontend's TerraDraw silently drops features with coordinates over 9
     # decimal places, so stored bboxes must come out rounded
+    """Stored bounding box coordinates are rounded to five decimal places, so that the
+    map editor can display them.
+    """
     wkt = discovery_ops._bbox_4326_tuple_to_wkt(
         (-9.370596897483855, 40.51113433598111, -9.159202392776214, 40.805561916939304)
     )
@@ -284,6 +305,11 @@ def test_bbox_tuple_to_wkt_rounds_to_five_decimal_places():
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_discovery_extracts_metadata(db_session_maker, admin_user, discovery_env):
+    """Discovery creates a draft, valid survey-related record for a GeoTIFF file found
+    in the mission directory, with its bounding box reprojected to geographic
+    coordinates, its file information, and a single data asset whose media type follows
+    the file extension.
+    """
     data_file = (
         discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/sub/grid.tif"
     )
@@ -335,6 +361,9 @@ async def test_discovery_extracts_metadata(db_session_maker, admin_user, discove
 async def test_discovery_is_idempotent(
     db_session_maker, admin_user, discovery_env, monkeypatch
 ):
+    """Running discovery a second time over the same files creates no duplicate records,
+    reads no file again, and reports no failed record creation.
+    """
     _write_geotiff(
         discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
     )
@@ -391,6 +420,9 @@ async def test_discovery_is_idempotent(
 async def test_discovery_gives_the_same_records_whatever_its_pipelining(
     db_session_maker, admin_user, discovery_env, concurrency, batch_size
 ):
+    """Discovery produces the same records and the same summary, whatever the number of
+    files processed in parallel and the number of records stored together.
+    """
     mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
     names = [f"grid-{index}.tif" for index in range(5)]
     for name in names:
@@ -422,6 +454,10 @@ async def test_discovered_records_match_those_of_the_record_create_operation(
     # discovery writes its records without the ORM: for the same input, the rows
     # must be those of the record create operation
     # real extractions, in worker processes as in production
+    """A record created by discovery is identical, in all its stored properties and
+    those of its asset, to a record created by hand with the same content, both for a
+    readable file and for an unreadable one.
+    """
     monkeypatch.setattr(
         discovery_ops.to_process, "run_sync", _RUN_SYNC_IN_WORKER_PROCESS
     )
@@ -525,6 +561,9 @@ async def test_discovery_dedup_is_scoped_per_mission(
 ):
     # the same mission-relative file path exists in two missions: each mission
     # must get its own record (dedup must not be global)
+    """Two survey missions holding a file at the same path within their directories each
+    obtain their own record for it.
+    """
     second_mission_relative_path = "surveys/test-mission-2"
     _write_geotiff(
         discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
@@ -558,6 +597,9 @@ async def test_discovery_dedup_is_scoped_per_mission(
 async def test_discovery_survives_extraction_failure(
     db_session_maker, admin_user, discovery_env, caplog
 ):
+    """A file whose metadata cannot be read still obtains a record, without bounding box
+    or file information, and the discovery completes successfully with a logged warning.
+    """
     bad_file = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/bad.tif"
     bad_file.parent.mkdir(parents=True, exist_ok=True)
     bad_file.write_bytes(b"this is not a tif")
@@ -640,6 +682,9 @@ async def _get_record_status(db_session_maker, record_id):
 async def test_discovery_survives_a_file_that_fails(
     db_session_maker, admin_user, discovery_env, monkeypatch
 ):
+    """A file whose record cannot be stored is reported as not discovered, while the
+    other files obtain their records and the discovery completes successfully.
+    """
     mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
     _write_geotiff(mission_root / "s01/grid.tif")
     _write_geotiff(mission_root / "s01/bad.tif")
@@ -686,6 +731,9 @@ async def test_discovery_truncates_long_file_names(
     db_session_maker, admin_user, discovery_env
 ):
     # archive file names can be longer than record and asset names may be
+    """A file whose name exceeds the maximum name length obtains a record and asset with
+    shortened names, keeps its full path, and is not duplicated by a later discovery.
+    """
     file_name = f"{'a' * constants.NAME_MAX_LENGTH}.tif"
     _write_geotiff(
         discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01" / file_name
@@ -718,6 +766,9 @@ async def test_discovery_skips_configuration_directories_the_mission_lacks(
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
 ):
+    """A discovery configuration pointing to a directory absent from the mission is
+    ignored, and does not count towards the reported discovery progress.
+    """
     _write_geotiff(
         discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
     )
@@ -768,6 +819,9 @@ async def test_discovery_survives_a_configuration_that_fails(
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
 ):
+    """A discovery configuration with an invalid path pattern does not stop the
+    discovery, and its name is listed in the discovery summary as invalid.
+    """
     _write_geotiff(
         discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
     )
@@ -812,6 +866,9 @@ async def test_discovery_survives_a_configuration_that_fails(
 async def test_discovery_keeps_a_published_mission_published(
     db_session_maker, admin_user, discovery_env
 ):
+    """A published survey mission remains published after a discovery, and its new valid
+    records are published as well.
+    """
     _write_geotiff(
         discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
     )
@@ -839,6 +896,10 @@ async def test_discovery_keeps_a_published_mission_published(
 async def test_discovery_unpublishes_a_mission_whose_project_was_unpublished_meanwhile(
     db_session_maker, admin_user, discovery_env, monkeypatch
 ):
+    """A survey mission whose project is unpublished while a discovery runs returns to
+    draft at the end of the discovery, together with its new records, and the change of
+    status is announced.
+    """
     _write_geotiff(
         discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
     )
@@ -897,6 +958,10 @@ async def test_discovery_refuses_a_path_outside_the_mission_directory(
     db_session_maker, admin_user, discovery_env, relative_path
 ):
     # a file the mission would find if it walked the whole archive
+    """For each mission directory that is empty, the archive root, or a path leaving the
+    archive, discovery is refused with an explanatory message, creates no records and
+    leaves the mission status unchanged.
+    """
     _write_geotiff(discovery_env["archive_root"] / "s01" / "other.tif")
     mission_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
     async with db_session_maker() as session:
@@ -939,6 +1004,11 @@ async def test_discovery_refuses_a_path_outside_the_mission_directory(
 async def test_discovery_that_stops_reports_its_end_and_restores_the_status(
     db_session_maker, admin_user, discovery_env, monkeypatch, error, expected_details
 ):
+    """A discovery that stops on an unexpected error or an interruption reports its
+    failed end with the reason, requests no previews, and restores the previous status
+    of the survey mission.
+    """
+
     async def failing_discovery(**kwargs):
         raise error
 
@@ -983,6 +1053,10 @@ async def test_discovery_that_stops_reports_its_end_and_restores_the_status(
 async def test_discovery_stops_at_its_time_limit(
     db_session_maker, admin_user, discovery_env, monkeypatch
 ):
+    """A discovery that exceeds its configured time limit stops, reports that the limit
+    was exceeded, and returns the survey mission to its previous status.
+    """
+
     async def slow_discovery(**kwargs):
         await asyncio.sleep(10)
 
@@ -1042,6 +1116,10 @@ async def test_discovery_can_be_cancelled_and_keeps_its_records(
     concurrency,
     expected_names,
 ):
+    """A cancelled discovery keeps the records of the files already being processed,
+    leaves the files still waiting untouched, reports its cancellation with a summary,
+    requests previews for the records kept, and returns the survey mission to draft.
+    """
     mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
     for name in ("a.tif", "b.tif", "c.tif"):
         _write_geotiff(mission_root / "s01" / name)
@@ -1150,6 +1228,11 @@ async def test_cancel_mission_discovery(
     expected_status,
     expected_event,
 ):
+    """Cancelling a running discovery marks the survey mission as being cancelled;
+    cancelling when no discovery runs, or one is already being cancelled, is refused; a
+    discovery abandoned for a long time is ended as failed and the mission returned to
+    draft.
+    """
     mission_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
     await _set_mission_status(db_session_maker, mission_id, status, age)
 
@@ -1188,6 +1271,10 @@ async def test_cancel_mission_discovery(
 async def test_cancelling_discovery_keeps_the_heartbeat(
     db_session_maker, admin_user, discovery_env
 ):
+    """Requesting the cancellation of a discovery does not refresh the time of the last
+    sign of activity of the survey mission, so that an abandoned discovery is still
+    recognised as such.
+    """
     mission_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
     await _set_mission_status(
         db_session_maker,
@@ -1245,6 +1332,10 @@ async def test_recover_stale_mission_discoveries(
     expected_mission_status,
     expected_record_status,
 ):
+    """A survey mission left under discovery by an interrupted process is recovered,
+    while one with a recent discovery is left alone; the recovered mission and its valid
+    records become published if the project is published, and draft otherwise.
+    """
     abandoned_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
     await _publish_mission(db_session_maker, discovery_env)
     to_create = _record_to_create(discovery_env, "s01/grid.tif")
@@ -1341,6 +1432,10 @@ async def test_discovery_reports_its_progress_in_sections(
     bootstrap_workflow_stages,
     monkeypatch,
 ):
+    """Discovery reports its progress by sections of the mission directory, counting
+    only the sections present, keeps reporting during a long file reading, and does not
+    announce records one by one.
+    """
     mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
     for relative_path in ("s01/a.tif", "s01/sub/b.tif", "s02/c.tif"):
         _write_geotiff(mission_root / relative_path)
@@ -1404,6 +1499,9 @@ async def test_discovery_rerun_advances_sections_through_tracked_files(
     bootstrap_workflow_stages,
     monkeypatch,
 ):
+    """When discovery runs again, sections holding only already-recorded files are
+    counted as done in the reported progress.
+    """
     mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
     for relative_path in ("s01/a.tif", "s02/b.tif"):
         _write_geotiff(mission_root / relative_path)
@@ -1454,6 +1552,9 @@ async def test_discovery_rerun_advances_sections_through_tracked_files(
 async def test_discovery_logs_its_timings(
     db_session_maker, admin_user, discovery_env, monkeypatch, caplog
 ):
+    """At its end, discovery logs the number of files processed, the time spent on each
+    of its phases, and the slowest file readings.
+    """
     mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
     names = ("a.tif", "b.tif", "c.tif")
     for name in names:
@@ -1487,6 +1588,9 @@ async def test_discovery_logs_its_timings(
 async def test_mission_previews_are_collected_for_eligible_records_only(
     db_session_maker, admin_user, discovery_env
 ):
+    """Only the records whose files match a discovery configuration that generates
+    previews are selected for preview generation.
+    """
     eligible = _record_to_create(discovery_env, "s01/grid.tif")
     ineligible = _record_to_create(discovery_env, "other/grid.tif")
     for to_create in (eligible, ineligible):
@@ -1509,6 +1613,9 @@ async def test_mission_previews_are_collected_for_eligible_records_only(
 async def test_mission_previews_are_collected_by_page_and_creation_time(
     db_session_maker, admin_user, discovery_env
 ):
+    """Records missing previews are selected in groups of a given size, and only those
+    created before a given time are included.
+    """
     older = [_record_to_create(discovery_env, f"s01/old{i}.tif") for i in range(3)]
     for to_create in older:
         await _create_record_without_discovery(db_session_maker, admin_user, to_create)
@@ -1540,6 +1647,9 @@ async def test_discovery_passes_temporal_extent_through(
 ):
     # KMALL and SEG-Y do emit temporal dates, but a faked dispatcher keeps this
     # test about the passthrough itself rather than about any one extractor
+    """The temporal extent read from a file is stored on its record, along with its
+    bounding box widened by a small margin.
+    """
     target = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/dated.tif"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(b"content is irrelevant, dispatch is faked")
@@ -1584,6 +1694,10 @@ async def test_discovery_applies_mission_implicit_crs(
 ):
     # formats that cannot carry a CRS (XYZ grids, SEG-Y) only yield a native
     # bbox: the mission's implicit CRS is what turns it into a map bbox
+    """The bounding box of a file that carries no coordinate reference system is
+    interpreted in the coordinate reference system of its survey mission and reprojected
+    to geographic coordinates.
+    """
     target = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/implicit.tif"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(b"content is irrelevant, dispatch is faked")
@@ -1628,6 +1742,10 @@ async def test_discovery_geographic_implicit_crs_discards_projected_coordinates(
 ):
     # under a geographic implicit CRS, metre coordinates fail the lon/lat range
     # check and the bbox correctly stays NULL
+    """When a survey mission uses geographic coordinates, a file bounding box given in
+    metres falls outside the valid range and is discarded, so the record has no bounding
+    box.
+    """
     assert discovery_env["mission"].implicit_crs == 4326
     target = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/metres.tif"
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -1666,6 +1784,9 @@ async def test_discovery_geographic_implicit_crs_discards_projected_coordinates(
 async def test_discovery_survives_invalid_implicit_crs(
     db_session_maker, admin_user, discovery_env, monkeypatch
 ):
+    """A survey mission with an unknown coordinate reference system still completes its
+    discovery, with records lacking a bounding box.
+    """
     target = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/bogus.tif"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(b"content is irrelevant, dispatch is faked")
@@ -1725,6 +1846,10 @@ async def test_discovery_applies_header_crs(
     crs_from_mission,
 ):
     # only a single projected CRS quoted by the SEG-Y header overrides the mission's
+    """For each combination of SEG-Y header and survey mission coordinate reference
+    systems, a single projected system named by the header takes precedence, and
+    otherwise the mission system is used and the record notes it.
+    """
     target = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/line.tif"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(b"content is irrelevant, dispatch is faked")
@@ -1771,6 +1896,11 @@ async def test_discovery_updates_extent_of_tracked_record_without_bbox(
 ):
     # a record discovered while the mission's CRS was still the 4326 default has no
     # bbox, and gets one from a re-run once the mission has a projected CRS
+    """A later discovery fills in the bounding box and temporal extent of an existing
+    record that lacks a bounding box, once the survey mission has a projected coordinate
+    reference system, while keeping its description, other assets and links to other
+    records. Records that already have a bounding box are not read again.
+    """
     mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
     for name in ("drawn.tif", "updated.tif"):
         target = mission_root / "s01" / name
@@ -1902,6 +2032,11 @@ async def test_discovery_extent_update_writes_nothing(
     status,
     expected_extractions,
 ):
+    """An existing record without bounding box is left unchanged when the file still
+    yields no bounding box, when the record is busy, or when the survey mission uses
+    geographic coordinates, and a file found by two discovery configurations is read
+    only once.
+    """
     target = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/line.tif"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(b"content is irrelevant, dispatch is faked")
@@ -1969,6 +2104,10 @@ async def test_discovery_extent_update_writes_nothing(
 async def test_discovery_enqueues_previews_of_its_records_and_of_older_ones(
     db_session_maker, admin_user, discovery_env, monkeypatch
 ):
+    """Discovery requests previews for its new records as they are stored and, once per
+    run, for the older records of the mission still missing them, while a discovery that
+    fails requests none.
+    """
     enqueued = []
     monkeypatch.setattr(
         discovery_ops.preview_tasks.generate_mission_previews,
@@ -2043,6 +2182,10 @@ async def test_discovery_enqueues_previews_of_its_records_and_of_older_ones(
 async def test_mission_previews_are_derived_for_missing_only(
     db_session_maker, admin_user, discovery_env, monkeypatch
 ):
+    """Preview generation for a survey mission covers only the records still missing a
+    preview, and stores a thumbnail and preview for each of them, using the coordinate
+    reference systems of the mission and of the record.
+    """
     mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
     for name in ("first.tif", "second.tif", "derived.tif"):
         _write_geotiff(mission_root / "s01/s02" / name)
@@ -2132,6 +2275,10 @@ async def test_mission_previews_are_derived_for_missing_only(
 async def test_record_previews_skip_a_record_whose_status_moved(
     db_session_maker, admin_user, discovery_env, monkeypatch, caplog
 ):
+    """A record taken over by another process after it was selected is skipped, with a
+    warning, by preview generation, while the other records obtain their previews and
+    keep their status.
+    """
     mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
     for name in ("untouched.tif", "moved.tif"):
         _write_geotiff(mission_root / "s01/s02" / name)
@@ -2216,6 +2363,10 @@ async def test_record_previews_need_a_configuration_that_generates_them(
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
 ):
+    """No preview is generated, and nothing is announced, for a record whose file
+    matches no discovery configuration, or whose first matching configuration does not
+    generate previews.
+    """
     _write_geotiff(
         discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
     )
@@ -2291,6 +2442,10 @@ async def test_record_previews_need_a_configuration_that_generates_them(
 async def test_record_previews_of_a_record_created_by_hand(
     db_session_maker, admin_user, discovery_env, monkeypatch
 ):
+    """A record created by hand obtains a thumbnail and preview, with the start and end
+    of the generation announced, and a later generation that skips records already
+    having previews leaves it untouched.
+    """
     _write_geotiff(
         discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
     )
@@ -2366,6 +2521,9 @@ async def test_record_previews_of_a_record_created_by_hand(
 async def test_record_previews_announce_the_end_of_a_render_that_stores_nothing(
     db_session_maker, admin_user, discovery_env, monkeypatch, error
 ):
+    """A preview generation that fails or is interrupted still announces its
+    unsuccessful end, so that the user interface does not keep showing it in progress.
+    """
     _write_geotiff(
         discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
     )
@@ -2414,6 +2572,9 @@ async def test_record_previews_announce_the_end_of_a_render_that_stores_nothing(
 async def test_record_previews_report_the_progress_of_a_long_render(
     db_session_maker, admin_user, discovery_env, monkeypatch
 ):
+    """A long preview generation reports its progress regularly between its start and
+    its end, and reports nothing after its end.
+    """
     _write_geotiff(
         discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
     )
@@ -2463,6 +2624,10 @@ async def test_record_previews_report_the_progress_of_a_long_render(
 async def test_record_previews_leave_record_unpublished_when_its_mission_was_unpublished(
     db_session_maker, admin_user, discovery_env, monkeypatch
 ):
+    """A published record whose survey mission is unpublished during its preview
+    generation returns to draft at the end of the generation, and the change of status
+    is announced.
+    """
     _write_geotiff(
         discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
     )
@@ -2528,6 +2693,10 @@ async def test_record_previews_leave_record_unpublished_when_its_mission_was_unp
 async def test_manual_create_extracts_extents(
     db_session_maker, admin_user, discovery_env, monkeypatch
 ):
+    """A record created by hand obtains the bounding box and file information extracted
+    from its data file, is valid as a result, keeps its description, and has its
+    previews requested.
+    """
     data_file = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/sub/x.tif"
     _write_geotiff(data_file)
     enqueued = []
@@ -2566,6 +2735,10 @@ async def test_manual_create_extracts_extents(
 async def test_manual_update_new_path_reextracts(
     db_session_maker, admin_user, discovery_env, monkeypatch
 ):
+    """Changing the data file of a record by hand extracts its metadata again, replacing
+    a drawn bounding box, and requests new previews, while an update keeping the same
+    file leaves the drawn bounding box in place.
+    """
     _write_geotiff(
         discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "other/x.tif"
     )
@@ -2644,6 +2817,10 @@ async def test_manual_update_failed_extraction_keeps_extents(
     db_session_maker, admin_user, discovery_env, monkeypatch, relative_path
 ):
     # holding the discovery info of its earlier file, which no longer describes it
+    """When the new data file of a record edited by hand is unreadable or lies outside
+    the archive, the extents and description entered by hand are kept, the outdated file
+    information is cleared, and previews are still requested.
+    """
     to_create = _record_to_create(discovery_env, "other/old.tif").model_copy(
         update={"discovery_info": {"type": "raster", "driver": "GTiff"}}
     )

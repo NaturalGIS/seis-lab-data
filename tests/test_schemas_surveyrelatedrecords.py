@@ -1,3 +1,10 @@
+"""Assets and previews of survey-related records
+
+The assets of a survey-related record get a media type derived from their file extension
+when none is given, and their names must be unique within the record. The previews
+generated for a record are shown in the record list and on the record's page.
+"""
+
 import uuid
 
 import pytest
@@ -23,6 +30,9 @@ from seis_lab_data.schemas import surveyrelatedrecords as record_schemas
     ],
 )
 def test_derive_media_type(relative_path, expected):
+    """The media type of an asset is derived from its file extension, regardless of
+    letter case; a path without an extension, or an empty path, yields no media type.
+    """
     assert record_schemas.derive_media_type(relative_path) == expected
 
 
@@ -34,6 +44,7 @@ def test_derive_media_type(relative_path, expected):
     ],
 )
 def test_record_asset_create_derives_missing_media_type(media_type):
+    """A new asset without a media type gets one derived from its file extension."""
     asset = record_schemas.DataRecordAssetCreate(
         id=identifiers.RecordAssetId(uuid.uuid4()),
         name="An asset",
@@ -45,6 +56,9 @@ def test_record_asset_create_derives_missing_media_type(media_type):
 
 
 def test_record_asset_create_keeps_explicit_media_type():
+    """A new asset keeps the media type it is given, rather than one derived from its
+    file extension.
+    """
     asset = record_schemas.DataRecordAssetCreate(
         id=identifiers.RecordAssetId(uuid.uuid4()),
         name="An asset",
@@ -56,6 +70,9 @@ def test_record_asset_create_keeps_explicit_media_type():
 
 
 def test_record_asset_update_derives_blank_media_type():
+    """Editing an asset with a blank media type gives it a media type derived from its
+    file extension.
+    """
     # the update form always submits the field, currently as an empty string
     asset = record_schemas.DataRecordAssetUpdate(
         id=identifiers.RecordAssetId(uuid.uuid4()),
@@ -66,6 +83,9 @@ def test_record_asset_update_derives_blank_media_type():
 
 
 def test_record_asset_update_leaves_unsent_media_type_alone():
+    """Editing an asset without supplying a media type leaves its stored media type
+    unchanged.
+    """
     # deriving it here would add the field to the set of values to be applied,
     # thereby overwriting whatever media type is already stored
     asset = record_schemas.DataRecordAssetUpdate(
@@ -77,6 +97,9 @@ def test_record_asset_update_leaves_unsent_media_type_alone():
 
 
 def test_record_asset_update_without_relative_path_has_no_media_type_to_derive():
+    """Editing an asset with a blank media type and no file path leaves the media type
+    blank, as there is no file extension to derive it from.
+    """
     asset = record_schemas.DataRecordAssetUpdate(
         id=identifiers.RecordAssetId(uuid.uuid4()),
         media_type="",
@@ -85,6 +108,9 @@ def test_record_asset_update_without_relative_path_has_no_media_type_to_derive()
 
 
 def test_record_asset_update_keeps_explicit_media_type():
+    """Editing an asset keeps the media type it is given, rather than one derived from
+    its file extension.
+    """
     asset = record_schemas.DataRecordAssetUpdate(
         id=identifiers.RecordAssetId(uuid.uuid4()),
         media_type="image/tiff",
@@ -94,6 +120,10 @@ def test_record_asset_update_keeps_explicit_media_type():
 
 
 def test_record_asset_relative_path_is_stripped():
+    """Spaces around the file path of an asset are removed, both when the asset is
+    created and when it is edited, before its media type is derived from the file
+    extension.
+    """
     # a pasted path with a trailing space broke preview eligibility and extraction
     pasted_path = "  s01/x.tif  "
     created = record_schemas.DataRecordAssetCreate(
@@ -111,6 +141,9 @@ def test_record_asset_relative_path_is_stripped():
 
 
 def test_derived_record_asset_create_requires_data():
+    """A generated asset, such as a preview image, cannot be created without its
+    content.
+    """
     with pytest.raises(ValueError, match=r"data\s+Field required"):
         record_schemas.DerivedRecordAssetCreate(
             id=identifiers.RecordAssetId(uuid.uuid4()),
@@ -125,6 +158,10 @@ def test_derived_record_asset_create_requires_data():
 async def test_read_schemas_expose_a_records_derived_asset(
     sample_survey_related_records, db_session_maker
 ):
+    """When a record has several generated previews, the first one by name is shown as
+    its thumbnail in the record list and as its preview on the record's page, where the
+    map places it over the record's bounding box.
+    """
     # list card and detail map both need to reach the preview image, whose
     # bounds on the map are the record's bbox
     first_record, _second_record = sample_survey_related_records
@@ -182,6 +219,9 @@ async def test_read_schemas_expose_a_records_derived_asset(
 async def test_read_schemas_have_no_preview_without_derived_assets(
     sample_survey_related_records, db_session_maker
 ):
+    """A record without generated previews shows neither a thumbnail in the record list
+    nor a preview on its page, as data files are never shown as previews.
+    """
     # sample records only have data assets, which are never shown as previews
     first_record, _second_record = sample_survey_related_records
     async with db_session_maker() as session:
@@ -198,6 +238,9 @@ async def test_read_schemas_have_no_preview_without_derived_assets(
 
 
 def test_survey_related_record_update_allows_multiple_assets_with_unset_names():
+    """Several assets of a record can be edited together without changing their names,
+    and are not then considered to share the same name.
+    """
     # a partial asset update that doesn't touch the name must not be treated
     # as colliding with other assets that also don't touch their name
     record_schemas.SurveyRelatedRecordUpdate(
@@ -215,6 +258,7 @@ def test_survey_related_record_update_allows_multiple_assets_with_unset_names():
 
 
 def test_survey_related_record_update_rejects_duplicate_asset_names():
+    """A survey-related record cannot have two assets with the same name."""
     with pytest.raises(ValueError, match="Duplicate asset name found"):
         record_schemas.SurveyRelatedRecordUpdate(
             assets=[

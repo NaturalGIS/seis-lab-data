@@ -1,4 +1,9 @@
-"""Tests of the UI localization: translation catalogs and locale selection."""
+"""User interface translations
+
+The user interface is available in English and Portuguese, in the language preferred by
+the visitor's web browser. Every interface text has a Portuguese translation, and
+messages keep the values inserted into them in every language.
+"""
 
 import pytest
 from babel.messages.pofile import read_po
@@ -17,6 +22,7 @@ PORTUGUESE_CATALOG_PATH = TRANSLATIONS_DIR / "pt/LC_MESSAGES/messages.po"
 
 
 def test_portuguese_catalog_translates_every_message(tmp_path):
+    """Every text of the user interface has a confirmed Portuguese translation."""
     template_catalog_path = tmp_path / "messages.pot"
     result = CliRunner().invoke(
         app,
@@ -61,6 +67,10 @@ def test_portuguese_catalog_translates_every_message(tmp_path):
     ],
 )
 def test_locale_from_accept_language_header(accept_language, expected):
+    """The interface language is the supported language most preferred by the visitor's
+    web browser, regardless of regional variants and letter case; when the browser
+    prefers no supported language, no language is chosen from its preferences.
+    """
     connection = HTTPConnection(
         {
             "type": "http",
@@ -73,6 +83,10 @@ def test_locale_from_accept_language_header(accept_language, expected):
 
 @pytest.mark.parametrize("locale", ["en", "pt"])
 def test_catalog_translations_keep_the_placeholders_of_their_messages(locale):
+    """In both the English and the Portuguese translations, each translated text keeps
+    the placeholders of its original text, so that values such as names are inserted
+    correctly.
+    """
     with (TRANSLATIONS_DIR / locale / "LC_MESSAGES/messages.po").open() as fh:
         catalog = read_po(fh)
     assert [
@@ -82,6 +96,9 @@ def test_catalog_translations_keep_the_placeholders_of_their_messages(locale):
 
 
 def test_error_keeps_its_message_template_apart_from_its_values():
+    """An error message keeps its text apart from the values inserted into it, so that
+    the text can be translated before the values are inserted.
+    """
     error = errors.SeisLabDataError(
         errors.N_("Project %(id)s does not exist."), id="p1"
     )
@@ -92,4 +109,7 @@ def test_error_keeps_its_message_template_apart_from_its_values():
 
 
 def test_error_without_values_keeps_its_message_as_is():
+    """An error message without inserted values is shown exactly as written, including
+    any percent sign.
+    """
     assert str(errors.SeisLabDataError("100% broken")) == "100% broken"

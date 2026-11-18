@@ -1,3 +1,9 @@
+"""EPSG code suggestions
+
+When a coordinate reference system is entered, the application suggests matching EPSG
+codes by code or by name.
+"""
+
 import pytest
 
 from seis_lab_data.webapp import epsgcodes
@@ -11,11 +17,17 @@ from seis_lab_data.webapp import epsgcodes
     ],
 )
 def test_find_epsg_code_suggestions_matches_code_or_name(search_value):
+    """EPSG code suggestions match either the beginning of the code or any part of the
+    name, regardless of letter case.
+    """
     suggestions = epsgcodes.find_epsg_code_suggestions(search_value)
     assert ("3763", "ETRS89 / Portugal TM06") in suggestions
 
 
 def test_find_epsg_code_suggestions_lists_code_matches_first_and_caps_them():
+    """EPSG code suggestions list codes matching the search first, ahead of names
+    matching it, and are limited to fifteen entries.
+    """
     # many names contain "zone 37", these must not push the 37xx codes out
     suggestions = epsgcodes.find_epsg_code_suggestions("37")
     assert len(suggestions) == 15
@@ -23,6 +35,7 @@ def test_find_epsg_code_suggestions_lists_code_matches_first_and_caps_them():
 
 
 def test_find_epsg_code_suggestions_hides_deprecated_codes():
+    """Deprecated EPSG codes are not suggested."""
     # EPSG:2008 is deprecated but still accepted by parse_epsg_code
     suggestions = epsgcodes.find_epsg_code_suggestions("2008")
     assert "2008" not in [code for code, _name in suggestions]

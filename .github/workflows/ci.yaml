@@ -7,6 +7,8 @@ on:
 
 env:
   COLUMNS: 120
+  TEST_RESULTS_DIR: test-results-json
+  JSON_REPORT_OPTIONS: --json-report --json-report-omit collectors log streams
   PUBLISH_IMAGE: ${{ (github.ref_name == 'main' || github.ref_type == 'tag') && 'TRUE' || 'FALSE' }}
   IMAGE_TAG: ${{ github.ref_name == 'main' && 'latest' || github.ref_name }}
   IMAGE_NAME: ghcr.io/${{ github.repository }}/${{ github.event.repository.name }}
@@ -78,9 +80,12 @@ jobs:
 
       - name: "Run tests"
         run: |
+          # the container user differs from the runner's, hence the open permissions
+          mkdir --mode 777 ${{ env.TEST_RESULTS_DIR }}
           docker run --rm --entrypoint bash \
+          --volume ${{ github.workspace }}/${{ env.TEST_RESULTS_DIR }}:/test-results \
           ${{ fromJSON(steps.docker_metadata.outputs.json).tags[0] }} -c \
-          "uv sync --locked --group dev --group gdal && uv run pytest"
+          "uv sync --locked --group dev --group gdal && uv run pytest ${{ env.JSON_REPORT_OPTIONS }} --json-report-file=/test-results/unit.json"
 
       - name: "Stand up compose stack"
         run: |
@@ -101,10 +106,18 @@ jobs:
           docker compose --file docker/compose.ci.yaml exec -t webapp uv run seis-lab-data bootstrap all
 
       - name: "Run integration tests"
+        id: integration_tests
         run: |
           IMAGE_URL=${{ fromJSON(steps.docker_metadata.outputs.json).tags[0] }} \
           docker compose --file docker/compose.ci.yaml exec -t webapp bash -c \
-          "uv sync --locked --group dev --group gdal && uv run pytest -m integration"
+          "uv sync --locked --group dev --group gdal && uv run pytest -m integration ${{ env.JSON_REPORT_OPTIONS }} --json-report-file=/tmp/integration.json"
+
+      - name: "Collect integration test results"
+        if: ${{ !cancelled() && steps.integration_tests.outcome != 'skipped' }}
+        run: |
+          IMAGE_URL=${{ fromJSON(steps.docker_metadata.outputs.json).tags[0] }} \
+          docker compose --file docker/compose.ci.yaml cp \
+          webapp:/tmp/integration.json ${{ env.TEST_RESULTS_DIR }}/integration.json
 
       - name: "Prewarm OAuth login flow"
         run: |
@@ -122,7 +135,9 @@ jobs:
           --user-email akadmin@email.com \
           --user-password admin123 \
           --base-url http://localhost:8888 \
-          --tracing retain-on-failure
+          --tracing retain-on-failure \
+          ${{ env.JSON_REPORT_OPTIONS }} \
+          --json-report-file=${{ env.TEST_RESULTS_DIR }}/e2e.json
 
       - name: "store e2e testing traces as artifacts"
         uses: actions/upload-artifact@v4
@@ -130,6 +145,14 @@ jobs:
         with:
           name: playwright-traces
           path: test-results/
+
+      - name: "store test results as artifacts"
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-json
+          path: ${{ env.TEST_RESULTS_DIR }}/
+          if-no-files-found: ignore
 
       - name: "Stand down compose stack"
         run: |
@@ -153,6 +176,59 @@ jobs:
           file: docker/Dockerfile
           tags: |
             ${{ steps.docker_metadata.outputs.tags }}
+
+  render_test_report:
+    needs: run_ci
+    if: ${{ !cancelled() && github.ref_type == 'tag' }}
+    runs-on: ubuntu-24.04
+    steps:
+
+      - name: "Grab code"
+        uses: actions/checkout@v4.2.2
+
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.7.18"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: "Install system dependencies for weasyprint"
+        run: |
+          sudo apt update
+          sudo apt-get install --yes \
+              fonts-dejavu-core \
+              libharfbuzz0b \
+              libpango-1.0-0 \
+              libpangoft2-1.0-0 \
+              libpangocairo-1.0-0
+
+      - name: "Grab test results"
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results-json
+          path: ${{ env.TEST_RESULTS_DIR }}
+
+      - name: "Render test report"
+        run: |
+          uv run --frozen --only-group report python scripts/render_test_report.py \
+          --results ${{ env.TEST_RESULTS_DIR }}/*.json \
+          --release ${{ github.ref_name }} \
+          --commit ${{ github.sha }} \
+          --output seis-lab-data-test-report-${{ github.ref_name }}.pdf
+
+      - name: "store test report as artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-${{ github.ref_name }}
+          path: seis-lab-data-test-report-${{ github.ref_name }}.pdf
+          # the maximum allowed for public repositories
+          retention-days: 90
 
   trigger_deployment:
     needs: run_ci

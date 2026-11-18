@@ -1,4 +1,9 @@
-"""Tests for a survey mission's detail page and its records during discovery."""
+"""Discovery on survey mission pages
+
+Survey mission pages let catalog editors start and cancel the discovery of survey-
+related records from the file archive and follow its progress. While a discovery runs,
+the mission's records cannot be modified.
+"""
 
 import uuid
 
@@ -23,6 +28,8 @@ pytestmark = pytest.mark.integration
 
 @pytest.fixture
 def logged_in_as_admin(monkeypatch, admin_user):
+    """Authenticate every request as the `admin_user` fixture."""
+
     async def authenticate(self, conn):
         return AuthCredentials(["authenticated"]), admin_user
 
@@ -62,6 +69,10 @@ async def test_mission_page_shows_the_discovery_action_of_its_status(
     expected_action,
     absent_actions,
 ):
+    """A survey mission's page offers the action that matches its discovery state:
+    starting a discovery when idle, cancelling it while it runs, and an indication that
+    cancellation is in progress while it is being cancelled.
+    """
     mission = sample_survey_missions[0]
     async with db_session_maker() as session:
         await mission_commands.set_survey_mission_status(
@@ -91,6 +102,9 @@ async def test_mission_page_guards_discovery_actions_behind_dialogs(
     logged_in_as_admin,
     status,
 ):
+    """Starting and cancelling a discovery each require confirmation in a dialog, and
+    only the button matching the survey mission's current state opens its dialog.
+    """
     mission = sample_survey_missions[0]
     async with db_session_maker() as session:
         await mission_commands.set_survey_mission_status(
@@ -140,6 +154,10 @@ async def test_mission_page_shows_discovery_progress_in_place_of_its_status_icon
     status,
     shows_progress,
 ):
+    """While a survey mission's discovery runs or is being cancelled, its page shows the
+    discovery progress in place of the status indicator; other statuses show their usual
+    indicator, and a published mission shows none.
+    """
     mission = sample_survey_missions[0]
     await _set_mission_status(db_session_maker, mission.id, status)
 
@@ -166,6 +184,9 @@ async def test_mission_page_shows_discovery_progress_in_place_of_its_status_icon
 def test_cancel_discovery_requires_a_csrf_token(
     test_client: TestClient, sample_survey_missions, logged_in_as_admin, monkeypatch
 ):
+    """A request to cancel a discovery that does not carry the page's security token is
+    refused, and no cancellation takes place.
+    """
     mission = sample_survey_missions[0]
     enqueued = []
     monkeypatch.setattr(
@@ -201,6 +222,11 @@ async def test_details_component_is_morphed_into_the_detail_page(
     sample_survey_missions,
     logged_in_as_admin,
 ):
+    """While a survey mission is under discovery, the refreshed mission details sent to
+    its open page carry the current status, the cancel action and the discovery
+    progress, and update the summary, actions and information sections without reloading
+    the list of records.
+    """
     mission = sample_survey_missions[0]
     await _set_mission_status(
         db_session_maker, mission.id, constants.SurveyMissionStatus.UNDER_DISCOVERY
@@ -227,6 +253,9 @@ async def test_details_component_is_morphed_into_the_detail_page(
 def test_details_component_needs_a_valid_request_id(
     test_client: TestClient, sample_survey_missions, logged_in_as_admin
 ):
+    """A request for refreshed survey mission details is rejected when it does not
+    identify the page it is meant for.
+    """
     mission = sample_survey_missions[0]
 
     response = test_client.get(f"/survey-missions/{mission.id}/details/nope")
@@ -254,6 +283,9 @@ async def test_mission_page_disables_modifications_under_discovery(
     status,
     locked,
 ):
+    """While a survey mission's discovery runs or is being cancelled, its page disables
+    editing and deletion and does not offer the bulk update of its records.
+    """
     mission = next(
         m
         for m in sample_survey_missions
@@ -278,6 +310,9 @@ async def test_records_list_offers_no_bulk_update_under_discovery(
     sample_survey_related_records,
     logged_in_as_admin,
 ):
+    """The bulk update of a survey mission's records is offered in its record list, and
+    is no longer offered once a discovery starts.
+    """
     mission = next(
         m
         for m in sample_survey_missions
@@ -302,6 +337,9 @@ async def test_record_page_disables_modifications_under_discovery(
     sample_survey_related_records,
     logged_in_as_admin,
 ):
+    """The page of a survey-related record disables editing and deletion while its
+    survey mission is under discovery.
+    """
     record = sample_survey_related_records[0]
     await _set_mission_status(
         db_session_maker,
@@ -323,6 +361,9 @@ async def test_record_details_component_patches_the_mission_discovery_signal(
     sample_survey_related_records,
     logged_in_as_admin,
 ):
+    """The refreshed details sent to an open survey-related record page indicate that
+    the record's survey mission is under discovery.
+    """
     record = sample_survey_related_records[0]
     await _set_mission_status(
         db_session_maker,
@@ -350,6 +391,10 @@ class _EventCollector:
 async def test_records_of_a_mission_under_discovery_cannot_be_modified(
     db_session_maker, sample_survey_related_records, admin_user
 ):
+    """While a survey mission is under discovery, records cannot be created, updated or
+    deleted in it, each attempt being reported as failed with an explanation, and a bulk
+    update leaves its records unchanged.
+    """
     record = sample_survey_related_records[0]
     record_id = identifiers.SurveyRelatedRecordId(record.id)
     await _set_mission_status(

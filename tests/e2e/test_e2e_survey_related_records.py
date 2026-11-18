@@ -1,3 +1,10 @@
+"""Managing survey-related records in the browser
+
+An editor creates, modifies and deletes survey-related records within a survey mission,
+selects several records in the listing to update them together, and switches between
+listing layouts.
+"""
+
 import re
 import uuid
 
@@ -36,6 +43,11 @@ def _fill_bounding_box(page: Page):
 
 @pytest.mark.e2e
 def test_survey_related_record_lifecycle(authenticated_page: Page):
+    """Within a new project and survey mission, an editor creates a survey-related
+    record with two links and two assets, each asset with its own link, then renames the
+    record and deletes it, followed by the survey mission and the project. The deletion
+    confirmation names the record.
+    """
     # NOTE: this test is perhaps overly long, but for now it covers the full creation
     # and deletion lifecycle of survey-related records. Let's revise later once
     # search functionality has been implemented.
@@ -192,6 +204,10 @@ def test_survey_related_record_lifecycle(authenticated_page: Page):
 
 @pytest.mark.e2e
 def test_survey_related_record_bulk_selection(authenticated_page: Page):
+    """In the list of records of a survey mission, an editor selects records one by one
+    and sees the number selected, clears the selection, and finds that changing the
+    search text also clears it.
+    """
     # NOTE: this only exercises the selection primitives (checkboxes, count,
     # clear, auto-clear-on-filter-change) on the mission-scoped listing, where
     # the record count is fully controlled by the test. The top-level listing
@@ -284,6 +300,10 @@ def test_survey_related_record_bulk_selection(authenticated_page: Page):
 def test_survey_related_record_selectable_after_hovering_thumbnail(
     authenticated_page: Page,
 ):
+    """In the list of records of a survey mission, moving the pointer across a record's
+    thumbnail onto its selection box and clicking it selects the record, without opening
+    the record.
+    """
     # the selection checkbox overlays the record's thumbnail, whose hover effect must
     # not paint the thumbnail over the checkbox, as moving the pointer to the checkbox
     # usually goes through the thumbnail
@@ -366,6 +386,11 @@ def test_survey_related_record_selectable_after_hovering_thumbnail(
 
 @pytest.mark.e2e
 def test_survey_related_record_listing_layouts(authenticated_page: Page):
+    """The list of records of a survey mission shows each draft record with its status,
+    its project and a selection box, without edit or delete buttons. The compact layout
+    hides the project, is remembered after reloading the page, and the regular layout
+    shows it again.
+    """
     authenticated_page.goto("/")
     authenticated_page.get_by_role("link", name="list-projects").click()
     authenticated_page.get_by_role("link", name="new-project").click()
@@ -450,6 +475,10 @@ def test_survey_related_record_listing_layouts(authenticated_page: Page):
 
 @pytest.mark.e2e
 def test_bulk_update_survey_related_records(authenticated_page: Page):
+    """An editor selects two records of a survey mission and opens the bulk update form,
+    which shows the number of records concerned and refuses a submission that changes
+    nothing. Choosing a new workflow stage then updates both records.
+    """
     # NOTE: only exercises the "manually selected" mode - "select all matching"
     # only becomes available when more records match than fit on one page,
     # which a small deterministic fixture like this one won't trigger (same
@@ -565,6 +594,9 @@ def test_bulk_update_survey_related_records(authenticated_page: Page):
 def test_survey_related_record_creation_rejects_duplicate_name(
     authenticated_page: Page,
 ):
+    """Creating a survey-related record with the name of an existing record of the same
+    survey mission is refused, and the form shows an error next to the name field.
+    """
     authenticated_page.goto("/")
     authenticated_page.get_by_role("link", name="list-projects").click()
     authenticated_page.get_by_role("link", name="new-project").click()
@@ -632,6 +664,11 @@ def test_survey_related_record_creation_rejects_duplicate_name(
 def test_published_survey_related_record_can_be_edited_and_deleted(
     authenticated_page: Page,
 ):
+    """A project, survey mission and survey-related record created with a bounding box
+    are valid and published automatically, with no manual publish button. The published
+    record stays published after being renamed, and the record, survey mission and
+    project can all be deleted.
+    """
     # publication is automatic - valid resources are published when saved, there
     # is no manual (un)publishing and published resources remain editable and
     # deletable

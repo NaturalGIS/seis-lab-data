@@ -1,3 +1,10 @@
+"""Search filters in the page address
+
+List pages can be filtered by name, dataset category, workflow stage, status, project,
+survey mission, temporal extent and map area. Filters are kept in the page address, so
+that a filtered list can be reloaded or shared.
+"""
+
 import urllib.parse
 import uuid
 
@@ -57,6 +64,9 @@ def test_simple_filter(
     expected_kwargs,
     expected_query_params,
 ):
+    """The name, dataset category and workflow stage filters keep their value and are
+    written to the page address under their public names.
+    """
     filter_ = type_(value=value)
     assert filter_.value == expected_value
     assert filter_.internal_name == expected_internal_name
@@ -66,6 +76,9 @@ def test_simple_filter(
 
 
 def test_bounding_box_filter():
+    """The map area filter keeps its bounding box and is written to the page address as
+    the map area switch and the four corner coordinates.
+    """
     bbox_wkt = "POLYGON ((0 0, 10 0, 10 10, 0 10, 0 0))"
     filter_ = filters.BoundingBoxFilter(value=shapely.from_wkt(bbox_wkt))
     assert filter_.value.wkt == bbox_wkt
@@ -81,6 +94,7 @@ def test_bounding_box_filter():
 
 
 def test_simple_filter_from_params():
+    """The name filter is read from the search term in the page address."""
     value = "fake_value"
     filter_ = filters.NameFilter.from_params({"search": value})
     assert filter_.value == value
@@ -107,6 +121,9 @@ def test_simple_filter_from_params():
 def test_compound_name_filter_from_params_raises_when_no_match(
     type_, public_name, params
 ):
+    """The project and survey mission filters are not applied when the page address
+    lacks them or does not carry a valid identifier in them.
+    """
     # regression test: these filter classes must raise ValueError (like every
     # other SimpleListFilter) when their query param is absent or malformed,
     # instead of silently returning `value=None`. Returning a value in this
@@ -121,6 +138,9 @@ def test_compound_name_filter_from_params_raises_when_no_match(
 
 
 def test_project_compound_name_filter_from_params_parses_valid_compound_name():
+    """The project filter recognizes the project from the identifier that follows its
+    name in the page address.
+    """
     project_id = uuid.uuid4()
     filter_ = filters.ProjectCompoundNameFilter.from_params(
         {"filterProject": f"some project name {project_id}"}
@@ -130,6 +150,9 @@ def test_project_compound_name_filter_from_params_parses_valid_compound_name():
 
 
 def test_survey_mission_compound_name_filter_from_params_parses_valid_compound_name():
+    """The survey mission filter recognizes the survey mission from the identifier that
+    follows its name in the page address.
+    """
     mission_id = uuid.uuid4()
     filter_ = filters.SurveyMissionCompoundNameFilter.from_params(
         {"filterMission": f"some mission name {mission_id}"}
@@ -139,6 +162,9 @@ def test_survey_mission_compound_name_filter_from_params_parses_valid_compound_n
 
 
 def test_survey_related_record_list_filters_omits_survey_mission_id_when_unset():
+    """When only a search term is given, the record list is not restricted to any
+    project or survey mission.
+    """
     # regression test for the bug described above: when the caller only
     # supplies unrelated params (e.g. just a free-text search), the resulting
     # kwargs must not contain `survey_mission_id`/`project_id` at all, since
@@ -154,6 +180,9 @@ def test_survey_related_record_list_filters_omits_survey_mission_id_when_unset()
 
 
 def test_survey_related_record_list_filters_includes_survey_mission_id_when_set():
+    """When a survey mission filter is given, the record list is restricted to that
+    survey mission.
+    """
     mission_id = uuid.uuid4()
     list_filters = filters.SurveyRelatedRecordListFilters.from_params(
         {"filterMission": f"some mission name {mission_id}"}
@@ -229,6 +258,10 @@ def test_survey_related_record_list_filters_includes_survey_mission_id_when_set(
 def test_project_list_filter_serialization(
     filter_: filters.SimpleListFilter, expected_qs_fragment
 ):
+    """The project list writes only its effective filters to the page address: empty
+    search terms, map areas without the map area switch and invalid map areas are left
+    out.
+    """
     assert filter_.serialize_to_query_string() == expected_qs_fragment
 
 
@@ -274,6 +307,10 @@ def test_project_list_filter_serialization(
     ],
 )
 def test_list_filters_survive_a_query_string_round_trip(list_filters_type, params):
+    """Filters written to the page address are read back unchanged when the page is
+    reloaded, including names with special characters, statuses, temporal extents and
+    map areas.
+    """
     # the page URL is updated with the serialized filters - reloading the page
     # parses them again from it
     list_filters = list_filters_type.from_params(params)
@@ -306,6 +343,9 @@ def test_list_filters_survive_a_query_string_round_trip(list_filters_type, param
 def test_status_filter_parses_the_entity_status(
     list_filters_type, status_value, expected_status
 ):
+    """The status filter of each list page recognizes the statuses of its own kind of
+    entry, including processing states.
+    """
     list_filters = list_filters_type.from_params({"filterStatus": status_value})
     assert list_filters.as_kwargs()["status"] is expected_status
 
@@ -323,6 +363,9 @@ def test_status_filter_parses_the_entity_status(
 def test_status_filter_ignores_values_which_are_not_a_status(
     list_filters_type, status_value
 ):
+    """The status filter is not applied when its value is the option for all statuses,
+    empty, unknown, or a status belonging to another kind of entry.
+    """
     list_filters = list_filters_type.from_params({"filterStatus": status_value})
     assert "status" not in list_filters.as_kwargs()
 
@@ -340,6 +383,7 @@ def test_status_filter_ignores_values_which_are_not_a_status(
 def test_bounding_box_filter_requires_the_map_area_switch(
     switch_value, expected_applied
 ):
+    """The map area filter is applied only when the map area switch is turned on."""
     params = {"minLon": -10, "minLat": 36, "maxLon": -6, "maxLat": 42}
     if switch_value is not None:
         params["filterByMapArea"] = switch_value
@@ -358,6 +402,10 @@ def test_bounding_box_filter_requires_the_map_area_switch(
     ],
 )
 def test_bounding_box_filter_normalizes_map_bounds(bounds, expected_bounds):
+    """The map area filter brings the visible map area within valid world coordinates,
+    so that a map panned across the world or the antimeridian still filters the intended
+    region.
+    """
     min_lon, min_lat, max_lon, max_lat = bounds
     filter_ = filters.BoundingBoxFilter.from_params(
         {
@@ -372,6 +420,9 @@ def test_bounding_box_filter_normalizes_map_bounds(bounds, expected_bounds):
 
 
 def test_survey_mission_list_filters_parse_a_project_compound_name():
+    """The survey mission list can be filtered by project, and the project filter is
+    kept in the page address.
+    """
     project_id = uuid.uuid4()
     compound_name = f"A project - {project_id}"
     list_filters = filters.SurveyMissionListFilters.from_params(

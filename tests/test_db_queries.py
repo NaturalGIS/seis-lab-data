@@ -1,3 +1,10 @@
+"""Catalog listing and search filters
+
+Listings of projects, survey missions and survey-related records return the expected
+entries when filtered by project, survey mission, status, temporal extent, spatial
+extent or asset media type.
+"""
+
 import datetime as dt
 import uuid
 
@@ -23,6 +30,7 @@ from seis_lab_data.schemas import projects as project_schemas
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_list_projects(sample_projects, db_session_maker):
+    """Listing projects reports the total number of projects in the catalog."""
     async with db_session_maker() as session:
         _projects, total = await project_queries.list_projects(
             session, include_total=True
@@ -44,6 +52,9 @@ async def test_list_projects(sample_projects, db_session_maker):
 async def test_list_survey_missions(
     sample_survey_missions, db_session_maker, project_id_filter, expected_total
 ):
+    """Listing survey missions returns all of them, or only those of a given project
+    when filtered by project.
+    """
     async with db_session_maker() as session:
         _survey_missions, total = await mission_queries.list_survey_missions(
             session, project_id=project_id_filter, include_total=True
@@ -73,6 +84,9 @@ async def test_list_survey_related_records(
     survey_mission_ids_filter,
     expected_total,
 ):
+    """Listing survey-related records returns all of them, or only those of the given
+    survey missions when filtered by survey mission.
+    """
     async with db_session_maker() as session:
         _survey_records, total = await record_queries.list_survey_related_records(
             session, survey_mission_ids=survey_mission_ids_filter, include_total=True
@@ -100,6 +114,9 @@ async def test_list_survey_related_records_project_id_filter(
     project_id_filter,
     expected_total,
 ):
+    """Filtering survey-related records by project returns only the records of that
+    project, and none for a project without records.
+    """
     async with db_session_maker() as session:
         _survey_records, total = await record_queries.list_survey_related_records(
             session, project_id=project_id_filter, include_total=True
@@ -112,6 +129,9 @@ async def test_list_survey_related_records_project_id_filter(
 async def test_media_type_queries_ignore_derived_assets(
     sample_survey_related_records, db_session_maker
 ):
+    """The asset media types offered for searching exclude those of previews and
+    thumbnails, and searching records by such a media type finds no records.
+    """
     # a preview's media type is an implementation detail: it must neither show
     # up in the media type datalist nor make its record match a search
     first_record, _second_record = sample_survey_related_records
@@ -145,6 +165,7 @@ async def test_media_type_queries_ignore_derived_assets(
 async def test_listing_records_does_not_load_derived_asset_payloads(
     sample_survey_related_records, db_session_maker
 ):
+    """Listing survey-related records does not load the image data of their previews."""
     # listings never show a preview image, so loading one per record would only
     # weigh their pages down
     first_record, _second_record = sample_survey_related_records
@@ -246,6 +267,10 @@ async def extent_projects(db, db_session_maker):
 async def test_temporal_extent_filter_matches_overlapping_extents(
     extent_projects, db_session_maker, begin, end, expected_names
 ):
+    """Filtering projects by a time period, which may be open at either end, returns the
+    projects whose temporal extent overlaps it, including extents open at either end and
+    projects without a temporal extent.
+    """
     # projects without a spatial extent are irrelevant here, but are always
     # matched by the temporal filter as they have no temporal extent either
     expected_names = expected_names | {"off portugal", "off the azores"}
@@ -265,6 +290,9 @@ async def test_temporal_extent_filter_matches_overlapping_extents(
 async def test_spatial_filter_keeps_items_without_a_spatial_extent(
     extent_projects, db_session_maker
 ):
+    """Filtering projects by an area returns those whose bounding box intersects it,
+    together with those that have no bounding box.
+    """
     async with db_session_maker() as session:
         items, _ = await project_queries.list_projects(
             session,
@@ -279,6 +307,9 @@ async def test_spatial_filter_keeps_items_without_a_spatial_extent(
 async def test_temporal_extent_filter_matches_overlapping_record_extents(
     sample_survey_related_records, db_session_maker
 ):
+    """Filtering survey-related records by a time period returns only those whose
+    temporal extent overlaps it.
+    """
     first_record, second_record = sample_survey_related_records
     async with db_session_maker() as session:
         for record, begin, end in (
@@ -302,6 +333,9 @@ async def test_temporal_extent_filter_matches_overlapping_record_extents(
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_status_filter_of_projects(sample_projects, db_session_maker):
+    """Filtering projects by status returns only the projects in that status, and the
+    public listing of published projects returns nothing when filtered by draft status.
+    """
     draft_project, published_project, *_ = sample_projects
     async with db_session_maker() as session:
         await project_commands.set_project_status(
@@ -329,6 +363,9 @@ async def test_status_filter_of_projects(sample_projects, db_session_maker):
 async def test_status_filter_of_survey_missions(
     sample_survey_missions, db_session_maker
 ):
+    """Filtering survey missions by status returns only those in that status, such as a
+    survey mission under discovery.
+    """
     busy_mission = sample_survey_missions[0]
     async with db_session_maker() as session:
         await mission_commands.set_survey_mission_status(
@@ -350,6 +387,9 @@ async def test_status_filter_of_survey_missions(
 async def test_status_filter_of_survey_related_records(
     sample_survey_related_records, db_session_maker
 ):
+    """Filtering survey-related records by status returns only those in that status,
+    such as a record under export or a record in draft.
+    """
     first_record, second_record = sample_survey_related_records
     async with db_session_maker() as session:
         await record_commands.set_survey_related_record_status(

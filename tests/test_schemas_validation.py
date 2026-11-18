@@ -1,3 +1,10 @@
+"""Validation rules for catalog entries
+
+Projects, survey missions and survey-related records are only valid when they have a
+name of suitable length and a bounding box. Descriptions are optional but limited in
+length.
+"""
+
 import uuid
 
 import pydantic
@@ -79,12 +86,19 @@ _SCHEMAS_AND_DATA = [
     ],
 )
 def test_valid_schemas_accept_optional_description(schema, make_data, description):
+    """For projects, survey missions and survey-related records, the description is
+    optional and is accepted up to its maximum length.
+    """
     item = schema.model_validate(make_data(description=description))
     assert item.description == description
 
 
 @pytest.mark.parametrize("schema, make_data", _SCHEMAS_AND_DATA)
 def test_valid_schemas_reject_too_long_description(schema, make_data):
+    """For projects, survey missions and survey-related records, a description longer
+    than the maximum length makes the entry invalid, with the error reported on the
+    description.
+    """
     with pytest.raises(pydantic.ValidationError) as exc_info:
         schema.model_validate(
             make_data(description="x" * (constants.DESCRIPTION_MAX_LENGTH + 1))
@@ -102,6 +116,10 @@ def test_valid_schemas_reject_too_long_description(schema, make_data):
     ],
 )
 def test_valid_schemas_require_name(schema, make_data, name):
+    """For projects, survey missions and survey-related records, a missing name, or one
+    shorter or longer than the allowed length, makes the entry invalid, with the error
+    reported on the name.
+    """
     with pytest.raises(pydantic.ValidationError) as exc_info:
         schema.model_validate(make_data(name=name))
     assert [e["loc"] for e in exc_info.value.errors()] == [("name",)]
@@ -109,6 +127,9 @@ def test_valid_schemas_require_name(schema, make_data, name):
 
 @pytest.mark.parametrize("schema, make_data", _SCHEMAS_AND_DATA)
 def test_valid_schemas_require_spatial_extent(schema, make_data):
+    """For projects, survey missions and survey-related records, a missing bounding box
+    makes the entry invalid, with the error reported on the spatial extent.
+    """
     with pytest.raises(pydantic.ValidationError) as exc_info:
         schema.model_validate(make_data(bbox_4326=None))
     assert [e["loc"] for e in exc_info.value.errors()] == [("bbox_4326",)]
@@ -125,6 +146,9 @@ def test_valid_schemas_require_spatial_extent(schema, make_data):
 def test_valid_schemas_accept_optional_link_description(
     schema, make_data, link_description
 ):
+    """For projects, survey missions and survey-related records, the description of a
+    link is optional.
+    """
     link = {
         "url": "https://example.com",
         "media_type": "text/html",

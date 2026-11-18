@@ -1,3 +1,9 @@
+"""Home page
+
+The home page introduces the application and shows the most recent survey missions the
+visitor is allowed to see.
+"""
+
 import datetime as dt
 
 import pytest
@@ -15,6 +21,9 @@ pytestmark = pytest.mark.integration
 
 
 def test_home_shows_introduction(test_client: TestClient, db):
+    """The home page shows the application title and a recent missions section, which
+    states that no survey missions are found when the catalog is empty.
+    """
     response = test_client.get("/", params={"lang": "en"})
     assert response.status_code == 200
     assert 'aria-label="title">SeisLabData</h1>' in response.text
@@ -25,6 +34,7 @@ def test_home_shows_introduction(test_client: TestClient, db):
 def test_home_hides_unpublished_missions_from_anonymous_users(
     test_client: TestClient, sample_survey_missions
 ):
+    """The home page does not show draft survey missions to anonymous visitors."""
     response = test_client.get("/", params={"lang": "en"})
     assert response.status_code == 200
     for mission in sample_survey_missions:
@@ -35,6 +45,9 @@ def test_home_hides_unpublished_missions_from_anonymous_users(
 def test_home_shows_three_most_recent_missions(
     test_client: TestClient, sync_db_engine, published_sample_data
 ):
+    """The home page shows the three survey missions with the most recent temporal
+    extent, most recent first.
+    """
     missions = published_sample_data["missions"]
     assert len(missions) > 3
     with sqlmodel.Session(sync_db_engine) as session:
@@ -57,6 +70,10 @@ def test_home_shows_three_most_recent_missions(
 def test_home_highlights_unpublished_missions(
     test_client: TestClient, monkeypatch, sample_survey_missions
 ):
+    """For a catalog editor, the home page includes unpublished survey missions among
+    the recent ones and marks them as unpublished.
+    """
+
     async def authenticate(self, conn):
         return AuthCredentials(["authenticated"]), user_schemas.User(
             id=identifiers.UserId("some-admin"),
