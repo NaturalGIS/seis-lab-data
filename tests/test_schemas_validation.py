@@ -1,8 +1,8 @@
 """Validation rules for catalog entries
 
 Projects, survey missions and survey-related records are only valid when they have a
-name of suitable length and a bounding box. Descriptions are optional but limited in
-length.
+name of suitable length. Projects and survey missions also need a bounding box, which is
+optional for survey-related records. Descriptions are optional but limited in length.
 """
 
 import uuid
@@ -61,13 +61,16 @@ def _survey_related_record_data(**overrides) -> dict:
     }
 
 
-_SCHEMAS_AND_DATA = [
+_SCHEMAS_AND_DATA_REQUIRING_SPATIAL_EXTENT = [
     pytest.param(validation_schemas.ValidProject, _project_data, id="project"),
     pytest.param(
         validation_schemas.ValidSurveyMission,
         _survey_mission_data,
         id="survey_mission",
     ),
+]
+_SCHEMAS_AND_DATA = [
+    *_SCHEMAS_AND_DATA_REQUIRING_SPATIAL_EXTENT,
     pytest.param(
         validation_schemas.ValidSurveyRelatedRecord,
         _survey_related_record_data,
@@ -125,13 +128,33 @@ def test_valid_schemas_require_name(schema, make_data, name):
     assert [e["loc"] for e in exc_info.value.errors()] == [("name",)]
 
 
-@pytest.mark.parametrize("schema, make_data", _SCHEMAS_AND_DATA)
+@pytest.mark.parametrize(
+    "schema, make_data", _SCHEMAS_AND_DATA_REQUIRING_SPATIAL_EXTENT
+)
 def test_valid_schemas_require_spatial_extent(schema, make_data):
-    """For projects, survey missions and survey-related records, a missing bounding box
-    makes the entry invalid, with the error reported on the spatial extent.
+    """For projects and survey missions, a missing bounding box makes the entry invalid,
+    with the error reported on the spatial extent.
     """
     with pytest.raises(pydantic.ValidationError) as exc_info:
         schema.model_validate(make_data(bbox_4326=None))
+    assert [e["loc"] for e in exc_info.value.errors()] == [("bbox_4326",)]
+
+
+def test_valid_survey_related_record_spatial_extent_is_optional_but_needs_area():
+    """For survey-related records, the bounding box is optional, but one with no area
+    makes the record invalid, with the error reported on the spatial extent.
+    """
+    item = validation_schemas.ValidSurveyRelatedRecord.model_validate(
+        _survey_related_record_data(bbox_4326=None)
+    )
+    assert item.bbox_4326 is None
+    zero_area_bbox = WKBElement(
+        shapely.to_wkb(shapely.box(-10, 38, -10, 39)), srid=4326
+    )
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        validation_schemas.ValidSurveyRelatedRecord.model_validate(
+            _survey_related_record_data(bbox_4326=zero_area_bbox)
+        )
     assert [e["loc"] for e in exc_info.value.errors()] == [("bbox_4326",)]
 
 

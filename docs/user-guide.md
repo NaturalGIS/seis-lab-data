@@ -84,7 +84,8 @@ An item is valid when:
 - its name has between 5 and 100 characters;
 - its description has up to 500 characters;
 - every link has an `http` or `https` URL;
-- it has a spatial extent with a non-zero area;
+- for projects and missions, it has a spatial extent with a non-zero area; for records the spatial
+  extent is optional, but when set it must have a non-zero area;
 - for records, a dataset category and a workflow stage are set.
 
 The temporal extent is optional. For draft items, the information panel of the detail page shows
@@ -297,10 +298,11 @@ referring to the file. Its spatial extent and temporal extent are extracted from
 metadata, and the other extracted metadata is shown on the record's detail page. For files whose
 metadata does not identify a coordinate reference system, the mission's implicit CRS is used.
 
-Records created by discovery are validated as they are created. When the discovery ends, the valid
-records are published if the mission is published, and the other records remain in draft status.
-This applies also when the discovery is cancelled, fails or exceeds its time limit, to the records
-created until then.
+Records created by discovery are validated as they are created. Records of files from which no
+spatial extent is extracted can still be valid. When the discovery ends, the valid records are
+published if the mission is published, and the other records remain in draft status. This applies
+also when the discovery is cancelled, fails or exceeds its time limit, to the records created
+until then.
 
 For some formats, the metadata is extracted from samples of the file rather than from the whole
 file:
@@ -403,7 +405,7 @@ while the mission is under discovery. The form has the following fields:
 | Description | Optional. Summary of the dataset described by the record, up to 500 characters. |
 | Dataset category | Required. Classifies the record by the type of data it describes. The list holds the categories defined in [Dataset categories](#dataset-categories). |
 | Workflow stage | Required. Indicates the processing stage of the data, such as raw or processed. The list holds the stages defined in [Workflow stages](#workflow-stages). |
-| Spatial extent | Minimum and maximum longitude and latitude of the data, in decimal degrees, entered as numbers or drawn as a rectangle on the map. A valid record requires an extent with a non-zero area. Replaced by the extent extracted from the record's data file, when one is extracted. |
+| Spatial extent | Minimum and maximum longitude and latitude of the data, in decimal degrees, entered as numbers or drawn as a rectangle on the map. The extent is optional, and when set it must have a non-zero area. Replaced by the extent extracted from the record's data file, when one is extracted. |
 | Temporal extent begin, end | Optional. Dates of the first and last acquisition of the data. Replaced by the dates extracted from the record's data file, when both are extracted. |
 | Links | Optional. Up to 5 links to external resources related to the record. Each link has a URL, which must use `http` or `https`, a media type, a relation and a description of up to 500 characters. |
 | Assets | Optional. Up to 20 files belonging to the record, as described in [Working with record assets](#working-with-record-assets). |

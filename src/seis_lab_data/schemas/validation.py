@@ -109,9 +109,14 @@ class ValidSurveyRelatedRecord(pydantic.BaseModel):
     temporal_extent_begin: dt.date | None
     temporal_extent_end: dt.date | None
     links: list[ValidLinkSchema] = []
-    bbox_4326: Annotated[
-        shapely.Polygon,
-        pydantic.PlainValidator(
-            parse_possibly_empty_wkbelement_polygon_into_valid_geometry
-        ),
-    ]
+    # the spatial extent is optional, so that records of files without one can be
+    # published without requiring human intervention
+    bbox_4326: (
+        Annotated[
+            shapely.Polygon,
+            pydantic.PlainValidator(
+                parse_possibly_empty_wkbelement_polygon_into_valid_geometry
+            ),
+        ]
+        | None
+    )

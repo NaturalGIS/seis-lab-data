@@ -97,7 +97,8 @@ Um item é válido quando:
 - o seu nome tem entre 5 e 100 caracteres;
 - a sua descrição tem até 500 caracteres;
 - todas as ligações têm um URL `http` ou `https`;
-- tem uma extensão espacial com área não nula;
+- no caso dos projetos e das missões, tem uma extensão espacial com área não nula; no caso dos
+  registos, a extensão espacial é opcional, mas quando definida deve ter área não nula;
 - no caso dos registos, a categoria e o estádio estão definidos.
 
 A extensão temporal é opcional. Para os itens em rascunho, o painel de informação da página de
@@ -322,10 +323,11 @@ extraídas dos metadados do ficheiro. Os outros metadados extraídos são aprese
 detalhe do registo. Para os ficheiros cujos metadados não identificam um sistema de referência de
 coordenadas, é usado o CRS implícito da missão.
 
-Os registos criados pela descoberta são validados à medida que são criados. No fim da descoberta,
-os registos válidos são publicados se a missão estiver pública, e os restantes registos
-permanecem em rascunho. Isto aplica-se também quando a descoberta é cancelada, falha ou excede o
-seu tempo limite, aos registos criados até esse momento.
+Os registos criados pela descoberta são validados à medida que são criados. Os registos de
+ficheiros dos quais não é extraída extensão espacial podem ainda assim ser válidos. No fim da
+descoberta, os registos válidos são publicados se a missão estiver pública, e os restantes
+registos permanecem em rascunho. Isto aplica-se também quando a descoberta é cancelada, falha ou
+excede o seu tempo limite, aos registos criados até esse momento.
 
 Para alguns formatos, os metadados são extraídos de amostras do ficheiro e não do ficheiro
 completo:
@@ -429,7 +431,7 @@ a missão está em descoberta. O formulário tem os seguintes campos:
 | Descrição | Opcional. Resumo do conjunto de dados descrito pelo registo, até 500 caracteres. |
 | Categoria | Obrigatório. Classifica o registo pelo tipo de dados que descreve. A lista contém as categorias definidas em [Categorias](#categorias). |
 | Estádio | Obrigatório. Indica o estádio de processamento dos dados, como dados em bruto ou processados. A lista contém os estádios definidos em [Estádios](#estadios). |
-| Extensão espacial | Longitude e latitude mínimas e máximas dos dados, em graus decimais, introduzidas como números ou desenhadas como um retângulo no mapa. Um registo válido requer uma extensão com área não nula. É substituída pela extensão extraída do ficheiro de dados do registo, quando esta é extraída. |
+| Extensão espacial | Longitude e latitude mínimas e máximas dos dados, em graus decimais, introduzidas como números ou desenhadas como um retângulo no mapa. A extensão é opcional e, quando definida, deve ter área não nula. É substituída pela extensão extraída do ficheiro de dados do registo, quando esta é extraída. |
 | Data de início, Data de fim | Opcional. Datas da primeira e da última aquisição dos dados. São substituídas pelas datas extraídas do ficheiro de dados do registo, quando ambas são extraídas. |
 | Ligações | Opcional. Até 5 ligações para recursos externos relacionados com o registo. Cada ligação tem um URL, que deve usar `http` ou `https`, um tipo de media, uma relação e uma descrição de até 500 caracteres. |
 | Recursos | Opcional. Até 20 ficheiros pertencentes ao registo, como descrito em [Trabalhar com recursos dos registos](#trabalhar-com-recursos-dos-registos). |
