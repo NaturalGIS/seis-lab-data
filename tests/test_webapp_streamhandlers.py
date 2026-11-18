@@ -1,4 +1,9 @@
-"""Tests for the handlers relaying item status changes to the pages that show them."""
+"""Live updates of pages
+
+Pages showing projects, survey missions and survey-related records are updated while
+they are open, as the statuses of entries change, as records are discovered in the file
+archive and as record previews are generated, without the user reloading them.
+"""
 
 import json
 import uuid
@@ -67,6 +72,10 @@ async def test_detail_page_tracks_busy_records_without_notifying_them(
     record_status,
     expected_busy,
 ):
+    """When the status of a record changes, the pages of its project and survey mission
+    refresh their record listing and indicate whether any of their records is busy, such
+    as under export, without showing a notification for each record.
+    """
     record = sample_survey_related_records[0]
     async with db_session_maker() as session:
         await record_commands.set_survey_related_record_status(
@@ -101,6 +110,10 @@ async def test_detail_page_tracks_busy_records_without_notifying_them(
 async def test_project_page_tracks_busy_missions(
     db_session_maker, sample_survey_missions, admin_user
 ):
+    """When the status of a survey mission changes, the page of its project shows a
+    notification and indicates that one of its survey missions is busy, such as under
+    discovery.
+    """
     mission = sample_survey_missions[0]
     async with db_session_maker() as session:
         await mission_commands.set_survey_mission_status(
@@ -137,6 +150,9 @@ async def test_project_page_tracks_busy_missions(
 async def test_list_page_quietly_refreshes_on_status_change(
     succeeded, expected_refreshes
 ):
+    """A list page refreshes its listing, without showing a notification, when the
+    status of an entry changes, and is left unchanged when the status change fails.
+    """
     events = await _collect(
         common_handlers.handle_resource_status_changed_list_page,
         _status_changed(constants.ResourceType.RECORD, uuid.uuid4(), succeeded),
@@ -162,6 +178,9 @@ async def test_mission_page_refreshes_only_for_its_own_records(
     own_record,
     expected_refreshes,
 ):
+    """A survey mission page refreshes its record listing only when the status of one of
+    its own records changes, and keeps no notification to be shown on a later page.
+    """
     record = sample_survey_related_records[0]
     mission_id = (
         record.survey_mission_id
@@ -190,6 +209,9 @@ async def test_mission_page_refreshes_only_for_its_own_records(
 
 @pytest.mark.asyncio
 async def test_record_page_refreshes_its_details_on_status_change():
+    """When the status of a record changes, its page shows a notification and refreshes
+    its details in place, without reloading.
+    """
     record_id = uuid.uuid4()
 
     events = await _collect(
@@ -215,6 +237,9 @@ async def test_record_page_refreshes_its_details_on_status_change():
 async def test_record_page_refreshes_its_details_on_its_mission_status_change(
     own_mission, expected_refreshes
 ):
+    """A record page refreshes its details when the status of its own survey mission
+    changes, and ignores the status changes of other survey missions.
+    """
     mission_id = uuid.uuid4()
 
     events = await _collect(
@@ -246,6 +271,10 @@ async def test_record_page_refreshes_its_details_on_its_mission_status_change(
 async def test_mission_page_refreshes_in_place_on_status_change(
     new_status, resets_progress
 ):
+    """When the status of a survey mission changes, its page shows a notification and
+    updates its status, details and record listing in place, without reloading. When a
+    discovery starts, the discovery progress shown on the page is also reset.
+    """
     mission_id = uuid.uuid4()
     message = message_schemas.ResourceStatusChangedMessage(
         request_id=uuid.uuid4(),
@@ -351,6 +380,10 @@ def _parse_patched_signals(event: str) -> dict:
     ],
 )
 async def test_mission_page_shows_discovery_sections(sections, expected):
+    """During a discovery, the survey mission page shows which section of the file
+    archive is being processed and how many sections there are, abbreviating long
+    section paths, and shows no section details while their number is unknown.
+    """
     mission_id = uuid.uuid4()
 
     (event,) = await _collect(
@@ -376,6 +409,9 @@ async def test_mission_page_shows_discovery_sections(sections, expected):
 
 @pytest.mark.asyncio
 async def test_mission_page_shows_discovery_progress_in_place():
+    """The progress of a discovery is shown in place on the survey mission page, along
+    with a refreshed record listing, without a notification.
+    """
     mission_id = uuid.uuid4()
 
     events = await _collect(
@@ -410,6 +446,10 @@ async def test_mission_page_shows_discovery_progress_in_place():
 async def test_mission_page_discovery_failure_notifications(
     modification, own_request, expected_notifications
 ):
+    """A failed discovery is always notified on the survey mission page, while a failed
+    cancellation of a discovery is notified only on the page of the user who requested
+    it.
+    """
     mission_id = uuid.uuid4()
     request_id = uuid.uuid4()
 
@@ -504,6 +544,11 @@ def _build_derivation_message(record_id, mission_id, stage, succeeded=True):
 async def test_detail_pages_refresh_on_derivation(
     resource_type, own_item, stage, succeeded, expected
 ):
+    """A record page is reloaded once the previews of its record have been generated and
+    stored, but not while their generation starts or progresses, nor when nothing was
+    stored, nor for other records. A survey mission page does not react to the previews
+    of records of other survey missions.
+    """
     record_id = uuid.uuid4()
     mission_id = uuid.uuid4()
     context_resource_id = (
@@ -546,6 +591,11 @@ async def test_detail_pages_refresh_on_derivation(
 async def test_record_listings_show_which_records_are_being_derived(
     stage, succeeded, expected_deriving, refreshes_list_page
 ):
+    """While the previews of a record are being generated, the survey mission page and
+    the record list page mark the record as busy, and remove the mark when generation
+    ends. The record list page is refreshed once the previews are stored, and the survey
+    mission page refreshes its record listing at every stage.
+    """
     record_id = uuid.uuid4()
     mission_id = uuid.uuid4()
     message = _build_derivation_message(record_id, mission_id, stage, succeeded)
@@ -580,6 +630,10 @@ async def test_record_listings_show_which_records_are_being_derived(
 
 @pytest.mark.asyncio
 async def test_record_listings_send_no_record_ids_to_anonymous_visitors():
+    """Anonymous visitors receive no record identifiers during preview generation: the
+    survey mission page only refreshes its record listing, and the record list page
+    receives nothing.
+    """
     record_id = uuid.uuid4()
     mission_id = uuid.uuid4()
     mission_page = subscribers.HandlerContext(

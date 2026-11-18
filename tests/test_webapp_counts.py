@@ -1,3 +1,10 @@
+"""Content counts and record summaries
+
+Project, survey mission and record list pages show how many survey missions and survey-
+related records each entry contains, and summarize records by dataset category and
+workflow stage. These figures only take into account what the visitor is allowed to see.
+"""
+
 import re
 import urllib.parse
 
@@ -28,6 +35,8 @@ _USER = user_schemas.User(
 
 @pytest.fixture
 def logged_in(monkeypatch):
+    """Authenticate every request as a user without roles."""
+
     async def authenticate(self, conn):
         return AuthCredentials(["authenticated"]), _USER
 
@@ -89,6 +98,9 @@ def _get_project(mixed_sample_data):
 async def test_count_project_contents(
     db_session_maker, sample_survey_related_records, sample_survey_missions, initiator
 ):
+    """Each project's count of survey missions and survey-related records includes draft
+    entries for logged-in users and leaves them out for anonymous visitors.
+    """
     project_ids = list({m.project_id for m in sample_survey_missions})
     async with db_session_maker() as session:
         counts = await project_ops.count_project_contents(
@@ -113,6 +125,9 @@ async def test_count_project_contents(
 async def test_count_survey_mission_contents(
     db_session_maker, sample_survey_related_records, sample_survey_missions, initiator
 ):
+    """Each survey mission's count of survey-related records includes draft records for
+    logged-in users and leaves them out for anonymous visitors.
+    """
     mission_ids = [m.id for m in sample_survey_missions]
     async with db_session_maker() as session:
         counts = await mission_ops.count_survey_mission_contents(
@@ -132,6 +147,10 @@ async def test_count_survey_mission_contents(
 
 @pytest.mark.asyncio
 async def test_summarize_survey_related_records(db_session_maker, mixed_sample_data):
+    """The summary of a project's survey-related records by dataset category and
+    workflow stage covers only published records for anonymous visitors and also
+    includes draft records for logged-in users.
+    """
     project = _get_project(mixed_sample_data)
     other_category = mixed_sample_data["other_category"]
     async with db_session_maker() as session:
@@ -161,6 +180,9 @@ async def test_summarize_survey_related_records(db_session_maker, mixed_sample_d
 async def test_summarize_survey_related_records_of_a_mission(
     db_session_maker, mixed_sample_data
 ):
+    """The summary of survey-related records by dataset category can be restricted to a
+    single survey mission.
+    """
     second_record = mixed_sample_data["second_record"]
     async with db_session_maker() as session:
         summary = await record_ops.summarize_survey_related_records(
@@ -174,6 +196,10 @@ async def test_summarize_survey_related_records_of_a_mission(
 def test_project_detail_shows_visible_record_summary(
     test_client: TestClient, mixed_sample_data
 ):
+    """For an anonymous visitor, a project's page counts only its published survey-
+    related records and lists only their dataset categories, each linking to the record
+    list filtered by the project and that category.
+    """
     project = _get_project(mixed_sample_data)
     other_category = mixed_sample_data["other_category"]
     response = test_client.get(f"/projects/{project.id}", params={"lang": "en"})
@@ -194,6 +220,9 @@ def test_project_detail_shows_visible_record_summary(
 def test_project_detail_shows_all_records_to_logged_in_users(
     test_client: TestClient, logged_in, mixed_sample_data
 ):
+    """For a logged-in user, a project's page counts and summarizes its draft survey-
+    related records as well as its published ones.
+    """
     project = _get_project(mixed_sample_data)
     response = test_client.get(f"/projects/{project.id}", params={"lang": "en"})
     assert response.status_code == 200
@@ -207,6 +236,9 @@ def test_project_detail_shows_all_records_to_logged_in_users(
 def test_mission_detail_badges_filter_the_record_listing(
     test_client: TestClient, mixed_sample_data
 ):
+    """A survey mission's page counts the records visible to the visitor, and selecting
+    one of its dataset categories filters the mission's record list by that category.
+    """
     first_record = mixed_sample_data["first_record"]
     other_category = mixed_sample_data["other_category"]
     response = test_client.get(
@@ -223,6 +255,9 @@ def test_mission_detail_badges_filter_the_record_listing(
 def test_project_list_counts_only_visible_resources(
     test_client: TestClient, mixed_sample_data
 ):
+    """On the project list page, each project shows its number of survey missions and of
+    survey-related records, counting only those visible to the visitor.
+    """
     project = _get_project(mixed_sample_data)
     response = test_client.get("/projects/", params={"lang": "en"})
     assert response.status_code == 200
@@ -237,6 +272,10 @@ def test_project_list_counts_only_visible_resources(
 def test_records_list_shows_the_filters_of_the_url(
     test_client: TestClient, mixed_sample_data
 ):
+    """When the record list page is opened with project and dataset category filters in
+    its address, the search form shows them already filled in with the advanced search
+    controls expanded, and the list contains only the matching records.
+    """
     project = _get_project(mixed_sample_data)
     other_category = mixed_sample_data["other_category"]
     project_filter = f"{project.name} - {project.id}"

@@ -1,3 +1,10 @@
+"""Managing asset discovery configurations in the browser
+
+An editor creates, modifies and deletes asset discovery configurations, which define the
+file paths, media type, dataset category and workflow stage used to find records in the
+file archive.
+"""
+
 import re
 import uuid
 from urllib.parse import urlencode
@@ -49,6 +56,11 @@ def _find_asset_discovery_configuration_card(page: Page, name: str) -> Locator:
 
 @pytest.mark.e2e
 def test_asset_discovery_configuration_lifecycle(authenticated_page: Page):
+    """An editor opens and cancels the creation form, creates an asset discovery
+    configuration with a path pattern, a media type, a dataset category and a workflow
+    stage, changes its name and path pattern, opens and cancels the modification form,
+    and deletes it. The deletion confirmation names the configuration.
+    """
     # start from the landing page
     authenticated_page.goto("/")
 
@@ -127,6 +139,10 @@ def test_asset_discovery_configuration_lifecycle(authenticated_page: Page):
 def test_asset_discovery_configuration_creation_rejects_duplicate_name(
     authenticated_page: Page,
 ):
+    """Creating an asset discovery configuration with the name of an existing one is
+    refused: the editor returns to the list of configurations and an error notification
+    is shown.
+    """
     authenticated_page.goto("/")
     authenticated_page.get_by_role("button", name="settings").click()
     authenticated_page.get_by_role(

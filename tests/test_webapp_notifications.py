@@ -1,4 +1,8 @@
-"""Tests for the notifications that stream handlers show on pages."""
+"""Notifications on pages
+
+Notifications about changes to catalog entries are written in the language of the user,
+name the entry concerned, and present the reasons for failures clearly and safely.
+"""
 
 import json
 import re
@@ -23,6 +27,7 @@ from seis_lab_data.webapp.streamhandlers import common as common_handlers
 
 @pytest.fixture
 def translations():
+    """Load the compiled translation catalogs of the application."""
     # compiled into the image, as by `seis-lab-data translations compile`
     get_translator().load_from_directory(
         Path(seis_lab_data.__file__).parent / "translations"
@@ -75,6 +80,9 @@ async def _notify_on_list_page(message, request_id=None):
 async def test_notification_names_its_resource_in_the_current_locale(
     translations, locale, expected_title, expected_message
 ):
+    """A notification of a deletion names the deleted entry and its kind in the language
+    of the user, English or Portuguese, and disappears by itself.
+    """
     with switch_locale(locale):
         payload = await _notify_on_list_page(_deleted("m1"))
 
@@ -88,6 +96,9 @@ async def test_notification_names_its_resource_in_the_current_locale(
 
 @pytest.mark.asyncio
 async def test_error_notification_stays_until_dismissed(translations):
+    """A notification of a failed deletion is shown as an error, includes the reason for
+    the failure, and stays on the page until the user dismisses it.
+    """
     request_id = uuid.uuid4()
 
     with switch_locale("en"):
@@ -103,6 +114,7 @@ async def test_error_notification_stays_until_dismissed(translations):
 
 @pytest.mark.asyncio
 async def test_notification_falls_back_to_the_resource_id(translations):
+    """When an entry has no name, notifications identify it by its identifier."""
     message = _deleted(None)
 
     with switch_locale("en"):
@@ -113,6 +125,9 @@ async def test_notification_falls_back_to_the_resource_id(translations):
 
 @pytest.mark.asyncio
 async def test_status_change_notification_translates_the_status(translations):
+    """A notification of a status change shows the new status in the language of the
+    user.
+    """
     record_id = str(uuid.uuid4())
     message = message_schemas.ResourceStatusChangedMessage(
         request_id=uuid.uuid4(),
@@ -142,6 +157,10 @@ async def test_status_change_notification_translates_the_status(translations):
 
 @pytest.mark.asyncio
 async def test_names_cannot_break_out_of_the_notification_script(translations):
+    """Entry names containing web page markup are shown as plain text in notifications
+    and cannot insert content into the page, both in notifications shown immediately and
+    in those kept for the next page.
+    """
     name = "</script><img src=x onerror=alert(1)>"
     message = _deleted(name)
 
@@ -208,6 +227,9 @@ def _failed_update(details, details_params):
 async def test_failure_details_are_translated_along_with_their_status(
     translations, locale, expected_message
 ):
+    """The reason given for a failed update is shown in the language of the user,
+    including the status it mentions.
+    """
     message = _failed_update(
         errors.N_("Cannot update the survey mission because its status is %(status)s."),
         {"status": constants.SurveyMissionStatus.UNDER_DISCOVERY.value},
@@ -221,6 +243,9 @@ async def test_failure_details_are_translated_along_with_their_status(
 
 @pytest.mark.asyncio
 async def test_failure_details_keep_their_values_untranslated(translations):
+    """Values inserted into the reason for a failure, such as an identifier, are shown
+    as they are, even when they coincide with a word that has a translation.
+    """
     message = _failed_update(
         errors.N_("Survey mission %(id)s does not exist."), {"id": "draft"}
     )
@@ -237,6 +262,7 @@ async def test_failure_details_keep_their_values_untranslated(translations):
 async def test_failure_details_missing_from_the_catalogs_are_shown_as_they_are(
     translations,
 ):
+    """A failure reason for which no translation exists is shown as it is."""
     message = _failed_update("connection refused (100% busy)", {})
 
     with switch_locale("pt"):

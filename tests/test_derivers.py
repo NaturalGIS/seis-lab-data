@@ -1,9 +1,15 @@
-"""Unit tests for the preview derivers package.
+"""Preview and thumbnail generation
 
-Pure functions, no DB: these run by default (no marker). GDAL is required; the
-module self-skips where it is unavailable. Everything is exercised against
-synthetic files built in-test, so the suite needs no sample-data archive.
+Preview images are produced from the supported raster, vector, KMALL and SEG-Y files and
+placed at the correct geographic location, and thumbnails show a bounding box over a
+base map. Files that cannot be previewed are refused.
 """
+
+# Unit tests for the preview derivers package.
+#
+# Pure functions, no DB: these run by default (no marker). GDAL is required; the
+# module self-skips where it is unavailable. Everything is exercised against
+# synthetic files built in-test, so the suite needs no sample-data archive.
 
 import struct
 
@@ -176,6 +182,9 @@ def _read_webp(image):
 
 
 def test_derive_raster_preview_renders_a_downscaled_webp(tmp_path):
+    """A preview of a GeoTIFF raster is produced as a WebP image at most 1024 pixels
+    wide or high, placed at the correct geographic location.
+    """
     values = np.tile(np.arange(1200, dtype=np.float32), (600, 1))
     path = _write_geotiff(tmp_path / "grid.tif", 1200, 600, values)
 
@@ -194,6 +203,9 @@ def test_derive_raster_preview_renders_a_downscaled_webp(tmp_path):
 
 
 def test_derive_raster_preview_pseudocolours_a_single_band(tmp_path):
+    """A single-band raster is previewed with a colour ramp running from blue for low
+    values to red for high values, rather than in greyscale.
+    """
     values = np.tile(np.arange(256, dtype=np.float32), (128, 1))
     path = _write_geotiff(tmp_path / "gradient.tif", 256, 128, values)
 
@@ -211,6 +223,7 @@ def test_derive_raster_preview_pseudocolours_a_single_band(tmp_path):
 
 
 def test_derive_raster_preview_makes_nodata_transparent(tmp_path):
+    """Raster cells without data are transparent in the preview."""
     values = np.tile(np.arange(100, dtype=np.float32), (100, 1))
     values[:50, :] = _NODATA
     path = _write_geotiff(tmp_path / "with-nodata.tif", 100, 100, values)
@@ -223,6 +236,7 @@ def test_derive_raster_preview_makes_nodata_transparent(tmp_path):
 
 
 def test_derive_raster_preview_requires_a_crs(tmp_path):
+    """A preview is refused for a raster that has no coordinate reference system."""
     values = np.tile(np.arange(100, dtype=np.float32), (100, 1))
     path = _write_geotiff(tmp_path / "no-crs.tif", 100, 100, values, epsg=None)
 
@@ -231,6 +245,10 @@ def test_derive_raster_preview_requires_a_crs(tmp_path):
 
 
 def test_derive_raster_preview_applies_the_implicit_crs(tmp_path):
+    """A raster in XYZ format, which carries no coordinate reference system, is
+    previewed using the survey mission's default coordinate reference system and placed
+    at the correct geographic location.
+    """
     path = _write_xyz_grid(tmp_path / "grid.xyz")
 
     preview = derive_raster_preview(path, _PT_TM06)
@@ -243,6 +261,9 @@ def test_derive_raster_preview_applies_the_implicit_crs(tmp_path):
 
 
 def test_derive_raster_preview_prefers_the_declared_crs(tmp_path):
+    """A raster's own coordinate reference system takes precedence over the survey
+    mission's default when its preview is produced.
+    """
     values = np.tile(np.arange(100, dtype=np.float32), (100, 1))
     path = _write_geotiff(tmp_path / "grid.tif", 100, 100, values)
 
@@ -255,6 +276,9 @@ def test_derive_raster_preview_prefers_the_declared_crs(tmp_path):
 
 
 def test_derive_raster_preview_rejects_an_implausible_implicit_crs(tmp_path):
+    """A preview is refused when the survey mission's default coordinate reference
+    system would place the raster outside the valid range of longitude and latitude.
+    """
     path = _write_xyz_grid(tmp_path / "grid.xyz")
 
     # the grid's metres read as degrees reach far beyond the lon/lat range
@@ -263,6 +287,7 @@ def test_derive_raster_preview_rejects_an_implausible_implicit_crs(tmp_path):
 
 
 def test_percentile_cuts_ignore_nodata():
+    """The colour range of a raster preview leaves out cells without data."""
     ds = gdal.GetDriverByName("MEM").Create("", 100, 100, 1, gdal.GDT_Float32)
     band = ds.GetRasterBand(1)
     band.SetNoDataValue(_NODATA)
@@ -295,6 +320,9 @@ def test_percentile_cuts_ignore_nodata():
     ],
 )
 def test_can_derive(tmp_path, name, is_directory, expected):
+    """Previews can be produced for each supported raster, vector, KMALL and SEG-Y file
+    format, but not for directories whose names resemble such files.
+    """
     path = tmp_path / name
     if is_directory:
         path.mkdir()
@@ -304,6 +332,7 @@ def test_can_derive(tmp_path, name, is_directory, expected):
 
 
 def test_derive_raster_preview_expands_a_palette(tmp_path):
+    """A raster with a colour palette is previewed in its palette colours."""
     ds = gdal.GetDriverByName("GTiff").Create(str(tmp_path / "map.tif"), 64, 64, 1)
     ds.SetGeoTransform((0.0, 1.0, 0.0, 64.0, 0.0, -1.0))
     srs = osr.SpatialReference()
@@ -327,6 +356,9 @@ def test_derive_raster_preview_expands_a_palette(tmp_path):
 
 
 def test_derive_raster_preview_stretches_16bit_colours(tmp_path):
+    """A 16-bit colour raster has its values rescaled for the preview, so that the image
+    does not appear saturated white.
+    """
     ds = gdal.GetDriverByName("GTiff").Create(
         str(tmp_path / "img.tif"), 64, 64, 3, gdal.GDT_UInt16
     )
@@ -348,6 +380,9 @@ def test_derive_raster_preview_stretches_16bit_colours(tmp_path):
 
 
 def test_derive_vector_preview_renders_lines(tmp_path):
+    """A preview of a shapefile is produced as a WebP image with its lines drawn in red
+    on a transparent background, placed at the correct geographic location.
+    """
     path = _write_shapefile(tmp_path / "track.shp", [_LINE])
 
     preview = derive_vector_preview(path)
@@ -374,6 +409,7 @@ def test_derive_vector_preview_renders_lines(tmp_path):
 
 
 def test_derive_vector_preview_requires_a_crs(tmp_path):
+    """A preview is refused for a vector file without a coordinate reference system."""
     path = _write_shapefile(tmp_path / "no-crs.shp", [_LINE], epsg=None)
 
     with pytest.raises(ValueError):
@@ -381,6 +417,7 @@ def test_derive_vector_preview_requires_a_crs(tmp_path):
 
 
 def test_derive_vector_preview_requires_features(tmp_path):
+    """A preview is refused for a vector file that contains no features."""
     path = _write_shapefile(tmp_path / "empty.shp", [])
 
     with pytest.raises(ValueError):
@@ -388,6 +425,9 @@ def test_derive_vector_preview_requires_features(tmp_path):
 
 
 def test_derive_kmall_preview_renders_track(tmp_path):
+    """A preview of a KMALL file shows the vessel track drawn from its position fixes,
+    placed at the correct geographic location.
+    """
     path = _write_kmall_track(tmp_path / "line.kmall", _KMALL_FIXES)
 
     preview = derive_kmall_preview(path)
@@ -411,6 +451,7 @@ def test_derive_kmall_preview_renders_track(tmp_path):
 
 
 def test_derive_kmall_preview_requires_fixes(tmp_path):
+    """A preview is refused for a KMALL file that contains no position fixes."""
     # a valid KMALL file whose only datagram carries no position
     path = tmp_path / "startup.kmall"
     path.write_bytes(_kmall_datagram(b"#MRZ", bytes(32)))
@@ -445,6 +486,10 @@ def test_derive_kmall_preview_requires_fixes(tmp_path):
 def test_derive_segy_preview_renders_track(
     tmp_path, positions, scalco, units, epsg_code, bbox_native
 ):
+    """A preview of a SEG-Y file shows the survey line drawn from its trace positions,
+    given in either projected or geographic coordinates, and covers the same area as the
+    bounding box computed for the record.
+    """
     path = _write_segy_track(tmp_path / "line.sgy", positions, scalco, units)
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(epsg_code)
@@ -479,6 +524,9 @@ def test_derive_segy_preview_renders_track(
 def test_derive_segy_preview_requires_a_track_and_a_crs(
     tmp_path, positions, epsg_code, message
 ):
+    """A preview is refused for a SEG-Y file whose traces have no positions or all share
+    a single position, or which has no coordinate reference system.
+    """
     path = _write_segy_track(tmp_path / "line.sgy", positions)
 
     with pytest.raises(ValueError, match=message):
@@ -486,6 +534,9 @@ def test_derive_segy_preview_requires_a_track_and_a_crs(
 
 
 def test_render_bbox_thumbnail_draws_the_bbox_over_the_base_map(tmp_path):
+    """A thumbnail shows the bounding box as a semi-transparent filled rectangle with an
+    outline, drawn over the base map at the correct location.
+    """
     basemap = _write_web_mercator_basemap(tmp_path / "basemap.tif")
 
     image = render_bbox_thumbnail(str(basemap), _THUMBNAIL_BBOX, _BBOX_STYLE)
@@ -501,6 +552,7 @@ def test_render_bbox_thumbnail_draws_the_bbox_over_the_base_map(tmp_path):
 
 
 def test_tms_basemap_xml_requests_the_tiles_of_the_url_template():
+    """Thumbnails can use a base map served as map tiles from a configured address."""
     tile = gdal.GetDriverByName("MEM").Create("", 256, 256, 4, gdal.GDT_Byte)
     for band_index, value in enumerate((*_SEA_RGB, 255), start=1):
         tile.GetRasterBand(band_index).Fill(value)

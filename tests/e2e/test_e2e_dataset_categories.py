@@ -1,3 +1,8 @@
+"""Managing dataset categories in the browser
+
+An editor creates, renames and deletes dataset categories from the settings menu.
+"""
+
 import re
 import uuid
 
@@ -31,6 +36,10 @@ def _find_dataset_category_card(page: Page, name: str) -> Locator:
 
 @pytest.mark.e2e
 def test_dataset_category_lifecycle(authenticated_page: Page):
+    """An editor opens and cancels the creation form, creates a dataset category,
+    renames it, opens and cancels the modification form, and deletes it. The deletion
+    confirmation names the dataset category.
+    """
     # start from the landing page
     authenticated_page.goto("/")
 
@@ -95,6 +104,9 @@ def test_dataset_category_lifecycle(authenticated_page: Page):
 def test_dataset_category_creation_rejects_duplicate_name(
     authenticated_page: Page,
 ):
+    """Creating a dataset category with the name of an existing one is refused, and the
+    form shows an error next to the name field.
+    """
     authenticated_page.goto("/")
     authenticated_page.get_by_role("button", name="settings").click()
     authenticated_page.get_by_role("link", name="list-dataset-categories").click()

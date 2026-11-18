@@ -1,3 +1,11 @@
+"""Path patterns of the asset discovery configuration
+
+Asset discovery finds the files of a survey mission by matching their paths in the
+archive against the path patterns of the asset discovery configuration. Only the
+directories named by the patterns are searched, and the archive is divided into sections
+that are processed in a consistent order.
+"""
+
 import re
 
 import anyio
@@ -20,6 +28,10 @@ from seis_lab_data import pathpatterns
     ],
 )
 def test_path_matches_pattern(relative_path_regexp, relative_path, expected):
+    """A file path matches a path pattern only when the whole path, from its first
+    directory to the end of the file name, fits the pattern; a leading slash in the
+    pattern is ignored, and an invalid pattern matches nothing.
+    """
     assert (
         pathpatterns.path_matches_pattern(relative_path_regexp, relative_path)
         is expected
@@ -27,6 +39,7 @@ def test_path_matches_pattern(relative_path_regexp, relative_path, expected):
 
 
 def test_compile_path_pattern_rejects_an_invalid_regexp():
+    """An invalid path pattern is reported as an error."""
     with pytest.raises(re.error):
         pathpatterns.compile_path_pattern(r"s01/(.*\.tif")
 
@@ -45,6 +58,9 @@ async def _collect_relative_file_paths(root, *relative_path_regexps):
 
 @pytest.fixture
 def file_tree(tmp_path):
+    """Create empty files in two survey directories and at the root, plus a symlink loop
+    in `s01`.
+    """
     for relative_path in ("s01/a.tif", "s01/sub/b.tif", "s02/c.tif", "d.tif"):
         (tmp_path / relative_path).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / relative_path).write_bytes(b"")
@@ -75,6 +91,11 @@ def file_tree(tmp_path):
     ],
 )
 async def test_iter_relative_file_paths(file_tree, relative_path_regexps, expected):
+    """Searching the archive finds every file below the fixed leading directories of the
+    path patterns, or in the whole archive when a pattern has none, and finds nothing
+    for a directory that does not exist. A directory reached again through a symbolic
+    link is searched only once.
+    """
     found = await _collect_relative_file_paths(file_tree, *relative_path_regexps)
 
     assert sorted(found) == expected
@@ -90,6 +111,9 @@ async def test_iter_relative_file_paths(file_tree, relative_path_regexps, expect
     ],
 )
 def test_path_pattern_set_first_match(relative_path, expected):
+    """When several path patterns match a file path, the first of them in the
+    configuration applies, and a path that matches none is left unmatched.
+    """
     pattern_set = pathpatterns.PathPatternSet(
         [
             pathpatterns.compile_path_pattern(p)
@@ -102,6 +126,9 @@ def test_path_pattern_set_first_match(relative_path, expected):
 
 @pytest.fixture
 def sectioned_tree(tmp_path):
+    """Create empty files at the root and in three top-level directories, mixing files
+    and subdirectories.
+    """
     for relative_path in (
         "root.tif",
         "s01/a.tif",
@@ -141,6 +168,12 @@ def sectioned_tree(tmp_path):
     ],
 )
 async def test_list_path_groups(sectioned_tree, relative_path_regexps, expected):
+    """The archive is divided into sections, one for each existing leading directory or
+    file named by the path patterns, with nested directories included in their parent's
+    section and missing ones left out. A pattern without a fixed leading directory gives
+    one section per top-level directory, and within a directory, files come before
+    subdirectories.
+    """
     pattern_set = pathpatterns.PathPatternSet(
         [pathpatterns.compile_path_pattern(p) for p in relative_path_regexps]
     )
@@ -166,6 +199,9 @@ async def test_list_path_groups(sectioned_tree, relative_path_regexps, expected)
 async def test_list_path_groups_follows_the_walk_order(
     sectioned_tree, relative_path_regexps
 ):
+    """The archive search finds files in the same order as its sections, so that each
+    section is completed before the next one begins.
+    """
     pattern_set = pathpatterns.PathPatternSet(
         [pathpatterns.compile_path_pattern(p) for p in relative_path_regexps]
     )

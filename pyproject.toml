@@ -50,6 +50,7 @@ dev = [
     "pre-commit>=4.2.0",
     "pytest>=8.4.1",
     "pytest-asyncio>=1.1.0",
+    "pytest-json-report>=1.5.0",
     "pytest-playwright>=0.7.0",
     "ruff>=0.12.1",
     "ty>=0.0.1a21",
@@ -66,6 +67,11 @@ docs = [
     "mkdocs-static-i18n>=1.3.0",
     "mkdocs-to-pdf>=0.10.1",
 ]
+report = [
+    "jinja2>=3.1.6",
+    "markdown>=3.11.3",
+    "weasyprint>=70.0",
+]
 
 [tool.uv]
 default-groups = []
@@ -80,6 +86,14 @@ extend-exclude = [
 ]
 # pre-commit passes file paths explicitly, which would otherwise bypass the exclusion
 force-exclude = true
+
+[tool.ruff.lint]
+extend-select = ["D100", "D103"]
+
+[tool.ruff.lint.per-file-ignores]
+# the docstrings of the test modules and of their tests are the contents of the PDF
+# test report (scripts/render_test_report.py), therefore only test modules require them
+"!tests/**/test_*.py" = ["D100", "D103"]
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers --verbose -m 'not e2e and not integration'"

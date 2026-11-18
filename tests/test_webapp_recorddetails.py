@@ -1,4 +1,9 @@
-"""Tests for a record's detail page, also kept up to date without reloading it."""
+"""Survey-related record details
+
+The page of a survey-related record shows the information gathered when its files were
+discovered and the location of its data files, and keeps the user informed while the
+record is exported to GeoNode.
+"""
 
 import uuid
 
@@ -24,6 +29,10 @@ from seis_lab_data.webapp.streamhandlers import common as common_handlers
 def test_detail_page_shows_the_discovery_info(
     test_client: TestClient, published_sample_data, sync_db_engine
 ):
+    """The page of a survey-related record shows the information gathered about its
+    files during discovery, such as the file size and the no-data value, in readable
+    form.
+    """
     record = published_sample_data["records"][0]
     with sqlmodel.Session(sync_db_engine) as session:
         db_record = session.get(models.SurveyRelatedRecord, record.id)
@@ -44,6 +53,11 @@ def test_detail_page_shows_the_discovery_info(
 
 
 def test_discovery_info_items_are_ordered_and_formatted():
+    """The discovery information of a record is listed in a fixed order, with readable
+    labels and formatted values, such as file sizes in megabytes and durations in
+    minutes or seconds. Internal items are omitted, and every kind of information has a
+    label of its own.
+    """
     items = jinjafilters.get_discovery_info_items(
         {
             "coverage": "partial",
@@ -99,6 +113,7 @@ def test_discovery_info_items_are_ordered_and_formatted():
 
 @pytest.mark.parametrize("discovery_info", [None, {}])
 def test_discovery_info_items_of_a_record_without_any(discovery_info):
+    """No discovery information is listed for a record that has none."""
     assert jinjafilters.get_discovery_info_items(discovery_info) == []
 
 
@@ -106,6 +121,10 @@ def test_discovery_info_items_of_a_record_without_any(discovery_info):
 def test_details_component_is_morphed_into_the_detail_page(
     test_client: TestClient, published_sample_data
 ):
+    """The details section of a published record page can be refreshed on its own, also
+    for anonymous visitors, and is updated in place without disturbing the live updates
+    of the page.
+    """
     record = published_sample_data["records"][0]
     request_id = uuid.uuid4()
 
@@ -126,6 +145,9 @@ def test_details_component_is_morphed_into_the_detail_page(
 def test_details_component_shows_the_full_path_of_data_assets(
     test_client: TestClient, published_sample_data, settings, monkeypatch, tmp_path
 ):
+    """The refreshed details section of a record shows the full location of its data
+    files in the file archive.
+    """
     monkeypatch.setattr(settings, "readonly_archive_root_directory", tmp_path)
     record = published_sample_data["records"][0]
     mission = next(
@@ -145,6 +167,11 @@ def test_details_component_shows_the_full_path_of_data_assets(
 def test_details_component_actions_report_to_the_page_stream(
     test_client: TestClient, published_sample_data, monkeypatch
 ):
+    """For an editor, the actions of the refreshed details section of a record remain
+    linked to the open page, so that the page receives the progress of the tasks they
+    start.
+    """
+
     async def authenticate(self, conn):
         return AuthCredentials(["authenticated"]), user_schemas.User(
             id=identifiers.UserId("some-editor"),
@@ -171,6 +198,9 @@ def test_details_component_actions_report_to_the_page_stream(
 def test_details_component_needs_a_valid_request_id(
     test_client: TestClient, published_sample_data
 ):
+    """A refresh of the details section of a record is refused when it does not identify
+    the open page correctly.
+    """
     record = published_sample_data["records"][0]
 
     response = test_client.get(f"/survey-related-records/{record.id}/details/nope")
@@ -203,6 +233,9 @@ async def _handle_export(stage, succeeded, resource_id="the-record"):
     ],
 )
 async def test_export_outcome_is_notified(succeeded, expected_category):
+    """When the export of a record to GeoNode ends, its page shows a success or an error
+    notification accordingly, and nothing else.
+    """
     events = await _handle_export(constants.ExportStage.ENDED, succeeded)
 
     # only notified - the details are re-fetched as the record's status changes
@@ -213,11 +246,17 @@ async def test_export_outcome_is_notified(succeeded, expected_category):
 
 @pytest.mark.asyncio
 async def test_export_start_is_left_to_the_status_change():
+    """The start of an export to GeoNode shows no separate notification on the record
+    page, as it is reflected by the change of the record's status.
+    """
     assert await _handle_export(constants.ExportStage.STARTED, True) == []
 
 
 @pytest.mark.asyncio
 async def test_export_progress_only_notifies():
+    """The progress of an export to GeoNode is shown on the record page as a
+    notification only.
+    """
     events = await _handle_export(constants.ExportStage.PROGRESS, True)
 
     assert len(events) == 1
@@ -226,4 +265,5 @@ async def test_export_progress_only_notifies():
 
 @pytest.mark.asyncio
 async def test_export_of_another_record_is_ignored():
+    """A record page ignores the exports of other records."""
     assert await _handle_export(constants.ExportStage.ENDED, True, "other") == []

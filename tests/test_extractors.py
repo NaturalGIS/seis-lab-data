@@ -1,9 +1,17 @@
-"""Unit tests for the metadata extractors package.
+"""Metadata extraction from survey files
 
-Pure functions, no DB: these run by default (no marker). GDAL is required; the
-module self-skips where it is unavailable. Everything is exercised against
-synthetic files built in-test, so the suite needs no sample-data archive.
+When survey files are discovered in the archive, their metadata is read from the files
+themselves: the bounding box, the temporal extent, the coordinate reference system and
+format-specific details for GeoTIFF and XYZ rasters, XYZ point clouds, shapefiles,
+KMALL and SEG-Y files. Damaged or implausible content is skipped or rejected rather
+than recorded as incorrect metadata.
 """
+
+# Unit tests for the metadata extractors package.
+#
+# Pure functions, no DB: these run by default (no marker). GDAL is required; the
+# module self-skips where it is unavailable. Everything is exercised against
+# synthetic files built in-test, so the suite needs no sample-data archive.
 
 import datetime as dt
 import json
@@ -54,6 +62,9 @@ def _srs(epsg: int) -> osr.SpatialReference:
 
 @pytest.fixture(scope="session")
 def synthetic_geotiff(tmp_path_factory):
+    """Write a 10x10 single-band GeoTIFF in PT-TM06/ETRS89, filled with ones and with a
+    nodata value.
+    """
     path = tmp_path_factory.mktemp("raster") / "grid.tif"
     ds = gdal.GetDriverByName("GTiff").Create(str(path), 10, 10, 1, gdal.GDT_Float32)
     ds.SetGeoTransform((0.0, 10.0, 0.0, 2000.0, 0.0, -10.0))
@@ -67,6 +78,9 @@ def synthetic_geotiff(tmp_path_factory):
 
 @pytest.fixture(scope="session")
 def synthetic_xyz(tmp_path_factory):
+    """Write a 3x3 grid of XYZ points with unit spacing, without coordinate reference
+    system.
+    """
     path = tmp_path_factory.mktemp("xyz") / "grid.xyz"
     lines = [f"{x} {y} {x + y}" for y in range(3) for x in range(3)]
     path.write_text("\n".join(lines) + "\n")
@@ -89,6 +103,7 @@ def _write_shapefile(path, srs):
 
 @pytest.fixture(scope="session")
 def synthetic_shapefile(tmp_path_factory):
+    """Write a point shapefile in PT-TM06/ETRS89, with its `.prj` file."""
     path = tmp_path_factory.mktemp("vector") / "points.shp"
     _write_shapefile(path, _srs(_PT_TM06))
     return path
@@ -96,6 +111,9 @@ def synthetic_shapefile(tmp_path_factory):
 
 @pytest.fixture(scope="session")
 def synthetic_shapefile_no_prj(tmp_path_factory):
+    """Write a point shapefile without a `.prj` file, hence without coordinate reference
+    system.
+    """
     path = tmp_path_factory.mktemp("vector_noprj") / "points.shp"
     _write_shapefile(path, None)
     return path
@@ -103,6 +121,7 @@ def synthetic_shapefile_no_prj(tmp_path_factory):
 
 @pytest.fixture(scope="session")
 def broken_vector(tmp_path_factory):
+    """Write a point shapefile without its `.shx` index, which GDAL fails to open."""
     # A valid shapefile with its .shx removed: reproduces the real prr_eolicas
     # "missing .shx" condition, which GDAL refuses to open (SHAPE_RESTORE_SHX
     # defaults to NO) -> RuntimeError.
@@ -113,6 +132,10 @@ def broken_vector(tmp_path_factory):
 
 
 def test_raster_metadata_fields(synthetic_geotiff):
+    """For a GeoTIFF raster, the extracted metadata holds its format, dimensions, band
+    count, pixel size, no-data value and coordinate reference system, with its bounding
+    box both in the native coordinates and in longitude and latitude.
+    """
     result = extract_raster_metadata(synthetic_geotiff)
 
     assert isinstance(result, schemas.RasterMetadata)
@@ -137,6 +160,10 @@ def test_raster_metadata_fields(synthetic_geotiff):
 
 
 def test_xyz_raster(synthetic_xyz):
+    """For a regular XYZ grid without coordinate reference system information, the
+    dimensions and the bounding box in native coordinates are extracted, and no bounding
+    box in longitude and latitude is produced.
+    """
     result = extract_raster_metadata(synthetic_xyz)
 
     assert result.driver == "XYZ"
@@ -149,6 +176,10 @@ def test_xyz_raster(synthetic_xyz):
 
 
 def test_vector_metadata_fields(synthetic_shapefile):
+    """For a shapefile, the extracted metadata holds its format, layer count, feature
+    count, geometry type and coordinate reference system, with a correctly ordered
+    bounding box both in native coordinates and in longitude and latitude.
+    """
     result = extract_vector_metadata(synthetic_shapefile)
 
     assert isinstance(result, schemas.VectorMetadata)
@@ -172,6 +203,10 @@ def test_vector_metadata_fields(synthetic_shapefile):
 
 
 def test_vector_without_prj(synthetic_shapefile_no_prj):
+    """For a shapefile without a projection file, the feature count and the bounding box
+    in native coordinates are extracted, while no coordinate reference system and no
+    bounding box in longitude and latitude are reported.
+    """
     result = extract_vector_metadata(synthetic_shapefile_no_prj)
 
     assert result.epsg is None
@@ -183,17 +218,22 @@ def test_vector_without_prj(synthetic_shapefile_no_prj):
 
 
 def test_broken_vector_raises(broken_vector):
+    """A shapefile missing its index file is reported as unreadable."""
     with pytest.raises(RuntimeError):
         extract_vector_metadata(broken_vector)
 
 
 def test_dispatch_routes_raster(synthetic_geotiff):
+    """A GeoTIFF file is recognised as a raster and its raster metadata is extracted."""
     assert isinstance(
         dispatch.dispatch_extractor(synthetic_geotiff), schemas.RasterMetadata
     )
 
 
 def test_dispatch_routes_xyz(synthetic_xyz):
+    """A regular XYZ grid file is recognised as a raster and its raster metadata is
+    extracted.
+    """
     result = dispatch.dispatch_extractor(synthetic_xyz)
     assert isinstance(result, schemas.RasterMetadata)
     assert result.driver == "XYZ"
@@ -209,6 +249,11 @@ _SOUNDINGS = [
 
 
 def test_dispatch_routes_ungridded_xyz_to_the_point_cloud_extractor(tmp_path):
+    """An XYZ file holding irregularly spaced soundings is recognised as a point cloud,
+    with its file size, point count and native bounding box extracted, and its bounding
+    box marked for placement using the coordinate reference system of the survey
+    mission.
+    """
     path = tmp_path / "soundings.xyz"
     path.write_text("".join(f"{x} {y} {z}\n" for x, y, z in _SOUNDINGS))
 
@@ -224,6 +269,9 @@ def test_dispatch_routes_ungridded_xyz_to_the_point_cloud_extractor(tmp_path):
 
 
 def test_xyz_points_skip_a_header_and_accept_commas(tmp_path):
+    """An XYZ point cloud with a header line and comma-separated values is read
+    correctly, giving the right point count and bounding box.
+    """
     path = tmp_path / "soundings.xyz"
     path.write_text(
         "Easting,Northing,Depth\n" + "".join(f"{x},{y},{z}\n" for x, y, z in _SOUNDINGS)
@@ -236,6 +284,10 @@ def test_xyz_points_skip_a_header_and_accept_commas(tmp_path):
 
 
 def test_xyz_points_of_a_large_file_are_sampled(tmp_path, monkeypatch):
+    """For a large XYZ point cloud, only a fixed number of portions of the file are
+    read, the bounding box is derived from those portions, and the point count is
+    reported as an estimate close to the true count.
+    """
     monkeypatch.setattr(xyz, "_SAMPLE_WINDOWS", 4)
     monkeypatch.setattr(xyz, "_SAMPLE_WINDOW_BYTES", 64)
     # 1000 rows of the same length, x rising along the file: the westernmost and
@@ -272,6 +324,9 @@ def test_xyz_points_of_a_large_file_are_sampled(tmp_path, monkeypatch):
 
 
 def test_xyz_points_of_a_small_file_are_counted(tmp_path):
+    """A small XYZ point cloud is read in full, so its point count is exact and its
+    bounding box covers every point, including one on a final line without a line break.
+    """
     # read whole, its last line without a line break
     path = tmp_path / "soundings.xyz"
     path.write_text("\n".join(f"{x} {y} {z}" for x, y, z in _SOUNDINGS))
@@ -294,6 +349,9 @@ def test_xyz_points_of_a_small_file_are_counted(tmp_path):
     ids=["empty", "no numbers", "ragged rows", "not a number"],
 )
 def test_xyz_points_reject_what_is_not_a_point_cloud(tmp_path, content):
+    """Empty files, text without numbers, rows with missing values and rows with non-
+    numeric values are rejected as not being XYZ point clouds.
+    """
     path = tmp_path / "soundings.xyz"
     path.write_text(content)
 
@@ -302,6 +360,9 @@ def test_xyz_points_reject_what_is_not_a_point_cloud(tmp_path, content):
 
 
 def test_dispatch_routes_vector(synthetic_shapefile):
+    """A shapefile is recognised as vector data, and its reported file size is that of
+    the main file alone, excluding its companion files.
+    """
     result = dispatch.dispatch_extractor(synthetic_shapefile)
 
     assert isinstance(result, schemas.VectorMetadata)
@@ -311,18 +372,25 @@ def test_dispatch_routes_vector(synthetic_shapefile):
 
 @pytest.mark.parametrize("suffix", [".shx", ".dbf", ".prj", ".cpg", ".qmd", ".sbn"])
 def test_dispatch_ignores_sidecars(tmp_path, suffix):
+    """Companion files of a shapefile, such as index, attribute and projection files,
+    are not processed as data files of their own.
+    """
     sidecar = tmp_path / f"points{suffix}"
     sidecar.write_bytes(b"\x00")
     assert dispatch.dispatch_extractor(sidecar) is None
 
 
 def test_dispatch_unknown_extension(tmp_path):
+    """A file of an unsupported type is skipped without producing metadata."""
     unknown = tmp_path / "notes.txt"
     unknown.write_text("hello")
     assert dispatch.dispatch_extractor(unknown) is None
 
 
 def test_dispatch_directory_named_like_raster(tmp_path):
+    """A directory whose name ends in a raster file extension is skipped rather than
+    opened as a raster.
+    """
     # A real directory named "F3_2022.tif" exists in the archive; it must not be opened.
     fake = tmp_path / "F3_2022.tif"
     fake.mkdir()
@@ -330,6 +398,9 @@ def test_dispatch_directory_named_like_raster(tmp_path):
 
 
 def test_dispatch_big_file_logs(synthetic_geotiff, monkeypatch, caplog):
+    """The extraction of metadata from a large raster file is recorded in the
+    application log.
+    """
     monkeypatch.setattr(dispatch, "_BIG_FILE_LOG_BYTES", 0)
     with caplog.at_level(logging.INFO, logger=dispatch.logger.name):
         result = dispatch.dispatch_extractor(synthetic_geotiff)
@@ -427,6 +498,10 @@ def test_dispatch_big_file_logs(synthetic_geotiff, monkeypatch, caplog):
     ],
 )
 def test_discovery_info(metadata, expected):
+    """For SEG-Y files, rasters and point clouds, the metadata shown on a survey-related
+    record's page omits default values, extents and internal details, and leaves out
+    values that cannot be stored, such as undefined or infinite numbers.
+    """
     info = metadata.get_discovery_info()
 
     assert info == expected
@@ -435,6 +510,9 @@ def test_discovery_info(metadata, expected):
 
 
 def test_discovery_info_keys_are_the_metadata_fields():
+    """Every metadata field extracted from a file is either shown on the survey-related
+    record's page, shown as part of another item, or deliberately excluded from it.
+    """
     # a field added to a metadata model must be shown on the record's page, in an
     # item of its own or in another's, or be kept off the page on purpose
     fields = set()
@@ -464,17 +542,28 @@ def test_discovery_info_keys_are_the_metadata_fields():
 
 
 def test_bbox_native_needing_crs_when_file_declares_none():
+    """When a file holds coordinates but declares no coordinate reference system, its
+    bounding box is marked for placement using the coordinate reference system of the
+    survey mission.
+    """
     # the SEG-Y / XYZ case: coordinates, but nothing saying which CRS they are in
     metadata = schemas.SegyMetadata(bbox_native=(0.0, 1900.0, 100.0, 2000.0))
     assert metadata.bbox_native_needing_crs == (0.0, 1900.0, 100.0, 2000.0)
 
 
 def test_bbox_native_needing_crs_is_none_when_epsg_is_known():
+    """When a file declares an EPSG code, its bounding box is not marked for placement
+    using the coordinate reference system of the survey mission.
+    """
     metadata = schemas.SegyMetadata(bbox_native=(0.0, 1900.0, 100.0, 2000.0), epsg=3763)
     assert metadata.bbox_native_needing_crs is None
 
 
 def test_bbox_native_needing_crs_is_none_when_only_wkt_is_known():
+    """When a file describes its coordinate reference system without an EPSG code, its
+    bounding box is not marked for placement using the coordinate reference system of
+    the survey mission.
+    """
     # AutoIdentifyEPSG fails on some archive files, leaving wkt as the only CRS
     metadata = schemas.SegyMetadata(
         bbox_native=(0.0, 1900.0, 100.0, 2000.0),
@@ -484,6 +573,10 @@ def test_bbox_native_needing_crs_is_none_when_only_wkt_is_known():
 
 
 def test_bbox_native_needing_crs_is_none_when_already_projected():
+    """When a bounding box in longitude and latitude is already known, the native
+    bounding box is not marked for placement using the coordinate reference system of
+    the survey mission.
+    """
     metadata = schemas.SegyMetadata(
         bbox_native=(0.0, 1900.0, 100.0, 2000.0),
         bbox_4326=(-8.2, 39.6, -8.1, 39.7),
@@ -492,6 +585,9 @@ def test_bbox_native_needing_crs_is_none_when_already_projected():
 
 
 def test_bbox_native_needing_crs_is_none_without_coordinates():
+    """A file without any coordinates has no bounding box to be placed using the
+    coordinate reference system of the survey mission.
+    """
     assert schemas.SegyMetadata().bbox_native_needing_crs is None
 
 
@@ -529,6 +625,10 @@ def _write_kmall(path, fixes, dgm_type=b"#SPO", cpo_fixes=()):
 
 
 def test_kmall_metadata_fields(tmp_path):
+    """For a KMALL file, the extracted metadata holds the echo sounder, the recording
+    duration, the bounding box of its position fixes in longitude and latitude, and its
+    temporal extent.
+    """
     path = tmp_path / "line.kmall"
     _write_kmall(path, [(40.5, -9.3), (40.7, -9.1), (40.6, -9.2)])
 
@@ -546,6 +646,9 @@ def test_kmall_metadata_fields(tmp_path):
 
 
 def test_kmall_cpo_fallback(tmp_path):
+    """For a KMALL file without primary position records, the bounding box is derived
+    from its secondary position records.
+    """
     path = tmp_path / "line.kmall"
     _write_kmall(path, [(40.5, -9.3), (40.7, -9.1)], dgm_type=b"#CPO")
 
@@ -555,6 +658,10 @@ def test_kmall_cpo_fallback(tmp_path):
 
 
 def test_kmall_spo_takes_precedence_over_cpo(tmp_path):
+    """For a KMALL file holding both primary and secondary position records, the
+    bounding box is derived from the primary records only, ignoring diverging secondary
+    positions.
+    """
     # SPO is the primary source; a divergent CPO feed must be IGNORED, never
     # merged into the bbox
     path = tmp_path / "line.kmall"
@@ -566,6 +673,9 @@ def test_kmall_spo_takes_precedence_over_cpo(tmp_path):
 
 
 def test_kmall_collect_position_fixes_prefers_spo(tmp_path):
+    """The positions collected from a KMALL file, used to draw its track, come from the
+    primary position records when they are present.
+    """
     path = tmp_path / "line.kmall"
     _write_kmall(path, [(40.5, -9.3), (40.7, -9.1)], cpo_fixes=[(50.0, 5.0)])
 
@@ -573,6 +683,9 @@ def test_kmall_collect_position_fixes_prefers_spo(tmp_path):
 
 
 def test_kmall_collect_position_fixes_falls_back_to_cpo(tmp_path):
+    """When the primary position records of a KMALL file hold no usable position, its
+    track is drawn from the secondary position records.
+    """
     # a #SPO datagram is present but holds no usable fix, so #CPO takes over
     path = tmp_path / "line.kmall"
     _write_kmall(path, [(0.0, 0.0)], cpo_fixes=[(40.5, -9.3), (40.7, -9.1)])
@@ -581,6 +694,9 @@ def test_kmall_collect_position_fixes_falls_back_to_cpo(tmp_path):
 
 
 def test_kmall_short_position_body_skipped(tmp_path):
+    """A truncated position record in a KMALL file is skipped, and the bounding box is
+    derived from the remaining valid positions.
+    """
     # a position datagram whose body ends before the lat/lon doubles must be
     # skipped without crashing
     short_body = struct.pack("<HHHH", 8, 0, 0, 0) + struct.pack("<IIf", 0, 0, 1.0)
@@ -597,6 +713,9 @@ def test_kmall_short_position_body_skipped(tmp_path):
 
 
 def test_kmall_without_positions(tmp_path):
+    """A KMALL file without position records yields no bounding box and no coordinate
+    reference system, while its temporal extent is still extracted.
+    """
     path = tmp_path / "line.kmall"
     _write_kmall(path, [])
 
@@ -609,6 +728,9 @@ def test_kmall_without_positions(tmp_path):
 
 
 def test_kmall_skips_garbage_fixes(tmp_path):
+    """Invalid positions in a KMALL file, such as out-of-range values, zero coordinates
+    from signal dropouts and undefined values, are excluded from the bounding box.
+    """
     path = tmp_path / "line.kmall"
     _write_kmall(
         path,
@@ -626,6 +748,9 @@ def test_kmall_skips_garbage_fixes(tmp_path):
 
 
 def test_kmall_truncated_tail_garbage(tmp_path):
+    """A KMALL file ending in unreadable bytes still yields the bounding box and
+    temporal extent of its readable part.
+    """
     path = tmp_path / "line.kmall"
     _write_kmall(path, [(40.5, -9.3)])
     with path.open("ab") as fh:
@@ -638,6 +763,10 @@ def test_kmall_truncated_tail_garbage(tmp_path):
 
 
 def test_kmall_truncated_tail_beyond_eof(tmp_path):
+    """A KMALL file whose last record is cut short, as after an interruption of the
+    acquisition, still yields the bounding box and temporal extent of its complete
+    records.
+    """
     # the realistic acquisition-crash shape: a well-formed header whose
     # num_bytes claims data beyond the end of the file
     path = tmp_path / "line.kmall"
@@ -674,6 +803,9 @@ def _write_sampled_kmall(path, fix_lon, sounding_bytes=30_000, count=200):
 
 
 def test_kmall_sampled_read_covers_both_ends_and_the_middle(tmp_path):
+    """For a large KMALL file, which is read in portions only, the bounding box and
+    duration take into account the beginning, the middle and the end of the file.
+    """
     # the easternmost fixes are only in the middle of the file, between the
     # windows at its ends
     path = tmp_path / "line.kmall"
@@ -693,6 +825,7 @@ def test_kmall_sampled_read_covers_both_ends_and_the_middle(tmp_path):
 
 
 def test_kmall_sampled_read_reads_windows_only(tmp_path, monkeypatch):
+    """For a large KMALL file, only a fixed number of portions of the file are read."""
     path = tmp_path / "line.kmall"
     _write_sampled_kmall(path, lambda index: -9.3)
     read_sizes = []
@@ -718,6 +851,9 @@ def test_kmall_sampled_read_reads_windows_only(tmp_path, monkeypatch):
 
 
 def test_kmall_sampled_read_survives_a_truncated_tail(tmp_path):
+    """A large KMALL file whose last record is cut short still yields a bounding box and
+    a duration from the portions that can be read.
+    """
     path = tmp_path / "line.kmall"
     _write_sampled_kmall(path, lambda index: -9.3)
     with path.open("ab") as fh:
@@ -731,6 +867,9 @@ def test_kmall_sampled_read_survives_a_truncated_tail(tmp_path):
 
 
 def test_kmall_sampled_read_rejects_an_invalid_start(tmp_path):
+    """A large file with a KMALL extension that does not begin with a valid KMALL record
+    is rejected.
+    """
     path = tmp_path / "line.kmall"
     _write_sampled_kmall(path, lambda index: -9.3)
     content = path.read_bytes()
@@ -741,6 +880,7 @@ def test_kmall_sampled_read_rejects_an_invalid_start(tmp_path):
 
 
 def test_kmall_garbage_raises(tmp_path):
+    """A file with a KMALL extension that does not hold KMALL data is rejected."""
     path = tmp_path / "junk.kmall"
     path.write_bytes(b"this is definitely not a kmall file")
     with pytest.raises(ValueError):
@@ -749,6 +889,7 @@ def test_kmall_garbage_raises(tmp_path):
 
 @pytest.mark.parametrize("content", [b"", b"tiny"])
 def test_kmall_too_small_raises(tmp_path, content):
+    """An empty or very small file with a KMALL extension is rejected."""
     # empty or sub-header files never enter the walk and must still raise
     path = tmp_path / "empty.kmall"
     path.write_bytes(content)
@@ -758,6 +899,9 @@ def test_kmall_too_small_raises(tmp_path, content):
 
 @pytest.mark.parametrize("content", [b"", b"tiny"])
 def test_kmall_collect_position_fixes_rejects_non_kmall(tmp_path, content):
+    """Positions are not collected from an empty or very small file with a KMALL
+    extension, which is rejected.
+    """
     path = tmp_path / "empty.kmall"
     path.write_bytes(content)
     with pytest.raises(ValueError):
@@ -765,6 +909,9 @@ def test_kmall_collect_position_fixes_rejects_non_kmall(tmp_path, content):
 
 
 def test_dispatch_routes_kmall(tmp_path):
+    """A KMALL file is recognised as such, and its metadata, including its file size, is
+    extracted.
+    """
     path = tmp_path / "line.kmall"
     _write_kmall(path, [(40.5, -9.3)])
 
@@ -837,6 +984,11 @@ def _write_segy(
 
 
 def test_segy_metres_path(tmp_path):
+    """For a SEG-Y file with coordinates in metres and no declared coordinate reference
+    system, the trace and sample information, the native bounding box, the track
+    positions in sailing order and the temporal extent are extracted, without assuming
+    any coordinate reference system.
+    """
     path = tmp_path / "line.sgy"
     _write_segy(
         path,
@@ -872,6 +1024,10 @@ def test_segy_metres_path(tmp_path):
 
 
 def test_segy_geographic_degrees(tmp_path):
+    """For a SEG-Y file with coordinates in degrees, the bounding box and track are
+    given in longitude and latitude, and a trace whose coordinate units differ from
+    those of the majority is left out.
+    """
     # units=3 with scalco=-10000: raw ints are degrees times 10000
     # the stray metres trace is outvoted, so neither the box nor the track uses it
     path = tmp_path / "line.sgy"
@@ -895,6 +1051,9 @@ def test_segy_geographic_degrees(tmp_path):
 
 
 def test_segy_geographic_arc_seconds(tmp_path):
+    """For a SEG-Y file with coordinates in arc-seconds, the coordinates are converted
+    to degrees of longitude and latitude.
+    """
     # the real CW HAT.sgy shape: units=2, stationary, arc-seconds with a
     # negative scalar; -8.7385 deg is -31458.6 arc-seconds
     path = tmp_path / "line.sgy"
@@ -913,6 +1072,9 @@ def test_segy_geographic_arc_seconds(tmp_path):
 
 
 def test_segy_dms_units_skipped(tmp_path):
+    """For a SEG-Y file with coordinates in packed degrees, minutes and seconds, no
+    bounding box is produced, rather than an incorrect one.
+    """
     # packed DDDMMSS.ss is never converted in v1; storing the packed integers
     # verbatim would fake a bbox
     path = tmp_path / "line.sgy"
@@ -927,6 +1089,9 @@ def test_segy_dms_units_skipped(tmp_path):
 
 
 def test_segy_scalco_multiplies(tmp_path):
+    """A positive coordinate scale factor in a SEG-Y file multiplies the stored
+    coordinates.
+    """
     path = tmp_path / "line.sgy"
     _write_segy(path, [_segy_trace(src=(-5000, 15000), scalco=10)])
 
@@ -936,6 +1101,9 @@ def test_segy_scalco_multiplies(tmp_path):
 
 
 def test_segy_cdp_sentinel_fill_ignored(tmp_path):
+    """Placeholder values filling the coordinate fields of SEG-Y traces are excluded
+    from the bounding box.
+    """
     # real archive traces carry INT32_MIN fill in the CDP fields while src holds
     # the good coordinates. The scalar matters: scaled by -10000 a sentinel
     # becomes -214748.36, well inside the plausible-metres range, so only the
@@ -957,6 +1125,9 @@ def test_segy_cdp_sentinel_fill_ignored(tmp_path):
 
 
 def test_segy_src_takes_precedence_over_cdp(tmp_path):
+    """For a SEG-Y file holding both source and common depth point coordinates, the
+    bounding box is derived from the source coordinates only.
+    """
     # src is the primary source; a divergent cdp feed must be IGNORED, never
     # merged into the bbox (the KMALL SPO/CPO rule, applied to SEG-Y)
     path = tmp_path / "line.sgy"
@@ -974,6 +1145,9 @@ def test_segy_src_takes_precedence_over_cdp(tmp_path):
 
 
 def test_segy_cdp_fallback(tmp_path):
+    """For SEG-Y traces without source coordinates, the bounding box is derived from the
+    common depth point coordinates.
+    """
     # chirp/Innomar/sbp populate only src, UHRS both; a src-less trace must
     # still yield its CDP coordinates
     path = tmp_path / "line.sgy"
@@ -985,6 +1159,9 @@ def test_segy_cdp_fallback(tmp_path):
 
 
 def test_segy_without_coordinates(tmp_path):
+    """A SEG-Y file without coordinates yields no bounding box, while its temporal
+    extent is still extracted.
+    """
     path = tmp_path / "line.sgy"
     _write_segy(path, [_segy_trace(), _segy_trace()])
 
@@ -997,6 +1174,10 @@ def test_segy_without_coordinates(tmp_path):
 
 
 def test_segy_mostly_garbage_coordinates_partial(tmp_path):
+    """When more than half of the coordinates read from a SEG-Y file are implausible,
+    its coverage is reported as partial, and the bounding box is derived from the
+    plausible coordinates.
+    """
     # implausible coordinate magnitudes are the tell of samples landing
     # mid-trace; above half the samples the coverage is flagged partial, but
     # the plausible traces still contribute
@@ -1015,6 +1196,9 @@ def test_segy_mostly_garbage_coordinates_partial(tmp_path):
 
 
 def test_segy_two_digit_year_temporal_none(tmp_path):
+    """A SEG-Y file recording dates with two-digit years yields no temporal extent,
+    while its bounding box is still extracted.
+    """
     path = tmp_path / "line.sgy"
     _write_segy(path, [_segy_trace(src=(-50000, 150000), year=24)])
 
@@ -1026,6 +1210,9 @@ def test_segy_two_digit_year_temporal_none(tmp_path):
 
 
 def test_segy_corrupt_time_fields_skipped(tmp_path):
+    """Traces of a SEG-Y file with invalid dates or times are left out of the temporal
+    extent without interrupting the extraction of the remaining metadata.
+    """
     # a single corrupt time field skips only that trace's date and never aborts
     # the extraction (the KMALL guarantee)
     path = tmp_path / "line.sgy"
@@ -1046,6 +1233,9 @@ def test_segy_corrupt_time_fields_skipped(tmp_path):
 
 
 def test_segy_trailing_bytes_tolerated(tmp_path):
+    """Extra bytes at the end of a SEG-Y file do not affect the trace count, coverage or
+    bounding box.
+    """
     # a real BSTK file carries a 5,056-byte trailer: floor division ignores it
     path = tmp_path / "line.sgy"
     _write_segy(
@@ -1062,6 +1252,9 @@ def test_segy_trailing_bytes_tolerated(tmp_path):
 
 
 def test_segy_zero_samples_partial_metadata(tmp_path):
+    """A SEG-Y file declaring zero samples per trace yields its sample format and
+    interval, but no trace count and no bounding box.
+    """
     # ns=0 in the binary header leaves no trustworthy trace length; keep the
     # header facts, never fall back to the unreliable per-trace ns field
     path = tmp_path / "line.sgy"
@@ -1077,6 +1270,9 @@ def test_segy_zero_samples_partial_metadata(tmp_path):
 
 
 def test_segy_unknown_format_partial_metadata(tmp_path):
+    """A SEG-Y file with an unknown sample format reports the format code, but no trace
+    count and no bounding box.
+    """
     path = tmp_path / "line.sgy"
     _write_segy(path, [_segy_trace()], sample_format=9)
 
@@ -1088,6 +1284,7 @@ def test_segy_unknown_format_partial_metadata(tmp_path):
 
 
 def test_segy_little_endian(tmp_path):
+    """A SEG-Y file written in little-endian byte order is read correctly."""
     path = tmp_path / "line.sgy"
     _write_segy(
         path,
@@ -1103,6 +1300,9 @@ def test_segy_little_endian(tmp_path):
 
 
 def test_segy_rev0_extended_count_ignored(tmp_path):
+    """In a SEG-Y file of revision 0, the undefined extended header count is ignored, so
+    the traces are still read correctly.
+    """
     # the rev0 bytes at offset 304 are undefined noise; trusting them would
     # push data_start past the traces
     path = tmp_path / "line.sgy"
@@ -1120,6 +1320,9 @@ def test_segy_rev0_extended_count_ignored(tmp_path):
 
 
 def test_segy_variable_extended_count_untrusted(tmp_path):
+    """A SEG-Y file declaring a variable number of extended headers is still read
+    correctly.
+    """
     # n_ext == -1 means "variable, stanza-terminated" and is not trusted
     path = tmp_path / "line.sgy"
     _write_segy(path, [_segy_trace(src=(-50000, 150000))], revision=1, n_ext=-1)
@@ -1131,6 +1334,9 @@ def test_segy_variable_extended_count_untrusted(tmp_path):
 
 
 def test_segy_extended_textual_headers(tmp_path):
+    """A SEG-Y file with extended textual headers is read correctly, the traces being
+    located after those headers.
+    """
     path = tmp_path / "line.sgy"
     _write_segy(
         path,
@@ -1175,6 +1381,10 @@ def test_segy_extended_textual_headers(tmp_path):
     ],
 )
 def test_segy_header_epsg_codes(tmp_path, textual, expected):
+    """Every EPSG code written explicitly in the textual header of a SEG-Y file, in
+    EBCDIC or ASCII encoding and in any letter case, is reported, while bare numbers and
+    codes longer than five digits are not.
+    """
     # every explicit code is reported, even those that are no CRS (9807 is a
     # method, 10349 a vertical datum): which one applies is for discovery
     path = tmp_path / "line.sgy"
@@ -1184,6 +1394,10 @@ def test_segy_header_epsg_codes(tmp_path, textual, expected):
 
 
 def test_segy_sampling_includes_endpoints(tmp_path):
+    """When only a sample of the traces of a SEG-Y file is read, the first and last
+    traces, which mark the ends of the survey line, are always included in the bounding
+    box.
+    """
     # 150 single-sample traces: only ~100 are sampled, but the first and last
     # trace (the line endpoints) must always contribute to the bbox
     path = tmp_path / "line.sgy"
@@ -1206,6 +1420,9 @@ def test_segy_sampling_includes_endpoints(tmp_path):
     [b"", b"tiny", b"\x00" * 4000, b"\xff" * 4000],
 )
 def test_segy_not_a_segy_raises(tmp_path, content):
+    """Files too small to hold a SEG-Y trace, or whose header holds an invalid sample
+    format, are rejected as not being SEG-Y files.
+    """
     # too small to hold a trace, or a binary header whose format code is
     # invalid in both byte orders
     path = tmp_path / "junk.sgy"
@@ -1218,6 +1435,9 @@ def test_segy_not_a_segy_raises(tmp_path, content):
 # uppercase variants are pinned here too
 @pytest.mark.parametrize("suffix", [".sgy", ".segy", ".SGY", ".SEGY"])
 def test_dispatch_routes_segy(tmp_path, suffix):
+    """SEG-Y files are recognised by their extension in either lower or upper case, and
+    their metadata, including their file size, is extracted.
+    """
     path = tmp_path / f"line{suffix}"
     _write_segy(path, [_segy_trace(src=(-50000, 150000))])
 
@@ -1228,6 +1448,10 @@ def test_dispatch_routes_segy(tmp_path, suffix):
 
 
 def test_segy_implausible_span_discards_bbox(tmp_path):
+    """When the coordinates of a SEG-Y file span an implausibly large area, its bounding
+    box and track are discarded and its coverage is reported as partial, while its other
+    metadata is kept.
+    """
     # real owf-2025 files exist whose src AND cdp fields hold noise around the
     # projection origin with sporadic spikes into the millions; the resulting
     # box spanned thousands of km while coverage still said "full". Rejecting
@@ -1258,6 +1482,9 @@ def test_segy_implausible_span_discards_bbox(tmp_path):
 
 
 def test_segy_implausible_span_without_any_rejected_value(tmp_path):
+    """A SEG-Y file whose individual coordinates are each plausible, but which together
+    span an implausibly large area, gets no bounding box and a partial coverage.
+    """
     # the case a garbage-count rule cannot catch: every value stays inside the
     # per-value plausibility filter, so only the span betrays the noise
     path = tmp_path / "line.sgy"
@@ -1277,6 +1504,10 @@ def test_segy_implausible_span_without_any_rejected_value(tmp_path):
 
 
 def test_segy_geographic_implausible_span_discards_bbox(tmp_path):
+    """When the coordinates in degrees of a SEG-Y file span an implausibly large area,
+    no bounding box and no coordinate reference system are reported, and its coverage is
+    reported as partial.
+    """
     # the same protection on the only path that draws a map rectangle
     path = tmp_path / "line.sgy"
     _write_segy(
@@ -1296,6 +1527,9 @@ def test_segy_geographic_implausible_span_discards_bbox(tmp_path):
 
 
 def test_segy_survey_wide_span_is_kept(tmp_path):
+    """A legitimately long SEG-Y survey line of about 60 kilometres keeps its bounding
+    box and full coverage.
+    """
     # a legitimately long line must survive: real files measure up to 61.5 km
     # and the cap is 200 km, so a 60 km line is still stored
     path = tmp_path / "line.sgy"
@@ -1314,6 +1548,10 @@ def test_segy_survey_wide_span_is_kept(tmp_path):
 
 
 def test_segy_burst_corruption_span_discards_bbox(tmp_path):
+    """A SEG-Y file in which a few corrupt traces stretch the bounding box to hundreds
+    of kilometres gets no bounding box and a partial coverage, while its trace count is
+    kept.
+    """
     # the second junk mode the 66k scan found (A7808 ET_SBP): a real ~2.5 km
     # line with a burst of corrupt-nav traces stretched the box to ~494 km with
     # garbage_count 0, which the old 500 km cap let through as coverage=full.
@@ -1336,6 +1574,10 @@ def test_segy_burst_corruption_span_discards_bbox(tmp_path):
 
 
 def test_segy_low_support_bbox_dropped(tmp_path):
+    """When only a small fraction of the sampled traces of a SEG-Y file carry
+    coordinates, its bounding box and track are discarded and its coverage is reported
+    as partial.
+    """
     # the third junk mode the scan found (A7808 GEOM): a 95-182 GB file where
     # only 2-3 of 100 sampled traces carry a fix and the rest are coordinate-less.
     # A box from 3 points covers a sliver of the real line while claiming full
@@ -1353,6 +1595,9 @@ def test_segy_low_support_bbox_dropped(tmp_path):
 
 
 def test_segy_low_support_kept_for_small_file(tmp_path):
+    """A SEG-Y file with only a few traces keeps its bounding box and full coverage even
+    when only some of its traces carry coordinates.
+    """
     # the guard: a genuinely small file with only a few traces keeps its box even
     # when only some carry a fix - too few samples to trust the support ratio
     path = tmp_path / "line.sgy"
@@ -1370,6 +1615,10 @@ def test_segy_low_support_kept_for_small_file(tmp_path):
 
 
 def test_segy_units_unset_treated_as_metres(tmp_path):
+    """A SEG-Y file that does not specify its coordinate units is read as having
+    coordinates in metres, yielding a native bounding box without any coordinate
+    reference system.
+    """
     # the real raw-file case: the UHRS rev1.segy files leave units at 0
     path = tmp_path / "line.sgy"
     _write_segy(path, [_segy_trace(src=(-50000, 150000), units=0)])
@@ -1383,6 +1632,9 @@ def test_segy_units_unset_treated_as_metres(tmp_path):
 
 
 def test_segy_geographic_out_of_range_rejected(tmp_path):
+    """In a SEG-Y file with coordinates in degrees, values outside the valid range of
+    longitude and latitude are excluded from the bounding box.
+    """
     # the plausibility filter guards the only path that draws a map rectangle:
     # a trace claiming degrees but carrying projected metres must not become a
     # bbox somewhere off the planet
@@ -1402,6 +1654,9 @@ def test_segy_geographic_out_of_range_rejected(tmp_path):
 
 
 def test_segy_coverage_boundary_at_exactly_half(tmp_path):
+    """A SEG-Y file in which exactly half of the coordinates are implausible keeps a
+    full coverage, while one with more than half is reported as partial.
+    """
     # exactly half the samples garbage stays "full"; one more tips it to partial
     path = tmp_path / "line.sgy"
     good = [_segy_trace(src=(-50000, 150000)), _segy_trace(src=(-48000, 152000))]
@@ -1414,6 +1669,9 @@ def test_segy_coverage_boundary_at_exactly_half(tmp_path):
 
 
 def test_segy_extended_headers_not_fitting_are_ignored(tmp_path):
+    """A SEG-Y file declaring more extended headers than it can hold has that
+    declaration ignored, so its traces are still read correctly.
+    """
     # a declared extended-header count that would leave no room for a trace is
     # garbage; trusting it would push data_start past the end of the file and
     # yield a negative trace_count
@@ -1432,6 +1690,9 @@ def test_segy_extended_headers_not_fitting_are_ignored(tmp_path):
 
 
 def test_segy_little_endian_revision_word(tmp_path):
+    """The revision number of a little-endian SEG-Y file is read correctly, so its
+    extended header is accounted for and its traces are read correctly.
+    """
     # a little-endian writer storing the rev1-style uint16 0x0100 puts the major
     # number in the SECOND byte; reading a single byte would see revision 0 and
     # then ignore the extended header, shifting the whole trace grid
@@ -1453,6 +1714,9 @@ def test_segy_little_endian_revision_word(tmp_path):
 
 
 def test_segy_rev2_extra_trace_headers_partial_metadata(tmp_path):
+    """A SEG-Y revision 2 file whose traces carry additional headers yields its sample
+    format, but no trace count and no bounding box, rather than incorrect ones.
+    """
     # rev2 lets each trace carry additional 240-byte headers; the trace length
     # is then unknown to us, and a desynced grid would store a confidently
     # wrong bbox, so only the header facts survive
@@ -1476,6 +1740,7 @@ def test_segy_rev2_extra_trace_headers_partial_metadata(tmp_path):
 
 
 def test_segy_truncated_binary_header_raises(tmp_path):
+    """A SEG-Y file that ends within its binary header is rejected."""
     # a file that ends inside the binary header must still raise ValueError
     # rather than let a struct error escape
     path = tmp_path / "line.sgy"
@@ -1488,6 +1753,9 @@ def test_segy_truncated_binary_header_raises(tmp_path):
 
 
 def test_segy_trace_count_zero(tmp_path):
+    """A SEG-Y file holding its headers but no complete trace reports zero traces, its
+    samples per trace, and no bounding box or temporal extent.
+    """
     # a file holding the headers but less than one full trace
     path = tmp_path / "line.sgy"
     path.write_bytes(

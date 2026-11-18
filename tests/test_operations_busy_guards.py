@@ -1,4 +1,9 @@
-"""Resources whose status shows a task is working on them must not be modified."""
+"""Protection of entries under processing
+
+While a background task such as discovery, validation, preview generation or export
+works on a catalog entry, that entry cannot be modified, deleted or published, and
+neither can the entries that contain it.
+"""
 
 import asyncio
 import uuid
@@ -40,6 +45,9 @@ class _EventCollector:
 async def test_update_refuses_survey_mission_under_discovery(
     db_session_maker, sample_survey_missions, admin_user
 ):
+    """A survey mission cannot be modified while discovery runs on it: the change is not
+    applied, its status is kept and the failure is notified.
+    """
     mission_id = identifiers.SurveyMissionId(sample_survey_missions[0].id)
     async with db_session_maker() as session:
         await mission_commands.set_survey_mission_status(
@@ -70,6 +78,9 @@ async def test_update_refuses_survey_mission_under_discovery(
 async def test_delete_refuses_survey_mission_under_discovery(
     db_session_maker, sample_survey_missions, admin_user
 ):
+    """A survey mission cannot be deleted while discovery runs on it, and the failure is
+    notified.
+    """
     mission_id = identifiers.SurveyMissionId(sample_survey_missions[0].id)
     async with db_session_maker() as session:
         await mission_commands.set_survey_mission_status(
@@ -94,6 +105,9 @@ async def test_delete_refuses_survey_mission_under_discovery(
 async def test_delete_refuses_survey_mission_with_a_busy_record(
     db_session_maker, sample_survey_related_records, admin_user
 ):
+    """A survey mission cannot be deleted while one of its survey-related records is
+    being processed, and the failure is notified.
+    """
     record = sample_survey_related_records[0]
     record_id = identifiers.SurveyRelatedRecordId(record.id)
     mission_id = identifiers.SurveyMissionId(record.survey_mission_id)
@@ -120,6 +134,9 @@ async def test_delete_refuses_survey_mission_with_a_busy_record(
 async def test_update_refuses_project_under_validation(
     db_session_maker, sample_projects, admin_user
 ):
+    """A project cannot be modified while it is being validated, and the failure is
+    notified.
+    """
     project_id = identifiers.ProjectId(sample_projects[0].id)
     async with db_session_maker() as session:
         await project_commands.set_project_status(
@@ -154,6 +171,9 @@ async def test_update_refuses_project_under_validation(
 async def test_delete_refuses_project_with_busy_contents(
     db_session_maker, sample_survey_related_records, admin_user, busy_level
 ):
+    """A project cannot be deleted while it, one of its survey missions or one of their
+    survey-related records is being processed, and the failure is notified.
+    """
     record = sample_survey_related_records[0]
     record_id = identifiers.SurveyRelatedRecordId(record.id)
     mission_id = identifiers.SurveyMissionId(record.survey_mission_id)
@@ -199,6 +219,10 @@ async def test_delete_refuses_project_with_busy_contents(
 async def test_delete_waits_for_a_record_being_made_busy(
     db_session_maker, sample_survey_related_records, admin_user, deleted_level
 ):
+    """A deletion of a project or survey mission requested while one of its survey-
+    related records is being placed under processing waits for that to complete, and is
+    then refused.
+    """
     record = sample_survey_related_records[0]
     record_id = identifiers.SurveyRelatedRecordId(record.id)
     mission_id = identifiers.SurveyMissionId(record.survey_mission_id)
@@ -252,6 +276,9 @@ async def test_delete_waits_for_a_record_being_made_busy(
 async def test_bulk_mission_publication_leaves_busy_missions_alone(
     db_session_maker, sample_survey_missions
 ):
+    """Publishing the valid survey missions of a project leaves out a valid survey
+    mission while discovery runs on it.
+    """
     mission_id = identifiers.SurveyMissionId(sample_survey_missions[0].id)
     async with db_session_maker() as session:
         mission = await mission_queries.get_survey_mission(session, mission_id)
@@ -276,6 +303,9 @@ async def test_bulk_mission_publication_leaves_busy_missions_alone(
 async def test_discovery_refuses_survey_mission_already_under_discovery(
     db_session_maker, settings, sample_survey_missions, admin_user
 ):
+    """Discovery cannot be started on a survey mission where discovery is already
+    running; the running discovery is not affected and the failure is notified.
+    """
     mission_id = identifiers.SurveyMissionId(sample_survey_missions[0].id)
     async with db_session_maker() as session:
         await mission_commands.set_survey_mission_status(
@@ -304,6 +334,9 @@ async def test_discovery_refuses_survey_mission_already_under_discovery(
 async def test_only_one_of_concurrent_mission_status_flips_wins(
     db_session_maker, sample_survey_missions
 ):
+    """When two tasks try to start working on the same survey mission at the same time,
+    only one of them succeeds.
+    """
     mission_id = identifiers.SurveyMissionId(sample_survey_missions[0].id)
     async with db_session_maker() as session:
         mission = await mission_queries.get_survey_mission(session, mission_id)

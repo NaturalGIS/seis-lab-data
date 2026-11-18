@@ -1,8 +1,11 @@
-"""Integration tests for when projects and survey missions get a new thumbnail.
+"""Thumbnails of projects and survey missions
 
-The base map is out of reach in the tests, so the render itself is faked; the
-renderer has its own tests in test_derivers.py.
+Projects and survey missions show a map thumbnail of their bounding box, which is
+generated when they are created and generated again whenever their bounding box changes.
 """
+
+# The base map is out of reach in the tests, so the render itself is faked; the
+# renderer has its own tests in test_derivers.py.
 
 import inspect
 import uuid
@@ -36,6 +39,9 @@ class _EventCollector:
 
 @pytest.fixture
 def thumbnail_settings(settings, monkeypatch):
+    """Configure a basemap URL, collect dispatched events and replace thumbnail
+    rendering with a fixed image.
+    """
     monkeypatch.setattr(
         settings, "thumbnail_base_tile_layer_url", "http://tiles.invalid/{z}/{x}/{y}"
     )
@@ -54,6 +60,10 @@ def thumbnail_settings(settings, monkeypatch):
 async def test_project_thumbnail_follows_the_bbox(
     db_session_maker, admin_user, thumbnail_settings, monkeypatch
 ):
+    """A thumbnail is generated for a new project from its bounding box, and the project
+    is announced as updated once it is ready. Edits generate it again only when they
+    change the bounding box, and removing the bounding box removes the thumbnail.
+    """
     queued = []
     monkeypatch.setattr(
         preview_tasks.generate_project_thumbnail,
@@ -118,6 +128,11 @@ async def test_project_thumbnail_follows_the_bbox(
 async def test_survey_mission_thumbnail_follows_the_bbox(
     db_session_maker, admin_user, sample_projects, thumbnail_settings, monkeypatch
 ):
+    """A thumbnail is generated for a new survey mission from its bounding box, and the
+    survey mission is announced as updated once it is ready. Edits generate it again
+    only when they change the bounding box, and removing the bounding box removes the
+    thumbnail.
+    """
     queued = []
     monkeypatch.setattr(
         preview_tasks.generate_survey_mission_thumbnail,

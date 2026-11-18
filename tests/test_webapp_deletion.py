@@ -1,4 +1,8 @@
-"""Tests for the deletion of projects and survey missions from their detail pages."""
+"""Deletion from detail pages
+
+Projects and survey missions can be deleted from their detail pages, except while some
+of their survey-related records are being processed.
+"""
 
 import pytest
 from starlette.authentication import AuthCredentials
@@ -14,6 +18,8 @@ pytestmark = pytest.mark.integration
 
 @pytest.fixture
 def logged_in_as_admin(monkeypatch, admin_user):
+    """Authenticate every request as the `admin_user` fixture."""
+
     async def authenticate(self, conn):
         return AuthCredentials(["authenticated"]), admin_user
 
@@ -48,6 +54,11 @@ async def test_detail_page_disables_deletion_while_records_are_busy(
     record_status,
     expected_busy,
 ):
+    """On a project or survey mission page, the delete button is disabled and a notice
+    explains why while any of its survey-related records is being processed, for example
+    during an export, and both are updated as soon as a record's processing state
+    changes.
+    """
     record = sample_survey_related_records[0]
     async with db_session_maker() as session:
         await record_commands.set_survey_related_record_status(

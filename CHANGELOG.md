@@ -10,11 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - systemd unit files for cleaning up docker images and containers regularly and keep test and prod envs from running out of disk space
+- PDF report of the automated test results
+- Client-facing docstrings for all test modules and tests
 
 
 ### Changed
 
 - admin guide now contains information on how to set up the systemd units for cleaning up docker images and containers
+- Test modules and tests require docstrings, enforced by ruff (`D100`/`D103`, only in `tests/**/test_*.py`)
+- CI stores the results of the unit, integration and end-to-end tests as a workflow artifact
 
 
 ## [1.0.0-rc1] - 2026-11-17

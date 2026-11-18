@@ -171,4 +171,5 @@ Tasks which may take long run in their own queues: `previews`, `thumbnails` and 
 - Imports always at the top of the module, never inside functions.
 - The `appuser` table is named to avoid colliding with PostgreSQL's reserved `user` keyword.
 - All IDs are `NewType` wrappers over `uuid.UUID` or `str` (e.g. `ProjectId`, `UserId`).
+- Test modules and test functions require docstrings (ruff `D100`/`D103`, enforced only in `tests/**/test_*.py`), written for the client: they are the contents of the PDF test report (`scripts/render_test_report.py`). The module docstring's first line is a section title (noun phrase, no period), followed by a short description; test docstrings state the verified behaviour in formal English, without implementation terms (function names, status codes, ...).
 - All UI text is translatable (see "Translations" in `docs/development.md`): `_()` in routes and templates; `errors.N_()` with `%(name)s` placeholders for messages produced outside of a request (operation errors, event `details`), which the stream handlers translate, with their values in `details_params`.

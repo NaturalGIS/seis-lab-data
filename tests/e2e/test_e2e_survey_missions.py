@@ -1,3 +1,9 @@
+"""Managing survey missions in the browser
+
+An editor creates, modifies and deletes survey missions within a project through the web
+forms.
+"""
+
 import re
 import uuid
 
@@ -22,6 +28,11 @@ def _fill_survey_mission_form(page: Page, name: str):
 
 @pytest.mark.e2e
 def test_survey_mission_lifecycle(authenticated_page: Page):
+    """Within a new project, an editor opens and cancels the creation form, creates a
+    survey mission with a description, an archive path and two links, opens and cancels
+    the modification form, renames the mission and deletes it. The deletion confirmation
+    names the survey mission.
+    """
     authenticated_page.goto("/")
     authenticated_page.get_by_role("link", name="list-projects").click()
     authenticated_page.get_by_role("link", name="new-project").click()
@@ -111,6 +122,9 @@ def test_survey_mission_lifecycle(authenticated_page: Page):
 def test_survey_mission_creation_rejects_duplicate_name(
     authenticated_page: Page,
 ):
+    """Creating a survey mission with the name of an existing survey mission of the same
+    project is refused, and the form shows an error next to the name field.
+    """
     authenticated_page.goto("/")
     authenticated_page.get_by_role("link", name="list-projects").click()
     authenticated_page.get_by_role("link", name="new-project").click()

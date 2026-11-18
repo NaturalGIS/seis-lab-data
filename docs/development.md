@@ -470,9 +470,68 @@ uv run pytest \
     --slowmo 1500
 ```
 
+## Test report
+
+It is possible to generate a PDF report of the test results. It contains a static introduction,
+a summary of the results and then every test, grouped by test module, each described by its
+docstring and shown with its result. The introduction is taken from the Markdown
+file at `scripts/test-report/intro.md`, the layout is the Jinja template at `scripts/test-report/report.j2.html`.
+
+Since the docstrings are the contents of the report, test modules and tests must have them.
+These are written for non-technical users, in formal English and without implementation terms:
+
+- the first line of the module docstring is the title of its section in the report (a noun phrase, without a final
+  period), followed by a blank line and a short description of the area of functionality the module covers
+- the docstring of each test states the behaviour it verifies, e.g. _A published project can be deleted, and the
+  notification of its deletion still shows its name._
+
+The report is generated from the JSON files written by the [pytest-json-report] plugin, one per test suite. Run each suite with the plugin's options, then copy the files out of the `webapp` container:
+
+```shell
+JSON_REPORT_OPTIONS="--json-report --json-report-omit collectors log streams"
+
+docker compose --file docker/compose.dev.yaml exec webapp \
+    uv run pytest ${JSON_REPORT_OPTIONS} --json-report-file=/tmp/unit.json
+docker compose --file docker/compose.dev.yaml exec webapp \
+    uv run pytest -m integration ${JSON_REPORT_OPTIONS} --json-report-file=/tmp/integration.json
+docker compose --file docker/compose.dev.yaml cp webapp:/tmp/unit.json .
+docker compose --file docker/compose.dev.yaml cp webapp:/tmp/integration.json .
+
+uv run pytest \
+    tests/e2e/ \
+    -m e2e \
+    --confcutdir tests/e2e \
+    --user-email akadmin@email.com \
+    --user-password admin123 \
+    --base-url http://localhost:8888 \
+    ${JSON_REPORT_OPTIONS} \
+    --json-report-file=e2e.json
+```
+
+The report is rendered outside the docker stack, because [WeasyPrint], which converts it to PDF, requires the Pango library (in Debian and Ubuntu, the `libpango-1.0-0` and `libpangoft2-1.0-0` packages), which the docker image does not have, as this is not needed at runtime.
+
+Render it from the root of the repository, with the same version of the code that ran the tests,
+as the descriptions are read from the test source files:
+
+```shell
+uv run --only-group report python scripts/render_test_report.py \
+    --results unit.json integration.json e2e.json \
+    --release v1.0.0 \
+    --commit $(git rev-parse HEAD) \
+    --output test-report.pdf
+```
+
+Run `uv run --only-group report python scripts/render_test_report.py --help` for the remaining options, e.g. `--html-output`, which keeps the intermediate HTML document, useful when modifying the template.
+
+The CI workflow stores the JSON files of each run as the `test-results-json` artifact. For each
+tag, it also renders the report and stores it as the `test-report-<tag>` artifact, which is
+kept for 90 days and is generated even when tests fail, showing the failures.
+
 
 [docker]: https://www.docker.com/
 [IPMA]: https://www.ipma.pt/pt/index.html
 [pre-commit]: https://pre-commit.com/
+[pytest-json-report]: https://pypi.org/project/pytest-json-report/
 [uv]: https://docs.astral.sh/uv/
+[WeasyPrint]: https://weasyprint.org/
 [woodpecker]: https://woodpecker-ci.org/

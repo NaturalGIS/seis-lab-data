@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Seis-Lab-Data automated test report{% if release %} - {{ release }}{% endif %}</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 22mm 18mm 20mm 18mm;
+      @top-left {
+        content: "Seis-Lab-Data - automated test report";
+        font-size: 8pt;
+        color: #6b7280;
+      }
+      @top-right {
+        content: "{{ release or '' }}";
+        font-size: 8pt;
+        color: #6b7280;
+      }
+      @bottom-right {
+        content: "Page " counter(page) " of " counter(pages);
+        font-size: 8pt;
+        color: #6b7280;
+      }
+    }
+    @page :first {
+      @top-left { content: none; }
+      @top-right { content: none; }
+    }
+
+    html {
+      font-family: "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+      font-size: 10pt;
+      line-height: 1.45;
+      color: #1f2937;
+    }
+    h1, h2, h3 { color: #0b3d5c; line-height: 1.2; }
+    h1 { font-size: 22pt; margin: 0 0 4mm 0; }
+    h2 { font-size: 15pt; margin: 8mm 0 3mm 0; }
+    h3 { font-size: 12pt; margin: 6mm 0 2mm 0; }
+    p { margin: 0 0 2.5mm 0; }
+    a { color: inherit; text-decoration: none; }
+    code { font-family: "DejaVu Sans Mono", monospace; font-size: 9pt; }
+
+    .cover { page-break-after: always; }
+    .cover .subtitle { font-size: 13pt; color: #4b5563; margin-bottom: 10mm; }
+    .verdict {
+      padding: 5mm 6mm;
+      border-radius: 2mm;
+      font-size: 13pt;
+      font-weight: bold;
+      margin: 8mm 0;
+    }
+    .verdict.passed { background: #e7f6ec; color: #14532d; border: 1px solid #86c99b; }
+    .verdict.failed { background: #fdecec; color: #7f1d1d; border: 1px solid #e5a3a3; }
+
+    table { width: 100%; border-collapse: collapse; margin: 3mm 0; }
+    th, td { padding: 1.8mm 2.5mm; text-align: left; border-bottom: 1px solid #e5e7eb; }
+    th { font-size: 9pt; color: #4b5563; text-transform: uppercase; letter-spacing: 0.03em; }
+    td.number, th.number { text-align: right; }
+    tr.total td { font-weight: bold; border-top: 1.5px solid #9ca3af; }
+    table.metadata td { border: none; padding: 1mm 2.5mm 1mm 0; }
+    table.metadata td:first-child { color: #6b7280; width: 35%; }
+
+    .intro { page-break-after: always; }
+
+    nav.toc ol { list-style: none; padding: 0; margin: 0; }
+    nav.toc li { margin: 1mm 0; }
+    nav.toc a::after {
+      content: leader(".") target-counter(attr(href), page);
+      color: #6b7280;
+    }
+    .toc-page { page-break-after: always; }
+
+    section.module { page-break-before: always; }
+    section.module .module-description { color: #4b5563; margin-bottom: 4mm; }
+    .module-path { font-size: 8pt; color: #9ca3af; margin-top: -2mm; margin-bottom: 4mm; }
+
+    .test {
+      display: flex;
+      gap: 3mm;
+      padding: 2.5mm 0;
+      border-bottom: 1px solid #e5e7eb;
+      page-break-inside: avoid;
+    }
+    .test .body { flex: 1; }
+    .test .description p:last-child { margin-bottom: 0; }
+    .test .description.missing { color: #9ca3af; font-style: italic; }
+    .test .details { font-size: 8.5pt; color: #6b7280; margin-top: 1mm; }
+    .test .failure {
+      font-size: 8.5pt;
+      color: #7f1d1d;
+      background: #fdecec;
+      padding: 1.5mm 2mm;
+      margin-top: 1.5mm;
+      border-radius: 1mm;
+      word-break: break-word;
+    }
+    .test .skip-reason { font-size: 8.5pt; color: #6b7280; margin-top: 1mm; }
+
+    .badge {
+      display: inline-block;
+      min-width: 16mm;
+      text-align: center;
+      padding: 0.6mm 2mm;
+      border-radius: 1mm;
+      font-size: 8pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+    .badge.passed { background: #e7f6ec; color: #14532d; }
+    .badge.failed { background: #fdecec; color: #7f1d1d; }
+    .badge.skipped { background: #f3f4f6; color: #4b5563; }
+    .suite-tag {
+      display: inline-block;
+      font-size: 7.5pt;
+      color: #6b7280;
+      border: 1px solid #d1d5db;
+      border-radius: 1mm;
+      padding: 0 1.5mm;
+      margin-left: 1.5mm;
+    }
+  </style>
+</head>
+<body>
+{% set total = summaries[-1] %}
+
+<section class="cover">
+  <h1>Automated test report</h1>
+  <div class="subtitle">Seis-Lab-Data marine survey data catalog</div>
+
+  <table class="metadata">
+    {% if release %}<tr><td>Release</td><td>{{ release }}</td></tr>{% endif %}
+    {% if commit %}<tr><td>Source code revision</td><td><code>{{ commit }}</code></td></tr>{% endif %}
+    <tr><td>Tests executed on</td><td>{{ run_at.strftime("%Y-%m-%d %H:%M UTC") }}</td></tr>
+    <tr><td>Report generated on</td><td>{{ generated_at.strftime("%Y-%m-%d %H:%M UTC") }}</td></tr>
+  </table>
+
+  {% if total.failed == 0 %}
+  <div class="verdict passed">All {{ total.passed }} tests passed{% if total.skipped %} ({{ total.skipped }} not run){% endif %}.</div>
+  {% else %}
+  <div class="verdict failed">{{ total.failed }} of {{ total.total }} tests failed.</div>
+  {% endif %}
+
+  <table>
+    <thead>
+      <tr>
+        <th>Kind of test</th>
+        <th class="number">Tests</th>
+        <th class="number">Passed</th>
+        <th class="number">Failed</th>
+        <th class="number">Not run</th>
+        <th class="number">Executions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for summary in summaries %}
+      <tr{% if loop.last %} class="total"{% endif %}>
+        <td>{{ summary.name }}</td>
+        <td class="number">{{ summary.total }}</td>
+        <td class="number">{{ summary.passed }}</td>
+        <td class="number">{{ summary.failed }}</td>
+        <td class="number">{{ summary.skipped }}</td>
+        <td class="number">{{ summary.cases }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="details" style="font-size: 8.5pt; color: #6b7280;">
+    Some tests are executed several times, each time with different input data.
+    A test passes only if all of its executions pass. The number of executions
+    is shown in the last column.
+  </p>
+</section>
+
+<section class="intro">
+  {{ intro | safe }}
+</section>
+
+<section class="toc-page">
+  <h2>Contents</h2>
+  <nav class="toc">
+    <ol>
+      {% for module in modules %}
+      <li><a href="#{{ module.anchor }}">{{ module.title }}</a></li>
+      {% endfor %}
+    </ol>
+  </nav>
+</section>
+
+{% for module in modules %}
+<section class="module" id="{{ module.anchor }}">
+  <h2>{{ module.title }}</h2>
+  <div class="module-path">{{ module.path }} &middot; {{ module.suites | join(", ") }} tests</div>
+  {% if module.description %}
+  <div class="module-description">
+    {% for paragraph in module.description.split("\n\n") %}<p>{{ paragraph }}</p>{% endfor %}
+  </div>
+  {% endif %}
+
+  {% for function in module.functions.values() %}
+  <div class="test">
+    <div><span class="badge {{ function.status }}">{{ "Not run" if function.status == "skipped" else function.status }}</span></div>
+    <div class="body">
+      {% if function.description %}
+      <div class="description">
+        {% for paragraph in function.description.split("\n\n") %}<p>{{ paragraph }}</p>{% endfor %}
+      </div>
+      {% else %}
+      <div class="description missing">No description available ({{ function.name }}).</div>
+      {% endif %}
+      <div class="details">
+        {% if function.cases | length > 1 %}
+        {{ function.num_passed_cases }} of {{ function.cases | length }} executions passed{% if function.skipped_cases %}, {{ function.skipped_cases | length }} not run{% endif %}.
+        {% endif %}
+        {% if module.suites | length > 1 %}<span class="suite-tag">{{ function.suite }}</span>{% endif %}
+      </div>
+      {% for case in function.failed_cases %}
+      <div class="failure">
+        {% if case.parameters %}<strong>{{ case.parameters }}</strong>: {% endif %}{{ case.message or "Failed." }}
+      </div>
+      {% endfor %}
+      {% if function.status == "skipped" and function.skipped_cases[0].message %}
+      <div class="skip-reason">Reason: {{ function.skipped_cases[0].message }}</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endfor %}
+
+</body>
+</html>

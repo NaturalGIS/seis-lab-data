@@ -1,7 +1,12 @@
-"""Tests for exporting survey-related records to GeoNode.
+"""Export of survey-related records to GeoNode
 
-GeoNode is faked: its API, uploads included, is served by an `httpx2.MockTransport`.
+A published survey-related record can be exported to GeoNode, which creates or replaces
+a dataset there from the record's data file, and the catalog keeps a link to that
+dataset. Failed or refused exports are reported and leave the record as it was, and
+exports interrupted by a service failure are recovered.
 """
+
+# GeoNode is faked: its API, uploads included, is served by an `httpx2.MockTransport`.
 
 import base64
 import datetime as dt
@@ -148,6 +153,7 @@ class _FakeGeoNode:
 
 @pytest.fixture
 def export_settings(settings, tmp_path, monkeypatch):
+    """Configure a target GeoNode, the public URL and a temporary archive root."""
     monkeypatch.setattr(
         settings,
         "target_geonode",
@@ -229,6 +235,10 @@ async def _export(session, record_id, user, settings) -> _EventCollector:
 
 @pytest.mark.asyncio
 async def test_get_upload_files_sends_shapefile_sidecars(tmp_path):
+    """A shapefile is uploaded to GeoNode together with its attribute, index and
+    projection files, while other files, including those whose names merely begin the
+    same way, are left out.
+    """
     for name in ("roads.shp", "roads.dbf", "roads.shx", "roads.prj", "roads.cpg"):
         (tmp_path / name).write_bytes(b"")
     # another dataset, whose stem merely starts like the shapefile's
@@ -245,6 +255,11 @@ async def test_get_upload_files_sends_shapefile_sidecars(tmp_path):
 
 
 def test_exportable_data_asset_is_the_first_one_geonode_supports():
+    """The file exported to GeoNode is the first data asset of the record, in order of
+    name, whose file format GeoNode can import; preview images and unsupported formats
+    such as KMALL are skipped.
+    """
+
     def asset(name, relative_path, asset_type=constants.AssetType.DATA):
         return models.RecordAsset(
             name=name,
@@ -276,6 +291,12 @@ async def test_export_creates_a_geonode_resource_for_a_record(
     export_settings,
     monkeypatch,
 ):
+    """Exporting a published record creates a GeoNode dataset from its data file, titled
+    with the record's name and linking back to the record in the catalog. The record
+    keeps the dataset link and the export date, and is announced as under export and
+    then as published again. The export signs in to GeoNode with the configured service
+    account and revokes its access when done.
+    """
     fake = _FakeGeoNode()
     _install_fake_geonode(monkeypatch, fake)
     async with db_session_maker() as session:
@@ -344,6 +365,9 @@ async def test_export_of_a_shapefile_sends_its_sidecars(
     export_settings,
     monkeypatch,
 ):
+    """Exporting a record whose data file is a shapefile uploads the shapefile together
+    with its attribute, index and projection files.
+    """
     fake = _FakeGeoNode()
     _install_fake_geonode(monkeypatch, fake)
     async with db_session_maker() as session:
@@ -384,6 +408,9 @@ async def test_export_of_an_already_exported_record(
     existing_pks,
     expected_resource_pk,
 ):
+    """Exporting an already exported record again replaces its existing GeoNode dataset,
+    or creates a new one if that dataset no longer exists in GeoNode.
+    """
     fake = _FakeGeoNode(existing_pks=existing_pks)
     _install_fake_geonode(monkeypatch, fake)
     async with db_session_maker() as session:
@@ -414,6 +441,10 @@ async def test_failed_export_publishes_the_record_again(
     export_settings,
     monkeypatch,
 ):
+    """When GeoNode fails to import the data, the record is published again without a
+    GeoNode link, and the failure is reported together with the explanation given by
+    GeoNode.
+    """
     _install_fake_geonode(monkeypatch, _FakeGeoNode(execution_status="failed"))
     async with db_session_maker() as session:
         record_id = await _make_exportable_record(
@@ -441,6 +472,10 @@ async def test_export_failing_unexpectedly_is_reported(
     export_settings,
     monkeypatch,
 ):
+    """An unexpected error during an export is reported as a failed export with a
+    description of the error, and the record is published again.
+    """
+
     async def broken_get_upload_files(data_path):
         raise TypeError("something unforeseen")
 
@@ -472,6 +507,9 @@ async def test_export_fails_when_geonode_refuses_the_credentials(
     export_settings,
     monkeypatch,
 ):
+    """When GeoNode refuses the configured credentials, nothing is uploaded, the record
+    stays published, and the failure is reported with the reason given by GeoNode.
+    """
     fake = _FakeGeoNode(issues_tokens=False)
     _install_fake_geonode(monkeypatch, fake)
     async with db_session_maker() as session:
@@ -514,6 +552,9 @@ async def test_export_is_refused(
     status,
     roles,
 ):
+    """An export is refused, with nothing sent to GeoNode and the record left unchanged,
+    when the record is a draft or when the user has no editing role.
+    """
     fake = _FakeGeoNode()
     _install_fake_geonode(monkeypatch, fake)
     user = User(id=UserId("someone"), username="someone", email="a@b.dev", roles=roles)
@@ -539,6 +580,9 @@ async def test_export_is_refused(
 async def test_record_under_export_cannot_be_deleted(
     db, db_session_maker, sample_survey_related_records, admin_user
 ):
+    """A survey-related record cannot be deleted while it is being exported, and the
+    attempt is reported as failed.
+    """
     record_id = identifiers.SurveyRelatedRecordId(sample_survey_related_records[0].id)
     async with db_session_maker() as session:
         await record_commands.set_survey_related_record_status(
@@ -561,6 +605,9 @@ async def test_record_under_export_cannot_be_deleted(
 async def test_bulk_publication_leaves_record_under_export_alone(
     db, db_session_maker, sample_survey_related_records
 ):
+    """Publishing all valid records of a survey mission at once leaves a record that is
+    being exported in its export status.
+    """
     record = sample_survey_related_records[0]
     record_id = identifiers.SurveyRelatedRecordId(record.id)
     async with db_session_maker() as session:
@@ -599,6 +646,10 @@ async def test_bulk_publication_leaves_record_under_export_alone(
 async def test_abandoned_exports_are_recovered(
     db, db_session_maker, sample_survey_related_records, mission_status, expected_status
 ):
+    """A record left under export for a long time by an interrupted export is restored,
+    to published if its survey mission is published and to draft otherwise, and the
+    change is announced. A record whose export started recently is left untouched.
+    """
     stale_record, fresh_record = sample_survey_related_records[:2]
     stale_id, fresh_id = (
         identifiers.SurveyRelatedRecordId(r.id) for r in (stale_record, fresh_record)
@@ -658,6 +709,9 @@ async def test_export_leaves_record_unpublished_when_its_mission_was_unpublished
     export_settings,
     monkeypatch,
 ):
+    """If a survey mission is unpublished while one of its records is being exported,
+    the record returns to draft rather than to published when the export ends.
+    """
     _install_fake_geonode(monkeypatch, _FakeGeoNode())
     record = sample_survey_related_records[0]
     mission_id = identifiers.SurveyMissionId(record.survey_mission_id)

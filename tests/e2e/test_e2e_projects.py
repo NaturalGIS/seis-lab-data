@@ -1,3 +1,9 @@
+"""Managing projects in the browser
+
+An editor creates, modifies and deletes projects through the web forms, and the list of
+projects behaves consistently as projects are removed.
+"""
+
 import re
 import uuid
 
@@ -15,6 +21,10 @@ def _fill_project_form(page: Page, name: str):
 
 @pytest.mark.e2e
 def test_project_lifecycle(authenticated_page: Page):
+    """An editor opens and cancels the creation form, creates a project with a
+    description and two links, opens and cancels the modification form, renames the
+    project and deletes it. The deletion confirmation names the project.
+    """
     # start from the landing page
     authenticated_page.goto("/")
 
@@ -108,6 +118,9 @@ def test_project_lifecycle(authenticated_page: Page):
 
 @pytest.mark.e2e
 def test_project_creation_rejects_duplicate_name(authenticated_page: Page):
+    """Creating a project with the name of an existing project is refused, and the form
+    shows an error next to the name field.
+    """
     authenticated_page.goto("/")
     authenticated_page.get_by_role("link", name="list-projects").click()
 
@@ -145,6 +158,10 @@ def test_project_creation_rejects_duplicate_name(authenticated_page: Page):
 
 @pytest.mark.e2e
 def test_deleting_listed_item_keeps_current_page(authenticated_page: Page):
+    """While the second page of the list of projects is shown, projects deleted
+    elsewhere disappear from it and the list stays on that page; once its last project
+    is deleted, the list returns to the first page.
+    """
     # the listing page size defaults to 20: two items on the second page
     tag = uuid.uuid4().hex[:8]
     detail_urls = []

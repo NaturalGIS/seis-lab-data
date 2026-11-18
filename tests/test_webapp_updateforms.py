@@ -1,4 +1,9 @@
-"""Update forms are only shown for resources that the user may update right now."""
+"""Availability of edit forms
+
+Edit forms for projects, survey missions and survey-related records are offered only to
+users allowed to edit them, and only while the entry is not busy with a running task.
+Otherwise the user is returned to the entry's page with an explanation.
+"""
 
 import pytest
 import sqlmodel
@@ -96,6 +101,9 @@ def _assert_redirected_with_flash(
 def test_update_form_is_shown_for_idle_resource(
     test_client: TestClient, published_sample_data, monkeypatch, resource_kind
 ):
+    """An editor can open the edit form of a project, survey mission or survey-related
+    record that is not busy with a task.
+    """
     _authenticate_as(monkeypatch, _EDITOR)
     _model, base_path, _busy_status = _RESOURCE_KINDS[resource_kind]
     item = _get_sample_item(published_sample_data, resource_kind)
@@ -113,6 +121,11 @@ def test_update_form_redirects_when_resource_is_busy(
     monkeypatch,
     resource_kind,
 ):
+    """An editor who tries to edit a project, survey mission or survey-related record
+    that is busy with a task, such as validation, discovery or export, is returned to
+    its page, where a one-time error notification explains that its current status
+    prevents updates.
+    """
     _authenticate_as(monkeypatch, _EDITOR)
     model, base_path, busy_status = _RESOURCE_KINDS[resource_kind]
     item = _get_sample_item(published_sample_data, resource_kind)
@@ -133,6 +146,10 @@ def test_update_form_redirects_when_resource_is_busy(
 def test_update_form_redirects_when_user_lacks_role(
     test_client: TestClient, published_sample_data, monkeypatch, resource_kind
 ):
+    """A logged-in user without the editor role who tries to edit a project, survey
+    mission or survey-related record is returned to its page, where a one-time error
+    notification explains that the user is not allowed to update it.
+    """
     _authenticate_as(monkeypatch, _USER_WITHOUT_ROLE)
     _model, base_path, _busy_status = _RESOURCE_KINDS[resource_kind]
     item = _get_sample_item(published_sample_data, resource_kind)
@@ -153,6 +170,10 @@ def test_record_update_form_redirects_when_mission_is_under_discovery(
     monkeypatch,
     mission_status,
 ):
+    """An editor who tries to edit a survey-related record while its survey mission is
+    under discovery is returned to the record page, where a one-time error notification
+    explains why.
+    """
     _authenticate_as(monkeypatch, _EDITOR)
     record = published_sample_data["records"][0]
     _set_status(

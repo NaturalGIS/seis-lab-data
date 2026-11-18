@@ -1,3 +1,9 @@
+"""Catalog storage operations
+
+Creating, modifying, publishing and deleting catalog entries is stored correctly,
+including the rules that keep names and asset file paths unique.
+"""
+
 import uuid
 
 import pytest
@@ -30,6 +36,7 @@ from seis_lab_data.schemas import workflowstages as stage_schemas
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_create_dataset_category(db, db_session_maker):
+    """A new dataset category is stored with the given identifier and name."""
     to_create = category_schemas.DatasetCategoryCreate(
         id=identifiers.DatasetCategoryId(
             uuid.UUID("303cad6d-2e0e-447e-85e1-c284c1c882a7")
@@ -45,6 +52,7 @@ async def test_create_dataset_category(db, db_session_maker):
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_delete_dataset_category(db, db_session_maker):
+    """A deleted dataset category is no longer found in the catalog."""
     to_create = category_schemas.DatasetCategoryCreate(
         id=identifiers.DatasetCategoryId(
             uuid.UUID("26b06713-dce1-4304-bf50-fec5c3f5efe6")
@@ -66,6 +74,7 @@ async def test_delete_dataset_category(db, db_session_maker):
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_create_workflow_stage(db, db_session_maker):
+    """A new workflow stage is stored with the given identifier and name."""
     to_create = stage_schemas.WorkflowStageCreate(
         id=identifiers.WorkflowStageId(
             uuid.UUID("24d10a9f-8b30-4866-aa1b-5fe34a2f4ecf")
@@ -81,6 +90,7 @@ async def test_create_workflow_stage(db, db_session_maker):
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_delete_workflow_stage(db, db_session_maker):
+    """A deleted workflow stage is no longer found in the catalog."""
     to_create = stage_schemas.WorkflowStageCreate(
         id=identifiers.WorkflowStageId(
             uuid.UUID("adaf887f-27a9-40da-afe4-785a169c3edd")
@@ -97,6 +107,7 @@ async def test_delete_workflow_stage(db, db_session_maker):
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_create_project(db, db_session_maker):
+    """A new project is stored with the given identifier and name."""
     to_create = project_schemas.ProjectCreate(
         id=identifiers.ProjectId(uuid.UUID("5fe24752-5919-4a05-be46-aed53a6936db")),
         name="A fake project",
@@ -112,6 +123,7 @@ async def test_create_project(db, db_session_maker):
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_create_project_rejects_duplicate_name(db, db_session_maker):
+    """A project cannot be created with the same name as an existing project."""
     async with db_session_maker() as session:
         await project_commands.create_project(
             session,
@@ -140,6 +152,7 @@ async def test_create_project_rejects_duplicate_name(db, db_session_maker):
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_delete_project(db, db_session_maker):
+    """A deleted project is no longer found in the catalog."""
     to_create = project_schemas.ProjectCreate(
         id=identifiers.ProjectId(uuid.UUID("0637d5d9-6381-4ba8-b9ec-89750baa93a4")),
         name="A fake project",
@@ -155,6 +168,9 @@ async def test_delete_project(db, db_session_maker):
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_set_project_thumbnail_leaves_the_bbox_alone(db, db_session_maker):
+    """Storing a thumbnail for a project leaves its bounding box unchanged, and storing
+    a thumbnail for a project that no longer exists is reported as unsuccessful.
+    """
     project_id = identifiers.ProjectId(
         uuid.UUID("7b0f6c2e-3d4a-4e5b-8c6d-9e0f1a2b3c4d")
     )
@@ -184,6 +200,9 @@ async def test_set_project_thumbnail_leaves_the_bbox_alone(db, db_session_maker)
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_create_survey_mission(db, db_session_maker, sample_projects):
+    """A new survey mission is stored within its project, with the given name and
+    coordinate reference system.
+    """
     to_create = mission_schemas.SurveyMissionCreate(
         id=identifiers.SurveyMissionId(
             uuid.UUID("1aad09c3-d606-445e-9216-d9620586c332")
@@ -207,6 +226,9 @@ async def test_create_survey_mission(db, db_session_maker, sample_projects):
 async def test_create_survey_mission_rejects_duplicate_name_in_same_project(
     db, db_session_maker, sample_projects
 ):
+    """A survey mission cannot be created with the same name as another survey mission
+    of the same project.
+    """
     project_id = identifiers.ProjectId(sample_projects[0].id)
     async with db_session_maker() as session:
         await mission_commands.create_survey_mission(
@@ -241,6 +263,10 @@ async def test_create_survey_mission_rejects_duplicate_name_in_same_project(
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_update_survey_mission(db, db_session_maker, sample_projects):
+    """A new survey mission uses the default coordinate reference system (EPSG:32629)
+    unless another one is given, and an update changes only the fields it includes,
+    keeping the others as stored.
+    """
     to_create = mission_schemas.SurveyMissionCreate(
         id=identifiers.SurveyMissionId(
             uuid.UUID("5d3f0b8e-2c4a-4f6e-9b1d-7a8c6e4f2b10")
@@ -270,6 +296,7 @@ async def test_update_survey_mission(db, db_session_maker, sample_projects):
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_delete_survey_mission(db, db_session_maker, sample_projects):
+    """A deleted survey mission is no longer found in the catalog."""
     to_create = mission_schemas.SurveyMissionCreate(
         id=identifiers.SurveyMissionId(
             uuid.UUID("449a96e4-9b3b-41ad-a08b-75d31332b846")
@@ -297,6 +324,9 @@ async def test_create_survey_related_record(
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
 ):
+    """A new survey-related record, with its dataset category, workflow stage and
+    assets, is stored with the given identifier and name.
+    """
     dataset_category = next(
         c for c in bootstrap_dataset_categories if c.name == "bathymetry"
     )
@@ -348,6 +378,7 @@ async def test_delete_survey_related_record(
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
 ):
+    """A deleted survey-related record is no longer found in the catalog."""
     dataset_category = next(
         c for c in bootstrap_dataset_categories if c.name == "bathymetry"
     )
@@ -385,6 +416,9 @@ async def test_bulk_update_filtered_records(
     bootstrap_workflow_stages,
     admin_user,
 ):
+    """A bulk change of workflow stage applied to the survey-related records matching a
+    name search changes only the matching records.
+    """
     first_record, second_record = sample_survey_related_records
     new_stage = next(
         w for w in bootstrap_workflow_stages if w.name == "quality control data"
@@ -418,6 +452,9 @@ async def test_bulk_update_filtered_records_excludes_records(
     bootstrap_workflow_stages,
     admin_user,
 ):
+    """A bulk change of workflow stage leaves unchanged the survey-related records
+    explicitly excluded from it.
+    """
     first_record, second_record = sample_survey_related_records
     new_stage = next(
         w for w in bootstrap_workflow_stages if w.name == "quality control data"
@@ -450,6 +487,9 @@ async def test_bulk_update_manually_selected_records(
     sample_survey_related_records,
     admin_user,
 ):
+    """A bulk change of description applied to a manual selection of survey-related
+    records changes only the selected records.
+    """
     first_record, second_record = sample_survey_related_records
     to_update = record_schemas.SurveyRelatedRecordBulkUpdate(
         description="Bulk-updated description"
@@ -479,6 +519,9 @@ async def test_bulk_update_manually_selected_records_replaces_related_records(
     sample_survey_related_records,
     admin_user,
 ):
+    """A bulk change of related records replaces the links of the selected survey-
+    related records: the given links are added, and an empty list removes all of them.
+    """
     first_record, second_record = sample_survey_related_records
 
     add_relation = record_schemas.SurveyRelatedRecordBulkUpdate(
@@ -525,6 +568,9 @@ async def test_bulk_publish_valid_survey_related_records(
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
 ):
+    """Publishing the valid survey-related records of a survey mission publishes only
+    the records that are valid and belong to that survey mission.
+    """
     # first_record and second_record belong to different survey missions
     first_record, second_record = sample_survey_related_records
     dataset_category = next(
@@ -590,6 +636,9 @@ async def test_bulk_unpublish_survey_related_records(
     db_session_maker,
     sample_survey_related_records,
 ):
+    """Unpublishing the survey-related records of a survey mission returns them to
+    draft, while the published records of other survey missions remain published.
+    """
     # first_record and second_record belong to different survey missions
     first_record, second_record = sample_survey_related_records
     async with db_session_maker() as session:
@@ -626,6 +675,9 @@ async def test_bulk_publish_valid_survey_missions_for_project(
     db_session_maker,
     sample_survey_missions,
 ):
+    """Publishing the valid survey missions of a project publishes only the survey
+    missions that are valid and belong to that project.
+    """
     missions_by_project = {}
     for mission in sample_survey_missions:
         missions_by_project.setdefault(mission.project_id, []).append(mission)
@@ -675,6 +727,10 @@ async def test_bulk_unpublish_survey_missions_for_project(
     db_session_maker,
     sample_survey_missions,
 ):
+    """Unpublishing the survey missions of a project returns its published survey
+    missions to draft, while the published survey missions of other projects remain
+    published.
+    """
     missions_by_project = {}
     for mission in sample_survey_missions:
         missions_by_project.setdefault(mission.project_id, []).append(mission)
@@ -729,6 +785,9 @@ async def test_create_survey_related_record_rejects_duplicate_asset_path_in_same
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
 ):
+    """A survey-related record cannot be created with an asset whose file path is
+    already used by an asset of the same survey mission.
+    """
     dataset_category = next(
         c for c in bootstrap_dataset_categories if c.name == "bathymetry"
     )
@@ -799,6 +858,9 @@ async def test_create_survey_related_record_allows_duplicate_asset_path_in_diffe
     bootstrap_dataset_categories,
     bootstrap_workflow_stages,
 ):
+    """Survey-related records of different survey missions may have assets with the same
+    file path.
+    """
     dataset_category = next(
         c for c in bootstrap_dataset_categories if c.name == "bathymetry"
     )
@@ -869,6 +931,9 @@ async def test_update_survey_related_record_rejects_duplicate_asset_path_for_new
     sample_survey_related_records,
     admin_user,
 ):
+    """A survey-related record cannot be updated to add an asset whose file path is
+    already used by another asset of the same survey mission.
+    """
     first_record, _second_record = sample_survey_related_records
     async with db_session_maker() as session:
         fresh_first = await record_queries.get_survey_related_record(
@@ -908,6 +973,10 @@ async def test_update_survey_related_record_allows_pathless_assets(
     sample_survey_related_records,
     admin_user,
 ):
+    """Assets without a file path, such as previews and thumbnails, are never considered
+    duplicates of each other, so a record holding several of them can receive a further
+    asset without a file path.
+    """
     # derived assets have no file path at all, so the per-mission asset path
     # uniqueness rule must never see two of them as duplicates of each other
     first_record, _second_record = sample_survey_related_records
@@ -978,6 +1047,9 @@ async def test_update_survey_related_record_preserves_derived_assets(
     sample_survey_related_records,
     admin_user,
 ):
+    """Editing a survey-related record leaves its existing preview and thumbnail
+    unchanged.
+    """
     # derived assets are not part of the update form's payload, so an edit that
     # leaves the record's data files alone must leave them alone too
     first_record, _second_record = sample_survey_related_records
@@ -1041,6 +1113,10 @@ async def test_replace_derived_record_assets(
     sample_survey_related_records,
     admin_user,
 ):
+    """Generating a new preview for a survey-related record replaces its previous
+    preview and thumbnail, while its data assets and the previews of other records
+    remain unchanged.
+    """
     first_record, second_record = sample_survey_related_records
     record_id = identifiers.SurveyRelatedRecordId(first_record.id)
     data_asset_ids = {a.id for a in first_record.assets}
