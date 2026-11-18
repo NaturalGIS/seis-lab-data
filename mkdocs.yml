@@ -42,12 +42,16 @@ theme:
 plugins:
   - search
   - i18n:
+      # Relative switcher links keep working when the site is served under a path
+      # prefix (e.g. /docs/), since the build-time site_url carries no path
       languages:
         - locale: en
           name: English
           default: true
+          fixed_link: ./
         - locale: pt
           name: Português
+          fixed_link: pt/
           nav:
             - Início: index.md
             - Guia do utilizador: user-guide.md
