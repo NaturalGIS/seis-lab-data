@@ -354,6 +354,7 @@ services:
   docs:
     image: *common-image
     entrypoint: ["uv", "run", "python", "/home/ubuntu/app/docker/docs/entrypoint.py"]
+    restart: unless-stopped
     environment:
       MKDOCS_SITE_URL: "https://seis-lab-data.ipma.pt/docs"
     labels:
