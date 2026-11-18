@@ -463,7 +463,7 @@ async def test_discovered_records_match_those_of_the_record_create_operation(
     )
     mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
     _write_geotiff(mission_root / "s01/grid.tif")
-    # nothing is extracted from it, so its record has no bbox and is invalid
+    # nothing is extracted from it, so its record has no bbox and is still valid
     (mission_root / "s01/broken.tif").write_bytes(b"not a GeoTIFF")
 
     await _run_discovery(
@@ -551,7 +551,7 @@ async def test_discovered_records_match_those_of_the_record_create_operation(
             record.discovery_info is not None,
         )
         for record in discovered_records
-    ) == [("broken.tif", False, False), ("grid.tif", True, True)]
+    ) == [("broken.tif", True, False), ("grid.tif", True, True)]
 
 
 @pytest.mark.integration
@@ -864,14 +864,37 @@ async def test_discovery_survives_a_configuration_that_fails(
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_discovery_keeps_a_published_mission_published(
-    db_session_maker, admin_user, discovery_env
+    db_session_maker,
+    admin_user,
+    discovery_env,
+    bootstrap_dataset_categories,
+    bootstrap_workflow_stages,
 ):
     """A published survey mission remains published after a discovery, and its new valid
-    records are published as well.
+    records are published as well, including that of a file from which no spatial extent
+    is extracted.
     """
-    _write_geotiff(
-        discovery_env["archive_root"] / _MISSION_RELATIVE_PATH / "s01/grid.tif"
-    )
+    mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
+    _write_geotiff(mission_root / "s01/grid.tif")
+    # no extractor reads text files, so its record has no bbox
+    (mission_root / "s01/notes.txt").write_text("survey notes")
+    async with db_session_maker() as session:
+        await discovery_commands.create_asset_discovery_configuration(
+            session,
+            discovery_schemas.AssetDiscoveryConfigurationCreate(
+                id=identifiers.AssetDiscoveryConfId(uuid.uuid4()),
+                name="test txt",
+                relative_path_regexp=r"s01/.*\.txt",
+                media_type="text/plain",
+                generate_previews=False,
+                workflow_stage_id=identifiers.WorkflowStageId(
+                    bootstrap_workflow_stages[0].id
+                ),
+                dataset_category_id=identifiers.DatasetCategoryId(
+                    bootstrap_dataset_categories[0].id
+                ),
+            ),
+        )
     mission_id = identifiers.SurveyMissionId(discovery_env["mission"].id)
     await _publish_mission(db_session_maker, discovery_env)
 
@@ -886,8 +909,11 @@ async def test_discovery_keeps_a_published_mission_published(
     )
     # the valid records of a published mission are published at the end of the run
     records = await _get_mission_records(db_session_maker, mission_id)
-    assert [record.status for record in records] == [
-        constants.SurveyRelatedRecordStatus.PUBLISHED
+    assert sorted(
+        (record.name, record.bbox_4326 is None, record.status) for record in records
+    ) == [
+        ("grid.tif", False, constants.SurveyRelatedRecordStatus.PUBLISHED),
+        ("notes.txt", True, constants.SurveyRelatedRecordStatus.PUBLISHED),
     ]
 
 
