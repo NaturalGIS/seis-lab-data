@@ -4,16 +4,16 @@
     [ :material-file-pdf-box: Descarregar versão PDF](assets/documents/seis-lab-data-development-guide.pdf){ .md-button .no-pdf }
 </span>
 
-Este documento é o entregável de projeto _D03 - Documentação orientada ao programador sobre como configurar o projeto_.
-Contém informação sobre como configurar um ambiente de desenvolvimento local adequado para trabalhar no projeto
-SeisLabData.
+Este documento é o entregável de projeto _D11 - Versão final da documentação orientada ao programador_. Contém
+informação sobre como configurar um ambiente de desenvolvimento local adequado para trabalhar no projeto SeisLabData,
+bem como uma visão geral da arquitetura do sistema.
 
 Este projeto é composto por múltiplos serviços, que são orquestrados com `docker compose`.
 O ficheiro `docker/compose.dev.yaml` contém as instruções adequadas para desenvolvimento.
 
 !!! tip "Dica"
     Quando a _stack_ de desenvolvimento do Docker estiver ativa e em execução, execute os comandos docker compose
-    com esta incantação:
+    desta forma:
 
     ```shell
     docker compose -f docker/compose.dev.yaml <docker-command> <service-name>
@@ -27,14 +27,19 @@ Os serviços mais relevantes são:
 - `interactive-worker` – _worker_ [dramatiq] que executa as tarefas rápidas, iniciadas pelos utilizadores, como as modificações à BD (criar, atualizar, apagar, validar, publicar). Consome a fila `default`.
 - `long-tasks-worker` – _worker_ [dramatiq] que executa as tarefas que podem demorar: pré-visualizações, miniaturas e exportações. Consome as filas `previews`, `thumbnails` e `exports`, para que estas tarefas nunca atrasem as interativas.
 - `discovery-worker` – _worker_ [dramatiq] que executa as descobertas no arquivo, da fila `discovery`. Corre um processo, que descobre uma missão de cada vez; defina `DISCOVERY_WORKER_PROCESSES` no ambiente do `docker compose` para descobrir várias missões em paralelo.
+- `db` – uma instância [PostGIS] que contém a base de dados da aplicação.
 - `message-broker` – uma instância [redis] que gere a passagem de mensagens entre a webapp e os _workers_.
 - `web-gateway` – uma instância [traefik] que atua como _reverse proxy_ para o sistema.
 - `auth-webapp` – uma instância [authentik] que trata da autenticação de utilizadores.
+- `martin-tile-server` – uma instância [martin] que serve os _tiles_ do mapa base de batimetria, a partir dos ficheiros PMTiles da diretoria `sample-data/pmtiles`.
+- `docs` – serve esta documentação, conforme explicado no [Guia de escrita de documentação](writing-docs.md).
 
 [authentik]: https://goauthentik.io/
 [datastar]: https://data-star.dev/
 [dramatiq]: https://dramatiq.io/
 [jinja]: https://jinja.palletsprojects.com/en/stable/
+[martin]: https://martin.maplibre.org/
+[PostGIS]: https://postgis.net/
 [redis]: https://redis.io/
 [starlette]: https://starlette.dev/
 [sqlmodel]: https://sqlmodel.tiangolo.com/
@@ -67,7 +72,7 @@ rm 20251125_datasample01_restored_data.tar.gz
 Deverá obter algo semelhante a isto (listagem abreviada):
 
 ```shell
-ricardo@tygra:~/data/seis-lab-data/$ tree -L 4
+$ tree -L 4
 .
 └── prr_eolicas
     └── base-final
@@ -193,6 +198,165 @@ sempre que souber que houve _merges_ recentes.
     ```
 
 
+## Montar o arquivo de produção localmente
+
+Se necessário, pode utilizar o sshfs para montar o arquivo de produção localmente.
+
+Instale o sshfs e ative a opção `user_allow_other` na configuração do fuse, após o que deverá conseguir montá-lo
+localmente. Nos comandos abaixo, `<your-data-root>` é a diretoria para a qual aponta o link simbólico `sample-data`
+(_p. ex._ `~/data/seis-lab-data`), que os serviços docker montam em `/data`. Assim, o arquivo fica disponível dentro
+dos contentores em `/data/production-archive`.
+
+```shell
+sudo apt install sshfs
+
+# edite agora o ficheiro /etc/fuse.conf e descomente a linha que contém `user_allow_other`
+
+mkdir <your-data-root>/production-archive
+
+# isto monta o arquivo
+sshfs <name-of-your-ssh-alias>:/mnt/seislab_data \
+    <your-data-root>/production-archive \
+    -o allow_other \
+    -o reconnect \
+    -o ServerAliveInterval=15
+
+# é agora necessário reiniciar a stack docker compose, para que o docker consiga ver a montagem
+docker compose -f docker/compose.dev.yaml up -d --force-recreate
+```
+
+Pode desmontá-lo mais tarde com:
+
+```shell
+fusermount -u <your-data-root>/production-archive
+```
+
+
+## Arquitetura
+
+### Modelo de domínio
+
+O catálogo está organizado nesta hierarquia:
+
+```
+Project
+  └── SurveyMission (várias por projeto)
+        └── SurveyRelatedRecord (vários por missão)
+              └── RecordAsset (vários por registo)
+```
+
+Os projetos, as missões e os registos têm, cada um, um estado (`DRAFT`, `PUBLISHED`, além de alguns estados de
+processamento transitórios), um resultado de validação e uma extensão espacial e temporal. Os registos referenciam
+também as tabelas de consulta `DatasetCategory` e `WorkflowStage` e podem ser ligados a outros registos. Os modelos da
+base de dados estão definidos em `src/seis_lab_data/db/models.py`.
+
+### Organização do código-fonte
+
+O código encontra-se no pacote Python `src/seis_lab_data`:
+
+| Módulo | Conteúdo |
+|--------|----------|
+| `webapp/` | A aplicação web [starlette]: `routes/` contém os _route handlers_, `streamhandlers/` os _handlers_ que convertem as mensagens de _pub/sub_ em eventos SSE, `forms/` as definições dos formulários, `templates/` os templates [jinja] e `stacapi/` uma API STAC só de leitura, montada em `/stac` |
+| `operations/` | Lógica de negócio, usada tanto pelas rotas como pelos _workers_ |
+| `permissions/` | Verificações de permissões |
+| `db/` | Modelos da base de dados, bem como `queries/` (operações de leitura) e `commands/` (operações de escrita) |
+| `migrations/` | Migrações da base de dados do Alembic |
+| `schemas/` | Esquemas Pydantic, identificadores, eventos e mensagens |
+| `tasks/` | Os _actors_, o _broker_ e o _middleware_ do [dramatiq], bem como os `extractors/`, que leem os metadados dos ficheiros encontrados pela descoberta, e os `derivers/`, que geram as pré-visualizações e as miniaturas |
+| `cliapp/` | A CLI `seis-lab-data` |
+| `translations/` | Os catálogos de tradução da interface |
+| `dispatch.py`, `subscribers.py` | Publicação de eventos no Redis e subscrição dos mesmos |
+| `config.py` | Definições da aplicação, lidas das variáveis de ambiente `SEIS_LAB_DATA__*` |
+
+### Fluxo dos pedidos
+
+Os pedidos seguem o percurso rotas → operações → permissões, _queries_ e comandos:
+
+-   As **rotas** obtêm o utilizador atual a partir do pedido (`None` para utilizadores anónimos), obtêm uma sessão
+    da BD e invocam uma operação;
+-   As **operações** obtêm os objetos relevantes da BD, verificam as permissões do utilizador, invocam um comando e
+    emitem um evento que relata o que aconteceu;
+-   As **permissões** são funções síncronas simples, que recebem instâncias dos modelos e o utilizador e não fazem
+    chamadas à BD;
+-   As **_queries_** de listagem de cada entidade têm duas variantes: `list_published_*`, para utilizadores
+    anónimos, e `list_*`, para utilizadores autenticados. As operações escolhem a adequada.
+
+### Autenticação e permissões
+
+Os utilizadores autenticam-se no [authentik], via OpenID Connect. Não existe registo autónomo: as contas de
+utilizador são criadas no authentik por um administrador do sistema. A tabela local `appuser` é apenas uma _cache_
+dos dados dos utilizadores do authentik, atualizada em cada login.
+
+As permissões baseiam-se nos papéis do utilizador, que o authentik deriva da sua conta:
+
+-   Os utilizadores anónimos apenas podem ler recursos publicados;
+-   Os utilizadores autenticados podem ler todos os recursos, incluindo os não publicados;
+-   Os utilizadores com o papel `system-admin` (superutilizadores do authentik) ou com o papel `catalog-editor`
+    (membros do grupo `seis-lab-data-catalog-editors` do authentik) podem também criar, modificar, validar,
+    publicar e apagar recursos.
+
+### Processamento assíncrono
+
+As ações que alteram o estado (criar, atualizar, apagar, validar, publicar, descobrir, exportar, ...) não são
+executadas no pedido web. São antes executadas pelos _workers_ [dramatiq], que comunicam o seu resultado ao
+navegador:
+
+```
+Navegador ── pedido ──► rota da webapp ── coloca tarefa ──► broker Redis
+   ▲                                                            │
+   │                                                            ▼
+   └── stream SSE ◄── rota da webapp ◄── pub/sub Redis ◄── worker executa a tarefa
+```
+
+1.  Quando é carregada uma página que despoleta tarefas, esta abre um _stream_ de _server-sent events_ (SSE) de
+    longa duração, que transporta um identificador de pedido gerado quando a página foi construída;
+2.  O navegador envia a ação para uma rota, juntamente com o identificador de pedido. A rota coloca o _actor_
+    correspondente na fila e responde de imediato;
+3.  Um _worker_ executa o _actor_, que invoca a camada de operações. A operação emite eventos tipificados
+    (definidos em `schemas/events.py`), que são publicados como mensagens num tópico de _pub/sub_ do Redis
+    correspondente ao tipo de recurso;
+4.  A rota do _stream_ SSE da página está subscrita a esse tópico. Passa cada mensagem ao _stream handler_
+    registado para o seu tipo, que produz eventos [datastar]: mostrar notificações, atualizar sinais da página ou
+    recarregar a página;
+5.  O Datastar aplica estes eventos à página.
+
+As tarefas que podem demorar correm nas suas próprias filas (`previews`, `thumbnails`, `exports` e `discovery`),
+consumidas por serviços de _workers_ separados do `interactive-worker`, para que nunca atrasem as tarefas
+interativas. Enquanto uma tarefa trabalha num registo, mantém-no num estado ocupado (_p. ex._ `UNDER_EXPORT`), o que
+impede que o registo seja entretanto modificado ou apagado.
+
+
+## Modificar a base de dados
+
+Utilizamos o [alembic](https://alembic.sqlalchemy.org/en/latest/) para gerir as modificações à base de dados. Isto
+significa que todas as modificações ao esquema da base de dados têm de ser feitas através de migrações do alembic.
+Para gerar uma nova migração:
+
+-   Efetue as modificações necessárias aos modelos da base de dados no código - estes encontram-se em
+    `src/seis_lab_data/db/models.py`;
+
+-   Peça ao alembic que gere automaticamente um ficheiro de migração adequado, executando um comando personalizado
+    da CLI seis-lab-data:
+
+    ```shell
+    docker compose \
+        -f docker/compose.dev.yaml \
+        exec -ti webapp \
+        uv run \
+        seis-lab-data db generate-migration "short description of the migration"
+    ```
+
+-   Inspecione manualmente o ficheiro gerado, para verificar que está correto, e faça as modificações necessárias.
+    Os ficheiros de migração encontram-se em `src/seis_lab_data/migrations/versions/` e o seu nome é composto por um
+    _timestamp_ e por uma breve descrição da migração;
+
+-   Se a migração estiver correta, aplique-a à base de dados com:
+
+    ```shell
+    docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data db upgrade
+    ```
+
+
 ## Traduções
 
 A interface web está disponível em português (o idioma predefinido, `pt_PT`) e em inglês. Apenas a interface é
@@ -261,19 +425,19 @@ marca `fuzzy`.
 A stack de desenvolvimento inclui alguns serviços adicionais relevantes:
 
 
-##### dozzle
+### dozzle
 
 Instância [dozzle](https://dozzle.dev/), útil para monitorizar os _logs_ dos vários serviços da
 stack. Acessível em http://localhost:8888/monitoring
 
 
-##### jupyter
+### jupyter
 
 Instância [jupyter](https://jupyter.org/), útil para escrever notebooks ou interagir com um REPL
 Python. Acessível em http://localhost:5002
 
 
-##### pg-admin
+### pg-admin
 
 Instância [pg-admin](https://www.pgadmin.org/), útil para inspecionar as bases de dados da stack.
 Acessível em http://pgadmin.localhost:8888 com as credenciais:
@@ -282,12 +446,17 @@ Acessível em http://pgadmin.localhost:8888 com as credenciais:
 - password: `dev`
 
 
-##### GeoNode (opcional)
+### GeoNode (opcional)
 
-Instância [GeoNode](https://geonode.org/) v5.1.1, usada como destino para a exportação de registos
-relacionados com campanhas. É composta por vários serviços (`geonode-db`, `geonode-django`,
-`geonode-celery`, `geonode-nginx`, `geonode-geoserver` e `geonode-geoserver-data`). A sua
-configuração está em `docker/geonode/geonode-dev.env`.
+!!! note "Nota"
+
+    O serviço GeoNode destina-se apenas a ser usado durante o desenvolvimento, dado que o ambiente de produção terá
+    como destino um GeoNode gerido externamente.
+
+Instância [GeoNode](https://geonode.org/) v5.1.1, usada como destino para a exportação de registos.
+É composta por vários serviços (`geonode-db`, `geonode-django`, `geonode-celery`, `geonode-nginx`,
+`geonode-geoserver` e `geonode-geoserver-data`). A sua configuração está em
+`docker/geonode/geonode-dev.env`.
 
 Estes serviços consomem bastantes recursos, pelo que apenas arrancam quando o perfil `geonode` do
 compose está ativo:
@@ -307,8 +476,8 @@ recolhe os ficheiros estáticos.
 - Os _logs_ de pedidos do uwsgi são escritos em `/var/log/geonode.log` dentro do contentor
   `geonode-django`
 
-A exportação de registos relacionados com campanhas para o GeoNode é configurada com as seguintes
-definições (a exportação fica desativada quando o URL não está definido):
+A exportação de registos para o GeoNode é configurada com as seguintes definições (a exportação
+fica desativada quando o URL não está definido):
 
 - `SEIS_LAB_DATA__TARGET_GEONODE__URL` - URL através do qual o _backend_ acede à API do GeoNode
 - `SEIS_LAB_DATA__TARGET_GEONODE__PUBLIC_URL` - URL através do qual os utilizadores acedem ao
@@ -334,18 +503,21 @@ GeoNode podem ser criadas com:
 
 ```shell
 docker compose -f docker/compose.dev.yaml exec geonode-django python manage.py shell -c "
+import os
 from django.contrib.auth import get_user_model
 from oauth2_provider.models import get_application_model
+
 Application = get_application_model()
-user, _ = get_user_model().objects.get_or_create(username='sld-exporter')
-user.set_password('sld-exporter-pass')
+user, _ = get_user_model().objects.get_or_create(
+    username=os.environ['SLD_BOT_USERNAME'])
+user.set_password(os.environ['SLD_BOT_PASSWORD'])
 user.save()
 Application.objects.update_or_create(
-    client_id='sld-geonode-client-id',
+    client_id=os.environ['SLD_OAUTH_APP_CLIENT_ID'],
     defaults=dict(
-        name='seis-lab-data',
+        name=os.environ['SLD_OAUTH_APP_NAME'],
         user=user,
-        client_secret='sld-geonode-client-secret',
+        client_secret=os.environ['SLD_OAUTH_APP_CLIENT_SECRET'],
         client_type=Application.CLIENT_CONFIDENTIAL,
         authorization_grant_type=Application.GRANT_PASSWORD,
     ),
@@ -360,7 +532,7 @@ docker compose -f docker/compose.dev.yaml --profile geonode up -d
 ```
 
 
-# Execução de testes
+## Execução de testes
 
 Os testes normais correm dentro do contentor `webapp`, após instalar as dependências necessárias:
 
@@ -375,7 +547,7 @@ Os testes de integração correm com:
 docker compose --file docker/compose.dev.yaml exec webapp uv run pytest -m integration
 ```
 
-## Testes end-to-end (E2E)
+### Testes end-to-end (E2E)
 
 Os testes E2E correm fora da stack docker e requerem a instalação do [playwright] localmente:
 
@@ -395,7 +567,7 @@ uv run pytest \
     --base-url http://localhost:8888
 ```
 
-A incantação anterior executa todos os testes E2E em modo _headless_.
+O comando anterior executa todos os testes E2E em modo _headless_.
 Para os executar em modo _headed_:
 
 ```shell
@@ -410,7 +582,7 @@ uv run pytest \
     --slowmo 1500
 ```
 
-## Relatório de testes
+### Relatório de testes
 
 Pode ser gerado um relatório PDF dos resultados dos testes para o cliente, de quem não se espera que leia os registos
 do CI. O relatório contém uma introdução estática, um resumo dos resultados e depois todos os testes, agrupados por
@@ -472,10 +644,8 @@ quando há testes que falham, apresentando as falhas.
 
 
 [docker]: https://www.docker.com/
-[IPMA]: https://www.ipma.pt/pt/index.html
 [playwright]: https://playwright.dev/python/
 [pre-commit]: https://pre-commit.com/
 [pytest-json-report]: https://pypi.org/project/pytest-json-report/
 [uv]: https://docs.astral.sh/uv/
 [WeasyPrint]: https://weasyprint.org/
-[woodpecker]: https://woodpecker-ci.org/
