@@ -120,6 +120,9 @@ class SeisLabDataSettings(BaseSettings):
     public_url: str = "http://localhost:5001"
     docs_url: str = "http://localhost:8000"
     source_code_repository_url: str = "https://github.com/naturalgis/seis-lab-data"
+    git_commit: str | None = None
+    git_tag: str | None = None
+    git_branch: str | None = None
     static_dir: Path | None = Path(__file__).parent / "webapp/static"
     templates_dir: Path | None = Path(__file__).parent / "webapp/templates"
     message_broker_dsn: RedisDsn | None = RedisDsn("redis://localhost:6379")
@@ -178,6 +181,20 @@ class SeisLabDataSettings(BaseSettings):
     _sync_db_engine: Engine | None = None
     _db_session_maker: async_sessionmaker | None = None
     _event_dispatcher: dispatch.EventDispatcherProtocol | None = None
+
+    @property
+    def version(self) -> str:
+        """Version of the running system, composed of its version settings.
+
+        The tag, for a build of a tagged commit; otherwise the branch followed by
+        the abbreviated commit, e.g. `main (9fe7508)`; `development` when the
+        commit is not set, as in the development environment.
+        """
+        if not self.git_commit:
+            return "development"
+        if self.git_tag:
+            return self.git_tag
+        return f"{self.git_branch} ({self.git_commit[:7]})"
 
     def get_db_engine(self) -> AsyncEngine:
         if self._db_engine is None:

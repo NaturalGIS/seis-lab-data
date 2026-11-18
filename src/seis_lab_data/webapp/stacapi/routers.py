@@ -49,13 +49,16 @@ def _parse_id_list(raw: list[str] | None, id_type):
 
 
 @router.get("/", name="landing-page", responses=ERROR_RESPONSES)
-async def landing_page(request: Request) -> JSONResponse:
+async def landing_page(request: Request, settings: SettingsDep) -> JSONResponse:
     page = stac_api.LandingPage(
         type="Catalog",
         id="seis-lab-data",
         title="SeisLabData STAC API",
         description="Marine survey data catalog",
         stac_version=conformance.STAC_VERSION,
+        # not part of the STAC specification, which defines no field for the
+        # version of the software serving the catalog
+        **{"seis_lab_data:version": settings.version},
         conformsTo=conformance.CONFORMS_TO,
         links=[
             link_helpers.self_link(request, "landing-page"),
