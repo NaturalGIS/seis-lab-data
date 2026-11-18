@@ -1,10 +1,11 @@
 # Development
 
-This document is project deliverable _D03 - Developer-oriented documentation on how to stand up the project_. It
-contains information on how to set up a local development environment suitable for working on the SeisLabData project.
+This document is project deliverable _D11 - Final version of developer-oriented documentation_. It contains
+information on how to set up a local development environment suitable for working on the SeisLabData project, along
+with an overview of the system's architecture.
 
 This project is composed of a set of multiple services which are deployed with `docker compose`. The
-`docker/compose.dev.yaml` file is a compose file suitable for development
+`docker/compose.dev.yaml` file is a compose file suitable for development.
 
 !!! tip
     When the development docker stack is up and running, run docker compose commands with this incantation:
@@ -13,7 +14,7 @@ This project is composed of a set of multiple services which are deployed with `
     docker compose -f docker/compose.dev.yaml <docker-command> <service-name>
     ```
 
-    This makes it easier to scope the commands to this project
+    This makes it easier to scope the commands to this project.
 
 The more relevant services are:
 
@@ -27,14 +28,20 @@ The more relevant services are:
 - `discovery-worker` - the [dramatiq] worker that runs archive discoveries, from the `discovery`
   queue. It runs one process, discovering one mission at a time; set `DISCOVERY_WORKER_PROCESSES`
   in the environment of `docker compose` to discover several missions in parallel
+- `db` - a [PostGIS] instance that holds the application's database
 - `message-broker` - a [redis] instance that passes messages between the webapp and the workers
 - `web-gateway` - a [traefik] instance that acts as a reverse proxy for the system
 - `auth-webapp` - an [authentik] instance that takes care of user authentication
+- `martin-tile-server` - a [martin] instance that serves the bathymetry base map tiles, from the PMTiles files in the
+  `sample-data/pmtiles` directory
+- `docs` - serves this documentation, as explained in [Writing documentation](writing-docs.md)
 
 [authentik]: https://goauthentik.io/
 [datastar]: https://data-star.dev/
 [dramatiq]: https://dramatiq.io/
 [jinja]: https://jinja.palletsprojects.com/en/stable/
+[martin]: https://martin.maplibre.org/
+[PostGIS]: https://postgis.net/
 [redis]: https://redis.io/
 [starlette]: https://starlette.dev/
 [sqlmodel]: https://sqlmodel.tiangolo.com/
@@ -48,7 +55,7 @@ client. These are contained in the file
 
 ```ipma/2025-marine-data-catalog/sample-data/20251125_datasample01_restored_data.tar.gz```
 
-which is available at the internal knowledge base platform (you should know how to retrieve it).
+which is available at the internal knowledge base platform.
 
 Create a base directory for the project's datasets (for example at `~/data/seis-lab-data`)
 and then get the archive and extract it inside this directory:
@@ -67,7 +74,7 @@ rm 20251125_datasample01_restored_data.tar.gz
 You should get something that looks like this (this is an abbreviated listing):
 
 ```shell
-ricardo@tygra:~/data/seis-lab-data/$ tree -L 4
+$ tree -L 4
 .
 └── prr_eolicas
     └── base-final
@@ -88,14 +95,14 @@ In order to simplify mounting the data directory inside docker services, the pro
 there is a `sample-data` directory under the root of the repo. As such, make a symlink
 pointing to the data directory you created above:
 
- ```shell
- # assuming your sample-data directory lives at `~/data/seis-lab-data`
- ln -s ~/data/seis-lab-data sample-data
- ```
+```shell
+# assuming your sample-data directory lives at `~/data/seis-lab-data`
+ln -s ~/data/seis-lab-data sample-data
+```
 
-Ensure you have installed [docker] and [uv] on your machine
+Ensure you have installed [docker] and [uv] on your machine.
 
-Use `uv` to get the project installed locally.
+Use `uv` to get the project installed locally:
 
 ```shell
 uv sync --group dev --locked
@@ -197,9 +204,12 @@ whenever you know there have been recent merges.
 If needed, you can use sshfs to mount the production archive locally.
 
 Install sshfs, then enable the `user_allow_other` option in the fuse config and you should be able to mount it locally.
+In the commands below, `<your-data-root>` is the directory that the `sample-data` symlink points to (_e.g._
+`~/data/seis-lab-data`), which the docker services mount at `/data`. The archive thus becomes available inside the
+containers at `/data/production-archive`.
 
 ```shell
-apt install sshfs
+sudo apt install sshfs
 
 # now edit /etc/fuse.conf and uncomment the line that has `user_allow_other`
 
@@ -223,13 +233,104 @@ fusermount -u <your-data-root>/production-archive
 ```
 
 
+## Architecture
+
+### Domain model
+
+The catalog is organized in this hierarchy:
+
+```
+Project
+  └── SurveyMission (many per project)
+        └── SurveyRelatedRecord (many per mission)
+              └── RecordAsset (many per record)
+```
+
+Projects, survey missions and survey-related records each have a status (`DRAFT`, `PUBLISHED`, plus
+some transient processing states), a validation result and a spatial and temporal extent. Survey-related records
+also reference the `DatasetCategory` and `WorkflowStage` lookup tables and can be linked to other records. The
+database models are defined in `src/seis_lab_data/db/models.py`.
+
+### Source layout
+
+The code lives in the `src/seis_lab_data` Python package:
+
+| Module | Contents |
+|--------|----------|
+| `webapp/` | The [starlette] web application: `routes/` holds the route handlers, `streamhandlers/` the handlers that turn pub/sub messages into SSE events, `forms/` the form definitions, `templates/` the [jinja] templates and `stacapi/` a read-only STAC API, mounted at `/stac` |
+| `operations/` | Business logic, used by both the routes and the workers |
+| `permissions/` | Permission checks |
+| `db/` | Database models, along with `queries/` (read operations) and `commands/` (write operations) |
+| `migrations/` | Alembic database migrations |
+| `schemas/` | Pydantic schemas, identifiers, events and messages |
+| `tasks/` | The [dramatiq] actors, broker and middleware, along with the `extractors/`, which read the metadata of the files found by discovery, and the `derivers/`, which generate previews and thumbnails |
+| `cliapp/` | The `seis-lab-data` CLI |
+| `translations/` | The UI translation catalogs |
+| `dispatch.py`, `subscribers.py` | Publishing of events to Redis and subscription to them |
+| `config.py` | Application settings, which are read from `SEIS_LAB_DATA__*` environment variables |
+
+### Request flow
+
+Requests follow the path routes → operations → permissions, queries and commands:
+
+-   **Routes** get the current user from the request (`None` for anonymous users), get a DB session and call an
+    operation;
+-   **Operations** fetch the relevant DB objects, check the user's permissions, call a command and emit an event
+    reporting what happened;
+-   **Permissions** are plain synchronous functions which receive model instances and the user, and make no DB calls;
+-   **Queries** come in two variants for listing each entity: `list_published_*`, for anonymous users, and `list_*`,
+    for authenticated users. The operations pick the right one.
+
+### Authentication and permissions
+
+Users authenticate with [authentik], via OpenID Connect. There is no self-registration: user accounts are created
+by a system administrator in authentik. The local `appuser` table is merely a cache of authentik's user data,
+updated on each login.
+
+Permissions are based on the user's roles, which authentik derives from the user account:
+
+-   Anonymous users can only read published resources;
+-   Authenticated users can read all resources, including unpublished ones;
+-   Users with the `system-admin` role (authentik superusers) or the `catalog-editor` role (members of the
+    `seis-lab-data-catalog-editors` authentik group) can also create, modify, validate, publish and delete
+    resources.
+
+### Asynchronous processing
+
+State-changing actions (create, update, delete, validate, publish, discover, export, ...) are not performed in the
+web request. They are instead run by the [dramatiq] workers, which report their outcome back to the browser:
+
+```
+Browser ── request ──► webapp route ── enqueue task ──► Redis broker
+   ▲                                                         │
+   │                                                         ▼
+   └── SSE stream ◄── webapp route ◄── Redis pub/sub ◄── worker runs the task
+```
+
+1.  When a page that triggers tasks loads, it opens a long-lived server-sent events (SSE) stream, carrying a request
+    ID generated when the page was rendered;
+2.  The browser sends the action to a route, along with the request ID. The route enqueues the corresponding actor
+    and returns immediately;
+3.  A worker runs the actor, which calls the operations layer. The operation emits typed events (defined in
+    `schemas/events.py`), which are published as messages on a Redis pub/sub topic for the resource type;
+4.  The SSE stream route of the page is subscribed to that topic. It passes each message to the stream handler
+    registered for its type, which yields [datastar] events: showing notifications, updating page signals or
+    reloading the page;
+5.  Datastar applies these events to the page.
+
+Tasks which may take long run in their own queues (`previews`, `thumbnails`, `exports` and `discovery`), consumed by
+worker services separate from the `interactive-worker`, so that they never delay the interactive tasks. While a task
+works on a record, it keeps it in a busy status (_e.g._ `UNDER_EXPORT`), which prevents the record from being
+modified or deleted meanwhile.
+
+
 ## Modifying the database
 
 We are using [alembic](https://alembic.sqlalchemy.org/en/latest/) for tracking database modifications. This means that
 all modifications to the database schema must be done through alembic migrations. In order to generate a new migration:
 
 -   Perform whatever modifications you need to the database models in the code - these are located in
-    `src/seis_labs_data/db/models.py`;
+    `src/seis_lab_data/db/models.py`;
 
 -   Ask alembic to autogenerate a suitable DB migration file by running a custom seis-lab-data CLI command:
 
@@ -242,13 +343,13 @@ all modifications to the database schema must be done through alembic migrations
     ```
 
 -   Manually inspect the autogenerated file in order to check that it is correct and make any necessary modifications.
-    Migration files are located in `src/seis_labs_data/migrations/versions/` and are named with a timestamp and a short
+    Migration files are located in `src/seis_lab_data/migrations/versions/` and are named with a timestamp and a short
     description of the migration;
 
 -   If the migration is correct, apply it to the database with:
 
     ```shell
-    docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data db migrate
+    docker compose -f docker/compose.dev.yaml exec -ti webapp uv run seis-lab-data db upgrade
     ```
 
 
@@ -318,19 +419,19 @@ The `tests/test_translations.py` test fails whenever a translatable string lacks
 The development docker compose stack includes some additional relevant services:
 
 
-##### dozzle
+### dozzle
 
-This is a dozzle instance, useful for monitoring the logs of the various services in the stack.
+This is a [dozzle](https://dozzle.dev/) instance, useful for monitoring the logs of the various services in the stack.
 It is accessible at http://localhost:8888/monitoring
 
 
-##### jupyter
+### jupyter
 
 This is a [jupyter](https://jupyter.org/) instance, useful for writing notebooks or interacting
 with a Python REPL. It is accessible at http://localhost:5002
 
 
-##### pg-admin
+### pg-admin
 
 A [pg-admin](https://www.pgadmin.org/) instance, useful for inspecting the stack's databases.
 It is accessible at http://pgadmin.localhost:8888 and login credentials are:
@@ -339,7 +440,7 @@ It is accessible at http://pgadmin.localhost:8888 and login credentials are:
 - password: `dev`
 
 
-##### GeoNode (optional)
+### GeoNode (optional)
 
 !!! note
 
@@ -384,6 +485,9 @@ disabled when the URL is not set):
 - `SEIS_LAB_DATA__PUBLIC_URL` - must also be set for the workers, as exported GeoNode resources
   link back to their record's page
 
+Both the service account and the OAuth2 application are created in GeoNode, either in its Django administration
+(_People_ > _Users_ and _Django OAuth Toolkit_ > _Applications_) or from the command line.
+
 Exports run in the `exports` queue, consumed by the `long-tasks-worker` service. The dev stack already
 sets all of these settings, using fixed credentials, the GeoNode counterparts of which can be
 created with:
@@ -419,7 +523,7 @@ docker compose -f docker/compose.dev.yaml --profile geonode up -d
 ```
 
 
-# Running tests
+## Running tests
 
 Normal tests can be run from inside the `webapp` compose container, after installing the required dependencies:
 
@@ -434,9 +538,9 @@ Integration tests can be run with the following incantation:
 docker compose --file docker/compose.dev.yaml exec webapp uv run pytest -m integration
 ```
 
-## End to end tests
+### End to end tests
 
-End to end tests are run from outside the docker stack. They require that playwright is installed locally.
+End to end tests are run from outside the docker stack. They require that [playwright] is installed locally.
 You can do this with:
 
 ```shell
@@ -470,15 +574,16 @@ uv run pytest \
     --slowmo 1500
 ```
 
-## Test report
+### Test report
 
-It is possible to generate a PDF report of the test results. It contains a static introduction,
+It is possible to generate a PDF report of the test results for the client, who is not expected to read the CI logs.
+It contains a static introduction,
 a summary of the results and then every test, grouped by test module, each described by its
 docstring and shown with its result. The introduction is taken from the Markdown
 file at `scripts/test-report/intro.md`, the layout is the Jinja template at `scripts/test-report/report.j2.html`.
 
-Since the docstrings are the contents of the report, test modules and tests must have them.
-These are written for non-technical users, in formal English and without implementation terms:
+Since the docstrings are the contents of the report, test modules and tests must have them, which ruff checks (rules
+`D100` and `D103`, enforced only in `tests/**/test_*.py`). These are written for non-technical users, in formal English and without implementation terms:
 
 - the first line of the module docstring is the title of its section in the report (a noun phrase, without a final
   period), followed by a blank line and a short description of the area of functionality the module covers
@@ -529,9 +634,8 @@ kept for 90 days and is generated even when tests fail, showing the failures.
 
 
 [docker]: https://www.docker.com/
-[IPMA]: https://www.ipma.pt/pt/index.html
+[playwright]: https://playwright.dev/python/
 [pre-commit]: https://pre-commit.com/
 [pytest-json-report]: https://pypi.org/project/pytest-json-report/
 [uv]: https://docs.astral.sh/uv/
 [WeasyPrint]: https://weasyprint.org/
-[woodpecker]: https://woodpecker-ci.org/

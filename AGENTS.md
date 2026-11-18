@@ -26,14 +26,13 @@ Project
 ```
 
 Each of the three main entities (`Project`, `SurveyMission`, `SurveyRelatedRecord`) has:
-- An `owner` field (string, the Authentik user `sub`)
 - A `status` enum (`DRAFT`, `PUBLISHED`, plus processing states)
-- An `is_valid` flag and a `validation_result` JSONB field
+- A `validation_result` JSONB field (`is_valid` and `errors`)
 - Spatial extent (`bbox_4326`, PostGIS polygon)
 - Temporal extent (`temporal_extent_begin`, `temporal_extent_end`)
 - Plain-string `name` and `description` (user data is not localized; only the UI is)
 
-`SurveyRelatedRecord` additionally references lookup tables: `DatasetCategory`, `DomainType`, and `WorkflowStage`. Records can also have self-referential relationships to other records (`SurveyRelatedRecordSelfLink`).
+`SurveyRelatedRecord` additionally references lookup tables: `DatasetCategory` and `WorkflowStage`. Records can also have self-referential relationships to other records (`SurveyRelatedRecordSelfLink`).
 
 The local `appuser` table is a write-through cache of Authentik user data (`id`, `username`, `email`), upserted on every successful login. It is not a source of truth — Authentik owns identity.
 
@@ -41,12 +40,12 @@ The local `appuser` table is a write-through cache of Authentik user data (`id`,
 
 ```
 src/seis_lab_data/
-  auth.py              # OAuth config, get_user(), requires_auth decorator
-  authentik.py         # Authentik admin API helper (fetch user by UUID)
+  auth.py              # OIDC config (AuthConfig) and OAuth client setup
+  authentik.py         # Authentik admin API helpers (fetch user by UUID or username)
   geonode.py           # GeoNode API helpers (upload, execution polling)
   pathpatterns.py      # Path patterns with regexp segments, as used by asset discovery
   config.py            # Settings (pydantic-settings)
-  constants.py         # Enums, string constants (ADMIN_ROLE, status enums, etc.)
+  constants.py         # Enums, string constants (ROLE_SYSTEM_ADMIN, ROLE_EDITOR, status enums, etc.)
   errors.py            # SeisLabDataError
   dispatch.py          # Event dispatcher protocol and its Redis implementation
   subscribers.py       # Redis pub/sub subscription and message routing to handlers
@@ -55,14 +54,16 @@ src/seis_lab_data/
   db/
     models.py          # SQLModel table definitions
     commands/          # Write operations (create, update, delete, upsert)
-    queries/           # Read operations (get, list_published, list_accessible, list_*)
+    queries/           # Read operations (get_*, list_published_*, list_*)
     engine.py          # Async engine and session maker
   schemas/             # Pydantic schemas (request/response shapes, IDs, events, messages)
   tasks/               # Dramatiq actors, broker and middleware
   migrations/          # Alembic migrations
   webapp/
     app.py             # Starlette app factory and lifespan
-    routes/            # Route handlers (auth, projects, surveymissions, surveyrelatedrecords)
+    auth_backend.py    # Starlette authentication backend (OIDCAuthBackend) that sets request.user
+    routes/            # Route handlers (auth, projects, surveymissions, surveyrelatedrecords, ...)
+    stacapi/           # Read-only STAC API (FastAPI), mounted at /stac
     streamhandlers/    # Handlers turning pub/sub messages into Datastar SSE events
     forms/             # WTForms form definitions
 ```
@@ -71,14 +72,14 @@ src/seis_lab_data/
 
 Routes → Operations → Permissions + DB queries/commands
 
-- **Routes** extract the user from the session (`get_user(request.session["user"])`), get a DB session from `request.state.settings.get_db_session_maker()`, and call operations.
+- **Routes** get the user from `request.user` (`request.user if request.user.is_authenticated else None`), get a DB session from `request.state.settings.get_db_session_maker()`, and call operations. Routes that require login are decorated with `webapp/routes/auth.py:requires_auth`.
 - **Operations** fetch the relevant DB object first, then call a permission function, then call a command and emit an event.
 - **Permissions** are pure sync functions that accept model instances (never IDs) and a user — no DB calls inside.
-- **Queries** contain three variants per entity for listing: `list_published_*` (unauthenticated), `list_accessible_*` (authenticated, applies ownership/co-ownership filter), and `list_*` (admin, no filter). The operations layer picks the right one.
+- **Queries** contain two variants per entity for listing: `list_published_*` (unauthenticated, published resources only) and `list_*` (authenticated, no filter). The operations layer picks the right one.
 
 ## Auth and permissions
 
-Authentication uses Authentik via OIDC. After login the user's `sub`, `email`, `preferred_username`, and `groups` are stored in the Starlette session. The `schemas.User` dataclass holds `id` (the `sub`), `email`, `username`, `roles` (from `groups`), and `active`.
+Authentication uses Authentik via OIDC. After login the user info claims and the OAuth token are stored in the Starlette session. On each request `webapp/auth_backend.py:OIDCAuthBackend` introspects the token (cached for `auth_token_introspection_cache_seconds`) and builds a `schemas.User` from the claims: `id` (the `sub`), `email`, `username` (`preferred_username`), `name`, `roles` (the custom `roles` claim, produced by a scope mapping in the Authentik blueprints under `docker/authentik/`), and `active` (`email_verified`).
 
 Permission rules:
 - **Roles** (in `constants.py`): `ROLE_SYSTEM_ADMIN` (`"system-admin"`, Authentik superusers) and `ROLE_EDITOR` (`"catalog-editor"`, members of the `seis-lab-data-catalog-editors` Authentik group). Both have full access to everything; `permissions/common.py:can_manage_item` is the shared check.
