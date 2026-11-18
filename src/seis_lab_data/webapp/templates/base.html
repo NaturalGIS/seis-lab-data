@@ -210,7 +210,15 @@
                     <li class="nav-item"><a class="nav-link link-light p-0" href="{{ settings.source_code_repository_url }}" target="_blank" title="{{ _('opens in a new tab') }}"><span class="material-icons-outlined" aria-hidden="true">{{ icons.source_code }}</span>{{ _("Source code") }}</a></li>
                 </ul>
             </div>
-            <div class="col-12 col-md-4 d-flex align-items-end justify-content-md-end">
+            <div class="col-12 col-md-4 d-flex flex-column align-items-md-end justify-content-end">
+                <p class="mb-1 text-light-emphasis">
+                    {{ _("Version") }}:
+                    {% if settings.git_commit %}
+                        <a class="link-light" href="{{ settings.source_code_repository_url }}/tree/{{ settings.git_commit }}" target="_blank" title="{{ _('opens in a new tab') }}">{{ settings.version }}</a>
+                    {% else %}
+                        {{ _("development") }}
+                    {% endif %}
+                </p>
                 <p class="mb-0 text-light-emphasis">{{ _("Made by") }} <a class="link-light" href="https://naturalgis.pt" target="_blank" title="{{ _('opens in a new tab') }}">NaturalGIS</a></p>
             </div>
         </div>

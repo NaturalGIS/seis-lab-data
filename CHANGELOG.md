@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - systemd unit files for cleaning up docker images and containers regularly and keep test and prod envs from running out of disk space
 - PDF report of the automated test results
 - Client-facing docstrings for all test modules and tests
+- System version shown in the UI footer and in the STAC API - the tag for tagged releases, otherwise the branch and commit
+- User guide
 
 
 ### Changed
@@ -19,6 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - admin guide now contains information on how to set up the systemd units for cleaning up docker images and containers
 - Test modules and tests require docstrings, enforced by ruff (`D100`/`D103`, only in `tests/**/test_*.py`)
 - CI stores the results of the unit, integration and end-to-end tests as a workflow artifact
+- CI publishes the docker image from the cached layers of the tested build, instead of building it again
+- The docker image stores its version information in the `git_commit`, `git_tag` and `git_branch` settings, replacing the unused `GIT_COMMIT` environment variable and `git-commit.txt` file
+- Improved version of sysadmin guide
+- Improved version of dev guide
+
+
+### Fixed
+
+- Language picker of the docs site linking to the wrong URL from the home pages when the site is served under a path prefix, as in the test and prod environments
 
 
 ## [1.0.0-rc1] - 2026-11-17

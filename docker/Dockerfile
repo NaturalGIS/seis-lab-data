@@ -27,9 +27,7 @@ RUN mkdir /home/ubuntu/app && \
 
 WORKDIR /home/ubuntu/app
 
-ARG GIT_COMMIT
-ENV GIT_COMMIT=$GIT_COMMIT \
-    UV_COMPILE_BYTECODE=1
+ENV UV_COMPILE_BYTECODE=1
 
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/ubuntu/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
@@ -63,16 +61,12 @@ USER ubuntu
 RUN mkdir /home/ubuntu/app && \
     mkdir /home/ubuntu/data
 
-ARG GIT_COMMIT
-ENV GIT_COMMIT=$GIT_COMMIT \
-    PYTHONUNBUFFERED=1 \
+ENV PYTHONUNBUFFERED=1 \
     PYTHONFAULTHANDLER=1 \
     UV_COMPILE_BYTECODE=1 \
     SEIS_LAB_DATA__BIND_HOST=0.0.0.0 \
     UV_NO_SYNC=true \
     UV_LOCKED=true
-
-RUN echo $GIT_COMMIT > /home/ubuntu/git-commit.txt
 
 WORKDIR /home/ubuntu/app
 
@@ -80,6 +74,14 @@ EXPOSE 5000
 
 # Copy the entire built environment from builder stage
 COPY --from=builder --chown=ubuntu:ubuntu /home/ubuntu/app .
+
+# These args are declared last, in order to avoid cache busting
+ARG GIT_COMMIT
+ARG GIT_TAG
+ARG GIT_BRANCH
+ENV SEIS_LAB_DATA__GIT_COMMIT=$GIT_COMMIT \
+    SEIS_LAB_DATA__GIT_TAG=$GIT_TAG \
+    SEIS_LAB_DATA__GIT_BRANCH=$GIT_BRANCH
 
 ENTRYPOINT ["tini", "-g", "--", "uv", "run", "seis-lab-data"]
 

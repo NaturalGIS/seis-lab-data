@@ -40,6 +40,7 @@ def create_api_app_from_settings(settings: config.SeisLabDataSettings) -> FastAP
             {"name": "", "description": ""},
         ],
         summary="SLD STAC-API server",
+        version=settings.version,
         servers=[{"url": f"{settings.public_url}/stac"}],
         root_path_in_servers=False,
     )
