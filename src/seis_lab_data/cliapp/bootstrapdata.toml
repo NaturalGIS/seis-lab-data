@@ -1076,38 +1076,11 @@ workflow_stage = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
 dataset_category = "333073eb-adc9-4ac7-b822-44f4df5575a3"
 
 [[asset_discovery_configurations]]
-id = "3aabb2a3-f10d-49da-b9d9-14922c56412e"
-name = "magnetometer qc xml"
-media_type = "application/prs.ipma.xml"
-generate_previews = false
-relative_path_regexp = "s17-magnetometer/s03-qc/.*\\.xml"
-workflow_stage = "6dc042b3-16f9-4a9a-a30a-ac9201b4eb1d"
-dataset_category = "333073eb-adc9-4ac7-b822-44f4df5575a3"
-
-[[asset_discovery_configurations]]
-id = "95c9b9b0-2f0e-4f1b-a1d6-b2c9f77d4a22"
-name = "magnetometer processed xml"
-media_type = "application/prs.ipma.xml"
-generate_previews = true
-relative_path_regexp = "s17-magnetometer/s05-processed-data/.*\\.xml"
-workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
-dataset_category = "333073eb-adc9-4ac7-b822-44f4df5575a3"
-
-[[asset_discovery_configurations]]
 id = "712c2691-b00c-48a8-8a43-565921d405fe"
 name = "magnetometer processed flt"
 media_type = "application/prs.ipma.flt"
 generate_previews = true
 relative_path_regexp = "s17-magnetometer/s05-processed-data/.*\\.flt"
-workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
-dataset_category = "333073eb-adc9-4ac7-b822-44f4df5575a3"
-
-[[asset_discovery_configurations]]
-id = "df7fea1b-096b-4614-b440-e3eead88cab4"
-name = "magnetometer processed ovr"
-media_type = "application/prs.ipma.ovr"
-generate_previews = true
-relative_path_regexp = "s17-magnetometer/s05-processed-data/.*\\.ovr"
 workflow_stage = "372ac9ed-c7b9-4be3-9030-30149f0b4295"
 dataset_category = "333073eb-adc9-4ac7-b822-44f4df5575a3"
 
