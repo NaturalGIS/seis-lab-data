@@ -447,8 +447,8 @@ async def run_mission_discovery(
                 current_section=counts.current_section,
             )
         )
-        # the records created by this run had their previews requested as they
-        # were written; this covers the older records still missing previews
+        # the records created or updated by this run had their previews requested as
+        # they were written; this covers the older records still missing previews
         preview_tasks.generate_mission_previews.send(
             raw_request_id=str(request_id),
             raw_survey_mission_id=str(mission_id),
@@ -695,10 +695,12 @@ async def _discover_mission_records(
     concurrently, and a single writer stores the results in batches of up to
     `discovery_batch_size` files, each one written at most
     `discovery_batch_max_seconds` after it began. Chunks are held for at most as
-    long. Tracked files are skipped, unless their record has no bbox and the
-    mission's CRS is projected, in which case its extent is updated once per run. A
-    batch that fails is written again file by file, so that a failing file is
-    counted and skipped. Lookups use sessions of their own, writes use `session`.
+    long. Tracked files are skipped. If the mission's CRS is projected, a tracked
+    record without a bbox, or placed with an implicit CRS the mission no longer
+    has, is read again once per run: its extent is updated and its previews are
+    requested again. A batch that fails is written again file by file, so that a
+    failing file is counted and skipped. Lookups use sessions of their own, writes
+    use `session`.
 
     Once `cancellation_requested` is set the walk stops and queued files are left
     alone, while the files already being extracted are still written.
@@ -728,8 +730,8 @@ async def _discover_mission_records(
     extent_update_enabled = _is_projected_crs(mission.implicit_crs)
     if not extent_update_enabled:
         logger.info(
-            "Records without a bbox are not read again: the mission's EPSG:%s is not "
-            "a projected CRS",
+            "Tracked records are not read again: the mission's EPSG:%s is not a "
+            "projected CRS",
             mission.implicit_crs,
         )
     counts = _DiscoveryCounts()
@@ -780,6 +782,7 @@ async def _discover_mission_records(
                 await asset_queries.collect_survey_mission_tracked_file_paths(
                     lookup_session,
                     mission_id,
+                    mission.implicit_crs,
                     [discovered.relative_path for discovered in chunk],
                 )
             )
@@ -789,12 +792,12 @@ async def _discover_mission_records(
             if (
                 tracked := tracked_file_paths.get(discovered.relative_path)
             ) is not None:
-                record_id, has_bbox = tracked
-                # a tracked record lacks a bbox when its file was discovered while the
-                # mission's CRS was geographic; its extent is updated once per run
+                record_id, needs_extent_update = tracked
+                # a record lacks a bbox when discovered under a geographic mission CRS
+                # its extent is updated once per run
                 if (
                     not extent_update_enabled
-                    or has_bbox
+                    or not needs_extent_update
                     or record_id in attempted_record_ids
                 ):
                     logger.debug(
@@ -972,16 +975,20 @@ async def _discover_mission_records(
                     )
                     counts.failed += 1
                     await session.rollback()
+                else:
+                    written.append((discovered, extent_update))
         else:
             counts.created += len(creations)
             written = [
                 (discovered, record_row) for discovered, record_row, _ in creations
             ]
+            written.extend(extent_updates)
         counts.db_seconds += time.monotonic() - write_started_at
         # whether a record gets previews is decided by the derivation itself
+        # an updated record gets new ones, the old were placed with its old bbox
         preview_record_ids = [
-            str(record_row["id"])
-            for discovered, record_row in written
+            str(row["id"])
+            for discovered, row in written
             if discovered.configuration.generate_previews
         ]
         for start in range(0, len(preview_record_ids), constants.PREVIEW_BATCH_SIZE):

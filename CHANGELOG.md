@@ -25,11 +25,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The docker image stores its version information in the `git_commit`, `git_tag` and `git_branch` settings, replacing the unused `GIT_COMMIT` environment variable and `git-commit.txt` file
 - Improved version of sysadmin guide
 - Improved version of dev guide
+- A spatial extent is no longer required for a survey-related record to be valid. Projects and survey missions still require one
+- The asset discovery configurations for the magnetometer `.ovr` and `.xml` auxiliary files were removed from the bootstrap data
+- Changing the implicit CRS of a survey mission and running the discovery again now corrects the records already discovered
 
 
 ### Fixed
 
 - Language picker of the docs site linking to the wrong URL from the home pages when the site is served under a path prefix, as in the test and prod environments
+- A discovery re-run did not update the spatial extent of a record when its file has no dates (XYZ, GeoTIFF and others)
 
 
 ## [1.0.0-rc1] - 2026-11-17

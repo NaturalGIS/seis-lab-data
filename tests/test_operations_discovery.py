@@ -1925,7 +1925,8 @@ async def test_discovery_updates_extent_of_tracked_record_without_bbox(
     """A later discovery fills in the bounding box and temporal extent of an existing
     record that lacks a bounding box, once the survey mission has a projected coordinate
     reference system, while keeping its description, other assets and links to other
-    records. Records that already have a bounding box are not read again.
+    records. A record whose bounding box was entered by hand, rather than obtained with
+    the coordinate reference system of the survey mission, is not read again.
     """
     mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
     for name in ("drawn.tif", "updated.tif"):
@@ -2123,6 +2124,120 @@ async def test_discovery_extent_update_writes_nothing(
     assert record.temporal_extent_begin is None
     assert record.temporal_extent_end is None
     assert [e.succeeded for e in _ended_events(collector)] == [True]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discovery_corrects_records_placed_with_a_changed_implicit_crs(
+    db_session_maker, admin_user, discovery_env, monkeypatch
+):
+    """Once the coordinate reference system of a survey mission is changed, a later
+    discovery reads again the files whose records were placed with the former system,
+    replaces their bounding box and file information with those obtained under the new
+    system and requests their previews again. A file that declares its own coordinate
+    reference system keeps its bounding box and is not read again, and a further
+    discovery without any change reads no file again.
+    """
+    mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
+    without_crs = mission_root / "s01/implicit.tif"
+    without_crs.parent.mkdir(parents=True, exist_ok=True)
+    without_crs.write_bytes(b"content is irrelevant, dispatch is faked")
+    _write_geotiff(mission_root / "s01/declared.tif")
+    real_dispatch = discovery_ops.extractor_dispatch.dispatch_extractor
+    extraction_calls = []
+
+    def fake_dispatch(path):
+        extraction_calls.append(path)
+        if path.endswith("declared.tif"):
+            return real_dispatch(path)
+        # undated, as XYZ files are, so that no extent update of its batch has dates
+        return extractor_schemas.PointCloudMetadata(
+            driver="XYZ",
+            point_count=100,
+            bbox_native=_NATIVE_BBOX_TM06,
+        )
+
+    monkeypatch.setattr(
+        discovery_ops.extractor_dispatch, "dispatch_extractor", fake_dispatch
+    )
+    records_enqueued = []
+    monkeypatch.setattr(
+        discovery_ops.preview_tasks.generate_records_previews,
+        "send",
+        lambda **kwargs: records_enqueued.append(kwargs),
+    )
+    async with db_session_maker() as session:
+        mission = await session.get(models.SurveyMission, discovery_env["mission"].id)
+        mission.implicit_crs = 3763
+        session.add(mission)
+        await session.commit()
+    await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+    first_records = {
+        r.name: r
+        for r in await _get_mission_records(
+            db_session_maker, discovery_env["mission"].id
+        )
+    }
+    assert first_records["implicit.tif"].discovery_info["epsg"] == 3763
+
+    async with db_session_maker() as session:
+        mission = await session.get(models.SurveyMission, discovery_env["mission"].id)
+        mission.implicit_crs = 32629
+        session.add(mission)
+        await session.commit()
+    extraction_calls.clear()
+    records_enqueued.clear()
+    await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+
+    assert extraction_calls == [str(without_crs)]
+    records = {
+        r.id: r
+        for r in await _get_mission_records(
+            db_session_maker, discovery_env["mission"].id
+        )
+    }
+    assert len(records) == 2
+    corrected = records[first_records["implicit.tif"].id]
+    # the native bbox now reprojects from UTM zone 29N, off West Africa
+    minx, miny, maxx, maxy = to_shape(corrected.bbox_4326).bounds
+    assert -13.6 < minx <= maxx < -13.4
+    assert 0.0 < miny <= maxy < 0.1
+    assert corrected.discovery_info["epsg"] == 32629
+    assert corrected.discovery_info["crs_from_mission"] is True
+    assert corrected.temporal_extent_begin is None
+    assert corrected.temporal_extent_end is None
+    declared = records[first_records["declared.tif"].id]
+    assert to_shape(declared.bbox_4326) == to_shape(
+        first_records["declared.tif"].bbox_4326
+    )
+    assert declared.discovery_info == first_records["declared.tif"].discovery_info
+    # the new previews replace those placed with the former CRS
+    assert [
+        (e["raw_survey_related_record_ids"], e.get("raw_skip_if_derived", False))
+        for e in records_enqueued
+    ] == [([str(corrected.id)], False)]
+
+    extraction_calls.clear()
+    records_enqueued.clear()
+    await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+
+    assert extraction_calls == []
+    assert records_enqueued == []
 
 
 @pytest.mark.integration

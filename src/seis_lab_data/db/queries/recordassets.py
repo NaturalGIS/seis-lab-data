@@ -1,10 +1,17 @@
 import datetime as dt
 from collections.abc import Collection
 
+from sqlalchemy import (
+    Boolean,
+    Integer,
+    false,
+)
 from sqlalchemy.orm import selectinload
 from sqlmodel import (
+    and_,
     any_,
     func,
+    or_,
     select,
 )
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -81,18 +88,28 @@ async def get_record_asset_by_name(
 async def collect_survey_mission_tracked_file_paths(
     session: AsyncSession,
     survey_mission_id: identifiers.SurveyMissionId,
+    implicit_crs: int,
     relative_paths: Collection[str],
 ) -> dict[str, tuple[identifiers.SurveyRelatedRecordId, bool]]:
     """Collect the assets of a survey mission located at any of `relative_paths`.
 
     Returns a mapping of each matching path to the id of its asset's record and a
-    flag set when that record has a bbox.
+    flag set when that record needs its extent updated. It does when it has no
+    bbox, or when its bbox was placed with an implicit CRS other than `implicit_crs`.
     """
+    stored_info = models.SurveyRelatedRecord.discovery_info
+    placed_with_implicit_crs = stored_info["crs_from_mission"].astext.cast(Boolean)
+    stored_epsg = stored_info["epsg"].astext.cast(Integer)
+    # NULL when the discovery info lacks a key, hence the coalesce
+    implicit_crs_changed = func.coalesce(
+        and_(placed_with_implicit_crs, stored_epsg != implicit_crs), false()
+    )
+    has_no_bbox = models.SurveyRelatedRecord.bbox_4326.is_(None)
     statement = (
         select(
             models.RecordAsset.relative_path,
             models.SurveyRelatedRecord.id,
-            models.SurveyRelatedRecord.bbox_4326.is_not(None),
+            or_(has_no_bbox, implicit_crs_changed),
         )
         .join(
             models.SurveyRelatedRecord,
@@ -102,9 +119,13 @@ async def collect_survey_mission_tracked_file_paths(
         .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
         .where(models.RecordAsset.relative_path.in_(relative_paths))
     )
+    rows = (await session.exec(statement)).all()
     return {
-        relative_path: (identifiers.SurveyRelatedRecordId(record_id), has_bbox)
-        for relative_path, record_id, has_bbox in (await session.exec(statement)).all()
+        relative_path: (
+            identifiers.SurveyRelatedRecordId(record_id),
+            needs_extent_update,
+        )
+        for relative_path, record_id, needs_extent_update in rows
     }
 
 
