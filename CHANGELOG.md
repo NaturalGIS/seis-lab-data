@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [1.0.0-rc2] - 2026-11-19
+
 ### Added
 
 - systemd unit files for cleaning up docker images and containers regularly and keep test and prod envs from running out of disk space
@@ -263,7 +266,8 @@ Upgrading from 0.6.0 requires manual steps, see "Version-specific upgrade steps"
 - First release, mainly for trying out the deployment workflows
 
 
-[unreleased]: https://github.com/naturalgis/seis-lab-data/compare/v1.0.0-rc1...HEAD
+[unreleased]: https://github.com/naturalgis/seis-lab-data/compare/v1.0.0-rc2...HEAD
+[1.0.0-rc2]: https://github.com/naturalgis/seis-lab-data/compare/v1.0.0-rc1...v1.0.0-rc2
 [1.0.0-rc1]: https://github.com/naturalgis/seis-lab-data/compare/v0.6.0...v1.0.0-rc1
 [0.6.0]: https://github.com/naturalgis/seis-lab-data/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/naturalgis/seis-lab-data/compare/v0.1.17...v0.5.0
