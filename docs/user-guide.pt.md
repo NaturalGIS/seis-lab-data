@@ -162,7 +162,10 @@ As contas de utilizador e as funções são geridas no [Authentik](https://goaut
 serviço de autenticação usado pela plataforma. Os utilizadores iniciam sessão através da ligação
 **Entrar** da barra superior, que conduz à página de início de sessão do Authentik. A plataforma
 não permite o registo autónomo: as contas são criadas por um administrador do sistema no
-Authentik.
+Authentik. A sessão dos utilizadores mantém-se, mesmo depois de fechado o navegador, até que
+terminem a sessão ou que passe uma semana sem usarem a plataforma. As alterações feitas no
+Authentik às funções de um utilizador produzem efeito no prazo de uma hora, sem que o utilizador
+tenha de iniciar sessão novamente.
 
 O menu do utilizador da barra superior apresenta o nome de utilizador, o e-mail, o identificador
 e as funções do utilizador autenticado.

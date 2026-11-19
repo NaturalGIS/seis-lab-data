@@ -233,7 +233,7 @@ for example in order to recover from the loss of the production machine.
 
 8.  **Create the user accounts** - Log in to the administration panel of the user authentication service with the
     `akadmin` account, using the password set in `AUTH_AUTHENTIK_BOOTSTRAP_PASSWORD`, and create the user accounts,
-    as described in the [user authentication service](#6-user-authentication-service-component) section.
+    as described in the [managing user accounts](#managing-user-accounts) section.
 
 9.  **Enable the docker cleanup** - Install the systemd units described in the
     [disk space](#preventing-docker-from-occupying-too-much-disk-space) section.
@@ -515,6 +515,62 @@ images of previous versions from accumulating.
     installing it on another machine, set this option to a user that belongs to the `docker` group.
 
 
+### Managing user accounts
+
+Users are not able to self-register on the system: user accounts are created and managed by a system administrator,
+in the administration panel of the [user authentication service](#6-user-authentication-service-component), at
+`https://auth.seis-lab-data.ipma.pt/if/admin/`, logged in with the `akadmin` account or any other superuser account.
+
+A user's permissions on the system depend on their roles, which are derived from the user's groups in authentik:
+
+| Role             | Given to                                           | Permissions                                                         |
+|------------------|----------------------------------------------------|---------------------------------------------------------------------|
+| (none)           | any user                                           | View the whole catalog, including its unpublished items             |
+| `catalog-editor` | members of the `seis-lab-data-catalog-editors` group | Also create, modify, validate, publish and delete catalog items, and manage the catalog settings |
+| `system-admin`   | superusers, such as members of the `authentik Admins` group | The same as `catalog-editor`, plus the administration of authentik itself |
+
+
+#### Creating a user account
+
+1.  Navigate to _Directory_ -> _Users_ and click _New User_;
+2.  In the _Choose User Type_ step, select _Internal User_ and click _Next_;
+3.  In the _Internal User Details_ step, fill in the following fields, keeping _Active_ enabled and the default
+    _Path_, then click _Create_:
+
+    - _Username_ - the user's identifier, shown in the user menu of the system;
+    - _Display Name_ - the user's full name;
+    - _Email Address_ - the user's email address. Although authentik marks it as optional, it is required, as users
+      log in with their email address;
+
+4.  Open the page of the new user, by clicking on its username in the list of users, and click _Set password_, in
+    the _Recovery_ area of the _Overview_ tab, to define an initial password. Communicate it to the user through a
+    secure channel.
+
+The user is then able to log in, with permission to view the whole catalog. As the system has no password recovery
+flow, users who forget their password must ask a system administrator to set a new one, with the same _Set password_
+button.
+
+
+#### Giving a user the editor role
+
+1.  Navigate to _Directory_ -> _Users_ and click on the username of the user;
+2.  Select the _Groups_ tab and click _Add to existing group_;
+3.  Select the `seis-lab-data-catalog-editors` group and confirm with _Add_.
+
+The role is removed by selecting the group in the same _Groups_ tab and clicking _Remove_. Changes to the roles of a
+user who is logged in take effect within an hour, without the user having to log in again.
+
+The `system-admin` role is given in the same way, with the `authentik Admins` group. As it also grants full control
+over authentik, including over the user accounts, it should be reserved for system administrators.
+
+
+#### Deactivating a user account
+
+To revoke a user's access to the system, click _Deactivate_, in the _Actions_ area of the _Overview_ tab of the user's
+page. A user who is logged in is logged out within a minute. Deactivated accounts can later be reactivated with the
+_Activate_ button, which replaces _Deactivate_.
+
+
 ## Deploying new versions of the system
 
 New versions of the system are deployed using a semi-automated workflow. When a new version of the system is deemed
@@ -629,6 +685,25 @@ to perform manual deployments, for example when the deployment machine is not av
 
 Some versions require manual steps in addition to the deployment itself. These steps apply to both the production
 and the test environments.
+
+
+#### Upgrading from version 1.0.0-rc1
+
+1.  After deploying, restart the worker of the user authentication service, so that it applies the updated
+    authentik blueprint right away. Otherwise it is only applied within the hour, and users who log in in the meantime
+    are still logged out after an hour:
+
+    ```bash
+    docker compose \
+        -f compose.prod-env.yaml \
+        --env-file compose-deployment.env \
+        --env-file image_url.env \
+        restart auth-worker
+    ```
+
+2.  Users who are logged in at the time of the deployment are logged out once, within an hour, and must log in
+    again. From then on they remain logged in, even after closing the browser, until they log out or have not used
+    the platform for a week.
 
 
 #### Upgrading from version 0.6.0
@@ -876,18 +951,9 @@ Authentik superusers, such as the `akadmin` account created when the system is i
 permissions. Users that are neither superusers nor members of this group are only able to view the catalog,
 including its unpublished items, while anonymous visitors are only able to view the published items.
 
-User management (account creation, group assignment, password reset) is done through the Authentik
-administration panel, accessible at `auth.seis-lab-data.ipma.pt/if/admin/`.
-
-Users are not able to self-register on the system. New user accounts must be created by a system
-administrator, as follows:
-
-1. In the Authentik administration panel, navigate to _Directory_ -> _Users_ and click _Create_
-2. Fill in the user's username, name and email and save
-3. Open the newly created user and use the _Set password_ button to define an initial password,
-   which must then be communicated to the user
-4. If the user should be able to edit the catalog, add them to the `seis-lab-data-catalog-editors` group in
-   the user's _Groups_ tab
+User management (account creation, role assignment, password reset) is done through the Authentik
+administration panel, accessible at `auth.seis-lab-data.ipma.pt/if/admin/`, as described in the
+[managing user accounts](#managing-user-accounts) section.
 
 
 ##### Relevant configuration files

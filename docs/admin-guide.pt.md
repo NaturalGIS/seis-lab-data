@@ -241,7 +241,7 @@ exemplo para recuperar da perda da máquina de produção.
 
 8.  **Criar as contas de utilizador** - Entrar no painel de administração do serviço de autenticação com a conta
     `akadmin`, usando a palavra-passe definida em `AUTH_AUTHENTIK_BOOTSTRAP_PASSWORD`, e criar as contas de
-    utilizador, conforme descrito na secção [user authentication service](#6-componente-user-authentication-service).
+    utilizador, conforme descrito na secção [gestão de contas de utilizador](#gestao-de-contas-de-utilizador).
 
 9.  **Ativar a limpeza do docker** - Instalar as unidades systemd descritas na secção sobre o
     [espaço em disco](#evitar-que-o-docker-ocupe-demasiado-espaco-em-disco).
@@ -532,6 +532,64 @@ nova imagem docker, isto evita que as imagens das versões anteriores se acumule
     grupo `docker`.
 
 
+### Gestão de contas de utilizador
+
+Os utilizadores não podem registar-se autonomamente no sistema: as contas de utilizador são criadas e geridas por um
+administrador de sistema, no painel de administração do [user authentication service](#6-componente-user-authentication-service),
+em `https://auth.seis-lab-data.ipma.pt/if/admin/`, com sessão iniciada com a conta `akadmin` ou com qualquer outra
+conta de superutilizador.
+
+As permissões de um utilizador no sistema dependem dos seus papéis, que derivam dos grupos do utilizador no authentik:
+
+| Papel            | Atribuído a                                        | Permissões                                                          |
+|------------------|----------------------------------------------------|---------------------------------------------------------------------|
+| (nenhum)         | qualquer utilizador                                | Consultar todo o catálogo, incluindo os seus itens não publicados   |
+| `catalog-editor` | membros do grupo `seis-lab-data-catalog-editors`   | Também criar, modificar, validar, publicar e eliminar itens do catálogo, e gerir as configurações do catálogo |
+| `system-admin`   | superutilizadores, como os membros do grupo `authentik Admins` | O mesmo que `catalog-editor`, mais a administração do próprio authentik |
+
+
+#### Criar uma conta de utilizador
+
+1.  Navegar até _Directory_ -> _Users_ e clicar em _New User_;
+2.  No passo _Choose User Type_, selecionar _Internal User_ e clicar em _Next_;
+3.  No passo _Internal User Details_, preencher os seguintes campos, mantendo a opção _Active_ ativada e o _Path_
+    predefinido, e clicar em _Create_:
+
+    - _Username_ - o identificador do utilizador, apresentado no menu de utilizador do sistema;
+    - _Display Name_ - o nome completo do utilizador;
+    - _Email Address_ - o endereço de email do utilizador. Embora o authentik o indique como opcional, é obrigatório,
+      uma vez que os utilizadores iniciam sessão com o seu endereço de email;
+
+4.  Abrir a página do novo utilizador, clicando no seu nome de utilizador na lista de utilizadores, e clicar em
+    _Set password_, na área _Recovery_ do separador _Overview_, para definir uma palavra-passe inicial. Comunicá-la ao
+    utilizador através de um canal seguro.
+
+O utilizador pode então iniciar sessão, com permissão para consultar todo o catálogo. Como o sistema não dispõe de um
+fluxo de recuperação de palavra-passe, os utilizadores que se esqueçam da sua palavra-passe têm de pedir a um
+administrador de sistema que defina uma nova, com o mesmo botão _Set password_.
+
+
+#### Atribuir o papel de editor a um utilizador
+
+1.  Navegar até _Directory_ -> _Users_ e clicar no nome de utilizador do utilizador;
+2.  Selecionar o separador _Groups_ e clicar em _Add to existing group_;
+3.  Selecionar o grupo `seis-lab-data-catalog-editors` e confirmar com _Add_.
+
+O papel é retirado selecionando o grupo no mesmo separador _Groups_ e clicando em _Remove_. As alterações aos papéis
+de um utilizador com sessão iniciada produzem efeito no prazo de uma hora, sem que o utilizador tenha de iniciar
+sessão novamente.
+
+O papel `system-admin` é atribuído da mesma forma, com o grupo `authentik Admins`. Como concede também controlo total
+sobre o authentik, incluindo sobre as contas de utilizador, deve ser reservado aos administradores de sistema.
+
+
+#### Desativar uma conta de utilizador
+
+Para revogar o acesso de um utilizador ao sistema, clicar em _Deactivate_, na área _Actions_ do separador _Overview_
+da página do utilizador. Um utilizador com sessão iniciada vê a sua sessão terminada no prazo de um minuto. As contas
+desativadas podem mais tarde ser reativadas com o botão _Activate_, que substitui o botão _Deactivate_.
+
+
 ## Implementação de novas versões do sistema
 
 As novas versões do sistema são implementadas através de um fluxo de trabalho semi-automatizado.
@@ -655,6 +713,25 @@ O fluxo de trabalho preferido para implementação é o procedimento semi-automa
 
 Algumas versões requerem passos manuais para além da implementação propriamente dita. Estes passos aplicam-se
 tanto ao ambiente de produção como ao ambiente de testes.
+
+
+#### Atualização a partir da versão 1.0.0-rc1
+
+1.  Após a implementação, reiniciar o _worker_ do serviço de autenticação de utilizadores, para que aplique de
+    imediato o _blueprint_ atualizado do authentik. Caso contrário, este só é aplicado no prazo de uma hora, e a
+    sessão dos utilizadores que a iniciem entretanto continua a terminar ao fim de uma hora:
+
+    ```bash
+    docker compose \
+        -f compose.prod-env.yaml \
+        --env-file compose-deployment.env \
+        --env-file image_url.env \
+        restart auth-worker
+    ```
+
+2.  Os utilizadores com sessão iniciada no momento da implementação veem a sua sessão terminada uma vez, no prazo
+    de uma hora, e têm de iniciar sessão novamente. A partir daí, a sessão mantém-se, mesmo depois de fechado o
+    navegador, até que a terminem ou que passe uma semana sem usarem a plataforma.
 
 
 #### Atualização a partir da versão 0.6.0
@@ -908,19 +985,10 @@ Os superutilizadores do Authentik, como a conta `akadmin` criada aquando da inst
 permissões. Os utilizadores que não sejam superutilizadores nem membros deste grupo apenas podem consultar o catálogo,
 incluindo os seus itens não publicados, enquanto os visitantes anónimos apenas podem consultar os itens publicados.
 
-A gestão de utilizadores (criação de contas, atribuição a grupos, reposição de palavras-passe)
+A gestão de utilizadores (criação de contas, atribuição de papéis, reposição de palavras-passe)
 é feita através do painel de administração do Authentik, acessível em
-`auth.seis-lab-data.ipma.pt/if/admin/`.
-
-Os utilizadores não podem registar-se autonomamente no sistema. As novas contas de utilizador
-devem ser criadas por um administrador de sistema, da seguinte forma:
-
-1. No painel de administração do Authentik, navegar até _Directory_ -> _Users_ e clicar em _Create_
-2. Preencher o nome de utilizador, nome e email do utilizador e guardar
-3. Abrir o utilizador recém-criado e usar o botão _Set password_ para definir uma palavra-passe
-   inicial, que deve depois ser comunicada ao utilizador
-4. Se o utilizador puder editar o catálogo, adicioná-lo ao grupo `seis-lab-data-catalog-editors` no
-   separador _Groups_ do utilizador
+`auth.seis-lab-data.ipma.pt/if/admin/`, conforme descrito na secção
+[gestão de contas de utilizador](#gestao-de-contas-de-utilizador).
 
 
 ##### Ficheiros de configuração relevantes

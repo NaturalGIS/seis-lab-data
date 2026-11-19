@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Client-facing docstrings for all test modules and tests
 - System version shown in the UI footer and in the STAC API - the tag for tagged releases, otherwise the branch and commit
 - User guide
+- Admin guide section on managing user accounts: creating them, giving them the editor role and deactivating them
+- `session_max_age_seconds` setting, defaulting to one week, for the lifetime of the session cookie
 
 
 ### Changed
@@ -28,6 +30,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A spatial extent is no longer required for a survey-related record to be valid. Projects and survey missions still require one
 - The asset discovery configurations for the magnetometer `.ovr` and `.xml` auxiliary files were removed from the bootstrap data
 - Changing the implicit CRS of a survey mission and running the discovery again now corrects the records already discovered
+- Users stay logged in, also after closing the browser, until they log out or have not used the system for a week. See the upgrade steps for version 1.0.0-rc1 in the admin guide
+- Changes to a user's roles in authentik take effect when their access token is next renewed, within an hour, instead of at their next login
+- Logging out revokes the refresh and access tokens in authentik
+- The session cookie only keeps the user info claims that are used by the system, reducing its size
+
+
+### Removed
+
+- Unused `TokenIntrospectionMiddleware` and `AuthConfig.token_introspection_cache_seconds`
 
 
 ### Fixed

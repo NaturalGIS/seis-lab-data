@@ -79,13 +79,14 @@ Routes → Operations → Permissions + DB queries/commands
 
 ## Auth and permissions
 
-Authentication uses Authentik via OIDC. After login the user info claims and the OAuth token are stored in the Starlette session. On each request `webapp/auth_backend.py:OIDCAuthBackend` introspects the token (cached for `auth_token_introspection_cache_seconds`) and builds a `schemas.User` from the claims: `id` (the `sub`), `email`, `username` (`preferred_username`), `name`, `roles` (the custom `roles` claim, produced by a scope mapping in the Authentik blueprints under `docker/authentik/`), and `active` (`email_verified`).
+Authentication uses Authentik via OIDC. After login the user info claims and the OAuth token are stored in the Starlette session. On each request `webapp/auth_backend.py:OIDCAuthBackend` introspects the token (cached for `auth_token_introspection_cache_seconds`), renews it with the refresh token (`offline_access` scope) once it expires or is reported inactive, re-fetching the user info claims and upserting `appuser`, and builds a `schemas.User` from the claims: `id` (the `sub`), `email`, `username` (`preferred_username`), `name`, `roles` (the custom `roles` claim, produced by a scope mapping in the Authentik blueprints under `docker/authentik/`), and `active` (`email_verified`).
 
 Permission rules:
 - **Roles** (in `constants.py`): `ROLE_SYSTEM_ADMIN` (`"system-admin"`, Authentik superusers) and `ROLE_EDITOR` (`"catalog-editor"`, members of the `seis-lab-data-catalog-editors` Authentik group). Both have full access to everything; `permissions/common.py:can_manage_item` is the shared check.
 - **Unauthenticated**: read-only access to `PUBLISHED` resources.
 - **Authenticated without a role**: read-only access to all resources, including unpublished ones.
 - **No self-registration**: user accounts are created by a system admin in Authentik.
+- **Session lifetime**: users stay logged in until they have not used the app for `refresh_token_validity` (7 days, set in the blueprints; `session_max_age_seconds` must not exceed it). Logout revokes the refresh and access tokens.
 
 ## Dev workflow
 

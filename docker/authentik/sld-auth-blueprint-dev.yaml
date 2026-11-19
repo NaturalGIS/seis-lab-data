@@ -195,6 +195,12 @@ entries:
       grant_types:
         - authorization_code
         - refresh_token
+      # the refresh token keeps users logged in for up to a week without using the
+      # app; it is only replaced once less than refresh_token_threshold of its
+      # validity remains, so that concurrent refreshes with the same refresh token
+      # are not rejected by authentik
+      refresh_token_validity: days=7
+      refresh_token_threshold: days=6
       client_id: !Context client_id
       client_secret: !Context client_secret
       redirect_uris:
@@ -220,6 +226,7 @@ entries:
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, "email"]]
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, "profile"]]
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, "roles"]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, "offline_access"]]
 
   # create an application
   - model: authentik_core.application

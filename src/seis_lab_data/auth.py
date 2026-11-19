@@ -16,7 +16,6 @@ class AuthConfig:
     client_id: str
     client_secret: str
     app_slug: str
-    token_introspection_cache_seconds: int
 
     @classmethod
     def from_settings(cls, settings: SeisLabDataSettings):
@@ -26,7 +25,6 @@ class AuthConfig:
             client_id=settings.auth_client_id,
             client_secret=settings.auth_client_secret,
             app_slug=settings.auth_application_slug,
-            token_introspection_cache_seconds=settings.auth_token_introspection_cache_seconds,
         )
 
     @property
@@ -73,7 +71,7 @@ def get_oauth_manager(auth_config: AuthConfig) -> OAuth:
         introspection_endpoint=auth_config.introspection_endpoint,
         jwks_uri=auth_config.jwks_uri,
         client_kwargs={
-            "scope": "openid email profile roles",
+            "scope": "openid email profile roles offline_access",
         },
         server_metadata={
             "end_session_endpoint": auth_config.end_session_endpoint,
