@@ -145,7 +145,9 @@ Permissions do not depend on who created an item: users with the `catalog-editor
 User accounts and roles are managed in [Authentik](https://goauthentik.io/), the authentication
 service used by the platform. Users log in through the **Login** link of the top bar, which leads
 to the Authentik login page. The platform does not allow self-registration: accounts are created
-by a system administrator in Authentik.
+by a system administrator in Authentik. Users remain logged in, even after closing the browser,
+until they log out or have not used the platform for a week. Changes made in Authentik to a
+user's roles take effect within an hour, without the user having to log in again.
 
 The user menu of the top bar shows the username, e-mail, identifier and roles of the logged-in
 user.

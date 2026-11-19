@@ -285,7 +285,18 @@ Os pedidos seguem o percurso rotas → operações → permissões, _queries_ e 
 
 Os utilizadores autenticam-se no [authentik], via OpenID Connect. Não existe registo autónomo: as contas de
 utilizador são criadas no authentik por um administrador do sistema. A tabela local `appuser` é apenas uma _cache_
-dos dados dos utilizadores do authentik, atualizada em cada login.
+dos dados dos utilizadores do authentik, atualizada em cada login e em cada renovação do _access token_.
+
+A sessão é guardada num _cookie_ assinado, que contém os dados do utilizador juntamente com o _access token_ e o
+_refresh token_. O _access token_ é válido durante uma hora e é verificado no _endpoint_ de introspeção do
+authentik no máximo uma vez a cada `auth_token_introspection_cache_seconds`. Quando expira, ou quando o authentik
+indica que já não está ativo, é renovado com o _refresh token_ (o _scope_ `offline_access`), e os dados do
+utilizador, papéis incluídos, são obtidos de novo. O utilizador só termina a sessão quando o authentik recusa a
+renovação. O _refresh token_ é válido durante uma semana (o `refresh_token_validity` do _provider_, nos
+_blueprints_ do authentik), valor que a configuração `session_max_age_seconds` não deve exceder, e o authentik só o
+substitui quando resta menos do que `refresh_token_threshold` da sua validade, para que pedidos simultâneos que
+renovem o _access token_ com o mesmo _refresh token_ sejam todos bem-sucedidos. Terminar a sessão revoga ambos os
+_tokens_ no authentik, já que o fim da sessão do authentik não os invalida.
 
 As permissões baseiam-se nos papéis do utilizador, que o authentik deriva da sua conta:
 

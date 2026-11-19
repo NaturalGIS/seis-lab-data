@@ -285,7 +285,18 @@ Requests follow the path routes → operations → permissions, queries and comm
 
 Users authenticate with [authentik], via OpenID Connect. There is no self-registration: user accounts are created
 by a system administrator in authentik. The local `appuser` table is merely a cache of authentik's user data,
-updated on each login.
+updated on each login and on each renewal of the access token.
+
+The session is kept in a signed cookie, which holds the user info claims together with the access token and the
+refresh token. The access token is valid for one hour and is checked with authentik's introspection endpoint at
+most once every `auth_token_introspection_cache_seconds`. Once it has expired, or authentik reports it as no
+longer active, it is renewed with the refresh token (the `offline_access` scope), and the user info claims,
+roles included, are fetched again. The user is logged out only when authentik refuses the renewal. The refresh
+token is valid for a week (the provider's `refresh_token_validity`, in the authentik blueprints), which the
+`session_max_age_seconds` setting must not exceed, and authentik only replaces it once less than
+`refresh_token_threshold` of its validity remains, so that concurrent requests renewing the access token with
+the same refresh token all succeed. Logging out revokes both tokens in authentik, since ending the authentik
+session does not invalidate them.
 
 Permissions are based on the user's roles, which authentik derives from the user account:
 

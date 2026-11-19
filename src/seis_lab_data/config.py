@@ -98,6 +98,9 @@ class SeisLabDataSettings(BaseSettings):
     auth_token_introspection_cache_seconds: int = 60
     csrf_secret: str = "somesecret"
     session_secret_key: str = "somesecretkey"
+    # the session lasts this long without any requests by the user; it must not
+    # exceed the refresh_token_validity of the authentik OAuth2 provider
+    session_max_age_seconds: int = 7 * 24 * 60 * 60
     auth_external_base_url: str = "http://localhost:9000"
     auth_internal_base_url: str = "http://localhost:9000"
     bind_host: str = "127.0.0.1"

@@ -3,12 +3,16 @@ import logging
 from collections.abc import Callable
 from functools import wraps
 
+import httpx2
 from datastar_py import ServerSentEventGenerator
 from datastar_py.starlette import DatastarResponse
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
-from ...constants import AUTH_CLIENT_NAME
+from ...constants import (
+    AUTH_CLIENT_NAME,
+    SESSION_USER_CLAIMS,
+)
 from ...db.commands.users import upsert_user
 from ...schemas import identifiers
 from ...schemas import user as user_schemas
@@ -37,7 +41,11 @@ async def auth_callback(request: Request):
         oauth_client = oauth_manager.create_client(AUTH_CLIENT_NAME)
         token = await oauth_client.authorize_access_token(request)
         user_info = token.get("userinfo")
-        request.session["user"] = user_info
+        request.session["user"] = {
+            claim: user_info[claim]
+            for claim in SESSION_USER_CLAIMS
+            if claim in user_info
+        }
         request.session["token"] = {
             # NOTE: do not store the id_token on the session
             # browser cookies are typically not allowed to be bigger than 4096 chars
@@ -46,6 +54,7 @@ async def auth_callback(request: Request):
             "access_token": token["access_token"],
             "token_type": token.get("token_type", "Bearer"),
             "expires_at": token.get("expires_at"),
+            "refresh_token": token.get("refresh_token"),
         }
         user = get_user(user_info)
         if user:
@@ -63,7 +72,15 @@ async def auth_callback(request: Request):
             # logout time. It cannot go in the session cookie because the combined
             # size would exceed the browser's ~4096 byte cookie limit, causing the
             # session cookie to be silently dropped and login to break.
-            response.set_cookie("id_token", id_token, httponly=True, samesite="lax")
+            # The cookie lasts as long as the session, because authentik requires the
+            # id_token_hint at logout time, while accepting an expired id_token
+            response.set_cookie(
+                "id_token",
+                id_token,
+                max_age=request.state.settings.session_max_age_seconds,
+                httponly=True,
+                samesite="lax",
+            )
         return response
     except Exception:
         logger.exception("Authentication error")
@@ -72,6 +89,25 @@ async def auth_callback(request: Request):
 
 async def logout(request: Request):
     id_token = request.cookies.get("id_token")
+    # Ending the authentik session at the end_session endpoint does not invalidate
+    # the refresh token, nor the access tokens obtained with it after the authentik
+    # session had already ended, therefore both are revoked explicitly
+    token = request.session.get("token") or {}
+    auth_config = request.state.auth_config
+    async with httpx2.AsyncClient() as client:
+        for token_type_hint in ("refresh_token", "access_token"):
+            if not (token_value := token.get(token_type_hint)):
+                continue
+            try:
+                response = await client.post(
+                    auth_config.revocation_endpoint,
+                    data={"token": token_value, "token_type_hint": token_type_hint},
+                    auth=(auth_config.client_id, auth_config.client_secret),
+                    timeout=5.0,
+                )
+                response.raise_for_status()
+            except Exception:
+                logger.warning(f"Failed to revoke the {token_type_hint}", exc_info=True)
     request.session.clear()
     params = f"post_logout_redirect_uri={request.url_for('home')}&client_id={request.state.auth_config.client_id}"
     if id_token:

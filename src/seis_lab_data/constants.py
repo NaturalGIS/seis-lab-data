@@ -6,6 +6,16 @@ from starlette_babel import gettext_lazy as _
 AUTH_CLIENT_NAME: typing.Final[str] = "authentik"
 ROLE_SYSTEM_ADMIN: typing.Final[str] = "system-admin"
 ROLE_EDITOR: typing.Final[str] = "catalog-editor"
+# userinfo claims kept in the session cookie - we don't store everything, as the browser silently drops
+# cookies bigger than ~4096 bytes
+SESSION_USER_CLAIMS: typing.Final[tuple[str, ...]] = (
+    "sub",
+    "email",
+    "email_verified",
+    "preferred_username",
+    "name",
+    "roles",
+)
 NAME_MAX_LENGTH: typing.Final[int] = 100
 NAME_MIN_LENGTH: typing.Final[int] = 5
 DESCRIPTION_MAX_LENGTH: typing.Final[int] = 500
