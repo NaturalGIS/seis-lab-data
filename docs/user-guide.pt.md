@@ -345,10 +345,12 @@ São geradas pré-visualizações para os registos criados cuja configuração t
 pedidas pré-visualizações para os registos mais antigos da missão que não as têm.
 
 **Executar novamente uma descoberta** ignora os ficheiros que já são referidos por um registo da
-missão. Se um desses registos não tiver extensão espacial e o CRS implícito da missão for
-projetado, a sua extensão espacial, a sua extensão temporal e os outros metadados do ficheiro são
-extraídos novamente. Isto permite corrigir os registos de uma missão que foi descoberta com um CRS
-implícito inadequado: corrigir o CRS implícito e executar novamente a descoberta.
+missão. Se o CRS implícito da missão for projetado, dois tipos de registo são lidos novamente: os
+que não têm extensão espacial, e os que foram posicionados com o CRS implícito da missão quando
+esse CRS foi alterado depois. A sua extensão espacial, a sua extensão temporal e os outros
+metadados do ficheiro são extraídos novamente, e as suas pré-visualizações são geradas novamente.
+Isto permite corrigir os registos de uma missão que foi descoberta com um CRS implícito inadequado:
+corrigir o CRS implícito e executar novamente a descoberta.
 
 **Cancelar uma descoberta:** o botão **cancelar descoberta...** interrompe uma descoberta em curso
 após uma confirmação. A missão passa ao estado a cancelar descoberta até a descoberta parar. Os

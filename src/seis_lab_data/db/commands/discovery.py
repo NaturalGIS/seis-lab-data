@@ -4,12 +4,15 @@ from typing import cast
 from sqlalchemy import (
     Boolean,
     Date,
+    Integer,
     String,
+    and_,
     case,
     column,
     func,
     insert,
     literal,
+    or_,
     update,
     values,
 )
@@ -107,9 +110,10 @@ async def write_discovered_survey_related_records(
     rows. Each item of `extent_updates` maps a record `id` to its new
     `bbox_wkt`, `discovery_info`, `temporal_extent_begin`, `temporal_extent_end`,
     `validation_result` and `is_valid`; a temporal extent end that is None keeps
-    the stored value. An extent update applies only to a record with a null bbox
-    and a `DRAFT` or `PUBLISHED` status, and sets an invalid record to `DRAFT`.
-    All writes share a single transaction.
+    the stored value. An extent update applies only to a record with a `DRAFT` or
+    `PUBLISHED` status, and with either a null bbox or a bbox placed with an
+    implicit CRS other than that of the update. It sets an invalid record to
+    `DRAFT`. All writes share a single transaction.
 
     Returns the number of records whose extent was updated.
     """
@@ -142,21 +146,29 @@ async def write_discovered_survey_related_records(
                 for extent_update in extent_updates
             ]
         )
+        stored_info = record.discovery_info
+        placed_with_implicit_crs = stored_info["crs_from_mission"].astext.cast(Boolean)
+        stored_epsg = stored_info["epsg"].astext.cast(Integer)
+        new_epsg = updated_values.c.discovery_info["epsg"].astext.cast(Integer)
+        # NULL when a key is missing, which leaves the record alone
+        implicit_crs_changed = and_(placed_with_implicit_crs, stored_epsg != new_epsg)
         result = await session.exec(
             update(record)
             .where(record.id == updated_values.c.id)
-            # keep a bbox set since the record was looked up, e.g. by a user
-            .where(record.bbox_4326.is_(None))
+            # keep a bbox a user set meanwhile, unless the implicit CRS changed
+            .where(or_(record.bbox_4326.is_(None), implicit_crs_changed))
             .where(record.status.in_(SURVEY_RELATED_RECORD_IDLE_STATUSES))
             .values(
                 bbox_4326=func.ST_GeomFromText(updated_values.c.bbox_wkt, 4326),
                 discovery_info=updated_values.c.discovery_info,
+                # PostgreSQL types a VALUES column holding only NULLs as text
                 temporal_extent_begin=func.coalesce(
-                    updated_values.c.temporal_extent_begin,
+                    updated_values.c.temporal_extent_begin.cast(Date),
                     record.temporal_extent_begin,
                 ),
                 temporal_extent_end=func.coalesce(
-                    updated_values.c.temporal_extent_end, record.temporal_extent_end
+                    updated_values.c.temporal_extent_end.cast(Date),
+                    record.temporal_extent_end,
                 ),
                 validation_result=updated_values.c.validation_result,
                 status=case(

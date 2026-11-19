@@ -320,10 +320,12 @@ Previews are generated for the created records whose configuration has
 are also requested for the mission's older records that do not have them.
 
 **Running a discovery again** skips the files that are already referenced by a record of the
-mission. If such a record has no spatial extent and the mission's implicit CRS is projected, its
-spatial extent and temporal extent are extracted again, and so is the metadata shown on its
-detail page. This allows correcting the records of a mission that was discovered with an
-unsuitable implicit CRS: correct the implicit CRS, then run the discovery again.
+mission. If the mission's implicit CRS is projected, two kinds of record are read again: those
+without a spatial extent, and those placed with the mission's implicit CRS when that CRS was
+changed afterwards. Their spatial extent and temporal extent are extracted again, and so is the
+metadata shown on their detail page, and their previews are generated again. This allows correcting
+the records of a mission that was discovered with an unsuitable implicit CRS: correct the implicit
+CRS, then run the discovery again.
 
 **Cancelling a discovery:** the **cancel discovery...** button stops a running discovery after a
 confirmation. The mission is set to cancelling discovery until the discovery stops. The records

@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - admin guide now contains information on how to set up the systemd units for cleaning up docker images and containers
 - Test modules and tests require docstrings, enforced by ruff (`D100`/`D103`, only in `tests/**/test_*.py`)
 - CI stores the results of the unit, integration and end-to-end tests as a workflow artifact
+- A spatial extent is no longer required for a survey-related record to be valid. Projects and survey missions still require one
+- The asset discovery configurations for the magnetometer `.ovr` and `.xml` auxiliary files were removed from the bootstrap data
+- Changing the implicit CRS of a survey mission and running the discovery again now corrects the records already discovered
+
+
+### Fixed
+
+- A discovery re-run did not update the spatial extent of a record when its file has no dates (XYZ, GeoTIFF and others)
 
 
 ## [1.0.0-rc1] - 2026-11-17
