@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - systemd unit files for cleaning up docker images and containers regularly and keep test and prod envs from running out of disk space
 - PDF report of the automated test results
 - Client-facing docstrings for all test modules and tests
+- System version shown in the UI footer and in the STAC API - the tag for tagged releases, otherwise the branch and commit
+- User guide
 
 
 ### Changed
@@ -19,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - admin guide now contains information on how to set up the systemd units for cleaning up docker images and containers
 - Test modules and tests require docstrings, enforced by ruff (`D100`/`D103`, only in `tests/**/test_*.py`)
 - CI stores the results of the unit, integration and end-to-end tests as a workflow artifact
+- CI publishes the docker image from the cached layers of the tested build, instead of building it again
+- The docker image stores its version information in the `git_commit`, `git_tag` and `git_branch` settings, replacing the unused `GIT_COMMIT` environment variable and `git-commit.txt` file
+- Improved version of sysadmin guide
+- Improved version of dev guide
 - A spatial extent is no longer required for a survey-related record to be valid. Projects and survey missions still require one
 - The asset discovery configurations for the magnetometer `.ovr` and `.xml` auxiliary files were removed from the bootstrap data
 - Changing the implicit CRS of a survey mission and running the discovery again now corrects the records already discovered
@@ -26,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Language picker of the docs site linking to the wrong URL from the home pages when the site is served under a path prefix, as in the test and prod environments
 - A discovery re-run did not update the spatial extent of a record when its file has no dates (XYZ, GeoTIFF and others)
 
 

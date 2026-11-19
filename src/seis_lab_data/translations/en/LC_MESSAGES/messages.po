@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-16 22:28+0000\n"
+"POT-Creation-Date: 2026-11-18 22:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en_US\n"
@@ -18,177 +18,177 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: constants.py:86
+#: constants.py:89
 msgid "asset discovery configuration"
 msgstr ""
 
-#: constants.py:87 webapp/templates/macros/records-summary.html:72
-#: webapp/templates/survey-missions/detail-component.html:117
+#: constants.py:90 webapp/templates/macros/records-summary.html:72
+#: webapp/templates/survey-missions/detail-component.html:118
 #: webapp/templates/survey-related-records/detail-component.html:55
-#: webapp/templates/survey-related-records/list.html:134
+#: webapp/templates/survey-related-records/list.html:142
 msgid "dataset category"
 msgstr ""
 
-#: constants.py:88
+#: constants.py:91
 #: webapp/templates/survey-related-records/detail-component.html:59
 msgid "survey mission"
 msgstr ""
 
-#: constants.py:89 webapp/templates/survey-missions/detail-summary.html:33
+#: constants.py:92 webapp/templates/survey-missions/detail-summary.html:33
 #: webapp/templates/survey-missions/list.html:104
 #: webapp/templates/survey-related-records/detail-component.html:65
-#: webapp/templates/survey-related-records/list.html:118
+#: webapp/templates/survey-related-records/list.html:123
 msgid "project"
 msgstr ""
 
-#: constants.py:90
+#: constants.py:93
 msgid "survey-related record"
 msgstr ""
 
-#: constants.py:91 webapp/templates/macros/records-summary.html:86
-#: webapp/templates/survey-missions/detail-component.html:126
+#: constants.py:94 webapp/templates/macros/records-summary.html:86
+#: webapp/templates/survey-missions/detail-component.html:127
 #: webapp/templates/survey-related-records/detail-component.html:57
-#: webapp/templates/survey-related-records/list.html:143
+#: webapp/templates/survey-related-records/list.html:151
 msgid "workflow stage"
 msgstr ""
 
-#: constants.py:147
+#: constants.py:156
 msgid "pending"
 msgstr ""
 
-#: constants.py:148
+#: constants.py:157
 msgid "running"
 msgstr ""
 
-#: constants.py:149 webapp/streamhandlers/common.py:54
+#: constants.py:158 webapp/streamhandlers/common.py:54
 msgid "success"
 msgstr ""
 
-#: constants.py:150
+#: constants.py:159
 msgid "failed"
 msgstr ""
 
-#: constants.py:151
+#: constants.py:160
 msgid "cancelled"
 msgstr ""
 
-#: constants.py:162
+#: constants.py:171
 msgid "data"
 msgstr ""
 
-#: constants.py:163
+#: constants.py:172
 msgid "thumbnail"
 msgstr ""
 
-#: constants.py:164
+#: constants.py:173
 msgid "preview"
 msgstr ""
 
-#: constants.py:195
+#: constants.py:204
 msgid "File size"
 msgstr ""
 
-#: constants.py:196
+#: constants.py:205
 msgid "Format"
 msgstr ""
 
-#: constants.py:197
+#: constants.py:206
 msgid "CRS"
 msgstr ""
 
-#: constants.py:198
+#: constants.py:207
 msgid "Native bounding box"
 msgstr ""
 
-#: constants.py:199
+#: constants.py:208
 msgid "Size (px)"
 msgstr ""
 
-#: constants.py:200
+#: constants.py:209
 msgid "Bands"
 msgstr ""
 
-#: constants.py:201
+#: constants.py:210
 msgid "Pixel size (CRS units)"
 msgstr ""
 
-#: constants.py:202
+#: constants.py:211
 msgid "Nodata value"
 msgstr ""
 
-#: constants.py:203
+#: constants.py:212
 msgid "Layers"
 msgstr ""
 
-#: constants.py:204
+#: constants.py:213
 msgid "Features"
 msgstr ""
 
-#: constants.py:205
+#: constants.py:214
 msgid "Geometry type"
 msgstr ""
 
-#: constants.py:206
+#: constants.py:215
 msgid "Points"
 msgstr ""
 
-#: constants.py:207
+#: constants.py:216
 msgid "Echo sounder"
 msgstr ""
 
-#: constants.py:208
+#: constants.py:217
 msgid "Duration"
 msgstr ""
 
-#: constants.py:209
+#: constants.py:218
 msgid "Traces"
 msgstr ""
 
-#: constants.py:210
+#: constants.py:219
 msgid "Samples per trace"
 msgstr ""
 
-#: constants.py:211
+#: constants.py:220
 msgid "Sample interval (raw)"
 msgstr ""
 
-#: constants.py:212
+#: constants.py:221
 msgid "Sample format"
 msgstr ""
 
-#: constants.py:213
+#: constants.py:222
 msgid "Coordinate units"
 msgstr ""
 
-#: constants.py:226 constants.py:252 constants.py:286
+#: constants.py:235 constants.py:261 constants.py:295
 msgid "draft"
 msgstr ""
 
-#: constants.py:227 constants.py:253 constants.py:287
+#: constants.py:236 constants.py:262 constants.py:296
 msgid "published"
 msgstr ""
 
-#: constants.py:228 constants.py:254 constants.py:289
+#: constants.py:237 constants.py:263 constants.py:298
 msgid "under discovery"
 msgstr ""
 
-#: constants.py:229 constants.py:256 constants.py:291
+#: constants.py:238 constants.py:265 constants.py:300
 msgid "under parsing"
 msgstr ""
 
-#: constants.py:230 constants.py:257 constants.py:292
+#: constants.py:239 constants.py:266 constants.py:301
 msgid "under validation"
 msgstr ""
 
-#: constants.py:255
+#: constants.py:264
 msgid "cancelling discovery"
 msgstr ""
 
-#: constants.py:288
+#: constants.py:297
 msgid "under derivation"
 msgstr ""
 
-#: constants.py:290
+#: constants.py:299
 msgid "under export"
 msgstr ""
 
@@ -280,8 +280,8 @@ msgstr ""
 #: operations/surveyrelatedrecords.py:314
 #: operations/surveyrelatedrecords.py:522
 #: webapp/routes/surveyrelatedrecords.py:100
-#: webapp/routes/surveyrelatedrecords.py:1493
-#: webapp/routes/surveyrelatedrecords.py:1657
+#: webapp/routes/surveyrelatedrecords.py:1498
+#: webapp/routes/surveyrelatedrecords.py:1662
 #, python-format
 msgid "Survey-related record %(id)s does not exist."
 msgstr ""
@@ -606,9 +606,9 @@ msgstr ""
 #: webapp/forms/common.py:138 webapp/forms/discovery.py:44
 #: webapp/forms/surveyrelatedrecords.py:47
 #: webapp/templates/discovery/list-item.html:12
-#: webapp/templates/survey-missions/detail-component.html:135
+#: webapp/templates/survey-missions/detail-component.html:136
 #: webapp/templates/survey-related-records/detail-component.html:274
-#: webapp/templates/survey-related-records/list.html:152
+#: webapp/templates/survey-related-records/list.html:160
 msgid "Media type"
 msgstr ""
 
@@ -682,22 +682,22 @@ msgstr ""
 #: webapp/forms/projects.py:47 webapp/forms/surveymissions.py:71
 #: webapp/forms/surveyrelatedrecords.py:104
 #: webapp/forms/surveyrelatedrecords.py:375
-#: webapp/templates/projects/detail-component.html:117
+#: webapp/templates/projects/detail-component.html:127
 #: webapp/templates/projects/list.html:96
-#: webapp/templates/survey-missions/detail-component.html:144
-#: webapp/templates/survey-missions/list.html:109
-#: webapp/templates/survey-related-records/list.html:157
+#: webapp/templates/survey-missions/detail-component.html:145
+#: webapp/templates/survey-missions/list.html:110
+#: webapp/templates/survey-related-records/list.html:165
 msgid "Temporal extent begin"
 msgstr ""
 
 #: webapp/forms/projects.py:48 webapp/forms/surveymissions.py:72
 #: webapp/forms/surveyrelatedrecords.py:105
 #: webapp/forms/surveyrelatedrecords.py:376
-#: webapp/templates/projects/detail-component.html:118
+#: webapp/templates/projects/detail-component.html:128
 #: webapp/templates/projects/list.html:97
-#: webapp/templates/survey-missions/detail-component.html:145
-#: webapp/templates/survey-missions/list.html:110
-#: webapp/templates/survey-related-records/list.html:158
+#: webapp/templates/survey-missions/detail-component.html:146
+#: webapp/templates/survey-missions/list.html:111
+#: webapp/templates/survey-related-records/list.html:166
 msgid "Temporal extent end"
 msgstr ""
 
@@ -705,7 +705,7 @@ msgstr ""
 #: webapp/forms/surveyrelatedrecords.py:58
 #: webapp/forms/surveyrelatedrecords.py:99
 #: webapp/templates/projects/create-form.html:23
-#: webapp/templates/projects/detail-component.html:39
+#: webapp/templates/projects/detail-component.html:40
 #: webapp/templates/projects/update-form.html:22
 #: webapp/templates/survey-missions/create-form.html:25
 #: webapp/templates/survey-missions/detail-summary.html:40
@@ -826,7 +826,7 @@ msgstr ""
 #: webapp/routes/surveyrelatedrecords.py:128
 #: webapp/routes/surveyrelatedrecords.py:506
 #: webapp/routes/surveyrelatedrecords.py:882
-#: webapp/routes/surveyrelatedrecords.py:1433
+#: webapp/routes/surveyrelatedrecords.py:1438
 #: webapp/routes/workflowstages.py:120 webapp/routes/workflowstages.py:173
 #: webapp/routes/workflowstages.py:338 webapp/templates/index.html:2
 msgid "Home"
@@ -900,7 +900,7 @@ msgstr ""
 #: webapp/routes/surveymissions.py:736 webapp/templates/base.html:44
 #: webapp/templates/base.html:45 webapp/templates/base.html:203
 #: webapp/templates/macros/records-summary.html:55
-#: webapp/templates/projects/detail-component.html:84
+#: webapp/templates/projects/detail-component.html:86
 #: webapp/templates/survey-missions/list.html:11
 #: webapp/templates/survey-missions/list.html:21
 msgid "Survey missions"
@@ -921,10 +921,10 @@ msgstr ""
 msgid "New survey-related record"
 msgstr ""
 
-#: webapp/routes/surveyrelatedrecords.py:1438 webapp/templates/base.html:49
+#: webapp/routes/surveyrelatedrecords.py:1443 webapp/templates/base.html:49
 #: webapp/templates/base.html:50 webapp/templates/base.html:204
 #: webapp/templates/macros/records-summary.html:61
-#: webapp/templates/survey-missions/detail-component.html:53
+#: webapp/templates/survey-missions/detail-component.html:54
 #: webapp/templates/survey-related-records/list.html:11
 #: webapp/templates/survey-related-records/list.html:21
 msgid "Survey-related records"
@@ -991,63 +991,63 @@ msgstr ""
 msgid "“%(name)s” changed status to %(status)s."
 msgstr ""
 
-#: webapp/streamhandlers/common.py:302
+#: webapp/streamhandlers/common.py:324
 #, python-format
 msgid "Bulk update succeeded. Updated: %(count)s."
 msgstr ""
 
-#: webapp/streamhandlers/common.py:309
+#: webapp/streamhandlers/common.py:331
 #, python-format
 msgid "Bulk update failed: %(details)s"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:711
+#: webapp/streamhandlers/common.py:733
 #: webapp/templates/survey-missions/detail-component.html:12
 #: webapp/templates/survey-missions/detail-status.html:27
 msgid "discovery is running"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:935
+#: webapp/streamhandlers/common.py:957
 #, python-format
 msgid "sections to discover: %(total)d"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:942
+#: webapp/streamhandlers/common.py:964
 #, python-format
 msgid "section %(number)d of %(total)d: %(section)s"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:964
+#: webapp/streamhandlers/common.py:986
 #, python-format
 msgid "Could not cancel the discovery of “%(name)s”: %(details)s"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:971
+#: webapp/streamhandlers/common.py:993
 #, python-format
 msgid "Discovery of “%(name)s” failed: %(details)s"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:979
+#: webapp/streamhandlers/common.py:1001
 #, python-format
 msgid "Discovery of “%(name)s” was cancelled: %(details)s"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:987
+#: webapp/streamhandlers/common.py:1009
 #, python-format
 msgid "Discovery of “%(name)s” ended: %(details)s"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:993
+#: webapp/streamhandlers/common.py:1015
 #, python-format
 msgid "Discovery of “%(name)s” started."
 msgstr ""
 
-#: webapp/streamhandlers/common.py:1065
+#: webapp/streamhandlers/common.py:1101
 #, python-format
 msgid "“%(name)s” was exported to GeoNode: %(details)s"
 msgstr ""
 
-#: webapp/streamhandlers/common.py:1075
+#: webapp/streamhandlers/common.py:1111
 #, python-format
 msgid "Could not export “%(name)s” to GeoNode: %(details)s"
 msgstr ""
@@ -1097,7 +1097,8 @@ msgid "Authentik Admin"
 msgstr ""
 
 #: webapp/templates/base.html:142 webapp/templates/base.html:209
-#: webapp/templates/base.html:210 webapp/templates/base.html:214
+#: webapp/templates/base.html:210 webapp/templates/base.html:217
+#: webapp/templates/base.html:222
 msgid "opens in a new tab"
 msgstr ""
 
@@ -1117,14 +1118,22 @@ msgstr ""
 msgid "Source code"
 msgstr ""
 
-#: webapp/templates/base.html:214
+#: webapp/templates/base.html:215
+msgid "Version"
+msgstr ""
+
+#: webapp/templates/base.html:219
+msgid "development"
+msgstr ""
+
+#: webapp/templates/base.html:222
 msgid "Made by"
 msgstr ""
 
-#: webapp/templates/base.html:260 webapp/templates/macros-buttons.html:76
-#: webapp/templates/survey-missions/detail-component.html:181
-#: webapp/templates/survey-missions/detail-component.html:206
-#: webapp/templates/survey-missions/detail-component.html:213
+#: webapp/templates/base.html:268 webapp/templates/macros-buttons.html:76
+#: webapp/templates/survey-missions/detail-component.html:182
+#: webapp/templates/survey-missions/detail-component.html:207
+#: webapp/templates/survey-missions/detail-component.html:214
 #: webapp/templates/survey-related-records/detail-component.html:202
 msgid "Close"
 msgstr ""
@@ -1185,7 +1194,7 @@ msgstr ""
 #: webapp/templates/projects/update-form.html:36
 #: webapp/templates/survey-missions/bulk-update-form.html:90
 #: webapp/templates/survey-missions/create-form.html:40
-#: webapp/templates/survey-missions/detail-component.html:187
+#: webapp/templates/survey-missions/detail-component.html:188
 #: webapp/templates/survey-missions/update-form.html:39
 #: webapp/templates/survey-related-records/create-form.html:130
 #: webapp/templates/survey-related-records/detail-component.html:213
@@ -1219,27 +1228,27 @@ msgstr ""
 msgid "Next"
 msgstr ""
 
-#: webapp/templates/macros.html:219
+#: webapp/templates/macros.html:223
 msgid "filter by map area"
 msgstr ""
 
 #: webapp/templates/datasetcategories/list.html:31
-#: webapp/templates/discovery/list.html:35 webapp/templates/macros.html:259
-#: webapp/templates/macros/search.html:23
+#: webapp/templates/discovery/list.html:35 webapp/templates/macros.html:263
+#: webapp/templates/macros/search.html:20
 #: webapp/templates/projects/list.html:51
-#: webapp/templates/survey-missions/detail-component.html:62
+#: webapp/templates/survey-missions/detail-component.html:63
 #: webapp/templates/survey-missions/list.html:48
-#: webapp/templates/survey-related-records/list.html:61
+#: webapp/templates/survey-related-records/list.html:66
 #: webapp/templates/workflowstages/list.html:31
 msgid "Search"
 msgstr ""
 
 #: webapp/templates/datasetcategories/list.html:47
-#: webapp/templates/discovery/list.html:51 webapp/templates/macros.html:276
-#: webapp/templates/macros/search.html:50
-#: webapp/templates/survey-missions/detail-component.html:89
-#: webapp/templates/survey-missions/list.html:74
-#: webapp/templates/survey-related-records/list.html:88
+#: webapp/templates/discovery/list.html:51 webapp/templates/macros.html:280
+#: webapp/templates/macros/search.html:37
+#: webapp/templates/survey-missions/detail-component.html:79
+#: webapp/templates/survey-missions/list.html:64
+#: webapp/templates/survey-related-records/list.html:82
 #: webapp/templates/workflowstages/list.html:47
 msgid "searching..."
 msgstr ""
@@ -1310,7 +1319,7 @@ msgstr ""
 
 #: webapp/templates/datasetcategories/list.html:61
 #: webapp/templates/discovery/list.html:65
-#: webapp/templates/projects/detail-component.html:149
+#: webapp/templates/projects/detail-component.html:159
 #: webapp/templates/projects/list.html:124
 #: webapp/templates/survey-missions/detail-actions.html:8
 #: webapp/templates/survey-related-records/detail-component.html:162
@@ -1365,7 +1374,7 @@ msgstr ""
 #: webapp/templates/discovery/list-item.html:7
 #: webapp/templates/projects/list-item.html:23
 #: webapp/templates/survey-missions/list-item.html:32
-#: webapp/templates/survey-related-records/list-item.html:77
+#: webapp/templates/survey-related-records/list-item.html:81
 msgid "name not available"
 msgstr ""
 
@@ -1427,22 +1436,14 @@ msgstr ""
 
 #: webapp/templates/macros/records-summary.html:73
 #: webapp/templates/survey-related-records/detail-component.html:56
-#: webapp/templates/survey-related-records/list-item.html:84
+#: webapp/templates/survey-related-records/list-item.html:88
 msgid "unknown category"
 msgstr ""
 
 #: webapp/templates/macros/records-summary.html:87
 #: webapp/templates/survey-related-records/detail-component.html:58
-#: webapp/templates/survey-related-records/list-item.html:85
+#: webapp/templates/survey-related-records/list-item.html:89
 msgid "unknown stage"
-msgstr ""
-
-#: webapp/templates/macros/search.html:40
-#: webapp/templates/projects/list.html:67
-#: webapp/templates/survey-missions/detail-component.html:78
-#: webapp/templates/survey-missions/list.html:64
-#: webapp/templates/survey-related-records/list.html:77
-msgid "status"
 msgstr ""
 
 #: webapp/templates/macros/select.html:19
@@ -1450,7 +1451,7 @@ msgid "all"
 msgstr ""
 
 #: webapp/templates/projects/create-form.html:11
-#: webapp/templates/projects/detail-component.html:34
+#: webapp/templates/projects/detail-component.html:35
 #: webapp/templates/projects/update-form.html:10
 #: webapp/templates/survey-missions/create-form.html:13
 #: webapp/templates/survey-missions/detail-summary.html:31
@@ -1461,7 +1462,7 @@ msgid "spatial extent"
 msgstr ""
 
 #: webapp/templates/projects/create-form.html:20
-#: webapp/templates/projects/detail-component.html:32
+#: webapp/templates/projects/detail-component.html:33
 #: webapp/templates/projects/update-form.html:19
 #: webapp/templates/survey-missions/create-form.html:22
 #: webapp/templates/survey-missions/detail-summary.html:29
@@ -1480,69 +1481,77 @@ msgstr ""
 msgid "Create project"
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:62
+#: webapp/templates/projects/detail-component.html:63
 #: webapp/templates/survey-missions/detail-summary.html:63
 #: webapp/templates/survey-related-records/detail-component.html:110
 msgid "no links found"
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:87
+#: webapp/templates/projects/detail-component.html:89
 msgid "search project survey missions"
 msgstr ""
 
 #: webapp/templates/projects/detail-component.html:109
-#: webapp/templates/projects/list.html:86
-#: webapp/templates/survey-missions/detail-component.html:106
-#: webapp/templates/survey-missions/list.html:91
-#: webapp/templates/survey-related-records/list.html:105
+#: webapp/templates/projects/list.html:76
+#: webapp/templates/survey-missions/detail-component.html:96
+#: webapp/templates/survey-missions/list.html:81
+#: webapp/templates/survey-related-records/list.html:99
 msgid "toggle advanced search controls"
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:159
+#: webapp/templates/projects/detail-component.html:121
+#: webapp/templates/projects/list.html:90
+#: webapp/templates/survey-missions/detail-component.html:108
+#: webapp/templates/survey-missions/list.html:95
+#: webapp/templates/survey-related-records/list.html:113
+msgid "status"
+msgstr ""
+
+#: webapp/templates/projects/detail-component.html:169
 #: webapp/templates/projects/update-form-page.html:13
 #: webapp/templates/projects/update-form-page.html:18
 msgid "edit project"
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:166
+#: webapp/templates/projects/detail-component.html:176
 msgid "delete project..."
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:167
+#: webapp/templates/projects/detail-component.html:177
 msgid "deleting project..."
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:169
+#: webapp/templates/projects/detail-component.html:179
 msgid "delete project"
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:170
+#: webapp/templates/projects/detail-component.html:180
 #, python-format
 msgid "Are you sure you want to delete the project “%(name)s”?"
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:181
+#: webapp/templates/projects/detail-component.html:191
 msgid "add new survey mission"
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:191
+#: webapp/templates/projects/detail-component.html:201
 msgid "This page shows a project and its survey missions."
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:194
+#: webapp/templates/projects/detail-component.html:204
 msgid ""
 "Editing a project validates it again. If it becomes invalid it goes back "
 "to DRAFT, along with its survey missions and their survey-related "
 "records."
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:195
+#: webapp/templates/projects/detail-component.html:205
 msgid ""
 "Deleting a project also deletes its survey missions and their survey-"
 "related records."
 msgstr ""
 
-#: webapp/templates/projects/detail-component.html:201
+#: webapp/templates/projects/detail-component.html:211
 msgid ""
 "This project cannot be deleted while some of its survey missions or "
 "survey-related records are being processed."
@@ -1692,37 +1701,37 @@ msgstr ""
 msgid "add new survey-related record"
 msgstr ""
 
-#: webapp/templates/survey-missions/detail-component.html:69
-#: webapp/templates/survey-related-records/list.html:68
+#: webapp/templates/survey-missions/detail-component.html:70
+#: webapp/templates/survey-related-records/list.html:73
 msgid "search survey-related records"
 msgstr ""
 
-#: webapp/templates/survey-missions/detail-component.html:151
-#: webapp/templates/survey-related-records/list.html:164
+#: webapp/templates/survey-missions/detail-component.html:152
+#: webapp/templates/survey-related-records/list.html:172
 msgid "Path"
 msgstr ""
 
-#: webapp/templates/survey-missions/detail-component.html:180
+#: webapp/templates/survey-missions/detail-component.html:181
 msgid "discover records"
 msgstr ""
 
-#: webapp/templates/survey-missions/detail-component.html:184
+#: webapp/templates/survey-missions/detail-component.html:185
 #, python-format
 msgid ""
 "Are you sure you want to discover records for the survey mission "
 "“%(name)s”? Discovery may take a long time to finish."
 msgstr ""
 
-#: webapp/templates/survey-missions/detail-component.html:196
+#: webapp/templates/survey-missions/detail-component.html:197
 msgid "start discovery"
 msgstr ""
 
-#: webapp/templates/survey-missions/detail-component.html:205
-#: webapp/templates/survey-missions/detail-component.html:222
+#: webapp/templates/survey-missions/detail-component.html:206
+#: webapp/templates/survey-missions/detail-component.html:223
 msgid "cancel discovery"
 msgstr ""
 
-#: webapp/templates/survey-missions/detail-component.html:209
+#: webapp/templates/survey-missions/detail-component.html:210
 #, python-format
 msgid ""
 "Are you sure you want to cancel the discovery of the survey mission "
@@ -1734,7 +1743,7 @@ msgid "This page shows a survey mission and its survey-related records."
 msgstr ""
 
 #: webapp/templates/survey-missions/detail-info.html:8
-#: webapp/templates/survey-related-records/list.html:199
+#: webapp/templates/survey-related-records/list.html:207
 msgid ""
 "Selected records can be downloaded through a list of links to their data "
 "files, for use with the aria2c download tool. Only published records are "
@@ -1807,13 +1816,13 @@ msgstr ""
 msgid "search survey missions"
 msgstr ""
 
-#: webapp/templates/survey-missions/list.html:140
+#: webapp/templates/survey-missions/list.html:141
 msgid ""
 "Survey missions belong to a project and hold the survey-related records "
 "collected during a survey."
 msgstr ""
 
-#: webapp/templates/survey-missions/list.html:143
+#: webapp/templates/survey-missions/list.html:144
 msgid ""
 "Survey missions with a status of DRAFT are only visible to authenticated "
 "users. A survey mission is published automatically once it is valid and "
@@ -2011,17 +2020,17 @@ msgstr ""
 msgid "illustrative seg-y image"
 msgstr ""
 
-#: webapp/templates/survey-related-records/list.html:126
+#: webapp/templates/survey-related-records/list.html:132
 msgid "mission"
 msgstr ""
 
-#: webapp/templates/survey-related-records/list.html:198
+#: webapp/templates/survey-related-records/list.html:206
 msgid ""
 "Survey-related records describe the datasets collected during a survey "
 "mission. Each record has one or more assets."
 msgstr ""
 
-#: webapp/templates/survey-related-records/list.html:202
+#: webapp/templates/survey-related-records/list.html:210
 msgid ""
 "Survey-related records with a status of DRAFT are only visible to "
 "authenticated users. A survey-related record is published automatically "

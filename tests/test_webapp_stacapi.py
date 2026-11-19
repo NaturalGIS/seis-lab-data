@@ -69,6 +69,18 @@ def test_landing_page(stac_api_client: TestClient):
     assert {"self", "root", "conformance", "search", "data", "children"} <= rels
 
 
+def test_landing_page_and_api_description_state_system_version(
+    stac_api_client: TestClient, settings
+):
+    """The STAC API landing page and the description of the API both state the version
+    of the system.
+    """
+    landing_page = stac_api_client.get("/stac/").json()
+    assert landing_page["seis_lab_data:version"] == settings.version
+    api_description = stac_api_client.get("/stac/openapi.json").json()
+    assert api_description["info"]["version"] == settings.version
+
+
 def test_conformance(stac_api_client: TestClient):
     """The STAC API lists the standards it conforms to."""
     response = stac_api_client.get("/stac/conformance")

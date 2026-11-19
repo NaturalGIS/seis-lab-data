@@ -12,6 +12,10 @@ env:
   PUBLISH_IMAGE: ${{ (github.ref_name == 'main' || github.ref_type == 'tag') && 'TRUE' || 'FALSE' }}
   IMAGE_TAG: ${{ github.ref_name == 'main' && 'latest' || github.ref_name }}
   IMAGE_NAME: ghcr.io/${{ github.repository }}/${{ github.event.repository.name }}
+  # version information baked into the docker image: the tag when building a tag,
+  # otherwise the branch (for pull requests, their source branch)
+  GIT_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+  GIT_BRANCH: ${{ github.ref_type != 'tag' && (github.head_ref || github.ref_name) || '' }}
 
 jobs:
   run_ci:
@@ -68,8 +72,12 @@ jobs:
       - name: "Build docker image"
         uses: docker/build-push-action@v6
         with:
+          # the push step below must use the same build args and labels, so that it
+          # reuses the cached layers of this build rather than building the image again
           build-args: |
-            GIT_COMMIT="${{ github.sha }}"
+            GIT_COMMIT=${{ github.sha }}
+            GIT_TAG=${{ env.GIT_TAG }}
+            GIT_BRANCH=${{ env.GIT_BRANCH }}
           push: false
           load: true
           file: docker/Dockerfile
@@ -172,10 +180,16 @@ jobs:
         if: ${{ env.PUBLISH_IMAGE == 'TRUE' }}
         uses: docker/build-push-action@v6
         with:
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
+            GIT_TAG=${{ env.GIT_TAG }}
+            GIT_BRANCH=${{ env.GIT_BRANCH }}
           push: true
           file: docker/Dockerfile
           tags: |
             ${{ steps.docker_metadata.outputs.tags }}
+          labels: |
+            ${{ steps.docker_metadata.outputs.labels }}
 
   render_test_report:
     needs: run_ci
