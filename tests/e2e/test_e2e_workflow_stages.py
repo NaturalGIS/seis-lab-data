@@ -15,7 +15,7 @@ from playwright.sync_api import (
 
 
 def _fill_workflow_stage_form(page: Page, name: str):
-    page.get_by_role("textbox", name="field-name").fill(name)
+    page.get_by_role("textbox", name="field-name", exact=True).fill(name)
 
 
 def _find_workflow_stage_card(page: Page, name: str) -> Locator:
@@ -28,7 +28,7 @@ def _find_workflow_stage_card(page: Page, name: str) -> Locator:
     regardless of pagination/ordering, and also means only one delete-confirmation
     modal is present in the DOM when the delete button is clicked.
     """
-    page.get_by_role("searchbox", name="search workflow stages").fill(name)
+    page.get_by_role("searchbox", name="Search workflow stages", exact=True).fill(name)
     card = page.locator(".card", has_text=name)
     expect(card).to_be_visible(timeout=10_000)
     return card
@@ -46,20 +46,28 @@ def test_workflow_stage_lifecycle(authenticated_page: Page):
     resource_name_id = uuid.uuid4().hex[:8]
 
     # navigate to the workflow stages page and click the create new button
-    authenticated_page.get_by_role("button", name="settings").click()
-    authenticated_page.get_by_role("link", name="list-workflow-stages").click()
-    authenticated_page.get_by_role("link", name="new-workflow-stage").click()
+    authenticated_page.get_by_role("button", name="Settings", exact=True).click()
+    authenticated_page.get_by_role(
+        "link", name="list-workflow-stages", exact=True
+    ).click()
+    authenticated_page.get_by_role(
+        "link", name="new-workflow-stage", exact=True
+    ).click()
 
     # hit the cancel button and verify we are brought back to the listing page
-    authenticated_page.get_by_role("link", name="cancel-creation").click()
+    authenticated_page.get_by_role("link", name="cancel-creation", exact=True).click()
 
-    authenticated_page.get_by_role("link", name="new-workflow-stage").click()
+    authenticated_page.get_by_role(
+        "link", name="new-workflow-stage", exact=True
+    ).click()
 
     # fill out the form and submit it — use a unique suffix to avoid collisions across runs
     stage_name = f"e2e test workflow stage {resource_name_id}"
     _fill_workflow_stage_form(authenticated_page, stage_name)
 
-    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    authenticated_page.get_by_role(
+        "button", name="submit-create-form", exact=True
+    ).click()
 
     # expect to be redirected to the listing page upon successful creation
     expect(authenticated_page).to_have_url(
@@ -72,7 +80,9 @@ def test_workflow_stage_lifecycle(authenticated_page: Page):
 
     updated_stage_name = f"{stage_name} (updated)"
     _fill_workflow_stage_form(authenticated_page, updated_stage_name)
-    authenticated_page.get_by_role("button", name="submit-update-form").click()
+    authenticated_page.get_by_role(
+        "button", name="submit-update-form", exact=True
+    ).click()
 
     # expect to be redirected to the listing page upon successful modification
     expect(authenticated_page).to_have_url(
@@ -82,7 +92,7 @@ def test_workflow_stage_lifecycle(authenticated_page: Page):
 
     # now try to modify the stage again, but this time hit the cancel button
     card.get_by_role("link").click()
-    authenticated_page.get_by_role("link", name="cancel-update").click()
+    authenticated_page.get_by_role("link", name="cancel-update", exact=True).click()
 
     # expect to be redirected to the listing page upon cancelling the modification
     expect(authenticated_page).to_have_url(
@@ -91,12 +101,14 @@ def test_workflow_stage_lifecycle(authenticated_page: Page):
 
     # clean up by deleting the newly-created stage
     card = _find_workflow_stage_card(authenticated_page, stage_name)
-    card.get_by_role("button", name="show-delete-confirmation-modal").click()
+    card.get_by_role(
+        "button", name="show-delete-confirmation-modal", exact=True
+    ).click()
     # the confirmation dialog names the item about to be deleted
     expect(authenticated_page.get_by_role("dialog")).to_contain_text(
         f"“{updated_stage_name}”"
     )
-    authenticated_page.get_by_role("button", name="delete-item").click()
+    authenticated_page.get_by_role("button", name="delete-item", exact=True).click()
     expect(card).not_to_be_visible()
 
 
@@ -108,23 +120,33 @@ def test_workflow_stage_creation_rejects_duplicate_name(
     form shows an error next to the name field.
     """
     authenticated_page.goto("/")
-    authenticated_page.get_by_role("button", name="settings").click()
-    authenticated_page.get_by_role("link", name="list-workflow-stages").click()
+    authenticated_page.get_by_role("button", name="Settings", exact=True).click()
+    authenticated_page.get_by_role(
+        "link", name="list-workflow-stages", exact=True
+    ).click()
 
     # create an initial stage
     resource_name_id = uuid.uuid4().hex[:8]
     stage_name = f"e2e duplicate test {resource_name_id}"
-    authenticated_page.get_by_role("link", name="new-workflow-stage").click()
+    authenticated_page.get_by_role(
+        "link", name="new-workflow-stage", exact=True
+    ).click()
     _fill_workflow_stage_form(authenticated_page, stage_name)
-    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    authenticated_page.get_by_role(
+        "button", name="submit-create-form", exact=True
+    ).click()
     expect(authenticated_page).to_have_url(
         re.compile(r"/workflow-stages/$"), timeout=10_000
     )
 
     # navigate to the create form and submit with the same name
-    authenticated_page.get_by_role("link", name="new-workflow-stage").click()
+    authenticated_page.get_by_role(
+        "link", name="new-workflow-stage", exact=True
+    ).click()
     _fill_workflow_stage_form(authenticated_page, stage_name)
-    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    authenticated_page.get_by_role(
+        "button", name="submit-create-form", exact=True
+    ).click()
 
     # the form should re-render in place with an inline error on the name field
     expect(
@@ -132,8 +154,10 @@ def test_workflow_stage_creation_rejects_duplicate_name(
     ).to_be_visible()
 
     # clean up by navigating back to the listing page and deleting the stage
-    authenticated_page.get_by_role("link", name="cancel-creation").click()
+    authenticated_page.get_by_role("link", name="cancel-creation", exact=True).click()
     card = _find_workflow_stage_card(authenticated_page, stage_name)
-    card.get_by_role("button", name="show-delete-confirmation-modal").click()
-    authenticated_page.get_by_role("button", name="delete-item").click()
+    card.get_by_role(
+        "button", name="show-delete-confirmation-modal", exact=True
+    ).click()
+    authenticated_page.get_by_role("button", name="delete-item", exact=True).click()
     expect(card).not_to_be_visible()

@@ -23,7 +23,9 @@ def test_login(authenticated_page: Page):
 def test_logout(fresh_authenticated_page: Page):
     """A logged-in user opens the user menu and logs out."""
     fresh_authenticated_page.goto("/")
-    fresh_authenticated_page.get_by_role("button", name="user-menu-toggle").click()
-    fresh_authenticated_page.get_by_role("menu", name="user-menu").get_by_role(
-        "link", name="logout-nav"
+    fresh_authenticated_page.get_by_role(
+        "button", name="user-menu-toggle", exact=True
     ).click()
+    fresh_authenticated_page.get_by_role(
+        "menu", name="user-menu", exact=True
+    ).get_by_role("link", name="logout-nav", exact=True).click()

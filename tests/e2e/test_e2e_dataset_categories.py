@@ -15,7 +15,7 @@ from playwright.sync_api import (
 
 
 def _fill_dataset_category_form(page: Page, name: str):
-    page.get_by_role("textbox", name="field-name").fill(name)
+    page.get_by_role("textbox", name="field-name", exact=True).fill(name)
 
 
 def _find_dataset_category_card(page: Page, name: str) -> Locator:
@@ -28,7 +28,9 @@ def _find_dataset_category_card(page: Page, name: str) -> Locator:
     regardless of pagination/ordering, and also means only one delete-confirmation
     modal is present in the DOM when the delete button is clicked.
     """
-    page.get_by_role("searchbox", name="search dataset categories").fill(name)
+    page.get_by_role("searchbox", name="Search dataset categories", exact=True).fill(
+        name
+    )
     card = page.locator(".card", has_text=name)
     expect(card).to_be_visible(timeout=10_000)
     return card
@@ -46,20 +48,28 @@ def test_dataset_category_lifecycle(authenticated_page: Page):
     resource_name_id = uuid.uuid4().hex[:8]
 
     # navigate to the dataset categories page and click the create new button
-    authenticated_page.get_by_role("button", name="settings").click()
-    authenticated_page.get_by_role("link", name="list-dataset-categories").click()
-    authenticated_page.get_by_role("link", name="new-dataset-category").click()
+    authenticated_page.get_by_role("button", name="Settings", exact=True).click()
+    authenticated_page.get_by_role(
+        "link", name="list-dataset-categories", exact=True
+    ).click()
+    authenticated_page.get_by_role(
+        "link", name="new-dataset-category", exact=True
+    ).click()
 
     # hit the cancel button and verify we are brought back to the listing page
-    authenticated_page.get_by_role("link", name="cancel-creation").click()
+    authenticated_page.get_by_role("link", name="cancel-creation", exact=True).click()
 
-    authenticated_page.get_by_role("link", name="new-dataset-category").click()
+    authenticated_page.get_by_role(
+        "link", name="new-dataset-category", exact=True
+    ).click()
 
     # fill out the form and submit it — use a unique suffix to avoid collisions across runs
     category_name = f"e2e test dataset category {resource_name_id}"
     _fill_dataset_category_form(authenticated_page, category_name)
 
-    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    authenticated_page.get_by_role(
+        "button", name="submit-create-form", exact=True
+    ).click()
 
     # expect to be redirected to the listing page upon successful creation
     expect(authenticated_page).to_have_url(
@@ -72,7 +82,9 @@ def test_dataset_category_lifecycle(authenticated_page: Page):
 
     updated_category_name = f"{category_name} (updated)"
     _fill_dataset_category_form(authenticated_page, updated_category_name)
-    authenticated_page.get_by_role("button", name="submit-update-form").click()
+    authenticated_page.get_by_role(
+        "button", name="submit-update-form", exact=True
+    ).click()
 
     # expect to be redirected to the listing page upon successful modification
     expect(authenticated_page).to_have_url(
@@ -82,7 +94,7 @@ def test_dataset_category_lifecycle(authenticated_page: Page):
 
     # now try to modify the category again, but this time hit the cancel button
     card.get_by_role("link").click()
-    authenticated_page.get_by_role("link", name="cancel-update").click()
+    authenticated_page.get_by_role("link", name="cancel-update", exact=True).click()
 
     # expect to be redirected to the listing page upon cancelling the modification
     expect(authenticated_page).to_have_url(
@@ -91,12 +103,14 @@ def test_dataset_category_lifecycle(authenticated_page: Page):
 
     # clean up by deleting the newly-created category
     card = _find_dataset_category_card(authenticated_page, category_name)
-    card.get_by_role("button", name="show-delete-confirmation-modal").click()
+    card.get_by_role(
+        "button", name="show-delete-confirmation-modal", exact=True
+    ).click()
     # the confirmation dialog names the item about to be deleted
     expect(authenticated_page.get_by_role("dialog")).to_contain_text(
         f"“{updated_category_name}”"
     )
-    authenticated_page.get_by_role("button", name="delete-item").click()
+    authenticated_page.get_by_role("button", name="delete-item", exact=True).click()
     expect(card).not_to_be_visible()
 
 
@@ -108,23 +122,33 @@ def test_dataset_category_creation_rejects_duplicate_name(
     form shows an error next to the name field.
     """
     authenticated_page.goto("/")
-    authenticated_page.get_by_role("button", name="settings").click()
-    authenticated_page.get_by_role("link", name="list-dataset-categories").click()
+    authenticated_page.get_by_role("button", name="Settings", exact=True).click()
+    authenticated_page.get_by_role(
+        "link", name="list-dataset-categories", exact=True
+    ).click()
 
     # create an initial category
     resource_name_id = uuid.uuid4().hex[:8]
     category_name = f"e2e duplicate test {resource_name_id}"
-    authenticated_page.get_by_role("link", name="new-dataset-category").click()
+    authenticated_page.get_by_role(
+        "link", name="new-dataset-category", exact=True
+    ).click()
     _fill_dataset_category_form(authenticated_page, category_name)
-    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    authenticated_page.get_by_role(
+        "button", name="submit-create-form", exact=True
+    ).click()
     expect(authenticated_page).to_have_url(
         re.compile(r"/dataset-categories/$"), timeout=10_000
     )
 
     # navigate to the create form and submit with the same name
-    authenticated_page.get_by_role("link", name="new-dataset-category").click()
+    authenticated_page.get_by_role(
+        "link", name="new-dataset-category", exact=True
+    ).click()
     _fill_dataset_category_form(authenticated_page, category_name)
-    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    authenticated_page.get_by_role(
+        "button", name="submit-create-form", exact=True
+    ).click()
 
     # the form should re-render in place with an inline error on the name field
     expect(
@@ -132,8 +156,10 @@ def test_dataset_category_creation_rejects_duplicate_name(
     ).to_be_visible()
 
     # clean up by navigating back to the listing page and deleting the category
-    authenticated_page.get_by_role("link", name="cancel-creation").click()
+    authenticated_page.get_by_role("link", name="cancel-creation", exact=True).click()
     card = _find_dataset_category_card(authenticated_page, category_name)
-    card.get_by_role("button", name="show-delete-confirmation-modal").click()
-    authenticated_page.get_by_role("button", name="delete-item").click()
+    card.get_by_role(
+        "button", name="show-delete-confirmation-modal", exact=True
+    ).click()
+    authenticated_page.get_by_role("button", name="delete-item", exact=True).click()
     expect(card).not_to_be_visible()

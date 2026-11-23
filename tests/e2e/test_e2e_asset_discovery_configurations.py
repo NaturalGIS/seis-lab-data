@@ -21,18 +21,20 @@ def _fill_asset_discovery_configuration_form(
     page: Page, name: str, relative_path_regexp: str, media_type: str = "image/tiff"
 ):
     # in addition to the name, there are two required associations
-    page.get_by_role("textbox", name="field-name").fill(name)
-    page.get_by_role("textbox", name="field-relative_path_regexp").fill(
+    page.get_by_role("textbox", name="field-name", exact=True).fill(name)
+    page.get_by_role("textbox", name="field-relative_path_regexp", exact=True).fill(
         relative_path_regexp
     )
-    page.get_by_role("textbox", name="field-media_type").fill(media_type)
+    page.get_by_role("textbox", name="field-media_type", exact=True).fill(media_type)
     # pick whatever the first available option is for each association — the test
     # only cares that some valid dataset category / workflow stage gets linked,
     # not which one, so it doesn't need to hardcode sample data names
-    page.get_by_role("combobox", name="field-dataset_category_id").select_option(
-        index=0
-    )
-    page.get_by_role("combobox", name="field-workflow_stage_id").select_option(index=0)
+    page.get_by_role(
+        "combobox", name="field-dataset_category_id", exact=True
+    ).select_option(index=0)
+    page.get_by_role(
+        "combobox", name="field-workflow_stage_id", exact=True
+    ).select_option(index=0)
 
 
 def _find_asset_discovery_configuration_card(page: Page, name: str) -> Locator:
@@ -67,19 +69,19 @@ def test_asset_discovery_configuration_lifecycle(authenticated_page: Page):
     resource_name_id = uuid.uuid4().hex[:8]
 
     # navigate to the asset discovery configurations page and click the create new button
-    authenticated_page.get_by_role("button", name="settings").click()
+    authenticated_page.get_by_role("button", name="Settings", exact=True).click()
     authenticated_page.get_by_role(
-        "link", name="list-asset-discovery-configurations"
+        "link", name="list-asset-discovery-configurations", exact=True
     ).click()
     authenticated_page.get_by_role(
-        "link", name="new-asset-discovery-configuration"
+        "link", name="new-asset-discovery-configuration", exact=True
     ).click()
 
     # hit the cancel button and verify we are brought back to the listing page
-    authenticated_page.get_by_role("link", name="cancel-creation").click()
+    authenticated_page.get_by_role("link", name="cancel-creation", exact=True).click()
 
     authenticated_page.get_by_role(
-        "link", name="new-asset-discovery-configuration"
+        "link", name="new-asset-discovery-configuration", exact=True
     ).click()
 
     # fill out the form and submit it — use a unique suffix to avoid collisions across runs
@@ -88,7 +90,9 @@ def test_asset_discovery_configuration_lifecycle(authenticated_page: Page):
         authenticated_page, config_name, r".*\.tif$"
     )
 
-    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    authenticated_page.get_by_role(
+        "button", name="submit-create-form", exact=True
+    ).click()
 
     # expect to be redirected to the listing page upon successful creation
     expect(authenticated_page).to_have_url(
@@ -103,7 +107,9 @@ def test_asset_discovery_configuration_lifecycle(authenticated_page: Page):
     _fill_asset_discovery_configuration_form(
         authenticated_page, updated_config_name, r".*\.jp2$"
     )
-    authenticated_page.get_by_role("button", name="submit-update-form").click()
+    authenticated_page.get_by_role(
+        "button", name="submit-update-form", exact=True
+    ).click()
 
     # expect to be redirected to the listing page upon successful modification
     expect(authenticated_page).to_have_url(
@@ -115,7 +121,7 @@ def test_asset_discovery_configuration_lifecycle(authenticated_page: Page):
 
     # now try to modify the configuration again, but this time hit the cancel button
     card.get_by_role("link").click()
-    authenticated_page.get_by_role("link", name="cancel-update").click()
+    authenticated_page.get_by_role("link", name="cancel-update", exact=True).click()
 
     # expect to be redirected to the listing page upon cancelling the modification
     expect(authenticated_page).to_have_url(
@@ -126,12 +132,14 @@ def test_asset_discovery_configuration_lifecycle(authenticated_page: Page):
     card = _find_asset_discovery_configuration_card(
         authenticated_page, updated_config_name
     )
-    card.get_by_role("button", name="show-delete-confirmation-modal").click()
+    card.get_by_role(
+        "button", name="show-delete-confirmation-modal", exact=True
+    ).click()
     # the confirmation dialog names the item about to be deleted
     expect(authenticated_page.get_by_role("dialog")).to_contain_text(
         f"“{updated_config_name}”"
     )
-    authenticated_page.get_by_role("button", name="delete-item").click()
+    authenticated_page.get_by_role("button", name="delete-item", exact=True).click()
     expect(card).not_to_be_visible()
 
 
@@ -144,33 +152,37 @@ def test_asset_discovery_configuration_creation_rejects_duplicate_name(
     is shown.
     """
     authenticated_page.goto("/")
-    authenticated_page.get_by_role("button", name="settings").click()
+    authenticated_page.get_by_role("button", name="Settings", exact=True).click()
     authenticated_page.get_by_role(
-        "link", name="list-asset-discovery-configurations"
+        "link", name="list-asset-discovery-configurations", exact=True
     ).click()
 
     # create an initial configuration
     resource_name_id = uuid.uuid4().hex[:8]
     config_name = f"e2e duplicate test {resource_name_id}"
     authenticated_page.get_by_role(
-        "link", name="new-asset-discovery-configuration"
+        "link", name="new-asset-discovery-configuration", exact=True
     ).click()
     _fill_asset_discovery_configuration_form(
         authenticated_page, config_name, r".*\.tif$"
     )
-    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    authenticated_page.get_by_role(
+        "button", name="submit-create-form", exact=True
+    ).click()
     expect(authenticated_page).to_have_url(
         re.compile(r"/asset-discovery-configurations/$"), timeout=10_000
     )
 
     # navigate to the create form and submit with the same (globally unique) name
     authenticated_page.get_by_role(
-        "link", name="new-asset-discovery-configuration"
+        "link", name="new-asset-discovery-configuration", exact=True
     ).click()
     _fill_asset_discovery_configuration_form(
         authenticated_page, config_name, r".*\.jp2$"
     )
-    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    authenticated_page.get_by_role(
+        "button", name="submit-create-form", exact=True
+    ).click()
 
     # unlike dataset categories / workflow stages, name uniqueness here is only
     # enforced at the database level and discovered asynchronously by the
@@ -186,6 +198,8 @@ def test_asset_discovery_configuration_creation_rejects_duplicate_name(
 
     # clean up the single (successfully-created) configuration
     card = _find_asset_discovery_configuration_card(authenticated_page, config_name)
-    card.get_by_role("button", name="show-delete-confirmation-modal").click()
-    authenticated_page.get_by_role("button", name="delete-item").click()
+    card.get_by_role(
+        "button", name="show-delete-confirmation-modal", exact=True
+    ).click()
+    authenticated_page.get_by_role("button", name="delete-item", exact=True).click()
     expect(card).not_to_be_visible()
