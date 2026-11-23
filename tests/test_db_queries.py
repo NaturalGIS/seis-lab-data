@@ -287,11 +287,11 @@ async def test_temporal_extent_filter_matches_overlapping_extents(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_spatial_filter_keeps_items_without_a_spatial_extent(
+async def test_spatial_filter_excludes_projects_without_a_spatial_extent(
     extent_projects, db_session_maker
 ):
-    """Filtering projects by an area returns those whose bounding box intersects it,
-    together with those that have no bounding box.
+    """Filtering projects by an area returns only those whose spatial extent intersects
+    it, leaving out projects without a spatial extent.
     """
     async with db_session_maker() as session:
         items, _ = await project_queries.list_projects(
@@ -299,7 +299,59 @@ async def test_spatial_filter_keeps_items_without_a_spatial_extent(
             page_size=50,
             spatial_intersect=shapely.box(-11, 37, -7, 41),
         )
-    assert {item.name for item in items} == extent_projects - {"off the azores"}
+    assert {item.name for item in items} == {"off portugal"}
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_spatial_filter_excludes_survey_missions_without_a_spatial_extent(
+    sample_survey_missions, db_session_maker
+):
+    """Filtering survey missions by an area returns only those whose spatial extent
+    intersects it, leaving out survey missions without a spatial extent.
+    """
+    first_mission, second_mission, *other_missions = sample_survey_missions
+    async with db_session_maker() as session:
+        for mission, bbox_wkt in (
+            (first_mission, "POLYGON((-10 38, -8 38, -8 40, -10 40, -10 38))"),
+            (second_mission, "POLYGON((-29 37, -25 37, -25 40, -29 40, -29 37))"),
+            *((mission, None) for mission in other_missions),
+        ):
+            db_mission = await session.get(models.SurveyMission, mission.id)
+            db_mission.bbox_4326 = bbox_wkt
+            session.add(db_mission)
+        await session.commit()
+        items, _ = await mission_queries.list_survey_missions(
+            session,
+            page_size=50,
+            spatial_intersect=shapely.box(-11, 37, -7, 41),
+        )
+    assert [item.id for item in items] == [first_mission.id]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_spatial_filter_excludes_records_without_a_spatial_extent(
+    sample_survey_related_records, db_session_maker
+):
+    """Filtering survey-related records by an area returns only those whose spatial
+    extent intersects it, leaving out records without a spatial extent.
+    """
+    first_record, second_record = sample_survey_related_records
+    async with db_session_maker() as session:
+        for record, bbox_wkt in (
+            (first_record, "POLYGON((-10 38, -8 38, -8 40, -10 40, -10 38))"),
+            (second_record, None),
+        ):
+            db_record = await session.get(models.SurveyRelatedRecord, record.id)
+            db_record.bbox_4326 = bbox_wkt
+            session.add(db_record)
+        await session.commit()
+        items, _ = await record_queries.list_survey_related_records(
+            session,
+            spatial_intersect=shapely.box(-11, 37, -7, 41),
+        )
+    assert [item.id for item in items] == [first_record.id]
 
 
 @pytest.mark.integration

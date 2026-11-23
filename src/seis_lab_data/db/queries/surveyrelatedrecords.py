@@ -58,12 +58,9 @@ def _apply_survey_related_record_filters(
         )
     if spatial_intersect is not None:
         statement = statement.where(
-            or_(
-                func.ST_Intersects(
-                    models.SurveyRelatedRecord.bbox_4326,
-                    func.ST_GeomFromText(spatial_intersect.wkt, 4326),
-                ),
-                models.SurveyRelatedRecord.bbox_4326.is_(None),
+            func.ST_Intersects(
+                models.SurveyRelatedRecord.bbox_4326,
+                func.ST_GeomFromText(spatial_intersect.wkt, 4326),
             )
         )
     if survey_mission_ids:

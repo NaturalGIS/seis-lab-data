@@ -34,12 +34,9 @@ def _build_project_statement(
         statement = statement.where(models.Project.name.ilike(f"%{name_filter}%"))
     if spatial_intersect is not None:
         statement = statement.where(
-            or_(
-                func.ST_Intersects(
-                    models.Project.bbox_4326,
-                    func.ST_GeomFromText(spatial_intersect.wkt, 4326),
-                ),
-                models.Project.bbox_4326.is_(None),
+            func.ST_Intersects(
+                models.Project.bbox_4326,
+                func.ST_GeomFromText(spatial_intersect.wkt, 4326),
             )
         )
     # items whose temporal extent overlaps the filter's match it - a missing
