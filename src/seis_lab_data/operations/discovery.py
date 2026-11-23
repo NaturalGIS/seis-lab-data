@@ -609,6 +609,32 @@ class _DiscoveredFile:
     bbox_wkt: str | None = None
 
 
+@dataclasses.dataclass
+class _RecordNameRegistry:
+    """Registry of the record names taken in a survey mission."""
+
+    taken_names: set[str]
+    # the last number given to the numbered names of each file name
+    last_suffix_numbers: dict[str, int] = dataclasses.field(default_factory=dict)
+
+    def reserve_name(self, file_name: str) -> str:
+        """Reserve a free record name for a file.
+
+        The name is the file name, capped at the maximum name length, or if that is
+        taken, the first free numbered name, e.g. `rev1.segy (2)`, with the file name
+        shortened to fit the suffix within the maximum name length.
+        """
+        name = file_name[: constants.NAME_MAX_LENGTH]
+        suffix_number = self.last_suffix_numbers.get(file_name, 1)
+        while name in self.taken_names:
+            suffix_number += 1
+            suffix = f" ({suffix_number})"
+            name = file_name[: constants.NAME_MAX_LENGTH - len(suffix)] + suffix
+        self.last_suffix_numbers[file_name] = suffix_number
+        self.taken_names.add(name)
+        return name
+
+
 async def _report_discovery_progress_periodically(
     *,
     request_id: identifiers.RequestId,
@@ -695,7 +721,9 @@ async def _discover_mission_records(
     concurrently, and a single writer stores the results in batches of up to
     `discovery_batch_size` files, each one written at most
     `discovery_batch_max_seconds` after it began. Chunks are held for at most as
-    long. Tracked files are skipped. If the mission's CRS is projected, a tracked
+    long. A new record is named after its file, numbered when the name is taken in
+    the mission, e.g. `rev1.segy (2)`, in the order of the file paths within a
+    batch. Tracked files are skipped. If the mission's CRS is projected, a tracked
     record without a bbox, or placed with an implicit CRS the mission no longer
     has, is read again once per run: its extent is updated and its previews are
     requested again. A batch that fails is written again file by file, so that a
@@ -772,6 +800,10 @@ async def _discover_mission_records(
     running_extractors = concurrency
     # a record with several data assets is updated once, from its first file
     attempted_record_ids: set[identifiers.SurveyRelatedRecordId] = set()
+    # read before the writer starts, which then keeps it current on its own
+    record_names = _RecordNameRegistry(
+        await record_queries.collect_survey_mission_record_names(session, mission_id)
+    )
 
     async def schedule_path_chunk(chunk: list[_DiscoveredFile]) -> None:
         lookup_started_at = time.monotonic()
@@ -900,12 +932,18 @@ async def _discover_mission_records(
         write_started_at = time.monotonic()
         counts.found += len(batch)
         creations = []
-        for discovered in batch:
+        # concurrent extractions shuffle the batch, the numbered names follow the paths
+        for discovered in sorted(batch, key=lambda item: item.relative_path):
             if discovered.record_id is not None:
                 continue
             try:
                 creations.append(
-                    (discovered, *_build_discovered_record_rows(discovered, mission))
+                    (
+                        discovered,
+                        *_build_discovered_record_rows(
+                            discovered, mission, record_names
+                        ),
+                    )
                 )
             except Exception:
                 logger.exception(
@@ -1064,10 +1102,13 @@ async def _discover_mission_records(
 
 
 def _build_discovered_record_rows(
-    discovered: _DiscoveredFile, mission: models.SurveyMission
+    discovered: _DiscoveredFile,
+    mission: models.SurveyMission,
+    record_names: _RecordNameRegistry,
 ) -> tuple[dict, dict]:
     """Build the record row and data asset row of a discovered file.
 
+    The record is named after the file, with a name reserved in `record_names`.
     The fields are validated with `SurveyRelatedRecordCreate`, the record status is
     `DRAFT` and its validation result is computed with `ValidSurveyRelatedRecord`.
     Raises `pydantic.ValidationError` for fields not valid in a draft record.
@@ -1079,8 +1120,7 @@ def _build_discovered_record_rows(
     to_create = record_schemas.SurveyRelatedRecordCreate(
         id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
         survey_mission_id=identifiers.SurveyMissionId(mission.id),
-        # names are capped, the full file name lives on in the asset's path
-        name=file_path.name[: constants.NAME_MAX_LENGTH],
+        name=record_names.reserve_name(file_path.name),
         description="",
         dataset_category_id=identifiers.DatasetCategoryId(
             discovered.configuration.dataset_category_id

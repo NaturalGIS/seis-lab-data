@@ -423,6 +423,17 @@ async def collect_survey_related_record_validation_fields(
     }
 
 
+async def collect_survey_mission_record_names(
+    session: AsyncSession,
+    survey_mission_id: identifiers.SurveyMissionId,
+) -> set[str]:
+    """Collect the names of the records of a survey mission."""
+    statement = select(models.SurveyRelatedRecord.name).where(
+        models.SurveyRelatedRecord.survey_mission_id == survey_mission_id
+    )
+    return set((await session.exec(statement)).all())
+
+
 async def get_survey_related_record_by_name(
     session: AsyncSession,
     survey_mission_id: identifiers.SurveyMissionId,

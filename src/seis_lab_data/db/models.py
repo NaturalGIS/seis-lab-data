@@ -20,6 +20,7 @@ from pydantic import (
 from sqlalchemy import (
     Enum,
     LargeBinary,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import (
     ARRAY,
@@ -119,6 +120,13 @@ class AssetDiscoveryConfiguration(SQLModel, table=True):
 
 class SurveyRelatedRecord(SQLModel, table=True):
     model_config = ConfigDict(arbitrary_types_allowed=True)
+    __table_args__ = (
+        UniqueConstraint(
+            "survey_mission_id",
+            "name",
+            name="uq_surveyrelatedrecord_survey_mission_id_name",
+        ),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(max_length=constants.NAME_MAX_LENGTH)
@@ -230,6 +238,9 @@ class SurveyRelatedRecordSelfLink(SQLModel, table=True):
 
 class SurveyMission(SQLModel, table=True):
     model_config = ConfigDict(arbitrary_types_allowed=True)
+    __table_args__ = (
+        UniqueConstraint("project_id", "name", name="uq_surveymission_project_id_name"),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(max_length=constants.NAME_MAX_LENGTH)
@@ -291,6 +302,7 @@ class SurveyMission(SQLModel, table=True):
 
 class Project(SQLModel, table=True):
     model_config = ConfigDict(arbitrary_types_allowed=True)
+    __table_args__ = (UniqueConstraint("name", name="uq_project_name"),)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(max_length=constants.NAME_MAX_LENGTH)

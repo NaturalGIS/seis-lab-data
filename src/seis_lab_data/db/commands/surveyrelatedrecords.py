@@ -54,6 +54,18 @@ async def create_survey_related_record(
             else bbox
         ),
     )
+    if await record_queries.get_survey_related_record_by_name(
+        session,
+        identifiers.SurveyMissionId(to_create.survey_mission_id),
+        to_create.name,
+    ):
+        raise errors.DuplicateResourceError(
+            errors.N_(
+                "There is already a survey-related record named “%(name)s” in the "
+                "same survey mission."
+            ),
+            name=to_create.name,
+        )
     # need to ensure record assets' paths are unique for the mission
     for asset_to_create in to_create.assets:
         if await asset_queries.get_record_asset_by_file_path(
@@ -295,6 +307,28 @@ async def update_survey_related_record(
     added, updated, or removed.
     """
     logger.debug(f"{to_update=}")
+    if (
+        "name" in to_update.model_fields_set
+        and (
+            namesake := await record_queries.get_survey_related_record_by_name(
+                session,
+                identifiers.SurveyMissionId(
+                    to_update.survey_mission_id
+                    or survey_related_record.survey_mission_id
+                ),
+                to_update.name,
+            )
+        )
+        is not None
+        and namesake.id != survey_related_record.id
+    ):
+        raise errors.DuplicateResourceError(
+            errors.N_(
+                "There is already a survey-related record named “%(name)s” in the "
+                "same survey mission."
+            ),
+            name=to_update.name,
+        )
     for key, value in to_update.model_dump(
         exclude={"bbox_4326", "assets", "related_records"}, exclude_unset=True
     ).items():
