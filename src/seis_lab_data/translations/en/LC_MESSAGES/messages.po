@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-18 22:58+0000\n"
+"POT-Creation-Date: 2026-11-22 18:36+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en_US\n"
@@ -18,177 +18,177 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: constants.py:89
+#: constants.py:99
 msgid "asset discovery configuration"
 msgstr ""
 
-#: constants.py:90 webapp/templates/macros/records-summary.html:72
+#: constants.py:100 webapp/templates/macros/records-summary.html:72
 #: webapp/templates/survey-missions/detail-component.html:118
 #: webapp/templates/survey-related-records/detail-component.html:55
 #: webapp/templates/survey-related-records/list.html:142
 msgid "dataset category"
 msgstr ""
 
-#: constants.py:91
+#: constants.py:101
 #: webapp/templates/survey-related-records/detail-component.html:59
 msgid "survey mission"
 msgstr ""
 
-#: constants.py:92 webapp/templates/survey-missions/detail-summary.html:33
+#: constants.py:102 webapp/templates/survey-missions/detail-summary.html:33
 #: webapp/templates/survey-missions/list.html:104
 #: webapp/templates/survey-related-records/detail-component.html:65
 #: webapp/templates/survey-related-records/list.html:123
 msgid "project"
 msgstr ""
 
-#: constants.py:93
+#: constants.py:103
 msgid "survey-related record"
 msgstr ""
 
-#: constants.py:94 webapp/templates/macros/records-summary.html:86
+#: constants.py:104 webapp/templates/macros/records-summary.html:86
 #: webapp/templates/survey-missions/detail-component.html:127
 #: webapp/templates/survey-related-records/detail-component.html:57
 #: webapp/templates/survey-related-records/list.html:151
 msgid "workflow stage"
 msgstr ""
 
-#: constants.py:156
+#: constants.py:166
 msgid "pending"
 msgstr ""
 
-#: constants.py:157
+#: constants.py:167
 msgid "running"
 msgstr ""
 
-#: constants.py:158 webapp/streamhandlers/common.py:54
+#: constants.py:168 webapp/streamhandlers/common.py:54
 msgid "success"
 msgstr ""
 
-#: constants.py:159
+#: constants.py:169
 msgid "failed"
 msgstr ""
 
-#: constants.py:160
+#: constants.py:170
 msgid "cancelled"
 msgstr ""
 
-#: constants.py:171
+#: constants.py:181
 msgid "data"
 msgstr ""
 
-#: constants.py:172
+#: constants.py:182
 msgid "thumbnail"
 msgstr ""
 
-#: constants.py:173
+#: constants.py:183
 msgid "preview"
 msgstr ""
 
-#: constants.py:204
+#: constants.py:214
 msgid "File size"
 msgstr ""
 
-#: constants.py:205
+#: constants.py:215
 msgid "Format"
 msgstr ""
 
-#: constants.py:206
+#: constants.py:216
 msgid "CRS"
 msgstr ""
 
-#: constants.py:207
+#: constants.py:217
 msgid "Native bounding box"
 msgstr ""
 
-#: constants.py:208
+#: constants.py:218
 msgid "Size (px)"
 msgstr ""
 
-#: constants.py:209
+#: constants.py:219
 msgid "Bands"
 msgstr ""
 
-#: constants.py:210
+#: constants.py:220
 msgid "Pixel size (CRS units)"
 msgstr ""
 
-#: constants.py:211
+#: constants.py:221
 msgid "Nodata value"
 msgstr ""
 
-#: constants.py:212
+#: constants.py:222
 msgid "Layers"
 msgstr ""
 
-#: constants.py:213
+#: constants.py:223
 msgid "Features"
 msgstr ""
 
-#: constants.py:214
+#: constants.py:224
 msgid "Geometry type"
 msgstr ""
 
-#: constants.py:215
+#: constants.py:225
 msgid "Points"
 msgstr ""
 
-#: constants.py:216
+#: constants.py:226
 msgid "Echo sounder"
 msgstr ""
 
-#: constants.py:217
+#: constants.py:227
 msgid "Duration"
 msgstr ""
 
-#: constants.py:218
+#: constants.py:228
 msgid "Traces"
 msgstr ""
 
-#: constants.py:219
+#: constants.py:229
 msgid "Samples per trace"
 msgstr ""
 
-#: constants.py:220
+#: constants.py:230
 msgid "Sample interval (raw)"
 msgstr ""
 
-#: constants.py:221
+#: constants.py:231
 msgid "Sample format"
 msgstr ""
 
-#: constants.py:222
+#: constants.py:232
 msgid "Coordinate units"
 msgstr ""
 
-#: constants.py:235 constants.py:261 constants.py:295
+#: constants.py:245 constants.py:271 constants.py:305
 msgid "draft"
 msgstr ""
 
-#: constants.py:236 constants.py:262 constants.py:296
+#: constants.py:246 constants.py:272 constants.py:306
 msgid "published"
 msgstr ""
 
-#: constants.py:237 constants.py:263 constants.py:298
+#: constants.py:247 constants.py:273 constants.py:308
 msgid "under discovery"
 msgstr ""
 
-#: constants.py:238 constants.py:265 constants.py:300
+#: constants.py:248 constants.py:275 constants.py:310
 msgid "under parsing"
 msgstr ""
 
-#: constants.py:239 constants.py:266 constants.py:301
+#: constants.py:249 constants.py:276 constants.py:311
 msgid "under validation"
 msgstr ""
 
-#: constants.py:264
+#: constants.py:274
 msgid "cancelling discovery"
 msgstr ""
 
-#: constants.py:297
+#: constants.py:307
 msgid "under derivation"
 msgstr ""
 
-#: constants.py:299
+#: constants.py:309
 msgid "under export"
 msgstr ""
 
@@ -199,19 +199,19 @@ msgstr ""
 msgid "Dataset category %(id)s does not exist."
 msgstr ""
 
-#: db/commands/discovery.py:72 operations/discovery.py:136
+#: db/commands/discovery.py:75 operations/discovery.py:136
 #: operations/discovery.py:200 webapp/routes/discovery.py:174
 #: webapp/routes/discovery.py:536
 #, python-format
 msgid "Asset discovery configuration %(id)s does not exist."
 msgstr ""
 
-#: db/commands/projects.py:42
+#: db/commands/projects.py:42 db/commands/projects.py:136
 #, python-format
 msgid "There is already a project named “%(name)s”."
 msgstr ""
 
-#: db/commands/projects.py:71 db/commands/projects.py:160
+#: db/commands/projects.py:71 db/commands/projects.py:174
 #: operations/projects.py:113 operations/projects.py:168
 #: operations/projects.py:258 operations/projects.py:413
 #: operations/surveymissions.py:46 webapp/routes/projects.py:113
@@ -238,13 +238,13 @@ msgstr ""
 msgid "Record asset %(id)s does not exist."
 msgstr ""
 
-#: db/commands/surveymissions.py:51
+#: db/commands/surveymissions.py:51 db/commands/surveymissions.py:144
 #, python-format
 msgid "There is already a survey mission named “%(name)s” in the same project."
 msgstr ""
 
-#: db/commands/surveymissions.py:82 db/commands/surveymissions.py:171
-#: operations/discovery.py:270 operations/discovery.py:1222
+#: db/commands/surveymissions.py:82 db/commands/surveymissions.py:191
+#: operations/discovery.py:270 operations/discovery.py:1270
 #: operations/surveymissions.py:135 operations/surveymissions.py:238
 #: operations/surveymissions.py:339 operations/surveymissions.py:455
 #: operations/surveyrelatedrecords.py:48 webapp/routes/surveymissions.py:103
@@ -265,16 +265,24 @@ msgid ""
 "records are currently being processed."
 msgstr ""
 
-#: db/commands/surveyrelatedrecords.py:66
-#: db/commands/surveyrelatedrecords.py:343
+#: db/commands/surveyrelatedrecords.py:64
+#: db/commands/surveyrelatedrecords.py:327
+#, python-format
+msgid ""
+"There is already a survey-related record named “%(name)s” in the same "
+"survey mission."
+msgstr ""
+
+#: db/commands/surveyrelatedrecords.py:78
+#: db/commands/surveyrelatedrecords.py:377
 #, python-format
 msgid ""
 "There is already a survey-related record with asset path “%(path)s” in "
 "the same survey mission."
 msgstr ""
 
-#: db/commands/surveyrelatedrecords.py:105
-#: db/commands/surveyrelatedrecords.py:448 operations/geonodeexports.py:85
+#: db/commands/surveyrelatedrecords.py:117
+#: db/commands/surveyrelatedrecords.py:482 operations/geonodeexports.py:85
 #: operations/surveyrelatedrecords.py:144
 #: operations/surveyrelatedrecords.py:213
 #: operations/surveyrelatedrecords.py:314
@@ -374,11 +382,11 @@ msgid ""
 "not be discovered"
 msgstr ""
 
-#: operations/discovery.py:1228
+#: operations/discovery.py:1276
 msgid "User is not allowed to cancel discovery on the survey mission."
 msgstr ""
 
-#: operations/discovery.py:1242
+#: operations/discovery.py:1290
 #, python-format
 msgid ""
 "Discovery is already being cancelled. If it is no longer running, the "
@@ -386,11 +394,11 @@ msgid ""
 "%(minutes)d minutes."
 msgstr ""
 
-#: operations/discovery.py:1254
+#: operations/discovery.py:1302
 msgid "Cannot cancel discovery because the survey mission is not under discovery."
 msgstr ""
 
-#: operations/discovery.py:1343
+#: operations/discovery.py:1391
 msgid ""
 "discovery was abandoned by its worker - the records created so far are "
 "kept, run it again to resume"

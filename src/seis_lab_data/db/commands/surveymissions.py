@@ -125,6 +125,26 @@ async def update_survey_mission(
     to_update: mission_schemas.SurveyMissionUpdate,
 ) -> models.SurveyMission:
     logger.debug(f"{to_update.model_dump()=}")
+    if (
+        "name" in to_update.model_fields_set
+        and (
+            namesake := await mission_queries.get_survey_mission_by_name(
+                session,
+                identifiers.ProjectId(
+                    to_update.project_id or survey_mission.project_id
+                ),
+                to_update.name,
+            )
+        )
+        is not None
+        and namesake.id != survey_mission.id
+    ):
+        raise errors.DuplicateResourceError(
+            errors.N_(
+                "There is already a survey mission named “%(name)s” in the same project."
+            ),
+            name=to_update.name,
+        )
     for key, value in to_update.model_dump(
         exclude={"bbox_4326"}, exclude_unset=True
     ).items():

@@ -204,7 +204,7 @@ def _record_to_create(discovery_env, relative_path):
     return record_schemas.SurveyRelatedRecordCreate(
         id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
         survey_mission_id=identifiers.SurveyMissionId(discovery_env["mission"].id),
-        name="Manual record",
+        name=f"Manual record {relative_path}",
         description="A record created by hand",
         dataset_category_id=identifiers.DatasetCategoryId(
             configuration.dataset_category_id
@@ -755,6 +755,73 @@ async def test_discovery_truncates_long_file_names(
     assets = await _get_record_assets(db_session_maker, records[0].id)
     assert assets[0].name == "a" * constants.NAME_MAX_LENGTH
     assert assets[0].relative_path == f"s01/{file_name}"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discovery_numbers_records_of_files_with_a_taken_name(
+    db_session_maker, admin_user, discovery_env
+):
+    """Files of the same name in different directories obtain records with distinct
+    names: the first, in path order, is named after the file and the others carry the
+    next free number, skipping names already taken in the mission, and a later
+    discovery keeps these names.
+    """
+    mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
+    for directory in ("a", "b", "c"):
+        _write_geotiff(mission_root / "s01" / directory / "grid.tif")
+    taken = _record_to_create(discovery_env, "other/grid.tif").model_copy(
+        update={"name": "grid.tif (2)"}
+    )
+    await _create_record_without_discovery(db_session_maker, admin_user, taken)
+
+    for _ in range(2):
+        collector = await _run_discovery(
+            db_session_maker,
+            discovery_env["mission"].id,
+            discovery_env["settings"],
+            admin_user,
+        )
+        assert _ended_events(collector)[0].succeeded is True
+
+    records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
+    names_by_path = {}
+    for record in records:
+        (asset,) = await _get_record_assets(db_session_maker, record.id)
+        names_by_path[asset.relative_path] = record.name
+    assert names_by_path == {
+        "other/grid.tif": "grid.tif (2)",
+        "s01/a/grid.tif": "grid.tif",
+        "s01/b/grid.tif": "grid.tif (3)",
+        "s01/c/grid.tif": "grid.tif (4)",
+    }
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discovery_shortens_long_numbered_names(
+    db_session_maker, admin_user, discovery_env
+):
+    """When files with a long name share it, the numbered names of their records are
+    shortened so that the number fits within the maximum name length.
+    """
+    file_name = f"{'a' * constants.NAME_MAX_LENGTH}.tif"
+    mission_root = discovery_env["archive_root"] / _MISSION_RELATIVE_PATH
+    for directory in ("a", "b"):
+        _write_geotiff(mission_root / "s01" / directory / file_name)
+
+    await _run_discovery(
+        db_session_maker,
+        discovery_env["mission"].id,
+        discovery_env["settings"],
+        admin_user,
+    )
+
+    records = await _get_mission_records(db_session_maker, discovery_env["mission"].id)
+    assert sorted(record.name for record in records) == [
+        "a" * (constants.NAME_MAX_LENGTH - 4) + " (2)",
+        "a" * constants.NAME_MAX_LENGTH,
+    ]
 
 
 @pytest.mark.integration

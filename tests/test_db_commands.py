@@ -1168,3 +1168,135 @@ async def test_replace_derived_record_assets(
             session, identifiers.SurveyRelatedRecordId(second_record.id)
         )
     assert other_derived_id in {a.id for a in other_assets}
+
+
+def _build_record_to_create(
+    template: models.SurveyRelatedRecord, name: str, asset_path: str
+) -> record_schemas.SurveyRelatedRecordCreate:
+    return record_schemas.SurveyRelatedRecordCreate(
+        id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
+        survey_mission_id=identifiers.SurveyMissionId(template.survey_mission_id),
+        name=name,
+        description="",
+        dataset_category_id=identifiers.DatasetCategoryId(template.dataset_category_id),
+        workflow_stage_id=identifiers.WorkflowStageId(template.workflow_stage_id),
+        assets=[
+            record_schemas.DataRecordAssetCreate(
+                id=identifiers.RecordAssetId(uuid.uuid4()),
+                name="data file",
+                relative_path=asset_path,
+            )
+        ],
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_create_survey_related_record_rejects_duplicate_name_in_same_mission(
+    db, db_session_maker, sample_survey_related_records
+):
+    """A survey-related record cannot be created with the same name as another record
+    of the same survey mission.
+    """
+    existing = sample_survey_related_records[0]
+    async with db_session_maker() as session:
+        with pytest.raises(errors.DuplicateResourceError):
+            await record_commands.create_survey_related_record(
+                session,
+                _build_record_to_create(existing, existing.name, "namesake.sgy"),
+            )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_update_survey_related_record_keeps_its_name_but_cannot_take_another(
+    db, db_session_maker, sample_survey_related_records
+):
+    """A survey-related record can be updated while keeping its own name, but cannot
+    be renamed to the name of another record of the same survey mission.
+    """
+    existing = sample_survey_related_records[0]
+    async with db_session_maker() as session:
+        created = await record_commands.create_survey_related_record(
+            session,
+            _build_record_to_create(existing, "Another record", "another.sgy"),
+        )
+        record = await record_queries.get_survey_related_record(
+            session, identifiers.SurveyRelatedRecordId(created.id)
+        )
+        updated = await record_commands.update_survey_related_record(
+            session,
+            record,
+            record_schemas.SurveyRelatedRecordUpdate(
+                name="Another record", description="A new description"
+            ),
+        )
+        assert updated.description == "A new description"
+        with pytest.raises(errors.DuplicateResourceError):
+            await record_commands.update_survey_related_record(
+                session,
+                updated,
+                record_schemas.SurveyRelatedRecordUpdate(name=existing.name),
+            )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_update_survey_mission_keeps_its_name_but_cannot_take_another(
+    db, db_session_maker, sample_survey_missions
+):
+    """A survey mission can be updated while keeping its own name, but cannot be
+    renamed to the name of another survey mission of the same project.
+    """
+    first, second, *_ = [
+        mission
+        for mission in sample_survey_missions
+        if mission.project_id == sample_survey_missions[1].project_id
+    ]
+    async with db_session_maker() as session:
+        mission = await mission_queries.get_survey_mission(
+            session, identifiers.SurveyMissionId(first.id)
+        )
+        updated = await mission_commands.update_survey_mission(
+            session,
+            mission,
+            mission_schemas.SurveyMissionUpdate(
+                name=first.name, description="A new description"
+            ),
+        )
+        assert updated.description == "A new description"
+        with pytest.raises(errors.DuplicateResourceError):
+            await mission_commands.update_survey_mission(
+                session,
+                updated,
+                mission_schemas.SurveyMissionUpdate(name=second.name),
+            )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_update_project_keeps_its_name_but_cannot_take_another(
+    db, db_session_maker, sample_projects
+):
+    """A project can be updated while keeping its own name, but cannot be renamed to
+    the name of another project.
+    """
+    first, second = sample_projects[:2]
+    async with db_session_maker() as session:
+        project = await project_queries.get_project(
+            session, identifiers.ProjectId(first.id)
+        )
+        updated = await project_commands.update_project(
+            session,
+            project,
+            project_schemas.ProjectUpdate(
+                name=first.name, description="A new description"
+            ),
+        )
+        assert updated.description == "A new description"
+        with pytest.raises(errors.DuplicateResourceError):
+            await project_commands.update_project(
+                session,
+                updated,
+                project_schemas.ProjectUpdate(name=second.name),
+            )

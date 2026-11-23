@@ -122,6 +122,20 @@ async def update_project(
     project: models.Project,
     to_update: project_schemas.ProjectUpdate,
 ) -> models.Project:
+    if (
+        "name" in to_update.model_fields_set
+        and (
+            namesake := await project_queries.get_project_by_name(
+                session, to_update.name
+            )
+        )
+        is not None
+        and namesake.id != project.id
+    ):
+        raise errors.DuplicateResourceError(
+            errors.N_("There is already a project named “%(name)s”."),
+            name=to_update.name,
+        )
     for key, value in to_update.model_dump(
         exclude={"bbox_4326"}, exclude_unset=True
     ).items():
