@@ -14,7 +14,9 @@ from seis_lab_data import (
     errors,
 )
 from seis_lab_data.db.commands import recordassets as asset_commands
+from seis_lab_data.db.commands import surveymissions as mission_commands
 from seis_lab_data.db.commands import surveyrelatedrecords as record_commands
+from seis_lab_data.db.queries import surveyrelatedrecords as record_queries
 from seis_lab_data.operations import surveyrelatedrecords as record_ops
 from seis_lab_data.schemas import events as event_schemas
 from seis_lab_data.schemas import identifiers
@@ -252,6 +254,116 @@ async def test_bulk_update_manually_selected_records_via_operation(
     assert result == 1
     assert dispatcher.events[0].succeeded is True
     assert dispatcher.events[0].affected_count == 1
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_bulk_update_invalidates_and_unpublishes_records_missing_required_fields(
+    db,
+    db_session_maker,
+    published_sample_data,
+    admin_user,
+):
+    """A bulk update which removes the dataset category of published survey-related
+    records marks them as invalid, reports the missing dataset category and withdraws
+    them from publication.
+    """
+    _first_record, second_record = published_sample_data["records"]
+    record_id = identifiers.SurveyRelatedRecordId(second_record.id)
+    async with db_session_maker() as session:
+        result = await record_ops.bulk_update_survey_related_records(
+            request_id=RequestId(uuid.uuid4()),
+            to_update=record_schemas.SurveyRelatedRecordBulkUpdate(
+                dataset_category_id=None
+            ),
+            initiator=admin_user,
+            session=session,
+            event_dispatcher=_EventCollector(),
+            selected=[record_id],
+        )
+    async with db_session_maker() as session:
+        record = await record_queries.get_survey_related_record(session, record_id)
+    assert result == 1
+    assert record.validation_result["is_valid"] is False
+    assert [e["name"] for e in record.validation_result["errors"]] == [
+        "dataset_category_id"
+    ]
+    assert record.status == constants.SurveyRelatedRecordStatus.DRAFT
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "mission_status, expected_record_status",
+    [
+        pytest.param(
+            constants.SurveyMissionStatus.PUBLISHED,
+            constants.SurveyRelatedRecordStatus.PUBLISHED,
+            id="published-mission",
+        ),
+        pytest.param(
+            constants.SurveyMissionStatus.DRAFT,
+            constants.SurveyRelatedRecordStatus.DRAFT,
+            id="draft-mission",
+        ),
+    ],
+)
+async def test_bulk_update_validates_records_which_become_complete(
+    db,
+    db_session_maker,
+    sample_survey_related_records,
+    bootstrap_dataset_categories,
+    admin_user,
+    mission_status,
+    expected_record_status,
+):
+    """A bulk update which provides the missing dataset category of invalid draft
+    survey-related records marks them as valid, and publishes them only when their
+    survey mission is published.
+    """
+    _first_record, second_record = sample_survey_related_records
+    record_id = identifiers.SurveyRelatedRecordId(second_record.id)
+    category = next(c for c in bootstrap_dataset_categories if c.name == "bathymetry")
+    async with db_session_maker() as session:
+        await mission_commands.set_survey_mission_status(
+            session,
+            identifiers.SurveyMissionId(second_record.survey_mission_id),
+            mission_status,
+        )
+        await record_commands.bulk_update_manually_selected_records(
+            session,
+            record_schemas.SurveyRelatedRecordBulkUpdate(dataset_category_id=None),
+            [record_id],
+        )
+        await record_commands.update_survey_related_record_validation_result(
+            session,
+            await record_queries.get_survey_related_record(session, record_id),
+            validation_result={
+                "is_valid": False,
+                "errors": [
+                    {
+                        "name": "dataset_category_id",
+                        "message": "Input should be a valid UUID",
+                        "type_": "uuid_type",
+                    }
+                ],
+            },
+        )
+        result = await record_ops.bulk_update_survey_related_records(
+            request_id=RequestId(uuid.uuid4()),
+            to_update=record_schemas.SurveyRelatedRecordBulkUpdate(
+                dataset_category_id=identifiers.DatasetCategoryId(category.id)
+            ),
+            initiator=admin_user,
+            session=session,
+            event_dispatcher=_EventCollector(),
+            selected=[record_id],
+        )
+    async with db_session_maker() as session:
+        record = await record_queries.get_survey_related_record(session, record_id)
+    assert result == 1
+    assert record.validation_result == {"is_valid": True, "errors": None}
+    assert record.status == expected_record_status
 
 
 @pytest.mark.integration

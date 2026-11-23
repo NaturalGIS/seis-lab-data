@@ -15,8 +15,10 @@ from playwright.sync_api import (
 
 
 def _fill_project_form(page: Page, name: str):
-    page.get_by_role("textbox", name="field-name").fill(name)
-    page.get_by_role("textbox", name="field-description").fill("e2e test description")
+    page.get_by_role("textbox", name="field-name", exact=True).fill(name)
+    page.get_by_role("textbox", name="field-description", exact=True).fill(
+        "e2e test description"
+    )
 
 
 @pytest.mark.e2e
@@ -31,47 +33,53 @@ def test_project_lifecycle(authenticated_page: Page):
     project_name_id = uuid.uuid4().hex[:8]
 
     # navigate to the projects page and click the create new project button
-    authenticated_page.get_by_role("link", name="list-projects").click()
-    authenticated_page.get_by_role("link", name="new-project").click()
+    authenticated_page.get_by_role("link", name="list-projects", exact=True).click()
+    authenticated_page.get_by_role("link", name="new-project", exact=True).click()
 
     # hit the cancel button and verify we are brought back to the projects page
-    authenticated_page.get_by_role("link", name="cancel-creation").click()
+    authenticated_page.get_by_role("link", name="cancel-creation", exact=True).click()
 
-    authenticated_page.get_by_role("link", name="new-project").click()
+    authenticated_page.get_by_role("link", name="new-project", exact=True).click()
 
     # fill out the form and submit it — use a unique suffix to avoid collisions across runs
     project_name = f"e2e test project {project_name_id}"
     _fill_project_form(authenticated_page, project_name)
 
-    authenticated_page.get_by_role("button", name="add-another-link").click()
-    authenticated_page.get_by_role("textbox", name="field-link-links-0-url").fill(
-        "http://fakelink.com"
-    )
     authenticated_page.get_by_role(
-        "textbox", name="field-link-links-0-media_type"
+        "button", name="add-another-link", exact=True
+    ).click()
+    authenticated_page.get_by_role(
+        "textbox", name="field-link-links-0-url", exact=True
+    ).fill("http://fakelink.com")
+    authenticated_page.get_by_role(
+        "textbox", name="field-link-links-0-media_type", exact=True
     ).fill("text/html")
-    authenticated_page.get_by_role("textbox", name="field-link-links-0-relation").fill(
-        "fake-relation"
-    )
     authenticated_page.get_by_role(
-        "textbox", name="field-link-links-0-link_description"
+        "textbox", name="field-link-links-0-relation", exact=True
+    ).fill("fake-relation")
+    authenticated_page.get_by_role(
+        "textbox", name="field-link-links-0-link_description", exact=True
     ).fill("some link description")
 
-    authenticated_page.get_by_role("button", name="add-another-link").click()
-    authenticated_page.get_by_role("textbox", name="field-link-links-1-url").fill(
-        "http://fakelink2.com"
-    )
     authenticated_page.get_by_role(
-        "textbox", name="field-link-links-1-media_type"
+        "button", name="add-another-link", exact=True
+    ).click()
+    authenticated_page.get_by_role(
+        "textbox", name="field-link-links-1-url", exact=True
+    ).fill("http://fakelink2.com")
+    authenticated_page.get_by_role(
+        "textbox", name="field-link-links-1-media_type", exact=True
     ).fill("text/html")
-    authenticated_page.get_by_role("textbox", name="field-link-links-1-relation").fill(
-        "fake-relation2"
-    )
     authenticated_page.get_by_role(
-        "textbox", name="field-link-links-1-link_description"
+        "textbox", name="field-link-links-1-relation", exact=True
+    ).fill("fake-relation2")
+    authenticated_page.get_by_role(
+        "textbox", name="field-link-links-1-link_description", exact=True
     ).fill("some description for link 2")
 
-    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    authenticated_page.get_by_role(
+        "button", name="submit-create-form", exact=True
+    ).click()
 
     # expect to be redirected to the project detail page upon successful creation
     expect(authenticated_page).to_have_url(
@@ -84,8 +92,8 @@ def test_project_lifecycle(authenticated_page: Page):
     # `update-item` link is disabled - the status signal is only ever set once, when
     # the detail page is rendered, so clicking `update-item` again right after a real
     # update is racy (see issue tracking the live status/validation signal updates).
-    authenticated_page.get_by_role("link", name="update-item").click()
-    authenticated_page.get_by_role("link", name="cancel-update").click()
+    authenticated_page.get_by_role("link", name="update-item", exact=True).click()
+    authenticated_page.get_by_role("link", name="cancel-update", exact=True).click()
 
     # expect to be redirector the project detail page upon cancelling the modification
     expect(authenticated_page).to_have_url(
@@ -93,11 +101,13 @@ def test_project_lifecycle(authenticated_page: Page):
     )
 
     # now actually modify the project
-    authenticated_page.get_by_role("link", name="update-item").click()
-    authenticated_page.get_by_role("textbox", name="field-name").fill(
+    authenticated_page.get_by_role("link", name="update-item", exact=True).click()
+    authenticated_page.get_by_role("textbox", name="field-name", exact=True).fill(
         f"The modified name {project_name_id}"
     )
-    authenticated_page.get_by_role("button", name="submit-update-form").click()
+    authenticated_page.get_by_role(
+        "button", name="submit-update-form", exact=True
+    ).click()
 
     # expect to be redirector the project detail page upon successful modification
     expect(authenticated_page).to_have_url(
@@ -106,14 +116,16 @@ def test_project_lifecycle(authenticated_page: Page):
 
     # clean up by deleting the newly-created project
     authenticated_page.get_by_role(
-        "button", name="show-delete-confirmation-modal"
+        "button", name="show-delete-confirmation-modal", exact=True
     ).click()
     # the confirmation dialog names the item about to be deleted
     expect(authenticated_page.get_by_role("dialog")).to_contain_text(
         f"“The modified name {project_name_id}”"
     )
-    authenticated_page.get_by_role("button", name="delete-item").click()
-    expect(authenticated_page.get_by_role("link", name="new-project")).to_be_visible()
+    authenticated_page.get_by_role("button", name="delete-item", exact=True).click()
+    expect(
+        authenticated_page.get_by_role("link", name="new-project", exact=True)
+    ).to_be_visible()
 
 
 @pytest.mark.e2e
@@ -122,13 +134,15 @@ def test_project_creation_rejects_duplicate_name(authenticated_page: Page):
     shows an error next to the name field.
     """
     authenticated_page.goto("/")
-    authenticated_page.get_by_role("link", name="list-projects").click()
+    authenticated_page.get_by_role("link", name="list-projects", exact=True).click()
 
     # create an initial project
     project_name = f"e2e duplicate test {uuid.uuid4().hex[:8]}"
-    authenticated_page.get_by_role("link", name="new-project").click()
+    authenticated_page.get_by_role("link", name="new-project", exact=True).click()
     _fill_project_form(authenticated_page, project_name)
-    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    authenticated_page.get_by_role(
+        "button", name="submit-create-form", exact=True
+    ).click()
     expect(authenticated_page).to_have_url(
         re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=10_000
     )
@@ -137,10 +151,12 @@ def test_project_creation_rejects_duplicate_name(authenticated_page: Page):
     detail_url = authenticated_page.url
 
     # navigate to the create form and submit with the same name
-    authenticated_page.get_by_role("link", name="list-projects").click()
-    authenticated_page.get_by_role("link", name="new-project").click()
+    authenticated_page.get_by_role("link", name="list-projects", exact=True).click()
+    authenticated_page.get_by_role("link", name="new-project", exact=True).click()
     _fill_project_form(authenticated_page, project_name)
-    authenticated_page.get_by_role("button", name="submit-create-form").click()
+    authenticated_page.get_by_role(
+        "button", name="submit-create-form", exact=True
+    ).click()
 
     # the form should re-render in place with an inline error on the name field
     expect(
@@ -150,10 +166,12 @@ def test_project_creation_rejects_duplicate_name(authenticated_page: Page):
     # clean up by navigating to the detail page and deleting the project
     authenticated_page.goto(detail_url)
     authenticated_page.get_by_role(
-        "button", name="show-delete-confirmation-modal"
+        "button", name="show-delete-confirmation-modal", exact=True
     ).click()
-    authenticated_page.get_by_role("button", name="delete-item").click()
-    expect(authenticated_page.get_by_role("link", name="new-project")).to_be_visible()
+    authenticated_page.get_by_role("button", name="delete-item", exact=True).click()
+    expect(
+        authenticated_page.get_by_role("link", name="new-project", exact=True)
+    ).to_be_visible()
 
 
 @pytest.mark.e2e
@@ -168,7 +186,9 @@ def test_deleting_listed_item_keeps_current_page(authenticated_page: Page):
     for index in range(22):
         authenticated_page.goto("/projects/new")
         _fill_project_form(authenticated_page, f"e2e paging {tag} {index:02d}")
-        authenticated_page.get_by_role("button", name="submit-create-form").click()
+        authenticated_page.get_by_role(
+            "button", name="submit-create-form", exact=True
+        ).click()
         expect(authenticated_page).to_have_url(
             re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=10_000
         )
@@ -181,9 +201,9 @@ def test_deleting_listed_item_keeps_current_page(authenticated_page: Page):
     def delete_project(detail_url: str) -> None:
         deletion_page.goto(detail_url)
         deletion_page.get_by_role(
-            "button", name="show-delete-confirmation-modal"
+            "button", name="show-delete-confirmation-modal", exact=True
         ).click()
-        deletion_page.get_by_role("button", name="delete-item").click()
+        deletion_page.get_by_role("button", name="delete-item", exact=True).click()
         expect(deletion_page).to_have_url(re.compile(r"/projects/?$"), timeout=10_000)
 
     authenticated_page.goto(f"/projects/?search=e2e+paging+{tag}&page=2")

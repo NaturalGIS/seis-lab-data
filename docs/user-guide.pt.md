@@ -472,8 +472,8 @@ dos seguintes grupos de campos só é aplicado quando a respetiva caixa de sele�
 - **atualizar extensão temporal**
 - **atualizar registos relacionados**, que substitui as relações existentes dos registos
 
-Os registos num estado transitório não são atualizados. Uma atualização em massa não valida os
-registos nem altera o seu estado.
+Os registos num estado transitório não são atualizados. Os registos atualizados são depois
+validados e o seu estado é definido, tal como após a atualização de um único registo.
 
 ### Eliminar um registo
 
