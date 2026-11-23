@@ -13,12 +13,16 @@ from sqlalchemy import (
     column,
     delete,
     func,
+    literal,
     select,
     true,
     update,
     values,
 )
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import (
+    ARRAY,
+    JSONB,
+)
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -177,7 +181,11 @@ async def _apply_bulk_update_to_matched_records(
     session: AsyncSession,
     to_update: record_schemas.SurveyRelatedRecordBulkUpdate,
     matched_ids: list[uuid.UUID],
-) -> int:
+) -> list[identifiers.SurveyRelatedRecordId]:
+    """Apply a bulk update to the matched records which no task is working on.
+
+    Returns the ids of the updated records.
+    """
     # records in any other status are being worked on by a task, e.g. an export,
     # as are the records of a mission under discovery
     matched_ids = (
@@ -202,7 +210,7 @@ async def _apply_bulk_update_to_matched_records(
         .all()
     )
     if not matched_ids:
-        return 0
+        return []
 
     values_to_set = to_update.model_dump(
         exclude={"bbox_4326", "related_records"}, exclude_unset=True
@@ -217,21 +225,18 @@ async def _apply_bulk_update_to_matched_records(
         )
 
     if values_to_set:
-        result = await session.exec(
+        await session.exec(
             update(models.SurveyRelatedRecord)
             .where(models.SurveyRelatedRecord.id.in_(matched_ids))
             .values(**values_to_set)
         )
-        updated_count = result.rowcount
-    else:
-        updated_count = len(matched_ids)
 
     if "related_records" in to_update.model_fields_set:
         await _replace_related_records_for_subjects(
             session, matched_ids, to_update.related_records
         )
 
-    return updated_count
+    return [identifiers.SurveyRelatedRecordId(id_) for id_ in matched_ids]
 
 
 async def bulk_update_manually_selected_records(
@@ -239,20 +244,24 @@ async def bulk_update_manually_selected_records(
     to_update: record_schemas.SurveyRelatedRecordBulkUpdate,
     selected: list[identifiers.SurveyRelatedRecordId],
     survey_mission_id: identifiers.SurveyMissionId | None = None,
-) -> int:
+) -> list[identifiers.SurveyRelatedRecordId]:
+    """Bulk-update the selected records.
+
+    Returns the ids of the updated records.
+    """
     ids_statement = record_queries.build_survey_related_record_id_statement(
         survey_mission_id=survey_mission_id, record_ids=selected
     )
     matched_ids = (await session.exec(ids_statement)).all()
     try:
-        updated_count = await _apply_bulk_update_to_matched_records(
+        updated_ids = await _apply_bulk_update_to_matched_records(
             session, to_update, matched_ids
         )
         await session.commit()
     except Exception:
         await session.rollback()
         raise
-    return updated_count
+    return updated_ids
 
 
 async def bulk_update_filtered_records(
@@ -268,7 +277,11 @@ async def bulk_update_filtered_records(
     dataset_category_id: identifiers.DatasetCategoryId | None = None,
     workflow_stage_id: identifiers.WorkflowStageId | None = None,
     status: SurveyRelatedRecordStatus | None = None,
-) -> int:
+) -> list[identifiers.SurveyRelatedRecordId]:
+    """Bulk-update the records matching the filters, except the excluded ones.
+
+    Returns the ids of the updated records.
+    """
     filter_kwargs = {
         "survey_mission_id": survey_mission_id,
         "name_filter": name_filter,
@@ -286,14 +299,14 @@ async def bulk_update_filtered_records(
     )
     matched_ids = (await session.exec(ids_statement)).all()
     try:
-        updated_count = await _apply_bulk_update_to_matched_records(
+        updated_ids = await _apply_bulk_update_to_matched_records(
             session, to_update, matched_ids
         )
         await session.commit()
     except Exception:
         await session.rollback()
         raise
-    return updated_count
+    return updated_ids
 
 
 async def update_survey_related_record(
@@ -568,6 +581,65 @@ async def end_survey_related_record_task(
     )
     await session.commit()
     return result.scalar_one_or_none()
+
+
+async def write_survey_related_record_validation_results(
+    session: AsyncSession,
+    validation_results: dict[identifiers.SurveyRelatedRecordId, dict],
+) -> None:
+    """Store the validation results of survey-related records and set their status.
+
+    Each validation result is a mapping with `is_valid` and `errors`. A valid record
+    becomes `PUBLISHED` if its survey mission is published, any other record becomes
+    `DRAFT`. Records with a status other than `DRAFT` or `PUBLISHED` are left
+    unchanged, as a task is working on them.
+    """
+    if not validation_results:
+        return
+    record = models.SurveyRelatedRecord
+    mission = models.SurveyMission
+    results = values(
+        column("id", PG_UUID(as_uuid=True)),
+        column("validation_result", JSONB),
+        column("is_valid", Boolean),
+        name="validation_results",
+    ).data(
+        [
+            (record_id, validation_result, validation_result["is_valid"])
+            for record_id, validation_result in validation_results.items()
+        ]
+    )
+    await session.exec(
+        update(record)
+        .where(record.id == results.c.id)
+        .where(record.survey_mission_id == mission.id)
+        .where(record.status.in_(SURVEY_RELATED_RECORD_IDLE_STATUSES))
+        .values(
+            validation_result=results.c.validation_result,
+            # PostgreSQL types a CASE whose results are all parameters as text
+            status=cast(
+                case(
+                    (
+                        and_(
+                            results.c.is_valid,
+                            mission.status == SurveyMissionStatus.PUBLISHED,
+                        ),
+                        # the column's enum type stores the enum names
+                        literal(
+                            SurveyRelatedRecordStatus.PUBLISHED,
+                            type_=record.status.type,
+                        ),
+                    ),
+                    else_=literal(
+                        SurveyRelatedRecordStatus.DRAFT, type_=record.status.type
+                    ),
+                ),
+                record.status.type,
+            ),
+        )
+        .execution_options(synchronize_session=False)
+    )
+    await session.commit()
 
 
 async def bulk_publish_valid_survey_related_records(

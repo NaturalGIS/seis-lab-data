@@ -13,7 +13,6 @@ import re
 import time
 import uuid
 
-import pydantic
 import shapely
 from anyio import (
     Path,
@@ -48,7 +47,6 @@ from ..schemas import events as event_schemas
 from ..schemas import identifiers
 from ..schemas import surveyrelatedrecords as record_schemas
 from ..schemas import user as user_schemas
-from ..schemas import validation as validation_schemas
 from ..tasks import previews as preview_tasks
 from ..tasks.extractors import common as extractor_common
 from ..tasks.extractors import dispatch as extractor_dispatch
@@ -1161,7 +1159,7 @@ def _build_discovered_record_rows(
         "discovery_info": to_create.discovery_info,
         "created_at": models.now_(),
     }
-    record_row["validation_result"] = _validate_record_fields(
+    record_row["validation_result"] = record_ops.validate_survey_related_record_fields(
         record_row
         | {
             "bbox_4326": (
@@ -1200,7 +1198,7 @@ def _build_extent_update(discovered: _DiscoveredFile, current_fields: dict) -> d
     extracted_fields = _extracted_record_fields(
         discovered.metadata, discovered.bbox_wkt
     )
-    validation_result = _validate_record_fields(
+    validation_result = record_ops.validate_survey_related_record_fields(
         current_fields
         | extracted_fields
         | {
@@ -1218,30 +1216,6 @@ def _build_extent_update(discovered: _DiscoveredFile, current_fields: dict) -> d
         "validation_result": validation_result,
         "is_valid": validation_result["is_valid"],
     }
-
-
-def _validate_record_fields(record_fields: dict) -> dict:
-    """Validate survey-related record fields with `ValidSurveyRelatedRecord`.
-
-    Returns a mapping with `is_valid` and `errors`, the latter None when valid and
-    otherwise a list of mappings with the `name`, `message` and `type_` of each
-    error.
-    """
-    try:
-        validation_schemas.ValidSurveyRelatedRecord.model_validate(record_fields)
-    except pydantic.ValidationError as err:
-        return {
-            "is_valid": False,
-            "errors": [
-                {
-                    "name": ".".join(str(i) for i in error["loc"]),
-                    "message": error["msg"],
-                    "type_": error["type"],
-                }
-                for error in err.errors()
-            ],
-        }
-    return {"is_valid": True, "errors": None}
 
 
 async def cancel_mission_discovery(

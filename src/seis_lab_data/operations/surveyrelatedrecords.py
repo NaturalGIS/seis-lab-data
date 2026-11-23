@@ -1,3 +1,4 @@
+import itertools
 import logging
 
 import pydantic
@@ -193,6 +194,30 @@ async def change_survey_related_record_status(
         )
     )
     return updated_survey_related_record
+
+
+def validate_survey_related_record_fields(record_fields: dict) -> dict:
+    """Validate survey-related record fields with `ValidSurveyRelatedRecord`.
+
+    Returns a mapping with `is_valid` and `errors`, the latter None when valid and
+    otherwise a list of mappings with the `name`, `message` and `type_` of each
+    error.
+    """
+    try:
+        validation_schemas.ValidSurveyRelatedRecord.model_validate(record_fields)
+    except pydantic.ValidationError as err:
+        return {
+            "is_valid": False,
+            "errors": [
+                {
+                    "name": ".".join(str(i) for i in error["loc"]),
+                    "message": error["msg"],
+                    "type_": error["type"],
+                }
+                for error in err.errors()
+            ],
+        }
+    return {"is_valid": True, "errors": None}
 
 
 async def validate_survey_related_record(
@@ -635,6 +660,10 @@ async def bulk_update_survey_related_records(
 
     `survey_mission_id` is an optional additional scope - omit it to bulk-update
     across all missions a user may access.
+
+    The updated records are then validated, as a single update does: a valid record
+    is published if its survey mission is published, any other record is set to
+    `DRAFT`.
     """
     try:
         if not record_permissions.can_bulk_update_survey_related_records(initiator):
@@ -642,14 +671,14 @@ async def bulk_update_survey_related_records(
                 errors.N_("User is not allowed to bulk-update survey-related records.")
             )
         if selected is not None:
-            updated_count = await record_commands.bulk_update_manually_selected_records(
+            updated_ids = await record_commands.bulk_update_manually_selected_records(
                 session,
                 to_update,
                 selected,
                 survey_mission_id=survey_mission_id,
             )
         else:
-            updated_count = await record_commands.bulk_update_filtered_records(
+            updated_ids = await record_commands.bulk_update_filtered_records(
                 session,
                 to_update,
                 excluded_record_ids=excluded_record_ids,
@@ -662,6 +691,19 @@ async def bulk_update_survey_related_records(
                 dataset_category_id=dataset_category_id,
                 workflow_stage_id=workflow_stage_id,
                 status=status,
+            )
+        for batch_ids in itertools.batched(updated_ids, 1000):
+            batch_fields = (
+                await record_queries.collect_survey_related_record_validation_fields(
+                    session, batch_ids
+                )
+            )
+            await record_commands.write_survey_related_record_validation_results(
+                session,
+                {
+                    record_id: validate_survey_related_record_fields(fields)
+                    for record_id, fields in batch_fields.items()
+                },
             )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
@@ -685,7 +727,7 @@ async def bulk_update_survey_related_records(
             resource_type=constants.ResourceType.RECORD,
             modification=constants.BulkResourceModification.UPDATED,
             succeeded=True,
-            affected_count=updated_count,
+            affected_count=len(updated_ids),
         )
     )
-    return updated_count
+    return len(updated_ids)

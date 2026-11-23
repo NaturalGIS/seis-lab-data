@@ -400,7 +400,7 @@ async def collect_survey_related_record_validation_fields(
     session: AsyncSession,
     survey_related_record_ids: Collection[identifiers.SurveyRelatedRecordId],
 ) -> dict[identifiers.SurveyRelatedRecordId, dict]:
-    """Collect the non-spatial validation fields of survey-related records.
+    """Collect the validation fields of survey-related records.
 
     Returns a mapping of record id to fields, keyed by the field names of
     `ValidSurveyRelatedRecord`. Ids without a record are omitted.
@@ -416,6 +416,7 @@ async def collect_survey_related_record_validation_fields(
         record.links,
         record.temporal_extent_begin,
         record.temporal_extent_end,
+        record.bbox_4326,
     ).where(record.id.in_(survey_related_record_ids))
     return {
         identifiers.SurveyRelatedRecordId(row.id): row._asdict()

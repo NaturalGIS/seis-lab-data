@@ -427,12 +427,12 @@ async def test_bulk_update_filtered_records(
         workflow_stage_id=identifiers.WorkflowStageId(new_stage.id)
     )
     async with db_session_maker() as session:
-        updated_count = await record_commands.bulk_update_filtered_records(
+        updated_ids = await record_commands.bulk_update_filtered_records(
             session,
             to_update,
             name_filter="First",
         )
-        assert updated_count == 1
+        assert len(updated_ids) == 1
         updated_first = await record_queries.get_survey_related_record(
             session, identifiers.SurveyRelatedRecordId(first_record.id)
         )
@@ -463,12 +463,12 @@ async def test_bulk_update_filtered_records_excludes_records(
         workflow_stage_id=identifiers.WorkflowStageId(new_stage.id)
     )
     async with db_session_maker() as session:
-        updated_count = await record_commands.bulk_update_filtered_records(
+        updated_ids = await record_commands.bulk_update_filtered_records(
             session,
             to_update,
             excluded_record_ids=[identifiers.SurveyRelatedRecordId(first_record.id)],
         )
-        assert updated_count == 1
+        assert len(updated_ids) == 1
         untouched_first = await record_queries.get_survey_related_record(
             session, identifiers.SurveyRelatedRecordId(first_record.id)
         )
@@ -495,12 +495,12 @@ async def test_bulk_update_manually_selected_records(
         description="Bulk-updated description"
     )
     async with db_session_maker() as session:
-        updated_count = await record_commands.bulk_update_manually_selected_records(
+        updated_ids = await record_commands.bulk_update_manually_selected_records(
             session,
             to_update,
             [identifiers.SurveyRelatedRecordId(second_record.id)],
         )
-        assert updated_count == 1
+        assert len(updated_ids) == 1
         updated_second = await record_queries.get_survey_related_record(
             session, identifiers.SurveyRelatedRecordId(second_record.id)
         )
@@ -557,6 +557,42 @@ async def test_bulk_update_manually_selected_records_replaces_related_records(
             session, identifiers.SurveyRelatedRecordId(second_record.id)
         )
         assert len(related_to) == 0
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_write_survey_related_record_validation_results_skips_busy_records(
+    db,
+    db_session_maker,
+    sample_survey_related_records,
+):
+    """Storing validation results leaves unchanged the validation result and the status
+    of a survey-related record whose previews are being generated.
+    """
+    first_record, _ = sample_survey_related_records
+    record_id = identifiers.SurveyRelatedRecordId(first_record.id)
+    async with db_session_maker() as session:
+        original_validation_result = (
+            await record_queries.get_survey_related_record(session, record_id)
+        ).validation_result
+        await record_commands.set_survey_related_record_status(
+            session, record_id, constants.SurveyRelatedRecordStatus.UNDER_DERIVATION
+        )
+        await record_commands.write_survey_related_record_validation_results(
+            session,
+            {
+                record_id: {
+                    "is_valid": False,
+                    "errors": [
+                        {"name": "name", "message": "invalid", "type_": "invalid"}
+                    ],
+                }
+            },
+        )
+    async with db_session_maker() as session:
+        record = await record_queries.get_survey_related_record(session, record_id)
+    assert record.status == constants.SurveyRelatedRecordStatus.UNDER_DERIVATION
+    assert record.validation_result == original_validation_result
 
 
 @pytest.mark.integration

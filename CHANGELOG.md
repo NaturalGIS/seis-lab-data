@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+### Fixed
+
+- Records created during discovery not checking for duplicate names
+- Bulk-updated records not being validated, nor published or unpublished accordingly
+
+
 ## [1.0.0-rc2] - 2026-11-19
 
 ### Added

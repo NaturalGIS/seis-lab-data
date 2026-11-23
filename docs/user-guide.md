@@ -442,8 +442,8 @@ fields is applied only when its checkbox is selected:
 - **update temporal extent**
 - **update related records**, which replaces the existing relationships of the records
 
-Records in a transitory state are not updated. A bulk update does not validate the records nor
-change their status.
+Records in a transitory state are not updated. The updated records are then validated and their
+status is set, as after the update of a single record.
 
 ### Delete a survey-related record
 
