@@ -194,7 +194,7 @@ Estão disponíveis os seguintes filtros:
 | search projects | Projetos cujo nome contém o texto indicado, sem distinção entre maiúsculas e minúsculas. |
 | estado | Projetos no estado selecionado, como rascunho, público ou em validação. Disponível para utilizadores autenticados. |
 | Data de início, Data de fim | Projetos cuja extensão temporal se sobrepõe às datas indicadas. Uma extensão temporal sem início ou sem fim é considerada aberta desse lado, e os projetos sem extensão temporal também são incluídos. |
-| filtrar pela área do mapa | Quando ativo, projetos cuja extensão espacial interseta a área visível do mapa. Os projetos sem extensão espacial também são incluídos. Os resultados são atualizados quando o mapa é deslocado. |
+| filtrar pela área do mapa | Quando ativo, projetos cuja extensão espacial interseta a área visível do mapa. Os projetos sem extensão espacial não são incluídos. Os resultados são atualizados quando o mapa é deslocado. |
 
 Os filtros de estado, temporais e do mapa são apresentados com o botão
 **toggle advanced search controls**. Os filtros são mantidos no endereço da página, pelo que se

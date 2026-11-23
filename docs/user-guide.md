@@ -176,7 +176,7 @@ The following filters are available:
 | search projects | Projects whose name contains the given text, ignoring case. |
 | status | Projects in the selected status, such as draft, published or under validation. Available to authenticated users. |
 | Temporal extent begin, end | Projects whose temporal extent overlaps the given dates. A temporal extent without a begin or an end is taken as open on that side, and projects without a temporal extent are also included. |
-| filter by map area | When switched on, projects whose spatial extent intersects the visible area of the map. Projects without a spatial extent are also included. The results are updated when the map is moved. |
+| filter by map area | When switched on, projects whose spatial extent intersects the visible area of the map. Projects without a spatial extent are not included. The results are updated when the map is moved. |
 
 The status, temporal and map filters are shown with the **toggle advanced search controls** button.
 The filters are kept in the page's address, so reloading or sharing it keeps them. Selecting a project's extent on the map opens the project's detail page.

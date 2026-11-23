@@ -33,12 +33,9 @@ def _build_survey_mission_statement(
         statement = statement.where(models.SurveyMission.name.ilike(f"%{name_filter}%"))
     if spatial_intersect is not None:
         statement = statement.where(
-            or_(
-                func.ST_Intersects(
-                    models.SurveyMission.bbox_4326,
-                    func.ST_GeomFromText(spatial_intersect.wkt, 4326),
-                ),
-                models.SurveyMission.bbox_4326.is_(None),
+            func.ST_Intersects(
+                models.SurveyMission.bbox_4326,
+                func.ST_GeomFromText(spatial_intersect.wkt, 4326),
             )
         )
     if project_id is not None:
