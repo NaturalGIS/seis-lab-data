@@ -1,8 +1,8 @@
 """Managing survey-related records in the browser
 
 An editor creates, modifies and deletes survey-related records within a survey mission,
-selects several records in the listing to update them together, and switches between
-listing layouts.
+selects several records in the listing to update them together or to download the list
+of their download links, and switches between listing layouts.
 """
 
 import re
@@ -39,6 +39,23 @@ def _fill_bounding_box(page: Page):
         ("max_lat", "39"),
     ):
         page.locator(f"[aria-label='field-bounding_box-{name}']").fill(value)
+
+
+def _wait_for_thumbnail_and_reload(page: Page):
+    """Wait until the thumbnail of the project or survey mission shown in the page
+    exists, then reload the page.
+
+    The thumbnail of a resource with a bounding box is generated in the background, and
+    storing it reloads the resource's page at an arbitrary moment, which would cancel a
+    navigation started meanwhile.
+    """
+    for _ in range(60):
+        if page.request.get(f"{page.url}/thumbnail").ok:
+            break
+        page.wait_for_timeout(500)
+    else:
+        raise AssertionError(f"The thumbnail of {page.url} was not generated")
+    page.reload()
 
 
 @pytest.mark.e2e
@@ -758,6 +775,7 @@ def test_published_survey_related_record_can_be_edited_and_deleted(
     expect(authenticated_page).to_have_url(
         re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=10_000
     )
+    _wait_for_thumbnail_and_reload(authenticated_page)
 
     authenticated_page.get_by_role("link", name="new-item", exact=True).click()
     authenticated_page.get_by_role("textbox", name="field-name", exact=True).fill(
@@ -776,6 +794,7 @@ def test_published_survey_related_record_can_be_edited_and_deleted(
     expect(authenticated_page).to_have_url(
         re.compile(r"/survey-missions/[0-9a-f-]{36}$"), timeout=10_000
     )
+    _wait_for_thumbnail_and_reload(authenticated_page)
 
     record_name_id = uuid.uuid4().hex[:8]
     authenticated_page.get_by_role("link", name="new-item", exact=True).click()
@@ -823,6 +842,140 @@ def test_published_survey_related_record_can_be_edited_and_deleted(
     expect(authenticated_page).to_have_url(
         re.compile(r"/survey-missions/[0-9a-f-]{36}$"), timeout=15_000
     )
+
+    authenticated_page.get_by_role(
+        "button", name="show-delete-confirmation-modal", exact=True
+    ).click()
+    authenticated_page.get_by_role("button", name="delete-item", exact=True).click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=15_000
+    )
+
+    authenticated_page.get_by_role(
+        "button", name="show-delete-confirmation-modal", exact=True
+    ).click()
+    authenticated_page.get_by_role("button", name="delete-item", exact=True).click()
+    expect(authenticated_page).to_have_url(re.compile(r"/projects/?$"), timeout=15_000)
+
+
+@pytest.mark.e2e
+def test_download_links_of_records_selected_in_the_main_listing(
+    authenticated_page: Page,
+):
+    """In the main list of survey-related records, a user selects two published records
+    and downloads the list of their download links, which contains one link for the data
+    file of each record, with the file's path in the archive as its destination, even
+    when the paths of the survey mission and of the files were entered with a leading
+    slash.
+    """
+    # the main listing is opened afresh with the search already applied, since the
+    # selection used to go missing from the download links after the page first loads
+    token = uuid.uuid4().hex[:8]
+    authenticated_page.goto("/")
+    authenticated_page.get_by_role("link", name="list-projects", exact=True).click()
+    authenticated_page.get_by_role("link", name="new-project", exact=True).click()
+    _fill_project_form_minimal(authenticated_page, f"e2e test project {token}")
+    _fill_bounding_box(authenticated_page)
+    authenticated_page.get_by_role(
+        "button", name="submit-create-form", exact=True
+    ).click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=10_000
+    )
+    _wait_for_thumbnail_and_reload(authenticated_page)
+
+    authenticated_page.get_by_role("link", name="new-item", exact=True).click()
+    _fill_survey_mission_form_minimal(
+        authenticated_page, f"e2e test survey mission {token}"
+    )
+    authenticated_page.get_by_role(
+        "textbox", name="field-relative_path", exact=True
+    ).fill("/somewhere/survey/mission")
+    _fill_bounding_box(authenticated_page)
+    authenticated_page.get_by_role(
+        "button", name="submit-create-form", exact=True
+    ).click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/survey-missions/[0-9a-f-]{36}$"), timeout=10_000
+    )
+    _wait_for_thumbnail_and_reload(authenticated_page)
+    mission_detail_url = authenticated_page.url
+
+    record_urls = []
+    for i in range(2):
+        authenticated_page.get_by_role("link", name="new-item", exact=True).click()
+        _fill_survey_related_record_form(
+            authenticated_page, f"e2e download links record {i} {token}"
+        )
+        _fill_bounding_box(authenticated_page)
+        authenticated_page.get_by_role(
+            "button", name="add-another-asset", exact=True
+        ).click()
+        authenticated_page.get_by_role(
+            "textbox", name="field-asset-assets-0-name", exact=True
+        ).fill(f"e2e data file {i}")
+        authenticated_page.get_by_role(
+            "textbox", name="field-asset-assets-0-relative_path", exact=True
+        ).fill(f"/{token}/file-{i}.tif")
+        authenticated_page.get_by_role(
+            "button", name="submit-create-form", exact=True
+        ).click()
+        expect(authenticated_page).to_have_url(
+            re.compile(r"/survey-related-records/[0-9a-f-]{36}$"), timeout=10_000
+        )
+        # the record is published in the background, and only published records are
+        # included in the download links
+        expect(
+            authenticated_page.locator("[aria-label='info-section']")
+        ).to_be_visible()
+        expect(authenticated_page.locator("[aria-label='status']")).to_have_count(
+            0, timeout=15_000
+        )
+        record_urls.append(authenticated_page.url)
+        authenticated_page.goto(mission_detail_url)
+
+    authenticated_page.goto(f"/survey-related-records/?search={token}")
+    checkboxes = authenticated_page.get_by_role(
+        "checkbox", name="select-item", exact=True
+    )
+    expect(checkboxes).to_have_count(2)
+    checkboxes.nth(0).check()
+    checkboxes.nth(1).check()
+    expect(authenticated_page.locator("[aria-label='selected-count']")).to_contain_text(
+        "2 selected"
+    )
+    with authenticated_page.expect_download() as download_info:
+        authenticated_page.get_by_role(
+            "link", name="download-links", exact=True
+        ).click()
+    with open(download_info.value.path(), encoding="utf-8") as download_file:
+        lines = [
+            line
+            for line in download_file.read().splitlines()
+            if not line.startswith("#")
+        ]
+    urls, outputs = lines[::2], lines[1::2]
+    assert len(urls) == 2
+    assert all(
+        re.search(
+            r"/survey-related-records/[0-9a-f-]{36}/assets/[0-9a-f-]{36}/download$", url
+        )
+        for url in urls
+    )
+    assert sorted(outputs) == [
+        f"  out=somewhere/survey/mission/{token}/file-{i}.tif" for i in range(2)
+    ]
+
+    # clean up: delete both records, then mission, then project
+    for record_url in record_urls:
+        authenticated_page.goto(record_url)
+        authenticated_page.get_by_role(
+            "button", name="show-delete-confirmation-modal", exact=True
+        ).click()
+        authenticated_page.get_by_role("button", name="delete-item", exact=True).click()
+        expect(
+            authenticated_page.get_by_role("link", name="new-item", exact=True)
+        ).to_be_visible()
 
     authenticated_page.get_by_role(
         "button", name="show-delete-confirmation-modal", exact=True

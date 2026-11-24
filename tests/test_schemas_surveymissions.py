@@ -1,8 +1,8 @@
-"""Coordinate reference system of survey missions
+"""Coordinate reference system and directory of survey missions
 
 A survey mission declares, as an EPSG code, the coordinate reference system assumed for
 its files whose format cannot state one. Only codes of usable reference systems are
-accepted.
+accepted. Its directory is stored as a path relative to the file archive.
 """
 
 import uuid
@@ -61,3 +61,22 @@ def test_survey_mission_create_rejects_unusable_epsg_code(implicit_crs):
         )
     # the form maps errors back to its fields by this location
     assert [error["loc"] for error in exc_info.value.errors()] == [("implicit_crs",)]
+
+
+def test_survey_mission_relative_path_is_stripped():
+    """Spaces around the directory path of a survey mission, as well as a leading slash,
+    are removed, both when the survey mission is created and when it is edited.
+    """
+    # a leading slash made the path absolute, which left out the archive directory when
+    # downloading the files of the survey mission's records
+    pasted_path = "  /surveys/a-survey-mission  "
+    created = mission_schemas.SurveyMissionCreate(
+        id=identifiers.SurveyMissionId(uuid.uuid4()),
+        project_id=identifiers.ProjectId(uuid.uuid4()),
+        name="A survey mission",
+        description="A survey mission",
+        relative_path=pasted_path,
+    )
+    updated = mission_schemas.SurveyMissionUpdate(relative_path=pasted_path)
+    for mission in (created, updated):
+        assert mission.relative_path == "surveys/a-survey-mission"

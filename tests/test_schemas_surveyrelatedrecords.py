@@ -120,12 +120,14 @@ def test_record_asset_update_keeps_explicit_media_type():
 
 
 def test_record_asset_relative_path_is_stripped():
-    """Spaces around the file path of an asset are removed, both when the asset is
-    created and when it is edited, before its media type is derived from the file
-    extension.
+    """Spaces around the file path of an asset, as well as a leading slash, are removed,
+    both when the asset is created and when it is edited, before its media type is
+    derived from the file extension.
     """
-    # a pasted path with a trailing space broke preview eligibility and extraction
-    pasted_path = "  s01/x.tif  "
+    # a pasted path with a trailing space broke preview eligibility and extraction, and a
+    # leading slash made the path absolute, which left out the archive and mission
+    # directories when downloading the file
+    pasted_path = "  /s01/x.tif  "
     created = record_schemas.DataRecordAssetCreate(
         id=identifiers.RecordAssetId(uuid.uuid4()),
         name="An asset",

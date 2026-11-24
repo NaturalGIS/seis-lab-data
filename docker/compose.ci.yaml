@@ -182,11 +182,18 @@ services:
       - "--queue"
       - "default"
       - "--queue"
+      - "previews"
+      - "--queue"
+      - "thumbnails"
+      - "--queue"
       - "exports"
       - "--queue"
       - "discovery"
     environment:
       <<: *common-env
+      SEIS_LAB_DATA__THUMBNAIL_BASE_TILE_LAYER_URL: http://martin-tile-server:3000/small-emodnet-bathymetry-l2/{z}/{x}/{y}
+      # the base map of the tests only has tiles up to this zoom level
+      SEIS_LAB_DATA__WEBMAP_BASE_TILE_LAYER_MAX_ZOOM: 1
     volumes:
       *common-volumes
 

@@ -162,8 +162,12 @@ PossiblyInvalidPolygon = Annotated[
 
 EpsgCode = Annotated[int, pydantic.AfterValidator(parse_epsg_code)]
 
-# pasted paths carry stray whitespace at the ends, which breaks matching and file access
-ArchivePath = Annotated[str, pydantic.AfterValidator(str.strip)]
+# pasted paths carry stray whitespace at the ends, which breaks matching and file access.
+# A leading slash is removed too: archive paths are relative, and joining an absolute
+# path onto the archive root discards the root along with any preceding path
+ArchivePath = Annotated[
+    str, pydantic.AfterValidator(lambda path: path.strip().lstrip("/"))
+]
 
 # suitable for outputting values from the API
 # parses a WKBElement into a shapely Polygon, serializes to a min_lon, min_lat, max_lon, max_lat tuple
