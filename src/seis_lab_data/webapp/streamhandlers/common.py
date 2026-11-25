@@ -13,14 +13,18 @@ from starlette_babel.translator import gettext
 
 from ... import (
     constants,
+    errors,
     subscribers,
 )
 from ...db.queries import projects as project_queries
 from ...db.queries import surveymissions as mission_queries
+from ...operations import projects as project_ops
 from ...operations import surveymissions as mission_ops
 from ...operations import surveyrelatedrecords as record_ops
 from ...schemas import identifiers
 from ...schemas import messages as message_schemas
+from ...schemas import projects as project_schemas
+from ...schemas import surveymissions as mission_schemas
 from ...schemas import webui as webui_schemas
 
 logger = logging.getLogger(__name__)
@@ -303,6 +307,68 @@ async def handle_derivation_list_page(
     if message.stage == constants.DerivationStage.ENDED and message.succeeded:
         signals["derivedRecordId"] = message.resource_id
     yield ServerSentEventGenerator.patch_signals(signals)
+
+
+async def handle_thumbnail_derivation(
+    message: message_schemas.DerivationMessage,
+    context: subscribers.HandlerContext,
+    done: asyncio.Event | None = None,
+) -> AsyncGenerator[DatastarEvent, None]:
+    """Show the stored thumbnail of a project or survey mission in a listing.
+
+    The thumbnail of the item is rendered and patched into the page, replacing the
+    one it shows, if any. A detail page only lists the children of its resource, so
+    it is only sent theirs. Nothing is sent for items the user cannot read, nor for
+    the derived assets of records.
+    """
+    if message.stage != constants.DerivationStage.ENDED or not message.succeeded:
+        return
+    if (
+        context.target_page == constants.PageType.RESOURCE_DETAIL
+        and message.parent_resource_id != context.resource_id
+    ):
+        return
+    async with context.db_session_factory() as session:
+        try:
+            match message.resource_type:
+                case constants.ResourceType.PROJECT:
+                    project = await project_ops.get_project(
+                        identifiers.ProjectId(uuid.UUID(message.resource_id)),
+                        context.user,
+                        session,
+                    )
+                    item = (
+                        project_schemas.ProjectReadListItem.from_db_instance(project)
+                        if project is not None
+                        else None
+                    )
+                    template_name = "projects/list-item-thumbnail.html"
+                case constants.ResourceType.MISSION:
+                    mission = await mission_ops.get_survey_mission(
+                        identifiers.SurveyMissionId(uuid.UUID(message.resource_id)),
+                        context.user,
+                        session,
+                    )
+                    item = (
+                        mission_schemas.SurveyMissionReadListItem.from_db_instance(
+                            mission
+                        )
+                        if mission is not None
+                        else None
+                    )
+                    template_name = "survey-missions/list-item-thumbnail.html"
+                case _:
+                    return
+        except errors.UserNotAllowedError:
+            return
+    # deleted after its thumbnail was stored
+    if item is None:
+        return
+    yield ServerSentEventGenerator.patch_elements(
+        context.jinja_environment.get_template(template_name).render(
+            item=item, url_for=context.url_resolver
+        )
+    )
 
 
 async def handle_bulk_resource_modification(

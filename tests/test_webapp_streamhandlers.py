@@ -8,12 +8,15 @@ archive and as record previews are generated, without the user reloading them.
 import json
 import uuid
 
+import jinja2
 import pytest
+from starlette_babel.contrib.jinja import configure_jinja_env
 
 from seis_lab_data import (
     constants,
     subscribers,
 )
+from seis_lab_data.db.commands import projects as project_commands
 from seis_lab_data.db.commands import surveymissions as mission_commands
 from seis_lab_data.db.commands import surveyrelatedrecords as record_commands
 from seis_lab_data.schemas import identifiers
@@ -655,3 +658,221 @@ async def test_record_listings_send_no_record_ids_to_anonymous_visitors():
     assert not await _collect(
         common_handlers.handle_derivation_list_page, ended, subscribers.HandlerContext()
     )
+
+
+def _create_jinja_environment(settings) -> jinja2.Environment:
+    environment = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(settings.templates_dir), autoescape=True
+    )
+    configure_jinja_env(environment)
+    environment.globals["icons"] = settings.icons.model_dump()
+    return environment
+
+
+def _resolve_url(name: str, **params) -> str:
+    return "/".join((f"/{name}", *(str(value) for value in params.values())))
+
+
+def _build_thumbnail_message(
+    resource_type, resource_id, parent_resource_id=None, stage=None, succeeded=True
+):
+    return message_schemas.DerivationMessage(
+        request_id=uuid.uuid4(),
+        resource_type=resource_type,
+        resource_id=str(resource_id),
+        parent_resource_id=(
+            str(parent_resource_id) if parent_resource_id is not None else None
+        ),
+        stage=stage or constants.DerivationStage.ENDED,
+        succeeded=succeeded,
+    )
+
+
+async def _store_thumbnails(db_session_maker, survey_mission) -> None:
+    """Store thumbnails for a survey mission and for its project."""
+    async with db_session_maker() as session:
+        await project_commands.set_project_thumbnail(
+            session,
+            identifiers.ProjectId(survey_mission.project_id),
+            b"project thumbnail",
+        )
+        await mission_commands.set_survey_mission_thumbnail(
+            session,
+            identifiers.SurveyMissionId(survey_mission.id),
+            b"survey mission thumbnail",
+        )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "resource_type",
+    [
+        pytest.param(constants.ResourceType.PROJECT, id="project"),
+        pytest.param(constants.ResourceType.MISSION, id="survey mission"),
+    ],
+)
+async def test_listings_show_stored_thumbnails_in_place(
+    settings, db_session_maker, sample_survey_missions, admin_user, resource_type
+):
+    """Once the thumbnail of a project or survey mission is stored, the listings showing
+    it display the thumbnail in place of its placeholder, without being reloaded and
+    without showing a notification.
+    """
+    survey_mission = sample_survey_missions[0]
+    project_id = survey_mission.project_id
+    await _store_thumbnails(db_session_maker, survey_mission)
+    if resource_type == constants.ResourceType.PROJECT:
+        message = _build_thumbnail_message(resource_type, project_id)
+        element_id = f"project-thumbnail-{project_id}"
+        thumbnail_url = f"/projects:get_thumbnail/{project_id}?v="
+    else:
+        message = _build_thumbnail_message(resource_type, survey_mission.id, project_id)
+        element_id = f"survey-mission-thumbnail-{survey_mission.id}"
+        thumbnail_url = f"/survey_missions:get_thumbnail/{survey_mission.id}?v="
+
+    events = await _collect(
+        common_handlers.handle_thumbnail_derivation,
+        message,
+        subscribers.HandlerContext(
+            resource_type=resource_type,
+            target_page=constants.PageType.RESOURCE_LIST,
+            user=admin_user,
+            db_session_factory=db_session_maker,
+            jinja_environment=_create_jinja_environment(settings),
+            url_resolver=_resolve_url,
+        ),
+    )
+
+    (event,) = events
+    assert "datastar-patch-elements" in event
+    assert f'id="{element_id}"' in event
+    assert thumbnail_url in event
+    assert _SAME_PAGE_NOTIFICATION not in event
+    assert _STORED_NOTIFICATION not in event
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "resource_type, own_resource, expected",
+    [
+        pytest.param(
+            constants.ResourceType.MISSION, True, True, id="own survey mission"
+        ),
+        pytest.param(
+            constants.ResourceType.MISSION,
+            False,
+            False,
+            id="survey mission of another project",
+        ),
+        # the project's page does not show its own thumbnail
+        pytest.param(constants.ResourceType.PROJECT, True, False, id="the project"),
+    ],
+)
+async def test_project_page_shows_thumbnails_of_its_survey_missions(
+    settings,
+    db_session_maker,
+    sample_survey_missions,
+    admin_user,
+    resource_type,
+    own_resource,
+    expected,
+):
+    """A project's page displays the stored thumbnails of its own survey missions in its
+    listing, but receives neither those of the survey missions of other projects nor its
+    own, which it does not show.
+    """
+    survey_mission = sample_survey_missions[0]
+    project_id = survey_mission.project_id
+    await _store_thumbnails(db_session_maker, survey_mission)
+    message = (
+        _build_thumbnail_message(resource_type, survey_mission.id, project_id)
+        if resource_type == constants.ResourceType.MISSION
+        else _build_thumbnail_message(resource_type, project_id)
+    )
+
+    events = await _collect(
+        common_handlers.handle_thumbnail_derivation,
+        message,
+        subscribers.HandlerContext(
+            resource_id=str(project_id if own_resource else uuid.uuid4()),
+            resource_type=constants.ResourceType.PROJECT,
+            target_page=constants.PageType.RESOURCE_DETAIL,
+            user=admin_user,
+            db_session_factory=db_session_maker,
+            jinja_environment=_create_jinja_environment(settings),
+            url_resolver=_resolve_url,
+        ),
+    )
+
+    if expected:
+        (event,) = events
+        assert f'id="survey-mission-thumbnail-{survey_mission.id}"' in event
+    else:
+        assert events == []
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_listings_send_no_draft_thumbnails_to_anonymous_visitors(
+    settings, db_session_maker, sample_projects, sample_survey_missions
+):
+    """Anonymous visitors, who only see published projects and survey missions, receive
+    nothing when the thumbnail of a draft project or survey mission is stored.
+    """
+    survey_mission = sample_survey_missions[0]
+    assert survey_mission.status == constants.SurveyMissionStatus.DRAFT
+    (project,) = [p for p in sample_projects if p.id == survey_mission.project_id]
+    assert project.status == constants.ProjectStatus.DRAFT
+    await _store_thumbnails(db_session_maker, survey_mission)
+    context = subscribers.HandlerContext(
+        target_page=constants.PageType.RESOURCE_LIST,
+        db_session_factory=db_session_maker,
+        jinja_environment=_create_jinja_environment(settings),
+        url_resolver=_resolve_url,
+    )
+
+    for message in (
+        _build_thumbnail_message(
+            constants.ResourceType.PROJECT, survey_mission.project_id
+        ),
+        _build_thumbnail_message(
+            constants.ResourceType.MISSION,
+            survey_mission.id,
+            survey_mission.project_id,
+        ),
+    ):
+        assert (
+            await _collect(
+                common_handlers.handle_thumbnail_derivation, message, context
+            )
+            == []
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "stage, succeeded",
+    [
+        pytest.param(constants.DerivationStage.STARTED, True, id="started"),
+        pytest.param(constants.DerivationStage.PROGRESS, True, id="in progress"),
+        pytest.param(constants.DerivationStage.ENDED, False, id="nothing stored"),
+    ],
+)
+async def test_listings_ignore_thumbnails_not_stored(stage, succeeded):
+    """Listings do not change while a thumbnail is being generated, nor when its
+    generation stored nothing.
+    """
+    events = await _collect(
+        common_handlers.handle_thumbnail_derivation,
+        _build_thumbnail_message(
+            constants.ResourceType.PROJECT,
+            uuid.uuid4(),
+            stage=stage,
+            succeeded=succeeded,
+        ),
+        subscribers.HandlerContext(target_page=constants.PageType.RESOURCE_LIST),
+    )
+
+    assert events == []

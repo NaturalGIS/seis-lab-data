@@ -648,6 +648,7 @@ async def stream_to_list_page(request: Request):
         ),
         {
             "resource_modified": common_handlers.handle_resource_modification_list_page,
+            "derivation": common_handlers.handle_thumbnail_derivation,
         },
     )
 

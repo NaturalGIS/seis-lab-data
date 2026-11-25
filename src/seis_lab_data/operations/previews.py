@@ -388,13 +388,12 @@ async def generate_project_thumbnail(
         )
         return
     await event_dispatcher(
-        event_schemas.ResourceModificationEvent(
+        event_schemas.DerivationEvent(
             initiator=initiator.id,
             request_id=request_id,
             resource_type=constants.ResourceType.PROJECT,
             resource_id=str(project_id),
-            resource_name=project.name,
-            modification=constants.ResourceModification.UPDATED,
+            stage=constants.DerivationStage.ENDED,
             succeeded=True,
         )
     )
@@ -428,13 +427,13 @@ async def generate_survey_mission_thumbnail(
         )
         return
     await event_dispatcher(
-        event_schemas.ResourceModificationEvent(
+        event_schemas.DerivationEvent(
             initiator=initiator.id,
             request_id=request_id,
             resource_type=constants.ResourceType.MISSION,
             resource_id=str(survey_mission_id),
-            resource_name=survey_mission.name,
-            modification=constants.ResourceModification.UPDATED,
+            parent_resource_id=str(survey_mission.project_id),
+            stage=constants.DerivationStage.ENDED,
             succeeded=True,
         )
     )
