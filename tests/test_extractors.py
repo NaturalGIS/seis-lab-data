@@ -1785,6 +1785,7 @@ _PDS_UTM_29N = (
     b"LonOrigin = -9\n"
     b"FalseEast = 500000\n"
     b"FalseNorth = 0\n"
+    b"ScaleConst = 0.9996\n"
 )
 _PDS_PATTERN_WITH_POINTS = (
     b"Type = 11\n"
@@ -1866,10 +1867,9 @@ def test_pds_without_points(tmp_path):
     assert result.bbox_4326 is None
 
 
-def test_pds_in_another_crs(tmp_path):
-    """A Teledyne PDS file not in WGS 84 / UTM gets no coordinate reference system.
-    It gets no bounding box either, as the survey mission's system is never used for it.
-    Its temporal extent is still extracted.
+def test_pds_in_portugal_tm06(tmp_path):
+    """A Teledyne PDS file in ETRS89 / Portugal TM06 is given that coordinate reference system.
+    Its bounding box is the planned area of its run line, placed with that system.
     """
     path = tmp_path / "line.pds"
     _write_pds(
@@ -1878,13 +1878,54 @@ def test_pds_in_another_crs(tmp_path):
             b"[CoordSystem Backup]\n"
             b"CoordSystem = ETRS 89 - Portugal TM06\n"
             b"Projection medthod = Transverse Mercator\n"
-            b"Ellipsoid name = GRS80\n"
+            b"Ellipsoid name = GRS 1980\n"
             b"\n"
             b"[GEODESY_PROJECTION_BACKUP]\n"
-            b"LatOrigin = 39.668258\n"
-            b"LonOrigin = -8.133108\n"
+            b"LatOrigin = 39.668258333333\n"
+            b"LonOrigin = -8.1331083333333\n"
             b"FalseEast = 0\n"
             b"FalseNorth = 0\n"
+            b"ScaleConst = 1\n"
+        ),
+        pattern=(
+            b"Type = 11\n"
+            b"Point(0) = 1,-61000.000000,53000.000000,0.000000,0,,0.000000,0.000000\n"
+            b"Point(1) = 1,-61000.000000,54000.000000,0.000000,0,,0.000000,1.000000\n"
+            b"ParBoxWidthR = 100\n"
+            b"ParBoxWidthL = 100\n"
+        ),
+    )
+
+    result = extract_pds_metadata(path)
+
+    assert result.epsg == 3763
+    assert result.bbox_native == (-61100.0, 53000.0, -60900.0, 54000.0)
+    lon_min, lat_min, lon_max, lat_max = result.bbox_4326
+    assert -8.9 < lon_min < lon_max < -8.8
+    assert 40.1 < lat_min < lat_max < 40.2
+
+
+def test_pds_in_another_crs(tmp_path):
+    """A Teledyne PDS file gets no coordinate reference system when the one in its header
+    is neither WGS 84 / UTM nor ETRS89 / Portugal TM06.
+    It gets no bounding box either, as the survey mission's system is never used for it.
+    Its temporal extent is still extracted.
+    """
+    path = tmp_path / "line.pds"
+    _write_pds(
+        path,
+        coordinate_system=(
+            b"[CoordSystem Backup]\n"
+            b"CoordSystem = ETRS 89 - UTM Zone 29N\n"
+            b"Projection medthod = Transverse Mercator\n"
+            b"Ellipsoid name = GRS 1980\n"
+            b"\n"
+            b"[GEODESY_PROJECTION_BACKUP]\n"
+            b"LatOrigin = 0\n"
+            b"LonOrigin = -9\n"
+            b"FalseEast = 500000\n"
+            b"FalseNorth = 0\n"
+            b"ScaleConst = 0.9996\n"
         ),
     )
 

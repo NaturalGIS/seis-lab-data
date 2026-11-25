@@ -276,8 +276,8 @@ um cabeçalho de texto seguido de blocos de dados binários.
 
 A descoberta lê apenas o cabeçalho de texto, no início do ficheiro. A extensão temporal é o dia em
 que a aquisição começou, pois o cabeçalho não regista a hora de fim. O CRS só é reconhecido quando é
-WGS 84 / UTM. Um ficheiro noutro CRS fica sem CRS e sem extensão espacial, e o CRS implícito da
-missão não é usado para ele.
+WGS 84 / UTM ou ETRS89 / Portugal TM06. Um ficheiro noutro CRS fica sem CRS e sem extensão espacial,
+e o CRS implícito da missão não é usado para ele.
 
 A extensão espacial é a área de levantamento planeada da linha: a linha planeada, alargada para
 os dois lados pelo lado mais largo da sua caixa. As posições dos dados adquiridos estão nos blocos

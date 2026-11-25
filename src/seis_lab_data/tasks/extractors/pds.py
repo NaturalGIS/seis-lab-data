@@ -14,6 +14,17 @@ _HEAD_BYTES = 1024 * 1024
 _HEADER_SEARCH_BYTES = 64
 # a point of the planned line holds a number, then its x and y in the file's CRS
 _POINT_LINE = re.compile(rb"^Point\(\d+\) = [^,\n]*,([^,\n]*),([^,\n]*)", re.MULTILINE)
+_PORTUGAL_TM06_EPSG_CODE = 3763
+# the PDS key of each projection parameter, by its name in GDAL
+_PROJECTION_PARAMETER_KEYS = {
+    osr.SRS_PP_LATITUDE_OF_ORIGIN: b"LatOrigin",
+    osr.SRS_PP_CENTRAL_MERIDIAN: b"LonOrigin",
+    osr.SRS_PP_FALSE_EASTING: b"FalseEast",
+    osr.SRS_PP_FALSE_NORTHING: b"FalseNorth",
+    osr.SRS_PP_SCALE_FACTOR: b"ScaleConst",
+}
+# the files seen write the origin with 14 digits, so it is not exactly the EPSG value
+_PARAMETER_TOLERANCE = 1e-9
 
 
 def extract_pds_metadata(path: Path | str) -> ExtractedMetadata:
@@ -22,7 +33,8 @@ def extract_pds_metadata(path: Path | str) -> ExtractedMetadata:
     The format is closed, so only the text header at the start of the file is read.
     Its sections have binary tags between them, so it is searched and not parsed as INI.
     The temporal extent is the day the acquisition started, as no end time is recorded.
-    The CRS is only recognised for WGS 84 / UTM, otherwise there is no CRS and no bbox.
+    The CRS is only recognised for WGS 84 / UTM and ETRS89 / Portugal TM06.
+    A file in any other CRS gets no CRS and no bbox.
     The bbox is the planned survey area of the run line, as the positions are binary.
     Raises ValueError if the file does not start with a PDS header.
     """
@@ -33,7 +45,7 @@ def extract_pds_metadata(path: Path | str) -> ExtractedMetadata:
         raise ValueError(f"{p.name} does not look like a Teledyne PDS file")
     # the PDS 3.9 files seen end their lines with CRLF
     text = head.replace(b"\r\n", b"\n")
-    srs = _utm_spatial_reference(text)
+    srs = _spatial_reference(text)
     epsg, crs_name, crs_wkt = common.identify_srs(srs)
     bbox_native = None
     bbox_4326 = None
@@ -56,34 +68,64 @@ def extract_pds_metadata(path: Path | str) -> ExtractedMetadata:
     )
 
 
-def _utm_spatial_reference(text: bytes) -> osr.SpatialReference | None:
-    """Return the WGS 84 / UTM spatial reference of a header, None for any other CRS.
+def _spatial_reference(text: bytes) -> osr.SpatialReference | None:
+    """Return the spatial reference of a header, None if its CRS is not recognised.
 
-    The zone comes from the central meridian and the hemisphere from the false northing.
+    WGS 84 / UTM and ETRS89 / Portugal TM06 are recognised, by their parameters.
+    The name of the CRS is not used, as it is free text.
     """
     # "medthod" is how the files spell it
     projection_method = _value_of_key(text, b"Projection medthod")
     ellipsoid = _value_of_key(text, b"Ellipsoid name")
-    if projection_method != b"Universal Transverse Mercator" or ellipsoid != b"WGS84":
+    is_utm = projection_method == b"Universal Transverse Mercator"
+    is_transverse_mercator = projection_method == b"Transverse Mercator"
+    if is_utm and ellipsoid == b"WGS84":
+        return _utm_spatial_reference(text)
+    if is_transverse_mercator and ellipsoid == b"GRS 1980":
+        return _portugal_tm06_spatial_reference(text)
+    return None
+
+
+def _utm_spatial_reference(text: bytes) -> osr.SpatialReference | None:
+    """Return the WGS 84 / UTM zone of a header, None if its parameters give none.
+
+    GDAL finds the zone from the projection parameters of the header.
+    """
+    described = osr.SpatialReference()
+    described.SetWellKnownGeogCS("WGS84")
+    described.SetProjection(osr.SRS_PT_TRANSVERSE_MERCATOR)
+    for parameter_name, pds_key in _PROJECTION_PARAMETER_KEYS.items():
+        header_value = _number_of_key(text, pds_key)
+        if header_value is None:
+            return None
+        described.SetProjParm(parameter_name, header_value)
+    # GDAL gives zone 0 when the parameters are not the ones of a UTM zone
+    if described.GetUTMZone() == 0:
         return None
-    false_northing = _number_of_key(text, b"FalseNorth")
-    central_meridian = _number_of_key(text, b"LonOrigin")
-    # the EPSG code of a WGS 84 / UTM zone is a base plus the zone number
-    if false_northing == 0:
-        epsg_base = 32600  # northern hemisphere
-    elif false_northing == 10_000_000:
-        epsg_base = 32700  # southern hemisphere
-    else:
-        return None
-    if central_meridian is None:
-        return None
-    # the central meridian of zone n is at 6 n - 183 degrees
-    zone = (central_meridian + 183) / 6
-    if not zone.is_integer() or not 1 <= zone <= 60:
-        return None
+    described.AutoIdentifyEPSG()
+    epsg_code = int(described.GetAuthorityCode(None))
+    # imported by its code, as a CRS built from parameters has no name
     srs = osr.SpatialReference()
-    srs.ImportFromEPSG(epsg_base + int(zone))
+    srs.ImportFromEPSG(epsg_code)
     return srs
+
+
+def _portugal_tm06_spatial_reference(text: bytes) -> osr.SpatialReference | None:
+    """Return ETRS89 / Portugal TM06, None if the header is in another CRS.
+
+    Every projection parameter of the header has to match the one of this CRS.
+    """
+    portugal_tm06 = osr.SpatialReference()
+    portugal_tm06.ImportFromEPSG(_PORTUGAL_TM06_EPSG_CODE)
+    for parameter_name, pds_key in _PROJECTION_PARAMETER_KEYS.items():
+        expected_value = portugal_tm06.GetProjParm(parameter_name)
+        header_value = _number_of_key(text, pds_key)
+        if header_value is None:
+            return None
+        difference = abs(header_value - expected_value)
+        if difference > _PARAMETER_TOLERANCE:
+            return None
+    return portugal_tm06
 
 
 def _planned_area_bounds(text: bytes) -> tuple[float, float, float, float] | None:
