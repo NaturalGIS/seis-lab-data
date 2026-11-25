@@ -133,8 +133,8 @@ def _is_logged_in(test_client: TestClient) -> bool:
 
 
 def test_session_outlives_browser_restart(test_client: TestClient, db, monkeypatch):
-    """The session and the credentials needed to end it at logout are kept by the
-    browser for a week, rather than only until the browser is closed.
+    """The session is kept by the browser for a week, rather than only until the
+    browser is closed.
     """
     response = _log_in(
         test_client,
@@ -147,7 +147,6 @@ def test_session_outlives_browser_restart(test_client: TestClient, db, monkeypat
         for header in response.headers.get_list("set-cookie")
     }
     assert "max-age=604800" in cookies["session"]
-    assert "max-age=604800" in cookies["id_token"]
 
 
 def _get_session_user_claims(test_client: TestClient) -> set[str]:
@@ -245,8 +244,7 @@ def test_logout_revokes_credentials(
     _log_in(test_client, monkeypatch, fake_authentik.claims, time.time() + 3600)
     response = test_client.get("/logout", follow_redirects=False)
     assert response.status_code == 302
-    assert "/end-session/" in response.headers["location"]
-    assert "id_token_hint=some-id-token" in response.headers["location"]
+    assert response.headers["location"].endswith("/end-session/")
     assert fake_authentik.revoked == [
         ("refresh_token", "refresh-1"),
         ("access_token", "access-1"),

@@ -60,8 +60,8 @@ def thumbnail_settings(settings, monkeypatch):
 async def test_project_thumbnail_follows_the_bbox(
     db_session_maker, admin_user, thumbnail_settings, monkeypatch
 ):
-    """A thumbnail is generated for a new project from its bounding box, and the project
-    is announced as updated once it is ready. Edits generate it again only when they
+    """A thumbnail is generated for a new project from its bounding box, and its
+    generation is announced once it is ready. Edits generate it again only when they
     change the bounding box, and removing the bounding box removes the thumbnail.
     """
     queued = []
@@ -105,10 +105,14 @@ async def test_project_thumbnail_follows_the_bbox(
         project = await project_queries.get_project(session, project_id)
         assert project.thumbnail == _THUMBNAIL
     event = thumbnail_settings.get_event_dispatcher().events[-1]
-    assert (event.resource_type, event.resource_id, event.modification) == (
-        constants.ResourceType.PROJECT,
-        str(project_id),
-        constants.ResourceModification.UPDATED,
+    assert event == event_schemas.DerivationEvent(
+        initiator=admin_user.id,
+        request_id=identifiers.RequestId(uuid.UUID(queued[0]["raw_request_id"])),
+        resource_type=constants.ResourceType.PROJECT,
+        resource_id=str(project_id),
+        stage=constants.DerivationStage.ENDED,
+        succeeded=True,
+        timestamp=event.timestamp,
     )
 
     # the update form sends the bbox back, changed or not
@@ -128,10 +132,9 @@ async def test_project_thumbnail_follows_the_bbox(
 async def test_survey_mission_thumbnail_follows_the_bbox(
     db_session_maker, admin_user, sample_projects, thumbnail_settings, monkeypatch
 ):
-    """A thumbnail is generated for a new survey mission from its bounding box, and the
-    survey mission is announced as updated once it is ready. Edits generate it again
-    only when they change the bounding box, and removing the bounding box removes the
-    thumbnail.
+    """A thumbnail is generated for a new survey mission from its bounding box, and its
+    generation is announced once it is ready. Edits generate it again only when they
+    change the bounding box, and removing the bounding box removes the thumbnail.
     """
     queued = []
     monkeypatch.setattr(
@@ -183,10 +186,15 @@ async def test_survey_mission_thumbnail_follows_the_bbox(
         )
         assert survey_mission.thumbnail == _THUMBNAIL
     event = thumbnail_settings.get_event_dispatcher().events[-1]
-    assert (event.resource_type, event.resource_id, event.modification) == (
-        constants.ResourceType.MISSION,
-        str(survey_mission_id),
-        constants.ResourceModification.UPDATED,
+    assert event == event_schemas.DerivationEvent(
+        initiator=admin_user.id,
+        request_id=identifiers.RequestId(uuid.UUID(queued[0]["raw_request_id"])),
+        resource_type=constants.ResourceType.MISSION,
+        resource_id=str(survey_mission_id),
+        parent_resource_id=str(sample_projects[0].id),
+        stage=constants.DerivationStage.ENDED,
+        succeeded=True,
+        timestamp=event.timestamp,
     )
 
     # the update form sends the bbox back, changed or not

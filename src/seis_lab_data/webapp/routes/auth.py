@@ -64,31 +64,13 @@ async def auth_callback(request: Request):
                     await upsert_user(session, user)
             except Exception:
                 logger.warning("Failed to upsert user to local DB", exc_info=True)
-        response = RedirectResponse(url=request.url_for("home"), status_code=302)
-        id_token = token.get("id_token")
-        if id_token:
-            # The id_token is stored in a separate cookie (not the session) so it
-            # can be passed as id_token_hint to authentik's end_session endpoint at
-            # logout time. It cannot go in the session cookie because the combined
-            # size would exceed the browser's ~4096 byte cookie limit, causing the
-            # session cookie to be silently dropped and login to break.
-            # The cookie lasts as long as the session, because authentik requires the
-            # id_token_hint at logout time, while accepting an expired id_token
-            response.set_cookie(
-                "id_token",
-                id_token,
-                max_age=request.state.settings.session_max_age_seconds,
-                httponly=True,
-                samesite="lax",
-            )
-        return response
+        return RedirectResponse(url=request.url_for("home"), status_code=302)
     except Exception:
         logger.exception("Authentication error")
         return RedirectResponse(url=request.url_for("login"), status_code=302)
 
 
 async def logout(request: Request):
-    id_token = request.cookies.get("id_token")
     # Ending the authentik session at the end_session endpoint does not invalidate
     # the refresh token, nor the access tokens obtained with it after the authentik
     # session had already ended, therefore both are revoked explicitly
@@ -109,11 +91,7 @@ async def logout(request: Request):
             except Exception:
                 logger.warning(f"Failed to revoke the {token_type_hint}", exc_info=True)
     request.session.clear()
-    params = f"post_logout_redirect_uri={request.url_for('home')}&client_id={request.state.auth_config.client_id}"
-    if id_token:
-        params += f"&id_token_hint={id_token}"
-    logout_url = f"{request.state.auth_config.end_session_endpoint}?{params}"
-    response = RedirectResponse(url=logout_url, status_code=302)
+    response = RedirectResponse(url=auth_config.end_session_endpoint, status_code=302)
     response.delete_cookie("id_token")
     return response
 

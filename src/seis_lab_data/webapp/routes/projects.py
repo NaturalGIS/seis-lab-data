@@ -262,11 +262,13 @@ async def stream_to_list_page(request: Request):
             jinja_environment=request.state.templates.env,
             url_resolver=request.url_for,
             db_session_factory=request.state.settings.get_db_session_maker(),
+            user=request.user if request.user.is_authenticated else None,
             target_page=constants.PageType.RESOURCE_LIST,
             resource_type=constants.ResourceType.PROJECT,
         ),
         {
             "resource_modified": common_handlers.handle_resource_modification_list_page,
+            "derivation": common_handlers.handle_thumbnail_derivation,
             # "project_creation_successful": project_handlers.handle_list_page_project_modification,
             # "project_deletion_successful": project_handlers.handle_list_page_project_modification,
             # "project_update_successful": project_handlers.handle_list_page_project_modification,
@@ -393,6 +395,8 @@ async def stream_to_detail_page(request: Request):
         {
             "resource_modified": common_handlers.handle_resource_modification_detail_page,
             "resource_status_changed": common_handlers.handle_resource_status_changed_detail_page,
+            # the thumbnails of the project's survey missions
+            "derivation": common_handlers.handle_thumbnail_derivation,
         },
     )
 

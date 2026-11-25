@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Records created during discovery not checking for duplicate names
 - Bulk-updated records not being validated, nor published or unpublished accordingly
 - Filtering by spatial extent including projects, survey missions and records without a spatial extent
+- Logging out showing an authentik error page instead of returning to the landing page
+- Pages reloading and showing an "updated" notification once the thumbnail of a project or survey mission is generated - listings now show the new thumbnail in place
 
 
 ## [1.0.0-rc2] - 2026-11-19

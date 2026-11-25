@@ -41,23 +41,6 @@ def _fill_bounding_box(page: Page):
         page.locator(f"[aria-label='field-bounding_box-{name}']").fill(value)
 
 
-def _wait_for_thumbnail_and_reload(page: Page):
-    """Wait until the thumbnail of the project or survey mission shown in the page
-    exists, then reload the page.
-
-    The thumbnail of a resource with a bounding box is generated in the background, and
-    storing it reloads the resource's page at an arbitrary moment, which would cancel a
-    navigation started meanwhile.
-    """
-    for _ in range(60):
-        if page.request.get(f"{page.url}/thumbnail").ok:
-            break
-        page.wait_for_timeout(500)
-    else:
-        raise AssertionError(f"The thumbnail of {page.url} was not generated")
-    page.reload()
-
-
 @pytest.mark.e2e
 def test_survey_related_record_lifecycle(authenticated_page: Page):
     """Within a new project and survey mission, an editor creates a survey-related
@@ -775,7 +758,6 @@ def test_published_survey_related_record_can_be_edited_and_deleted(
     expect(authenticated_page).to_have_url(
         re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=10_000
     )
-    _wait_for_thumbnail_and_reload(authenticated_page)
 
     authenticated_page.get_by_role("link", name="new-item", exact=True).click()
     authenticated_page.get_by_role("textbox", name="field-name", exact=True).fill(
@@ -794,7 +776,6 @@ def test_published_survey_related_record_can_be_edited_and_deleted(
     expect(authenticated_page).to_have_url(
         re.compile(r"/survey-missions/[0-9a-f-]{36}$"), timeout=10_000
     )
-    _wait_for_thumbnail_and_reload(authenticated_page)
 
     record_name_id = uuid.uuid4().hex[:8]
     authenticated_page.get_by_role("link", name="new-item", exact=True).click()
@@ -882,7 +863,6 @@ def test_download_links_of_records_selected_in_the_main_listing(
     expect(authenticated_page).to_have_url(
         re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=10_000
     )
-    _wait_for_thumbnail_and_reload(authenticated_page)
 
     authenticated_page.get_by_role("link", name="new-item", exact=True).click()
     _fill_survey_mission_form_minimal(
@@ -898,7 +878,6 @@ def test_download_links_of_records_selected_in_the_main_listing(
     expect(authenticated_page).to_have_url(
         re.compile(r"/survey-missions/[0-9a-f-]{36}$"), timeout=10_000
     )
-    _wait_for_thumbnail_and_reload(authenticated_page)
     mission_detail_url = authenticated_page.url
 
     record_urls = []
