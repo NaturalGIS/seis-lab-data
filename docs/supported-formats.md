@@ -253,6 +253,29 @@ The text file header has no dedicated CRS field. Discovery searches it for EPSG 
 code found when it identifies exactly one projected CRS. Otherwise, the mission's implicit CRS is
 used.
 
+### Teledyne PDS
+
+| Property | Value |
+|----------|-------|
+| Extension(s) | `.pds` |
+| Categories | Bathymetry |
+| Stages | Raw data |
+
+Log file of the Teledyne PDS acquisition software. The format is closed. A file holds a text header
+followed by binary data blocks.
+
+Discovery reads only the text header, at the start of the file. The temporal extent is the day on
+which the acquisition started, as the header records no end time. The CRS is only recognised when it
+is WGS 84 / UTM or ETRS89 / Portugal TM06. A file in any other CRS gets no CRS and no bounding box,
+and the mission's implicit CRS is not used for it.
+
+The bounding box is the planned survey area of the run line: the planned line, widened on both
+sides by the wider side of its box. The positions of the acquired data are in the binary blocks,
+so the extent of the data itself is not known. A file with no planned points for its run line
+gets no bounding box.
+
+No preview is generated for these files.
+
 ### JSF
 
 | Property | Value |

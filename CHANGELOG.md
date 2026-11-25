@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+### Added
+
+- Teledyne PDS `.pds` files get their acquisition date, CRS and planned survey area from the file header
+
+
 ### Fixed
 
 - Records created during discovery not checking for duplicate names

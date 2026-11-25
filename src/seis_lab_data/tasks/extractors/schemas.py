@@ -122,5 +122,11 @@ class SegyMetadata(ExtractedMetadata):
 
 
 ExtractionResult = (
-    RasterMetadata | PointCloudMetadata | VectorMetadata | KmallMetadata | SegyMetadata
+    RasterMetadata
+    | PointCloudMetadata
+    | VectorMetadata
+    | KmallMetadata
+    | SegyMetadata
+    # a Teledyne PDS file gives no metadata beyond the base fields
+    | ExtractedMetadata
 )
