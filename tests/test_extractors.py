@@ -3,8 +3,8 @@
 When survey files are discovered in the archive, their metadata is read from the files
 themselves: the bounding box, the temporal extent, the coordinate reference system and
 format-specific details for GeoTIFF and XYZ rasters, XYZ point clouds, shapefiles,
-KMALL and SEG-Y files. Damaged or implausible content is skipped or rejected rather
-than recorded as incorrect metadata.
+KMALL, SEG-Y and Teledyne PDS files. Damaged or implausible content is skipped or
+rejected rather than recorded as incorrect metadata.
 """
 
 # Unit tests for the metadata extractors package.
@@ -44,6 +44,7 @@ from seis_lab_data.tasks.extractors.kmall import (
     collect_position_fixes,
     extract_kmall_metadata,
 )
+from seis_lab_data.tasks.extractors.pds import extract_pds_metadata
 from seis_lab_data.tasks.extractors.segy import extract_segy_metadata
 
 gdal.UseExceptions()
@@ -1768,3 +1769,138 @@ def test_segy_trace_count_zero(tmp_path):
     assert result.samples_per_trace == 1000
     assert result.bbox_native is None
     assert result.temporal_extent_begin is None
+
+
+# Teledyne PDS builders: a few binary bytes, then text sections ending at a blank
+# line, with an invented run line, vessel and survey area
+_PDS_BINARY_TAG = b"\xfe\x03\x00\x9a\x07\x00"
+_PDS_UTM_29N = (
+    b"[CoordSystem Backup]\n"
+    b"CoordSystem = WGS 84 - UTM Zone 29N\n"
+    b"Projection medthod = Universal Transverse Mercator\n"
+    b"Ellipsoid name = WGS84\n"
+    b"\n"
+    b"[GEODESY_PROJECTION_BACKUP]\n"
+    b"LatOrigin = 0\n"
+    b"LonOrigin = -9\n"
+    b"FalseEast = 500000\n"
+    b"FalseNorth = 0\n"
+)
+_PDS_PATTERN_WITH_POINTS = (
+    b"Type = 11\n"
+    b"Point(0) = 1,510000.000000,4200000.000000,0.000000,0,,0.000000,0.000000\n"
+    b"Point(1) = 1,510000.000000,4210000.000000,0.000000,0,,0.000000,10.000000\n"
+    b"ParBoxWidthR = 200\n"
+    b"ParBoxWidthL = 500\n"
+)
+
+
+def _write_pds(
+    path,
+    coordinate_system=_PDS_UTM_29N,
+    pattern=_PDS_PATTERN_WITH_POINTS,
+    line_end=b"\n",
+):
+    header = (
+        b"[HEADER]\n"
+        b"PdsVersion = 4,1,2,10\n"
+        b"VesselName = RV Example\n"
+        b"RunlineName = Box(2).C.L\n"
+        b"AcquisLogStartTime = 20200315-101500\n"
+    )
+    # PDS 4.1 glues a binary tag and the run line name before its pattern section
+    run_line_pattern = _PDS_BINARY_TAG + b"Box(2).C.L\x00[Box(2)]\n" + pattern
+    # a pattern of the project that the run line does not follow
+    other_pattern = (
+        b"[Other_Box]\n"
+        b"Type = 11\n"
+        b"Point(0) = 1,600000.000000,4100000.000000,0.000000,0,,0.000000,0.000000\n"
+        b"ParBoxWidthR = 100\n"
+        b"ParBoxWidthL = 100\n"
+    )
+    sections = [header, coordinate_system, run_line_pattern, other_pattern]
+    text = b"\n".join(sections) + b"\n"
+    path.write_bytes(bytes(17) + text.replace(b"\n", line_end) + _PDS_BINARY_TAG)
+
+
+@pytest.mark.parametrize(
+    "line_end",
+    [pytest.param(b"\n", id="lf"), pytest.param(b"\r\n", id="crlf, as in pds 3.9")],
+)
+def test_pds_metadata_fields(tmp_path, line_end):
+    """A Teledyne PDS file is recognised and the metadata in its text header is read.
+    Its temporal extent is the day on which the acquisition started.
+    Its coordinate reference system is the WGS 84 / UTM zone described in the header.
+    Its bounding box is the planned area of its own run line, among the lines it lists.
+    This holds for the line endings of both older and newer versions of the software.
+    """
+    path = tmp_path / "line.pds"
+    _write_pds(path, line_end=line_end)
+
+    result = dispatch.dispatch_extractor(path)
+
+    assert result.driver == "Teledyne PDS"
+    assert result.file_size_bytes == path.stat().st_size
+    assert result.temporal_extent_begin == dt.date(2020, 3, 15)
+    assert result.temporal_extent_end == dt.date(2020, 3, 15)
+    assert result.epsg == 32629
+    # the planned line, widened on both sides by the wider side of its box
+    assert result.bbox_native == (509500.0, 4200000.0, 510500.0, 4210000.0)
+    lon_min, lat_min, lon_max, lat_max = result.bbox_4326
+    assert -8.9 < lon_min < lon_max < -8.8
+    assert 37.9 < lat_min < lat_max < 38.1
+
+
+def test_pds_without_points(tmp_path):
+    """A Teledyne PDS file whose planned line holds no points has no bounding box.
+    Its temporal extent and its coordinate reference system are still extracted.
+    """
+    path = tmp_path / "line.pds"
+    _write_pds(path, pattern=b"Type = 9\n")
+
+    result = extract_pds_metadata(path)
+
+    assert result.temporal_extent_begin == dt.date(2020, 3, 15)
+    assert result.epsg == 32629
+    assert result.bbox_native is None
+    assert result.bbox_4326 is None
+
+
+def test_pds_in_another_crs(tmp_path):
+    """A Teledyne PDS file not in WGS 84 / UTM gets no coordinate reference system.
+    It gets no bounding box either, as the survey mission's system is never used for it.
+    Its temporal extent is still extracted.
+    """
+    path = tmp_path / "line.pds"
+    _write_pds(
+        path,
+        coordinate_system=(
+            b"[CoordSystem Backup]\n"
+            b"CoordSystem = ETRS 89 - Portugal TM06\n"
+            b"Projection medthod = Transverse Mercator\n"
+            b"Ellipsoid name = GRS80\n"
+            b"\n"
+            b"[GEODESY_PROJECTION_BACKUP]\n"
+            b"LatOrigin = 39.668258\n"
+            b"LonOrigin = -8.133108\n"
+            b"FalseEast = 0\n"
+            b"FalseNorth = 0\n"
+        ),
+    )
+
+    result = extract_pds_metadata(path)
+
+    assert result.temporal_extent_begin == dt.date(2020, 3, 15)
+    assert result.epsg is None
+    assert result.crs_name is None
+    assert result.bbox_4326 is None
+    # a native bbox without a CRS would be placed with the survey mission's CRS
+    assert result.bbox_native is None
+
+
+def test_pds_not_a_pds_raises(tmp_path):
+    """A file that does not start with the header of a Teledyne PDS file is rejected."""
+    path = tmp_path / "junk.pds"
+    path.write_bytes(b"this is not a pds file")
+    with pytest.raises(ValueError):
+        extract_pds_metadata(path)

@@ -4,6 +4,7 @@ from pathlib import Path
 from .gdal_raster import extract_raster_metadata
 from .gdal_vector import extract_vector_metadata
 from .kmall import extract_kmall_metadata
+from .pds import extract_pds_metadata
 from .schemas import ExtractionResult
 from .segy import extract_segy_metadata
 from .xyz import extract_xyz_points_metadata
@@ -28,8 +29,14 @@ _KMALL_EXTENSIONS = frozenset({".kmall"})
 # the file size, so even a 200 GB file costs a constant number of reads.
 _SEGY_EXTENSIONS = frozenset({".sgy", ".segy"})
 
+_PDS_EXTENSIONS = frozenset({".pds"})
+
 _SUPPORTED_EXTENSIONS = (
-    _RASTER_EXTENSIONS | _VECTOR_EXTENSIONS | _KMALL_EXTENSIONS | _SEGY_EXTENSIONS
+    _RASTER_EXTENSIONS
+    | _VECTOR_EXTENSIONS
+    | _KMALL_EXTENSIONS
+    | _SEGY_EXTENSIONS
+    | _PDS_EXTENSIONS
 )
 
 _BIG_FILE_LOG_BYTES = 1024**3  # log-only threshold; no hard size limit
@@ -69,6 +76,8 @@ def dispatch_extractor(path: Path | str) -> ExtractionResult | None:
         metadata = extract_vector_metadata(p)
     elif suffix in _KMALL_EXTENSIONS:
         metadata = extract_kmall_metadata(p)
+    elif suffix in _PDS_EXTENSIONS:
+        metadata = extract_pds_metadata(p)
     else:
         metadata = extract_segy_metadata(p)
     return metadata.model_copy(update={"file_size_bytes": size})

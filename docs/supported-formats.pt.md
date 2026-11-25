@@ -263,6 +263,29 @@ O cabeçalho de texto não tem um campo dedicado ao CRS. A descoberta procura ne
 o código encontrado quando este identifica exatamente um CRS projetado. Caso contrário, é usado o
 CRS implícito da missão.
 
+### Teledyne PDS
+
+| Propriedade | Valor |
+|-------------|-------|
+| Extensão(ões) | `.pds` |
+| Categorias | Batimetria |
+| Fases | Dados em bruto |
+
+Ficheiro de registo do software de aquisição Teledyne PDS. O formato é fechado. Um ficheiro contém
+um cabeçalho de texto seguido de blocos de dados binários.
+
+A descoberta lê apenas o cabeçalho de texto, no início do ficheiro. A extensão temporal é o dia em
+que a aquisição começou, pois o cabeçalho não regista a hora de fim. O CRS só é reconhecido quando é
+WGS 84 / UTM. Um ficheiro noutro CRS fica sem CRS e sem extensão espacial, e o CRS implícito da
+missão não é usado para ele.
+
+A extensão espacial é a área de levantamento planeada da linha: a linha planeada, alargada para
+os dois lados pelo lado mais largo da sua caixa. As posições dos dados adquiridos estão nos blocos
+binários, por isso a extensão dos dados em si não é conhecida. Um ficheiro sem pontos planeados
+para a sua linha fica sem extensão espacial.
+
+Não é gerada pré-visualização para estes ficheiros.
+
 ### JSF
 
 | Propriedade | Valor |
