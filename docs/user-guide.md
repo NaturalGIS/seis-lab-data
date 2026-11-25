@@ -573,24 +573,111 @@ The **new asset discovery configuration** form has the following fields:
 | Workflow stage | Workflow stage of the records created for the matched files. |
 | Generate previews | Whether previews are generated for the assets matched by the configuration. |
 
-The relative path regular expression is a path relative to the mission's directory, whose
-segments are separated by `/`:
-
-- The leading segments without regular expression characters form a literal prefix. Discovery
-  only scans the directories below this prefix.
-- Each remaining segment is a regular expression matching a whole directory or file name. The
-  last segment matches the file name.
-- Any number of directories may lie before, between or after the directories matched by the
-  regular expression segments.
-- A pattern without regular expression segments matches only the path it names.
-
-For example, the pattern `s06-mbes/s02-raw-data/.*\.kmall` matches every file with the `.kmall`
-extension below the `s06-mbes/s02-raw-data` directory, at any depth.
+The relative path regular expression is the path pattern of the files matched by the
+configuration, as described in [Path patterns](#path-patterns).
 
 A file is assigned to the first configuration, in alphabetical order of configuration name, whose
 pattern matches its path. The same rule determines whether previews are generated for a data
 asset, including the assets of records created by hand. A configuration whose pattern is not a
 valid regular expression is skipped, and its name is reported in the discovery's summary.
+
+#### Path patterns { #path-patterns }
+
+The relative path regular expression of a configuration, its path pattern, describes the paths
+of the files it matches. It is written like a path relative to the survey mission's directory, with
+its directory and file names separated by `/`, but these names may be *regular expressions* rather
+than plain names.
+
+##### How a pattern is matched
+
+- The leading names without regular expression characters form a literal prefix. Discovery only
+  scans the directories below this prefix.
+- Each remaining name is a regular expression, which must match a whole directory or file name.
+  The last one matches the file name.
+- Any number of directories may lie before, between or after the directories matched by the
+  regular expressions.
+- A pattern without regular expressions matches only the path it names. As `.` is a regular
+  expression character, this is only the case for a file name without an extension.
+
+For example, the pattern `s06-mbes/s02-raw-data/.*\.kmall` has the literal prefix
+`s06-mbes/s02-raw-data`, and matches every file whose name ends in `.kmall` in that directory or
+in any directory below it, such as `s06-mbes/s02-raw-data/day1/line001.kmall`.
+
+##### Regular expressions
+
+A regular expression is a text pattern in which some characters have a special meaning. Shell
+wildcards, such as the `*.sgy` of `ls *.sgy`, are a simpler form of the same idea, but the two use
+different notations. In particular, `*` is not a wildcard on its own in a regular expression: it
+repeats the character before it, so the regular expression equivalent of the shell's `*` is `.*`,
+any character repeated any number of times.
+
+| Shell wildcard | Regular expression | Meaning |
+|----------------|--------------------|---------|
+| `*` | `.*` | Any sequence of characters, including none. |
+| `?` | `.` | Any single character. |
+| `[abc]` | `[abc]` | One of the listed characters. |
+| `{sgy,segy}` | `(sgy|segy)` | One of the alternatives. |
+| `.` | `\.` | A dot. |
+
+Path patterns use the regular expression syntax of Python. The constructs most useful in a path
+pattern are:
+
+| Construct | Meaning | Example | Matched by the example |
+|-----------|---------|---------|------------------------|
+| `.` | Any single character. | `line.` | `line1`, `lineA` |
+| `\` | Makes the following special character a plain one. | `\.sgy` | `.sgy` |
+| `*` | The preceding item, repeated any number of times, including none. | `.*\.sgy` | `a.sgy`, `.sgy` |
+| `+` | The preceding item, repeated at least once. | `.+\.sgy` | `a.sgy`, but not `.sgy` |
+| `?` | The preceding item, optionally. | `\.tiff?` | `.tif`, `.tiff` |
+| `[...]` | One of the listed characters, which may include ranges. | `s0[1-3]` | `s01`, `s02`, `s03` |
+| `\d` | Any digit. | `line\d` | `line1`, `line7` |
+| `{n}`, `{n,m}` | The preceding item, repeated exactly `n` times, or between `n` and `m` times. | `\d{3}` | `001`, `042` |
+| `(a|b)` | One of the alternatives. | `(sgy|segy)` | `sgy`, `segy` |
+| `(?i:...)` | The content of the group, regardless of case. | `(?i:sgy)` | `sgy`, `SGY`, `Sgy` |
+
+##### Examples
+
+| Files | Pattern |
+|-------|---------|
+| Every `.sgy` or `.segy` file below `s08-chirp/s02-raw-data` | `s08-chirp/s02-raw-data/.*\.(sgy|segy)`, or `s08-chirp/s02-raw-data/.*\.se?gy` |
+| Every `.tif` or `.tiff` file below `s06-mbes/s05-processed-data` | `s06-mbes/s05-processed-data/.*\.tiff?` |
+| Every `.sgy` file below the `s02-raw-data` directory of either `s08-chirp` or `s10-innomar` | `(s08-chirp|s10-innomar)/s02-raw-data/.*\.sgy` |
+| Every `.sgy` or `.segy` file below `s13-uhrs/s02-raw-data`, whatever the case of its extension, such as `LINE1.SGY` | `s13-uhrs/s02-raw-data/.*\.(?i:sgy|segy)` |
+| Files named `line_` followed by three digits, such as `line_001.sgy`, but not `line_1.sgy` | `s13-uhrs/s02-raw-data/line_\d{3}\.sgy` |
+| Every `.sgy` file below a directory of `s13-uhrs` whose name starts with `s01-`, `s02-` or `s03-` | `s13-uhrs/s0[1-3]-.*/.*\.sgy` |
+| Every file named `surface.tif` below `s06-mbes/s08-gis` | `s06-mbes/s08-gis/surface\.tif` |
+
+Alternatives, such as those of `(s08-chirp|s10-innomar)`, are subject to the following rules:
+
+- Alternatives apply to a whole directory or file name. `.*\.sgy|segy` matches the names ending
+  in `.sgy` and the name `segy`, but not the names ending in `.segy`. Enclosing the alternatives in
+  parentheses limits them to a part of the name: `.*\.(sgy|segy)`.
+- Alternatives cannot span several directories, as the pattern is split into names at each `/`
+  before they are matched. Paths which differ in more than one directory require one configuration
+  each.
+- A pattern which starts with a regular expression has no literal prefix. Discovery then scans the
+  whole survey mission directory, and the first name of the pattern may match a directory at any
+  depth: `(s08-chirp|s10-innomar)/s02-raw-data/.*\.sgy` also matches
+  `old/s08-chirp/s02-raw-data/line1.sgy`.
+
+!!! warning "Common mistakes"
+
+    - Shell wildcards are not valid regular expressions: `*.sgy` is rejected, and must be written
+      `.*\.sgy`.
+    - An unescaped `.` matches any character: `.*.sgy` also matches `line1sgy`. A dot is written
+      `\.`.
+    - Matching is case-sensitive: `.*\.sgy` does not match `LINE1.SGY`.
+    - A `/` cannot appear within the regular expression of a name, not even in a character class
+      such as `[^/]`, as it always separates two names.
+    - A configuration whose pattern is not a valid regular expression is skipped by discovery,
+      and its name is reported in the discovery's summary.
+
+##### Further reading
+
+The [Regular Expression HOWTO](https://docs.python.org/3/howto/regex.html) of the Python
+documentation is an introduction to regular expressions, and the
+[Regular expression syntax](https://docs.python.org/3/library/re.html#regular-expression-syntax)
+section of the documentation of Python's `re` module describes all of their constructs.
 
 #### Update asset discovery configuration details
 

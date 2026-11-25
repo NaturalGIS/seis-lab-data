@@ -609,25 +609,115 @@ O formulário **nova configuração de descoberta de recursos** tem os seguintes
 | Estádio | Estádio dos registos criados para os ficheiros abrangidos. |
 | Gerar pré-visualizações | Indica se são geradas pré-visualizações para os recursos abrangidos pela configuração. |
 
-A expressão regular do caminho relativo é um caminho relativo ao diretório da missão, cujos
-segmentos são separados por `/`:
-
-- Os segmentos iniciais sem caracteres de expressão regular formam um prefixo literal. A
-  descoberta percorre apenas os diretórios abaixo deste prefixo.
-- Cada um dos restantes segmentos é uma expressão regular que corresponde a um nome completo de
-  diretório ou de ficheiro. O último segmento corresponde ao nome do ficheiro.
-- Pode existir qualquer número de diretórios antes, entre ou depois dos diretórios correspondentes
-  aos segmentos de expressão regular.
-- Um padrão sem segmentos de expressão regular corresponde apenas ao caminho que designa.
-
-Por exemplo, o padrão `s06-mbes/s02-raw-data/.*\.kmall` corresponde a todos os ficheiros com a
-extensão `.kmall` abaixo do diretório `s06-mbes/s02-raw-data`, a qualquer profundidade.
+A expressão regular do caminho relativo é o padrão de caminho dos ficheiros abrangidos pela
+configuração, como descrito em [Padrões de caminho](#path-patterns).
 
 Um ficheiro é atribuído à primeira configuração, por ordem alfabética do nome da configuração,
 cujo padrão corresponde ao seu caminho. A mesma regra determina se são geradas pré-visualizações
 para um recurso de dados, incluindo os recursos dos registos criados manualmente. Uma configuração
 cujo padrão não é uma expressão regular válida é ignorada, e o seu nome é indicado no resumo da
 descoberta.
+
+#### Padrões de caminho { #path-patterns }
+
+A expressão regular do caminho relativo de uma configuração, o seu padrão de caminho, descreve os
+caminhos dos ficheiros que abrange. Escreve-se como um caminho relativo ao diretório da missão,
+com os nomes dos diretórios e do ficheiro separados por `/`, mas estes nomes podem ser *expressões
+regulares* em vez de nomes simples.
+
+##### Como é aplicado um padrão
+
+- Os nomes iniciais sem caracteres de expressão regular formam um prefixo literal. A descoberta
+  percorre apenas os diretórios abaixo deste prefixo.
+- Cada um dos restantes nomes é uma expressão regular, que tem de corresponder a um nome completo
+  de diretório ou de ficheiro. O último corresponde ao nome do ficheiro.
+- Pode existir qualquer número de diretórios antes, entre ou depois dos diretórios correspondentes
+  às expressões regulares.
+- Um padrão sem expressões regulares corresponde apenas ao caminho que designa. Como `.` é um
+  caractere de expressão regular, isto só acontece com um nome de ficheiro sem extensão.
+
+Por exemplo, o padrão `s06-mbes/s02-raw-data/.*\.kmall` tem o prefixo literal
+`s06-mbes/s02-raw-data`, e corresponde a todos os ficheiros cujo nome termina em `.kmall` nesse
+diretório ou em qualquer diretório abaixo dele, como `s06-mbes/s02-raw-data/day1/line001.kmall`.
+
+##### Expressões regulares
+
+Uma expressão regular é um padrão de texto no qual alguns caracteres têm um significado especial.
+Os caracteres universais da shell, como o `*.sgy` de `ls *.sgy`, são uma forma mais simples da
+mesma ideia, mas os dois usam notações diferentes. Em particular, numa expressão regular `*` não é
+um caractere universal por si só: repete o caractere anterior, pelo que o equivalente do `*` da
+shell numa expressão regular é `.*`, qualquer caractere repetido qualquer número de vezes.
+
+| Caractere universal da shell | Expressão regular | Significado |
+|------------------------------|-------------------|-------------|
+| `*` | `.*` | Qualquer sequência de caracteres, incluindo nenhum. |
+| `?` | `.` | Um caractere qualquer. |
+| `[abc]` | `[abc]` | Um dos caracteres indicados. |
+| `{sgy,segy}` | `(sgy|segy)` | Uma das alternativas. |
+| `.` | `\.` | Um ponto. |
+
+Os padrões de caminho usam a sintaxe de expressões regulares do Python. As construções mais úteis
+num padrão de caminho são:
+
+| Construção | Significado | Exemplo | Correspondências do exemplo |
+|------------|-------------|---------|-----------------------------|
+| `.` | Um caractere qualquer. | `line.` | `line1`, `lineA` |
+| `\` | Torna simples o caractere especial seguinte. | `\.sgy` | `.sgy` |
+| `*` | O elemento anterior, repetido qualquer número de vezes, incluindo nenhuma. | `.*\.sgy` | `a.sgy`, `.sgy` |
+| `+` | O elemento anterior, repetido pelo menos uma vez. | `.+\.sgy` | `a.sgy`, mas não `.sgy` |
+| `?` | O elemento anterior, opcionalmente. | `\.tiff?` | `.tif`, `.tiff` |
+| `[...]` | Um dos caracteres indicados, que podem incluir intervalos. | `s0[1-3]` | `s01`, `s02`, `s03` |
+| `\d` | Um algarismo qualquer. | `line\d` | `line1`, `line7` |
+| `{n}`, `{n,m}` | O elemento anterior, repetido exatamente `n` vezes, ou entre `n` e `m` vezes. | `\d{3}` | `001`, `042` |
+| `(a|b)` | Uma das alternativas. | `(sgy|segy)` | `sgy`, `segy` |
+| `(?i:...)` | O conteúdo do grupo, independentemente de maiúsculas e minúsculas. | `(?i:sgy)` | `sgy`, `SGY`, `Sgy` |
+
+##### Exemplos
+
+| Ficheiros | Padrão |
+|-----------|--------|
+| Todos os ficheiros `.sgy` ou `.segy` abaixo de `s08-chirp/s02-raw-data` | `s08-chirp/s02-raw-data/.*\.(sgy|segy)`, ou `s08-chirp/s02-raw-data/.*\.se?gy` |
+| Todos os ficheiros `.tif` ou `.tiff` abaixo de `s06-mbes/s05-processed-data` | `s06-mbes/s05-processed-data/.*\.tiff?` |
+| Todos os ficheiros `.sgy` abaixo do diretório `s02-raw-data` de `s08-chirp` ou de `s10-innomar` | `(s08-chirp|s10-innomar)/s02-raw-data/.*\.sgy` |
+| Todos os ficheiros `.sgy` ou `.segy` abaixo de `s13-uhrs/s02-raw-data`, com a extensão em maiúsculas ou minúsculas, como `LINE1.SGY` | `s13-uhrs/s02-raw-data/.*\.(?i:sgy|segy)` |
+| Ficheiros com o nome `line_` seguido de três algarismos, como `line_001.sgy`, mas não `line_1.sgy` | `s13-uhrs/s02-raw-data/line_\d{3}\.sgy` |
+| Todos os ficheiros `.sgy` abaixo de um diretório de `s13-uhrs` cujo nome começa por `s01-`, `s02-` ou `s03-` | `s13-uhrs/s0[1-3]-.*/.*\.sgy` |
+| Todos os ficheiros com o nome `surface.tif` abaixo de `s06-mbes/s08-gis` | `s06-mbes/s08-gis/surface\.tif` |
+
+As alternativas, como as de `(s08-chirp|s10-innomar)`, estão sujeitas às seguintes regras:
+
+- As alternativas aplicam-se a um nome completo de diretório ou de ficheiro. `.*\.sgy|segy`
+  corresponde aos nomes terminados em `.sgy` e ao nome `segy`, mas não aos nomes terminados em
+  `.segy`. Colocar as alternativas entre parênteses limita-as a uma parte do nome:
+  `.*\.(sgy|segy)`.
+- As alternativas não podem abranger vários diretórios, pois o padrão é dividido em nomes em cada
+  `/` antes de estes serem aplicados. Caminhos que diferem em mais do que um diretório requerem uma
+  configuração cada.
+- Um padrão que começa por uma expressão regular não tem prefixo literal. A descoberta percorre
+  então todo o diretório da missão, e o primeiro nome do padrão pode corresponder a um diretório a
+  qualquer profundidade: `(s08-chirp|s10-innomar)/s02-raw-data/.*\.sgy` também corresponde a
+  `old/s08-chirp/s02-raw-data/line1.sgy`.
+
+!!! warning "Erros comuns"
+
+    - Os caracteres universais da shell não são expressões regulares válidas: `*.sgy` é
+      rejeitado, e deve ser escrito `.*\.sgy`.
+    - Um `.` sem `\` corresponde a qualquer caractere: `.*.sgy` também corresponde a `line1sgy`.
+      Um ponto escreve-se `\.`.
+    - A correspondência distingue maiúsculas de minúsculas: `.*\.sgy` não corresponde a
+      `LINE1.SGY`.
+    - Não pode existir uma `/` na expressão regular de um nome, nem mesmo num conjunto de
+      caracteres como `[^/]`, pois separa sempre dois nomes.
+    - Uma configuração cujo padrão não é uma expressão regular válida é ignorada pela descoberta,
+      e o seu nome é indicado no resumo da descoberta.
+
+##### Leitura adicional
+
+O [guia de expressões regulares](https://docs.python.org/pt-br/3/howto/regex.html) da
+documentação do Python é uma introdução às expressões regulares, e a secção
+[Sintaxe de expressões regulares](https://docs.python.org/pt-br/3/library/re.html#regular-expression-syntax)
+da documentação do módulo `re` do Python descreve todas as suas construções. Ambas estão em
+português do Brasil.
 
 #### Atualizar uma configuração de descoberta de recursos
 

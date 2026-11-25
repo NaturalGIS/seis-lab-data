@@ -5,6 +5,7 @@ related records each entry contains, and summarize records by dataset category a
 workflow stage. These figures only take into account what the visitor is allowed to see.
 """
 
+import html
 import re
 import urllib.parse
 
@@ -236,8 +237,10 @@ def test_project_detail_shows_all_records_to_logged_in_users(
 def test_mission_detail_badges_filter_the_record_listing(
     test_client: TestClient, mixed_sample_data
 ):
-    """A survey mission's page counts the records visible to the visitor, and selecting
-    one of its dataset categories filters the mission's record list by that category.
+    """A survey mission's page counts the records visible to the visitor, and offers a
+    single choice among all of its records, each of their dataset categories and each of
+    their workflow stages. Choosing a dataset category filters the mission's record list
+    by that category alone.
     """
     first_record = mixed_sample_data["first_record"]
     other_category = mixed_sample_data["other_category"]
@@ -249,7 +252,38 @@ def test_mission_detail_badges_filter_the_record_listing(
         r'aria-label="num-survey-related-records"\s*><span[^>]*>[^<]*</span>1<',
         response.text,
     )
-    assert f"$filterDatasetCategory = '{other_category.id}'" in response.text
+    assert re.search(r'aria-label="records-summary"\s*role="radiogroup"', response.text)
+    radio_ids = re.findall(
+        r'type="radio"[^>]*name="records-summary-filter"[^>]*id="([^"]+)"',
+        response.text,
+    )
+    assert "records-summary-filter-all" in radio_ids
+    assert f"records-summary-filter-{other_category.id}" in radio_ids
+    assert (
+        f"$filterDatasetCategory = '{other_category.id}'; "
+        "$filterWorkflowStage = 'all'; "
+    ) in html.unescape(response.text)
+
+
+def test_mission_detail_badges_show_the_filter_of_the_url(
+    test_client: TestClient, mixed_sample_data
+):
+    """When a survey mission's page is opened with a dataset category filter in its
+    address, that category is shown as the chosen one, while the workflow stage remains
+    unfiltered.
+    """
+    first_record = mixed_sample_data["first_record"]
+    other_category = mixed_sample_data["other_category"]
+    response = test_client.get(
+        f"/survey-missions/{first_record.survey_mission_id}",
+        params={"lang": "en", "filterDatasetCategory": str(other_category.id)},
+    )
+    assert response.status_code == 200
+    assert (
+        f"data-signals:filter-dataset-category='\"{other_category.id}\"'"
+        in response.text
+    )
+    assert "data-signals:filter-workflow-stage='\"all\"'" in response.text
 
 
 def test_project_list_counts_only_visible_resources(

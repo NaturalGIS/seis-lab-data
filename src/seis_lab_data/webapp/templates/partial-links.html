@@ -1,0 +1,22 @@
+{# the links of a project, survey mission or survey-related record - only included
+   when there are any #}
+<h5>{{ _("Links") }}</h5>
+<div class="list-group list-group-flush" aria-label="links">
+    {% for link in item.links %}
+        <a
+                class="list-group-item list-group-item-action"
+                href="{{ link.url }}"
+                rel="{{ link.relation }}"
+                target="_blank"
+                type="{{ link.media_type }}"
+        >
+            <h6>
+                <span class="material-icons-outlined me-1">{{ icons.open_link }}</span>
+                {{ link.url }}
+                <span class="badge rounded-pill bg-light">{{ link.media_type }}</span>
+                <span class="badge rounded-pill bg-light">{{ link.relation }}</span>
+            </h6>
+            <small>{{ link.link_description }}</small>
+        </a>
+    {% endfor %}
+</div>

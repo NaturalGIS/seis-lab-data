@@ -113,6 +113,37 @@
     border: 1px solid currentColor;
 }
 
+/* radio buttons shaped like the outline badges, filled with their color when checked */
+.btn-filter-pill {
+    --bs-btn-padding-y: 0.35em;
+    --bs-btn-padding-x: 0.65em;
+    --bs-btn-font-size: 0.75em;
+    --bs-btn-font-weight: 700;
+    --bs-btn-line-height: 1;
+    --bs-btn-border-radius: var(--bs-border-radius-pill);
+    --bs-btn-color: var(--sld-filter-pill-color);
+    --bs-btn-border-color: var(--sld-filter-pill-color);
+    --bs-btn-hover-color: var(--sld-filter-pill-color);
+    --bs-btn-hover-bg: color-mix(in srgb, var(--sld-filter-pill-color) 12%, transparent);
+    --bs-btn-hover-border-color: var(--sld-filter-pill-color);
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: var(--sld-filter-pill-color);
+    --bs-btn-active-border-color: var(--sld-filter-pill-color);
+}
+
+.btn-filter-pill-dataset-category {
+    --sld-filter-pill-color: var(--bs-dataset-category-color);
+}
+
+.btn-filter-pill-workflow-stage {
+    --sld-filter-pill-color: var(--bs-workflow-stage-color);
+}
+
+/* the light resource color lacks contrast as the text of an unchecked pill */
+.btn-filter-pill-survey-related-record {
+    --sld-filter-pill-color: var(--bs-survey-related-record-color-dark);
+}
+
 .nav-link-project:hover,
 .nav-link-project:focus,
 .nav-link-project.active {
@@ -410,16 +441,27 @@ h1 > .material-icons-outlined {
     }
 }
 
-/* page titles wrap on small screens and are truncated on large ones */
+/* page titles wrap on small screens. Those of detail pages are truncated to a single
+   line on larger ones, their full text being shown on hover */
 .page-title {
     overflow-wrap: anywhere;
 }
 
-@media (max-width: 767.98px) {
-    .page-title.display-1 {
-        font-size: calc(1.75rem + 3vw);
+@media (min-width: 768px) {
+    .page-title-single-line {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
+}
 
+/* the relation of a related record is shown in a column of its own, next to it */
+.related-record-relation {
+    flex: 0 0 10rem;
+    max-width: 40%;
+}
+
+@media (max-width: 767.98px) {
     .page-title {
         margin-bottom: 1.5rem;
     }

@@ -125,11 +125,12 @@ def compile_path_pattern(relative_path_regexp: str) -> PathPattern:
             prefix_parts=prefix.parts, directory_regexes=(), file_name_regex=None
         )
     *directory_patterns, file_name_pattern = Path(pattern).parts
-    # match rather than fullmatch, as `^a|b$` is not the same as `a|b` in full
+    # each segment matches a whole name. The group keeps the alternatives of a segment
+    # such as `a|b` within the anchors, which `^a|b$` would apply to `a` and `b` alone
     return PathPattern(
         prefix_parts=prefix.parts,
-        directory_regexes=tuple(re.compile(f"^{p}$") for p in directory_patterns),
-        file_name_regex=re.compile(f"^{file_name_pattern}$"),
+        directory_regexes=tuple(re.compile(f"^(?:{p})$") for p in directory_patterns),
+        file_name_regex=re.compile(f"^(?:{file_name_pattern})$"),
     )
 
 

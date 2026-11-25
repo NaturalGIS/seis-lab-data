@@ -1,4 +1,5 @@
 {% from "macros/info.html" import render_info_section %}
+{% from "macros/extents.html" import render_spatial_extent, render_temporal_extent %}
 {% import "macros.html" as macros %}
 {% import "macros-buttons.html" as macros_buttons %}
 {# its id is what lets the re-rendered component be morphed into the page #}
@@ -47,29 +48,31 @@
                     {% endif %}
                     <div class="card-body">
                         <div class="row gy-3">
-                            <div class="col-12 col-md-8 col-xl-9">
+                            <div class="col-12{% if item.links %} col-md-8 col-xl-9{% endif %}">
                                 {% if item.description | trim %}
                                     <p>{{ item.description }}</p>
                                 {% endif %}
                                 <dl class="row">
+                                    <dt class="col-sm-3">{{ _("spatial extent") | capitalize }}</dt>
+                                    <dd class="col-sm-9" aria-label="spatial-extent">{{ render_spatial_extent(item.bbox_4326) }}</dd>
+                                    <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
+                                    <dd class="col-sm-9" aria-label="temporal-extent">{{ render_temporal_extent(item.temporal_extent_begin, item.temporal_extent_end) }}</dd>
                                     <dt class="col-sm-3">{{ _("dataset category") | capitalize }}</dt>
                                     <dd class="col-sm-9"><span class="badge badge-outline text-dataset-category"><span class="material-icons-outlined me-1 fs-6">{{ icons.dataset_category }}</span>{% if item.dataset_category %}{{ item.dataset_category.name }}{% else %}{{ _("unknown category") }}{% endif %}</span></dd>
                                     <dt class="col-sm-3">{{ _("workflow stage") | capitalize }}</dt>
                                     <dd class="col-sm-9"><span class="badge badge-outline text-workflow-stage"><span class="material-icons-outlined me-1 fs-6">{{ icons.workflow_stage }}</span>{% if item.workflow_stage %}{{ item.workflow_stage.name }}{% else %}{{ _("unknown stage") }}{% endif %}</span></dd>
                                     <dt class="col-sm-3">{{ _("survey mission") | capitalize }}</dt>
                                     <dd class="col-sm-9">
-                                        <a
-                                                href="{{ url_for('survey_missions:detail', survey_mission_id=item.survey_mission.id) }}"
-                                        >{{ item.survey_mission.name }}</a>
+                                        <a href="{{ url_for('survey_missions:detail', survey_mission_id=item.survey_mission.id) }}" class="badge bg-survey-mission text-decoration-none">
+                                            <span class="material-icons-outlined me-1 fs-6">{{ icons.survey_missions }}</span>{{ item.survey_mission.name }}
+                                        </a>
                                     </dd>
                                     <dt class="col-sm-3">{{ _("project") | capitalize }}</dt>
                                     <dd class="col-sm-9">
-                                        <a
-                                                href="{{ url_for('projects:detail', project_id=item.survey_mission.project.id) }}"
-                                        >{{ item.survey_mission.project.name }}</a>
+                                        <a href="{{ url_for('projects:detail', project_id=item.survey_mission.project.id) }}" class="badge bg-project text-decoration-none">
+                                            <span class="material-icons-outlined me-1 fs-6">{{ icons.projects }}</span>{{ item.survey_mission.project.name }}
+                                        </a>
                                     </dd>
-                                    <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
-                                    <dd class="col-sm-9">{{ item.temporal_extent_begin|default("..", True) }}/{{ item.temporal_extent_end|default("..", True) }}</dd>
                                     {% for name, value in item.discovery_info | discovery_info_items %}
                                         <dt class="col-sm-3">{{ name }}</dt>
                                         <dd class="col-sm-9">{{ value }}</dd>
@@ -83,71 +86,11 @@
                                     {% endif %}
                                 </dl>
                             </div>
-                            <div class="col-12 col-md-4 col-xl-3">
-                                <h5>{{ _("Links") }}</h5>
-                                <div class="list-group list-group-flush">
-                                    {% for link in item.links %}
-                                        <a
-                                                class="list-group-item list-group-item-action"
-                                                href="{{ link.url }}"
-                                                rel="{{ link.relation }}"
-                                                target="_blank"
-                                                type="{{ link.media_type }}"
-                                        >
-                                            <h6>
-                                    <span
-                                            class="material-icons-outlined me-1"
-                                    >
-                                        {{ icons.open_link }}
-                                    </span>
-                                                {{ link.url }}
-                                                <span class="badge rounded-pill bg-light">{{ link.media_type }}</span>
-                                                <span class="badge rounded-pill bg-light">{{ link.relation }}</span>
-                                            </h6>
-                                            <small>{{ link.link_description }}</small>
-                                        </a>
-                                    {% else %}
-                                        <p class="list-group-item">{{ _("no links found") | capitalize }}</p>
-                                    {% endfor %}
+                            {% if item.links %}
+                                <div class="col-12 col-md-4 col-xl-3">
+                                    {% include "partial-links.html" %}
                                 </div>
-                                {% if item.related_to_records | length > 0 %}
-                                    <h5>{{ _('related to') | capitalize }}</h5>
-                                    <div class="list-group list-group-flush">
-                                        {% for relation, other_record in item.related_to_records %}
-                                            <a
-                                                    class="list-group-item list-group-item-action"
-                                                    href="{{ url_for('survey_related_records:detail', survey_related_record_id=other_record.id) }}"
-                                                    rel="{{ relation }}"
-                                            >
-                                                <h6>
-                                                    <span class="material-icons-outlined me-1">{{ icons.survey_related_records }}</span>
-                                                    <span class="badge rounded-pill bg-light">{{ relation }}</span>
-                                                    {{ other_record.name }}
-                                                </h6>
-                                            </a>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                                {% if item.subject_for_records | length > 0 %}
-                                    <h5>{{ _('subject to') | capitalize }}</h5>
-                                    <div class="list-group list-group-flush">
-                                        {% for relation, other_record in item.subject_for_records %}
-                                            <a
-                                                    class="list-group-item list-group-item-action"
-                                                    href="{{ url_for('survey_related_records:detail', survey_related_record_id=other_record.id) }}"
-                                                    rel="{{ relation }}"
-                                            >
-                                                <h6>
-                                                    <span class="material-icons-outlined me-1">{{ icons.survey_related_records }}</span>
-                                                    <span class="badge rounded-pill bg-light">{{ relation }}</span>
-                                                    {{ other_record.name }}
-                                                </h6>
-                                            </a>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -260,28 +203,73 @@
 
 </div>
 
-<div class="row">
+{# like the details above, these sections are morphed into the page by their ids #}
+<div id="record-assets" class="row mb-5">
     <div class="col">
-        <h2>{{ _("assets") | capitalize }}</h2>
+        <h2 class="fs-4">{{ _("assets") | capitalize }}</h2>
         {# derived assets (previews, thumbnails) are filtered out here, in the loop
            head, so that a record holding only those still shows the empty message #}
         {% for asset in item.record_assets if AssetType.DATA in asset.asset_type %}
-            <dl class="row">
-                <dt class="col-sm-3">{{ _("Name") }}</dt>
-                <dd class="col-sm-9">{{ asset.name }}</dd>
-                <dt class="col-sm-3">{{ _("Description") }}</dt>
-                <dd class="col-sm-9">{{ asset.description }}</dd>
-                <dt class="col-sm-3">{{ _("Media type") }}</dt>
-                <dd class="col-sm-9">{{ asset.media_type | default(_("unknown"), true) }}</dd>
-                <dt class="col-sm-3">{{ _("Full path") }}</dt>
-                <dd class="col-sm-9">{{ settings.readonly_archive_root_directory / item.survey_mission.relative_path.lstrip("/") / asset.relative_path.lstrip("/") if item.survey_mission.relative_path and asset.relative_path else _("invalid") }}</dd>
-                {% if asset.relative_path %}
-                    <dt class="col-sm-3">{{ _("Download") }}</dt>
-                    <dd class="col-sm-9">{{ macros_buttons.render_download_button(url_for('survey_related_records:download_record_asset', survey_related_record_id=item.id, record_asset_id=asset.id), asset.relative_path.lower().endswith(BUNDLED_DATA_ASSET_EXTENSIONS)) }}</dd>
-                {% endif %}
-            </dl>
+            <div class="card mb-3" aria-label="asset">
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-3">{{ _("Name") }}</dt>
+                        <dd class="col-sm-9">{{ asset.name }}</dd>
+                        {% if asset.description | trim %}
+                            <dt class="col-sm-3">{{ _("Description") }}</dt>
+                            <dd class="col-sm-9">{{ asset.description }}</dd>
+                        {% endif %}
+                        <dt class="col-sm-3">{{ _("Media type") }}</dt>
+                        <dd class="col-sm-9">{{ asset.media_type | default(_("unknown"), true) }}</dd>
+                        <dt class="col-sm-3">{{ _("Full path") }}</dt>
+                        <dd class="col-sm-9 text-break">{{ settings.readonly_archive_root_directory / item.survey_mission.relative_path.lstrip("/") / asset.relative_path.lstrip("/") if item.survey_mission.relative_path and asset.relative_path else _("invalid") }}</dd>
+                    </dl>
+                    {% if asset.relative_path %}
+                        {{ macros_buttons.render_download_button(url_for('survey_related_records:download_record_asset', survey_related_record_id=item.id, record_asset_id=asset.id), asset.relative_path.lower().endswith(BUNDLED_DATA_ASSET_EXTENSIONS)) }}
+                    {% endif %}
+                </div>
+            </div>
         {% else %}
             {{ _("No assets found") }}
         {% endfor %}
     </div>
+</div>
+
+<div id="record-related-records" class="row">
+    {% if item.related_to_records or item.subject_for_records %}
+        <div class="col">
+            <h2 class="fs-4">{{ _("related records") | capitalize }}</h2>
+            {# this record is the subject of the relations in related_to_records, and
+               the other record is the subject of those in subject_for_records #}
+            {% for direction, related_records in [(_("related to"), item.related_to_records), (_("subject to"), item.subject_for_records)] %}
+                {% for relation, other_record in related_records %}
+                    <div class="card list-item-card list-item-stripe list-item-stripe-survey-related-record mb-3{% if other_record.status.value != "published" %} item-unpublished{% endif %}" aria-label="related-record">
+                        <div class="d-flex">
+                            <div class="card-body flex-grow-1 py-2 overflow-hidden">
+                                <div class="d-flex flex-wrap gap-2 mb-1">
+                                    <a href="{{ url_for('projects:detail', project_id=other_record.survey_mission.project.id) }}" class="badge bg-project text-decoration-none">
+                                        <span class="material-icons-outlined me-1 fs-6">{{ icons.projects }}</span>{{ other_record.survey_mission.project.name }}
+                                    </a>
+                                    <a href="{{ url_for('survey_missions:detail', survey_mission_id=other_record.survey_mission.id) }}" class="badge bg-survey-mission text-decoration-none">
+                                        <span class="material-icons-outlined me-1 fs-6">{{ icons.survey_missions }}</span>{{ other_record.survey_mission.name }}
+                                    </a>
+                                    {% if other_record.status != SurveyRelatedRecordStatus.PUBLISHED %}
+                                        <span class="badge ms-auto {{ 'text-bg-danger' if other_record.status == SurveyRelatedRecordStatus.DRAFT else 'text-bg-secondary' }}">
+                                            {% with item=other_record, status_icon_classes="fs-6" %}{% include "partial-status-icon.html" %}{% endwith %}{{ other_record.status | translate_enum }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                <h3 class="fs-5 card-title text-truncate mb-1"><a class="list-item-link" href="{{ url_for('survey_related_records:detail', survey_related_record_id=other_record.id) }}"><span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.survey_related_records }}</span>{{ other_record.name }}</a></h3>
+                                <div class="small text-body-secondary">{{ render_temporal_extent(other_record.temporal_extent_begin, other_record.temporal_extent_end) }}</div>
+                            </div>
+                            <div class="border-start p-2 d-flex flex-column justify-content-center related-record-relation">
+                                <small class="text-body-secondary">{{ direction | capitalize }}</small>
+                                <span class="badge rounded-pill text-bg-light text-wrap">{{ relation }}</span>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endfor %}
+        </div>
+    {% endif %}
 </div>

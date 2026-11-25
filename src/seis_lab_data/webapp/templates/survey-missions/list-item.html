@@ -1,3 +1,4 @@
+{% from "macros/extents.html" import render_temporal_extent %}
 <div class="col">
     <div class="card list-item-card overflow-hidden list-item-stripe list-item-stripe-survey-mission{% if item.status.value != "published" %} item-unpublished{% endif %}">
         <div class="d-flex">
@@ -19,7 +20,7 @@
                 </div>
                 <div class="row small text-body-secondary">
                     <div class="col-12 col-sm">
-                        {{ item.temporal_extent_begin | default("..", True) }}/{{ item.temporal_extent_end | default("..", True) }}
+                        {{ render_temporal_extent(item.temporal_extent_begin, item.temporal_extent_end) }}
                     </div>
                     <div class="col-12 col-sm">
                         {% if item.bbox_4326 %}

@@ -1,17 +1,74 @@
 {% import "macros.html" as macros %}
 
-{# Pills with the number of records per dataset category or workflow stage.
-
-   Each pill filters the records by its value:
+{# A pill with the number of records of the given dataset category or workflow stage, or
+   of all records. It filters the records by its value:
 
    - with `records_list_url`, it links to the records list page
-   - with `mission_records_url`, it re-fetches the record listing of the survey mission page
+   - with `mission_records_url`, it is a radio button of the single group formed by all
+     the pills of the survey mission page, which re-fetches its record listing. It filters
+     by `filter_signal` only, removing the filter of `other_filter_signal`, as the counts
+     do not take the other filters into account. Without `filter_signal`, it removes both
+     filters
 
-   Records without a value get a pill which does not filter
+   Without a value, or without a filter signal on the project page, the pill does not
+   filter
 #}
+{% macro render_filter_pill(
+    content,
+    color_class,
+    title,
+    value=None,
+    filter_signal=None,
+    other_filter_signal=None,
+    records_list_url=None,
+    mission_records_url=None,
+    aria_label=None
+) %}
+    {% set aria_label_attribute %}{% if aria_label %} aria-label="{{ aria_label }}"{% endif %}{% endset %}
+    {% if mission_records_url and (value is not none or filter_signal is none) %}
+        {% set radio_id = "records-summary-filter-" ~ (value if value is not none else "all") %}
+        {% if filter_signal %}
+            {% set checked_js = "$" ~ filter_signal ~ " === '" ~ value ~ "' && $" ~ other_filter_signal ~ " === 'all'" %}
+            {% set select_js = "$" ~ filter_signal ~ " = '" ~ value ~ "'; $" ~ other_filter_signal ~ " = 'all'; " %}
+        {% else %}
+            {% set checked_js = "$filterDatasetCategory === 'all' && $filterWorkflowStage === 'all'" %}
+            {% set select_js = "$filterDatasetCategory = 'all'; $filterWorkflowStage = 'all'; " %}
+        {% endif %}
+        {# the checked radio button follows the signals, which the advanced search controls
+           of the page also change #}
+        <input
+                type="radio"
+                class="btn-check"
+                name="records-summary-filter"
+                id="{{ radio_id }}"
+                autocomplete="off"
+                data-effect="el.checked = {{ checked_js }}"
+                data-on:change="{{ select_js }}{{ macros.reset_selection_js() }}@get('{{ mission_records_url }}')"
+        >
+        {# the text color classes are !important, which would keep the text of a checked
+           radio button in the color of its background #}
+        <label
+                class="btn btn-filter-pill {{ color_class | replace('text-', 'btn-filter-pill-') }}"
+                for="{{ radio_id }}"
+                title="{{ title }}"{{ aria_label_attribute }}
+        >{{ content }}</label>
+    {% elif records_list_url and value is not none and filter_signal %}
+        <a
+                class="badge rounded-pill badge-outline {{ color_class }} text-decoration-none"
+                href="{{ records_list_url }}&{{ filter_signal }}={{ value }}"
+                title="{{ title }}"{{ aria_label_attribute }}
+        >{{ content }}</a>
+    {% else %}
+        <span class="badge rounded-pill badge-outline {{ color_class }} align-self-center" title="{{ title }}"{{ aria_label_attribute }}>{{ content }}</span>
+    {% endif %}
+{% endmacro %}
+
+
+{# Pills with the number of records per dataset category or workflow stage #}
 {% macro render_lookup_value_pills(
     value_counts,
     filter_signal,
+    other_filter_signal,
     color_class,
     icon,
     label,
@@ -20,34 +77,34 @@
     mission_records_url=None
 ) %}
     {% for value_count in value_counts %}
-        {% set pill_classes = "badge rounded-pill badge-outline " ~ color_class %}
         {% set pill_content %}<span class="material-icons-outlined me-1 fs-6">{{ icon }}</span>{{ value_count.name if value_count.id else unknown_label }}<span class="ms-1 fw-normal">{{ value_count.count }}</span>{% endset %}
-        {% if value_count.id is none %}
-            <span class="{{ pill_classes }}" title="{{ label }}">{{ pill_content }}</span>
-        {% elif records_list_url %}
-            <a
-                    class="{{ pill_classes }} text-decoration-none"
-                    href="{{ records_list_url }}&{{ filter_signal }}={{ value_count.id }}"
-                    title="{{ label }} - {{ _('show these survey-related records') }}"
-            >{{ pill_content }}</a>
-        {% else %}
-            <button
-                    type="button"
-                    class="{{ pill_classes }}"
-                    title="{{ label }} - {{ _('show these survey-related records') }}"
-                    data-on:click="${{ filter_signal }} = '{{ value_count.id }}'; {{ macros.reset_selection_js() }}@get('{{ mission_records_url }}')"
-            >{{ pill_content }}</button>
-        {% endif %}
+        {{ render_filter_pill(
+            pill_content,
+            color_class,
+            (label ~ " - " ~ _("show these survey-related records")) if value_count.id else label,
+            value=value_count.id,
+            filter_signal=filter_signal,
+            other_filter_signal=other_filter_signal,
+            records_list_url=records_list_url,
+            mission_records_url=mission_records_url
+        ) }}
     {% endfor %}
 {% endmacro %}
 
 
 {# Pills with the number and the breakdown of the survey-related records of a project or survey mission.
 
-   The counts, the dataset categories and the workflow stages each get their own row
+   The counts, the dataset categories and the workflow stages each get their own row. On
+   the survey mission page, the pills of the records, of the dataset categories and of
+   the workflow stages form a single radio group, which filters the record listing by
+   one dataset category or workflow stage at most
 #}
 {% macro render_records_summary(counts, records_summary, records_list_url=None, mission_records_url=None) %}
-    <div class="d-flex flex-column gap-2 mb-3" aria-label="records-summary">
+    <div
+            class="d-flex flex-column gap-2 mb-3"
+            aria-label="records-summary"
+            {% if mission_records_url %}role="radiogroup"{% endif %}
+    >
         <div class="d-flex flex-wrap gap-2">
             {% if counts.num_survey_missions is not none %}
                 <span
@@ -56,17 +113,21 @@
                         aria-label="num-survey-missions"
                 ><span class="material-icons-outlined me-1 fs-6">{{ icons.survey_missions }}</span>{{ counts.num_survey_missions }}</span>
             {% endif %}
-            <span
-                    class="badge rounded-pill badge-outline text-survey-related-record"
-                    title="{{ _('Survey-related records') }}"
-                    aria-label="num-survey-related-records"
-            ><span class="material-icons-outlined me-1 fs-6">{{ icons.survey_related_records }}</span>{{ counts.num_survey_related_records }}</span>
+            {% set records_pill_content %}<span class="material-icons-outlined me-1 fs-6">{{ icons.survey_related_records }}</span>{{ counts.num_survey_related_records }}{% endset %}
+            {{ render_filter_pill(
+                records_pill_content,
+                "text-survey-related-record",
+                (_("Survey-related records") ~ " - " ~ _("show all survey-related records")) if mission_records_url else _("Survey-related records"),
+                mission_records_url=mission_records_url,
+                aria_label="num-survey-related-records"
+            ) }}
         </div>
         {% if records_summary.dataset_categories %}
         <div class="d-flex flex-wrap gap-2" aria-label="dataset-category-counts">
             {{ render_lookup_value_pills(
                 records_summary.dataset_categories,
                 "filterDatasetCategory",
+                "filterWorkflowStage",
                 "text-dataset-category",
                 icons.dataset_category,
                 _("dataset category") | capitalize,
@@ -81,6 +142,7 @@
             {{ render_lookup_value_pills(
                 records_summary.workflow_stages,
                 "filterWorkflowStage",
+                "filterDatasetCategory",
                 "text-workflow-stage",
                 icons.workflow_stage,
                 _("workflow stage") | capitalize,

@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block header_extra_class %}page-title-single-line{% endblock %}
+
 {% block resource_type_color_class %}bg-project{% endblock %}
 
 {% block head %}
@@ -15,7 +17,7 @@
 {% block title %}{{ item.name }} - SeisLabData{% endblock %}
 
 {% block page_title %}
-    <span class="material-icons-outlined me-1">{{ icons.projects }}</span>{{ item.name }}
+    <span class="material-icons-outlined me-1">{{ icons.projects }}</span><span title="{{ item.name }}">{{ item.name }}</span>
 {% endblock page_title %}
 
 {% block details %}

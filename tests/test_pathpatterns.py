@@ -25,12 +25,33 @@ from seis_lab_data import pathpatterns
         pytest.param("s01/grid.tif", "s01/grid.tif", True, id="literal"),
         pytest.param(r"/s01/.*\.tif", "s01/x.tif", True, id="leading slash"),
         pytest.param(r"s01/(.*\.tif", "s01/x.tif", False, id="invalid regexp"),
+        pytest.param(r"s01/.*\.se?gy", "s01/x.segy", True, id="similar extension"),
+        pytest.param(r"s01/.*\.se?gy", "s01/x.sgy", True, id="similar extension 2"),
+        pytest.param(
+            r"(s08|s10)/raw/.*\.sgy", "s10/raw/x.sgy", True, id="alternative paths"
+        ),
+        pytest.param(
+            r"x/s08|s10/.*\.sgy", "x/s08-old/y.sgy", False, id="directory alternatives"
+        ),
+        pytest.param(
+            r"x/s08|s10/.*\.sgy",
+            "x/old-s10/y.sgy",
+            False,
+            id="directory alternatives 2",
+        ),
+        pytest.param(
+            r"x/s10/.*\.sgy|segy", "x/s10/y.segy", False, id="name alternatives"
+        ),
+        pytest.param(
+            r"x/s10/a\.sgy|segy", "x/s10/a.sgy.bak", False, id="name alternatives 2"
+        ),
     ],
 )
 def test_path_matches_pattern(relative_path_regexp, relative_path, expected):
     """A file path matches a path pattern only when the whole path, from its first
     directory to the end of the file name, fits the pattern; a leading slash in the
-    pattern is ignored, and an invalid pattern matches nothing.
+    pattern is ignored, and an invalid pattern matches nothing. Alternatives within a
+    directory or file name always apply to the whole name.
     """
     assert (
         pathpatterns.path_matches_pattern(relative_path_regexp, relative_path)

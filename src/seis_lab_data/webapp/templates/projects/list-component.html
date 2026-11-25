@@ -25,7 +25,7 @@
                         <small>{{ _("Total projects: %(total_unfiltered)d") | format(total_unfiltered=pagination.total_unfiltered_items) }}</small>
                     </li>
                 </ul>
-                <div class="row row-cols-1 row-cols-lg-2 g-3">
+                <div class="row row-cols-1 g-3">
                     {% for item in items %}
                         {% include "projects/list-item.html" %}
                     {% endfor %}
