@@ -1,0 +1,17 @@
+{# temporal extents may be open at either end, or not known at all #}
+{% macro render_temporal_extent(begin, end) -%}
+    {%- if begin is none and end is none -%}
+        {{ _("unknown") | capitalize }}
+    {%- else -%}
+        {{ begin if begin is not none else _("Unknown start") }} / {{ end if end is not none else _("Unknown end") }}
+    {%- endif -%}
+{%- endmacro %}
+
+{# bounds are shown as min_lon, min_lat, max_lon, max_lat, in EPSG:4326 #}
+{% macro render_spatial_extent(bbox) -%}
+    {%- if bbox is none -%}
+        {{ _("unknown") | capitalize }}
+    {%- else -%}
+        {{ "%.5f, %.5f, %.5f, %.5f" | format(*bbox.bounds) }}
+    {%- endif -%}
+{%- endmacro %}

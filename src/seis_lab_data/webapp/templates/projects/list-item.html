@@ -1,6 +1,7 @@
+{% from "macros/extents.html" import render_temporal_extent %}
 <div class="col">
-    <div class="card list-item-card h-100 overflow-hidden list-item-stripe list-item-stripe-project{% if item.status.value != "published" %} item-unpublished{% endif %}">
-        <div class="d-flex h-100">
+    <div class="card list-item-card overflow-hidden list-item-stripe list-item-stripe-project{% if item.status.value != "published" %} item-unpublished{% endif %}">
+        <div class="d-flex">
             {% include "projects/list-item-thumbnail.html" %}
             <div class="card-body list-item-body flex-grow-1 d-flex flex-column py-2">
                 <div class="d-flex align-items-start gap-2">
@@ -16,7 +17,7 @@
                     <span class="material-icons-outlined ms-3 me-1 fs-6">{{ icons.survey_related_records }}</span>{{ list_item_counts[item.id].num_survey_related_records }}
                 </div>
                 <div class="small text-body-secondary">
-                    {{ item.temporal_extent_begin | default("..", True) }}/{{ item.temporal_extent_end | default("..", True) }}
+                    {{ render_temporal_extent(item.temporal_extent_begin, item.temporal_extent_end) }}
                 </div>
                 <p class="card-text small list-item-description mt-1 mb-1">
                     {{ item.description|default(_("description not available"), True) }}

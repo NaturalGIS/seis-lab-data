@@ -1,10 +1,12 @@
 """Home page
 
 The home page introduces the application and shows the most recent survey missions the
-visitor is allowed to see.
+visitor is allowed to see. Its footer, shared by every page, links to the documentation
+of the application and of its STAC API.
 """
 
 import datetime as dt
+import re
 
 import pytest
 import sqlmodel
@@ -87,3 +89,13 @@ def test_home_highlights_unpublished_missions(
     response = test_client.get("/", params={"lang": "en"})
     assert response.status_code == 200
     assert response.text.count("item-unpublished") == 3
+
+
+def test_footer_links_to_the_stac_api_documentation(test_client: TestClient, db):
+    """The page footer links to the interactive documentation of the STAC API."""
+    response = test_client.get("/", params={"lang": "en"})
+    assert response.status_code == 200
+    assert re.search(r'href="[^"]*/stac/docs"[^>]*>.*?STAC API</a>', response.text)
+
+    stac_docs_response = test_client.get("/stac/docs")
+    assert stac_docs_response.status_code == 200

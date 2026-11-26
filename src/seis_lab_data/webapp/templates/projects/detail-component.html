@@ -5,6 +5,7 @@
 {% from "macros/search.html" import search_component %}
 {% from "macros/select.html" import search_select %}
 {% from "macros/records-summary.html" import render_records_summary %}
+{% from "macros/extents.html" import render_spatial_extent, render_temporal_extent %}
 <div
     class="page-layout"
     data-on-intersect__once="@get('{{ url_for("projects:detail_stream", project_id=item.id, request_id=request_id) }}')"
@@ -26,44 +27,21 @@
                     {% endif %}
                     <div class="card-body">
                         <div class="row gy-3">
-                            <div class="col-12 col-md-8 col-xl-9">
+                            <div class="col-12{% if item.links %} col-md-8 col-xl-9{% endif %}">
                                 <p>{{ item.description }}</p>
                                 {{ render_records_summary(counts, records_summary, records_list_url=records_list_url) }}
                                 <dl class="row">
+                                    <dt class="col-sm-3">{{ _("spatial extent") | capitalize }}</dt>
+                                    <dd class="col-sm-9" aria-label="spatial-extent">{{ render_spatial_extent(item.bbox_4326) }}</dd>
                                     <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
-                                    <dd class="col-sm-9">{{ item.temporal_extent_begin|default("..", True) }}/{{ item.temporal_extent_end|default("..", True) }}</dd>
-                                    <dt class="col-sm-3">{{ _("spatial extent") | capitalize }}
-                                    <dd class="col-sm-9">{{ item.bbox_4326.bounds }}</dd>
+                                    <dd class="col-sm-9" aria-label="temporal-extent">{{ render_temporal_extent(item.temporal_extent_begin, item.temporal_extent_end) }}</dd>
                                 </dl>
                             </div>
-                            <div class="col-12 col-md-4 col-xl-3">
-                                <h5>{{ _("Links") }}</h5>
-                                <div class="list-group list-group-flush">
-                                    {% for link in item.links %}
-                                        <a
-                                                class="list-group-item list-group-item-action"
-                                                href="{{ link.url }}"
-                                                rel="{{ link.relation }}"
-                                                target="_blank"
-                                                type="{{ link.media_type }}"
-                                        >
-                                            <h6>
-                                    <span
-                                            class="material-icons-outlined me-1"
-                                    >
-                                        {{ icons.open_link }}
-                                    </span>
-                                                {{ link.url }}
-                                                <span class="badge rounded-pill bg-light">{{ link.media_type }}</span>
-                                                <span class="badge rounded-pill bg-light">{{ link.relation }}</span>
-                                            </h6>
-                                            <small>{{ link.link_description }}</small>
-                                        </a>
-                                    {% else %}
-                                        <p class="list-group-item">{{ _("no links found") | capitalize }}</p>
-                                    {% endfor %}
+                            {% if item.links %}
+                                <div class="col-12 col-md-4 col-xl-3">
+                                    {% include "partial-links.html" %}
                                 </div>
-                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -83,7 +61,7 @@
             data-effect="$listingVersion > 0 && @get('{{ project_missions_url }}?page=' + $currentPage)"
         >
             <div class="col">
-                <h2>{{ _("Survey missions") }}</h2>
+                <h2 class="fs-4">{{ _("Survey missions") }}</h2>
                 {{ search_component(
                    project_missions_url,
                    _("search project survey missions"),

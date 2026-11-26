@@ -34,12 +34,8 @@ class _AssetDiscoveryConfigurationForm(StarletteForm):
             ),
         ],
     )
-    relative_path_regexp = StringField(
-        _("Relative path regular expression"),
-        description=_(
-            "A regular expression that is used to find the respective file on the filesystem"
-        ),
-    )
+    # its description links to the user guide, which depends on the request
+    relative_path_regexp = StringField(_("Relative path regular expression"))
     media_type = StringField(
         _("Media type"),
         description=_(
@@ -65,6 +61,28 @@ class _AssetDiscoveryConfigurationForm(StarletteForm):
         self.name.flags.backend_required = True
         self.relative_path_regexp.flags.backend_required = True
         self.media_type.flags.backend_required = True
+        # the English user guide is at the root of the documentation, the others in a
+        # directory named after their language
+        language = self._request.state.language
+        guide_url = "/".join(
+            (
+                self._request.state.settings.docs_url.rstrip("/"),
+                *(() if language == "en" else (language,)),
+                "user-guide/#path-patterns",
+            )
+        )
+        self.relative_path_regexp.description = str(
+            _(
+                "Path of the files to discover, relative to the survey mission "
+                "directory, whose directory and file names may be regular expressions, "
+                "e.g. %(example)s. See the "
+                '<a href="%(guide_url)s" target="_blank">user guide</a> for their '
+                "syntax and more examples"
+            )
+        ) % {
+            "example": r"<code>s06-mbes/s02-raw-data/.*\.kmall</code>",
+            "guide_url": guide_url,
+        }
 
     def has_validation_errors(self) -> bool:
         all_form_validation_errors = {**self.errors}

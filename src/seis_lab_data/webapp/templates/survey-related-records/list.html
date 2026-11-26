@@ -103,7 +103,42 @@
         <div class="row">
             <div class="col mt-1 mb-3 mb-lg-5">
                 <div class="row collapse{% if has_initial_advanced_filters %} show{% endif %}" id="advanced-search-controls">
-                    <div class="col-12 col-md-4">
+                    {# the map area filter spans the whole width, the others follow the layout of
+                       the advanced filters of a survey mission's records #}
+                    <div class="col-12 mb-3">
+                        {{ macros.render_map_area_search_component(
+                            url_for("survey_related_records:get_list_component"),
+                            map_bounds,
+                            geojson_features,
+                            map_popup_detail_base_url=map_popup_detail_base_url | default(""),
+                            filter_active=initial_map_area_filter,
+                            extra_on_input_js=macros.reset_selection_js()
+                        ) }}
+                    </div>
+                    <div class="col-12 col-md-6">
+                        {{ search_datalist(
+                              "search-project-datalist",
+                              filter_projects_datalist,
+                              "filterProject",
+                              url_for("survey_related_records:get_list_component"),
+                              _("project") | capitalize,
+                              initial_value=initial_project_filter,
+                              suggestions_url=url_for("projects:get_datalist")
+                        ) }}
+                    </div>
+                    <div class="col-12 col-md-6">
+                        {{ search_datalist(
+                              "search-mission-datalist",
+                              filter_missions_datalist,
+                              "filterMission",
+                              url_for("survey_related_records:get_list_component"),
+                              _("mission") | capitalize,
+                              initial_value=initial_mission_filter,
+                              suggestions_url=url_for("survey_missions:get_datalist"),
+                              suggestions_depend_on="filterProject"
+                        ) }}
+                    </div>
+                    <div class="col-12 col-md-6">
                         {% if request.user.is_authenticated %}
                             {{ search_select(
                                 "search-status",
@@ -115,42 +150,23 @@
                                 extra_on_input_js=macros.reset_selection_js()
                             ) }}
                         {% endif %}
-                        {{ search_datalist(
-                              "search-project-datalist",
-                              filter_projects_datalist,
-                              "filterProject",
-                              url_for("survey_related_records:get_list_component"),
-                              _("project") | capitalize,
-                              initial_value=initial_project_filter,
-                              suggestions_url=url_for("projects:get_datalist")
-                        ) }}
-                        {{ search_datalist(
-                              "search-mission-datalist",
-                              filter_missions_datalist,
-                              "filterMission",
-                              url_for("survey_related_records:get_list_component"),
-                              _("mission") | capitalize,
-                              initial_value=initial_mission_filter,
-                              suggestions_url=url_for("survey_missions:get_datalist"),
-                              suggestions_depend_on="filterProject"
-                        ) }}
                         {{ search_select(
                             "search-dataset-category",
                             dataset_categories,
-                                "filterDatasetCategory",
-                                url_for("survey_related_records:get_list_component"),
-                                _("dataset category") | capitalize,
-                                selected_option=initial_dataset_category_filter,
-                                extra_on_input_js=macros.reset_selection_js()
+                            "filterDatasetCategory",
+                            url_for("survey_related_records:get_list_component"),
+                            _("dataset category") | capitalize,
+                            selected_option=initial_dataset_category_filter,
+                            extra_on_input_js=macros.reset_selection_js()
                         ) }}
                         {{ search_select(
                             "search-workflow-stage",
                             workflow_stages,
-                                "filterWorkflowStage",
-                                url_for("survey_related_records:get_list_component"),
-                                _("workflow stage") | capitalize,
-                                selected_option=initial_workflow_stage_filter,
-                                extra_on_input_js=macros.reset_selection_js()
+                            "filterWorkflowStage",
+                            url_for("survey_related_records:get_list_component"),
+                            _("workflow stage") | capitalize,
+                            selected_option=initial_workflow_stage_filter,
+                            extra_on_input_js=macros.reset_selection_js()
                         ) }}
                         {{ search_datalist(
                               "search-asset-media-type",
@@ -160,14 +176,16 @@
                               _("Media type"),
                               initial_value=initial_media_type_filter
                         ) }}
+                    </div>
+                    <div class="col-12 col-md-6">
                         {{ macros.render_temporal_extent_search_component(
-                                        url_for("survey_related_records:get_list_component"),
-                                        _("Temporal extent begin"),
-                                        _("Temporal extent end"),
-                                        initial_temporal_extent_begin,
-                                        initial_temporal_extent_end,
-                                        extra_on_input_js=macros.reset_selection_js()
-                                    ) }}
+                            url_for("survey_related_records:get_list_component"),
+                            _("Temporal extent begin"),
+                            _("Temporal extent end"),
+                            initial_temporal_extent_begin,
+                            initial_temporal_extent_end,
+                            extra_on_input_js=macros.reset_selection_js()
+                        ) }}
                         <div class="mb-3">
                             <label class="form-label" for="path-fragment">{{ _("Path") }}</label>
                             <input
@@ -178,16 +196,6 @@
                                     value="{{ initial_path_fragment_filter }}"
                             >
                         </div>
-                    </div>
-                    <div class="col-12 col-md">
-                        {{ macros.render_map_area_search_component(
-                            url_for("survey_related_records:get_list_component"),
-                            map_bounds,
-                            geojson_features,
-                            map_popup_detail_base_url=map_popup_detail_base_url | default(""),
-                            filter_active=initial_map_area_filter,
-                            extra_on_input_js=macros.reset_selection_js()
-                        ) }}
                     </div>
                 </div>
             </div>

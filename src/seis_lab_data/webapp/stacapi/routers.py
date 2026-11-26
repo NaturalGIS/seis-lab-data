@@ -1,12 +1,12 @@
 import logging
 import uuid
+from typing import Annotated
 
-import shapely
-import shapely.geometry
 import stac_pydantic.api as stac_api
 from fastapi import (
     APIRouter,
     HTTPException,
+    Path,
     Query,
     Request,
 )
@@ -34,6 +34,25 @@ from .responses import ERROR_RESPONSES
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# descriptions of the query parameters shared by several endpoints, for the OpenAPI
+# document
+_PAGE_DESCRIPTION = "Number of the page of results to return, starting at 1."
+_LIMIT_DESCRIPTION = (
+    "Maximum number of results per page. Defaults to the page size of the "
+    "application, and is capped at 10000."
+)
+_BBOX_DESCRIPTION = (
+    "Bounding box in EPSG:4326, as `minx,miny,maxx,maxy` (a 6 value bounding box "
+    "is accepted, its vertical values are ignored). Only the items whose geometry "
+    "intersects it are returned."
+)
+_DATETIME_DESCRIPTION = (
+    "Date-time or interval, in RFC 3339 format, such as `2024-06-01T00:00:00Z` or "
+    "`2024-01-01T00:00:00Z/2024-12-31T23:59:59Z`. Intervals may be open at one end "
+    "with `..`. Only the items whose temporal extent overlaps it are returned. Only "
+    "the date part of the values is taken into account."
+)
+
 
 def _dump(model) -> dict:
     return model.model_dump(mode="json", by_alias=True, exclude_none=True)
@@ -48,8 +67,15 @@ def _parse_id_list(raw: list[str] | None, id_type):
         raise HTTPException(400, f"Invalid id in {raw!r}: {err}") from err
 
 
-@router.get("/", name="landing-page", responses=ERROR_RESPONSES)
+@router.get(
+    "/",
+    name="landing-page",
+    summary="Landing page",
+    tags=["Core"],
+    responses=ERROR_RESPONSES,
+)
 async def landing_page(request: Request, settings: SettingsDep) -> JSONResponse:
+    """Root catalog of the API, with links to its other endpoints."""
     page = stac_api.LandingPage(
         type="Catalog",
         id="seis-lab-data",
@@ -78,19 +104,35 @@ async def landing_page(request: Request, settings: SettingsDep) -> JSONResponse:
     return JSONResponse(_dump(page))
 
 
-@router.get("/conformance", name="conformance", responses=ERROR_RESPONSES)
+@router.get(
+    "/conformance",
+    name="conformance",
+    summary="Conformance classes",
+    tags=["Core"],
+    responses=ERROR_RESPONSES,
+)
 async def get_conformance() -> JSONResponse:
+    """Conformance classes of the STAC API and OGC API - Features specifications
+    implemented by the API.
+    """
     return JSONResponse(_dump(stac_api.Conformance(conformsTo=conformance.CONFORMS_TO)))
 
 
-@router.get("/children", name="children", responses=ERROR_RESPONSES)
+@router.get(
+    "/children",
+    name="children",
+    summary="List projects",
+    tags=["Catalogs"],
+    responses=ERROR_RESPONSES,
+)
 async def root_children(
     request: Request,
     session: SessionDep,
     settings: SettingsDep,
-    page: int = Query(1, ge=1),
-    limit: int | None = Query(None),
+    page: int = Query(1, ge=1, description=_PAGE_DESCRIPTION),
+    limit: int | None = Query(None, description=_LIMIT_DESCRIPTION),
 ) -> JSONResponse:
+    """Published projects, as the child catalogs of the root catalog."""
     page_size = paging.parse_limit_param(limit, settings.pagination_page_size)
     projects, total = await project_ops.list_projects(
         session, initiator=None, page=page, page_size=page_size, include_total=True
@@ -115,12 +157,19 @@ async def root_children(
     )
 
 
-@router.get("/catalogs/{project_id}", name="project-catalog", responses=ERROR_RESPONSES)
+@router.get(
+    "/catalogs/{project_id}",
+    name="project-catalog",
+    summary="Get a project",
+    tags=["Catalogs"],
+    responses=ERROR_RESPONSES,
+)
 async def project_catalog(
-    project_id: uuid.UUID,
+    project_id: Annotated[uuid.UUID, Path(description="Identifier of the project.")],
     request: Request,
     session: SessionDep,
 ) -> JSONResponse:
+    """Published project, as a catalog."""
     project = await project_ops.get_project(
         identifiers.ProjectId(project_id), None, session
     )
@@ -132,16 +181,19 @@ async def project_catalog(
 @router.get(
     "/catalogs/{project_id}/children",
     name="project-children",
+    summary="List the survey missions of a project",
+    tags=["Catalogs"],
     responses=ERROR_RESPONSES,
 )
 async def project_children(
-    project_id: uuid.UUID,
+    project_id: Annotated[uuid.UUID, Path(description="Identifier of the project.")],
     request: Request,
     session: SessionDep,
     settings: SettingsDep,
-    page: int = Query(1, ge=1),
-    limit: int | None = Query(None),
+    page: int = Query(1, ge=1, description=_PAGE_DESCRIPTION),
+    limit: int | None = Query(None, description=_LIMIT_DESCRIPTION),
 ) -> JSONResponse:
+    """Published survey missions of a published project, as its child collections."""
     project = await project_ops.get_project(
         identifiers.ProjectId(project_id), None, session
     )
@@ -182,14 +234,21 @@ async def project_children(
     )
 
 
-@router.get("/collections", name="collections", responses=ERROR_RESPONSES)
+@router.get(
+    "/collections",
+    name="collections",
+    summary="List survey missions",
+    tags=["Collections"],
+    responses=ERROR_RESPONSES,
+)
 async def list_collections(
     request: Request,
     session: SessionDep,
     settings: SettingsDep,
-    page: int = Query(1, ge=1),
-    limit: int | None = Query(None),
+    page: int = Query(1, ge=1, description=_PAGE_DESCRIPTION),
+    limit: int | None = Query(None, description=_LIMIT_DESCRIPTION),
 ) -> JSONResponse:
+    """Published survey missions of all projects, as collections."""
     page_size = paging.parse_limit_param(limit, settings.pagination_page_size)
     missions, total = await survey_mission_ops.list_survey_missions(
         session, initiator=None, page=page, page_size=page_size, include_total=True
@@ -215,12 +274,21 @@ async def list_collections(
     return JSONResponse(_dump(body))
 
 
-@router.get("/collections/{mission_id}", name="collection", responses=ERROR_RESPONSES)
+@router.get(
+    "/collections/{mission_id}",
+    name="collection",
+    summary="Get a survey mission",
+    tags=["Collections"],
+    responses=ERROR_RESPONSES,
+)
 async def get_collection(
-    mission_id: uuid.UUID,
+    mission_id: Annotated[
+        uuid.UUID, Path(description="Identifier of the survey mission.")
+    ],
     request: Request,
     session: SessionDep,
 ) -> JSONResponse:
+    """Published survey mission, as a collection."""
     mission = await survey_mission_ops.get_survey_mission(
         identifiers.SurveyMissionId(mission_id), None, session
     )
@@ -234,18 +302,25 @@ async def get_collection(
 @router.get(
     "/collections/{mission_id}/items",
     name="collection-items",
+    summary="List the survey-related records of a survey mission",
+    tags=["Collections"],
     responses=ERROR_RESPONSES,
 )
 async def collection_items(
-    mission_id: uuid.UUID,
+    mission_id: Annotated[
+        uuid.UUID, Path(description="Identifier of the survey mission.")
+    ],
     request: Request,
     session: SessionDep,
     settings: SettingsDep,
-    bbox: str | None = Query(None),
-    datetime: str | None = Query(None),
-    page: int = Query(1, ge=1),
-    limit: int | None = Query(None),
+    bbox: str | None = Query(None, description=_BBOX_DESCRIPTION),
+    datetime: str | None = Query(None, description=_DATETIME_DESCRIPTION),
+    page: int = Query(1, ge=1, description=_PAGE_DESCRIPTION),
+    limit: int | None = Query(None, description=_LIMIT_DESCRIPTION),
 ) -> JSONResponse:
+    """Published survey-related records of a published survey mission, as items,
+    optionally filtered by their spatial and temporal extents.
+    """
     mission = await survey_mission_ops.get_survey_mission(
         identifiers.SurveyMissionId(mission_id), None, session
     )
@@ -314,14 +389,23 @@ async def collection_items(
 
 
 @router.get(
-    "/collections/{mission_id}/items/{item_id}", name="item", responses=ERROR_RESPONSES
+    "/collections/{mission_id}/items/{item_id}",
+    name="item",
+    summary="Get a survey-related record",
+    tags=["Collections"],
+    responses=ERROR_RESPONSES,
 )
 async def get_item(
-    mission_id: uuid.UUID,
-    item_id: uuid.UUID,
+    mission_id: Annotated[
+        uuid.UUID, Path(description="Identifier of the survey mission.")
+    ],
+    item_id: Annotated[
+        uuid.UUID, Path(description="Identifier of the survey-related record.")
+    ],
     request: Request,
     session: SessionDep,
 ) -> JSONResponse:
+    """Published survey-related record, as an item."""
     result = await survey_related_record_ops.get_survey_related_record(
         identifiers.SurveyRelatedRecordId(item_id), None, session
     )
@@ -345,13 +429,15 @@ async def _execute_search(
     ids: list[str] | None,
     bbox_raw: str | None,
     datetime_raw: str | None,
-    intersects_geom,
+    intersects_raw: str | None,
     limit: int | None,
     page: int,
     self_route_name: str,
 ) -> JSONResponse:
     page_size = paging.parse_limit_param(limit, settings.pagination_page_size)
-    spatial_intersect = intersects_geom or paging.parse_bbox_param(bbox_raw)
+    spatial_intersect = paging.parse_intersects_param(
+        intersects_raw
+    ) or paging.parse_bbox_param(bbox_raw)
     records, total = await survey_related_record_ops.list_survey_related_records(
         session,
         initiator=None,
@@ -376,6 +462,8 @@ async def _execute_search(
         extra_params["datetime"] = datetime_raw
     if bbox_raw:
         extra_params["bbox"] = bbox_raw
+    if intersects_raw:
+        extra_params["intersects"] = intersects_raw
     links = [
         link_helpers.self_link(
             request, self_route_name, media_type="application/geo+json"
@@ -402,19 +490,44 @@ async def _execute_search(
     return JSONResponse(_dump(body), media_type="application/geo+json")
 
 
-@router.get("/search", name="search-get", responses=ERROR_RESPONSES)
+@router.get(
+    "/search",
+    name="search-get",
+    summary="Search items",
+    tags=["Item search"],
+    responses=ERROR_RESPONSES,
+)
 async def search_get(
     request: Request,
     session: SessionDep,
     settings: SettingsDep,
-    bbox: str | None = Query(None),
-    intersects: str | None = Query(None),
-    datetime: str | None = Query(None),
-    collections: str | None = Query(None),
-    ids: str | None = Query(None),
-    limit: int | None = Query(None),
-    page: int = Query(1, ge=1),
+    bbox: str | None = Query(
+        None, description=_BBOX_DESCRIPTION + " Excludes `intersects`."
+    ),
+    intersects: str | None = Query(
+        None,
+        description=(
+            "GeoJSON geometry, in EPSG:4326. Only the items whose geometry intersects "
+            "it are returned. Excludes `bbox`."
+        ),
+    ),
+    datetime: str | None = Query(None, description=_DATETIME_DESCRIPTION),
+    collections: str | None = Query(
+        None,
+        description=(
+            "Comma-separated identifiers of the survey missions to search in."
+        ),
+    ),
+    ids: str | None = Query(
+        None,
+        description="Comma-separated identifiers of the survey-related records to return.",
+    ),
+    limit: int | None = Query(None, description=_LIMIT_DESCRIPTION),
+    page: int = Query(1, ge=1, description=_PAGE_DESCRIPTION),
 ) -> JSONResponse:
+    """Published survey-related records of all survey missions, as items, filtered
+    by the given criteria, which must all be met.
+    """
     if bbox is not None and intersects is not None:
         raise HTTPException(400, "bbox and intersects are mutually exclusive")
     return await _execute_search(
@@ -425,26 +538,37 @@ async def search_get(
         ids=ids.split(",") if ids else None,
         bbox_raw=bbox,
         datetime_raw=datetime,
-        intersects_geom=paging.parse_intersects_param(intersects),
+        intersects_raw=intersects,
         limit=limit,
         page=page,
         self_route_name="search-get",
     )
 
 
-@router.post("/search", name="search-post", responses=ERROR_RESPONSES)
+@router.post(
+    "/search",
+    name="search-post",
+    summary="Search items, with the criteria in the request body",
+    tags=["Item search"],
+    responses=ERROR_RESPONSES,
+)
 async def search_post(
     request: Request,
     search: stac_schemas.Search,
     session: SessionDep,
     settings: SettingsDep,
 ) -> JSONResponse:
-    intersects_geom = None
+    """Published survey-related records of all survey missions, as items, filtered
+    by the criteria of the request body, which must all be met. The criteria are the
+    same as those of the GET method, with `bbox`, `collections` and `ids` given as
+    JSON arrays and `intersects` as a GeoJSON object.
+    """
+    # the criteria are passed on as the GET method's parameters, which the links to
+    # the other pages of results carry
+    intersects_raw = None
     bbox_raw = None
     if search.intersects is not None:
-        intersects_geom = shapely.geometry.shape(
-            search.intersects.model_dump(mode="json")
-        )
+        intersects_raw = search.intersects.model_dump_json(exclude_none=True)
     elif search.bbox is not None:
         bbox_raw = ",".join(str(v) for v in search.bbox)
     return await _execute_search(
@@ -455,7 +579,7 @@ async def search_post(
         ids=search.ids,
         bbox_raw=bbox_raw,
         datetime_raw=search.datetime,
-        intersects_geom=intersects_geom,
+        intersects_raw=intersects_raw,
         limit=search.limit,
         page=search.page or 1,
         self_route_name="search-post",
