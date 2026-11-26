@@ -15,8 +15,8 @@ diretório da missão no arquivo e cria um registo para cada ficheiro que corres
 de caminho configurados, extraindo do próprio ficheiro a sua extensão espacial, a sua extensão
 temporal e outros metadados.
 
-O catálogo é publicado através da interface web e de uma API STAC, disponível no caminho `/stac`,
-que expõe apenas os itens públicos.
+O catálogo é publicado através da interface web e de uma [API STAC](#stac-api), disponível no
+caminho `/stac`, que expõe apenas os itens públicos.
 
 A interface está disponível em português e em inglês. O idioma é selecionado no menu de idioma
 da barra superior. Os dados introduzidos pelos utilizadores, como nomes e descrições, não são
@@ -731,3 +731,141 @@ A ação **delete** da entrada de uma configuração elimina a configuração. O
 uma referência à configuração que os criou, pelo que a eliminação de uma configuração não modifica
 nenhum registo. Os ficheiros abrangidos apenas por uma configuração eliminada não são encontrados
 pelas descobertas posteriores.
+
+
+## API STAC { #stac-api }
+
+[STAC](https://stacspec.org/) (SpatioTemporal Asset Catalog) é uma norma para descrever e pesquisar
+dados geoespaciais. O catálogo disponibiliza uma API STAC só de leitura no caminho `/stac`, que
+permite a clientes STAC, como o [pystac-client](https://pystac-client.readthedocs.io/) ou a fonte
+de dados STAC do QGIS 3.40 e posteriores, navegar e pesquisar o catálogo e descarregar os ficheiros
+de dados dos seus registos.
+
+A API expõe apenas os projetos, missões e registos públicos, da mesma forma para todos os
+utilizadores: não requer autenticação, e também não mostra os itens não públicos aos utilizadores
+autenticados.
+
+A documentação interativa da API, que descreve cada um dos seus _endpoints_ e permite
+experimentá-los, tem uma ligação no rodapé de todas as páginas da interface web e está disponível
+em `/stac/docs`. A sua descrição legível por máquinas, no formato OpenAPI, está disponível em
+`/stac/openapi.json`.
+
+### Como é representado o catálogo
+
+| Catálogo | STAC | Caminho |
+|----------|------|---------|
+| O catálogo | Catálogo raiz | `/stac/` |
+| Projeto | Catálogo, filho do catálogo raiz | `/stac/catalogs/{project_id}` |
+| Missão | Coleção, filha do catálogo do seu projeto | `/stac/collections/{mission_id}` |
+| Registo | Item da coleção da sua missão | `/stac/collections/{mission_id}/items/{record_id}` |
+| Recurso de dados de um registo | Recurso do item do registo | Descarga do ficheiro de dados |
+
+Os identificadores dos objetos STAC são os do catálogo, tal como aparecem no endereço da sua página
+na interface web.
+
+### Endpoints
+
+| Endpoint | Conteúdo |
+|----------|----------|
+| `GET /stac/` | Página inicial: o catálogo raiz, com ligações para os outros _endpoints_. |
+| `GET /stac/conformance` | Classes de conformidade das especificações STAC API e OGC API - Features implementadas pela API. |
+| `GET /stac/children` | Projetos, como catálogos. |
+| `GET /stac/catalogs/{project_id}` | Um projeto. |
+| `GET /stac/catalogs/{project_id}/children` | Missões de um projeto, como coleções. |
+| `GET /stac/collections` | Missões de todos os projetos, como coleções. |
+| `GET /stac/collections/{mission_id}` | Uma missão. |
+| `GET /stac/collections/{mission_id}/items` | Registos de uma missão, como itens, que podem ser filtrados com os parâmetros `bbox` e `datetime` descritos abaixo. |
+| `GET /stac/collections/{mission_id}/items/{record_id}` | Um registo. |
+| `GET /stac/search`, `POST /stac/search` | Registos de todas as missões, como itens, filtrados pelos parâmetros de pesquisa descritos abaixo. |
+
+### Coleções
+
+A extensão da coleção de uma missão é a extensão espacial e temporal da missão. Uma missão cuja
+extensão espacial é desconhecida tem o mundo inteiro como extensão espacial, pois o STAC exige uma.
+
+### Itens
+
+O item de um registo tem o seguinte conteúdo:
+
+- A sua geometria e o seu retângulo envolvente são a extensão espacial do registo, em EPSG:4326.
+  Ambos estão vazios quando a extensão espacial do registo é desconhecida.
+- As suas propriedades `start_datetime` e `end_datetime` são as datas de início e de fim da
+  extensão temporal do registo, às 00:00 UTC. Quando ambas são desconhecidas, a sua propriedade
+  `datetime` é, em vez disso, a data e hora de criação do registo.
+- As suas outras propriedades, específicas do catálogo, são:
+
+    | Propriedade | Conteúdo |
+    |-------------|----------|
+    | `sld:status` | Estado do registo, sempre `published`. |
+    | `sld:validation_result` | Resultado da validação do registo. |
+    | `sld:dataset_category_id` | Identificador da categoria do registo. |
+    | `sld:dataset_category_name` | Nome da categoria do registo. |
+    | `sld:workflow_stage_id` | Identificador do estádio do registo. |
+    | `sld:workflow_stage_name` | Nome do estádio do registo. |
+
+- Tem um recurso para cada recurso de dados do registo, cuja chave é o identificador do recurso de
+  dados. O seu `href` é o endereço da descarga do ficheiro de dados, a partir da interface web, com
+  as mesmas regras de acesso. O seu `type` é o tipo de media do recurso de dados, exceto para os
+  formatos que são descarregados como um ficheiro zip juntamente com os respetivos ficheiros
+  auxiliares, como as shapefiles, conforme descrito em
+  [Trabalhar com recursos dos registos](#trabalhar-com-recursos-dos-registos), cujo tipo é
+  `application/zip`. O seu `title` e a sua `description` são o nome e a descrição do recurso de
+  dados.
+
+### Pesquisa
+
+O _endpoint_ `GET /stac/search` aceita os seguintes parâmetros, que podem ser combinados. Um item é
+devolvido quando cumpre todos eles.
+
+| Parâmetro | Conteúdo |
+|-----------|----------|
+| `bbox` | Retângulo envolvente em EPSG:4326, como `minx,miny,maxx,maxy`. São devolvidos apenas os itens cuja geometria o interseta. |
+| `intersects` | Geometria GeoJSON em EPSG:4326. São devolvidos apenas os itens cuja geometria a interseta. Não pode ser combinado com `bbox`. |
+| `datetime` | Data e hora, ou intervalo, no formato [RFC 3339](https://www.rfc-editor.org/rfc/rfc3339), como `2024-06-01T00:00:00Z` ou `2024-01-01T00:00:00Z/2024-12-31T23:59:59Z`. Um intervalo pode ser aberto num dos extremos, com `..`, como em `2024-01-01T00:00:00Z/..`. São devolvidos apenas os itens cuja extensão temporal se sobrepõe a ele. Apenas as datas são tidas em conta, não as horas. |
+| `collections` | Identificadores, separados por vírgulas, das missões em que pesquisar. |
+| `ids` | Identificadores, separados por vírgulas, dos registos a devolver. |
+| `limit`, `page` | Paginação, como descrito abaixo. |
+
+O _endpoint_ `POST /stac/search` aceita os mesmos parâmetros como um objeto JSON no corpo do
+pedido, com `bbox`, `collections` e `ids` como _arrays_ e `intersects` como um objeto GeoJSON.
+
+### Paginação
+
+As listagens da API são divididas em páginas. O parâmetro `limit` define o número de resultados
+por página, que é, por omissão, o tamanho de página da aplicação, 20, e no máximo 10000. O
+parâmetro `page` seleciona a página, a começar em 1. Os campos `numberMatched` e `numberReturned`
+de uma listagem de coleções ou de itens indicam o número total de resultados e o número de
+resultados da página. As ligações `next` e `prev` de uma listagem levam às páginas seguinte e
+anterior.
+
+### Exemplos
+
+Os exemplos seguintes usam `https://catalogue.example.com` como endereço da interface web.
+
+Os registos públicos com uma extensão espacial ao largo da costa oeste de Portugal continental e
+uma extensão temporal dentro de 2024, 50 por página:
+
+```shell
+curl "https://catalogue.example.com/stac/search?bbox=-10,37,-8.5,42&datetime=2024-01-01T00:00:00Z/2024-12-31T23:59:59Z&limit=50"
+```
+
+A mesma pesquisa, com os critérios no corpo do pedido:
+
+```shell
+curl -X POST "https://catalogue.example.com/stac/search" \
+    -H "Content-Type: application/json" \
+    -d '{"bbox": [-10, 37, -8.5, 42], "datetime": "2024-01-01T00:00:00Z/2024-12-31T23:59:59Z", "limit": 50}'
+```
+
+Os registos de uma missão, com os endereços dos seus ficheiros de dados, com o pystac-client em
+Python:
+
+```python
+from pystac_client import Client
+
+catalog = Client.open("https://catalogue.example.com/stac/")
+search = catalog.search(collections=["<identificador da missão>"])
+for item in search.items():
+    for asset in item.assets.values():
+        print(item.id, asset.href)
+```

@@ -150,8 +150,14 @@ def item_from_survey_related_record(
             "sld:dataset_category_id": (
                 str(record.dataset_category_id) if record.dataset_category_id else None
             ),
+            "sld:dataset_category_name": (
+                record.dataset_category.name if record.dataset_category else None
+            ),
             "sld:workflow_stage_id": (
                 str(record.workflow_stage_id) if record.workflow_stage_id else None
+            ),
+            "sld:workflow_stage_name": (
+                record.workflow_stage.name if record.workflow_stage else None
             ),
         },
     )

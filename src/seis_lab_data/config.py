@@ -43,6 +43,7 @@ warnings.filterwarnings(
 
 class SeisLabDataIconSettings(BaseModel):
     asset_discovery_configuration: str = "insert_drive_file"
+    api_docs: str = "api"
     data_format: str = "insert_drive_file"
     dataset_category: str = "category"
     delete_item: str = "delete"

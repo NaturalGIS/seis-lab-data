@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-25 23:39+0000\n"
+"POT-Creation-Date: 2026-11-25 23:48+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_PT\n"
@@ -732,10 +732,10 @@ msgid ""
 "%(example)s. See the <a href=\"%(guide_url)s\" target=\"_blank\">user "
 "guide</a> for their syntax and more examples"
 msgstr ""
-"Caminho dos ficheiros a descobrir, relativo ao diretório da missão, cujos "
-"nomes de diretórios e de ficheiro podem ser expressões regulares, p. ex. "
-"%(example)s. Consulte o <a href=\"%(guide_url)s\" target=\"_blank\">guia "
-"do utilizador</a> para a sua sintaxe e mais exemplos"
+"Caminho dos ficheiros a descobrir, relativo ao diretório da missão, cujos"
+" nomes de diretórios e de ficheiro podem ser expressões regulares, p. ex."
+" %(example)s. Consulte o <a href=\"%(guide_url)s\" target=\"_blank\">guia"
+" do utilizador</a> para a sua sintaxe e mais exemplos"
 
 #: webapp/forms/projects.py:47 webapp/forms/surveymissions.py:71
 #: webapp/forms/surveyrelatedrecords.py:104
@@ -1162,8 +1162,8 @@ msgid "Authentik Admin"
 msgstr "Administração do Authentik"
 
 #: webapp/templates/base.html:142 webapp/templates/base.html:209
-#: webapp/templates/base.html:210 webapp/templates/base.html:217
-#: webapp/templates/base.html:222
+#: webapp/templates/base.html:210 webapp/templates/base.html:211
+#: webapp/templates/base.html:218 webapp/templates/base.html:223
 msgid "opens in a new tab"
 msgstr "abre num novo separador"
 
@@ -1180,22 +1180,26 @@ msgid "Documentation"
 msgstr "Documentação"
 
 #: webapp/templates/base.html:210
+msgid "STAC API"
+msgstr "API STAC"
+
+#: webapp/templates/base.html:211
 msgid "Source code"
 msgstr "Código-fonte"
 
-#: webapp/templates/base.html:215
+#: webapp/templates/base.html:216
 msgid "Version"
 msgstr "Versão"
 
-#: webapp/templates/base.html:219
+#: webapp/templates/base.html:220
 msgid "development"
 msgstr "desenvolvimento"
 
-#: webapp/templates/base.html:222
+#: webapp/templates/base.html:223
 msgid "Made by"
 msgstr "Desenvolvido por"
 
-#: webapp/templates/base.html:268 webapp/templates/macros-buttons.html:76
+#: webapp/templates/base.html:269 webapp/templates/macros-buttons.html:76
 #: webapp/templates/survey-missions/detail-component.html:186
 #: webapp/templates/survey-missions/detail-component.html:211
 #: webapp/templates/survey-missions/detail-component.html:218

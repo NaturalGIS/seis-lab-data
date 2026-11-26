@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-25 23:39+0000\n"
+"POT-Creation-Date: 2026-11-25 23:48+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en_US\n"
@@ -1107,8 +1107,8 @@ msgid "Authentik Admin"
 msgstr ""
 
 #: webapp/templates/base.html:142 webapp/templates/base.html:209
-#: webapp/templates/base.html:210 webapp/templates/base.html:217
-#: webapp/templates/base.html:222
+#: webapp/templates/base.html:210 webapp/templates/base.html:211
+#: webapp/templates/base.html:218 webapp/templates/base.html:223
 msgid "opens in a new tab"
 msgstr ""
 
@@ -1125,22 +1125,26 @@ msgid "Documentation"
 msgstr ""
 
 #: webapp/templates/base.html:210
+msgid "STAC API"
+msgstr ""
+
+#: webapp/templates/base.html:211
 msgid "Source code"
 msgstr ""
 
-#: webapp/templates/base.html:215
+#: webapp/templates/base.html:216
 msgid "Version"
 msgstr ""
 
-#: webapp/templates/base.html:219
+#: webapp/templates/base.html:220
 msgid "development"
 msgstr ""
 
-#: webapp/templates/base.html:222
+#: webapp/templates/base.html:223
 msgid "Made by"
 msgstr ""
 
-#: webapp/templates/base.html:268 webapp/templates/macros-buttons.html:76
+#: webapp/templates/base.html:269 webapp/templates/macros-buttons.html:76
 #: webapp/templates/survey-missions/detail-component.html:186
 #: webapp/templates/survey-missions/detail-component.html:211
 #: webapp/templates/survey-missions/detail-component.html:218

@@ -207,6 +207,7 @@
             <div class="col-12 col-md-4">
                 <ul class="nav flex-column">
                     <li class="nav-item"><a class="nav-link link-light p-0 pb-1" href="{{ settings.docs_url }}" target="_blank" title="{{ _('opens in a new tab') }}"><span class="material-icons-outlined" aria-hidden="true">{{ icons.docs }}</span>{{ _("Documentation") }}</a></li>
+                    <li class="nav-item"><a class="nav-link link-light p-0 pb-1" href="{{ url_for('stac', path='/docs') }}" target="_blank" title="{{ _('opens in a new tab') }}"><span class="material-icons-outlined" aria-hidden="true">{{ icons.api_docs }}</span>{{ _("STAC API") }}</a></li>
                     <li class="nav-item"><a class="nav-link link-light p-0" href="{{ settings.source_code_repository_url }}" target="_blank" title="{{ _('opens in a new tab') }}"><span class="material-icons-outlined" aria-hidden="true">{{ icons.source_code }}</span>{{ _("Source code") }}</a></li>
                 </ul>
             </div>
