@@ -364,6 +364,11 @@ available, its preview, its relationships to other records, and its data assets 
 button for each. The properties also include the metadata extracted from the record's data file,
 such as its format, CRS and size.
 
+For a record with a spatial extent, the properties also show the width, height, diagonal and area
+of its bounding box. The bounding box of the data file is measured, in the CRS of the file, when
+the record has one. Otherwise the WGS 84 one is measured, as it is for a data file with a single
+position or a line along an axis.
+
 ### Searching for survey-related records
 
 Survey-related records are listed in two places:

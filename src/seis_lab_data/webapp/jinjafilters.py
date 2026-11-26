@@ -6,6 +6,10 @@ import typing
 import shapely
 from jinja2 import pass_context
 from jinja2.filters import do_filesizeformat
+from osgeo import (
+    ogr,
+    osr,
+)
 from starlette_babel import gettext_lazy as _
 
 from .. import constants
@@ -31,6 +35,13 @@ if typing.TYPE_CHECKING:
     )
 
 logger = logging.getLogger(__name__)
+
+# without it GDAL returns error values, such as a length of -1, instead of raising
+osr.UseExceptions()
+
+_WGS84_EPSG_CODE = 4326
+# a shorter side of a native bbox would be shown as 0 m
+_SHORTEST_NATIVE_SIDE_METRES = 0.5
 
 
 @pass_context
@@ -118,3 +129,104 @@ def _format_discovery_info_item(
     if isinstance(value, list):
         return ", ".join(f"{element:.8g}" for element in value)
     return str(value)
+
+
+class BboxSize(typing.NamedTuple):
+    width: str
+    height: str
+    diagonal: str
+    area: str
+    is_native_bbox: bool
+
+
+def get_bbox_size(
+    bbox_4326: shapely.Polygon | None, discovery_info: dict | None
+) -> BboxSize | None:
+    """Return the formatted size of a record's bounding box, None if it has none.
+
+    The native bounding box of the data file is measured when it has an area.
+    The WGS 84 one is larger than it away from the central meridian of the CRS.
+    Any other record has its WGS 84 one measured, which is the one drawn on the map.
+    """
+    if bbox_4326 is None:
+        return None
+    size = _measure_native_bbox(discovery_info)
+    is_native_bbox = size is not None
+    if not is_native_bbox:
+        size = _measure_bbox(bbox_4326.bounds, _WGS84_EPSG_CODE)
+    width, height, diagonal, area = size
+    return BboxSize(
+        width=_format_length(width),
+        height=_format_length(height),
+        diagonal=_format_length(diagonal),
+        area=_format_area(area),
+        is_native_bbox=is_native_bbox,
+    )
+
+
+def _measure_native_bbox(
+    discovery_info: dict | None,
+) -> tuple[float, float, float, float] | None:
+    """Return the size of the native bbox of a record, None if it has none to measure.
+
+    A file with a single position, or a line along an axis, has a bbox without an area.
+    Discovery adds a margin to its WGS 84 bbox, so that one has a size to show.
+    """
+    if not discovery_info:
+        return None
+    native_bounds = discovery_info.get("bbox_native")
+    native_epsg_code = discovery_info.get("epsg")
+    if native_bounds is None or native_epsg_code is None:
+        return None
+    size = _measure_bbox(native_bounds, native_epsg_code)
+    width, height, _diagonal, _area = size
+    if min(width, height) < _SHORTEST_NATIVE_SIDE_METRES:
+        return None
+    return size
+
+
+def _measure_bbox(
+    bounds: typing.Sequence[float], epsg_code: int
+) -> tuple[float, float, float, float]:
+    """Return the width, height, diagonal and area of a bbox, measured in metres.
+
+    GDAL measures on the ellipsoid of the CRS, so any unit of the CRS gives metres.
+    """
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(epsg_code)
+    # x before y, as GDAL reads the coordinates of some CRSs as y before x
+    srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    min_x, min_y, max_x, max_y = bounds
+    # the width of a bbox in degrees changes with the latitude, so the middle is used
+    middle_y = (min_y + max_y) / 2
+    width_line = shapely.LineString([(min_x, middle_y), (max_x, middle_y)])
+    height_line = shapely.LineString([(min_x, min_y), (min_x, max_y)])
+    diagonal_line = shapely.LineString([(min_x, min_y), (max_x, max_y)])
+    return (
+        _convert_to_ogr_geometry(width_line, srs).GeodesicLength(),
+        _convert_to_ogr_geometry(height_line, srs).GeodesicLength(),
+        _convert_to_ogr_geometry(diagonal_line, srs).GeodesicLength(),
+        _convert_to_ogr_geometry(shapely.box(*bounds), srs).GeodesicArea(),
+    )
+
+
+def _convert_to_ogr_geometry(
+    geometry: shapely.Geometry, srs: osr.SpatialReference
+) -> ogr.Geometry:
+    """Return a shapely geometry as an OGR one in the given CRS."""
+    ogr_geometry = ogr.CreateGeometryFromWkb(shapely.to_wkb(geometry))
+    ogr_geometry.AssignSpatialReference(srs)
+    return ogr_geometry
+
+
+def _format_length(metres: float) -> str:
+    # in kilometres from 1 km on, as long lengths in metres are hard to read
+    if metres < 1000:
+        return f"{metres:.0f} m"
+    return f"{metres / 1000:.2f} km"
+
+
+def _format_area(square_metres: float) -> str:
+    if square_metres < 1_000_000:
+        return f"{square_metres:.0f} m²"
+    return f"{square_metres / 1_000_000:.2f} km²"

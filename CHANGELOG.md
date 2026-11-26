@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Teledyne PDS `.pds` files get their acquisition date, CRS and planned survey area from the file header
+- Record pages show the width, height, diagonal and area of the record's bounding box
 
 
 ### Fixed

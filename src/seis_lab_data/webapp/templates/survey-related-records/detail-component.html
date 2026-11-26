@@ -55,6 +55,16 @@
                                 <dl class="row">
                                     <dt class="col-sm-3">{{ _("spatial extent") | capitalize }}</dt>
                                     <dd class="col-sm-9" aria-label="spatial-extent">{{ render_spatial_extent(item.bbox_4326) }}</dd>
+                                    {% set bbox_size = item.bbox_4326 | bbox_size(item.discovery_info) %}
+                                    {% if bbox_size is not none %}
+                                        <dt class="col-sm-3">{{ _("bounding box size") | capitalize }}</dt>
+                                        <dd class="col-sm-9" aria-label="bounding-box-size">
+                                            <div>{{ bbox_size.width }} x {{ bbox_size.height }}</div>
+                                            <div>{{ _("diagonal") }} {{ bbox_size.diagonal }}</div>
+                                            <div>{{ _("area") }} {{ bbox_size.area }}</div>
+                                            <div class="text-muted small">{% if bbox_size.is_native_bbox %}{{ _("native bounding box") }}{% else %}{{ _("WGS 84 bounding box") }}{% endif %}</div>
+                                        </dd>
+                                    {% endif %}
                                     <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
                                     <dd class="col-sm-9" aria-label="temporal-extent">{{ render_temporal_extent(item.temporal_extent_begin, item.temporal_extent_end) }}</dd>
                                     <dt class="col-sm-3">{{ _("dataset category") | capitalize }}</dt>
