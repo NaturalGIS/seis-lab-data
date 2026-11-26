@@ -12,11 +12,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Teledyne PDS `.pds` files get their acquisition date, CRS and planned survey area from the file header
 - Record pages show the width, height, diagonal and area of the record's bounding box
+- Project, survey mission and record pages show the coordinates of the spatial extent below the map, or `Unknown`
+- User guide section on path patterns, explaining regular expressions to users familiar with shell wildcards, with examples and links to the Python documentation.
+- User guide section on the STAC API: how the catalogue is represented, its endpoints, search parameters, pagination and usage examples
+- Link to the interactive documentation of the STAC API in the UI footer
+- STAC items state the names of their dataset category and workflow stage (`sld:dataset_category_name`, `sld:workflow_stage_name`)
+- Introduction to the project and to the docs on the landing page of the docs site
+
+
+### Changed
+
+- Smaller page titles.
+- Record pages show the project and survey mission as pills, like the listings, and each data asset in a card of its own
+- Related records are shown in a section of their own at the bottom of record pages, only when there are any
+- The links section of project, survey mission and record pages is only shown when there are links
+- Temporal extents are shown as `2026-01-01 / 2026-03-24`, stating an unknown start or end, on detail pages and listings
+- Project list shows one project per row, like survey mission and record lists
+- Advanced filters of the record list page are laid out like those of a survey mission's records, with the map filter spanning the whole width
+- Record counts of a survey mission page are a single choice, showing the active filter, between all records, one dataset category and one workflow stage
+- Alternatives within a name of a path pattern, such as `s08|s10`, always apply to the whole directory or file name. Previously, `s08|s10` matched the names starting with `s08` or ending in `s10`
+- The interactive documentation of the STAC API describes all of its endpoints and parameters, and no longer shows empty contact and license details
+- Names are unique among the projects, the survey missions of a project and the records of a survey mission. Upgrading renames existing duplicates to `name (2)`, `name (3)`, ...
+- Portuguese is the default language of the docs site, and less relevant pages were removed from it
 
 
 ### Fixed
 
 - Records created during discovery not checking for duplicate names
+- Modifying a resource sometimes failing with an error about a duplicate name
+- Bulk download link list being empty for selected public records
+- STAC searches by geometry losing the geometry in the links to the following pages of results, which were then unfiltered
+- Docs site language picker and links to directories leading outside of the docs site when it is served under a path prefix
 - Bulk-updated records not being validated, nor published or unpublished accordingly
 - Filtering by spatial extent including projects, survey missions and records without a spatial extent
 - Logging out showing an authentik error page instead of returning to the landing page
