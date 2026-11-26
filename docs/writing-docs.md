@@ -30,8 +30,10 @@ The documentation you are reading is created using [mkdocs-material](https://squ
     ```
 
 4.  Write docs in [Markdown](https://spec.commonmark.org/0.31.2/) format. Docs are stored in the
-    `/docs` directory of the repository. Translated pages must be named with a `.pt.md`
-    suffix (_e.g._ `index.pt.md`).
+    `/docs` directory of the repository. Portuguese is the default language of the docs: Portuguese pages
+    have no language suffix (_e.g._ `index.md`), while English pages must be named with a `.en.md` suffix
+    (_e.g._ `index.en.md`). A page without an English version is shown in its default version in both
+    languages.
 
 
 ## Building the docs locally

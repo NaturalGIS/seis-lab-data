@@ -8,9 +8,39 @@ import functools
 import http.server
 import logging
 import os
+import urllib.parse
+from http import HTTPStatus
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+class DocsRequestHandler(http.server.SimpleHTTPRequestHandler):
+    """Static file handler that redirects directory requests with a relative URL.
+
+    The reverse proxy strips the path prefix of the docs site (e.g. `/docs`) before
+    forwarding requests. The base class redirects a directory request lacking a
+    trailing slash to an absolute path built from the stripped request path, which
+    lies outside of the docs site. A redirect to the last path segment followed by a
+    slash is resolved by the browser against the original URL, prefix included.
+    """
+
+    def send_head(self):
+        parts = urllib.parse.urlsplit(self.path)
+        if parts.path.endswith("/") or not os.path.isdir(
+            self.translate_path(self.path)
+        ):
+            return super().send_head()
+        self.send_response(HTTPStatus.MOVED_PERMANENTLY)
+        self.send_header(
+            "Location",
+            urllib.parse.urlunsplit(
+                ("", "", f"{parts.path.rsplit('/', 1)[-1]}/", parts.query, "")
+            ),
+        )
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        return None
 
 
 def main(
@@ -28,9 +58,7 @@ def main(
         site_url=site_url,
         docs_site=docs_site,
     )
-    handler = functools.partial(
-        http.server.SimpleHTTPRequestHandler, directory=str(docs_site)
-    )
+    handler = functools.partial(DocsRequestHandler, directory=str(docs_site))
     with http.server.ThreadingHTTPServer(("0.0.0.0", 8000), handler) as httpd:
         httpd.serve_forever()
 

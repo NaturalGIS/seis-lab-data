@@ -5,7 +5,7 @@ hooks:
   - ../mkdocs_pdf_hooks.py
 
 extra:
-  live_url: https://seis-lab-data.ipma.pt/docs/pt/admin-guide/
+  live_url: https://seis-lab-data.ipma.pt/docs/admin-guide/
 
 nav:
   - Administration: admin-guide.md

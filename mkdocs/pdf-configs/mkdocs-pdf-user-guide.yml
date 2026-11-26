@@ -5,7 +5,7 @@ hooks:
   - ../mkdocs_pdf_hooks.py
 
 extra:
-  live_url: https://seis-lab-data.ipma.pt/docs/pt/user-guide/
+  live_url: https://seis-lab-data.ipma.pt/docs/user-guide/
 
 nav:
   - User guide: user-guide.md

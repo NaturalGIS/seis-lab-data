@@ -28,12 +28,12 @@ def logged_in_as_admin(monkeypatch, admin_user):
     "language, expected_guide_url",
     [
         pytest.param(
-            "en", "https://docs.example.com/user-guide/#path-patterns", id="english"
+            "en",
+            "https://docs.example.com/en/user-guide/#path-patterns",
+            id="english",
         ),
         pytest.param(
-            "pt",
-            "https://docs.example.com/pt/user-guide/#path-patterns",
-            id="portuguese",
+            "pt", "https://docs.example.com/user-guide/#path-patterns", id="portuguese"
         ),
     ],
 )

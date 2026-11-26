@@ -1,3 +1,0 @@
-# Documentação do projeto SeisLabData
-
-A incorporar...

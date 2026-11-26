@@ -7,16 +7,12 @@ hooks:
   - mkdocs/mkdocs_hooks.py
 
 nav:
-  - Home: index.md
-  - User guide: user-guide.md
-  - Administration Guide: admin-guide.md
-  - Test environment: test-environment.md
-  - Development: development.md
-  - Dataset reference: dataset-reference.md
-  - Data domain acronyms: acronyms.md
-  - Sample archive structure: sample-archive.md
-  - Supported formats: supported-formats.md
-  - Writing docs: writing-docs.md
+  - Início: index.md
+  - Guia do utilizador: user-guide.md
+  - Guia de administração do sistema: admin-guide.md
+  - Guia do ambiente de testes: test-environment.md
+  - Guia de desenvolvimento: development.md
+  - Guia de escrita de documentação: writing-docs.md
 
 extra_css:
   - stylesheets/styles.css
@@ -27,7 +23,7 @@ theme:
   palette:
     primary: blue grey
     accent: pink
-  language: en
+  language: pt
   features:
     - content.footnote.tooltips
     - header.autohide
@@ -45,26 +41,25 @@ plugins:
       # Relative switcher links keep working when the site is served under a path
       # prefix (e.g. /docs/), since the build-time site_url carries no path
       languages:
-        - locale: en
-          name: English
-          default: true
-          fixed_link: ./
         - locale: pt
           name: Português
-          fixed_link: pt/
+          default: true
+          fixed_link: ./
+        - locale: en
+          name: English
+          fixed_link: en/
           nav:
-            - Início: index.md
-            - Guia do utilizador: user-guide.md
-            - Guia de administração do sistema: admin-guide.md
-            - Guia do ambiente de testes: test-environment.md
-            - Guia de desenvolvimento: development.md
-            - Referência de dados: dataset-reference.md
-            - Formatos suportados: supported-formats.md
-            - Guia de escrita de documentação: writing-docs.md
+            - Home: index.md
+            - User guide: user-guide.md
+            - Administration Guide: admin-guide.md
+            - Test environment: test-environment.md
+            - Development: development.md
+            - Writing docs: writing-docs.md
 
 markdown_extensions:
   - admonition
   - attr_list
+  - md_in_html
   - footnotes
   - pymdownx.highlight
   - pymdownx.inlinehilite

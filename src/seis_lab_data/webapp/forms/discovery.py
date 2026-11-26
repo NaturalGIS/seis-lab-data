@@ -61,13 +61,13 @@ class _AssetDiscoveryConfigurationForm(StarletteForm):
         self.name.flags.backend_required = True
         self.relative_path_regexp.flags.backend_required = True
         self.media_type.flags.backend_required = True
-        # the English user guide is at the root of the documentation, the others in a
-        # directory named after their language
+        # the Portuguese user guide is at the root of the documentation, the others in
+        # a directory named after their language
         language = self._request.state.language
         guide_url = "/".join(
             (
                 self._request.state.settings.docs_url.rstrip("/"),
-                *(() if language == "en" else (language,)),
+                *(() if language == "pt" else (language,)),
                 "user-guide/#path-patterns",
             )
         )
