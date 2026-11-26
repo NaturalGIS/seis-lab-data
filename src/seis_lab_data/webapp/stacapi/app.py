@@ -34,7 +34,7 @@ def create_api_app_from_settings(settings: config.SeisLabDataSettings) -> FastAP
             "the download of their data files.\n\n"
             "Listings are paginated with the `page` and `limit` parameters, and "
             "include `next` and `prev` links. See the "
-            f"[user guide]({settings.docs_url.rstrip('/')}/user-guide/#stac-api) for "
+            f"[user guide]({settings.docs_url.rstrip('/')}/en/user-guide/#stac-api) for "
             "a description of the API and usage examples."
         ),
         openapi_tags=[

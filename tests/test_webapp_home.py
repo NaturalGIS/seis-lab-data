@@ -91,6 +91,27 @@ def test_home_highlights_unpublished_missions(
     assert response.text.count("item-unpublished") == 3
 
 
+@pytest.mark.parametrize(
+    "language, expected_docs_url",
+    [
+        pytest.param("en", "https://docs.example.com/en/", id="english"),
+        pytest.param("pt", "https://docs.example.com/", id="portuguese"),
+    ],
+)
+def test_footer_links_to_the_documentation_in_the_language_of_the_user(
+    test_client: TestClient, db, settings, monkeypatch, language, expected_docs_url
+):
+    """The page footer links to the documentation of the application, in the language
+    of the user.
+    """
+    monkeypatch.setattr(settings, "docs_url", "https://docs.example.com/")
+    response = test_client.get("/", params={"lang": language})
+    assert response.status_code == 200
+    assert re.search(
+        rf'href="{re.escape(expected_docs_url)}"[^>]*>.*?Documenta', response.text
+    )
+
+
 def test_footer_links_to_the_stac_api_documentation(test_client: TestClient, db):
     """The page footer links to the interactive documentation of the STAC API."""
     response = test_client.get("/", params={"lang": "en"})

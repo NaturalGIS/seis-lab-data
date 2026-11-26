@@ -1,182 +1,190 @@
-# System administration guide
+# Guia de administração do sistema
 
-This document is project deliverable _D13 - Final version of sysadmin-oriented deployment guide_. It contains
-information about the deployed SeisLabData system on IPMA's production environment, how to install it and a short
-guide for its operational maintenance.
+<span class="no-pdf">
+    [ :material-file-pdf-box: Descarregar versão PDF](assets/documents/seis-lab-data-administration-guide.pdf){ .md-button .no-pdf }
+</span>
+
+Este documento é o entregável de projeto _D13 - Versão final do guia de instalação orientado ao administrador de
+sistemas_. Contém informação sobre o sistema SeisLabData instalado no ambiente de produção do IPMA, sobre como
+instalá-lo e um breve guia para a sua manutenção operacional.
 
 
-## Production environment overview
+## Ambiente de produção
 
-The SeisLabData system is operational at IPMA's internal network. Its main entrypoint for users is
-by accessing the URL:
+O sistema SeisLabData está disponível dentro da rede interna do IPMA. O seu ponto de
+entrada principal para os utilizadores é através do URL:
 
 <https://seis-lab-data.ipma.pt>
 
-The domain `seis-lab-data.ipma.pt` corresponds to the machine with internal IP `193.137.20.17`. This
-machine has the following specifications:
+O domínio `seis-lab-data.ipma.pt` corresponde à máquina com IP interno `193.137.20.17`. Esta
+máquina tem as seguintes especificações:
 
-| Property | Value |
+| Propriedade | Valor |
 | -------- | ----- |
-| Type | VMware virtual machine |
-|  Processors | 6 cores Intel Xeon @2.30GHz |
-|  RAM | 30 GB |
-|  Storage | -  380 GB available on the `/home` directory<br><br> -  6 TB available on the `/mnt/seislab_swap` directory |
-|  Operating System | Ubuntu 26.04.1 LTS |
+| Tipo | Máquina virtual VMware |
+| Processadores | 6 núcleos Intel Xeon @2.30GHz |
+| RAM | 30 GB |
+| Armazenamento | - 380 GB disponíveis no diretório `/home`<br><br> - 6 TB disponíveis no diretório `/mnt/seislab_swap` |
+| Sistema Operativo | Ubuntu 26.04.1 LTS |
 
 
-### System-relevant files and directories
+### Ficheiros e diretórios relevantes do sistema
 
-There are four major sets of files related to the SeisLabData system:
+Existem quatro conjuntos principais de ficheiros relacionados com o sistema SeisLabData:
 
-1.  **Configuration and deployment-related files** - The system configuration is mainly composed of files
-    located in the `/opt/seis-lab-data` directory, with the following structure:
+1.  **Ficheiros de configuração e instalação** - A configuração do sistema é principalmente composta por ficheiros
+    localizados no diretório `/opt/seis-lab-data`, com a seguinte estrutura:
 
     ```
     /opt/seis-lab-data/
-    ├── secrets/                           # system credentials and other sensitive data
-    ├── certs/                             # TLS certificates
-    ├── keys/                              # TLS private keys
-    ├── compose-deployment.env             # docker compose environment variables
-    ├── compose.prod-env.yaml              # docker compose stack
-    ├── image_url.env                      # URL of the docker image to be used to deploy the system
-    ├── sld-auth-blueprint-prod-env.yaml   # authentication component configuration
-    ├── traefik-prod-config.toml           # reverse-proxy component configuration
-    └── traefik-tls-config.toml            # reverse-proxy component TLS configuration
+    ├── secrets/                           # credenciais e outros dados secretos do sistema
+    ├── certs/                             # Certificados TLS
+    ├── keys/                              # Chaves privadas TLS
+    ├── compose-deployment.env             # Variáveis de ambiente do docker compose
+    ├── compose.prod-env.yaml              # Stack docker compose
+    ├── image_url.env                      # URL da imagem docker a utilizar para instalar o sistema
+    ├── sld-auth-blueprint-prod-env.yaml   # Configuração do serviço de autenticação
+    ├── traefik-prod-config.toml           # Configuração da componente reverse-proxy
+    └── traefik-tls-config.toml            # Configuração TLS da componente reverse-proxy
     ```
 
-    !!! warning "Files overwritten on each deployment"
+    !!! warning "Ficheiros substituídos em cada implementação"
 
-        The `compose.prod-env.yaml`, `sld-auth-blueprint-prod-env.yaml`, `traefik-prod-config.toml` and
-        `traefik-tls-config.toml` files are copied from the source code repository (from its `docker` directory) on
-        each [deployment of a new version](#deploying-new-versions-of-the-system), and `image_url.env` is rewritten.
-        Any manual modification to these files is therefore lost on the next deployment. Permanent changes to them
-        must be made in the source code repository instead.
+        Os ficheiros `compose.prod-env.yaml`, `sld-auth-blueprint-prod-env.yaml`, `traefik-prod-config.toml` e
+        `traefik-tls-config.toml` são copiados do repositório de código-fonte (do seu diretório `docker`) em cada
+        [implementação de uma nova versão](#implementacao-de-novas-versoes-do-sistema), e o ficheiro `image_url.env`
+        é reescrito. Qualquer modificação manual a estes ficheiros perde-se, por isso, na implementação seguinte. As
+        alterações permanentes a estes ficheiros devem antes ser feitas no repositório de código-fonte.
 
-2.  **Code artifacts** - The system is deployed as a set of docker images, orchestrated via docker compose. These
-    images are stored in the `/var/lib/docker` directory, along with the docker volumes that hold the system's
-    databases.
+2.  **Artefactos de código** - O sistema é instalado como um conjunto de imagens docker, orquestradas via docker
+    compose. Estas imagens estão armazenadas no diretório `/var/lib/docker`, juntamente com os volumes docker que
+    contêm as bases de dados do sistema.
 
-3.  **Auxiliary datasets used by the system** - Auxiliary datasets used by the system, such as the PMTiles files of
-    the base map, are stored in a read-write partition of the archive, mounted at the `/mnt/seislab_swap` directory.
+3.  **Conjuntos de dados auxiliares utilizados pelo sistema** - Os conjuntos de dados auxiliares utilizados pelo
+    sistema, como os ficheiros PMTiles do mapa base, estão armazenados numa partição de leitura-escrita do arquivo,
+    montada no diretório `/mnt/seislab_swap`.
 
-4.  **Archived marine datasets that are indexed and shown on the main system catalogue** - The bulk of IPMA's marine
-    geoseismic archive data is mounted as a read-only partition at the `/mnt/seislab_data` directory.
+4.  **Conjuntos de dados marinhos arquivados que são indexados e apresentados no catálogo principal do sistema** -
+    A maior parte dos dados do arquivo marinho geossísmico do IPMA está montada como uma partição só de leitura no
+    diretório `/mnt/seislab_data`.
 
 
-### Environment variables
+### Variáveis de ambiente
 
-System startup requires the presence of some environment variables. These are defined in two files:
+O arranque do sistema requer a presença de algumas variáveis de ambiente. Estas estão definidas em dois ficheiros:
 
-1.  `compose-deployment.env` - This file is edited manually and contains the following variables:
+1.  `compose-deployment.env` - Este ficheiro é editado manualmente e contém as seguintes variáveis:
 
-    | Variable                              | Description                                                         |
+    | Variável                              | Descrição                                                           |
     |---------------------------------------|---------------------------------------------------------------------|
-    | `DEBUG`                               | Debug mode (`true`/`false`) - Should usually be set to `false`. Can be set to `true` if needed, for debug purposes, but note that debug mode may impact the performance of the system. |
-    | `LOG_CONFIG_FILE`                     | Path to the logging configuration file. If needed, this file can be edited in order to obtain more verbose logging output, for debug purposes. Note that verbose logging may impact the performance of the system. |
-    | `AUTH_AUTHENTIK_BOOTSTRAP_PASSWORD`   | Initial password of the `akadmin` administrator account of the [user authentication service](#6-user-authentication-service-component) component |
-    | `AUTH_AUTHENTIK_BOOTSTRAP_TOKEN`      | Initial API token of the [user authentication service](#6-user-authentication-service-component) component, also used by the web application and the workers to query it |
-    | `AUTH_AUTHENTIK_BOOTSTRAP_EMAIL`      | Email of the `akadmin` administrator account of the [user authentication service](#6-user-authentication-service-component) component |
+    | `DEBUG`                               | Modo de depuração (`true`/`false`) - Deve normalmente estar definido como `false`. Pode ser definido como `true` se necessário, para fins de depuração, mas note-se que o modo de depuração pode afetar o desempenho do sistema. |
+    | `LOG_CONFIG_FILE`                     | Caminho para o ficheiro de configuração de _logs_. Se necessário, este ficheiro pode ser editado de modo a obter uma saída de _logs_ mais detalhada, para fins de depuração. Note-se que _logging_ detalhado pode afetar o desempenho do sistema. |
+    | `AUTH_AUTHENTIK_BOOTSTRAP_PASSWORD`   | Palavra-passe inicial da conta de administrador `akadmin` da componente [user authentication service](#6-componente-user-authentication-service) |
+    | `AUTH_AUTHENTIK_BOOTSTRAP_TOKEN`      | _Token_ inicial da API da componente [user authentication service](#6-componente-user-authentication-service), também utilizado pela aplicação web e pelos _workers_ para a consultar |
+    | `AUTH_AUTHENTIK_BOOTSTRAP_EMAIL`      | Email da conta de administrador `akadmin` da componente [user authentication service](#6-componente-user-authentication-service) |
 
-    It may also contain the optional variables that set the capacity of the workers, which are described in the
-    [workers](#4-workers-component) component section.
+    Pode conter também as variáveis opcionais que definem a capacidade dos _workers_, descritas na secção da
+    componente [workers](#4-componente-workers).
 
-2.  `image_url.env` - This file is rewritten each time an automated system deployment is performed. As such, it
-    should not be manually edited, except when performing a [manual deployment](#performing-manual-deployments). It
-    contains a single variable:
+2.  `image_url.env` - Este ficheiro é reescrito de cada vez que é realizada uma instalação automatizada do
+    sistema. Como tal, não deve ser editado manualmente, exceto ao realizar uma
+    [implementação manual](#realizar-implementacoes-manuais). Contém uma única variável:
 
-    - `IMAGE_URL` - the docker image to be used in the [web application](#2-web-application-component),
-      [workers](#4-workers-component) and [documentation](#10-documentation-component) components
+    - `IMAGE_URL` - a imagem docker a utilizar nas componentes [web application](#2-componente-web-application),
+      [workers](#4-componente-workers) e [documentation](#10-componente-documentation)
 
-There are many other environment variables that can be used to configure the system. These are indicated
-in the relevant section of the docker compose file `compose.prod-env.yaml`. This file is already configured
-appropriately for the production environment, so under normal conditions it should not be necessary to modify it.
-
-
-### External access
-
-External access to the production environment is a highly privileged operation and should be restricted to
-system administrators. The only additional access which is required is by the dev team, for the purpose
-of initial configuration and subsequent deployment of new versions of the system.
-
-Access is strictly made using SSH with public key authentication, and traffic flows only from a previously
-whitelisted machine's IP address.
+Existem muitas outras variáveis de ambiente que podem ser usadas para configurar o sistema. Estas são
+indicadas na secção relevante do ficheiro docker compose `compose.prod-env.yaml`. Este ficheiro está
+configurado de forma apropriada para o ambiente de produção, pelo que em condições normais não será
+necessário modificá-lo.
 
 
-!!! info "Dev team access to web UI"
+### Acesso externo
 
-    For testing and debugging purposes, members of the dev team requiring access to the system web UI may open an SSH
-    connection with a SOCKS proxy:
+O acesso externo ao ambiente de produção é uma operação altamente privilegiada e deve ser restrito
+aos administradores do sistema. O único acesso adicional necessário é o da equipa de desenvolvimento,
+para fins de configuração inicial e posterior instalação de novas versões do sistema.
+
+O acesso é feito exclusivamente por SSH com autenticação por chave pública, e o tráfego flui apenas
+a partir do endereço IP de uma máquina previamente autorizada.
+
+
+!!! info "Acesso da equipa de desenvolvimento à interface web"
+
+    Para fins de teste e depuração, os membros da equipa de desenvolvimento que necessitem de aceder
+    à interface web do sistema podem abrir uma ligação SSH com proxy SOCKS:
 
     ```shell
     ssh seis-lab-data-production -N -D 1080
     ```
 
-    And then use a web browser with proxy support.
+    E depois usar um navegador web com suporte de proxy.
 
-    On Linux, for example with Google Chrome:
+    Em Linux, por exemplo com o Google Chrome:
 
     ```shell
     google-chrome --proxy-server="socks5://localhost:1080" --user-data-dir="/tmp/chrome-proxy"
     ```
 
-    On macOS, invoke the browser binary through `open`, using a separate profile so the proxy is applied even
-    if the browser is already running. For example with Brave:
+    Em macOS, invocar o binário do navegador através do `open`, usando um perfil separado para que o proxy
+    seja aplicado mesmo que o navegador já esteja aberto. Por exemplo, com o Brave:
 
     ```shell
     open -na "Brave Browser" --args --proxy-server="socks5://localhost:1080" --user-data-dir="/tmp/brave-proxy"
     ```
 
-    With this connection in place, the production environment can be found by browsing to
+    Com esta ligação ativa, o ambiente de produção pode ser acedido navegando para
 
     <https://seis-lab-data.ipma.pt>
 
 
-### TLS certificates
+### Certificados TLS
 
-The web-facing services of the system use TLS certificates. These are managed externally by IPMA's IT team and
-placed manually in the directories:
+Os serviços web do sistema utilizam certificados TLS. Estes são geridos externamente pela equipa de TI
+do IPMA e colocados manualmente nos diretórios:
 
-- `/opt/seis-lab-data/certs/` - certificates
-- `/opt/seis-lab-data/keys/` - private keys
+- `/opt/seis-lab-data/certs/` - certificados
+- `/opt/seis-lab-data/keys/` - chaves privadas
 
-The concrete file paths are referenced in the reverse-proxy component configuration file (`traefik-tls-config.toml`),
-for example `certs/seis-lab-data.ipma.pt/cert_fullchain.pem` and `keys/seis-lab-data.key` for the main domain. The
-reverse proxy watches this file, so renewed certificates placed at the same paths are picked up without restarting
-the system.
+Os caminhos concretos dos ficheiros estão referenciados no ficheiro de configuração da componente reverse-proxy
+(`traefik-tls-config.toml`), por exemplo `certs/seis-lab-data.ipma.pt/cert_fullchain.pem` e `keys/seis-lab-data.key`
+para o domínio principal. O reverse-proxy monitoriza este ficheiro, pelo que os certificados renovados colocados nos
+mesmos caminhos são carregados sem necessidade de reiniciar o sistema.
 
 
-## Installing the system from scratch
+## Instalação do sistema de raiz
 
-The production environment is already installed. This section describes how to install the system on a new machine,
-for example in order to recover from the loss of the production machine.
+O ambiente de produção já se encontra instalado. Esta secção descreve como instalar o sistema numa nova máquina, por
+exemplo para recuperar da perda da máquina de produção.
 
-1.  **Prepare the machine**
+1.  **Preparar a máquina**
 
-    - Install [Docker Engine](https://docs.docker.com/engine/install/ubuntu/), along with its compose plugin;
-    - Configure docker to use the `journald` logging driver, by setting `"log-driver": "journald"` in the
-      `/etc/docker/daemon.json` file, then restart docker;
-    - Mount the archive partitions at `/mnt/seislab_data` (read-only) and `/mnt/seislab_swap` (read-write), and
-      place the PMTiles file of the base map at `/mnt/seislab_swap/pmtiles/emodnet-bathymetry-l6.pmtiles`;
-    - Ensure the `seis-lab-data.ipma.pt` and `auth.seis-lab-data.ipma.pt` domains resolve to the machine.
+    - Instalar o [Docker Engine](https://docs.docker.com/engine/install/ubuntu/), juntamente com o seu _plugin_
+      compose;
+    - Configurar o docker para utilizar o _driver_ de _logging_ `journald`, definindo `"log-driver": "journald"` no
+      ficheiro `/etc/docker/daemon.json`, e reiniciar o docker;
+    - Montar as partições do arquivo em `/mnt/seislab_data` (só de leitura) e `/mnt/seislab_swap` (leitura-escrita),
+      e colocar o ficheiro PMTiles do mapa base em `/mnt/seislab_swap/pmtiles/emodnet-bathymetry-l6.pmtiles`;
+    - Garantir que os domínios `seis-lab-data.ipma.pt` e `auth.seis-lab-data.ipma.pt` apontam para a máquina.
 
-2.  **Create the configuration directory** - Create the `/opt/seis-lab-data` directory, along with its `certs`,
-    `keys` and `secrets` subdirectories. Place the TLS certificates and private keys in the `certs` and `keys`
-    directories, using the file names referenced in the `traefik-tls-config.toml` file.
+2.  **Criar o diretório de configuração** - Criar o diretório `/opt/seis-lab-data`, juntamente com os seus
+    subdiretórios `certs`, `keys` e `secrets`. Colocar os certificados TLS e as chaves privadas nos diretórios
+    `certs` e `keys`, com os nomes de ficheiro referenciados no ficheiro `traefik-tls-config.toml`.
 
-3.  **Create the secrets** - Create the following files in the `secrets` directory, readable only by the
-    administrators. Random values can be generated with `openssl rand -hex 32 | tr -d '\n' > <file>`.
+3.  **Criar os segredos** - Criar os seguintes ficheiros no diretório `secrets`, legíveis apenas pelos
+    administradores. Podem ser gerados valores aleatórios com `openssl rand -hex 32 | tr -d '\n' > <ficheiro>`.
 
-    | File | Contents |
-    |------|----------|
-    | `db-password.txt` | Password of the `sld` user of the main system database (a random value) |
-    | `sld-db-dsn.txt` | Connection string of the main system database, in the form `postgresql+psycopg://sld:<db-password>@db:5432/seis_lab_data` |
-    | `auth-db-password.txt` | Password of the database of the user authentication service (a random value) |
-    | `auth-secret-key.txt` | Secret key of the user authentication service (a random value) |
-    | `auth-client-id.txt` and `auth-client-secret.txt` | Credentials of the OAuth2 client with which the web application connects to the user authentication service (random values, applied to the user authentication service by its blueprint) |
-    | `auth-email-username.txt` and `auth-email-password.txt` | Credentials of the SMTP server used by the user authentication service to send emails |
-    | `martin-config.yaml` | Configuration of the [map tiles server](#5-map-tiles-server-component) (see below) |
+    | Ficheiro | Conteúdo |
+    |----------|----------|
+    | `db-password.txt` | Palavra-passe do utilizador `sld` da base de dados principal do sistema (um valor aleatório) |
+    | `sld-db-dsn.txt` | _String_ de ligação à base de dados principal do sistema, na forma `postgresql+psycopg://sld:<db-password>@db:5432/seis_lab_data` |
+    | `auth-db-password.txt` | Palavra-passe da base de dados do serviço de autenticação (um valor aleatório) |
+    | `auth-secret-key.txt` | Chave secreta do serviço de autenticação (um valor aleatório) |
+    | `auth-client-id.txt` e `auth-client-secret.txt` | Credenciais do cliente OAuth2 com o qual a aplicação web se liga ao serviço de autenticação (valores aleatórios, aplicados ao serviço de autenticação pelo seu _blueprint_) |
+    | `auth-email-username.txt` e `auth-email-password.txt` | Credenciais do servidor SMTP utilizado pelo serviço de autenticação para enviar emails |
+    | `martin-config.yaml` | Configuração do [map tiles server](#5-componente-map-tiles-server) (ver abaixo) |
 
-    A minimal `martin-config.yaml` file has the following contents:
+    Um ficheiro `martin-config.yaml` mínimo tem o seguinte conteúdo:
 
     ```yaml
     listen_addresses: '0.0.0.0:3000'
@@ -187,23 +195,23 @@ for example in order to recover from the loss of the production machine.
         emodnet-bathymetry: /pmtiles/emodnet-bathymetry-l6.pmtiles
     ```
 
-4.  **Create the environment files** - Create the `compose-deployment.env` file, with the variables described in
-    the [environment variables](#environment-variables) section, and the `image_url.env` file, with the docker image
-    of the version to install, _e.g._:
+4.  **Criar os ficheiros de ambiente** - Criar o ficheiro `compose-deployment.env`, com as variáveis descritas na
+    secção [variáveis de ambiente](#variaveis-de-ambiente), e o ficheiro `image_url.env`, com a imagem docker da
+    versão a instalar, _p. ex._:
 
     ```shell
     IMAGE_URL=ghcr.io/naturalgis/seis-lab-data/seis-lab-data:v1.0.0
     ```
 
-5.  **Copy the configuration files** - Copy the following files of the source code repository, at the tag of the
-    version to install, into `/opt/seis-lab-data`:
+5.  **Copiar os ficheiros de configuração** - Copiar os seguintes ficheiros do repositório de código-fonte, na _tag_
+    da versão a instalar, para `/opt/seis-lab-data`:
 
     - `docker/compose.prod-env.yaml`
     - `docker/authentik/sld-auth-blueprint-prod-env.yaml`
     - `docker/traefik/traefik-prod-config.toml`
     - `docker/traefik/traefik-tls-config.toml`
 
-6.  **Start the system**, logging in to the `ghcr.io` docker registry first if required:
+6.  **Iniciar o sistema**, autenticando-se primeiro no registo docker `ghcr.io`, se necessário:
 
     ```bash
     cd /opt/seis-lab-data
@@ -214,8 +222,8 @@ for example in order to recover from the loss of the production machine.
         up -d --wait --wait-timeout 300
     ```
 
-7.  **Initialize the database** - Create the database tables and load the default data (dataset categories,
-    workflow stages and asset discovery configurations):
+7.  **Inicializar a base de dados** - Criar as tabelas da base de dados e carregar os dados predefinidos (categorias
+    de conjuntos de dados, etapas de _workflow_ e configurações de descoberta de recursos):
 
     ```bash
     docker compose \
@@ -231,45 +239,46 @@ for example in order to recover from the loss of the production machine.
         exec webapp uv run seis-lab-data bootstrap all
     ```
 
-8.  **Create the user accounts** - Log in to the administration panel of the user authentication service with the
-    `akadmin` account, using the password set in `AUTH_AUTHENTIK_BOOTSTRAP_PASSWORD`, and create the user accounts,
-    as described in the [managing user accounts](#managing-user-accounts) section.
+8.  **Criar as contas de utilizador** - Entrar no painel de administração do serviço de autenticação com a conta
+    `akadmin`, usando a palavra-passe definida em `AUTH_AUTHENTIK_BOOTSTRAP_PASSWORD`, e criar as contas de
+    utilizador, conforme descrito na secção [gestão de contas de utilizador](#gestao-de-contas-de-utilizador).
 
-9.  **Enable the docker cleanup** - Install the systemd units described in the
-    [disk space](#preventing-docker-from-occupying-too-much-disk-space) section.
+9.  **Ativar a limpeza do docker** - Instalar as unidades systemd descritas na secção sobre o
+    [espaço em disco](#evitar-que-o-docker-ocupe-demasiado-espaco-em-disco).
 
-10. **Restore the data** - When recovering from the loss of the production machine, restore the databases from
-    their backups, as described in the [database backups](#database-backups) section, then re-run the `db upgrade`
-    command of step 7. The `bootstrap all` command is not needed in this case.
+10. **Restaurar os dados** - Ao recuperar da perda da máquina de produção, restaurar as bases de dados a partir das
+    suas cópias de segurança, conforme descrito na secção [cópias de segurança](#copias-de-seguranca-das-bases-de-dados),
+    e voltar a executar o comando `db upgrade` do passo 7. Neste caso, o comando `bootstrap all` não é necessário.
 
 
-## Maintenance operations
+## Operações de manutenção
 
-The system is orchestrated with [docker compose], which in turn is managed by [systemd], the standard service manager
-on Ubuntu.
+O sistema é orquestrado com o [docker compose], que por sua vez é gerido pelo [systemd], o gestor de
+serviços padrão no Ubuntu.
 
-All docker compose commands shown in this section are to be run from the `/opt/seis-lab-data` directory.
+Todos os comandos docker compose apresentados nesta secção devem ser executados a partir do diretório
+`/opt/seis-lab-data`.
 
 [docker compose]: https://docs.docker.com/compose/
 [systemd]: https://systemd.io/
 
 
-### Checking the status of docker service
+### Verificar o estado do serviço docker
 
-Status of the docker services can be monitored by using the standard `systemctl` utility:
+O estado dos serviços docker pode ser monitorizado utilizando o utilitário padrão `systemctl`:
 
 ```shell
 systemctl status docker.service docker.socket
 ```
 
-The output of the above command should show whether the systemd services for docker are both **active** and **enabled**,
-which means that docker is working and that it will restart whenever the machine is rebooted.
+O resultado do comando acima deve indicar se os serviços systemd do docker estão **ativos** e **ativados**,
+o que significa que o docker está a funcionar e que será reiniciado sempre que a máquina for reiniciada.
 
 
-### Checking the status of the SeisLabData system
+### Verificar o estado do sistema SeisLabData
 
-Being orchestrated with docker compose, the status of the running system can be checked by running the
-`docker compose ps` command, with the following incantation:
+Sendo orquestrado com docker compose, o estado do sistema em execução pode ser verificado com o
+comando `docker compose ps`:
 
 ```bash
 cd /opt/seis-lab-data
@@ -281,7 +290,7 @@ docker compose \
     --format "table {{.Service}}\t{{.Status}}"
 ```
 
-Example output:
+Exemplo de resultado:
 
 ```shell
 SERVICE              STATUS
@@ -300,9 +309,10 @@ web-gateway          Up 2 weeks
 webapp               Up 2 weeks
 ```
 
-The output shows a listing with the system services and their operational status.
+O resultado apresenta uma listagem dos serviços do sistema e o seu estado operacional.
 
-System restart policies can be checked by running the `docker inspect` command for each system-related container:
+As políticas de reinício podem ser verificadas com o comando `docker inspect` para cada contentor
+do sistema:
 
 ```shell
 docker compose \
@@ -313,7 +323,7 @@ docker compose \
     | xargs docker inspect --format '{{.Name}} → restart: {{.HostConfig.RestartPolicy.Name}}'
 ```
 
-Example output:
+Exemplo de resultado:
 
 ```shell
 /seis-lab-data-auth-db-1 → restart: unless-stopped
@@ -331,20 +341,22 @@ Example output:
 /seis-lab-data-webapp-1 → restart: unless-stopped
 ```
 
-The output of the command should show, for each service, the value of `unless-stopped`, which means that docker ensures
-the service is running unless manually stopped[^1]. This means that in case of a machine reboot, systemd ensures the
-docker engine is booted successfully, and docker ensures the SeisLabData system is also booted.
+O resultado do comando deve mostrar, para cada serviço, o valor `unless-stopped`, o que significa que
+o docker garante que o serviço está em execução salvo se for parado manualmente[^1]. Isto significa que
+em caso de reinício da máquina, o systemd garante que o motor docker arranca corretamente, e o docker
+garante que o sistema SeisLabData também arranca.
 
-[^1]: For more information, check the docs on docker compose restart policies: <https://docs.docker.com/reference/compose-file/services/#restart>
-
-
-### Manually starting and stopping the system
-
-As noted above, the system is configured to remain in continuous operation, including surviving
-machine reboots. Nevertheless, if necessary, it can be managed manually.
+[^1]: Para mais informações, consultar a documentação sobre políticas de reinício do docker compose: <https://docs.docker.com/reference/compose-file/services/#restart>
 
 
-**Start all services**
+### Iniciar e parar o sistema manualmente
+
+Conforme indicado anteriormente, o sistema está configurado para se manter em operação contínua,
+inclusive sobrevivendo a _reboots_ da máquina. Ainda assim, se necessário, é possível geri-lo
+manualmente.
+
+
+**Iniciar todos os serviços**
 
 ```bash
 cd /opt/seis-lab-data
@@ -355,7 +367,7 @@ docker compose \
     up -d
 ```
 
-**Stop all services**
+**Parar todos os serviços**
 
 ```bash
 docker compose \
@@ -365,40 +377,40 @@ docker compose \
     down
 ```
 
-!!! warning
-    The `down` command does not remove persistent volumes (databases). If there is a need to remove
-    all persistent data, add the `--volumes` flag. This will delete docker volumes, so be sure to have a suitable
-    backup strategy in place before using this flag.
+!!! warning "Aviso"
+    O comando `down` não remove os volumes persistentes (bases de dados). Para remover todos os
+    dados persistentes, adicionar a opção `--volumes`. Isto irá apagar os volumes docker, pelo que
+    deve assegurar a existência de uma estratégia de _backup_ adequada antes de utilizar esta opção.
 
 
-**Restart an individual service**
+**Reiniciar um serviço individual**
 
 ```shell
 docker compose \
     -f compose.prod-env.yaml \
     --env-file compose-deployment.env \
     --env-file image_url.env \
-    restart <service-name>
+    restart <nome-do-serviço>
 ```
 
 
-### Docker service monitoring
+### Monitorização dos serviços docker
 
-Monitoring of the system logs can be done by either:
+A monitorização dos _logs_ do sistema pode ser feita através de:
 
-1.  Using the standard systemd `journald` component
+1.  Utilizando o componente `journald` padrão do systemd
 
-    The docker engine is configured to use the `journald` logging driver[^5]. As such, logs for the various services
-    can be consulted using journald. As an example, logs of the `webapp` docker service from the last hour can be
-    inspected with:
+    O motor docker está configurado para utilizar o _driver_ de _logging_ `journald`[^5]. Como tal,
+    os _logs_ dos vários serviços podem ser consultados através do journald. Por exemplo, os _logs_
+    do serviço docker `webapp` da última hora podem ser inspecionados com:
 
     ```shell
     sudo journalctl -b CONTAINER_NAME=seis-lab-data-webapp-1 --since="1 hour ago"
     ```
 
-    !!! tip "How to find container names"
+    !!! tip "Como encontrar nomes de contentores"
 
-        It is possible to find container names by using the `docker compose ps` command:
+        É possível encontrar os nomes dos contentores através do comando `docker compose ps`:
 
         ```shell
         docker compose \
@@ -409,10 +421,11 @@ Monitoring of the system logs can be done by either:
             --format "table {{.Name}}"
         ```
 
-2.  Using the `docker compose logs` command
+2.  Utilizando o comando `docker compose logs`
 
-    docker compose comes with a `docker compose logs` command, which can also be used to monitor logs. As an example,
-    checking simultaneous logs for all services starting from five minutes ago and continuing to show logs in real-time:
+    O docker compose dispõe de um comando `docker compose logs` que também pode ser utilizado para
+    monitorizar _logs_. Por exemplo, para consultar os _logs_ simultâneos de todos os serviços a
+    partir de cinco minutos atrás e continuar a apresentar _logs_ em tempo real:
 
     ```shell
     docker compose \
@@ -422,24 +435,26 @@ Monitoring of the system logs can be done by either:
         logs --since 5m --follow
     ```
 
-3.  Using the [health monitor](#9-health-monitor-component) component of the system, via a web browser. Access
+3.  Utilizando a componente [health monitor](#9-componente-health-monitor) do sistema, através de um navegador web.
+    Aceder a
 
     <https://seis-lab-data.ipma.pt/monitoring>
 
-    with a valid Authentik account and use the graphical User Interface to consult the logs.
+    com uma conta Authentik válida e utilizar a interface gráfica para consultar os _logs_.
 
 
-[^5]: More details about the `journald` docker log driver: <https://docs.docker.com/engine/logging/drivers/journald/>
+[^5]: Mais detalhes sobre o _driver_ de _logging_ `journald` do docker: <https://docs.docker.com/engine/logging/drivers/journald/>
 
 
-### Database backups
+### Cópias de segurança das bases de dados
 
-The system keeps its data in two PostgreSQL databases, each stored in a docker volume: the
-[main system database](#3-main-system-db-component), which holds the catalog, including the previews and thumbnails
-of its records, and the [database of the user authentication service](#61-database-for-authentication-service-component),
-which holds the user accounts. The archive datasets themselves are not stored by the system and are not covered here.
+O sistema guarda os seus dados em duas bases de dados PostgreSQL, cada uma armazenada num volume docker: a
+[base de dados principal do sistema](#3-componente-main-system-db), que contém o catálogo, incluindo as
+pré-visualizações e miniaturas dos seus registos, e a
+[base de dados do serviço de autenticação](#61-componente-database-for-authentication-service), que contém as contas
+de utilizador. Os conjuntos de dados do arquivo não são armazenados pelo sistema e não são abrangidos por esta secção.
 
-Both databases can be backed up with `pg_dump`, while the system is running:
+Ambas as bases de dados podem ser copiadas com o `pg_dump`, com o sistema em execução:
 
 ```bash
 cd /opt/seis-lab-data
@@ -459,11 +474,11 @@ docker compose \
     > authentik-$(date +%Y-%m-%d).dump
 ```
 
-The backup files should be stored outside of the production machine, along with a copy of the `secrets` directory
-and of the `compose-deployment.env` file, which are needed to install the system again.
+As cópias de segurança devem ser guardadas fora da máquina de produção, juntamente com uma cópia do diretório
+`secrets` e do ficheiro `compose-deployment.env`, que são necessários para voltar a instalar o sistema.
 
-To restore a backup, stop the services that use the database, restore it with `pg_restore` and start the system
-again. For example, for the main system database:
+Para restaurar uma cópia de segurança, parar os serviços que utilizam a base de dados, restaurá-la com o
+`pg_restore` e voltar a iniciar o sistema. Por exemplo, para a base de dados principal do sistema:
 
 ```bash
 docker compose \
@@ -477,7 +492,7 @@ docker compose \
     --env-file compose-deployment.env \
     --env-file image_url.env \
     exec -T db pg_restore -U sld -d seis_lab_data --clean --if-exists \
-    < seis_lab_data-<date>.dump
+    < seis_lab_data-<data>.dump
 
 docker compose \
     -f compose.prod-env.yaml \
@@ -486,180 +501,193 @@ docker compose \
     up -d
 ```
 
-The database of the user authentication service is restored likewise, stopping the `auth-webapp` and `auth-worker`
-services and using the `auth-db` service, the `sld_auth_user` user and the `authentik` database.
+A base de dados do serviço de autenticação é restaurada de forma análoga, parando os serviços `auth-webapp` e
+`auth-worker` e utilizando o serviço `auth-db`, o utilizador `sld_auth_user` e a base de dados `authentik`.
 
 
-### Preventing docker from occupying too much disk space
+### Evitar que o docker ocupe demasiado espaço em disco
 
-There are two systemd units enabled in the system that are responsible for cleaning up unused docker resources.
-These units are:
+Existem duas unidades systemd ativas no sistema, responsáveis por limpar os recursos docker não utilizados. Estas
+unidades são:
 
-- `/etc/systemd/system/clean-docker-images.service` - removes the unused docker images, the build cache and the
-  stopped containers which are older than 72 hours
-- `/etc/systemd/system/clean-docker-images.timer` - runs the `clean-docker-images.service`
+- `/etc/systemd/system/clean-docker-images.service` - remove as imagens docker não utilizadas, a _cache_ de
+  construção e os contentores parados com mais de 72 horas
+- `/etc/systemd/system/clean-docker-images.timer` - executa o `clean-docker-images.service`
 
-Docker cleaning runs weekly, on Sundays at around 01h. Since each deployment pulls a new docker image, this keeps the
-images of previous versions from accumulating.
+A limpeza do docker é executada semanalmente, aos domingos por volta da 01h. Como cada implementação descarrega uma
+nova imagem docker, isto evita que as imagens das versões anteriores se acumulem.
 
-!!! tip
+!!! tip "Dica"
 
-    The aforementioned systemd unit files are in the source code repository, under `deployments/systemd-units`. These
-    were simply copied over to the `/etc/systemd/system` directory on the production machine and then enabled with:
+    Os ficheiros das unidades systemd acima referidas estão no repositório de código-fonte, em
+    `deployments/systemd-units`. Foram simplesmente copiados para o diretório `/etc/systemd/system` da máquina de
+    produção e depois ativados com:
 
     ```shell
     sudo systemctl enable --now clean-docker-images.timer
     ```
 
-    The service runs as the `naturalgis` user, as set by the `User` option of `clean-docker-images.service`. When
-    installing it on another machine, set this option to a user that belongs to the `docker` group.
+    O serviço corre com o utilizador `naturalgis`, conforme definido pela opção `User` do
+    `clean-docker-images.service`. Ao instalá-lo noutra máquina, defina esta opção com um utilizador que pertença ao
+    grupo `docker`.
 
 
-### Managing user accounts
+### Gestão de contas de utilizador
 
-Users are not able to self-register on the system: user accounts are created and managed by a system administrator,
-in the administration panel of the [user authentication service](#6-user-authentication-service-component), at
-`https://auth.seis-lab-data.ipma.pt/if/admin/`, logged in with the `akadmin` account or any other superuser account.
+Os utilizadores não podem registar-se autonomamente no sistema: as contas de utilizador são criadas e geridas por um
+administrador de sistema, no painel de administração do [user authentication service](#6-componente-user-authentication-service),
+em `https://auth.seis-lab-data.ipma.pt/if/admin/`, com sessão iniciada com a conta `akadmin` ou com qualquer outra
+conta de superutilizador.
 
-A user's permissions on the system depend on their roles, which are derived from the user's groups in authentik:
+As permissões de um utilizador no sistema dependem dos seus papéis, que derivam dos grupos do utilizador no authentik:
 
-| Role             | Given to                                           | Permissions                                                         |
+| Papel            | Atribuído a                                        | Permissões                                                          |
 |------------------|----------------------------------------------------|---------------------------------------------------------------------|
-| (none)           | any user                                           | View the whole catalog, including its unpublished items             |
-| `catalog-editor` | members of the `seis-lab-data-catalog-editors` group | Also create, modify, validate, publish and delete catalog items, and manage the catalog settings |
-| `system-admin`   | superusers, such as members of the `authentik Admins` group | The same as `catalog-editor`, plus the administration of authentik itself |
+| (nenhum)         | qualquer utilizador                                | Consultar todo o catálogo, incluindo os seus itens não publicados   |
+| `catalog-editor` | membros do grupo `seis-lab-data-catalog-editors`   | Também criar, modificar, validar, publicar e eliminar itens do catálogo, e gerir as configurações do catálogo |
+| `system-admin`   | superutilizadores, como os membros do grupo `authentik Admins` | O mesmo que `catalog-editor`, mais a administração do próprio authentik |
 
 
-#### Creating a user account
+#### Criar uma conta de utilizador
 
-1.  Navigate to _Directory_ -> _Users_ and click _New User_;
-2.  In the _Choose User Type_ step, select _Internal User_ and click _Next_;
-3.  In the _Internal User Details_ step, fill in the following fields, keeping _Active_ enabled and the default
-    _Path_, then click _Create_:
+1.  Navegar até _Directory_ -> _Users_ e clicar em _New User_;
+2.  No passo _Choose User Type_, selecionar _Internal User_ e clicar em _Next_;
+3.  No passo _Internal User Details_, preencher os seguintes campos, mantendo a opção _Active_ ativada e o _Path_
+    predefinido, e clicar em _Create_:
 
-    - _Username_ - the user's identifier, shown in the user menu of the system;
-    - _Display Name_ - the user's full name;
-    - _Email Address_ - the user's email address. Although authentik marks it as optional, it is required, as users
-      log in with their email address;
+    - _Username_ - o identificador do utilizador, apresentado no menu de utilizador do sistema;
+    - _Display Name_ - o nome completo do utilizador;
+    - _Email Address_ - o endereço de email do utilizador. Embora o authentik o indique como opcional, é obrigatório,
+      uma vez que os utilizadores iniciam sessão com o seu endereço de email;
 
-4.  Open the page of the new user, by clicking on its username in the list of users, and click _Set password_, in
-    the _Recovery_ area of the _Overview_ tab, to define an initial password. Communicate it to the user through a
-    secure channel.
+4.  Abrir a página do novo utilizador, clicando no seu nome de utilizador na lista de utilizadores, e clicar em
+    _Set password_, na área _Recovery_ do separador _Overview_, para definir uma palavra-passe inicial. Comunicá-la ao
+    utilizador através de um canal seguro.
 
-The user is then able to log in, with permission to view the whole catalog. As the system has no password recovery
-flow, users who forget their password must ask a system administrator to set a new one, with the same _Set password_
-button.
-
-
-#### Giving a user the editor role
-
-1.  Navigate to _Directory_ -> _Users_ and click on the username of the user;
-2.  Select the _Groups_ tab and click _Add to existing group_;
-3.  Select the `seis-lab-data-catalog-editors` group and confirm with _Add_.
-
-The role is removed by selecting the group in the same _Groups_ tab and clicking _Remove_. Changes to the roles of a
-user who is logged in take effect within an hour, without the user having to log in again.
-
-The `system-admin` role is given in the same way, with the `authentik Admins` group. As it also grants full control
-over authentik, including over the user accounts, it should be reserved for system administrators.
+O utilizador pode então iniciar sessão, com permissão para consultar todo o catálogo. Como o sistema não dispõe de um
+fluxo de recuperação de palavra-passe, os utilizadores que se esqueçam da sua palavra-passe têm de pedir a um
+administrador de sistema que defina uma nova, com o mesmo botão _Set password_.
 
 
-#### Deactivating a user account
+#### Atribuir o papel de editor a um utilizador
 
-To revoke a user's access to the system, click _Deactivate_, in the _Actions_ area of the _Overview_ tab of the user's
-page. A user who is logged in is logged out within a minute. Deactivated accounts can later be reactivated with the
-_Activate_ button, which replaces _Deactivate_.
+1.  Navegar até _Directory_ -> _Users_ e clicar no nome de utilizador do utilizador;
+2.  Selecionar o separador _Groups_ e clicar em _Add to existing group_;
+3.  Selecionar o grupo `seis-lab-data-catalog-editors` e confirmar com _Add_.
+
+O papel é retirado selecionando o grupo no mesmo separador _Groups_ e clicando em _Remove_. As alterações aos papéis
+de um utilizador com sessão iniciada produzem efeito no prazo de uma hora, sem que o utilizador tenha de iniciar
+sessão novamente.
+
+O papel `system-admin` é atribuído da mesma forma, com o grupo `authentik Admins`. Como concede também controlo total
+sobre o authentik, incluindo sobre as contas de utilizador, deve ser reservado aos administradores de sistema.
 
 
-## Deploying new versions of the system
+#### Desativar uma conta de utilizador
 
-New versions of the system are deployed using a semi-automated workflow. When a new version of the system is deemed
-production-ready, a member of the dev team manually generates a git tag and pushes it to the source code repository.
+Para revogar o acesso de um utilizador ao sistema, clicar em _Deactivate_, na área _Actions_ do separador _Overview_
+da página do utilizador. Um utilizador com sessão iniciada vê a sua sessão terminada no prazo de um minuto. As contas
+desativadas podem mais tarde ser reativadas com o botão _Activate_, que substitui o botão _Deactivate_.
 
-Example git commands:
+
+## Implementação de novas versões do sistema
+
+As novas versões do sistema são implementadas através de um fluxo de trabalho semi-automatizado.
+Quando uma nova versão do sistema é considerada pronta para produção, um membro da equipa de
+desenvolvimento cria manualmente uma tag git e envia-a para o repositório de código-fonte.
+
+Exemplos de comandos git:
 
 ```shell
-# generate git tag named with the expected pattern of vX.Y.Z
+# criar tag git com o padrão de nomenclatura esperado vX.Y.Z
 git tag --annotate --message='Tagged version 1.0.2' v1.0.2
 
-# push the newly generated tag to the central remote, here named upstream
+# enviar a tag recém-criada para o repositório central remoto, aqui denominado upstream
 git push upstream v1.0.2
 ```
 
-This then sets off a sequence of automated procedures that culminates with the new version being deployed.
-The full deployment sequence is:
+Isto desencadeia uma sequência de procedimentos automatizados que culmina com a implementação da nova
+versão. A sequência completa é:
 
-1.  Dev team member creates a git tag with a naming pattern of `vX.Y.Z` and pushes this tag to the central
-    GitHub-hosted source code repository
+1.  Um membro da equipa de desenvolvimento cria uma tag git com o padrão de nomenclatura `vX.Y.Z`
+    e envia-a para o repositório central de código-fonte alojado no GitHub
 
-    !!! warning
-        Any tag pushed to the repository triggers a deployment to the production environment, so tags must only be
-        pushed for versions which are ready for production. Commits pushed to the `main` branch are deployed to the
-        test environment instead.
+    !!! warning "Aviso"
+        Qualquer tag enviada para o repositório desencadeia uma implementação no ambiente de produção, pelo que só
+        devem ser enviadas tags de versões prontas para produção. Os _commits_ enviados para o ramo `main` são, por
+        sua vez, implementados no ambiente de testes.
 
-2.  When the tag arrives at the repository, the workflow in `.github/workflows/ci.yaml` runs, performing the
-    following steps:
+2.  Quando a tag git é enviada, o fluxo de trabalho em `.github/workflows/ci.yaml` é executado,
+    realizando os seguintes passos:
 
-    1.  Perform static analysis of the code to check for errors;
+    1.  Realizar análise estática do código para verificar erros;
 
-    2.  Check that the code is formatted in accordance with the standard styling;
+    2.  Verificar que o código está formatado de acordo com as normas de estilo;
 
-    3.  Build a docker image with the code - this is the artifact that will ultimately get deployed;
+    3.  Construir uma imagem docker com o código — este é o artefacto que será finalmente
+        implementado;
 
-    4.  Run various tests using the built docker image - these include unit, integration and end-to-end tests;
+    4.  Executar vários testes usando a imagem docker construída — incluindo testes unitários,
+        de integração e de ponta a ponta;
 
-    5.  Publish the built docker image in the repository's docker registry. This registry is available at:
+    5.  Publicar a imagem docker construída no registo docker do repositório. Este registo está
+        disponível em:
 
         <https://github.com/NaturalGIS/seis-lab-data/pkgs/container/seis-lab-data%2Fseis-lab-data>
 
-    6.  Render the report of the test results, which is stored as an artifact of the workflow run;
+    6.  Gerar o relatório dos resultados dos testes, que é guardado como artefacto da execução do fluxo de trabalho;
 
-    7.  Call the `.github/workflows/deployment-initiator.yml` workflow, which waits for the image to be published and
-        creates a GitHub deployment for the `ipma-production` environment. GitHub then notifies the dev team's
-        deployment machine, via a webhook, that a new version is ready to be deployed
+    7.  Invocar o fluxo de trabalho `.github/workflows/deployment-initiator.yml`, que aguarda a publicação da imagem
+        e cria uma _deployment_ GitHub para o ambiente `ipma-production`. O GitHub notifica então a máquina de
+        implementação da equipa de desenvolvimento, através de um webhook, de que uma nova versão está pronta para
+        ser implementada
 
-3.  The deployment machine is running the [woodpecker CI] tool for managing deployments. This tool receives the
-    webhook notification and uses the instructions present in the `.woodpecker/deployment.yaml` file to handle the
-    deployment.
+3.  A máquina de implementação executa a ferramenta [woodpecker CI] para gerir as implementações.
+    Esta ferramenta recebe a notificação do webhook e utiliza as instruções presentes no ficheiro
+    `.woodpecker/deployment.yaml` para gerir a implementação.
 
-    !!! note "GitHub repository cannot access IPMA production environment"
-        Note that the GitHub-hosted source code repository is not allowed to access IPMA's production environment and
-        does not store any access credentials for it - access is always done via the deployment machine, which
-        is fully controlled and secured by the dev team.
+    !!! note "O repositório GitHub não pode aceder ao ambiente de produção do IPMA"
+        Note-se que o repositório de código-fonte alojado no GitHub não tem permissão para aceder ao
+        ambiente de produção do IPMA e não armazena quaisquer credenciais de acesso — o acesso é
+        sempre feito através da máquina de implementação, que é totalmente controlada e gerida pela
+        equipa de desenvolvimento.
 
-        The dev machine's deployment tool is accessible (to authorized users) at:
+        A ferramenta de implementação da máquina de desenvolvimento é acessível (a utilizadores
+        autorizados) em:
 
         <https://ci.seis-lab-data.naturalgis.pt>
 
+4.  A máquina de implementação inicia então o seguinte fluxo de trabalho:
 
-4.  The deployment machine now kicks-off the following workflow:
+    1.  Extrair o URL da nova imagem docker da _deployment_ GitHub
+    2.  Copiar os ficheiros de configuração `compose.prod-env.yaml`, `sld-auth-blueprint-prod-env.yaml`,
+        `traefik-prod-config.toml` e `traefik-tls-config.toml` para o ambiente de produção, via SSH
+    3.  Ligar ao ambiente de produção via SSH e fazer _pull_ da nova imagem docker do sistema a partir do registo
+        docker
+    4.  Escrever o URL da nova imagem docker no ficheiro `image_url.env`
+    5.  Reiniciar o stack docker compose, aguardando que os seus serviços estejam ativos e saudáveis
+    6.  Aplicar as migrações de base de dados da nova versão, caso existam
+    7.  Enviar uma notificação à equipa de desenvolvimento quando a implementação estiver concluída, indicando se
+        foi bem-sucedida ou se falhou
 
-    1.  Extract the URL of the new docker image from the GitHub deployment
-    2.  Copy the `compose.prod-env.yaml`, `sld-auth-blueprint-prod-env.yaml`, `traefik-prod-config.toml` and
-        `traefik-tls-config.toml` configuration files to the production environment, via SSH
-    3.  Connect to the production environment via SSH and pull the new docker image of the system from the docker
-        registry
-    4.  Write the URL of the new docker image to the `image_url.env` file
-    5.  Restart the docker compose stack, waiting for its services to be up and healthy
-    6.  Apply the database migrations of the new version, if any
-    7.  Send a notification to the dev team when the deployment is done, stating whether it succeeded or failed
 
+### Realizar implementações manuais
 
-### Performing manual deployments
+O fluxo de trabalho preferido para implementação é o procedimento semi-automatizado descrito acima.
+É também possível realizar implementações manuais, por exemplo quando a máquina de implementação não está disponível:
 
-While the preferred deployment workflow is the semi-automated procedure described above, it is also possible
-to perform manual deployments, for example when the deployment machine is not available:
+1.  Garantir que a imagem docker da nova versão foi publicada no registo docker - o fluxo de trabalho de CI
+    publica-a quando a tag git da versão é enviada para o repositório (ver os exemplos de comandos git no início
+    desta secção);
 
-1.  Ensure the docker image of the new version has been published to the docker registry - the CI workflow publishes
-    it when the version's git tag is pushed to the repository (see the example git commands posted in the beginning
-    of this section);
+2.  Copiar os ficheiros de configuração listados no passo 5 da secção de
+    [instalação](#instalacao-do-sistema-de-raiz) a partir do repositório de código-fonte, na tag da nova versão,
+    para `/opt/seis-lab-data`;
 
-2.  Copy the configuration files listed in step 5 of the [installation](#installing-the-system-from-scratch) section
-    from the source code repository, at the tag of the new version, into `/opt/seis-lab-data`;
+3.  Editar o ficheiro `/opt/seis-lab-data/image_url.env` e atualizar `IMAGE_URL` para a nova
+    versão da imagem;
 
-3.  Edit the `/opt/seis-lab-data/image_url.env` file and update `IMAGE_URL` to the new image version;
-
-4.  Perform the deployment:
+4.  Realizar a implementação:
 
     ```bash
     cd /opt/seis-lab-data
@@ -670,7 +698,7 @@ to perform manual deployments, for example when the deployment machine is not av
         up -d --remove-orphans --wait --wait-timeout 300
     ```
 
-5.  Apply the database migrations of the new version. This command does nothing if there are none:
+5.  Aplicar as migrações de base de dados da nova versão. Este comando não faz nada se não existirem:
 
     ```bash
     docker compose \
@@ -681,17 +709,17 @@ to perform manual deployments, for example when the deployment machine is not av
     ```
 
 
-### Version-specific upgrade steps
+### Passos de atualização específicos de cada versão
 
-Some versions require manual steps in addition to the deployment itself. These steps apply to both the production
-and the test environments.
+Algumas versões requerem passos manuais para além da implementação propriamente dita. Estes passos aplicam-se
+tanto ao ambiente de produção como ao ambiente de testes.
 
 
-#### Upgrading from version 1.0.0-rc1
+#### Atualização a partir da versão 1.0.0-rc1
 
-1.  After deploying, restart the worker of the user authentication service, so that it applies the updated
-    authentik blueprint right away. Otherwise it is only applied within the hour, and users who log in in the meantime
-    are still logged out after an hour:
+1.  Após a implementação, reiniciar o _worker_ do serviço de autenticação de utilizadores, para que aplique de
+    imediato o _blueprint_ atualizado do authentik. Caso contrário, este só é aplicado no prazo de uma hora, e a
+    sessão dos utilizadores que a iniciem entretanto continua a terminar ao fim de uma hora:
 
     ```bash
     docker compose \
@@ -701,16 +729,18 @@ and the test environments.
         restart auth-worker
     ```
 
-2.  Users who are logged in at the time of the deployment are logged out once, within an hour, and must log in
-    again. From then on they remain logged in, even after closing the browser, until they log out or have not used
-    the platform for a week.
+2.  Os utilizadores com sessão iniciada no momento da implementação veem a sua sessão terminada uma vez, no prazo
+    de uma hora, e têm de iniciar sessão novamente. A partir daí, a sessão mantém-se, mesmo depois de fechado o
+    navegador, até que a terminem ou que passe uma semana sem usarem a plataforma.
 
 
-#### Upgrading from version 0.6.0
+#### Atualização a partir da versão 0.6.0
 
-1.  Before deploying, update the Martin configuration file (`/opt/seis-lab-data/secrets/martin-config.yaml` in
-    production). Martin 1.x publishes a symlinked PMTiles file only under the name of the file it links to, so the
-    `emodnet-bathymetry` source must be named explicitly, and Martin requires an explicit `allow_http` setting:
+1.  Antes da implementação, atualizar o ficheiro de configuração do Martin
+    (`/opt/seis-lab-data/secrets/martin-config.yaml` em produção). O Martin 1.x publica um ficheiro PMTiles que
+    seja uma ligação simbólica apenas com o nome do ficheiro para o qual aponta, pelo que a fonte
+    `emodnet-bathymetry` tem de ser nomeada explicitamente, e o Martin requer uma definição explícita de
+    `allow_http`:
 
     ```yaml
     pmtiles:
@@ -719,12 +749,12 @@ and the test environments.
         emodnet-bathymetry: /pmtiles/emodnet-bathymetry-l6.pmtiles
     ```
 
-    The path must point to the actual PMTiles file of the environment, not to a symlink.
+    O caminho deve apontar para o ficheiro PMTiles do ambiente, e não para uma ligação simbólica.
 
-2.  After deploying, check that the base map is shown on the map of the projects page.
+2.  Após a implementação, verificar que o mapa base é apresentado no mapa da página de projetos.
 
-3.  After deploying, generate the thumbnails of the projects and survey missions that already have a spatial
-    extent, as thumbnails are only generated when an extent is set or changed:
+3.  Após a implementação, gerar as miniaturas dos projetos e das missões que já têm uma extensão espacial,
+    pois as miniaturas só são geradas quando uma extensão é definida ou alterada:
 
     ```bash
     docker compose \
@@ -737,25 +767,25 @@ and the test environments.
 [woodpecker CI]: https://woodpecker-ci.org/
 
 
-## System components
+## Componentes do sistema
 
-This section contains a brief description of the main components of the SeisLabData system.
+Esta secção contém uma breve descrição dos principais componentes do sistema SeisLabData.
 
 <span class="no-pdf">
 ```mermaid
 flowchart LR
-    monitor(<a href="#9-health-monitor-component">9. Health monitor</a>)
-    rev-proxy(<a href="#1-reverse-proxy-component">1. reverse proxy</a>)
-    webapp(<a href="#2-web-application-component">2. web application</a>)
-    db[(<a href="#3-main-system-db-component">3. main system db</a>)]
-    workers(<a href="#4-workers-component">4. workers</a>)
-    tile-server(<a href="#5-map-tiles-server-component">5. map tiles server</a>)
-    auth-webapp(<a href="#6-user-authentication-service-component">6. user authentication service</a>)
-    auth-db[(<a href="#61-database-for-authentication-service-component">6.1. database for authentication service</a>)]
-    auth-worker(<a href="#62-worker-for-authentication-service-component">6.2. worker for authentication service</a>)
-    message-broker(<a href="#7-message-broker-component">7. message broker</a>)
-    arch[[<a href="#8-archive-mount-component">8. archive mount</a>]]
-    docs(<a href="#10-documentation-component">10. documentation</a>)
+    monitor(<a href="#9-componente-health-monitor">9. Health monitor</a>)
+    rev-proxy(<a href="#1-componente-reverse-proxy">1. reverse proxy</a>)
+    webapp(<a href="#2-componente-web-application">2. web application</a>)
+    db[(<a href="#3-componente-main-system-db">3. main system db</a>)]
+    workers(<a href="#4-componente-workers">4. workers</a>)
+    tile-server(<a href="#5-componente-map-tiles-server">5. map tiles server</a>)
+    auth-webapp(<a href="#6-componente-user-authentication-service">6. user authentication service</a>)
+    auth-db[(<a href="#61-componente-database-for-authentication-service">6.1. database for authentication service</a>)]
+    auth-worker(<a href="#62-componente-worker-for-authentication-service">6.2. worker for authentication service</a>)
+    message-broker(<a href="#7-componente-message-broker">7. message broker</a>)
+    arch[[<a href="#8-componente-archive-mount">8. archive mount</a>]]
+    docs(<a href="#10-componente-documentation">10. documentation</a>)
     rev-proxy --> webapp
     rev-proxy --> tile-server
     rev-proxy --> monitor
@@ -774,13 +804,13 @@ flowchart LR
 ```
 </span>
 
-#### 1. `reverse proxy` component
+#### 1. Componente `reverse proxy`
 
-This component is a [Traefik](https://doc.traefik.io/traefik/) instance. It receives HTTP requests
-and routes them to the appropriate service, according to the rules in the table below. Requests made over plain HTTP
-are redirected to HTTPS.
+Este componente é uma instância [Traefik](https://doc.traefik.io/traefik/). Recebe pedidos HTTP
+e direciona-os para o serviço adequado, de acordo com as regras descritas na tabela. Os pedidos feitos em HTTP simples
+são redirecionados para HTTPS.
 
-| Routing rule                                          | Destination service             |
+| Regra de encaminhamento                               | Serviço de destino              |
 |-------------------------------------------------------|---------------------------------|
 | host: `seis-lab-data.ipma.pt`                         | `web application`               |
 | host: `auth.seis-lab-data.ipma.pt`                    | `user authentication service`   |
@@ -789,52 +819,54 @@ are redirected to HTTPS.
 | host: `seis-lab-data.ipma.pt`<br> path: `/docs`       | `documentation`                 |
 
 
-##### Relevant configuration files
+##### Ficheiros de configuração relevantes
 
-- `traefik-prod-config.toml` - Traefik static configuration
-- `traefik-tls-config.toml` - file indicating the location of TLS certificates
-- `compose.prod-env.yaml` - Traefik dynamic configurations are defined as Docker labels in this file
-
-
-#### 2. `web application` component
-
-This is the main component of the system. It consists of a web application that serves the graphical
-interface and a read-only [STAC](https://stacspec.org/) API, under the `/stac` path, that allows other systems to
-query the catalogue. It also serves downloads of the datasets in the archive, enforcing the same access rules as the
-catalogue records they belong to.
-
-It runs 8 web server processes, as set by the `SEIS_LAB_DATA__NUM_WEB_WORKER_PROCESSES` setting (default 8).
+- `traefik-prod-config.toml` - configuração estática do Traefik
+- `traefik-tls-config.toml` - ficheiro que indica a localização dos certificados TLS
+- `compose.prod-env.yaml` - as configurações dinâmicas do Traefik são definidas sob a forma
+  de _labels_ Docker neste ficheiro
 
 
-##### Relevant configuration files
+#### 2. Componente `web application`
 
-- `compose.prod-env.yaml` - `webapp` service; configuration is done via docker compose's support for environment
-  variables. These are set in the `environment` section of the `webapp` service
-- `secrets/sld-db-dsn.txt` - main database access credentials
-- `secrets/auth-client-id.txt` and `secrets/auth-client-secret.txt` - authentication service access credentials used
-  by the webapp when needing to contact the authentication service
+Esta é a componente principal do sistema. Consiste numa aplicação web que serve a interface
+gráfica e uma API [STAC](https://stacspec.org/) só de leitura, sob o caminho `/stac`, que permite a outros sistemas
+consultar o catálogo. Serve também os _downloads_ dos conjuntos de dados do arquivo, aplicando as mesmas regras de
+acesso dos registos do catálogo a que pertencem.
 
-
-#### 3. `main system db` component
-
-[PostgreSQL](https://www.postgresql.org/) instance with the PostGIS extension. Stores the system's
-catalog records, along with the previews and thumbnails generated for them. Its data is stored in the `db` docker
-volume.
+Corre 8 processos de servidor web, conforme definido pela definição `SEIS_LAB_DATA__NUM_WEB_WORKER_PROCESSES` (por
+omissão 8).
 
 
-##### Relevant configuration files
+##### Ficheiros de configuração relevantes
 
-- `compose.prod-env.yaml` - `db` service
-- `secrets/db-password.txt` - Contains the password of the database user
+- `compose.prod-env.yaml` - serviço `webapp`; a configuração é feita via suporte do docker compose
+  para variáveis de ambiente, definidas na secção `environment` do serviço `webapp`
+- `secrets/sld-db-dsn.txt` - credenciais de acesso à base de dados principal
+- `secrets/auth-client-id.txt` e `secrets/auth-client-secret.txt` - credenciais de acesso ao serviço de
+  autenticação utilizadas pela webapp quando necessita de contactar o serviço de autenticação
 
 
-!!! note "Direct access to the database"
+#### 3. Componente `main system db`
 
-    The `compose.prod-env.yaml` file does not publish any ports from the database docker service to the local host.
-    This means the database can only be accessed from the machine where the system is installed and that access must
-    be done by connecting to the `db` service directly.
+Instância [PostgreSQL](https://www.postgresql.org/) com a extensão PostGIS. Armazena os registos
+de catálogo do sistema, bem como as pré-visualizações e miniaturas geradas para eles. Os seus dados são armazenados
+no volume docker `db`.
 
-    Example command:
+
+##### Ficheiros de configuração relevantes
+
+- `compose.prod-env.yaml` - serviço `db`
+- `secrets/db-password.txt` - Contém a palavra-passe do utilizador da base de dados
+
+
+!!! note "Acesso direto à base de dados"
+
+    O ficheiro `compose.prod-env.yaml` não publica nenhuma porta do serviço docker da base de dados
+    para o host local. Isto significa que a base de dados só pode ser acedida a partir da máquina
+    onde o sistema está instalado e que o acesso deve ser feito ligando diretamente ao serviço `db`.
+
+    Exemplo de comando:
 
     ```bash
     docker compose \
@@ -845,174 +877,177 @@ volume.
     ```
 
 
-#### 4. `workers` component
+#### 4. Componente `workers`
 
-[Dramatiq](https://dramatiq.io/) application that executes background tasks, like the creation
-and processing of records in the system. Communicates with the web application mostly via a publish/subscribe
-pattern[^2] through the `message broker` component.
+Aplicação [Dramatiq](https://dramatiq.io/) que executa tarefas em segundo plano, nomeadamente a
+criação e processamento de registos no sistema. Comunica com a aplicação web maioritariamente
+através de um padrão de publicação/subscrição[^2] via a componente `message broker`.
 
-It runs as three services, so that tasks which may take long never delay the interactive ones, and archive
-discovery never delays the other long tasks:
+Corre como três serviços, para que as tarefas que podem demorar nunca atrasem as interativas, e a descoberta no
+arquivo nunca atrase as outras tarefas demoradas:
 
-- `interactive-worker` - runs the quick, user-facing tasks, such as creating, updating, deleting, validating and
-  publishing items (`default` queue)
-- `long-tasks-worker` - runs previews, thumbnails and GeoNode exports (`previews`, `thumbnails` and `exports`
-  queues)
-- `discovery-worker` - runs archive discoveries (`discovery` queue)
+- `interactive-worker` - executa as tarefas rápidas, iniciadas pelos utilizadores, como criar, atualizar, apagar,
+  validar e publicar itens (fila `default`)
+- `long-tasks-worker` - executa pré-visualizações, miniaturas e exportações para o GeoNode (filas `previews`,
+  `thumbnails` e `exports`)
+- `discovery-worker` - executa as descobertas no arquivo (fila `discovery`)
 
-The number of processes and threads of each service caps how many of its tasks run at the same time. They can be
-set in `compose-deployment.env`:
+O número de processos e de _threads_ de cada serviço limita quantas das suas tarefas correm em simultâneo. Podem ser
+definidos no ficheiro `compose-deployment.env`:
 
-| service | processes (default) | threads per process (default) |
+| serviço | processos (por omissão) | _threads_ por processo (por omissão) |
 |---|---|---|
 | `interactive-worker` | `INTERACTIVE_WORKER_PROCESSES` (2) | `INTERACTIVE_WORKER_THREADS` (8) |
 | `long-tasks-worker` | `LONG_TASKS_WORKER_PROCESSES` (2) | `LONG_TASKS_WORKER_THREADS` (4) |
 | `discovery-worker` | `DISCOVERY_WORKER_PROCESSES` (3) | 1 |
 
-Each `discovery-worker` process discovers one mission at a time, so the number of processes is the number of
-missions that can be discovered in parallel.
+Cada processo do `discovery-worker` descobre uma missão de cada vez, pelo que o número de processos é o número de
+missões que podem ser descobertas em paralelo.
 
-Each archive discovery reads `DISCOVERY_EXTRACTION_CONCURRENCY` files at the same time (default 4), each one in a
-worker process of its own, which can also be set in `compose-deployment.env`. Reading files from the archive is
-partly waiting on the storage and partly CPU work (e.g. walking the datagrams of a KMALL file), so a higher value
-speeds up discovery, at the cost of more load on the storage and on the CPU. Discovering several missions at once
-runs up to `DISCOVERY_WORKER_PROCESSES` × `DISCOVERY_EXTRACTION_CONCURRENCY` of these worker processes; on a
-machine that also runs the database and the other services, keep that well below the number of CPU cores.
+Cada descoberta do arquivo lê `DISCOVERY_EXTRACTION_CONCURRENCY` ficheiros em simultâneo (por omissão 4), cada um num
+processo próprio, variável que também pode ser definida no ficheiro `compose-deployment.env`. Ler ficheiros do arquivo
+é em parte esperar pelo armazenamento e em parte trabalho de CPU (p. ex. percorrer os datagramas de um ficheiro
+KMALL), pelo que um valor mais alto acelera a descoberta, à custa de mais carga sobre o armazenamento e o CPU.
+Descobrir várias missões em simultâneo corre até `DISCOVERY_WORKER_PROCESSES` × `DISCOVERY_EXTRACTION_CONCURRENCY`
+destes processos; numa máquina que também corre a base de dados e os outros serviços, mantenha esse número bem abaixo
+do número de núcleos de CPU.
 
-A discovery run stops after `DISCOVERY_TIME_LIMIT_HOURS` hours (default 24, at most 168), which can also be set in
-`compose-deployment.env`. The records it created until then are kept, and running the discovery again resumes it,
-as the files that already have records are skipped.
+Uma descoberta para ao fim de `DISCOVERY_TIME_LIMIT_HOURS` horas (por omissão 24, no máximo 168), variável que também
+pode ser definida no ficheiro `compose-deployment.env`. Os registos criados até então são mantidos, e correr a
+descoberta de novo retoma-a, pois os ficheiros que já têm registos são ignorados.
 
-Discovery writes its records in batches of up to 500 files, each one written at most 5 seconds after it began. These
-rarely need changing; if they do, set `SEIS_LAB_DATA__DISCOVERY_BATCH_SIZE` and
-`SEIS_LAB_DATA__DISCOVERY_BATCH_MAX_SECONDS` in the environment of the `discovery-worker` service in
-`compose.prod-env.yaml`, in the source code repository, as this file is overwritten on each deployment. The previews
-of the records are requested as each batch is written, so they are generated by the `long-tasks-worker` while
-discovery is still running. At the end of each run, and with each progress update, the worker logs where the run's
-time went (walking the archive, extracting metadata and database work) and its slowest extractions, which helps in
-choosing these values.
+A descoberta escreve os seus registos em lotes de até 500 ficheiros, cada um escrito no máximo 5 segundos depois de
+começado. Estes valores raramente precisam de ser alterados; se for o caso, defina
+`SEIS_LAB_DATA__DISCOVERY_BATCH_SIZE` e `SEIS_LAB_DATA__DISCOVERY_BATCH_MAX_SECONDS` no ambiente do serviço
+`discovery-worker` em `compose.prod-env.yaml`, no repositório de código-fonte, dado que este ficheiro é substituído em
+cada implementação. As pré-visualizações dos registos são pedidas à medida que cada lote é escrito, pelo que são
+geradas pelo `long-tasks-worker` enquanto a descoberta ainda decorre. No fim de cada execução, e a cada atualização do
+progresso, o _worker_ regista nos _logs_ onde foi gasto o tempo da execução (percorrer o arquivo, extrair metadados e
+trabalho na base de dados) e as suas extrações mais lentas, o que ajuda a escolher estes valores.
 
-##### Database connections
+##### Ligações à base de dados
 
-Each process of the `webapp` and of the workers keeps up to `SEIS_LAB_DATA__DB_POOL_SIZE` connections to the
-database open (default 5), and may open up to `SEIS_LAB_DATA__DB_MAX_OVERFLOW` more when busy (default 5). A task
-or request that finds no free connection waits up to `SEIS_LAB_DATA__DB_POOL_TIMEOUT` seconds (default 30), then
-fails. The database accepts at most 200 connections, as set by the `command` of the `db` service in
-`compose.prod-env.yaml`. When changing the number of processes, check that the total stays below that limit:
+Cada processo da `webapp` e dos _workers_ mantém abertas até `SEIS_LAB_DATA__DB_POOL_SIZE` ligações à base de dados
+(por omissão 5), e pode abrir até `SEIS_LAB_DATA__DB_MAX_OVERFLOW` adicionais quando ocupado (por omissão 5). Uma
+tarefa ou pedido que não encontre uma ligação livre espera até `SEIS_LAB_DATA__DB_POOL_TIMEOUT` segundos (por omissão
+30) e depois falha. A base de dados aceita no máximo 200 ligações, conforme definido no `command` do serviço `db` em
+`compose.prod-env.yaml`. Ao alterar o número de processos, verifique que o total se mantém abaixo desse limite:
 
 ```
-(webapp processes + all worker processes) × (DB_POOL_SIZE + DB_MAX_OVERFLOW) + margin
+(processos da webapp + processos de todos os workers) × (DB_POOL_SIZE + DB_MAX_OVERFLOW) + margem
 ```
 
-With the defaults: (8 + 2 + 2 + 3) × (5 + 5) = 150, leaving 50 connections for administration.
+Com os valores por omissão: (8 + 2 + 2 + 3) × (5 + 5) = 150, deixando 50 ligações para administração.
 
-##### Exporting records to GeoNode
+##### Exportação de registos para o GeoNode
 
-The workers can export survey-related records to a GeoNode instance. This feature is disabled unless the
-`SEIS_LAB_DATA__TARGET_GEONODE__URL` setting is defined, which is currently not the case in the production
-environment. Enabling it requires adding the following settings to the environment of the `webapp` and worker services of
-`compose.prod-env.yaml`, in the source code repository:
+Os _workers_ podem exportar registos para uma instância GeoNode. Esta funcionalidade está desativada a menos que a
+definição `SEIS_LAB_DATA__TARGET_GEONODE__URL` esteja definida, o que atualmente não acontece no ambiente de produção.
+Ativá-la requer adicionar as seguintes definições ao ambiente dos serviços `webapp` e dos _workers_ em
+`compose.prod-env.yaml`, no repositório de código-fonte:
 
-- `SEIS_LAB_DATA__TARGET_GEONODE__URL` - URL of the GeoNode instance
-- `SEIS_LAB_DATA__TARGET_GEONODE__USERNAME` and `SEIS_LAB_DATA__TARGET_GEONODE__PASSWORD` - credentials of a GeoNode
-  service account, used only by SeisLabData, which becomes the owner of the exported resources
-- `SEIS_LAB_DATA__TARGET_GEONODE__CLIENT_ID` and `SEIS_LAB_DATA__TARGET_GEONODE__CLIENT_SECRET` - credentials of a
-  GeoNode OAuth2 application, which must be _confidential_ and use the _resource owner password-based_ grant type
-- `SEIS_LAB_DATA__PUBLIC_URL` - must also be set for the workers, as exported GeoNode resources link back to their
-  record's page
+- `SEIS_LAB_DATA__TARGET_GEONODE__URL` - URL da instância GeoNode
+- `SEIS_LAB_DATA__TARGET_GEONODE__USERNAME` e `SEIS_LAB_DATA__TARGET_GEONODE__PASSWORD` - credenciais de uma conta de
+  serviço do GeoNode, usada apenas pelo SeisLabData, que fica como dona dos recursos exportados
+- `SEIS_LAB_DATA__TARGET_GEONODE__CLIENT_ID` e `SEIS_LAB_DATA__TARGET_GEONODE__CLIENT_SECRET` - credenciais de uma
+  aplicação OAuth2 do GeoNode, que tem de ser _confidential_ e usar o tipo de _grant_ _resource owner password-based_
+- `SEIS_LAB_DATA__PUBLIC_URL` - tem de estar definido também para os _workers_, uma vez que os recursos exportados
+  para o GeoNode contêm uma ligação para a página do respetivo registo
 
-[^2]: General overview of the publish/subscribe pattern: <https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern>
-
-
-#### 5. `map tiles server` component
-
-[Martin](https://martin.maplibre.org/) instance that serves the base map tiles from PMTiles files, which are read from
-the `/mnt/seislab_swap/pmtiles` directory. Accessible under the `/tiles` path of the main domain. The workers also use
-it to draw the base map of the thumbnails.
+[^2]: Visão geral do padrão publicação/subscrição: <https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern>
 
 
-##### Relevant configuration files
+#### 5. Componente `map tiles server`
 
-- The Martin configuration file is maintained as a Docker secret at
+Instância [Martin](https://martin.maplibre.org/) que serve as _map tiles_ do mapa base a partir de ficheiros
+PMTiles, lidos do diretório `/mnt/seislab_swap/pmtiles`. Acessível sob o caminho `/tiles` do domínio principal. Os
+_workers_ utilizam-na também para desenhar o mapa base das miniaturas.
+
+
+##### Ficheiros de configuração relevantes
+
+- O ficheiro de configuração do Martin é mantido como _Docker secret_ em
   `/opt/seis-lab-data/secrets/martin-config.yaml`
 
 
-#### 6. `user authentication service` component
+#### 6. Componente `user authentication service`
 
-[Authentik](https://goauthentik.io/) instance that manages user authentication and authorization
-via OpenID Connect[^4]. Accessible at `auth.seis-lab-data.ipma.pt`. The system defines a single user group:
+Instância [Authentik](https://goauthentik.io/) que gere a autenticação e autorização dos
+utilizadores via OpenID Connect[^4]. Acessível em `auth.seis-lab-data.ipma.pt`. O sistema define
+um único grupo de utilizadores:
 
-[^4]: Overview OpenID connect: <https://openid.net/developers/how-connect-works/>
+[^4]: Visão geral do OpenID Connect: <https://openid.net/developers/how-connect-works/>
 
-`seis-lab-data-catalog-editors` - users with permission to manage the catalog contents, including its
-  settings (dataset categories, workflow stages and asset discovery configurations)
+`seis-lab-data-catalog-editors` - utilizadores com permissão para gerir o conteúdo do catálogo, incluindo as
+  suas configurações (categorias de conjuntos de dados, etapas de workflow e configurações de descoberta de recursos)
 
-Authentik superusers, such as the `akadmin` account created when the system is installed, also have these
-permissions. Users that are neither superusers nor members of this group are only able to view the catalog,
-including its unpublished items, while anonymous visitors are only able to view the published items.
+Os superutilizadores do Authentik, como a conta `akadmin` criada aquando da instalação do sistema, têm também estas
+permissões. Os utilizadores que não sejam superutilizadores nem membros deste grupo apenas podem consultar o catálogo,
+incluindo os seus itens não publicados, enquanto os visitantes anónimos apenas podem consultar os itens publicados.
 
-User management (account creation, role assignment, password reset) is done through the Authentik
-administration panel, accessible at `auth.seis-lab-data.ipma.pt/if/admin/`, as described in the
-[managing user accounts](#managing-user-accounts) section.
+A gestão de utilizadores (criação de contas, atribuição de papéis, reposição de palavras-passe)
+é feita através do painel de administração do Authentik, acessível em
+`auth.seis-lab-data.ipma.pt/if/admin/`, conforme descrito na secção
+[gestão de contas de utilizador](#gestao-de-contas-de-utilizador).
 
 
-##### Relevant configuration files
+##### Ficheiros de configuração relevantes
 
-- `sld-auth-blueprint-prod-env.yaml` - Authentik initial configuration blueprint, which creates the
-  `seis-lab-data` application, the `seis-lab-data-catalog-editors` group and the protection of the health monitor
-- Relevant secrets: `auth-secret-key.txt`, `auth-client-id.txt`, `auth-client-secret.txt`,
+- `sld-auth-blueprint-prod-env.yaml` - _blueprint_ de configuração inicial do Authentik, que cria a aplicação
+  `seis-lab-data`, o grupo `seis-lab-data-catalog-editors` e a proteção do health monitor
+- Segredos relevantes: `auth-secret-key.txt`, `auth-client-id.txt`, `auth-client-secret.txt`,
   `auth-db-password.txt`, `auth-email-username.txt`, `auth-email-password.txt`
 
 
-#### 6.1. `database for authentication service` component
+#### 6.1. Componente `database for authentication service`
 
-PostgreSQL instance dedicated to Authentik. Not shared with the main system database. Its data is stored in the
-`authentik_db` docker volume.
-
-
-#### 6.2. `worker for authentication service` component
-
-Authentik worker component, responsible for background tasks such as sending emails and applying
-blueprints.
+Instância PostgreSQL dedicada ao Authentik. Não é partilhada com a base de dados principal
+do sistema. Os seus dados são armazenados no volume docker `authentik_db`.
 
 
-#### 7. `message broker` component
+#### 6.2. Componente `worker for authentication service`
 
-[Redis](https://redis.io/) instance used both as a message queue and message broker between the `web application` and the
-`workers` components. It is also used by the user authentication service.
-
-
-##### Relevant configuration files
-
-There is no relevant configuration for this component.
+Componente _worker_ do Authentik, responsável por tarefas em segundo plano como o envio de
+emails e a aplicação de _blueprints_.
 
 
-#### 8. `archive mount` component
+#### 7. Componente `message broker`
 
-This component consists of the volumes that mount the archive filesystem on the node containing
-the installation.
-
-| Mount point on the server | Mount point in the containers | Purpose |
-|---------------------------|-------------------------------|---------|
-| `/mnt/seislab_data`       | `/data/archive`               | Allows the system to access datasets in IPMA's archive — the system only reads from this mount. |
-| `/mnt/seislab_swap`       | `/data/sld-data`              | Mount with write access. This space is used to store auxiliary datasets, such as the PMTiles files of the base map. |
-
-These volumes are subsequently mounted inside the relevant docker containers so that they can be
-used by system services:
-
-- [2. `web application` component](#2-web-application-component)
-- [4. `workers` component](#4-workers-component)
-- [5. `map tiles server` component](#5-map-tiles-server-component) - only the `/mnt/seislab_swap/pmtiles` directory
+Instância [Redis](https://redis.io/) utilizada como fila de mensagens e intermediário de mensagens
+entre as componentes `web application` e `workers`. É também utilizada pelo serviço de autenticação.
 
 
-#### 9. `health monitor` component
+##### Ficheiros de configuração relevantes
 
-[Dozzle](https://dozzle.dev/) instance that allows viewing the logs of all services in real time
-through a web interface. Accessible at `seis-lab-data.ipma.pt/monitoring`. Access is protected by
-the authentication service.
+Não existe configuração relevante para esta componente.
 
 
-#### 10. `documentation` component
+#### 8. Componente `archive mount`
 
-Serves this documentation, including the PDF versions of its guides. Accessible at `seis-lab-data.ipma.pt/docs`.
-The documentation is built into the docker image of the system, so it is updated with each deployment.
+Esta componente consiste nos volumes que montam o sistema de ficheiros do arquivo no nó que
+contém a instalação.
+
+| Ponto de montagem no servidor | Ponto de montagem nos contentores | Propósito |
+|-------------------------------|-----------------------------------|-----------|
+| `/mnt/seislab_data`           | `/data/archive`                   | Permite ao sistema aceder aos conjuntos de dados que estão no arquivo do IPMA — o sistema apenas lê deste _mount_. |
+| `/mnt/seislab_swap`           | `/data/sld-data`                  | _Mount_ com acesso de escrita. Este espaço é utilizado para armazenar conjuntos de dados auxiliares, como os ficheiros PMTiles do mapa base. |
+
+Estes volumes são posteriormente montados dentro dos contentores docker relevantes, de modo a que
+possam ser utilizados pelos serviços do sistema:
+
+- [2. Componente `web application`](#2-componente-web-application)
+- [4. Componente `workers`](#4-componente-workers)
+- [5. Componente `map tiles server`](#5-componente-map-tiles-server) - apenas o diretório `/mnt/seislab_swap/pmtiles`
+
+
+#### 9. Componente `health monitor`
+
+Instância [Dozzle](https://dozzle.dev/) que permite visualizar os _logs_ de todos os serviços em
+tempo real, através de uma interface web. Acessível em `seis-lab-data.ipma.pt/monitoring`. O acesso
+é protegido pelo serviço de autenticação.
+
+
+#### 10. Componente `documentation`
+
+Serve esta documentação, incluindo as versões PDF dos seus guias. Acessível em `seis-lab-data.ipma.pt/docs`. A
+documentação é incluída na imagem docker do sistema, pelo que é atualizada em cada implementação.
