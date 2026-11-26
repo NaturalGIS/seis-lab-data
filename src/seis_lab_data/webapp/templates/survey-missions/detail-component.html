@@ -1,8 +1,14 @@
 {% import "macros.html" as macros %}
 {% from "macros/select.html" import search_select %}
 {% from "macros/datalist.html" import search_datalist %}
+{% set initial_dataset_category_filter = request.query_params.get("filterDatasetCategory") %}
+{% set initial_workflow_stage_filter = request.query_params.get("filterWorkflowStage") %}
 <div
         class="page-layout"
+        {# declared here, as both the radio buttons of the records summary and the
+           advanced search controls further down use them #}
+        data-signals:filter-dataset-category='{{ (initial_dataset_category_filter or "all") | tojson }}'
+        data-signals:filter-workflow-stage='{{ (initial_workflow_stage_filter or "all") | tojson }}'
         data-on-intersect__once="@get('{{ url_for("survey_missions:detail_stream", request_id=request_id, survey_mission_id=item.id) }}')"
         data-signals:is-valid="{{ item.validation_result.is_valid | default(False, True) | tojson }}"
         data-signals:status="'{{ item.status.value }}'"
@@ -26,8 +32,6 @@
         {% include "survey-missions/detail-summary.html" %}
         {# filters given in the URL, e.g. after reloading the page, are shown in the search controls #}
         {% set initial_status_filter = request.query_params.get("filterStatus") %}
-        {% set initial_dataset_category_filter = request.query_params.get("filterDatasetCategory") %}
-        {% set initial_workflow_stage_filter = request.query_params.get("filterWorkflowStage") %}
         {% set initial_media_type_filter = request.query_params.get("filterMediaType", "") %}
         {% set initial_temporal_extent_begin = request.query_params.get("temporalExtentBegin", current_temporal_extent.begin) %}
         {% set initial_temporal_extent_end = request.query_params.get("temporalExtentEnd", current_temporal_extent.end) %}
@@ -51,7 +55,7 @@
             data-on-signal-patch-filter="{include: /^listingVersion$/}"
         >
             <div class="col">
-                <h2>{{ _("Survey-related records") }}</h2>
+                <h2 class="fs-4">{{ _("Survey-related records") }}</h2>
                 {% set mission_records_url = url_for("survey_missions:get_mission_records_list_component", survey_mission_id=item.id) %}
                 <div class="row justify-content-center mb-3">
                     <div class="col-12 col-md-10 col-lg-8">

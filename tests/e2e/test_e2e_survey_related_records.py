@@ -969,3 +969,131 @@ def test_download_links_of_records_selected_in_the_main_listing(
     ).click()
     authenticated_page.get_by_role("button", name="delete-item", exact=True).click()
     expect(authenticated_page).to_have_url(re.compile(r"/projects/?$"), timeout=15_000)
+
+
+@pytest.mark.e2e
+def test_mission_records_filtered_by_record_summary_pills(authenticated_page: Page):
+    """On a survey mission's page, choosing one of the dataset categories of its record
+    summary shows it as the chosen one and lists only the records of that category,
+    which the advanced search controls also reflect. Choosing a workflow stage instead
+    replaces the dataset category filter, and choosing all records lists all of the
+    mission's records again.
+    """
+    authenticated_page.goto("/")
+    authenticated_page.get_by_role("link", name="list-projects", exact=True).click()
+    authenticated_page.get_by_role("link", name="new-project", exact=True).click()
+
+    project_name = f"e2e test project {uuid.uuid4().hex[:8]}"
+    _fill_project_form_minimal(authenticated_page, project_name)
+    authenticated_page.get_by_role(
+        "button", name="submit-create-form", exact=True
+    ).click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=10_000
+    )
+
+    authenticated_page.get_by_role("link", name="new-item", exact=True).click()
+    mission_name = f"e2e test survey mission {uuid.uuid4().hex[:8]}"
+    _fill_survey_mission_form_minimal(authenticated_page, mission_name)
+    authenticated_page.get_by_role(
+        "button", name="submit-create-form", exact=True
+    ).click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/survey-missions/[0-9a-f-]{36}$"), timeout=10_000
+    )
+    mission_detail_url = authenticated_page.url
+
+    # each record gets a different dataset category, picked by index rather than by
+    # (locale-dependent) label text
+    record_urls = []
+    record_names = []
+    category_ids = []
+    for i in range(2):
+        authenticated_page.get_by_role("link", name="new-item", exact=True).click()
+        record_name = f"e2e category pill record {i} {uuid.uuid4().hex[:8]}"
+        _fill_survey_related_record_form(authenticated_page, record_name)
+        category_select = authenticated_page.get_by_role(
+            "combobox", name="field-dataset_category_id", exact=True
+        )
+        category_ids.append(
+            category_select.locator("option").nth(i).get_attribute("value")
+        )
+        category_select.select_option(index=i)
+        # both records keep the default workflow stage
+        workflow_stage_id = authenticated_page.get_by_role(
+            "combobox", name="field-workflow_stage_id", exact=True
+        ).input_value()
+        authenticated_page.get_by_role(
+            "button", name="submit-create-form", exact=True
+        ).click()
+        expect(authenticated_page).to_have_url(
+            re.compile(r"/survey-related-records/[0-9a-f-]{36}$"), timeout=10_000
+        )
+        record_urls.append(authenticated_page.url)
+        record_names.append(record_name)
+        authenticated_page.goto(mission_detail_url)
+
+    listed_items = authenticated_page.get_by_role(
+        "checkbox", name="select-item", exact=True
+    )
+    expect(listed_items).to_have_count(2)
+
+    category_radio = authenticated_page.locator(
+        f"#records-summary-filter-{category_ids[0]}"
+    )
+    stage_radio = authenticated_page.locator(
+        f"#records-summary-filter-{workflow_stage_id}"
+    )
+    all_radio = authenticated_page.locator("#records-summary-filter-all")
+    category_select = authenticated_page.locator("#search-dataset-category")
+    stage_select = authenticated_page.locator("#search-workflow-stage")
+    expect(all_radio).to_be_checked()
+
+    authenticated_page.locator(
+        f"label[for='records-summary-filter-{category_ids[0]}']"
+    ).click()
+    expect(category_radio).to_be_checked()
+    expect(all_radio).not_to_be_checked()
+    expect(listed_items).to_have_count(1)
+    expect(authenticated_page.get_by_role("link", name=record_names[0])).to_be_visible()
+    expect(category_select).to_have_value(category_ids[0])
+
+    authenticated_page.locator(
+        f"label[for='records-summary-filter-{workflow_stage_id}']"
+    ).click()
+    expect(stage_radio).to_be_checked()
+    expect(category_radio).not_to_be_checked()
+    expect(listed_items).to_have_count(2)
+    expect(category_select).to_have_value("all")
+    expect(stage_select).to_have_value(workflow_stage_id)
+
+    authenticated_page.locator("label[for='records-summary-filter-all']").click()
+    expect(all_radio).to_be_checked()
+    expect(stage_radio).not_to_be_checked()
+    expect(listed_items).to_have_count(2)
+    expect(stage_select).to_have_value("all")
+
+    # clean up: delete both records, then mission, then project
+    for record_url in record_urls:
+        authenticated_page.goto(record_url)
+        authenticated_page.get_by_role(
+            "button", name="show-delete-confirmation-modal", exact=True
+        ).click()
+        authenticated_page.get_by_role("button", name="delete-item", exact=True).click()
+        expect(
+            authenticated_page.get_by_role("link", name="new-item", exact=True)
+        ).to_be_visible()
+
+    authenticated_page.get_by_role(
+        "button", name="show-delete-confirmation-modal", exact=True
+    ).click()
+    authenticated_page.get_by_role("button", name="delete-item", exact=True).click()
+    expect(authenticated_page).to_have_url(
+        re.compile(r"/projects/[0-9a-f-]{36}$"), timeout=15_000
+    )
+
+    authenticated_page.get_by_role(
+        "button", name="show-delete-confirmation-modal", exact=True
+    ).click()
+    authenticated_page.get_by_role("button", name="delete-item", exact=True).click()
+    expect(authenticated_page).to_have_url(re.compile(r"/projects/?$"))

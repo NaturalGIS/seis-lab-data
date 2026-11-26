@@ -1,5 +1,6 @@
 {% import "macros-maps.html" as macros_maps %}
 {% from "macros/records-summary.html" import render_records_summary %}
+{% from "macros/extents.html" import render_spatial_extent, render_temporal_extent %}
 {# its id is what lets the re-rendered summary be morphed into the page #}
 <div id="survey-mission-summary" class="row mb-5">
     <div class="col">
@@ -13,7 +14,7 @@
             {% endif %}
             <div class="card-body">
                 <div class="row gy-3">
-                    <div class="col-12 col-md-8 col-xl-9">
+                    <div class="col-12{% if item.links %} col-md-8 col-xl-9{% endif %}">
                         <p>{{ item.description }}</p>
                         {{ render_records_summary(
                             counts,
@@ -26,44 +27,23 @@
                             <dd class="col-sm-9">{{ settings.readonly_archive_root_directory / item.relative_path.lstrip("/") if item.relative_path else _("invalid") }}</dd>
                             <dt class="col-sm-3">{{ _("Implicit CRS") }}</dt>
                             <dd class="col-sm-9">EPSG:{{ item.implicit_crs }}</dd>
+                            <dt class="col-sm-3">{{ _("spatial extent") | capitalize }}</dt>
+                            <dd class="col-sm-9" aria-label="spatial-extent">{{ render_spatial_extent(item.bbox_4326) }}</dd>
                             <dt class="col-sm-3">{{ _("temporal extent") | capitalize }}</dt>
-                            <dd class="col-sm-9">{{ item.temporal_extent_begin|default("..", True) }}/{{ item.temporal_extent_end|default("..", True) }}</dd>
-                            <dt class="col-sm-3">{{ _("spatial extent") | capitalize }}
-                            <dd class="col-sm-9">{{ item.bbox_4326.bounds }}</dd>
+                            <dd class="col-sm-9" aria-label="temporal-extent">{{ render_temporal_extent(item.temporal_extent_begin, item.temporal_extent_end) }}</dd>
                             <dt class="col-sm-3">{{ _("project") | capitalize }}</dt>
-                            <dd class="col-sm-9"><a
-                                    href="{{ url_for('projects:detail', project_id=item.project.id) }}">{{ item.project.name }}</a>
+                            <dd class="col-sm-9">
+                                <a href="{{ url_for('projects:detail', project_id=item.project.id) }}" class="badge bg-project text-decoration-none">
+                                    <span class="material-icons-outlined me-1 fs-6">{{ icons.projects }}</span>{{ item.project.name }}
+                                </a>
                             </dd>
                         </dl>
                     </div>
-                    <div class="col-12 col-md-4 col-xl-3">
-                        <h5>{{ _("Links") }}</h5>
-                        <div class="list-group list-group-flush">
-                            {% for link in item.links %}
-                                <a
-                                        class="list-group-item list-group-item-action"
-                                        href="{{ link.url }}"
-                                        rel="{{ link.relation }}"
-                                        target="_blank"
-                                        type="{{ link.media_type }}"
-                                >
-                                    <h6>
-                            <span
-                                    class="material-icons-outlined me-1"
-                            >
-                                {{ icons.open_link }}
-                            </span>
-                                        {{ link.url }}
-                                        <span class="badge rounded-pill bg-light">{{ link.media_type }}</span>
-                                        <span class="badge rounded-pill bg-light">{{ link.relation }}</span>
-                                    </h6>
-                                    <small>{{ link.link_description }}</small>
-                                </a>
-                            {% else %}
-                                <p class="list-group-item">{{ _("no links found") | capitalize }}</p>
-                            {% endfor %}
+                    {% if item.links %}
+                        <div class="col-12 col-md-4 col-xl-3">
+                            {% include "partial-links.html" %}
                         </div>
-                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

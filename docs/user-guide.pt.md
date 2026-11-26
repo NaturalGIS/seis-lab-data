@@ -15,8 +15,8 @@ diretório da missão no arquivo e cria um registo para cada ficheiro que corres
 de caminho configurados, extraindo do próprio ficheiro a sua extensão espacial, a sua extensão
 temporal e outros metadados.
 
-O catálogo é publicado através da interface web e de uma API STAC, disponível no caminho `/stac`,
-que expõe apenas os itens públicos.
+O catálogo é publicado através da interface web e de uma [API STAC](#stac-api), disponível no
+caminho `/stac`, que expõe apenas os itens públicos.
 
 A interface está disponível em português e em inglês. O idioma é selecionado no menu de idioma
 da barra superior. Os dados introduzidos pelos utilizadores, como nomes e descrições, não são
@@ -614,25 +614,115 @@ O formulário **nova configuração de descoberta de recursos** tem os seguintes
 | Estádio | Estádio dos registos criados para os ficheiros abrangidos. |
 | Gerar pré-visualizações | Indica se são geradas pré-visualizações para os recursos abrangidos pela configuração. |
 
-A expressão regular do caminho relativo é um caminho relativo ao diretório da missão, cujos
-segmentos são separados por `/`:
-
-- Os segmentos iniciais sem caracteres de expressão regular formam um prefixo literal. A
-  descoberta percorre apenas os diretórios abaixo deste prefixo.
-- Cada um dos restantes segmentos é uma expressão regular que corresponde a um nome completo de
-  diretório ou de ficheiro. O último segmento corresponde ao nome do ficheiro.
-- Pode existir qualquer número de diretórios antes, entre ou depois dos diretórios correspondentes
-  aos segmentos de expressão regular.
-- Um padrão sem segmentos de expressão regular corresponde apenas ao caminho que designa.
-
-Por exemplo, o padrão `s06-mbes/s02-raw-data/.*\.kmall` corresponde a todos os ficheiros com a
-extensão `.kmall` abaixo do diretório `s06-mbes/s02-raw-data`, a qualquer profundidade.
+A expressão regular do caminho relativo é o padrão de caminho dos ficheiros abrangidos pela
+configuração, como descrito em [Padrões de caminho](#path-patterns).
 
 Um ficheiro é atribuído à primeira configuração, por ordem alfabética do nome da configuração,
 cujo padrão corresponde ao seu caminho. A mesma regra determina se são geradas pré-visualizações
 para um recurso de dados, incluindo os recursos dos registos criados manualmente. Uma configuração
 cujo padrão não é uma expressão regular válida é ignorada, e o seu nome é indicado no resumo da
 descoberta.
+
+#### Padrões de caminho { #path-patterns }
+
+A expressão regular do caminho relativo de uma configuração, o seu padrão de caminho, descreve os
+caminhos dos ficheiros que abrange. Escreve-se como um caminho relativo ao diretório da missão,
+com os nomes dos diretórios e do ficheiro separados por `/`, mas estes nomes podem ser *expressões
+regulares* em vez de nomes simples.
+
+##### Como é aplicado um padrão
+
+- Os nomes iniciais sem caracteres de expressão regular formam um prefixo literal. A descoberta
+  percorre apenas os diretórios abaixo deste prefixo.
+- Cada um dos restantes nomes é uma expressão regular, que tem de corresponder a um nome completo
+  de diretório ou de ficheiro. O último corresponde ao nome do ficheiro.
+- Pode existir qualquer número de diretórios antes, entre ou depois dos diretórios correspondentes
+  às expressões regulares.
+- Um padrão sem expressões regulares corresponde apenas ao caminho que designa. Como `.` é um
+  caractere de expressão regular, isto só acontece com um nome de ficheiro sem extensão.
+
+Por exemplo, o padrão `s06-mbes/s02-raw-data/.*\.kmall` tem o prefixo literal
+`s06-mbes/s02-raw-data`, e corresponde a todos os ficheiros cujo nome termina em `.kmall` nesse
+diretório ou em qualquer diretório abaixo dele, como `s06-mbes/s02-raw-data/day1/line001.kmall`.
+
+##### Expressões regulares
+
+Uma expressão regular é um padrão de texto no qual alguns caracteres têm um significado especial.
+Os caracteres universais da shell, como o `*.sgy` de `ls *.sgy`, são uma forma mais simples da
+mesma ideia, mas os dois usam notações diferentes. Em particular, numa expressão regular `*` não é
+um caractere universal por si só: repete o caractere anterior, pelo que o equivalente do `*` da
+shell numa expressão regular é `.*`, qualquer caractere repetido qualquer número de vezes.
+
+| Caractere universal da shell | Expressão regular | Significado |
+|------------------------------|-------------------|-------------|
+| `*` | `.*` | Qualquer sequência de caracteres, incluindo nenhum. |
+| `?` | `.` | Um caractere qualquer. |
+| `[abc]` | `[abc]` | Um dos caracteres indicados. |
+| `{sgy,segy}` | `(sgy|segy)` | Uma das alternativas. |
+| `.` | `\.` | Um ponto. |
+
+Os padrões de caminho usam a sintaxe de expressões regulares do Python. As construções mais úteis
+num padrão de caminho são:
+
+| Construção | Significado | Exemplo | Correspondências do exemplo |
+|------------|-------------|---------|-----------------------------|
+| `.` | Um caractere qualquer. | `line.` | `line1`, `lineA` |
+| `\` | Torna simples o caractere especial seguinte. | `\.sgy` | `.sgy` |
+| `*` | O elemento anterior, repetido qualquer número de vezes, incluindo nenhuma. | `.*\.sgy` | `a.sgy`, `.sgy` |
+| `+` | O elemento anterior, repetido pelo menos uma vez. | `.+\.sgy` | `a.sgy`, mas não `.sgy` |
+| `?` | O elemento anterior, opcionalmente. | `\.tiff?` | `.tif`, `.tiff` |
+| `[...]` | Um dos caracteres indicados, que podem incluir intervalos. | `s0[1-3]` | `s01`, `s02`, `s03` |
+| `\d` | Um algarismo qualquer. | `line\d` | `line1`, `line7` |
+| `{n}`, `{n,m}` | O elemento anterior, repetido exatamente `n` vezes, ou entre `n` e `m` vezes. | `\d{3}` | `001`, `042` |
+| `(a|b)` | Uma das alternativas. | `(sgy|segy)` | `sgy`, `segy` |
+| `(?i:...)` | O conteúdo do grupo, independentemente de maiúsculas e minúsculas. | `(?i:sgy)` | `sgy`, `SGY`, `Sgy` |
+
+##### Exemplos
+
+| Ficheiros | Padrão |
+|-----------|--------|
+| Todos os ficheiros `.sgy` ou `.segy` abaixo de `s08-chirp/s02-raw-data` | `s08-chirp/s02-raw-data/.*\.(sgy|segy)`, ou `s08-chirp/s02-raw-data/.*\.se?gy` |
+| Todos os ficheiros `.tif` ou `.tiff` abaixo de `s06-mbes/s05-processed-data` | `s06-mbes/s05-processed-data/.*\.tiff?` |
+| Todos os ficheiros `.sgy` abaixo do diretório `s02-raw-data` de `s08-chirp` ou de `s10-innomar` | `(s08-chirp|s10-innomar)/s02-raw-data/.*\.sgy` |
+| Todos os ficheiros `.sgy` ou `.segy` abaixo de `s13-uhrs/s02-raw-data`, com a extensão em maiúsculas ou minúsculas, como `LINE1.SGY` | `s13-uhrs/s02-raw-data/.*\.(?i:sgy|segy)` |
+| Ficheiros com o nome `line_` seguido de três algarismos, como `line_001.sgy`, mas não `line_1.sgy` | `s13-uhrs/s02-raw-data/line_\d{3}\.sgy` |
+| Todos os ficheiros `.sgy` abaixo de um diretório de `s13-uhrs` cujo nome começa por `s01-`, `s02-` ou `s03-` | `s13-uhrs/s0[1-3]-.*/.*\.sgy` |
+| Todos os ficheiros com o nome `surface.tif` abaixo de `s06-mbes/s08-gis` | `s06-mbes/s08-gis/surface\.tif` |
+
+As alternativas, como as de `(s08-chirp|s10-innomar)`, estão sujeitas às seguintes regras:
+
+- As alternativas aplicam-se a um nome completo de diretório ou de ficheiro. `.*\.sgy|segy`
+  corresponde aos nomes terminados em `.sgy` e ao nome `segy`, mas não aos nomes terminados em
+  `.segy`. Colocar as alternativas entre parênteses limita-as a uma parte do nome:
+  `.*\.(sgy|segy)`.
+- As alternativas não podem abranger vários diretórios, pois o padrão é dividido em nomes em cada
+  `/` antes de estes serem aplicados. Caminhos que diferem em mais do que um diretório requerem uma
+  configuração cada.
+- Um padrão que começa por uma expressão regular não tem prefixo literal. A descoberta percorre
+  então todo o diretório da missão, e o primeiro nome do padrão pode corresponder a um diretório a
+  qualquer profundidade: `(s08-chirp|s10-innomar)/s02-raw-data/.*\.sgy` também corresponde a
+  `old/s08-chirp/s02-raw-data/line1.sgy`.
+
+!!! warning "Erros comuns"
+
+    - Os caracteres universais da shell não são expressões regulares válidas: `*.sgy` é
+      rejeitado, e deve ser escrito `.*\.sgy`.
+    - Um `.` sem `\` corresponde a qualquer caractere: `.*.sgy` também corresponde a `line1sgy`.
+      Um ponto escreve-se `\.`.
+    - A correspondência distingue maiúsculas de minúsculas: `.*\.sgy` não corresponde a
+      `LINE1.SGY`.
+    - Não pode existir uma `/` na expressão regular de um nome, nem mesmo num conjunto de
+      caracteres como `[^/]`, pois separa sempre dois nomes.
+    - Uma configuração cujo padrão não é uma expressão regular válida é ignorada pela descoberta,
+      e o seu nome é indicado no resumo da descoberta.
+
+##### Leitura adicional
+
+O [guia de expressões regulares](https://docs.python.org/pt-br/3/howto/regex.html) da
+documentação do Python é uma introdução às expressões regulares, e a secção
+[Sintaxe de expressões regulares](https://docs.python.org/pt-br/3/library/re.html#regular-expression-syntax)
+da documentação do módulo `re` do Python descreve todas as suas construções. Ambas estão em
+português do Brasil.
 
 #### Atualizar uma configuração de descoberta de recursos
 
@@ -646,3 +736,141 @@ A ação **delete** da entrada de uma configuração elimina a configuração. O
 uma referência à configuração que os criou, pelo que a eliminação de uma configuração não modifica
 nenhum registo. Os ficheiros abrangidos apenas por uma configuração eliminada não são encontrados
 pelas descobertas posteriores.
+
+
+## API STAC { #stac-api }
+
+[STAC](https://stacspec.org/) (SpatioTemporal Asset Catalog) é uma norma para descrever e pesquisar
+dados geoespaciais. O catálogo disponibiliza uma API STAC só de leitura no caminho `/stac`, que
+permite a clientes STAC, como o [pystac-client](https://pystac-client.readthedocs.io/) ou a fonte
+de dados STAC do QGIS 3.40 e posteriores, navegar e pesquisar o catálogo e descarregar os ficheiros
+de dados dos seus registos.
+
+A API expõe apenas os projetos, missões e registos públicos, da mesma forma para todos os
+utilizadores: não requer autenticação, e também não mostra os itens não públicos aos utilizadores
+autenticados.
+
+A documentação interativa da API, que descreve cada um dos seus _endpoints_ e permite
+experimentá-los, tem uma ligação no rodapé de todas as páginas da interface web e está disponível
+em `/stac/docs`. A sua descrição legível por máquinas, no formato OpenAPI, está disponível em
+`/stac/openapi.json`.
+
+### Como é representado o catálogo
+
+| Catálogo | STAC | Caminho |
+|----------|------|---------|
+| O catálogo | Catálogo raiz | `/stac/` |
+| Projeto | Catálogo, filho do catálogo raiz | `/stac/catalogs/{project_id}` |
+| Missão | Coleção, filha do catálogo do seu projeto | `/stac/collections/{mission_id}` |
+| Registo | Item da coleção da sua missão | `/stac/collections/{mission_id}/items/{record_id}` |
+| Recurso de dados de um registo | Recurso do item do registo | Descarga do ficheiro de dados |
+
+Os identificadores dos objetos STAC são os do catálogo, tal como aparecem no endereço da sua página
+na interface web.
+
+### Endpoints
+
+| Endpoint | Conteúdo |
+|----------|----------|
+| `GET /stac/` | Página inicial: o catálogo raiz, com ligações para os outros _endpoints_. |
+| `GET /stac/conformance` | Classes de conformidade das especificações STAC API e OGC API - Features implementadas pela API. |
+| `GET /stac/children` | Projetos, como catálogos. |
+| `GET /stac/catalogs/{project_id}` | Um projeto. |
+| `GET /stac/catalogs/{project_id}/children` | Missões de um projeto, como coleções. |
+| `GET /stac/collections` | Missões de todos os projetos, como coleções. |
+| `GET /stac/collections/{mission_id}` | Uma missão. |
+| `GET /stac/collections/{mission_id}/items` | Registos de uma missão, como itens, que podem ser filtrados com os parâmetros `bbox` e `datetime` descritos abaixo. |
+| `GET /stac/collections/{mission_id}/items/{record_id}` | Um registo. |
+| `GET /stac/search`, `POST /stac/search` | Registos de todas as missões, como itens, filtrados pelos parâmetros de pesquisa descritos abaixo. |
+
+### Coleções
+
+A extensão da coleção de uma missão é a extensão espacial e temporal da missão. Uma missão cuja
+extensão espacial é desconhecida tem o mundo inteiro como extensão espacial, pois o STAC exige uma.
+
+### Itens
+
+O item de um registo tem o seguinte conteúdo:
+
+- A sua geometria e o seu retângulo envolvente são a extensão espacial do registo, em EPSG:4326.
+  Ambos estão vazios quando a extensão espacial do registo é desconhecida.
+- As suas propriedades `start_datetime` e `end_datetime` são as datas de início e de fim da
+  extensão temporal do registo, às 00:00 UTC. Quando ambas são desconhecidas, a sua propriedade
+  `datetime` é, em vez disso, a data e hora de criação do registo.
+- As suas outras propriedades, específicas do catálogo, são:
+
+    | Propriedade | Conteúdo |
+    |-------------|----------|
+    | `sld:status` | Estado do registo, sempre `published`. |
+    | `sld:validation_result` | Resultado da validação do registo. |
+    | `sld:dataset_category_id` | Identificador da categoria do registo. |
+    | `sld:dataset_category_name` | Nome da categoria do registo. |
+    | `sld:workflow_stage_id` | Identificador do estádio do registo. |
+    | `sld:workflow_stage_name` | Nome do estádio do registo. |
+
+- Tem um recurso para cada recurso de dados do registo, cuja chave é o identificador do recurso de
+  dados. O seu `href` é o endereço da descarga do ficheiro de dados, a partir da interface web, com
+  as mesmas regras de acesso. O seu `type` é o tipo de media do recurso de dados, exceto para os
+  formatos que são descarregados como um ficheiro zip juntamente com os respetivos ficheiros
+  auxiliares, como as shapefiles, conforme descrito em
+  [Trabalhar com recursos dos registos](#trabalhar-com-recursos-dos-registos), cujo tipo é
+  `application/zip`. O seu `title` e a sua `description` são o nome e a descrição do recurso de
+  dados.
+
+### Pesquisa
+
+O _endpoint_ `GET /stac/search` aceita os seguintes parâmetros, que podem ser combinados. Um item é
+devolvido quando cumpre todos eles.
+
+| Parâmetro | Conteúdo |
+|-----------|----------|
+| `bbox` | Retângulo envolvente em EPSG:4326, como `minx,miny,maxx,maxy`. São devolvidos apenas os itens cuja geometria o interseta. |
+| `intersects` | Geometria GeoJSON em EPSG:4326. São devolvidos apenas os itens cuja geometria a interseta. Não pode ser combinado com `bbox`. |
+| `datetime` | Data e hora, ou intervalo, no formato [RFC 3339](https://www.rfc-editor.org/rfc/rfc3339), como `2024-06-01T00:00:00Z` ou `2024-01-01T00:00:00Z/2024-12-31T23:59:59Z`. Um intervalo pode ser aberto num dos extremos, com `..`, como em `2024-01-01T00:00:00Z/..`. São devolvidos apenas os itens cuja extensão temporal se sobrepõe a ele. Apenas as datas são tidas em conta, não as horas. |
+| `collections` | Identificadores, separados por vírgulas, das missões em que pesquisar. |
+| `ids` | Identificadores, separados por vírgulas, dos registos a devolver. |
+| `limit`, `page` | Paginação, como descrito abaixo. |
+
+O _endpoint_ `POST /stac/search` aceita os mesmos parâmetros como um objeto JSON no corpo do
+pedido, com `bbox`, `collections` e `ids` como _arrays_ e `intersects` como um objeto GeoJSON.
+
+### Paginação
+
+As listagens da API são divididas em páginas. O parâmetro `limit` define o número de resultados
+por página, que é, por omissão, o tamanho de página da aplicação, 20, e no máximo 10000. O
+parâmetro `page` seleciona a página, a começar em 1. Os campos `numberMatched` e `numberReturned`
+de uma listagem de coleções ou de itens indicam o número total de resultados e o número de
+resultados da página. As ligações `next` e `prev` de uma listagem levam às páginas seguinte e
+anterior.
+
+### Exemplos
+
+Os exemplos seguintes usam `https://catalogue.example.com` como endereço da interface web.
+
+Os registos públicos com uma extensão espacial ao largo da costa oeste de Portugal continental e
+uma extensão temporal dentro de 2024, 50 por página:
+
+```shell
+curl "https://catalogue.example.com/stac/search?bbox=-10,37,-8.5,42&datetime=2024-01-01T00:00:00Z/2024-12-31T23:59:59Z&limit=50"
+```
+
+A mesma pesquisa, com os critérios no corpo do pedido:
+
+```shell
+curl -X POST "https://catalogue.example.com/stac/search" \
+    -H "Content-Type: application/json" \
+    -d '{"bbox": [-10, 37, -8.5, 42], "datetime": "2024-01-01T00:00:00Z/2024-12-31T23:59:59Z", "limit": 50}'
+```
+
+Os registos de uma missão, com os endereços dos seus ficheiros de dados, com o pystac-client em
+Python:
+
+```python
+from pystac_client import Client
+
+catalog = Client.open("https://catalogue.example.com/stac/")
+search = catalog.search(collections=["<identificador da missão>"])
+for item in search.items():
+    for asset in item.assets.values():
+        print(item.id, asset.href)
+```

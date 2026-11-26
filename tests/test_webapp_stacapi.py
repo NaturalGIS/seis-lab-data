@@ -5,8 +5,15 @@ geospatial data, which exposes only published projects, survey missions and
 survey-related records.
 """
 
+import json
+import urllib.parse
+
 import pytest
 import pytest_asyncio
+import shapely
+import shapely.geometry
+import sqlmodel
+from geoalchemy2.shape import from_shape
 from starlette.testclient import TestClient
 
 from seis_lab_data import constants
@@ -79,6 +86,24 @@ def test_landing_page_and_api_description_state_system_version(
     assert landing_page["seis_lab_data:version"] == settings.version
     api_description = stac_api_client.get("/stac/openapi.json").json()
     assert api_description["info"]["version"] == settings.version
+
+
+def test_api_description_documents_every_endpoint(stac_api_client: TestClient):
+    """The description of the STAC API gives every endpoint a title, a description
+    and a group, describes every parameter, and contains no empty contact or license
+    details.
+    """
+    api_description = stac_api_client.get("/stac/openapi.json").json()
+    assert "contact" not in api_description["info"]
+    assert "license" not in api_description["info"]
+    assert all(tag["name"] for tag in api_description["tags"])
+    for path, operations in api_description["paths"].items():
+        for method, operation in operations.items():
+            assert operation.get("summary"), (method, path)
+            assert operation.get("description"), (method, path)
+            assert operation.get("tags"), (method, path)
+            for parameter in operation.get("parameters", []):
+                assert parameter.get("description"), (method, path, parameter)
 
 
 def test_conformance(stac_api_client: TestClient):
@@ -204,6 +229,37 @@ def test_item_detail_published(stac_api_client: TestClient, published_sample_dat
     assert body["collection"] == str(mission_id)
 
 
+def test_items_name_their_dataset_category_and_workflow_stage(
+    stac_api_client: TestClient, published_sample_data, sync_db_engine
+):
+    """The STAC item of a survey-related record states the name of its dataset category
+    and of its workflow stage, along with their identifiers, both when the record is
+    requested on its own and when it is found by a search.
+    """
+    record = published_sample_data["records"][0]
+    with sqlmodel.Session(sync_db_engine) as session:
+        db_record = session.get(models.SurveyRelatedRecord, record.id)
+        expected = {
+            "sld:dataset_category_id": str(db_record.dataset_category.id),
+            "sld:dataset_category_name": db_record.dataset_category.name,
+            "sld:workflow_stage_id": str(db_record.workflow_stage.id),
+            "sld:workflow_stage_name": db_record.workflow_stage.name,
+        }
+
+    item_response = stac_api_client.get(
+        f"/stac/collections/{record.survey_mission_id}/items/{record.id}"
+    )
+    search_response = stac_api_client.get(
+        "/stac/search", params={"ids": str(record.id)}
+    )
+
+    assert item_response.status_code == 200
+    assert search_response.status_code == 200
+    for item in (item_response.json(), search_response.json()["features"][0]):
+        properties = item["properties"]
+        assert {key: properties.get(key) for key in expected} == expected
+
+
 def test_item_detail_wrong_mission_is_404(
     stac_api_client: TestClient, published_sample_data
 ):
@@ -259,6 +315,56 @@ def test_search_post_by_ids(stac_api_client: TestClient, published_sample_data):
     assert response.status_code == 200
     body = response.json()
     assert {f["id"] for f in body["features"]} == {str(record.id)}
+
+
+@pytest.mark.parametrize("method", ["GET", "POST"])
+def test_search_by_geometry_keeps_it_across_pages(
+    stac_api_client: TestClient, published_sample_data, sync_db_engine, method
+):
+    """When a STAC API search by geometry is spread over several pages, the link to
+    the following page keeps the geometry, so that the following page only contains
+    the survey-related records within it as well.
+    """
+    with sqlmodel.Session(sync_db_engine) as session:
+        for record in published_sample_data["records"]:
+            db_record = session.get(models.SurveyRelatedRecord, record.id)
+            db_record.bbox_4326 = from_shape(
+                shapely.box(-9.5, 38.5, -9.0, 39.0), srid=4326
+            )
+            session.add(db_record)
+        session.commit()
+    geometry = {
+        "type": "Polygon",
+        "coordinates": [[[-10, 38], [-8, 38], [-8, 40], [-10, 40], [-10, 38]]],
+    }
+    if method == "GET":
+        response = stac_api_client.get(
+            "/stac/search", params={"intersects": json.dumps(geometry), "limit": 1}
+        )
+    else:
+        response = stac_api_client.post(
+            "/stac/search", json={"intersects": geometry, "limit": 1}
+        )
+    assert response.status_code == 200
+    first_page = response.json()
+    assert first_page["numberMatched"] == len(published_sample_data["records"])
+
+    next_link = next(li for li in first_page["links"] if li["rel"] == "next")
+    next_url = urllib.parse.urlsplit(next_link["href"])
+    next_query = urllib.parse.parse_qs(next_url.query)
+    assert shapely.geometry.shape(json.loads(next_query["intersects"][0])).equals(
+        shapely.geometry.shape(geometry)
+    )
+    next_response = stac_api_client.get(f"{next_url.path}?{next_url.query}")
+    assert next_response.status_code == 200
+    returned_ids = [
+        feature["id"]
+        for page in (first_page, next_response.json())
+        for feature in page["features"]
+    ]
+    assert sorted(returned_ids) == sorted(
+        str(r.id) for r in published_sample_data["records"]
+    )
 
 
 def test_asset_href_points_at_download_route(stac_api_client: TestClient, sample_asset):

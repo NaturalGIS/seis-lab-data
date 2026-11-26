@@ -1,15 +1,19 @@
 """Survey-related record details
 
 The page of a survey-related record shows the information gathered when its files were
-discovered, the size of its bounding box and the location of its data files, and keeps
-the user informed while the record is exported to GeoNode.
+discovered, its extents, the size of its bounding box, its links and related records,
+and the location of its data files, and keeps the user informed while the record is
+exported to GeoNode. The pages of projects and survey missions show their extents and
+links in the same way.
 """
 
+import datetime as dt
 import uuid
 
 import pytest
 import shapely
 import sqlmodel
+from geoalchemy2.shape import from_shape
 from starlette.authentication import AuthCredentials
 from starlette.testclient import TestClient
 
@@ -57,6 +61,175 @@ def test_detail_page_shows_the_discovery_info(
     # JSONB gives the Float32 nodata back as a 39-digit integer
     assert "-3.40282e+38" in response.text
     assert "50 m x 58.99 km" in response.text
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "model, data_key, url_prefix",
+    [
+        pytest.param(models.Project, "projects", "/projects", id="project"),
+        pytest.param(
+            models.SurveyMission, "missions", "/survey-missions", id="survey-mission"
+        ),
+        pytest.param(
+            models.SurveyRelatedRecord,
+            "records",
+            "/survey-related-records",
+            id="survey-related-record",
+        ),
+    ],
+)
+def test_detail_page_shows_links_section_only_when_there_are_links(
+    test_client: TestClient,
+    published_sample_data,
+    sync_db_engine,
+    model,
+    data_key,
+    url_prefix,
+):
+    """The pages of projects, survey missions and survey-related records only show a
+    links section when the item has links.
+    """
+    item = published_sample_data[data_key][0]
+    with sqlmodel.Session(sync_db_engine) as session:
+        db_item = session.get(model, item.id)
+        db_item.links = []
+        session.add(db_item)
+        session.commit()
+
+    without_links_response = test_client.get(f"{url_prefix}/{item.id}")
+
+    with sqlmodel.Session(sync_db_engine) as session:
+        db_item = session.get(model, item.id)
+        db_item.links = [
+            {
+                "url": "https://example.com/report.pdf",
+                "media_type": "application/pdf",
+                "relation": "describedby",
+                "link_description": "survey report",
+            }
+        ]
+        session.add(db_item)
+        session.commit()
+
+    with_links_response = test_client.get(f"{url_prefix}/{item.id}")
+
+    assert without_links_response.status_code == 200
+    assert 'aria-label="links"' not in without_links_response.text
+    assert with_links_response.status_code == 200
+    assert 'aria-label="links"' in with_links_response.text
+    assert "https://example.com/report.pdf" in with_links_response.text
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "begin, end, expected",
+    [
+        pytest.param(
+            dt.date(2026, 1, 1),
+            dt.date(2026, 3, 24),
+            "2026-01-01 / 2026-03-24",
+            id="known",
+        ),
+        pytest.param(
+            None, dt.date(2025, 5, 23), "Unknown start / 2025-05-23", id="open-start"
+        ),
+        pytest.param(
+            dt.date(2020, 7, 12), None, "2020-07-12 / Unknown end", id="open-end"
+        ),
+        pytest.param(None, None, "Unknown", id="unknown"),
+    ],
+)
+def test_detail_page_shows_the_temporal_extent(
+    test_client: TestClient, published_sample_data, sync_db_engine, begin, end, expected
+):
+    """The page of a survey-related record shows the beginning and end dates of its
+    temporal extent, stating which of them are unknown.
+    """
+    record = published_sample_data["records"][0]
+    with sqlmodel.Session(sync_db_engine) as session:
+        db_record = session.get(models.SurveyRelatedRecord, record.id)
+        db_record.temporal_extent_begin = begin
+        db_record.temporal_extent_end = end
+        session.add(db_record)
+        session.commit()
+
+    response = test_client.get(
+        f"/survey-related-records/{record.id}", headers={"Accept-Language": "en"}
+    )
+
+    assert response.status_code == 200
+    assert f'aria-label="temporal-extent">{expected}</dd>' in response.text
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "bbox, expected",
+    [
+        pytest.param(
+            shapely.box(-9.123456789, 38.5, -8.0, 39.987654321),
+            "-9.12346, 38.50000, -8.00000, 39.98765",
+            id="known",
+        ),
+        pytest.param(None, "Unknown", id="unknown"),
+    ],
+)
+def test_detail_page_shows_the_spatial_extent(
+    test_client: TestClient, published_sample_data, sync_db_engine, bbox, expected
+):
+    """The page of a survey-related record shows the coordinates of its spatial
+    extent with five decimal places, or states that it is unknown.
+    """
+    record = published_sample_data["records"][0]
+    with sqlmodel.Session(sync_db_engine) as session:
+        db_record = session.get(models.SurveyRelatedRecord, record.id)
+        db_record.bbox_4326 = from_shape(bbox, srid=4326) if bbox else None
+        session.add(db_record)
+        session.commit()
+
+    response = test_client.get(
+        f"/survey-related-records/{record.id}", headers={"Accept-Language": "en"}
+    )
+
+    assert response.status_code == 200
+    assert f'aria-label="spatial-extent">{expected}</dd>' in response.text
+
+
+@pytest.mark.integration
+def test_detail_page_shows_related_records_only_when_there_are_any(
+    test_client: TestClient, published_sample_data, sync_db_engine
+):
+    """The page of a survey-related record only shows a related records section when
+    the record is related to other records, in which case it lists them along with
+    their relation, on the pages of both records.
+    """
+    record, other_record = published_sample_data["records"][:2]
+
+    without_relations_response = test_client.get(f"/survey-related-records/{record.id}")
+
+    with sqlmodel.Session(sync_db_engine) as session:
+        session.add(
+            models.SurveyRelatedRecordSelfLink(
+                subject_id=record.id,
+                related_to_id=other_record.id,
+                relation="derived-from",
+            )
+        )
+        session.commit()
+
+    subject_response = test_client.get(f"/survey-related-records/{record.id}")
+    related_response = test_client.get(f"/survey-related-records/{other_record.id}")
+
+    assert without_relations_response.status_code == 200
+    assert 'aria-label="related-record"' not in without_relations_response.text
+    for response, shown_record in (
+        (subject_response, other_record),
+        (related_response, record),
+    ):
+        assert response.status_code == 200
+        assert response.text.count('aria-label="related-record"') == 1
+        assert f"/survey-related-records/{shown_record.id}" in response.text
+        assert "derived-from" in response.text
 
 
 def test_discovery_info_items_are_ordered_and_formatted():
@@ -199,6 +372,35 @@ def test_details_component_shows_the_full_path_of_data_assets(
 
     assert response.status_code == 200
     assert str(tmp_path / mission.relative_path / asset.relative_path) in response.text
+
+
+@pytest.mark.integration
+def test_detail_page_shows_asset_description_only_when_there_is_one(
+    test_client: TestClient, published_sample_data, sync_db_engine
+):
+    """The page of a survey-related record only shows the description of a data file
+    when it has one.
+    """
+    record = published_sample_data["records"][0]
+    data_assets = [a for a in record.assets if constants.AssetType.DATA in a.asset_type]
+
+    responses = {}
+    for description in ("", "acquisition line 42"):
+        with sqlmodel.Session(sync_db_engine) as session:
+            for asset in data_assets:
+                db_asset = session.get(models.RecordAsset, asset.id)
+                db_asset.description = description
+                session.add(db_asset)
+            session.commit()
+        responses[description] = test_client.get(
+            f"/survey-related-records/{record.id}", headers={"Accept-Language": "en"}
+        )
+
+    assert responses[""].status_code == 200
+    assert ">Description</dt>" not in responses[""].text
+    assert responses["acquisition line 42"].status_code == 200
+    assert ">Description</dt>" in responses["acquisition line 42"].text
+    assert "acquisition line 42" in responses["acquisition line 42"].text
 
 
 @pytest.mark.integration
