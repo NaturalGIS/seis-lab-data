@@ -1,13 +1,14 @@
 """Survey-related record details
 
 The page of a survey-related record shows the information gathered when its files were
-discovered and the location of its data files, and keeps the user informed while the
-record is exported to GeoNode.
+discovered, the size of its bounding box and the location of its data files, and keeps
+the user informed while the record is exported to GeoNode.
 """
 
 import uuid
 
 import pytest
+import shapely
 import sqlmodel
 from starlette.authentication import AuthCredentials
 from starlette.testclient import TestClient
@@ -31,14 +32,19 @@ def test_detail_page_shows_the_discovery_info(
 ):
     """The page of a survey-related record shows the information gathered about its
     files during discovery, such as the file size and the no-data value, in readable
-    form.
+    form, and the size of its bounding box.
     """
     record = published_sample_data["records"][0]
     with sqlmodel.Session(sync_db_engine) as session:
         db_record = session.get(models.SurveyRelatedRecord, record.id)
+        db_record.bbox_4326 = (
+            "POLYGON((-9.54 39.66, -9.53 39.66, -9.53 40.19, -9.54 40.19, -9.54 39.66))"
+        )
         db_record.discovery_info = {
             "file_size_bytes": 1_500_000,
             "nodata": -3.4028234663852886e38,
+            "bbox_native": [-120000, 0, -119950, 59000],
+            "epsg": 3763,
         }
         session.add(db_record)
         session.commit()
@@ -50,6 +56,7 @@ def test_detail_page_shows_the_discovery_info(
     assert "1.5 MB" in response.text
     # JSONB gives the Float32 nodata back as a 39-digit integer
     assert "-3.40282e+38" in response.text
+    assert "50 m x 58.99 km" in response.text
 
 
 def test_discovery_info_items_are_ordered_and_formatted():
@@ -115,6 +122,37 @@ def test_discovery_info_items_are_ordered_and_formatted():
 def test_discovery_info_items_of_a_record_without_any(discovery_info):
     """No discovery information is listed for a record that has none."""
     assert jinjafilters.get_discovery_info_items(discovery_info) == []
+
+
+def test_bbox_size_is_measured_and_formatted():
+    """The size of a record's bounding box is given as its width, height, diagonal and
+    area, in metres or kilometres according to their magnitude. The bounding box of the
+    data file is measured when the record has one, whatever the unit of its coordinate
+    reference system. Otherwise the bounding box in WGS 84 is measured, as it is for a
+    data file that holds a single position. A record without a bounding box has no size.
+    """
+    bbox_4326 = shapely.box(-9.0, 38.0, -8.9, 38.1)
+    tm06_discovery_info = {"bbox_native": [-120000, 0, -119950, 59000], "epsg": 3763}
+
+    # 50 m by 59 km in TM06, shorter on the ground 120 km from the central meridian
+    assert jinjafilters.get_bbox_size(bbox_4326, tm06_discovery_info) == (
+        "50 m",
+        "58.99 km",
+        "58.99 km",
+        "2.95 km²",
+        True,
+    )
+    # 1000 by 2000 feet in NAD83 / New York Long Island (ftUS)
+    assert jinjafilters.get_bbox_size(
+        bbox_4326, {"bbox_native": [1000000, 185000, 1001000, 187000], "epsg": 2263}
+    ) == ("305 m", "610 m", "682 m", "185807 m²", True)
+    # 0.1 by 0.1 degrees at 38 N, as the record has no native bounding box
+    wgs84_size = ("8.78 km", "11.10 km", "14.15 km", "97.43 km²", False)
+    assert jinjafilters.get_bbox_size(bbox_4326, None) == wgs84_size
+    # a single position has no size, so the WGS 84 bounding box of the map is measured
+    single_position = {"bbox_native": [-120000, 0, -120000, 0], "epsg": 3763}
+    assert jinjafilters.get_bbox_size(bbox_4326, single_position) == wgs84_size
+    assert jinjafilters.get_bbox_size(None, tm06_discovery_info) is None
 
 
 @pytest.mark.integration
