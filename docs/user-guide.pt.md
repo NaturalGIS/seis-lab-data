@@ -391,6 +391,11 @@ seus recursos de dados, com um botão de descarga para cada um. A página aprese
 metadados extraídos do ficheiro de dados do registo, como o formato, o CRS e o tamanho do
 ficheiro.
 
+Para um registo com extensão espacial, as propriedades mostram também a largura, a altura, a
+diagonal e a área da sua extensão espacial. É medida a extensão espacial nativa do ficheiro de
+dados, no CRS do ficheiro, quando o registo a tem. Caso contrário é medida a extensão em WGS 84,
+tal como para um ficheiro de dados com uma única posição ou uma linha ao longo de um eixo.
+
 ### Pesquisar registos
 
 Os registos são listados em dois locais:
