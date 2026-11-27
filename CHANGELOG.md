@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.0.0] - 2026-11-27
+
 ### Added
 
 - Teledyne PDS `.pds` files get their acquisition date, CRS and planned survey area from the file header
@@ -307,7 +309,8 @@ Upgrading from 0.6.0 requires manual steps, see "Version-specific upgrade steps"
 - First release, mainly for trying out the deployment workflows
 
 
-[unreleased]: https://github.com/naturalgis/seis-lab-data/compare/v1.0.0-rc2...HEAD
+[unreleased]: https://github.com/naturalgis/seis-lab-data/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/naturalgis/seis-lab-data/compare/v1.0.0-rc2...v1.0.0
 [1.0.0-rc2]: https://github.com/naturalgis/seis-lab-data/compare/v1.0.0-rc1...v1.0.0-rc2
 [1.0.0-rc1]: https://github.com/naturalgis/seis-lab-data/compare/v0.6.0...v1.0.0-rc1
 [0.6.0]: https://github.com/naturalgis/seis-lab-data/compare/v0.5.0...v0.6.0
